@@ -4,13 +4,28 @@ import { RecoveryMode } from "./RecoveryMode";
 
 const mocks = vi.hoisted(() => ({
   clearAllData: vi.fn(async () => {}),
+  backupDatabaseNow: vi.fn(async () => {}),
+  backupSettingsNow: vi.fn(async () => {}),
   startNormally: vi.fn(async () => {}),
+  setLogLevel: vi.fn(async () => {}),
+  getDebugState: vi.fn(async () => ({ logLevel: "off", logFilePath: "" })),
 }));
 
 vi.mock("./services/db", () => ({
   db: {
     install: {
       clearAllData: mocks.clearAllData,
+      backupDatabaseNow: mocks.backupDatabaseNow,
+      backupSettingsNow: mocks.backupSettingsNow,
+    },
+  },
+}));
+
+vi.mock("./services/trpc", () => ({
+  trpc: {
+    debug: {
+      setLogLevel: { mutate: mocks.setLogLevel },
+      getState: { query: mocks.getDebugState },
     },
   },
 }));
@@ -18,7 +33,11 @@ vi.mock("./services/db", () => ({
 describe("RecoveryMode", () => {
   beforeEach(() => {
     mocks.clearAllData.mockClear();
+    mocks.backupDatabaseNow.mockClear();
+    mocks.backupSettingsNow.mockClear();
     mocks.startNormally.mockClear();
+    mocks.setLogLevel.mockClear();
+    mocks.getDebugState.mockResolvedValue({ logLevel: "off", logFilePath: "" });
     window.electronAPI = {
       startupRecovery: {
         startNormally: mocks.startNormally,
@@ -76,5 +95,46 @@ describe("RecoveryMode", () => {
       });
     });
     expect(screen.getByText("Selected recovery data was cleared.")).toBeDefined();
+  });
+
+  it("renders the log level selector and backup buttons", () => {
+    render(<RecoveryMode />);
+
+    expect(screen.getByLabelText("Log Level")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Backup Database" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Backup Settings" })).toBeDefined();
+  });
+
+  it("changes the log level when a new level is selected", async () => {
+    render(<RecoveryMode />);
+
+    fireEvent.change(screen.getByLabelText("Log Level"), { target: { value: "debug" } });
+
+    await waitFor(() => {
+      expect(mocks.setLogLevel).toHaveBeenCalledWith({ level: "debug" });
+    });
+    expect(screen.getByText('Log level changed to "debug".')).toBeDefined();
+  });
+
+  it("backs up the database", async () => {
+    render(<RecoveryMode />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Backup Database" }));
+
+    await waitFor(() => {
+      expect(mocks.backupDatabaseNow).toHaveBeenCalled();
+    });
+    expect(screen.getByText("Database backup created.")).toBeDefined();
+  });
+
+  it("backs up the settings", async () => {
+    render(<RecoveryMode />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Backup Settings" }));
+
+    await waitFor(() => {
+      expect(mocks.backupSettingsNow).toHaveBeenCalled();
+    });
+    expect(screen.getByText("Settings backup created.")).toBeDefined();
   });
 });

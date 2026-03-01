@@ -4,8 +4,8 @@ import type Store from "electron-store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetStoreForTests,
-  __setEncryptionKeyDeriverForTests,
   __setStoreFactoryForTests,
+  __setHardwareKeyDeriverForTests,
   getStore,
   initStore,
   resolveSettingsStorePath,
@@ -13,6 +13,26 @@ import {
   safeStoreGetMany,
   safeStoreSet,
 } from "./store";
+
+vi.mock("electron", () => ({
+  app: {
+    getPath: () => "/tmp/test-userData",
+    isPackaged: false,
+  },
+}));
+
+vi.mock("node:fs", () => ({
+  default: {
+    existsSync: () => false,
+    readFileSync: () => "{}",
+    writeFileSync: () => undefined,
+    mkdirSync: () => undefined,
+  },
+  existsSync: () => false,
+  readFileSync: () => "{}",
+  writeFileSync: () => undefined,
+  mkdirSync: () => undefined,
+}));
 
 class FakeStore {
   data: Record<string, unknown>;
@@ -53,6 +73,7 @@ function asStore(fake: FakeStore): Store {
 describe("store initialization", () => {
   beforeEach(() => {
     __resetStoreForTests();
+    __setHardwareKeyDeriverForTests(async () => "fake-hardware-key");
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
@@ -64,15 +85,18 @@ describe("store initialization", () => {
   it("replaces a synchronous fallback store when initStore derives the real key", async () => {
     const fallbackStore = new FakeStore();
     const derivedStore = new FakeStore();
-    const factory = vi.fn((key: string) =>
-      asStore(key === "derived-key" ? derivedStore : fallbackStore)
-    );
+    let callCount = 0;
+    const factory = vi.fn((_key: string) => {
+      callCount++;
+      return asStore(callCount === 1 ? fallbackStore : derivedStore);
+    });
 
-    __setEncryptionKeyDeriverForTests(async () => "derived-key");
     __setStoreFactoryForTests(factory);
 
+    // First call creates the fallback store
     expect(getStore()).toBe(asStore(fallbackStore));
 
+    // initStore creates the derived store
     await initStore();
 
     expect(getStore()).toBe(asStore(derivedStore));
@@ -82,11 +106,16 @@ describe("store initialization", () => {
   it("migrates settings written with the temporary startup key", async () => {
     const fallbackStore = new FakeStore({ "app.locale": "de", "music.volume": 0.3 });
     const derivedStore = new FakeStore({}, false);
+    let callCount = 0;
 
-    __setEncryptionKeyDeriverForTests(async () => "derived-key");
-    __setStoreFactoryForTests((key: string) =>
-      asStore(key === "derived-key" ? derivedStore : fallbackStore)
-    );
+    __setStoreFactoryForTests((_key: string) => {
+      callCount++;
+      // First call from getStore() → fallback, second from initStore → derived
+      return asStore(callCount <= 1 ? fallbackStore : derivedStore);
+    });
+
+    // Prime the fallback store
+    getStore();
 
     await initStore();
 
@@ -124,5 +153,31 @@ describe("store initialization", () => {
     __setStoreFactoryForTests(() => asStore(writableStore));
 
     expect(resolveSettingsStorePath()).toBe("/settings/f-land.json");
+  });
+
+  it("migrates settings from a legacy hardware-derived key", async () => {
+    const hardwareStore = new FakeStore({ "app.locale": "fr", "music.volume": 0.7 });
+    const derivedStore = new FakeStore({}, false);
+    const fallbackStore = new FakeStore({}, false);
+    let callCount = 0;
+
+    __setStoreFactoryForTests((_key: string) => {
+      callCount++;
+      // 1st: derived (unreadable), 2nd: fallback (unreadable), 3rd: hardware (readable)
+      if (callCount === 1) return asStore(derivedStore);
+      if (callCount === 2) return asStore(fallbackStore);
+      return asStore(hardwareStore);
+    });
+
+    __setHardwareKeyDeriverForTests(async () => "hardware-derived-key");
+
+    await initStore();
+
+    expect(getStore()).toBe(asStore(derivedStore));
+    expect(derivedStore.data).toEqual({
+      "app.locale": "fr",
+      "music.volume": 0.7,
+    });
+    expect(derivedStore.readable).toBe(true);
   });
 });

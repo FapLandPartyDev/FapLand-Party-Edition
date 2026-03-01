@@ -84,6 +84,51 @@ describe("StartupGate", () => {
     expect(mocks.startNormally).toHaveBeenCalledTimes(1);
   });
 
+  it("shows error UI when startup fails", async () => {
+    mocks.startNormally.mockRejectedValue(new Error("Database connection failed"));
+
+    render(<StartupGate />);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+      await vi.dynamicImportSettled();
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Startup failed")).toBeDefined();
+    });
+    expect(screen.getByText("Database connection failed")).toBeDefined();
+    expect(mocks.startNormally).toHaveBeenCalledTimes(1);
+  });
+
+  it("can retry after startup error", async () => {
+    mocks.startNormally.mockRejectedValueOnce(new Error("First attempt failed"));
+
+    render(<StartupGate />);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+      await vi.dynamicImportSettled();
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Startup failed")).toBeDefined();
+    });
+
+    mocks.startNormally.mockResolvedValueOnce(undefined);
+
+    fireEvent.click(screen.getByText("Retry"));
+    await act(async () => {
+      await vi.runAllTimersAsync();
+      await vi.dynamicImportSettled();
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Normal App Loaded")).toBeDefined();
+    });
+    expect(mocks.startNormally).toHaveBeenCalledTimes(2);
+  });
+
   it("stops listening for R after the shortcut window", async () => {
     render(<StartupGate />);
 

@@ -1,6 +1,5 @@
 import { app } from "electron";
-import path from "node:path";
-import fs from "node:fs";
+import Store from "electron-store";
 import {
   FFMPEG_GPU_PREFERENCE_KEY,
   normalizeFfmpegGpuPreference,
@@ -72,48 +71,16 @@ const graphicsCompatibilityKeys = new Set([
   GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY,
 ]);
 
-export function createStartupGraphicsStore(): StoreLike {
-  let userDataPath: string;
+export function createStartupGraphicsStore(): Store<Record<string, unknown>> {
   try {
-    userDataPath = app.getPath("userData");
+    return new Store<Record<string, unknown>>({ name: "graphics-startup" });
   } catch (error) {
     console.warn("Falling back to cwd graphics startup store", error);
-    userDataPath = process.cwd();
+    return new Store<Record<string, unknown>>({
+      cwd: process.cwd(),
+      name: "graphics-startup",
+    });
   }
-
-  const storePath = path.join(userDataPath, "graphics-startup.json");
-
-  let storeData: Record<string, unknown> = {};
-  try {
-    if (fs.existsSync(storePath)) {
-      storeData = JSON.parse(fs.readFileSync(storePath, "utf-8"));
-    }
-  } catch (error) {
-    console.warn("Failed to read graphics-startup.json", error);
-  }
-
-  return {
-    get: (key: string) => {
-      return key.split(".").reduce((acc: any, part) => acc && acc[part], storeData);
-    },
-    set: (key: string, value: unknown) => {
-      const parts = key.split(".");
-      let current: any = storeData;
-      for (let i = 0; i < parts.length - 1; i++) {
-        if (!current[parts[i]] || typeof current[parts[i]] !== "object") {
-          current[parts[i]] = {};
-        }
-        current = current[parts[i]];
-      }
-      current[parts[parts.length - 1]] = value;
-
-      try {
-        fs.writeFileSync(storePath, JSON.stringify(storeData, null, 2), "utf-8");
-      } catch (error) {
-        console.warn("Failed to write graphics-startup.json", error);
-      }
-    },
-  };
 }
 
 export function readGraphicsCompatibilitySettings(

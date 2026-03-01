@@ -12,10 +12,12 @@ const LazyRecoveryMode = lazy(async () => {
   return { default: module.RecoveryMode };
 });
 
-type StartupMode = "pending" | "normal" | "recovery";
+type StartupMode = "pending" | "normal" | "recovery" | "error";
 
 export function StartupGate() {
   const [mode, setMode] = useState<StartupMode>("pending");
+  const [startupError, setStartupError] = useState<string | null>(null);
+  const [attemptId, setAttemptId] = useState(0);
   const recoveryRequestedRef = useRef(false);
   const normalStartCalledRef = useRef(false);
 
@@ -25,8 +27,11 @@ export function StartupGate() {
 
     try {
       await window.electronAPI?.startupRecovery?.startNormally?.();
+      return true;
     } catch (error) {
       console.error("Failed to start normal app startup", error);
+      setStartupError(error instanceof Error ? error.message : String(error));
+      return false;
     }
   }, []);
 
@@ -42,10 +47,15 @@ export function StartupGate() {
   }, []);
 
   useEffect(() => {
-    void startNormally().then(() => {
-      if (!recoveryRequestedRef.current) setMode("normal");
+    normalStartCalledRef.current = false;
+    void startNormally().then((succeeded) => {
+      if (succeeded && !recoveryRequestedRef.current) {
+        setMode("normal");
+      } else if (!succeeded && !recoveryRequestedRef.current) {
+        setMode("error");
+      }
     });
-  }, [startNormally]);
+  }, [startNormally, attemptId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -80,6 +90,14 @@ export function StartupGate() {
         <LazyRecoveryMode />
       </Suspense>
     );
+  }
+
+  if (mode === "error") {
+    return <StartupError error={startupError} onRetry={() => {
+      setStartupError(null);
+      setAttemptId((prev) => prev + 1);
+      setMode("pending");
+    }} />;
   }
 
   return <StartupSplash message="Starting\u2026" />;
@@ -191,6 +209,43 @@ function StartupSplash({ message }: { message: string }) {
           <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.25em] text-violet-200/60">
             {message}
           </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StartupError({ error, onRetry }: { error: string | null; onRetry: () => void }) {
+  return (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050508]">
+      <div className="relative z-30 flex flex-col items-center px-6 text-center max-w-lg">
+        <div className="mb-6 text-6xl">&#x26A0;&#xFE0F;</div>
+        <h1 className="mb-3 text-2xl font-extrabold tracking-tight text-red-100">
+          Startup failed
+        </h1>
+        <p className="mb-2 text-sm text-zinc-400">
+          The app could not initialize. You can retry or open recovery mode.
+        </p>
+        {error && (
+          <p className="mb-6 max-h-24 overflow-auto rounded-lg border border-red-500/30 bg-red-500/10 p-3 font-mono text-xs text-red-300">
+            {error}
+          </p>
+        )}
+        <div className="flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-xl border border-violet-300/60 bg-violet-500/30 px-6 py-2.5 text-sm font-semibold text-violet-100 transition-all duration-200 hover:border-violet-200/80 hover:bg-violet-500/45"
+          >
+            Retry
+          </button>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-xl border border-zinc-600 bg-zinc-800/80 px-6 py-2.5 text-sm font-semibold text-zinc-300 transition-all duration-200 hover:border-zinc-500 hover:bg-zinc-700/80"
+          >
+            Reload
+          </button>
         </div>
       </div>
     </div>

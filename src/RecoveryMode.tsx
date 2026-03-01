@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { I18nProvider as LinguiProvider } from "@lingui/react";
 import { ClearDataDialog, DEFAULT_CLEAR_DATA_SELECTIONS, type ClearDataSelections } from "./components/ClearDataDialog";
 import { db } from "./services/db";
+import { trpc } from "./services/trpc";
 import { i18n } from "./i18n/config";
+import { DEBUG_LOG_LEVELS, normalizeDebugLogLevel, type DebugLogLevel } from "./constants/debugSettings";
 
 export function RecoveryMode() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -11,6 +13,18 @@ export function RecoveryMode() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isStartingNormally, setIsStartingNormally] = useState(false);
+  const [logLevel, setLogLevel] = useState<DebugLogLevel>("off");
+  const [isBackingUpDb, setIsBackingUpDb] = useState(false);
+  const [isBackingUpSettings, setIsBackingUpSettings] = useState(false);
+
+  useEffect(() => {
+    trpc.debug.getState
+      .query()
+      .then((state) => {
+        setLogLevel(normalizeDebugLogLevel(state.logLevel));
+      })
+      .catch(() => {});
+  }, []);
 
   const startNormally = async () => {
     if (isStartingNormally) return;
@@ -44,6 +58,49 @@ export function RecoveryMode() {
       setError(clearError instanceof Error ? clearError.message : "Failed to clear data.");
     } finally {
       setIsClearing(false);
+    }
+  };
+
+  const changeLogLevel = async (level: string) => {
+    const normalized = normalizeDebugLogLevel(level);
+    try {
+      await trpc.debug.setLogLevel.mutate({ level: normalized });
+      setLogLevel(normalized);
+      setError(null);
+      setNotice(`Log level changed to "${normalized}".`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to change log level.");
+      setNotice(null);
+    }
+  };
+
+  const backupDatabase = async () => {
+    if (isBackingUpDb) return;
+    setIsBackingUpDb(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await db.install.backupDatabaseNow();
+      setNotice("Database backup created.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to backup database.");
+    } finally {
+      setIsBackingUpDb(false);
+    }
+  };
+
+  const backupSettings = async () => {
+    if (isBackingUpSettings) return;
+    setIsBackingUpSettings(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await db.install.backupSettingsNow();
+      setNotice("Settings backup created.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to backup settings.");
+    } finally {
+      setIsBackingUpSettings(false);
     }
   };
 
@@ -106,6 +163,63 @@ export function RecoveryMode() {
             >
               {isClearing ? "Clearing..." : "Manage & Clear Data"}
             </button>
+          </div>
+
+          <div className="mt-10 border-t border-zinc-800 pt-8">
+            <h2 className="text-lg font-bold text-zinc-200">Utilities</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Backup data or change the log level without leaving recovery mode.
+            </p>
+
+            <div className="mt-5 flex flex-col gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <label
+                  htmlFor="recovery-log-level"
+                  className="shrink-0 text-sm font-semibold text-zinc-300"
+                >
+                  Log Level
+                </label>
+                <select
+                  id="recovery-log-level"
+                  value={logLevel}
+                  onChange={(e) => void changeLogLevel(e.target.value)}
+                  className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-400"
+                >
+                  {DEBUG_LOG_LEVELS.map((level) => (
+                    <option key={level} value={level}>
+                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  disabled={isBackingUpDb}
+                  onClick={() => void backupDatabase()}
+                  className={`rounded-xl border px-5 py-3 text-sm font-bold transition-all duration-200 ${
+                    isBackingUpDb
+                      ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
+                      : "border-sky-300/70 bg-sky-500/20 text-sky-50 hover:border-sky-200 hover:bg-sky-500/30"
+                  }`}
+                >
+                  {isBackingUpDb ? "Backing up..." : "Backup Database"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isBackingUpSettings}
+                  onClick={() => void backupSettings()}
+                  className={`rounded-xl border px-5 py-3 text-sm font-bold transition-all duration-200 ${
+                    isBackingUpSettings
+                      ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
+                      : "border-sky-300/70 bg-sky-500/20 text-sky-50 hover:border-sky-200 hover:bg-sky-500/30"
+                  }`}
+                >
+                  {isBackingUpSettings ? "Backing up..." : "Backup Settings"}
+                </button>
+              </div>
+            </div>
           </div>
 
           <p className="mt-6 text-xs text-zinc-500">

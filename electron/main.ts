@@ -21,7 +21,7 @@ import { getNodeEnv } from "../src/zod/env";
 import { isVideoExtension, SUPPORTED_VIDEO_EXTENSIONS } from "../src/constants/videoFormats";
 import { approveDialogPath } from "./services/dialogPathApproval";
 import { normalizeMultiplayerAuthCallback } from "./services/authCallback";
-import { ensureAppDatabaseReady } from "./services/db";
+import { ensureAppDatabaseReady, resolveDatabaseUrl } from "./services/db";
 import { initStore, getStore, safeStoreGet, safeStoreSet } from "./services/store";
 import { scanInstallSources } from "./services/installer";
 import {
@@ -1525,13 +1525,14 @@ function runNormalStartupOnce(): Promise<void> {
 
   normalStartupPromise = (async () => {
     await initStore();
+    debugLog.info("startup", "Store initialized");
     initializeDebugLogging();
     pendingGpuRecoveryHint = safeStoreGet(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY) === true;
     if (pendingGpuRecoveryHint) {
       safeStoreSet(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY, false);
       debugLog.warn("startup", "GPU crash recovery hint detected from previous session");
     }
-    debugLog.info("startup", "Store initialized", {
+    debugLog.info("startup", "Debug logging initialized", {
       graphicsCompatibility: readGraphicsCompatibilitySettings(),
       graphicsCompatibilityFlags,
       gpuRecoveryHintPending: pendingGpuRecoveryHint,
@@ -1557,8 +1558,19 @@ function runNormalStartupOnce(): Promise<void> {
         });
       });
     initializePortableStorageDefaults(getStore());
-    await ensureAppDatabaseReady();
-    debugLog.info("startup", "Database ready");
+    debugLog.info("startup", "Portable storage defaults applied");
+
+    try {
+      await ensureAppDatabaseReady();
+      debugLog.info("startup", "Database ready");
+    } catch (error) {
+      debugLog.error("startup", "Database initialization failed", {
+        error: error instanceof Error ? error.message : String(error),
+        databaseUrl: resolveDatabaseUrlSafe(),
+      });
+      throw error;
+    }
+
     broadcastUpdateState();
     broadcastEroScriptsLoginStatus();
     void initializeAppUpdater()
@@ -1585,11 +1597,23 @@ function runNormalStartupOnce(): Promise<void> {
     flushPendingGpuRecoveryHint();
     debugLog.info("startup", "Background services started");
   })().catch((error) => {
+    debugLog.error("startup", "runNormalStartupOnce failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     normalStartupPromise = null;
     throw error;
   });
 
   return normalStartupPromise;
+}
+
+function resolveDatabaseUrlSafe(): string {
+  try {
+    const url = resolveDatabaseUrl();
+    return url.startsWith("file:") ? url : "<remote>";
+  } catch {
+    return "<unknown>";
+  }
 }
 
 app

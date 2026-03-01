@@ -1,15 +1,16 @@
 import Store from "electron-store";
 import crypto from "crypto";
-import si from "systeminformation";
+import { app } from "electron";
+import path from "node:path";
+import fsSync from "node:fs";
 
 const STORE_ENCRYPTION_SALT = "f-land-store-encryption-v1-pepper";
 type StoreMode = "uninitialized" | "syncFallback" | "derived";
 
 let store: Store | null = null;
 let storeMode: StoreMode = "uninitialized";
-let encryptionKeyPromise: Promise<string> | null = null;
 let storeFactory: (encryptionKey: string) => Store = createElectronStore;
-let encryptionKeyDeriver: () => Promise<string> = deriveHardwareEncryptionKey;
+let hardwareKeyDeriver: () => Promise<string> = deriveHardwareEncryptionKey;
 
 function hashStoreKey(seed: string): string {
   return crypto
@@ -24,7 +25,12 @@ function getSynchronousFallbackEncryptionKey(): string {
 
 async function deriveHardwareEncryptionKey(): Promise<string> {
   try {
-    const [cpu, baseboard, bios] = await Promise.all([si.cpu(), si.baseboard(), si.bios()]);
+    const si = await import("systeminformation");
+    const [cpu, baseboard, bios] = await Promise.all([
+      si.cpu(),
+      si.baseboard(),
+      si.bios(),
+    ]);
     const seed = [
       `${cpu.brand}|${cpu.model}|${cpu.cores}`,
       `${baseboard.manufacturer}|${baseboard.model}|${baseboard.serial}`,
@@ -36,11 +42,50 @@ async function deriveHardwareEncryptionKey(): Promise<string> {
   }
 }
 
-async function deriveEncryptionKey(): Promise<string> {
-  if (!encryptionKeyPromise) {
-    encryptionKeyPromise = encryptionKeyDeriver();
+/**
+ * Resolves a stable, machine-local encryption key that persists across restarts.
+ *
+ * The previous hardware-based approach used `systeminformation` to derive a key
+ * from CPU, baseboard, and BIOS identifiers. On Windows, WMI queries can return
+ * inconsistent results (e.g. empty baseboard serial) between reboots or user
+ * sessions, causing the key to change and making all previously-written settings
+ * unreadable.
+ *
+ * This implementation generates a random key on first launch and caches it in a
+ * plain JSON file next to the main store. This is equally secure (the key was
+ * always stored on-disk implicitly via the store file itself) and fully stable.
+ */
+function resolveCachedEncryptionKey(): string {
+  let keyFilePath: string;
+  try {
+    keyFilePath = path.join(app.getPath("userData"), "store-key.json");
+  } catch {
+    keyFilePath = path.join(process.cwd(), "store-key.json");
   }
-  return encryptionKeyPromise;
+
+  try {
+    if (fsSync.existsSync(keyFilePath)) {
+      const content = JSON.parse(fsSync.readFileSync(keyFilePath, "utf-8"));
+      if (typeof content?.key === "string" && content.key.length > 0) {
+        return content.key;
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to read cached store encryption key, generating new one.", error);
+  }
+
+  const newKey = hashStoreKey(crypto.randomBytes(64).toString("hex"));
+  try {
+    const dir = path.dirname(keyFilePath);
+    if (!fsSync.existsSync(dir)) {
+      fsSync.mkdirSync(dir, { recursive: true });
+    }
+    fsSync.writeFileSync(keyFilePath, JSON.stringify({ key: newKey }), "utf-8");
+  } catch (error) {
+    console.warn("Failed to persist store encryption key.", error);
+  }
+
+  return newKey;
 }
 
 function createElectronStore(encryptionKey: string): Store {
@@ -83,17 +128,40 @@ function migrateFallbackStoreIfNeeded(derivedStore: Store, fallbackStore: Store)
 export async function initStore(): Promise<void> {
   if (store && storeMode === "derived") return;
 
-  const key = await deriveEncryptionKey();
+  const key = resolveCachedEncryptionKey();
   const derivedStore = createStore(key);
 
   if (!canReadStore(derivedStore)) {
+    let migrated = false;
+
     const fallbackStore =
       store && storeMode === "syncFallback"
         ? store
         : createStore(getSynchronousFallbackEncryptionKey());
 
     if (canReadStore(fallbackStore)) {
-      migrateFallbackStoreIfNeeded(derivedStore, fallbackStore);
+      migrated = migrateFallbackStoreIfNeeded(derivedStore, fallbackStore);
+    }
+
+    if (!migrated) {
+      try {
+        const hardwareKey = await hardwareKeyDeriver();
+        const hardwareStore = createStore(hardwareKey);
+        if (canReadStore(hardwareStore)) {
+          migrated = migrateFallbackStoreIfNeeded(derivedStore, hardwareStore);
+          if (migrated) {
+            console.warn("Migrated settings from legacy hardware-derived encryption key.");
+          }
+        }
+      } catch (error) {
+        console.warn("Hardware key migration attempt failed.", error);
+      }
+    }
+
+    if (!migrated) {
+      console.warn(
+        "Neither the derived, fallback, nor hardware store could be read. Starting with fresh settings."
+      );
     }
   }
 
@@ -144,16 +212,14 @@ export function safeStoreSet(key: string, value: unknown): boolean {
 export function __resetStoreForTests(): void {
   store = null;
   storeMode = "uninitialized";
-  encryptionKeyPromise = null;
   storeFactory = createElectronStore;
-  encryptionKeyDeriver = deriveHardwareEncryptionKey;
+  hardwareKeyDeriver = deriveHardwareEncryptionKey;
 }
 
 export function __setStoreFactoryForTests(factory: (encryptionKey: string) => Store): void {
   storeFactory = factory;
 }
 
-export function __setEncryptionKeyDeriverForTests(deriver: () => Promise<string>): void {
-  encryptionKeyDeriver = deriver;
-  encryptionKeyPromise = null;
+export function __setHardwareKeyDeriverForTests(deriver: () => Promise<string>): void {
+  hardwareKeyDeriver = deriver;
 }
