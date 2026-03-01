@@ -963,11 +963,11 @@ msgstr "全部"
 msgid "All (AND)"
 msgstr "全部 (与)"
 
-#: src/routes/settings.tsx:7977
+#: src/routes/settings.tsx:7994
 msgid "All cache data will be copied to:"
 msgstr "所有缓存数据将被复制到："
 
-#: src/routes/settings.tsx:8221
+#: src/routes/settings.tsx:8238
 msgid "All cache data, your database, and settings will be copied to the portable installation. The app will need to be restarted using the portable executable afterwards."
 msgstr "所有缓存数据、数据库和设置将被复制到便携版安装中。之后需要使用便携版可执行文件重新启动应用。"
 
@@ -1030,7 +1030,7 @@ msgstr "已是 AV1"
 msgid "Already inside an intermediary segment."
 msgstr "已在中间片段内。"
 
-#: src/routes/settings.tsx:8202
+#: src/routes/settings.tsx:8219
 msgid "An existing database was found and will be backed up before migration."
 msgstr "检测到现有数据库，将在迁移前进行备份。"
 
@@ -1546,7 +1546,7 @@ msgstr "可用"
 msgid "settings.help.shortcuts.global.description"
 msgstr "除正在编辑输入框时外，任何位置都可使用。"
 
-#: src/routes/settings.tsx:7786
+#: src/routes/settings.tsx:7803
 msgid "Available on"
 msgstr "可用平台"
 
@@ -1952,8 +1952,8 @@ msgstr "篝火"
 #: src/routes/settings.tsx:5706
 #: src/routes/settings.tsx:5778
 #: src/routes/settings.tsx:5855
-#: src/routes/settings.tsx:7995
-#: src/routes/settings.tsx:8238
+#: src/routes/settings.tsx:8012
+#: src/routes/settings.tsx:8255
 #: src/routes/single-player-setup.tsx:883
 msgid "Cancel"
 msgstr "取消"
@@ -2133,7 +2133,7 @@ msgstr "选择文件夹并导出"
 msgid "Choose media"
 msgstr "选择媒体"
 
-#: src/routes/settings.tsx:7934
+#: src/routes/settings.tsx:7951
 msgid "Choose Target Directory"
 msgstr "选择目标目录"
 
@@ -2332,7 +2332,7 @@ msgstr "关闭音乐面板"
 msgid "settings.help.shortcuts.global.closeMusic"
 msgstr "全局音乐浮层打开时将其关闭。"
 
-#: src/routes/settings.tsx:8126
+#: src/routes/settings.tsx:8143
 msgid "Close this application and launch the portable executable to use your migrated data."
 msgstr "关闭此应用并启动便携版可执行文件以使用迁移后的数据。"
 
@@ -2422,10 +2422,10 @@ msgstr "确认转换"
 msgid "Confirm Deletion"
 msgstr "确认删除"
 
-#: src/routes/settings.tsx:7971
-#: src/routes/settings.tsx:8004
-#: src/routes/settings.tsx:8215
-#: src/routes/settings.tsx:8247
+#: src/routes/settings.tsx:7988
+#: src/routes/settings.tsx:8021
+#: src/routes/settings.tsx:8232
+#: src/routes/settings.tsx:8264
 msgid "Confirm Migration"
 msgstr "确认迁移"
 
@@ -2667,7 +2667,7 @@ msgstr "已复制到剪贴板！"
 msgid "Copy"
 msgstr "复制"
 
-#: src/routes/settings.tsx:7890
+#: src/routes/settings.tsx:7907
 msgid "Copy all cache folders (web videos, music, EroScripts, .fpack extractions) to a new directory and update all settings to point there. Useful for moving data to a different drive or location."
 msgstr "将所有缓存文件夹（网页视频、音乐、EroScripts、.fpack 解压文件）复制到新目录，并更新所有设置指向该位置。适用于将数据移动到其他驱动器或位置。"
 
@@ -2964,7 +2964,7 @@ msgid "Data & Storage"
 msgstr "数据与存储"
 
 #. placeholder {0}: detection.dataRoot
-#: src/routes/settings.tsx:8192
+#: src/routes/settings.tsx:8209
 msgid "Data root: {0}"
 msgstr "数据根目录：{0}"
 
@@ -2981,7 +2981,7 @@ msgid "Database backup created."
 msgstr "数据库备份已创建。"
 
 #. placeholder {0}: detection.databasePath
-#: src/routes/settings.tsx:8197
+#: src/routes/settings.tsx:8214
 msgid "Database: {0}"
 msgstr "数据库：{0}"
 
@@ -3108,7 +3108,7 @@ msgstr "删除 Hero？"
 msgid "Delete Highscore Entry?"
 msgstr "删除高分记录？"
 
-#: src/routes/settings.tsx:7957
+#: src/routes/settings.tsx:7974
 msgid "Delete original files after successful migration"
 msgstr "迁移成功后删除原始文件"
 
@@ -3237,7 +3237,7 @@ msgstr "检测目标"
 #: src/features/converter/AutoDetectionPanel.tsx:132
 #: src/features/converter/AutoDetectionPanel.tsx:150
 #: src/routes/settings.tsx:4107
-#: src/routes/settings.tsx:8149
+#: src/routes/settings.tsx:8166
 msgid "Detecting..."
 msgstr "正在检测..."
 
@@ -3939,7 +3939,7 @@ msgid "Excluded:"
 msgstr "已排除："
 
 #. placeholder {0}: detection.exePath
-#: src/routes/settings.tsx:8187
+#: src/routes/settings.tsx:8204
 msgid "Executable: {0}"
 msgstr "可执行文件：{0}"
 
@@ -4244,7 +4244,7 @@ msgstr "删除选中轮次失败。"
 msgid "Failed to delete source."
 msgstr "删除来源失败。"
 
-#: src/routes/settings.tsx:8059
+#: src/routes/settings.tsx:8076
 msgid "Failed to detect portable installation."
 msgstr "未能检测到便携版安装。"
 
@@ -4758,6 +4758,10 @@ msgstr "文件夹"
 msgid "For"
 msgstr "对于"
 
+#: src/routes/settings.tsx:7784
+msgid "For providing an example of implementing TCode devices via"
+msgstr "感谢通过以下方式提供 TCode 设备实现示例"
+
 #. js-lingui-explicit-id
 #: src/game/data/perks.ts:853
 msgid "perk.description.im-close"
@@ -4984,13 +4988,13 @@ msgstr "赠送保证增益"
 msgid "Give Up"
 msgstr "放弃"
 
+#: src/features/map-editor/components/AutomationPanel.tsx:235
+msgid "Global"
+msgstr "全局"
+
 #. js-lingui-explicit-id
 #: src/routes/settings.tsx:259
 msgid "settings.help.shortcuts.global.title"
-msgstr "全局"
-
-#: src/features/map-editor/components/AutomationPanel.tsx:235
-msgid "Global"
 msgstr "全局"
 
 #: src/routes/settings.tsx:1362
@@ -5667,16 +5671,16 @@ msgstr "安装拖放的文件？"
 msgid "Install from web"
 msgstr "从网页安装"
 
-#. js-lingui-explicit-id
-#: src/components/CommandPalette.tsx:279
-msgid "command-palette.rounds-install-web"
-msgstr "从网络安装"
-
 #: src/routes/rounds.tsx:3035
 #: src/routes/rounds.tsx:3876
 #: src/routes/rounds.tsx:6703
 msgid "Install From Web"
 msgstr "从网页安装"
+
+#. js-lingui-explicit-id
+#: src/components/CommandPalette.tsx:279
+msgid "command-palette.rounds-install-web"
+msgstr "从网络安装"
 
 #: src/routes/rounds.tsx:2959
 msgid "Install new rounds, import portable files, and manage database exports from one place."
@@ -6222,7 +6226,7 @@ msgstr "库快照"
 msgid "library-one, library-two"
 msgstr "库一，库二"
 
-#: src/routes/settings.tsx:7801
+#: src/routes/settings.tsx:7818
 msgid "License"
 msgstr "许可"
 
@@ -6760,47 +6764,47 @@ msgstr "合并"
 msgid "Merge the selected segment with the next segment."
 msgstr "将选中的片段与下一个片段合并。"
 
-#: src/routes/settings.tsx:7887
-#: src/routes/settings.tsx:7974
+#: src/routes/settings.tsx:7904
+#: src/routes/settings.tsx:7991
 msgid "Migrate Storage Paths"
 msgstr "迁移存储路径"
 
-#: src/routes/settings.tsx:8101
-#: src/routes/settings.tsx:8218
+#: src/routes/settings.tsx:8118
+#: src/routes/settings.tsx:8235
 msgid "Migrate to Portable"
 msgstr "迁移到便携版"
 
-#: src/routes/settings.tsx:7946
-#: src/routes/settings.tsx:8004
-#: src/routes/settings.tsx:8161
-#: src/routes/settings.tsx:8247
+#: src/routes/settings.tsx:7963
+#: src/routes/settings.tsx:8021
+#: src/routes/settings.tsx:8178
+#: src/routes/settings.tsx:8264
 msgid "Migrating..."
 msgstr "正在迁移..."
 
 #. placeholder {0}: migrationResult.migratedCaches
 #. placeholder {1}: migrationResult.databaseMigrated ? ", database copied" : ""
 #. placeholder {2}: migrationResult.storeConfigMigrated ? ", settings copied" : ""
-#: src/routes/settings.tsx:8120
+#: src/routes/settings.tsx:8137
 msgid "Migration complete: {0} cache folders migrated{1}{2}."
 msgstr "迁移完成：已迁移 {0} 个缓存文件夹{1}{2}。"
 
 #. placeholder {0}: result.migrated
 #. placeholder {1}: result.skipped > 0 ? `, ${result.skipped} skipped` : ""
-#: src/routes/settings.tsx:7906
+#: src/routes/settings.tsx:7923
 msgid "Migration complete: {0} paths migrated{1}."
 msgstr "迁移完成：已迁移 {0} 个路径{1}。"
 
 #. placeholder {0}: migrationResult.migrated.length
-#: src/routes/settings.tsx:7867
+#: src/routes/settings.tsx:7884
 msgid "Migration complete. {0} paths migrated."
 msgstr "迁移完成。已迁移 {0} 个路径。"
 
-#: src/routes/settings.tsx:7871
-#: src/routes/settings.tsx:8085
+#: src/routes/settings.tsx:7888
+#: src/routes/settings.tsx:8102
 msgid "Migration failed."
 msgstr "迁移失败。"
 
-#: src/routes/settings.tsx:8083
+#: src/routes/settings.tsx:8100
 msgid "Migration to portable complete."
 msgstr "便携版迁移完成。"
 
@@ -6923,7 +6927,7 @@ msgstr "从此播放列表开始新运行时可用的资金。"
 msgid "hud.more"
 msgstr "更多"
 
-#: src/routes/settings.tsx:8104
+#: src/routes/settings.tsx:8121
 msgid "Move all your data — cache folders, database, and settings — to an existing portable installation. Any existing data in the portable installation will be backed up first. After migration, launch the portable executable to use your migrated data."
 msgstr "将所有数据 — 缓存文件夹、数据库和设置 — 移动到现有的便携版安装中。便携版安装中的现有数据将首先进行备份。迁移后，启动便携版可执行文件以使用迁移后的数据。"
 
@@ -7348,8 +7352,8 @@ msgstr "未连接设备"
 msgid "No direct funscripts found."
 msgstr "未找到直接 funscript。"
 
-#: src/routes/settings.tsx:7923
-#: src/routes/settings.tsx:8138
+#: src/routes/settings.tsx:7940
+#: src/routes/settings.tsx:8155
 msgid "No directory selected"
 msgstr "未选择目录"
 
@@ -7967,11 +7971,11 @@ msgstr "或"
 msgid "Order"
 msgstr "顺序"
 
-#: src/routes/settings.tsx:7912
+#: src/routes/settings.tsx:7929
 msgid "Original files have been deleted."
 msgstr "原始文件已被删除。"
 
-#: src/routes/settings.tsx:7984
+#: src/routes/settings.tsx:8001
 msgid "Original files will be deleted after copying."
 msgstr "复制后将删除原始文件。"
 
@@ -8498,7 +8502,7 @@ msgstr "请输入 URL"
 msgid "Please enter a valid number."
 msgstr "请输入有效数字。"
 
-#: src/routes/settings.tsx:8135
+#: src/routes/settings.tsx:8152
 msgid "Portable Installation Directory"
 msgstr "便携版安装目录"
 
@@ -10085,7 +10089,7 @@ msgstr "选择增益"
 msgid "Select Playlist"
 msgstr "选择播放列表"
 
-#: src/routes/settings.tsx:8149
+#: src/routes/settings.tsx:8166
 msgid "Select Portable Installation"
 msgstr "选择便携版安装"
 
@@ -10673,7 +10677,7 @@ msgstr "音效音量"
 msgid "Source"
 msgstr "来源"
 
-#: src/routes/settings.tsx:7783
+#: src/routes/settings.tsx:7800
 msgid "Source Code"
 msgstr "源代码"
 
@@ -10816,8 +10820,8 @@ msgstr "启动 Intiface Central，启动其服务器，然后连接一个支持�
 msgid "START MATCH"
 msgstr "开始比赛"
 
-#: src/routes/settings.tsx:7946
-#: src/routes/settings.tsx:8161
+#: src/routes/settings.tsx:7963
+#: src/routes/settings.tsx:8178
 msgid "Start Migration"
 msgstr "开始迁移"
 
@@ -11201,7 +11205,7 @@ msgstr "标签筛选"
 msgid "Target Count"
 msgstr "目标计数"
 
-#: src/routes/settings.tsx:7920
+#: src/routes/settings.tsx:7937
 msgid "Target Directory"
 msgstr "目标目录"
 
@@ -12011,7 +12015,7 @@ msgstr "自动使用内置的 TheHandy 应用密钥。"
 msgid "Using your custom TheHandy app key."
 msgstr "使用你的自定义 TheHandy 应用密钥。"
 
-#: src/routes/settings.tsx:8183
+#: src/routes/settings.tsx:8200
 msgid "Valid portable installation detected"
 msgstr "检测到有效的便携版安装"
 
@@ -12268,7 +12272,7 @@ msgstr "启用后，在触发反增益的回合后，反增益概率将重置为
 msgid "When enabled, the intermediary chance resets to its initial value after a round where intermediaries were triggered."
 msgstr "启用后，在触发插入片段的回合后，插入片段概率将重置为初始值。"
 
-#: src/routes/settings.tsx:7960
+#: src/routes/settings.tsx:7977
 msgid "When enabled, the original cache folders will be removed after all files have been copied successfully. Keep this off if you want to verify the migration first."
 msgstr "启用后，所有文件成功复制后将删除原始缓存文件夹。如果要先验证迁移，请保持关闭此选项。"
 

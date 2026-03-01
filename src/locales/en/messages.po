@@ -963,11 +963,11 @@ msgstr "All"
 msgid "All (AND)"
 msgstr "All (AND)"
 
-#: src/routes/settings.tsx:7977
+#: src/routes/settings.tsx:7994
 msgid "All cache data will be copied to:"
 msgstr "All cache data will be copied to:"
 
-#: src/routes/settings.tsx:8221
+#: src/routes/settings.tsx:8238
 msgid "All cache data, your database, and settings will be copied to the portable installation. The app will need to be restarted using the portable executable afterwards."
 msgstr "All cache data, your database, and settings will be copied to the portable installation. The app will need to be restarted using the portable executable afterwards."
 
@@ -1030,7 +1030,7 @@ msgstr "Already AV1"
 msgid "Already inside an intermediary segment."
 msgstr "Already inside an intermediary segment."
 
-#: src/routes/settings.tsx:8202
+#: src/routes/settings.tsx:8219
 msgid "An existing database was found and will be backed up before migration."
 msgstr "An existing database was found and will be backed up before migration."
 
@@ -1546,7 +1546,7 @@ msgstr "Available"
 msgid "settings.help.shortcuts.global.description"
 msgstr "Available anywhere unless an input field is actively being edited."
 
-#: src/routes/settings.tsx:7786
+#: src/routes/settings.tsx:7803
 msgid "Available on"
 msgstr "Available on"
 
@@ -1952,8 +1952,8 @@ msgstr "CAMPFIRE"
 #: src/routes/settings.tsx:5706
 #: src/routes/settings.tsx:5778
 #: src/routes/settings.tsx:5855
-#: src/routes/settings.tsx:7995
-#: src/routes/settings.tsx:8238
+#: src/routes/settings.tsx:8012
+#: src/routes/settings.tsx:8255
 #: src/routes/single-player-setup.tsx:883
 msgid "Cancel"
 msgstr "Cancel"
@@ -2133,7 +2133,7 @@ msgstr "Choose Folder and Export"
 msgid "Choose media"
 msgstr "Choose media"
 
-#: src/routes/settings.tsx:7934
+#: src/routes/settings.tsx:7951
 msgid "Choose Target Directory"
 msgstr "Choose Target Directory"
 
@@ -2332,7 +2332,7 @@ msgstr "Close music overlay"
 msgid "settings.help.shortcuts.global.closeMusic"
 msgstr "Close the global music overlay when it is open."
 
-#: src/routes/settings.tsx:8126
+#: src/routes/settings.tsx:8143
 msgid "Close this application and launch the portable executable to use your migrated data."
 msgstr "Close this application and launch the portable executable to use your migrated data."
 
@@ -2422,10 +2422,10 @@ msgstr "Confirm Conversion"
 msgid "Confirm Deletion"
 msgstr "Confirm Deletion"
 
-#: src/routes/settings.tsx:7971
-#: src/routes/settings.tsx:8004
-#: src/routes/settings.tsx:8215
-#: src/routes/settings.tsx:8247
+#: src/routes/settings.tsx:7988
+#: src/routes/settings.tsx:8021
+#: src/routes/settings.tsx:8232
+#: src/routes/settings.tsx:8264
 msgid "Confirm Migration"
 msgstr "Confirm Migration"
 
@@ -2667,7 +2667,7 @@ msgstr "Copied to Clipboard!"
 msgid "Copy"
 msgstr "Copy"
 
-#: src/routes/settings.tsx:7890
+#: src/routes/settings.tsx:7907
 msgid "Copy all cache folders (web videos, music, EroScripts, .fpack extractions) to a new directory and update all settings to point there. Useful for moving data to a different drive or location."
 msgstr "Copy all cache folders (web videos, music, EroScripts, .fpack extractions) to a new directory and update all settings to point there. Useful for moving data to a different drive or location."
 
@@ -2964,7 +2964,7 @@ msgid "Data & Storage"
 msgstr "Data & Storage"
 
 #. placeholder {0}: detection.dataRoot
-#: src/routes/settings.tsx:8192
+#: src/routes/settings.tsx:8209
 msgid "Data root: {0}"
 msgstr "Data root: {0}"
 
@@ -2981,7 +2981,7 @@ msgid "Database backup created."
 msgstr "Database backup created."
 
 #. placeholder {0}: detection.databasePath
-#: src/routes/settings.tsx:8197
+#: src/routes/settings.tsx:8214
 msgid "Database: {0}"
 msgstr "Database: {0}"
 
@@ -3108,7 +3108,7 @@ msgstr "Delete Hero?"
 msgid "Delete Highscore Entry?"
 msgstr "Delete Highscore Entry?"
 
-#: src/routes/settings.tsx:7957
+#: src/routes/settings.tsx:7974
 msgid "Delete original files after successful migration"
 msgstr "Delete original files after successful migration"
 
@@ -3237,7 +3237,7 @@ msgstr "Detect Target"
 #: src/features/converter/AutoDetectionPanel.tsx:132
 #: src/features/converter/AutoDetectionPanel.tsx:150
 #: src/routes/settings.tsx:4107
-#: src/routes/settings.tsx:8149
+#: src/routes/settings.tsx:8166
 msgid "Detecting..."
 msgstr "Detecting..."
 
@@ -3939,7 +3939,7 @@ msgid "Excluded:"
 msgstr "Excluded:"
 
 #. placeholder {0}: detection.exePath
-#: src/routes/settings.tsx:8187
+#: src/routes/settings.tsx:8204
 msgid "Executable: {0}"
 msgstr "Executable: {0}"
 
@@ -4244,7 +4244,7 @@ msgstr "Failed to delete selected rounds."
 msgid "Failed to delete source."
 msgstr "Failed to delete source."
 
-#: src/routes/settings.tsx:8059
+#: src/routes/settings.tsx:8076
 msgid "Failed to detect portable installation."
 msgstr "Failed to detect portable installation."
 
@@ -4758,6 +4758,10 @@ msgstr "Folders"
 msgid "For"
 msgstr "For"
 
+#: src/routes/settings.tsx:7784
+msgid "For providing an example of implementing TCode devices via"
+msgstr "For providing an example of implementing TCode devices via"
+
 #. js-lingui-explicit-id
 #: src/game/data/perks.ts:853
 msgid "perk.description.im-close"
@@ -4984,13 +4988,13 @@ msgstr "Gift guaranteed perk"
 msgid "Give Up"
 msgstr "Give Up"
 
+#: src/features/map-editor/components/AutomationPanel.tsx:235
+msgid "Global"
+msgstr "Global"
+
 #. js-lingui-explicit-id
 #: src/routes/settings.tsx:259
 msgid "settings.help.shortcuts.global.title"
-msgstr "Global"
-
-#: src/features/map-editor/components/AutomationPanel.tsx:235
-msgid "Global"
 msgstr "Global"
 
 #: src/routes/settings.tsx:1362
@@ -5667,15 +5671,15 @@ msgstr "Install dropped files?"
 msgid "Install from web"
 msgstr "Install from web"
 
-#. js-lingui-explicit-id
-#: src/components/CommandPalette.tsx:279
-msgid "command-palette.rounds-install-web"
-msgstr "Install From Web"
-
 #: src/routes/rounds.tsx:3035
 #: src/routes/rounds.tsx:3876
 #: src/routes/rounds.tsx:6703
 msgid "Install From Web"
+msgstr "Install From Web"
+
+#. js-lingui-explicit-id
+#: src/components/CommandPalette.tsx:279
+msgid "command-palette.rounds-install-web"
 msgstr "Install From Web"
 
 #: src/routes/rounds.tsx:2959
@@ -6222,7 +6226,7 @@ msgstr "Library Snapshot"
 msgid "library-one, library-two"
 msgstr "library-one, library-two"
 
-#: src/routes/settings.tsx:7801
+#: src/routes/settings.tsx:7818
 msgid "License"
 msgstr "License"
 
@@ -6760,47 +6764,47 @@ msgstr "Merge"
 msgid "Merge the selected segment with the next segment."
 msgstr "Merge the selected segment with the next segment."
 
-#: src/routes/settings.tsx:7887
-#: src/routes/settings.tsx:7974
+#: src/routes/settings.tsx:7904
+#: src/routes/settings.tsx:7991
 msgid "Migrate Storage Paths"
 msgstr "Migrate Storage Paths"
 
-#: src/routes/settings.tsx:8101
-#: src/routes/settings.tsx:8218
+#: src/routes/settings.tsx:8118
+#: src/routes/settings.tsx:8235
 msgid "Migrate to Portable"
 msgstr "Migrate to Portable"
 
-#: src/routes/settings.tsx:7946
-#: src/routes/settings.tsx:8004
-#: src/routes/settings.tsx:8161
-#: src/routes/settings.tsx:8247
+#: src/routes/settings.tsx:7963
+#: src/routes/settings.tsx:8021
+#: src/routes/settings.tsx:8178
+#: src/routes/settings.tsx:8264
 msgid "Migrating..."
 msgstr "Migrating..."
 
 #. placeholder {0}: migrationResult.migratedCaches
 #. placeholder {1}: migrationResult.databaseMigrated ? ", database copied" : ""
 #. placeholder {2}: migrationResult.storeConfigMigrated ? ", settings copied" : ""
-#: src/routes/settings.tsx:8120
+#: src/routes/settings.tsx:8137
 msgid "Migration complete: {0} cache folders migrated{1}{2}."
 msgstr "Migration complete: {0} cache folders migrated{1}{2}."
 
 #. placeholder {0}: result.migrated
 #. placeholder {1}: result.skipped > 0 ? `, ${result.skipped} skipped` : ""
-#: src/routes/settings.tsx:7906
+#: src/routes/settings.tsx:7923
 msgid "Migration complete: {0} paths migrated{1}."
 msgstr "Migration complete: {0} paths migrated{1}."
 
 #. placeholder {0}: migrationResult.migrated.length
-#: src/routes/settings.tsx:7867
+#: src/routes/settings.tsx:7884
 msgid "Migration complete. {0} paths migrated."
 msgstr "Migration complete. {0} paths migrated."
 
-#: src/routes/settings.tsx:7871
-#: src/routes/settings.tsx:8085
+#: src/routes/settings.tsx:7888
+#: src/routes/settings.tsx:8102
 msgid "Migration failed."
 msgstr "Migration failed."
 
-#: src/routes/settings.tsx:8083
+#: src/routes/settings.tsx:8100
 msgid "Migration to portable complete."
 msgstr "Migration to portable complete."
 
@@ -6923,7 +6927,7 @@ msgstr "Money available at the start of a new run from this playlist."
 msgid "hud.more"
 msgstr "more"
 
-#: src/routes/settings.tsx:8104
+#: src/routes/settings.tsx:8121
 msgid "Move all your data — cache folders, database, and settings — to an existing portable installation. Any existing data in the portable installation will be backed up first. After migration, launch the portable executable to use your migrated data."
 msgstr "Move all your data — cache folders, database, and settings — to an existing portable installation. Any existing data in the portable installation will be backed up first. After migration, launch the portable executable to use your migrated data."
 
@@ -7348,8 +7352,8 @@ msgstr "No device connected"
 msgid "No direct funscripts found."
 msgstr "No direct funscripts found."
 
-#: src/routes/settings.tsx:7923
-#: src/routes/settings.tsx:8138
+#: src/routes/settings.tsx:7940
+#: src/routes/settings.tsx:8155
 msgid "No directory selected"
 msgstr "No directory selected"
 
@@ -7967,11 +7971,11 @@ msgstr "OR"
 msgid "Order"
 msgstr "Order"
 
-#: src/routes/settings.tsx:7912
+#: src/routes/settings.tsx:7929
 msgid "Original files have been deleted."
 msgstr "Original files have been deleted."
 
-#: src/routes/settings.tsx:7984
+#: src/routes/settings.tsx:8001
 msgid "Original files will be deleted after copying."
 msgstr "Original files will be deleted after copying."
 
@@ -8498,7 +8502,7 @@ msgstr "Please enter a URL"
 msgid "Please enter a valid number."
 msgstr "Please enter a valid number."
 
-#: src/routes/settings.tsx:8135
+#: src/routes/settings.tsx:8152
 msgid "Portable Installation Directory"
 msgstr "Portable Installation Directory"
 
@@ -10085,7 +10089,7 @@ msgstr "Select Perk"
 msgid "Select Playlist"
 msgstr "Select Playlist"
 
-#: src/routes/settings.tsx:8149
+#: src/routes/settings.tsx:8166
 msgid "Select Portable Installation"
 msgstr "Select Portable Installation"
 
@@ -10673,7 +10677,7 @@ msgstr "Sound effects volume"
 msgid "Source"
 msgstr "Source"
 
-#: src/routes/settings.tsx:7783
+#: src/routes/settings.tsx:7800
 msgid "Source Code"
 msgstr "Source Code"
 
@@ -10816,8 +10820,8 @@ msgstr "Start Intiface Central, start its server, then connect to a linear/posit
 msgid "START MATCH"
 msgstr "START MATCH"
 
-#: src/routes/settings.tsx:7946
-#: src/routes/settings.tsx:8161
+#: src/routes/settings.tsx:7963
+#: src/routes/settings.tsx:8178
 msgid "Start Migration"
 msgstr "Start Migration"
 
@@ -11201,7 +11205,7 @@ msgstr "Tags filter"
 msgid "Target Count"
 msgstr "Target Count"
 
-#: src/routes/settings.tsx:7920
+#: src/routes/settings.tsx:7937
 msgid "Target Directory"
 msgstr "Target Directory"
 
@@ -12011,7 +12015,7 @@ msgstr "Using the built-in TheHandy app key automatically."
 msgid "Using your custom TheHandy app key."
 msgstr "Using your custom TheHandy app key."
 
-#: src/routes/settings.tsx:8183
+#: src/routes/settings.tsx:8200
 msgid "Valid portable installation detected"
 msgstr "Valid portable installation detected"
 
@@ -12268,7 +12272,7 @@ msgstr "When enabled, the anti-perk chance resets to its initial value after a r
 msgid "When enabled, the intermediary chance resets to its initial value after a round where intermediaries were triggered."
 msgstr "When enabled, the intermediary chance resets to its initial value after a round where intermediaries were triggered."
 
-#: src/routes/settings.tsx:7960
+#: src/routes/settings.tsx:7977
 msgid "When enabled, the original cache folders will be removed after all files have been copied successfully. Keep this off if you want to verify the migration first."
 msgstr "When enabled, the original cache folders will be removed after all files have been copied successfully. Keep this off if you want to verify the migration first."
 

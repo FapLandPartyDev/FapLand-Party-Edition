@@ -7779,6 +7779,23 @@ function CreditsCard() {
           </p>
         </div>
         <div className="py-3">
+          <h3 className="font-semibold text-zinc-100">Davemakeswaves1</h3>
+          <p className="text-xs text-zinc-400">
+            <Trans>For providing an example of implementing TCode devices via</Trans>{" "}
+            <a
+              href="https://discuss.eroscripts.com/t/funsync-player-all-in-one-video-player-with-built-in-editor-eroscripts-search-multi-language-and-multi-device-sync/309393"
+              target="_blank"
+              rel="noreferrer"
+              className="text-violet-300 hover:text-violet-200 underline decoration-violet-300/50 underline-offset-2"
+              onMouseEnter={playHoverSound}
+              onClick={playSelectSound}
+            >
+              FunSync Player
+            </a>
+            .
+          </p>
+        </div>
+        <div className="py-3">
           <h3 className="font-semibold text-zinc-100">
             <Trans>Source Code</Trans>
           </h3>
