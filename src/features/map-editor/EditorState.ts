@@ -199,6 +199,8 @@ export interface EditorGraphConfig {
   economy: Pick<PlaylistConfig["economy"], "startingMoney" | "scorePerCumRoundSuccess">;
   dice: PlaylistConfig["dice"];
   disableDiceAnimation: boolean;
+  disableInterjectionsDuringCumRounds?: boolean;
+  allowPausingDuringFinalCumRound: boolean;
   saveMode: PlaylistConfig["saveMode"];
   requiredLevel?: number;
   style: EditorGraphStyle;
@@ -549,6 +551,8 @@ export const toEditorGraphConfig = (input: GraphBoardConfig): EditorGraphConfig 
       max: 6,
     },
     disableDiceAnimation: false,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     saveMode: "none",
     style: normalizeGraphStyle(input.style),
     music: {
@@ -682,6 +686,8 @@ export const layoutLinearGraphFromPlaylist = (config: LinearBoardConfig): Editor
       max: 6,
     },
     disableDiceAnimation: false,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     saveMode: "none",
     style: {},
     music: {

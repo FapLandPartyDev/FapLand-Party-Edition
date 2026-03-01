@@ -106,6 +106,7 @@ export type RoundVideoOverlayProps = {
     onUsePause: () => void;
     onUseSkip: () => void;
   };
+  allowPausingDuringFinalCumRound?: boolean;
   intermediaryProbability: number;
   intermediarySelection?: {
     minPerTriggeredRound: number;
@@ -339,6 +340,7 @@ export function RoundVideoOverlay({
   installedRounds,
   currentPlayer,
   roundControl,
+  allowPausingDuringFinalCumRound = false,
   intermediaryProbability,
   intermediarySelection = DEFAULT_INTERMEDIARY_SELECTION,
   boardSequence = null,
@@ -3949,7 +3951,16 @@ export function RoundVideoOverlay({
     showUiTemporarily(UI_SHOW_AFTER_MOUSEMOVE_MS);
   }, [showUiTemporarily]);
 
-  const canUseRoundControls = Boolean(
+  const hasUnlimitedFinalCumPauses = Boolean(
+    activeRound?.phaseKind === "cum" && allowPausingDuringFinalCumRound
+  );
+  const canUsePauseControl = Boolean(
+    activeRound &&
+    roundControl &&
+    (activeRound.phaseKind === "normal" || hasUnlimitedFinalCumPauses)
+  );
+  const hasAvailablePause = hasUnlimitedFinalCumPauses || (roundControl?.pauseCharges ?? 0) > 0;
+  const canUseSkipControl = Boolean(
     activeRound && activeRound.phaseKind === "normal" && roundControl
   );
   const showRemoteLoadingIndicator =
@@ -3978,14 +3989,16 @@ export function RoundVideoOverlay({
   }, [activeRound, isWaitingForHandyStart, loadingCountdown, showRemoteLoadingIndicator]);
 
   const handleUsePauseControl = useCallback(() => {
-    if (!canUseRoundControls || !roundControl) return;
-    if (roundControl.pauseCharges <= 0) return;
+    if (!canUsePauseControl || !roundControl) return;
+    if (!hasAvailablePause) return;
     if (isIntermediaryScreenActive) return;
 
     const video = segment.kind === "main" ? mainVideoRef.current : intermediaryVideoRef.current;
     if (!video) return;
 
-    roundControl.onUsePause();
+    if (!hasUnlimitedFinalCumPauses) {
+      roundControl.onUsePause();
+    }
     clearManualPauseTimer();
     allowPauseRef.current = true;
     video.pause();
@@ -4002,8 +4015,10 @@ export function RoundVideoOverlay({
       tryPlayVideo();
     }, pauseDurationMs);
   }, [
-    canUseRoundControls,
+    canUsePauseControl,
     clearManualPauseTimer,
+    hasAvailablePause,
+    hasUnlimitedFinalCumPauses,
     isIntermediaryScreenActive,
     pauseHandyIfNeeded,
     roundControl,
@@ -4012,11 +4027,11 @@ export function RoundVideoOverlay({
   ]);
 
   const handleUseSkipControl = useCallback(() => {
-    if (!canUseRoundControls || !roundControl) return;
+    if (!canUseSkipControl || !roundControl) return;
     if (roundControl.skipCharges <= 0) return;
     roundControl.onUseSkip();
     finishWithSummary();
-  }, [canUseRoundControls, finishWithSummary, roundControl]);
+  }, [canUseSkipControl, finishWithSummary, roundControl]);
 
   useControllerSurface({
     id: "round-video-overlay",
@@ -4064,8 +4079,9 @@ export function RoundVideoOverlay({
         }
         if (
           action === "ACTION_Y" &&
+          canUsePauseControl &&
           roundControl &&
-          roundControl.pauseCharges > 0 &&
+          hasAvailablePause &&
           !isIntermediaryScreenActive
         ) {
           handleUsePauseControl();
@@ -4504,43 +4520,45 @@ export function RoundVideoOverlay({
             >
               {showDisconnectedHapticsStatus ? t`Haptics Status On` : t`Haptics Status Off`}
             </button>
-            {canUseRoundControls && (
-              <>
-                <button
-                  className={`pointer-events-auto rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
-                    (roundControl?.pauseCharges ?? 0) > 0
-                      ? "border-violet-300/60 bg-violet-500/20 text-violet-100 hover:bg-violet-500/35"
-                      : "border-zinc-500/40 bg-zinc-700/20 text-zinc-300"
-                  }`}
-                  disabled={(roundControl?.pauseCharges ?? 0) <= 0 || isIntermediaryScreenActive}
-                  onClick={() => {
-                    playSelectSound();
-                    handleUsePauseControl();
-                  }}
-                  onMouseEnter={() => playHoverSound()}
-                  type="button"
-                  data-controller-focus-id="round-overlay-pause"
-                >
-                  {t`Pause ${roundControl?.pauseCharges ?? 0}`}
-                </button>
-                <button
-                  className={`pointer-events-auto rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
-                    (roundControl?.skipCharges ?? 0) > 0
-                      ? "border-amber-300/60 bg-amber-500/20 text-amber-100 hover:bg-amber-500/35"
-                      : "border-zinc-500/40 bg-zinc-700/20 text-zinc-300"
-                  }`}
-                  disabled={(roundControl?.skipCharges ?? 0) <= 0}
-                  onClick={() => {
-                    playSelectSound();
-                    handleUseSkipControl();
-                  }}
-                  onMouseEnter={() => playHoverSound()}
-                  type="button"
-                  data-controller-focus-id="round-overlay-skip"
-                >
-                  {t`Skip ${roundControl?.skipCharges ?? 0}`}
-                </button>
-              </>
+            {canUsePauseControl && (
+              <button
+                className={`pointer-events-auto rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+                  hasAvailablePause
+                    ? "border-violet-300/60 bg-violet-500/20 text-violet-100 hover:bg-violet-500/35"
+                    : "border-zinc-500/40 bg-zinc-700/20 text-zinc-300"
+                }`}
+                disabled={!hasAvailablePause || isIntermediaryScreenActive}
+                onClick={() => {
+                  playSelectSound();
+                  handleUsePauseControl();
+                }}
+                onMouseEnter={() => playHoverSound()}
+                type="button"
+                data-controller-focus-id="round-overlay-pause"
+              >
+                {hasUnlimitedFinalCumPauses
+                  ? t`Pause ∞`
+                  : t`Pause ${roundControl?.pauseCharges ?? 0}`}
+              </button>
+            )}
+            {canUseSkipControl && (
+              <button
+                className={`pointer-events-auto rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+                  (roundControl?.skipCharges ?? 0) > 0
+                    ? "border-amber-300/60 bg-amber-500/20 text-amber-100 hover:bg-amber-500/35"
+                    : "border-zinc-500/40 bg-zinc-700/20 text-zinc-300"
+                }`}
+                disabled={(roundControl?.skipCharges ?? 0) <= 0}
+                onClick={() => {
+                  playSelectSound();
+                  handleUseSkipControl();
+                }}
+                onMouseEnter={() => playHoverSound()}
+                type="button"
+                data-controller-focus-id="round-overlay-skip"
+              >
+                {t`Skip ${roundControl?.skipCharges ?? 0}`}
+              </button>
             )}
             {onOpenOptions && (
               <button

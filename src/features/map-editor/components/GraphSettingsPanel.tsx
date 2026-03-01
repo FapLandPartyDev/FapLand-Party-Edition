@@ -17,6 +17,8 @@ interface GraphSettingsPanelProps {
   perkPool: EditorGraphConfig["perkPool"];
   probabilityScaling: EditorGraphConfig["probabilityScaling"];
   intermediarySelection: EditorGraphConfig["intermediarySelection"];
+  disableInterjectionsDuringCumRounds: boolean;
+  allowPausingDuringFinalCumRound: boolean;
   resetIntermediaryProbabilityAfterTrigger: boolean;
   resetAntiPerkProbabilityAfterTrigger: boolean;
   economy: EditorGraphConfig["economy"];
@@ -40,6 +42,8 @@ interface GraphSettingsPanelProps {
     key: "minPerTriggeredRound" | "maxPerTriggeredRound",
     value: number
   ) => void;
+  onSetDisableInterjectionsDuringCumRounds: (value: boolean) => void;
+  onSetAllowPausingDuringFinalCumRound: (value: boolean) => void;
   onSetResetIntermediaryProbabilityAfterTrigger: (value: boolean) => void;
   onSetResetAntiPerkProbabilityAfterTrigger: (value: boolean) => void;
   onSetDiceLimit: (key: keyof EditorGraphConfig["dice"], value: number) => void;
@@ -210,6 +214,8 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
     perkPool,
     probabilityScaling,
     intermediarySelection,
+    disableInterjectionsDuringCumRounds,
+    allowPausingDuringFinalCumRound,
     resetIntermediaryProbabilityAfterTrigger,
     resetAntiPerkProbabilityAfterTrigger,
     economy,
@@ -227,6 +233,8 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
     onSetPerkTriggerChance,
     onSetProbabilityScaling,
     onSetIntermediaryCount,
+    onSetDisableInterjectionsDuringCumRounds,
+    onSetAllowPausingDuringFinalCumRound,
     onSetResetIntermediaryProbabilityAfterTrigger,
     onSetResetAntiPerkProbabilityAfterTrigger,
     onSetDiceLimit,
@@ -1046,6 +1054,80 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
                 </Trans>
               </p>
             </label>
+            <div className="rounded-lg border border-zinc-700/40 bg-zinc-950/60 p-3 sm:col-span-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+                    {abbreviateNsfwText(t`Do not play interjections in a cum round`, sfwMode)}
+                  </p>
+                  <p className="mt-1 text-[10px] text-zinc-600">
+                    {abbreviateNsfwText(
+                      t`When enabled, interjections are skipped during final cum rounds and Cum Point rounds.`,
+                      sfwMode
+                    )}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={abbreviateNsfwText(
+                    t`Do not play interjections in a cum round`,
+                    sfwMode
+                  )}
+                  onMouseEnter={playHoverSound}
+                  onClick={() =>
+                    onSetDisableInterjectionsDuringCumRounds(!disableInterjectionsDuringCumRounds)
+                  }
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                    disableInterjectionsDuringCumRounds
+                      ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-100"
+                      : "border-zinc-700/50 bg-zinc-950 text-zinc-300 hover:border-zinc-600/60 hover:text-zinc-100"
+                  }`}
+                >
+                  {disableInterjectionsDuringCumRounds ? (
+                    <Trans>Enabled</Trans>
+                  ) : (
+                    <Trans>Disabled</Trans>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="rounded-lg border border-zinc-700/40 bg-zinc-950/60 p-3 sm:col-span-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+                    {abbreviateNsfwText(t`Allow pausing during the final cum round`, sfwMode)}
+                  </p>
+                  <p className="mt-1 text-[10px] text-zinc-600">
+                    {abbreviateNsfwText(
+                      t`Allows unlimited pauses during the End-node cum round without consuming pause charges. When enabled, that round does not grant the Cum Round Bonus Score. Cum Points are unaffected.`,
+                      sfwMode
+                    )}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={abbreviateNsfwText(
+                    t`Allow pausing during the final cum round`,
+                    sfwMode
+                  )}
+                  onMouseEnter={playHoverSound}
+                  onClick={() =>
+                    onSetAllowPausingDuringFinalCumRound(!allowPausingDuringFinalCumRound)
+                  }
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                    allowPausingDuringFinalCumRound
+                      ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-100"
+                      : "border-zinc-700/50 bg-zinc-950 text-zinc-300 hover:border-zinc-600/60 hover:text-zinc-100"
+                  }`}
+                >
+                  {allowPausingDuringFinalCumRound ? (
+                    <Trans>Enabled</Trans>
+                  ) : (
+                    <Trans>Disabled</Trans>
+                  )}
+                </button>
+              </div>
+            </div>
             <label className="block space-y-1">
               <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
                 <Trans>Anti-perk initial</Trans>

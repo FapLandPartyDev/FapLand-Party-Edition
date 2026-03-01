@@ -1,9 +1,25 @@
 # What's New
 
+## v0.6.22-beta
+
+### Added
+
+- **"Do not play interjections in a cum round" toggle** — the Map Editor's Graph Settings panel and the Playlist Workshop now expose a `disableInterjectionsDuringCumRounds` option (on by default). When enabled, automatic interjections are skipped during final cum rounds and Cum Point rounds. The setting is persisted in the playlist config and defaults to enabled for legacy configs and endless playlists.
+- **"Allow pausing during the final cum round" toggle** — a new `allowPausingDuringFinalCumRound` option (off by default) in both authoring surfaces. When enabled, the in-round overlay grants unlimited pauses during the End-node cum round without consuming pause charges (the pause button shows "∞"), and that round forgoes the Cum Round Bonus Score. Cum Points are unaffected.
+
+### Changed
+
+- **Map Editor autosave rework** — draft autosaving now runs on a deferred idle timer (1.5 s delay, 2 s idle timeout) driven by an explicit autosave revision counter, so viewport pan/zoom and sidebar search/filter changes are bundled into the next snapshot instead of triggering a full graph save mid-interaction. Opening a playlist suppresses the next autosave, and the dirty status now reads "Autosave pending…".
+- Translation catalogs have been regenerated.
+
+---
+
 ## v0.6.21-beta
 
 ### Added
 
+- **Optional pausing in the final Cum round** — playlist authors can now allow unlimited pauses during the End-node Cum round without consuming pause charges. The option is disabled by default, never enables skipping or affects Cum Points, and suppresses the final Cum-round bonus score while active.
+- **Cum-round interjection suppression** — playlists now default to skipping automatic interjections during final Cum rounds and Cum Point rounds. Playlist Workshop and Map Editor both expose a “Do not play interjections in a cum round” toggle for authors who want to opt out.
 - **Configurable interjection count** — the Map Editor's Graph Settings panel and the Playlist Workshop now expose Minimum / Maximum interjections per triggered round, replacing the old hardcoded 60/30/10 split with a dedicated `intermediarySelection` range (1–5 each) and a `chooseIntermediaryCount` helper. The playlist schema is bumped to version 4 to persist the range; legacy configs migrate to a 1–3 default and new playlists default to exactly one.
 - **Funscript rate limiter (TheHandy & Intiface)** — a new "Limit fast funscripts" toggle in Settings → Hardware & Sync keeps demanding scripts within a Handy-compatible movement rate via a new `funscriptRateLimiter` module that caps the maximum movement rate (%/s) and applies an RDP simplification tolerance. Both parameters are configurable per provider and per multi-device slot, with a reset-to-defaults action.
 - **Verified database backup restore** — the Startup Recovery Center now lists every managed database backup with its integrity status, size, and creation time, and can restore a chosen copy. Restore integrity-checks the backup, snapshots a safety copy of the current database, applies the backup through a temp file, re-migrates, and re-verifies, rolling back to the safety copy if any step fails. Two new IPC channels (`startup-recovery:list-database-backups`, `startup-recovery:restore-database-backup`) back the UI.

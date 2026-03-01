@@ -162,6 +162,25 @@ describe("engine cum flow", () => {
     expect(didNotCum.completionReason).toBe("finished");
   });
 
+  it("does not award the final cum bonus when final-round pausing is enabled", () => {
+    const config = makeConfig();
+    config.allowPausingDuringFinalCumRound = true;
+    const initial = withActiveCumRound(createInitialGameState(config), 15);
+
+    const completed = completeRound(
+      initial,
+      {
+        intermediaryCount: 0,
+        activeAntiPerkCount: 0,
+        cumOutcome: "came_as_told",
+      },
+      []
+    );
+
+    expect(completed.players[completed.currentPlayerIndex]?.score).toBe(15);
+    expect(completed.log).toContain("Cum round success: Cum Round 1. +0 score.");
+  });
+
   it("fails the run when cum instruction is failed", () => {
     const initial = withActiveCumRound(createInitialGameState(makeConfig()), 40);
     const next = completeRound(
@@ -255,8 +274,10 @@ describe("engine cum flow", () => {
   });
 
   it("queues and completes a Cum Point without using the finished completion reason", () => {
+    const config = makeConfig();
+    config.allowPausingDuringFinalCumRound = true;
     const initial = {
-      ...createInitialGameState(makeConfig()),
+      ...createInitialGameState(config),
       pendingCumPointChoice: { playerId: "player-1", nodeId: "round-1" },
     };
     const queued = acceptCumPoint(initial, [makeInstalledRound("cum-1", "Cum Round 1")], () => 0);
@@ -268,6 +289,7 @@ describe("engine cum flow", () => {
       []
     );
     expect(completed.completionReason).toBe("cum_point");
+    expect(completed.players[completed.currentPlayerIndex]?.score).toBe(420);
   });
 
   it("uses an installed Cum Round for a Cum Point when none are configured", () => {

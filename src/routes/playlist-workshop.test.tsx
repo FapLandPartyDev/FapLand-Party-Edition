@@ -49,6 +49,8 @@ function makeLinearPlaylist(id: string, name: string, startingMoney = 120) {
         scorePerCumRoundSuccess: 420,
       },
       disableDiceAnimation: false,
+      disableInterjectionsDuringCumRounds: true,
+      allowPausingDuringFinalCumRound: false,
       dice: {
         min: 1,
         max: 6,
@@ -284,6 +286,8 @@ vi.mock("../game/playlistRuntime", () => ({
       resetAntiPerkProbabilityAfterTrigger: false,
     },
     disableDiceAnimation: false,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     economy: {
       startingMoney: 0,
       moneyPerCompletedRound: 0,
@@ -846,6 +850,80 @@ describe("PlaylistWorkshopRoute", () => {
       true
     );
     expect(updateCall.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger).toBe(true);
+  });
+
+  it("defaults cum-round interjection suppression to enabled and saves an opt-out", async () => {
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    render(<Component />);
+
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
+    fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));
+    await waitFor(() => {
+      expect((screen.getByRole("button", { name: "💾 Save" }) as HTMLButtonElement).disabled).toBe(
+        false
+      );
+    });
+    const toggle = screen.getByRole("button", {
+      name: /do not play interjections in a cum round toggle/i,
+    });
+    expect(toggle.textContent).toContain("Enabled");
+
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "💾 Save" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+    });
+
+    const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: ReturnType<typeof makeLinearPlaylist>["config"];
+    };
+    expect(updateCall.config.disableInterjectionsDuringCumRounds).toBe(false);
+  });
+
+  it("defaults final cum-round pausing to disabled and saves an opt-in", async () => {
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    render(<Component />);
+
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
+    fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));
+    await waitFor(() => {
+      expect((screen.getByRole("button", { name: "💾 Save" }) as HTMLButtonElement).disabled).toBe(
+        false
+      );
+    });
+    const toggle = screen.getByRole("button", {
+      name: /allow pausing during the final cum round toggle/i,
+    });
+    expect(toggle.textContent).toContain("Disabled");
+
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "💾 Save" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+    });
+
+    const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: ReturnType<typeof makeLinearPlaylist>["config"];
+    };
+    expect(updateCall.config.allowPausingDuringFinalCumRound).toBe(true);
   });
 
   it("exports .fplay after persisting dirty linear playlist changes", async () => {

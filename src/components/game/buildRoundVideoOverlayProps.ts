@@ -27,6 +27,7 @@ type RoundVideoOverlaySessionConfig = Pick<
   RoundVideoOverlayProps,
   | "currentPlayer"
   | "roundControl"
+  | "allowPausingDuringFinalCumRound"
   | "onRequestCum"
   | "cumRequestSignal"
   | "showCumRoundOutcomeMenuOnCumRequest"
@@ -81,6 +82,7 @@ export function buildRoundVideoOverlayProps({
     allowTimelineSeeking: shell.allowTimelineSeeking,
     currentPlayer: session?.currentPlayer,
     roundControl: session?.roundControl,
+    allowPausingDuringFinalCumRound: session?.allowPausingDuringFinalCumRound,
     onRequestCum: session?.onRequestCum,
     cumRequestSignal: session?.cumRequestSignal,
     showCumRoundOutcomeMenuOnCumRequest: session?.showCumRoundOutcomeMenuOnCumRequest,
@@ -148,6 +150,8 @@ export type GameplayRoundVideoOverlayLaunchConfig = {
   installedRounds: InstalledRound[];
   intermediaryProbability: number;
   intermediarySelection?: RoundVideoOverlayProps["intermediarySelection"];
+  disableInterjectionsDuringCumRounds?: boolean;
+  allowPausingDuringFinalCumRound?: boolean;
   booruSearchPrompt: string;
   intermediaryLoadingDurationSec: number;
   intermediaryReturnPauseSec: number;
@@ -179,15 +183,22 @@ export type GameplayRoundVideoOverlayLaunchConfig = {
 export function buildGameplayRoundVideoOverlayProps(
   config: GameplayRoundVideoOverlayLaunchConfig
 ): RoundVideoOverlayProps {
+  const isCumPhase =
+    config.activeRound?.phaseKind === "cum" || config.activeRound?.phaseKind === "cumPoint";
+
   return buildRoundVideoOverlayProps({
     playback: {
       activeRound: config.activeRound,
       installedRounds: config.installedRounds,
       intermediaryProbability: config.intermediaryProbability,
+      intermediarySelection: config.intermediarySelection,
       booruSearchPrompt: config.booruSearchPrompt,
       intermediaryLoadingDurationSec: config.intermediaryLoadingDurationSec,
       intermediaryReturnPauseSec: config.intermediaryReturnPauseSec,
-      allowAutomaticIntermediaries: true,
+      allowAutomaticIntermediaries: !(
+        (config.disableInterjectionsDuringCumRounds ?? true) &&
+        isCumPhase
+      ),
       initialShowProgressBarAlways: config.initialShowProgressBarAlways,
       initialShowAntiPerkBeatbar: config.initialShowAntiPerkBeatbar,
       initialShowDisconnectedHapticsStatus: config.initialShowDisconnectedHapticsStatus,
@@ -201,6 +212,7 @@ export function buildGameplayRoundVideoOverlayProps(
     session: {
       currentPlayer: config.currentPlayer,
       roundControl: config.roundControl,
+      allowPausingDuringFinalCumRound: config.allowPausingDuringFinalCumRound,
       onRequestCum: config.onRequestCum,
       cumRequestSignal: config.cumRequestSignal,
       showCumRoundOutcomeMenuOnCumRequest: config.showCumRoundOutcomeMenuOnCumRequest,

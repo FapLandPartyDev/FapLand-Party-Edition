@@ -401,6 +401,8 @@ export async function ensureEndlessPlaylist(): Promise<PlaylistRecord | null> {
     },
     roundStartDelayMs: 20000,
     disableDiceAnimation: true,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     perkSelection: { optionsPerPick: 3, triggerChancePerCompletedRound: 0.35 },
     perkPool: { enabledPerkIds: [], enabledAntiPerkIds: [] },
     intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 1 },

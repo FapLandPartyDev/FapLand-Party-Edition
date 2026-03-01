@@ -424,6 +424,8 @@ export type GameConfig = {
   };
   roundStartDelayMs: number;
   disableDiceAnimation?: boolean;
+  disableInterjectionsDuringCumRounds?: boolean;
+  allowPausingDuringFinalCumRound?: boolean;
   playlistMusic?: PlaylistMusicConfig;
   automations?: AutomationRuleRuntime[];
   endlessGeneration?: EndlessGenerationConfig;

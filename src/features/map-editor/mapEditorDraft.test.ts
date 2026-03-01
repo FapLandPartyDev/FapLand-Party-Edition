@@ -35,6 +35,8 @@ const makeEditorConfig = (): EditorGraphConfig => ({
   economy: { startingMoney: 0, scorePerCumRoundSuccess: 0 },
   dice: { min: 1, max: 6 },
   disableDiceAnimation: false,
+  disableInterjectionsDuringCumRounds: false,
+  allowPausingDuringFinalCumRound: true,
   saveMode: "none",
   requiredLevel: 1,
   style: {},
@@ -75,6 +77,8 @@ const makePlaylistConfig = (editor: EditorGraphConfig): PlaylistConfig => ({
   requiredLevel: 1,
   roundStartDelayMs: 0,
   disableDiceAnimation: false,
+  disableInterjectionsDuringCumRounds: editor.disableInterjectionsDuringCumRounds ?? true,
+  allowPausingDuringFinalCumRound: editor.allowPausingDuringFinalCumRound,
 });
 
 describe("map editor drafts", () => {
@@ -136,6 +140,8 @@ describe("map editor drafts", () => {
     expect(result.repair.omittedNodeCount).toBe(1);
     expect(result.repair.temporaryExitCount).toBe(1);
     expect(result.config.boardConfig.mode).toBe("graph");
+    expect(result.config.disableInterjectionsDuringCumRounds).toBe(false);
+    expect(result.config.allowPausingDuringFinalCumRound).toBe(true);
     expect(config).toEqual(original);
   });
 

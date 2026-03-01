@@ -6,7 +6,11 @@ import {
   ZPlaylistConfig,
   ZPlaylistEnvelopeV1,
 } from "./playlistSchema";
-import { toGameConfigFromPlaylist } from "./playlistRuntime";
+import {
+  createDefaultEndlessPlaylistConfig,
+  createDefaultPlaylistConfig,
+  toGameConfigFromPlaylist,
+} from "./playlistRuntime";
 import { toEditorGraphConfig, toGraphBoardConfig } from "../features/map-editor/EditorState";
 import type { InstalledRound } from "../services/db";
 
@@ -112,6 +116,53 @@ describe("playlistSchema", () => {
       minPerTriggeredRound: 1,
       maxPerTriggeredRound: 1,
     });
+    expect(parsed.disableInterjectionsDuringCumRounds).toBe(true);
+    expect(parsed.allowPausingDuringFinalCumRound).toBe(false);
+  });
+
+  it("preserves an explicit opt-out from suppressing cum-round interjections", () => {
+    const parsed = ZPlaylistConfig.parse({
+      ...buildConfig({
+        mode: "linear",
+        totalIndices: 10,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+      }),
+      disableInterjectionsDuringCumRounds: false,
+    });
+
+    expect(parsed.playlistVersion).toBe(CURRENT_PLAYLIST_VERSION);
+    expect(parsed.disableInterjectionsDuringCumRounds).toBe(false);
+    expect(toGameConfigFromPlaylist(parsed, []).disableInterjectionsDuringCumRounds).toBe(false);
+  });
+
+  it("enables cum-round interjection suppression in new playlist defaults", () => {
+    expect(createDefaultPlaylistConfig([]).disableInterjectionsDuringCumRounds).toBe(true);
+    expect(createDefaultEndlessPlaylistConfig().disableInterjectionsDuringCumRounds).toBe(true);
+  });
+
+  it("preserves an explicit opt-in to final cum-round pausing", () => {
+    const parsed = ZPlaylistConfig.parse({
+      ...buildConfig({
+        mode: "linear",
+        totalIndices: 10,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+      }),
+      allowPausingDuringFinalCumRound: true,
+    });
+
+    expect(parsed.allowPausingDuringFinalCumRound).toBe(true);
+    expect(toGameConfigFromPlaylist(parsed, []).allowPausingDuringFinalCumRound).toBe(true);
+  });
+
+  it("disables final cum-round pausing in new playlist defaults", () => {
+    expect(createDefaultPlaylistConfig([]).allowPausingDuringFinalCumRound).toBe(false);
+    expect(createDefaultEndlessPlaylistConfig().allowPausingDuringFinalCumRound).toBe(false);
   });
 
   it.each([1, 2, 3])(
@@ -507,6 +558,8 @@ describe("playlistSchema", () => {
             }),
             playlistVersion: 4,
             intermediarySelection: { minPerTriggeredRound: 3, maxPerTriggeredRound: 3 },
+            disableInterjectionsDuringCumRounds: false,
+            allowPausingDuringFinalCumRound: true,
           },
         })
       )
@@ -518,6 +571,8 @@ describe("playlistSchema", () => {
       minPerTriggeredRound: 3,
       maxPerTriggeredRound: 3,
     });
+    expect(envelope.config.disableInterjectionsDuringCumRounds).toBe(false);
+    expect(envelope.config.allowPausingDuringFinalCumRound).toBe(true);
   });
 
   it("upgrades v1 graph playlists with implicit terminal nodes", () => {

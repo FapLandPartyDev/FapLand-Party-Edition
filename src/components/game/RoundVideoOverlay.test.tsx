@@ -247,7 +247,10 @@ function createIntermediaryRound(
   });
 }
 
-function createActiveRound(roundId = "round-1"): ActiveRound {
+function createActiveRound(
+  roundId = "round-1",
+  phaseKind: ActiveRound["phaseKind"] = "normal"
+): ActiveRound {
   return {
     fieldId: "field-1",
     nodeId: "node-1",
@@ -255,7 +258,7 @@ function createActiveRound(roundId = "round-1"): ActiveRound {
     roundName: "Round 1",
     selectionKind: "fixed",
     poolId: null,
-    phaseKind: "normal",
+    phaseKind,
     campaignIndex: 0,
   };
 }
@@ -335,6 +338,7 @@ function renderOverlay({
   onFinishRound = vi.fn(),
   roadPalette,
   roundControl,
+  allowPausingDuringFinalCumRound = false,
   onOptionsActionsChange,
   onPlaybackTelemetry,
 }: {
@@ -357,6 +361,7 @@ function renderOverlay({
     onUsePause: () => void;
     onUseSkip: () => void;
   };
+  allowPausingDuringFinalCumRound?: boolean;
   onOptionsActionsChange?: RoundVideoOverlayProps["onOptionsActionsChange"];
   onPlaybackTelemetry?: RoundVideoOverlayProps["onPlaybackTelemetry"];
 } = {}) {
@@ -378,6 +383,7 @@ function renderOverlay({
       initialShowAntiPerkBeatbar={initialShowAntiPerkBeatbar}
       roadPalette={roadPalette}
       roundControl={roundControl}
+      allowPausingDuringFinalCumRound={allowPausingDuringFinalCumRound}
       onOptionsActionsChange={onOptionsActionsChange}
       onPlaybackTelemetry={onPlaybackTelemetry}
     />
@@ -1131,6 +1137,88 @@ describe("RoundVideoOverlay", () => {
       expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({ synced: true, error: null });
       expect(playSpy).toHaveBeenCalled();
     });
+  });
+
+  it.each([
+    {
+      phaseKind: "normal" as const,
+      allowFinalPause: false,
+      showsPause: true,
+      showsSkip: true,
+    },
+    {
+      phaseKind: "cum" as const,
+      allowFinalPause: true,
+      showsPause: true,
+      showsSkip: false,
+    },
+    {
+      phaseKind: "cum" as const,
+      allowFinalPause: false,
+      showsPause: false,
+      showsSkip: false,
+    },
+    {
+      phaseKind: "cumPoint" as const,
+      allowFinalPause: true,
+      showsPause: false,
+      showsSkip: false,
+    },
+  ])(
+    "shows pause=$showsPause and skip=$showsSkip controls for $phaseKind when final pause is $allowFinalPause",
+    ({ phaseKind, allowFinalPause, showsPause, showsSkip }) => {
+      renderOverlay({
+        activeRound: createActiveRound("round-1", phaseKind),
+        allowPausingDuringFinalCumRound: allowFinalPause,
+        roundControl: {
+          pauseCharges: 1,
+          skipCharges: 1,
+          onUsePause: vi.fn(),
+          onUseSkip: vi.fn(),
+        },
+      });
+
+      expect(Boolean(screen.queryByRole("button", { name: /^Pause/ }))).toBe(showsPause);
+      expect(Boolean(screen.queryByRole("button", { name: "Skip 1" }))).toBe(showsSkip);
+    }
+  );
+
+  it("pauses during an enabled final cum round without consuming a charge or exposing skip", async () => {
+    const onUsePause = vi.fn();
+    const { container } = renderOverlay({
+      activeRound: createActiveRound("round-1", "cum"),
+      allowPausingDuringFinalCumRound: true,
+      roundControl: {
+        pauseCharges: 1,
+        skipCharges: 1,
+        onUsePause,
+        onUseSkip: vi.fn(),
+      },
+    });
+
+    await waitFor(() => expect(container.querySelector("video")).not.toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Pause ∞" }));
+
+    expect(onUsePause).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Skip 1" })).toBeNull();
+  });
+
+  it("keeps unlimited final cum-round pausing enabled with zero stored charges", () => {
+    renderOverlay({
+      activeRound: createActiveRound("round-1", "cum"),
+      allowPausingDuringFinalCumRound: true,
+      roundControl: {
+        pauseCharges: 0,
+        skipCharges: 1,
+        onUsePause: vi.fn(),
+        onUseSkip: vi.fn(),
+      },
+    });
+
+    expect((screen.getByRole("button", { name: "Pause ∞" }) as HTMLButtonElement).disabled).toBe(
+      false
+    );
+    expect(screen.queryByRole("button", { name: "Skip 1" })).toBeNull();
   });
 
   it("pauses haptics when the pause perk pauses the video", async () => {

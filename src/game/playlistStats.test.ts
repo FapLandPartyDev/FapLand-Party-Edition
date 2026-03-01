@@ -9,6 +9,8 @@ describe("playlistStats", () => {
     saveMode: "none",
     roundStartDelayMs: 0,
     disableDiceAnimation: false,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     perkSelection: { optionsPerPick: 3, triggerChancePerCompletedRound: 0.35 },
     perkPool: { enabledPerkIds: [], enabledAntiPerkIds: [] },
     intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 3 },

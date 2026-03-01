@@ -123,6 +123,8 @@ type EditableLinearSetup = {
   diceMin: number;
   diceMax: number;
   disableDiceAnimation: boolean;
+  disableInterjectionsDuringCumRounds: boolean;
+  allowPausingDuringFinalCumRound: boolean;
 };
 
 type DifficultySection = {
@@ -593,6 +595,8 @@ function toEditableSetup(
       diceMin: config.dice?.min ?? 1,
       diceMax: config.dice?.max ?? 6,
       disableDiceAnimation: config.disableDiceAnimation ?? false,
+      disableInterjectionsDuringCumRounds: config.disableInterjectionsDuringCumRounds ?? true,
+      allowPausingDuringFinalCumRound: config.allowPausingDuringFinalCumRound ?? false,
     };
   }
 
@@ -647,6 +651,8 @@ function toEditableSetup(
     diceMin: config.dice?.min ?? 1,
     diceMax: config.dice?.max ?? 6,
     disableDiceAnimation: config.disableDiceAnimation ?? false,
+    disableInterjectionsDuringCumRounds: config.disableInterjectionsDuringCumRounds ?? true,
+    allowPausingDuringFinalCumRound: config.allowPausingDuringFinalCumRound ?? false,
   });
 }
 
@@ -1722,6 +1728,8 @@ function PlaylistWorkshopPage() {
         Math.min(300000, Math.round(normalizedSetup.roundStartDelaySec * 1000))
       ),
       disableDiceAnimation: normalizedSetup.disableDiceAnimation,
+      disableInterjectionsDuringCumRounds: normalizedSetup.disableInterjectionsDuringCumRounds,
+      allowPausingDuringFinalCumRound: normalizedSetup.allowPausingDuringFinalCumRound,
       dice: {
         min: Math.max(1, Math.min(20, Math.floor(normalizedSetup.diceMin))),
         max: Math.max(1, Math.min(20, Math.floor(normalizedSetup.diceMax))),
@@ -3950,6 +3958,94 @@ function PlaylistWorkshopPage() {
                         })
                       }
                     />
+                    <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="text-sm font-semibold text-white">
+                            {abbreviateNsfwText(
+                              t`Do not play interjections in a cum round`,
+                              sfwMode
+                            )}
+                          </div>
+                          <p className="text-xs leading-relaxed text-white/50">
+                            {abbreviateNsfwText(
+                              t`When enabled, interjections are skipped during final cum rounds and Cum Point rounds.`,
+                              sfwMode
+                            )}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label={abbreviateNsfwText(
+                            t`Do not play interjections in a cum round toggle`,
+                            sfwMode
+                          )}
+                          onClick={() =>
+                            setSetup((prev) => ({
+                              ...prev,
+                              disableInterjectionsDuringCumRounds:
+                                !prev.disableInterjectionsDuringCumRounds,
+                            }))
+                          }
+                          disabled={!isLinearEditable}
+                          className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                            setup.disableInterjectionsDuringCumRounds
+                              ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-100"
+                              : "border-white/10 bg-black/30 text-white/70 hover:border-white/20 hover:text-white"
+                          }`}
+                        >
+                          {setup.disableInterjectionsDuringCumRounds ? (
+                            <Trans>Enabled</Trans>
+                          ) : (
+                            <Trans>Disabled</Trans>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="text-sm font-semibold text-white">
+                            {abbreviateNsfwText(
+                              t`Allow pausing during the final cum round`,
+                              sfwMode
+                            )}
+                          </div>
+                          <p className="text-xs leading-relaxed text-white/50">
+                            {abbreviateNsfwText(
+                              t`Allows unlimited pauses during the End-node cum round without consuming pause charges. When enabled, that round does not grant the Cum Round Bonus Score. Cum Points are unaffected.`,
+                              sfwMode
+                            )}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label={abbreviateNsfwText(
+                            t`Allow pausing during the final cum round toggle`,
+                            sfwMode
+                          )}
+                          onClick={() =>
+                            setSetup((prev) => ({
+                              ...prev,
+                              allowPausingDuringFinalCumRound:
+                                !prev.allowPausingDuringFinalCumRound,
+                            }))
+                          }
+                          disabled={!isLinearEditable}
+                          className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                            setup.allowPausingDuringFinalCumRound
+                              ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-100"
+                              : "border-white/10 bg-black/30 text-white/70 hover:border-white/20 hover:text-white"
+                          }`}
+                        >
+                          {setup.allowPausingDuringFinalCumRound ? (
+                            <Trans>Enabled</Trans>
+                          ) : (
+                            <Trans>Disabled</Trans>
+                          )}
+                        </button>
+                      </div>
+                    </div>
                     <NumberInput
                       label={t`Intermediary Initial %`}
                       description={t`Starting chance for an intermediary event before round 1. The run begins at this value, then uses the increase and max settings below to scale over time.`}

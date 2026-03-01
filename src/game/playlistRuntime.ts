@@ -252,6 +252,8 @@ function buildLinearConfig(
     },
     roundStartDelayMs: 20000,
     disableDiceAnimation: false,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     automations: [],
   };
 }
@@ -415,6 +417,8 @@ function buildGraphConfig(
       scorePerCumRoundSuccess: 420,
     },
     roundStartDelayMs: 20000,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     automations: (config.automations ?? []).map((rule) => structuredClone(rule)),
   };
 }
@@ -604,6 +608,8 @@ function buildEndlessConfig(
     },
     roundStartDelayMs: 20000,
     disableDiceAnimation: true,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     endlessGeneration,
   };
 }
@@ -636,6 +642,8 @@ export function toGameConfigFromPlaylist(
     ...config,
     roundStartDelayMs: playlistConfig.roundStartDelayMs,
     disableDiceAnimation: playlistConfig.disableDiceAnimation,
+    disableInterjectionsDuringCumRounds: playlistConfig.disableInterjectionsDuringCumRounds,
+    allowPausingDuringFinalCumRound: playlistConfig.allowPausingDuringFinalCumRound,
     dice: playlistConfig.dice,
     perkSelection: playlistConfig.perkSelection,
     perkPool: playlistConfig.perkPool,
@@ -682,6 +690,8 @@ export function createDefaultPlaylistConfig<T extends PlaylistResolutionRoundLik
     },
     roundStartDelayMs: 20000,
     disableDiceAnimation: false,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     perkSelection: {
       optionsPerPick: 3,
       triggerChancePerCompletedRound: 0.35,
@@ -733,6 +743,8 @@ export function createDefaultEndlessPlaylistConfig(): PlaylistConfig {
     },
     roundStartDelayMs: 20000,
     disableDiceAnimation: true,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     perkSelection: {
       optionsPerPick: 3,
       triggerChancePerCompletedRound: 0.35,

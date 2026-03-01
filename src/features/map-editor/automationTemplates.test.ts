@@ -39,6 +39,7 @@ function makeConfig(): EditorGraphConfig {
     economy: { startingMoney: 120, scorePerCumRoundSuccess: 420 },
     dice: { min: 1, max: 6 },
     disableDiceAnimation: false,
+    allowPausingDuringFinalCumRound: false,
     saveMode: "none",
     style: {},
     music: {

@@ -173,6 +173,8 @@ function toLegacyPlaylistConfig(
     },
     roundStartDelayMs: 20000,
     disableDiceAnimation: false,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     dice: { min: 1, max: 6 },
     economy: {
       startingMoney: 120,

@@ -25,6 +25,8 @@ function makeSetup(
     intermediaryMaxPerTriggeredRound: 1,
     roundStartDelaySec: 0,
     disableDiceAnimation: false,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     startingMoney: 120,
     probabilities: {
       intermediary: { initial: 0, increasePerRound: 0, max: 0 },

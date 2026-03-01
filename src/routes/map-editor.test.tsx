@@ -72,6 +72,8 @@ function makePlaylist(id: string, name: string) {
       perkSelection: { optionsPerPick: 3, triggerChancePerCompletedRound: 0.35 },
       perkPool: { enabledPerkIds: [], enabledAntiPerkIds: [] },
       disableDiceAnimation: false,
+      disableInterjectionsDuringCumRounds: true,
+      allowPausingDuringFinalCumRound: false,
       probabilityScaling: {
         initialIntermediaryProbability: 0,
         initialAntiPerkProbability: 0,
@@ -563,6 +565,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.clearAllMocks();
 });
 
@@ -899,6 +902,31 @@ describe("MapEditorRoute", () => {
     await enterEditor();
 
     expect(screen.getByRole("button", { name: "Convert to Linear" })).toBeDefined();
+  });
+
+  it("does not autosave while only the canvas viewport is moving", async () => {
+    render(<Component />);
+    await enterEditor();
+    mocks.playlists.saveEditorDraft.mockClear();
+    vi.useFakeTimers();
+
+    const canvas = mocks.canvasProps as {
+      onViewportChange: (viewport: { x: number; y: number; zoom: number }) => void;
+      onPlaceNodeAtWorld: (kind: "path", x: number, y: number) => void;
+    };
+    act(() => {
+      canvas.onViewportChange({ x: 100, y: 120, zoom: 1 });
+      canvas.onViewportChange({ x: 140, y: 160, zoom: 1 });
+      vi.advanceTimersByTime(5_000);
+    });
+    expect(mocks.playlists.saveEditorDraft).not.toHaveBeenCalled();
+
+    act(() => canvas.onPlaceNodeAtWorld("path", 500, 500));
+    await act(async () => {
+      vi.advanceTimersByTime(1_500);
+      await Promise.resolve();
+    });
+    expect(mocks.playlists.saveEditorDraft).toHaveBeenCalledTimes(1);
   });
 
   it("opens a lossy conversion warning before converting to linear", async () => {
@@ -1238,6 +1266,64 @@ describe("MapEditorRoute", () => {
       true
     );
     expect(updateCall.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger).toBe(true);
+  });
+
+  it("saves the cum-round interjection suppression option", async () => {
+    const playlist = makePlaylist("playlist-interjections", "Interjection Settings");
+    mocks.loaderData = {
+      ...mocks.loaderData,
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+
+    render(<Component />);
+    await enterEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    const toggle = screen.getByRole("button", {
+      name: /do not play interjections in a cum round/i,
+    });
+    expect(toggle.textContent).toContain("Enabled");
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+    });
+
+    const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: PlaylistConfig;
+    };
+    expect(updateCall.config.disableInterjectionsDuringCumRounds).toBe(false);
+  });
+
+  it("saves the final cum-round pausing option", async () => {
+    const playlist = makePlaylist("playlist-final-pause", "Final Pause Settings");
+    mocks.loaderData = {
+      ...mocks.loaderData,
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+
+    render(<Component />);
+    await enterEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    const toggle = screen.getByRole("button", {
+      name: /allow pausing during the final cum round/i,
+    });
+    expect(toggle.textContent).toContain("Disabled");
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+    });
+
+    const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: PlaylistConfig;
+    };
+    expect(updateCall.config.allowPausingDuringFinalCumRound).toBe(true);
   });
 
   it("adds a URL music track to advanced playlist music only", async () => {

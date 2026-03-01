@@ -129,6 +129,12 @@ const DEFAULT_EDITOR_VIEWPORT: ViewportState = {
   y: 60,
   zoom: 0.9,
 };
+
+// Drafts can contain the entire graph, so keep their serialization and IPC work
+// away from active pointer/keyboard input. The idle timeout still guarantees that
+// a draft is eventually written when the renderer remains busy.
+const EDITOR_AUTOSAVE_DELAY_MS = 1_500;
+const EDITOR_AUTOSAVE_IDLE_TIMEOUT_MS = 2_000;
 const DEFAULT_TEXT_ANNOTATION_TEXT = "Guidance text";
 const DEFAULT_TEXT_ANNOTATION_COLOR = "#f8fafc";
 const DEFAULT_TEXT_ANNOTATION_SIZE = 18;
@@ -242,6 +248,9 @@ const toEditorConfigFromPlaylist = (playlist: StoredPlaylist): EditorGraphConfig
     },
     dice: { ...playlist.config.dice },
     disableDiceAnimation: playlist.config.disableDiceAnimation ?? false,
+    disableInterjectionsDuringCumRounds:
+      playlist.config.disableInterjectionsDuringCumRounds ?? true,
+    allowPausingDuringFinalCumRound: playlist.config.allowPausingDuringFinalCumRound ?? false,
     saveMode: playlist.config.saveMode ?? "none",
     requiredLevel: playlist.config.requiredLevel ?? 1,
     music: {
@@ -344,6 +353,8 @@ const makeStartingConfig = (): EditorGraphConfig => ({
     max: 6,
   },
   disableDiceAnimation: false,
+  disableInterjectionsDuringCumRounds: true,
+  allowPausingDuringFinalCumRound: false,
   saveMode: "none",
   requiredLevel: 1,
   style: {},
@@ -362,6 +373,8 @@ const createPlaylistConfigFromEditorConfig = (editorConfig: EditorGraphConfig): 
     requiredLevel: Math.max(1, Math.floor(editorConfig.requiredLevel ?? 1)),
     roundStartDelayMs: 20000,
     disableDiceAnimation: editorConfig.disableDiceAnimation,
+    disableInterjectionsDuringCumRounds: editorConfig.disableInterjectionsDuringCumRounds ?? true,
+    allowPausingDuringFinalCumRound: editorConfig.allowPausingDuringFinalCumRound,
     perkSelection: {
       ...editorConfig.perkSelection,
     },
@@ -598,6 +611,7 @@ function MapEditorPage() {
   const [importPending, setImportPending] = useState(false);
   const [savePending, setSavePending] = useState(false);
   const [draftSaveStatus, setDraftSaveStatus] = useState<MapEditorSaveStatus>("saved");
+  const [autosaveRevision, setAutosaveRevision] = useState(0);
   const [testMapPending, setTestMapPending] = useState(false);
   const [nodeContextMenu, setNodeContextMenu] = useState<{
     nodeId: string;
@@ -667,7 +681,9 @@ function MapEditorPage() {
   const selectedPlaylistIdRef = useRef<string | null>(selectedPlaylistId);
   selectedPlaylistIdRef.current = selectedPlaylistId;
   const playlistPickerRevisionRef = useRef(0);
-  const draftSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const draftSaveWorkerRef = useRef<Promise<boolean> | null>(null);
+  const draftSaveRequestedRef = useRef(false);
+  const skipNextAutosaveRef = useRef(false);
 
   const undoManagerRef = useRef(
     new UndoManager<EditorGraphConfig>(makeStartingConfig(), {
@@ -708,6 +724,7 @@ function MapEditorPage() {
       if (commit) {
         undoManagerRef.current.push(next);
         syncHistoryState();
+        setAutosaveRevision((revision) => revision + 1);
       }
       return true;
     },
@@ -833,81 +850,137 @@ function MapEditorPage() {
     [playlistList, selectedPlaylistId]
   );
   const draftRevisionRef = useRef(0);
-  const buildDraftSnapshot = useCallback(
-    (): MapEditorDraftSnapshot => ({
-      version: 1,
+  const draftUiStateRef = useRef({
+    name: playlistNameDraft,
+    viewport,
+    showGrid,
+    snapToGrid,
+    sidebarTab,
+    activeCategory,
+    tileSearch,
+    roundSearch,
+    roundTypeFilter,
+    roundSort,
+    heroSearch,
+    heroSort,
+  });
+  useEffect(() => {
+    draftUiStateRef.current = {
       name: playlistNameDraft,
-      config: configRef.current,
       viewport,
       showGrid,
       snapToGrid,
-      sidebar: {
-        activeTab: sidebarTab,
-        activeCategory,
-        tileSearch,
-        roundSearch,
-        roundTypeFilter,
-        roundSort,
-        heroSearch,
-        heroSort,
-      },
-    }),
-    [
+      sidebarTab,
+      activeCategory,
+      tileSearch,
+      roundSearch,
+      roundTypeFilter,
+      roundSort,
       heroSearch,
       heroSort,
-      playlistNameDraft,
-      roundSearch,
-      roundSort,
-      roundTypeFilter,
-      showGrid,
-      sidebarTab,
-      snapToGrid,
-      tileSearch,
-      viewport,
-      activeCategory,
-    ]
-  );
+    };
+  }, [
+    activeCategory,
+    heroSearch,
+    heroSort,
+    playlistNameDraft,
+    roundSearch,
+    roundSort,
+    roundTypeFilter,
+    showGrid,
+    sidebarTab,
+    snapToGrid,
+    tileSearch,
+    viewport,
+  ]);
+  const buildDraftSnapshot = useCallback((): MapEditorDraftSnapshot => {
+    const draftUi = draftUiStateRef.current;
+    return {
+      version: 1,
+      name: draftUi.name,
+      config: configRef.current,
+      viewport: draftUi.viewport,
+      showGrid: draftUi.showGrid,
+      snapToGrid: draftUi.snapToGrid,
+      sidebar: {
+        activeTab: draftUi.sidebarTab,
+        activeCategory: draftUi.activeCategory,
+        tileSearch: draftUi.tileSearch,
+        roundSearch: draftUi.roundSearch,
+        roundTypeFilter: draftUi.roundTypeFilter,
+        roundSort: draftUi.roundSort,
+        heroSearch: draftUi.heroSearch,
+        heroSort: draftUi.heroSort,
+      },
+    };
+  }, []);
   const flushEditorDraft = useCallback(async (): Promise<boolean> => {
     if (!selectedPlaylist) return true;
-    const playlistId = selectedPlaylist.id;
-    const snapshot = buildDraftSnapshot();
-    const revision = draftRevisionRef.current;
-    setDraftSaveStatus("saving");
-    let saveSucceeded = false;
-    const operation = draftSaveQueueRef.current
-      .catch(() => undefined)
-      .then(async () => {
-        await playlists.saveEditorDraft(playlistId, snapshot);
-        saveSucceeded = true;
+    draftSaveRequestedRef.current = true;
+
+    // A slow database write must not build an unbounded queue of stale, full-graph
+    // snapshots. All callers share one worker, which picks up the newest state only.
+    if (!draftSaveWorkerRef.current) {
+      const playlistId = selectedPlaylist.id;
+      draftSaveWorkerRef.current = (async () => {
+        while (draftSaveRequestedRef.current) {
+          draftSaveRequestedRef.current = false;
+          const snapshot = buildDraftSnapshot();
+          const revision = draftRevisionRef.current;
+          setDraftSaveStatus("saving");
+          try {
+            await playlists.saveEditorDraft(playlistId, snapshot);
+          } catch (error) {
+            console.error("Failed to save map editor draft", error);
+            draftSaveRequestedRef.current = false;
+            setDraftSaveStatus("error");
+            setSaveNotice(error instanceof Error ? error.message : "Failed to save editor draft.");
+            return false;
+          }
+          if (draftRevisionRef.current === revision) setDraftSaveStatus("saved");
+        }
+        return true;
+      })().finally(() => {
+        draftSaveWorkerRef.current = null;
       });
-    draftSaveQueueRef.current = operation.then(
-      () => undefined,
-      () => undefined
-    );
-    try {
-      await operation;
-      if (draftRevisionRef.current === revision) setDraftSaveStatus("saved");
-      return saveSucceeded;
-    } catch (error) {
-      console.error("Failed to save map editor draft", error);
-      setDraftSaveStatus("error");
-      setSaveNotice(error instanceof Error ? error.message : "Failed to save editor draft.");
-      return false;
     }
+
+    return draftSaveWorkerRef.current;
   }, [buildDraftSnapshot, selectedPlaylist]);
 
   useEffect(() => {
     if (!selectedPlaylist) return;
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
+    }
     draftRevisionRef.current += 1;
-    const dirtyTimer = window.setTimeout(() => setDraftSaveStatus("dirty"), 0);
+    setDraftSaveStatus((status) => (status === "dirty" ? status : "dirty"));
+    let idleCallback: number | null = null;
     const timer = window.setTimeout(() => {
-      void flushEditorDraft();
-    }, 750);
+      if (typeof window.requestIdleCallback === "function") {
+        idleCallback = window.requestIdleCallback(() => void flushEditorDraft(), {
+          timeout: EDITOR_AUTOSAVE_IDLE_TIMEOUT_MS,
+        });
+      } else {
+        void flushEditorDraft();
+      }
+    }, EDITOR_AUTOSAVE_DELAY_MS);
     return () => {
-      window.clearTimeout(dirtyTimer);
       window.clearTimeout(timer);
+      if (idleCallback !== null) window.cancelIdleCallback(idleCallback);
     };
-  }, [buildDraftSnapshot, flushEditorDraft, selectedPlaylist]);
+    // Autosave durable editor content and preferences. Viewport and sidebar search
+    // changes are included in the next snapshot but intentionally do not trigger a
+    // full graph save while the user is panning, zooming, or filtering libraries.
+  }, [
+    autosaveRevision,
+    flushEditorDraft,
+    playlistNameDraft,
+    selectedPlaylist,
+    showGrid,
+    snapToGrid,
+  ]);
 
   useEffect(() => {
     if (!selectedPlaylist || draftSaveStatus === "saved") return;
@@ -965,6 +1038,7 @@ function MapEditorPage() {
   const openPlaylistForEditing = useCallback(
     async (playlist: StoredPlaylist) => {
       playSelectSound();
+      skipNextAutosaveRef.current = true;
       setSelectedPlaylistId(playlist.id);
       selectedPlaylistIdRef.current = playlist.id;
       setPlaylistNameDraft(playlist.name);
@@ -1832,6 +1906,26 @@ function MapEditorPage() {
     [updateGraphConfig]
   );
 
+  const setDisableInterjectionsDuringCumRounds = useCallback(
+    (value: boolean) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        disableInterjectionsDuringCumRounds: value,
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const setAllowPausingDuringFinalCumRound = useCallback(
+    (value: boolean) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        allowPausingDuringFinalCumRound: value,
+      }));
+    },
+    [updateGraphConfig]
+  );
+
   const setResetAntiPerkProbabilityAfterTrigger = useCallback(
     (value: boolean) => {
       updateGraphConfig((previous) => ({
@@ -2564,6 +2658,7 @@ function MapEditorPage() {
       if (dragSessionRef.current.moved) {
         undoManagerRef.current.push(configRef.current);
         syncHistoryState();
+        setAutosaveRevision((revision) => revision + 1);
         dragSessionRef.current.moved = false;
       }
     },
@@ -2765,6 +2860,7 @@ function MapEditorPage() {
     }
     setConfig(nextState);
     configRef.current = nextState;
+    setAutosaveRevision((revision) => revision + 1);
     commitSelection(EMPTY_EDITOR_SELECTION);
     setConnectFromNodeId(null);
     syncHistoryState();
@@ -2779,6 +2875,7 @@ function MapEditorPage() {
     }
     setConfig(nextState);
     configRef.current = nextState;
+    setAutosaveRevision((revision) => revision + 1);
     commitSelection(EMPTY_EDITOR_SELECTION);
     setConnectFromNodeId(null);
     syncHistoryState();
@@ -2898,6 +2995,7 @@ function MapEditorPage() {
     const nextConfig = makeStartingConfig();
     setConfig(nextConfig);
     configRef.current = nextConfig;
+    setAutosaveRevision((revision) => revision + 1);
     undoManagerRef.current.reset(nextConfig);
     syncHistoryState();
     commitSelection(EMPTY_EDITOR_SELECTION);
@@ -2935,6 +3033,9 @@ function MapEditorPage() {
       },
       dice: { ...configRef.current.dice },
       disableDiceAnimation: configRef.current.disableDiceAnimation,
+      disableInterjectionsDuringCumRounds:
+        configRef.current.disableInterjectionsDuringCumRounds ?? true,
+      allowPausingDuringFinalCumRound: configRef.current.allowPausingDuringFinalCumRound,
       saveMode: configRef.current.saveMode,
       requiredLevel: Math.max(1, Math.floor(configRef.current.requiredLevel ?? 1)),
       music:
@@ -3804,7 +3905,7 @@ function MapEditorPage() {
                   {draftSaveStatus === "saving"
                     ? t`Saving…`
                     : draftSaveStatus === "dirty"
-                      ? t`Unsaved changes`
+                      ? t`Autosave pending…`
                       : draftSaveStatus === "error"
                         ? t`Save failed — Retry`
                         : t`Draft saved`}
@@ -4042,6 +4143,7 @@ function MapEditorPage() {
                   if (dragSessionRef.current.active && dragSessionRef.current.moved) {
                     undoManagerRef.current.push(configRef.current);
                     syncHistoryState();
+                    setAutosaveRevision((revision) => revision + 1);
                   }
                   dragSessionRef.current.active = false;
                   dragSessionRef.current.moved = false;
@@ -4178,6 +4280,10 @@ function MapEditorPage() {
                       perkPool={config.perkPool}
                       probabilityScaling={config.probabilityScaling}
                       intermediarySelection={config.intermediarySelection}
+                      disableInterjectionsDuringCumRounds={
+                        config.disableInterjectionsDuringCumRounds ?? true
+                      }
+                      allowPausingDuringFinalCumRound={config.allowPausingDuringFinalCumRound}
                       resetIntermediaryProbabilityAfterTrigger={
                         config.resetIntermediaryProbabilityAfterTrigger
                       }
@@ -4199,6 +4305,10 @@ function MapEditorPage() {
                       onSetPerkTriggerChance={setPerkTriggerChance}
                       onSetProbabilityScaling={setProbabilityScaling}
                       onSetIntermediaryCount={setIntermediaryCount}
+                      onSetDisableInterjectionsDuringCumRounds={
+                        setDisableInterjectionsDuringCumRounds
+                      }
+                      onSetAllowPausingDuringFinalCumRound={setAllowPausingDuringFinalCumRound}
                       onSetResetIntermediaryProbabilityAfterTrigger={
                         setResetIntermediaryProbabilityAfterTrigger
                       }

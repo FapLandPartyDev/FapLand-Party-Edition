@@ -6,7 +6,10 @@ import {
   buildPreviewRoundVideoOverlayProps,
 } from "./buildRoundVideoOverlayProps";
 
-function createActiveRound(roundId = "round-1"): ActiveRound {
+function createActiveRound(
+  roundId = "round-1",
+  phaseKind: ActiveRound["phaseKind"] = "normal"
+): ActiveRound {
   return {
     fieldId: "field-1",
     nodeId: "node-1",
@@ -14,7 +17,7 @@ function createActiveRound(roundId = "round-1"): ActiveRound {
     roundName: "Round 1",
     selectionKind: "fixed",
     poolId: null,
-    phaseKind: "normal",
+    phaseKind,
     campaignIndex: 0,
   };
 }
@@ -84,6 +87,7 @@ describe("buildRoundVideoOverlayProps", () => {
       initialShowProgressBarAlways: true,
       initialShowAntiPerkBeatbar: true,
       currentPlayer: createPlayer(),
+      allowPausingDuringFinalCumRound: true,
       onFinishRound: gameplayOnFinish,
       roundControl: {
         pauseCharges: 1,
@@ -103,6 +107,7 @@ describe("buildRoundVideoOverlayProps", () => {
     expect(gameplay.allowAutomaticIntermediaries).toBe(true);
     expect(preview.initialShowProgressBarAlways).toBe(gameplay.initialShowProgressBarAlways);
     expect(preview.initialShowAntiPerkBeatbar).toBe(gameplay.initialShowAntiPerkBeatbar);
+    expect(gameplay.allowPausingDuringFinalCumRound).toBe(true);
   });
 
   it("keeps preview shell controls separate from gameplay session controls", () => {
@@ -156,4 +161,34 @@ describe("buildRoundVideoOverlayProps", () => {
 
     expect(preview.allowAutomaticIntermediaries).toBe(true);
   });
+
+  it.each([
+    { phaseKind: "normal" as const, disabled: true, expected: true },
+    { phaseKind: "cum" as const, disabled: true, expected: false },
+    { phaseKind: "cumPoint" as const, disabled: true, expected: false },
+    { phaseKind: "cum" as const, disabled: false, expected: true },
+    { phaseKind: "cumPoint" as const, disabled: false, expected: true },
+  ])(
+    "sets automatic intermediary playback to $expected for $phaseKind when suppression is $disabled",
+    ({ phaseKind, disabled, expected }) => {
+      const gameplay = buildGameplayRoundVideoOverlayProps({
+        activeRound: createActiveRound("round-1", phaseKind),
+        installedRounds: [createInstalledRound()],
+        intermediaryProbability: 1,
+        intermediarySelection: { minPerTriggeredRound: 2, maxPerTriggeredRound: 4 },
+        disableInterjectionsDuringCumRounds: disabled,
+        booruSearchPrompt: "animated gif webm",
+        intermediaryLoadingDurationSec: 5,
+        intermediaryReturnPauseSec: 4,
+        currentPlayer: createPlayer(),
+        onFinishRound: vi.fn(),
+      });
+
+      expect(gameplay.allowAutomaticIntermediaries).toBe(expected);
+      expect(gameplay.intermediarySelection).toEqual({
+        minPerTriggeredRound: 2,
+        maxPerTriggeredRound: 4,
+      });
+    }
+  );
 });

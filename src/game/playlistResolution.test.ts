@@ -65,6 +65,8 @@ function makeLinearConfig(): PlaylistConfig {
     },
     roundStartDelayMs: 20000,
     disableDiceAnimation: false,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     dice: { min: 1, max: 6 },
     saveMode: "none",
   };
@@ -127,6 +129,8 @@ function makeGraphConfig(): PlaylistConfig {
     },
     roundStartDelayMs: 20000,
     disableDiceAnimation: false,
+    disableInterjectionsDuringCumRounds: true,
+    allowPausingDuringFinalCumRound: false,
     dice: { min: 1, max: 6 },
     saveMode: "none",
   };

@@ -161,7 +161,7 @@ const ZRuntimeGraphRandomPool = z.object({
   ),
 });
 
-const ZGameConfig = z.object({
+export const ZGameConfig = z.object({
   board: z.array(ZBoardField),
   mapTextAnnotations: z.array(ZMapTextAnnotation).optional(),
   mapStyle: ZMapStyle.optional(),
@@ -221,6 +221,8 @@ const ZGameConfig = z.object({
   }),
   roundStartDelayMs: z.number().int(),
   disableDiceAnimation: z.boolean().optional(),
+  disableInterjectionsDuringCumRounds: z.boolean().optional().default(true),
+  allowPausingDuringFinalCumRound: z.boolean().optional().default(false),
   automations: ZAutomationLibrary.optional().default([]),
 });
 

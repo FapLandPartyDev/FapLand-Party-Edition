@@ -1933,7 +1933,10 @@ export function completeRound(
       );
     }
 
-    const cumBonusScore = Math.max(0, state.config.economy.scorePerCumRoundSuccess);
+    const cumBonusScore =
+      activeRound.phaseKind === "cum" && state.config.allowPausingDuringFinalCumRound
+        ? 0
+        : Math.max(0, state.config.economy.scorePerCumRoundSuccess);
     const nextPlayers = updatePlayer(state.players, currentPlayer.id, (player) => ({
       ...player,
       score: Math.max(0, player.score + cumBonusScore),
