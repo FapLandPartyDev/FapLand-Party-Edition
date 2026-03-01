@@ -13,9 +13,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     environment: build
     env:
-      # Keep downloaded CommonJS tools outside this ESM package's scope.
-      ELECTRON_CACHE: ${{ runner.temp }}/electron-cache
-      ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
       FLAND_UPDATE_REPOSITORY: ${{ github.repository }}
       VITE_MULTIPLAYER_DEFAULT_SUPABASE_URL: ${{ vars.VITE_MULTIPLAYER_DEFAULT_SUPABASE_URL }}
       VITE_MULTIPLAYER_DEFAULT_SUPABASE_ANON_KEY: ${{ vars.VITE_MULTIPLAYER_DEFAULT_SUPABASE_ANON_KEY }}
@@ -49,14 +46,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.ELECTRON_CACHE }}
-            ${{ env.ELECTRON_BUILDER_CACHE }}
+            ${{ runner.temp }}/electron-cache
+            ${{ runner.temp }}/electron-builder-cache
           key: ${{ runner.os }}-electron-v2-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-electron-v2-
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+        env:
+          # Keep downloaded CommonJS tools outside this ESM package's scope.
+          ELECTRON_CACHE: ${{ runner.temp }}/electron-cache
+          ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
 
       - name: Refresh yt-dlp to latest release
         run: npm run prepare:ytdlp:latest
@@ -66,6 +67,9 @@ jobs:
 
       - name: Package Electron app
         run: npx --no-install electron-builder --publish never
+        env:
+          ELECTRON_CACHE: ${{ runner.temp }}/electron-cache
+          ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
 
       - name: Publish GitHub release assets
         if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
