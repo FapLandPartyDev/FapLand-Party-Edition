@@ -25,7 +25,12 @@ import {
 } from "../../services/integrations";
 import { getStore, initStore } from "../../services/store";
 import { resolveVideoDurationMsForUri } from "../../services/videoDuration";
-import { calculateFunscriptDifficultyFromUri } from "../../services/funscript";
+import {
+  calculateFunscriptDifficultyFromUri,
+  convertFunscriptUriToManagedHardMode,
+  getHardModeAttachmentRevert,
+  recordHardModeAttachmentReverts,
+} from "../../services/funscript";
 import {
   addAutoScanFolder,
   addAutoScanFolderAndScan,
@@ -1023,6 +1028,348 @@ export const dbRouter = router({
       };
     }),
 
+  convertHeroFunscriptToHardMode: publicProcedure
+    .input(
+      z.object({
+        heroId: z.string().min(1),
+        recalculateDifficulty: z.boolean().optional().default(false),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const existing = await db.query.hero.findFirst({
+        where: eq(hero.id, input.heroId),
+        columns: { id: true },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Hero not found.",
+        });
+      }
+
+      const attachedRounds = await db.query.round.findMany({
+        where: eq(round.heroId, input.heroId),
+        columns: { id: true },
+        with: {
+          resources: {
+            orderBy: [asc(resource.createdAt), asc(resource.id)],
+            columns: { id: true, videoUri: true, funscriptUri: true },
+          },
+        },
+      });
+      const primaryResourceIds = attachedRounds
+        .map((attachedRound) => attachedRound.resources[0]?.id ?? null)
+        .filter((id): id is string => id !== null);
+      const skippedRounds = attachedRounds.length - primaryResourceIds.length;
+
+      if (primaryResourceIds.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This hero has no resource-backed rounds to update.",
+        });
+      }
+      const sourceResource = attachedRounds
+        .map((attachedRound) => attachedRound.resources[0])
+        .find((entry) => Boolean(entry?.funscriptUri));
+      if (!sourceResource?.funscriptUri) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This hero has no funscript attached to a primary round resource.",
+        });
+      }
+
+      const resolvedSource = createResourceUriResolver()(sourceResource).funscriptUri;
+      let converted: Awaited<ReturnType<typeof convertFunscriptUriToManagedHardMode>>;
+      try {
+        converted = await convertFunscriptUriToManagedHardMode(resolvedSource!);
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: error instanceof Error ? error.message : "Failed to convert the funscript.",
+        });
+      }
+      const recalculatedDifficulty = input.recalculateDifficulty
+        ? await calculateFunscriptDifficultyFromUri(converted.funscriptUri)
+        : null;
+      if (input.recalculateDifficulty && recalculatedDifficulty === null) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Could not recalculate difficulty from the converted hard-mode script.",
+        });
+      }
+
+      await recordHardModeAttachmentReverts(
+        attachedRounds.flatMap((attachedRound) => {
+          const primaryResource = attachedRound.resources[0];
+          return primaryResource
+            ? [
+                {
+                  resourceId: primaryResource.id,
+                  hardModeFunscriptUri: converted.funscriptUri,
+                  previousFunscriptUri: primaryResource.funscriptUri,
+                },
+              ]
+            : [];
+        })
+      );
+
+      await db.transaction(async (tx) => {
+        for (const primaryResourceId of primaryResourceIds) {
+          await tx
+            .update(resource)
+            .set({
+              funscriptUri: converted.funscriptUri,
+              updatedAt: new Date(),
+            })
+            .where(eq(resource.id, primaryResourceId));
+        }
+        if (recalculatedDifficulty !== null) {
+          for (const attachedRound of attachedRounds) {
+            if (!attachedRound.resources[0]) continue;
+            await tx
+              .update(round)
+              .set({ difficulty: recalculatedDifficulty, updatedAt: new Date() })
+              .where(eq(round.id, attachedRound.id));
+          }
+        }
+      });
+
+      return {
+        heroId: input.heroId,
+        funscriptUri: converted.funscriptUri,
+        updatedResources: primaryResourceIds.length,
+        skippedRounds,
+        sourceActions: converted.sourceActions,
+        outputActions: converted.outputActions,
+        recalculatedDifficulty,
+      };
+    }),
+
+  convertRoundFunscriptToHardMode: publicProcedure
+    .input(
+      z.object({
+        roundId: z.string().min(1),
+        recalculateDifficulty: z.boolean().optional().default(false),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const selectedRound = await db.query.round.findFirst({
+        where: eq(round.id, input.roundId),
+        columns: { id: true, heroId: true },
+        with: {
+          resources: {
+            orderBy: [asc(resource.createdAt), asc(resource.id)],
+            columns: { id: true, videoUri: true, funscriptUri: true },
+          },
+        },
+      });
+      if (!selectedRound) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Round not found." });
+      }
+
+      const sourceResource = selectedRound.resources[0];
+      if (!sourceResource) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This round has no media resource.",
+        });
+      }
+      if (!sourceResource.funscriptUri) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This round has no funscript attached.",
+        });
+      }
+
+      const targetRounds = selectedRound.heroId
+        ? await db.query.round.findMany({
+            where: eq(round.heroId, selectedRound.heroId),
+            columns: { id: true },
+            with: {
+              resources: {
+                orderBy: [asc(resource.createdAt), asc(resource.id)],
+                columns: { id: true, funscriptUri: true },
+              },
+            },
+          })
+        : [selectedRound];
+      const primaryResourceIds = targetRounds
+        .map((entry) => entry.resources[0]?.id ?? null)
+        .filter((id): id is string => id !== null);
+      const skippedRounds = targetRounds.length - primaryResourceIds.length;
+
+      const resolvedSource = createResourceUriResolver()(sourceResource).funscriptUri;
+      let converted: Awaited<ReturnType<typeof convertFunscriptUriToManagedHardMode>>;
+      try {
+        converted = await convertFunscriptUriToManagedHardMode(resolvedSource!);
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: error instanceof Error ? error.message : "Failed to convert the funscript.",
+        });
+      }
+      const recalculatedDifficulty = input.recalculateDifficulty
+        ? await calculateFunscriptDifficultyFromUri(converted.funscriptUri)
+        : null;
+      if (input.recalculateDifficulty && recalculatedDifficulty === null) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Could not recalculate difficulty from the converted hard-mode script.",
+        });
+      }
+
+      await recordHardModeAttachmentReverts(
+        targetRounds.flatMap((entry) => {
+          const primaryResource = entry.resources[0];
+          return primaryResource
+            ? [
+                {
+                  resourceId: primaryResource.id,
+                  hardModeFunscriptUri: converted.funscriptUri,
+                  previousFunscriptUri: primaryResource.funscriptUri,
+                },
+              ]
+            : [];
+        })
+      );
+
+      await db.transaction(async (tx) => {
+        for (const primaryResourceId of primaryResourceIds) {
+          await tx
+            .update(resource)
+            .set({ funscriptUri: converted.funscriptUri, updatedAt: new Date() })
+            .where(eq(resource.id, primaryResourceId));
+        }
+        if (recalculatedDifficulty !== null) {
+          for (const targetRound of targetRounds) {
+            if (!targetRound.resources[0]) continue;
+            await tx
+              .update(round)
+              .set({ difficulty: recalculatedDifficulty, updatedAt: new Date() })
+              .where(eq(round.id, targetRound.id));
+          }
+        }
+      });
+
+      return {
+        scope: selectedRound.heroId ? ("hero" as const) : ("round" as const),
+        heroId: selectedRound.heroId,
+        roundId: selectedRound.id,
+        funscriptUri: converted.funscriptUri,
+        updatedResources: primaryResourceIds.length,
+        skippedRounds,
+        sourceActions: converted.sourceActions,
+        outputActions: converted.outputActions,
+        recalculatedDifficulty,
+      };
+    }),
+
+  revertRoundHardModeFunscript: publicProcedure
+    .input(z.object({ roundId: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const selectedRound = await db.query.round.findFirst({
+        where: eq(round.id, input.roundId),
+        columns: { id: true, heroId: true },
+        with: {
+          resources: {
+            orderBy: [asc(resource.createdAt), asc(resource.id)],
+            columns: { id: true, funscriptUri: true },
+          },
+        },
+      });
+      if (!selectedRound) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Round not found." });
+      }
+
+      const targetRounds = selectedRound.heroId
+        ? await db.query.round.findMany({
+            where: eq(round.heroId, selectedRound.heroId),
+            columns: { id: true },
+            with: {
+              resources: {
+                orderBy: [asc(resource.createdAt), asc(resource.id)],
+                columns: { id: true, funscriptUri: true },
+              },
+            },
+          })
+        : [selectedRound];
+      const skippedRounds = targetRounds.filter((entry) => !entry.resources[0]).length;
+      const resourceBackedRounds = targetRounds.filter((entry) => Boolean(entry.resources[0]));
+      const restores: Array<{ resourceId: string; funscriptUri: string | null }> = [];
+
+      for (const targetRound of targetRounds) {
+        const primaryResource = targetRound.resources[0];
+        if (!primaryResource?.funscriptUri) continue;
+        const record = await getHardModeAttachmentRevert(
+          primaryResource.id,
+          primaryResource.funscriptUri
+        );
+        if (record) {
+          restores.push({
+            resourceId: primaryResource.id,
+            funscriptUri: record.previousFunscriptUri,
+          });
+        }
+      }
+
+      if (restores.length !== resourceBackedRounds.length) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: selectedRound.heroId
+            ? "A previous funscript attachment is not available for every round in this hero."
+            : "No previous funscript attachment is available for this round.",
+        });
+      }
+
+      await db.transaction(async (tx) => {
+        for (const restore of restores) {
+          await tx
+            .update(resource)
+            .set({ funscriptUri: restore.funscriptUri, updatedAt: new Date() })
+            .where(eq(resource.id, restore.resourceId));
+        }
+      });
+
+      const selectedRestore = restores.find(
+        (entry) => entry.resourceId === selectedRound.resources[0]?.id
+      );
+      return {
+        scope: selectedRound.heroId ? ("hero" as const) : ("round" as const),
+        heroId: selectedRound.heroId,
+        roundId: selectedRound.id,
+        funscriptUri: selectedRestore?.funscriptUri ?? null,
+        updatedResources: restores.length,
+        skippedRounds,
+      };
+    }),
+
+  getRoundHardModeFunscriptStatus: publicProcedure
+    .input(z.object({ roundId: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const db = getDb();
+      const selectedRound = await db.query.round.findFirst({
+        where: eq(round.id, input.roundId),
+        columns: { id: true },
+        with: {
+          resources: {
+            orderBy: [asc(resource.createdAt), asc(resource.id)],
+            columns: { id: true, funscriptUri: true },
+          },
+        },
+      });
+      const primaryResource = selectedRound?.resources[0];
+      if (!primaryResource?.funscriptUri) return { converted: false };
+
+      const revert = await getHardModeAttachmentRevert(
+        primaryResource.id,
+        primaryResource.funscriptUri
+      );
+      return { converted: Boolean(revert) };
+    }),
+
   deleteHero: publicProcedure
     .input(z.object({ id: z.string().min(1) }))
     .mutation(async ({ input }) => {
@@ -1257,6 +1604,61 @@ export const dbRouter = router({
     .query(async ({ input }) => {
       return calculateFunscriptDifficultyFromUri(input.funscriptUri);
     }),
+
+  recalculateInstalledRoundDifficulties: publicProcedure.mutation(async () => {
+    const db = getDb();
+    const resolveResourceUrisForRequest = createResourceUriResolver();
+    const libraryRounds = await withInstalledLibrarySchemaRepair(() =>
+      db.query.round.findMany({
+        columns: { id: true },
+        with: {
+          resources: {
+            orderBy: [asc(resource.createdAt), asc(resource.id)],
+            columns: {
+              id: true,
+              videoUri: true,
+              funscriptUri: true,
+            },
+          },
+        },
+      })
+    );
+    const installedRounds = libraryRounds.filter((entry) => entry.resources.length > 0);
+
+    let updatedCount = 0;
+    let skippedCount = 0;
+
+    for (const installedRound of installedRounds) {
+      const primaryResource = installedRound.resources[0];
+      if (!primaryResource?.funscriptUri) {
+        skippedCount += 1;
+        continue;
+      }
+
+      try {
+        const resolvedFunscriptUri = resolveResourceUrisForRequest(primaryResource).funscriptUri;
+        const difficulty = await calculateFunscriptDifficultyFromUri(resolvedFunscriptUri);
+        if (difficulty === null) {
+          skippedCount += 1;
+          continue;
+        }
+
+        await db
+          .update(round)
+          .set({ difficulty, updatedAt: new Date() })
+          .where(eq(round.id, installedRound.id));
+        updatedCount += 1;
+      } catch {
+        skippedCount += 1;
+      }
+    }
+
+    return {
+      totalCount: installedRounds.length,
+      updatedCount,
+      skippedCount,
+    };
+  }),
 
   updateResourceFunscriptOffset: publicProcedure
     .input(

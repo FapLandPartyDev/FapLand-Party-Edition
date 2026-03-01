@@ -912,6 +912,9 @@ export function SettingsPage() {
   const [isUpdatingAutoScanFolders, setIsUpdatingAutoScanFolders] = useState(false);
   const [folderImportNotices, setFolderImportNotices] = useState<FolderImportNotice[]>([]);
   const [isClearDataDialogOpen, setIsClearDataDialogOpen] = useState(false);
+  const [isDifficultyRecalculationDialogOpen, setIsDifficultyRecalculationDialogOpen] =
+    useState(false);
+  const [isRecalculatingDifficulties, setIsRecalculatingDifficulties] = useState(false);
   const [isCheatModeConfirmDialogOpen, setIsCheatModeConfirmDialogOpen] = useState(false);
   const [isSkipRoundsCheckDialogOpen, setIsSkipRoundsCheckDialogOpen] = useState(false);
   const [isClearingData, setIsClearingData] = useState(false);
@@ -1693,6 +1696,21 @@ export function SettingsPage() {
                       detail: DEFAULT_BACKGROUND_VIDEO_ENABLED,
                     })
                   );
+                },
+              },
+            ],
+          },
+          {
+            id: "round-difficulty-actions",
+            type: "actions",
+            label: t`Round Difficulties`,
+            description: t`Automatically estimate every installed round's difficulty from its primary funscript.`,
+            actions: [
+              {
+                id: "recalculate-round-difficulties",
+                label: t`Recalculate All Difficulties`,
+                onClick: async () => {
+                  setIsDifficultyRecalculationDialogOpen(true);
                 },
               },
             ],
@@ -3108,6 +3126,44 @@ export function SettingsPage() {
         onConfirm={() => {
           playSelectSound();
           void clearData();
+        }}
+      />
+      <ConfirmDialog
+        isOpen={isDifficultyRecalculationDialogOpen}
+        isPending={isRecalculatingDifficulties}
+        variant="warning"
+        title={t`Recalculate all round difficulties?`}
+        message={t`This will replace the difficulty of every installed round that has a readable primary funscript. Rounds without a usable funscript will be left unchanged.`}
+        confirmLabel={t`Recalculate All`}
+        onCancel={() => {
+          if (isRecalculatingDifficulties) return;
+          playSelectSound();
+          setIsDifficultyRecalculationDialogOpen(false);
+        }}
+        onConfirm={() => {
+          if (isRecalculatingDifficulties) return;
+          playSelectSound();
+          setIsRecalculatingDifficulties(true);
+          void db.round
+            .recalculateInstalledDifficulties()
+            .then((result) => {
+              showToast(
+                t`Updated ${result.updatedCount} rounds; skipped ${result.skippedCount}.`,
+                "success"
+              );
+              setIsDifficultyRecalculationDialogOpen(false);
+            })
+            .catch((error) => {
+              showToast(
+                error instanceof Error
+                  ? error.message
+                  : t`Failed to recalculate round difficulties.`,
+                "error"
+              );
+            })
+            .finally(() => {
+              setIsRecalculatingDifficulties(false);
+            });
         }}
       />
       <CheatModeConfirmDialog

@@ -52,7 +52,10 @@ import { playRoundRewardSound, playRoundRewardTickSound } from "../../utils/audi
 
 import { formatDurationLabel } from "../../utils/duration";
 import { abbreviateNsfwText } from "../../utils/sfwText";
-import { RoundVideoOverlay } from "./RoundVideoOverlay";
+import {
+  RoundVideoOverlay,
+  type RoundOverlayOptionsAction,
+} from "./RoundVideoOverlay";
 import { buildGameplayRoundVideoOverlayProps } from "./buildRoundVideoOverlayProps";
 import { RoundStartTransition } from "./RoundStartTransition";
 import { getPerkIconGlyph } from "./PerkIcon";
@@ -1841,6 +1844,13 @@ export const GameScene = memo(function GameScene({
   const mapZoomMultiplierRef = useRef(MAP_ZOOM_DEFAULT);
   mapZoomMultiplierRef.current = mapZoomMultiplier;
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [roundOverlayOptionsActions, setRoundOverlayOptionsActions] = useState<
+    RoundOverlayOptionsAction[]
+  >([]);
+  const handleRoundOverlayOptionsActionsChange = useCallback(
+    (actions: RoundOverlayOptionsAction[]) => setRoundOverlayOptionsActions(actions),
+    []
+  );
   const [showPerkInventoryMenu, setShowPerkInventoryMenu] = useState(false);
   const [showDevPerkMenuModal, setShowDevPerkMenuModal] = useState(false);
   const [controllerSupportEnabled, setControllerSupportEnabled] = useState(
@@ -4979,6 +4989,7 @@ export const GameScene = memo(function GameScene({
           cumRequestSignal,
           showCumRoundOutcomeMenuOnCumRequest: isLastCumRoundActive,
           onOpenOptions: () => setShowOptionsMenu(true),
+          onOptionsActionsChange: handleRoundOverlayOptionsActionsChange,
           onUiVisibilityChange: onRoundOverlayUiVisibilityChange,
           onPreviewStateChange: handleRoundPreviewStateChange,
           initialShowProgressBarAlways,
@@ -5440,7 +5451,7 @@ export const GameScene = memo(function GameScene({
                   {t`Dev Perks`}
                 </button>
               )}
-              {optionsActions.map((action) => (
+              {[...roundOverlayOptionsActions, ...optionsActions].map((action) => (
                 <button
                   key={action.id}
                   type="button"

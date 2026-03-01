@@ -135,6 +135,10 @@ export const db = {
     }) => withInstalledRoundCacheInvalidation(() => trpc.db.updateHero.mutate(input)),
     updateFunscript: (input: { heroId: string; funscriptUri: string | null }) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.updateHeroFunscript.mutate(input)),
+    convertFunscriptToHardMode: (input: { heroId: string; recalculateDifficulty: boolean }) =>
+      withInstalledRoundCacheInvalidation(() =>
+        trpc.db.convertHeroFunscriptToHardMode.mutate(input)
+      ),
     delete: (id: string) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.deleteHero.mutate({ id })),
   },
@@ -200,6 +204,20 @@ export const db = {
     }) => withInstalledRoundCacheInvalidation(() => trpc.db.createMediaRound.mutate(input)),
     calculateDifficultyFromFunscript: (funscriptUri: string) =>
       trpc.db.calculateDifficultyFromFunscript.query({ funscriptUri }),
+    recalculateInstalledDifficulties: () =>
+      withInstalledRoundCacheInvalidation(() =>
+        trpc.db.recalculateInstalledRoundDifficulties.mutate()
+      ),
+    convertFunscriptToHardMode: (roundId: string, recalculateDifficulty: boolean) =>
+      withInstalledRoundCacheInvalidation(() =>
+        trpc.db.convertRoundFunscriptToHardMode.mutate({ roundId, recalculateDifficulty })
+      ),
+    revertHardModeFunscript: (roundId: string) =>
+      withInstalledRoundCacheInvalidation(() =>
+        trpc.db.revertRoundHardModeFunscript.mutate({ roundId })
+      ),
+    getHardModeFunscriptStatus: (roundId: string) =>
+      trpc.db.getRoundHardModeFunscriptStatus.query({ roundId }),
     checkWebsiteVideoSupport: (videoUri: string) =>
       trpc.db.checkWebsiteRoundVideoSupport.query({ videoUri }),
     delete: (id: string) =>

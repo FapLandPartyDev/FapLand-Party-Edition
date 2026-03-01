@@ -1,4 +1,5 @@
 import type { FunscriptAction } from "../../game/media/playback";
+import { estimateFunscriptDifficulty } from "../../utils/funscriptDifficulty";
 
 export type SegmentMetadataDraft = {
   id: string;
@@ -98,30 +99,11 @@ export function estimateDifficultyFromActions(
   if (velocitySamples <= 0) return null;
 
   const avgVelocity = velocitySum / velocitySamples;
-  const lengthMin = durationSec / 60;
-
-  // Normalization constants calibrated for modern funscripts (e.g. fland set)
-  // filename 1 (easy) ~= 240 velocity, filename 47 (medium) ~= 700 velocity, filename 100 (extreme) ~= 1500 velocity
-  const MIN_V = 230;
-  const MAX_V = 1600;
-  const MIN_P = 2;
-  const MAX_P = 40;
-
-  const pointNorm = clamp(
-    (Math.log1p(pointRate) - Math.log1p(MIN_P)) / (Math.log1p(MAX_P) - Math.log1p(MIN_P)),
-    0,
-    1
-  );
-  const velocityNorm = clamp(
-    (Math.log1p(avgVelocity) - Math.log1p(MIN_V)) / (Math.log1p(MAX_V) - Math.log1p(MIN_V)),
-    0,
-    1
-  );
-  const lengthNorm = clamp(lengthMin / 3, 0, 1);
-
-  // Velocity is the most reliable predictor of difficulty in modern sets
-  const score = 0.85 * velocityNorm + 0.1 * pointNorm + 0.05 * lengthNorm;
-  return clamp(Math.round(1 + score * 4), 1, 5);
+  return estimateFunscriptDifficulty({
+    averageVelocity: avgVelocity,
+    pointsPerSecond: pointRate,
+    durationSec,
+  });
 }
 
 export function computeAutoMetadataForSegment(

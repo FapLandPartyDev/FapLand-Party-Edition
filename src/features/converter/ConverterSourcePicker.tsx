@@ -9,6 +9,11 @@ import {
   normalizeInstallWebFunscriptUrlEnabled,
 } from "../../constants/experimentalFeatures";
 import { ConverterSelectionCard } from "./ConverterSelectionCard";
+import {
+  getRoundVideoDurationMs,
+  MAXIMUM_VIDEO_LENGTH_FILTER_MINUTES,
+  meetsMinimumVideoLength,
+} from "./sourceFilter";
 
 type SourceSection = "round" | "hero" | "file" | "url";
 
@@ -30,6 +35,8 @@ type ConverterSourcePickerProps = {
   onSelectLocalFunscript: () => void;
   onSelectWebsiteSource: (videoUri: string, funscriptUri: string | null) => void;
   onSearchEroScripts?: () => void;
+  minimumVideoLengthMinutes: number;
+  onMinimumVideoLengthChange: (minutes: number) => void;
 };
 
 function ConverterSourcePickerSkeleton({
@@ -107,6 +114,8 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
     onSelectLocalFunscript,
     onSelectWebsiteSource,
     onSearchEroScripts,
+    minimumVideoLengthMinutes,
+    onMinimumVideoLengthChange,
   }) => {
     const { t } = useLingui();
     const [rounds, setRounds] = useState<InstalledRound[]>([]);
@@ -183,14 +192,17 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
 
     const filteredRounds = useMemo(() => {
       const query = searchQuery.trim().toLowerCase();
-      if (!query) return rounds;
+
       return rounds.filter((round) => {
         const searchText = [round.name, round.author ?? "", round.description ?? ""]
           .join(" ")
           .toLowerCase();
-        return searchText.includes(query);
+        return (
+          (!query || searchText.includes(query)) &&
+          meetsMinimumVideoLength(getRoundVideoDurationMs(round), minimumVideoLengthMinutes)
+        );
       });
-    }, [rounds, searchQuery]);
+    }, [minimumVideoLengthMinutes, rounds, searchQuery]);
 
     const filteredHeroes = useMemo(() => {
       const query = searchQuery.trim().toLowerCase();
@@ -402,7 +414,11 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
 
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-purple-400/20 bg-black/30 p-3">
+        <div
+          className={`grid gap-3 rounded-2xl border border-purple-400/20 bg-black/30 p-3 ${
+            section === "round" ? "sm:grid-cols-[minmax(0,1fr)_16rem]" : ""
+          }`}
+        >
           <input
             type="text"
             value={searchQuery}
@@ -410,6 +426,36 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
             placeholder={t`Search ${section === "round" ? "rounds" : "heroes"}...`}
             className="w-full rounded-xl border border-zinc-700/80 bg-black/40 px-4 py-2 text-sm text-zinc-100 outline-none transition-colors focus:border-violet-400/60 focus:ring-2 focus:ring-violet-400/20"
           />
+          {section === "round" ? (
+            <div className="rounded-xl border border-zinc-700/80 bg-black/40 px-3 py-2">
+              <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                <label
+                  htmlFor="converter-minimum-video-length"
+                  className="font-medium text-zinc-400"
+                >
+                  <Trans>Minimum length</Trans>
+                </label>
+                <span className="tabular-nums text-violet-200">
+                  {minimumVideoLengthMinutes > 0 ? (
+                    t`${minimumVideoLengthMinutes} min`
+                  ) : (
+                    <Trans>Any length</Trans>
+                  )}
+                </span>
+              </div>
+              <input
+                id="converter-minimum-video-length"
+                aria-label={t`Minimum video length in minutes`}
+                type="range"
+                min="0"
+                max={MAXIMUM_VIDEO_LENGTH_FILTER_MINUTES}
+                step="1"
+                value={minimumVideoLengthMinutes}
+                onChange={(event) => onMinimumVideoLengthChange(event.currentTarget.valueAsNumber)}
+                className="h-2 w-full cursor-pointer accent-violet-500"
+              />
+            </div>
+          ) : null}
         </div>
 
         {isLoading ? (
@@ -418,8 +464,8 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
           filteredRounds.length === 0 ? (
             <div className="rounded-2xl border border-zinc-700/50 bg-black/20 p-8 text-center">
               <p className="text-sm text-zinc-400">
-                {searchQuery.trim()
-                  ? t`No rounds match your search.`
+                {searchQuery.trim() || minimumVideoLengthMinutes > 0
+                  ? t`No rounds match your filters.`
                   : t`No standalone rounds available. Install some rounds first.`}
               </p>
             </div>
@@ -427,10 +473,7 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {filteredRounds.map((round) => {
                 const resource = round.resources[0];
-                const durationMs =
-                  round.endTime != null && round.startTime != null
-                    ? round.endTime - round.startTime
-                    : null;
+                const durationMs = getRoundVideoDurationMs(round);
                 return (
                   <ConverterSelectionCard
                     key={round.id}

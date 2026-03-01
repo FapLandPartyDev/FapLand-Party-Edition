@@ -8,11 +8,7 @@ import type { RoundLibraryEntry } from "@/routes/roundRows";
 
 export type GroupMode = "hero" | "playlist";
 export type EditableRoundType = "Normal" | "Interjection" | "Cum";
-export type EroScriptsDialogContext =
-  | "library"
-  | "website-round"
-  | "edit-round"
-  | "edit-hero";
+export type EroScriptsDialogContext = "library" | "website-round" | "edit-round" | "edit-hero";
 export type SectionId = "library" | "transfer";
 
 export type RoundEditDraft = {
@@ -70,6 +66,20 @@ export type HeroGroupRoundConversionState = {
   roundsToDeleteCount: number;
   confirmationText: string;
   error: string | null;
+};
+
+export type HeroHardModeConversionState = {
+  groupKey: string;
+  heroId: string;
+  heroName: string;
+  recalculateDifficulty: boolean;
+};
+
+export type RoundHardModeConversionState = {
+  roundId: string;
+  roundName: string;
+  heroName: string | null;
+  recalculateDifficulty: boolean;
 };
 
 export type WebsiteRoundVideoValidationState =

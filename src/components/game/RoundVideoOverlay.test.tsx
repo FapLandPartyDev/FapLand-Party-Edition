@@ -52,6 +52,25 @@ const mocks = vi.hoisted(() => ({
       resourceId: "resource-1",
       funscriptOffsetMs: 0,
     })),
+    convertFunscriptToHardMode: vi.fn(async () => ({
+      scope: "round" as const,
+      heroId: null,
+      roundId: "round-1",
+      funscriptUri: "app://media/generated-hard-mode.funscript",
+      updatedResources: 1,
+      skippedRounds: 0,
+      sourceActions: 2,
+      outputActions: 3,
+    })),
+    revertHardModeFunscript: vi.fn(async () => ({
+      scope: "round" as const,
+      heroId: null,
+      roundId: "round-1",
+      funscriptUri: "file:///tmp/original.funscript",
+      updatedResources: 1,
+      skippedRounds: 0,
+    })),
+    getHardModeFunscriptStatus: vi.fn(async () => ({ converted: false })),
   },
   showToast: vi.fn(),
   recordVideoEvent: vi.fn(async () => undefined),
@@ -89,6 +108,9 @@ vi.mock("../../services/db", () => ({
   db: {
     round: {
       updateResourceFunscriptOffset: mocks.db.updateResourceFunscriptOffset,
+      convertFunscriptToHardMode: mocks.db.convertFunscriptToHardMode,
+      revertHardModeFunscript: mocks.db.revertHardModeFunscript,
+      getHardModeFunscriptStatus: mocks.db.getHardModeFunscriptStatus,
     },
   },
 }));
@@ -172,7 +194,11 @@ vi.mock("../../hooks/useGameplayMoaning", () => ({
   }),
 }));
 
-import { RoundVideoOverlay } from "./RoundVideoOverlay";
+import {
+  RoundVideoOverlay,
+  type RoundOverlayOptionsAction,
+  type RoundVideoOverlayProps,
+} from "./RoundVideoOverlay";
 
 function createInstalledRound(
   roundId = "round-1",
@@ -306,6 +332,7 @@ function renderOverlay({
   onFinishRound = vi.fn(),
   roadPalette,
   roundControl,
+  onOptionsActionsChange,
 }: {
   activeRound?: ActiveRound | null;
   installedRounds?: InstalledRound[];
@@ -326,6 +353,7 @@ function renderOverlay({
     onUsePause: () => void;
     onUseSkip: () => void;
   };
+  onOptionsActionsChange?: RoundVideoOverlayProps["onOptionsActionsChange"];
 } = {}) {
   return render(
     <RoundVideoOverlay
@@ -345,6 +373,7 @@ function renderOverlay({
       initialShowAntiPerkBeatbar={initialShowAntiPerkBeatbar}
       roadPalette={roadPalette}
       roundControl={roundControl}
+      onOptionsActionsChange={onOptionsActionsChange}
     />
   );
 }
@@ -388,6 +417,10 @@ describe("RoundVideoOverlay", () => {
     mocks.playback.getFunscriptPositionAtMs.mockReturnValue(null);
     mocks.playback.loadFunscriptTimeline.mockReset();
     mocks.playback.loadFunscriptTimeline.mockResolvedValue(null);
+    mocks.db.convertFunscriptToHardMode.mockClear();
+    mocks.db.revertHardModeFunscript.mockClear();
+    mocks.db.getHardModeFunscriptStatus.mockReset();
+    mocks.db.getHardModeFunscriptStatus.mockResolvedValue({ converted: false });
     mocks.sfwMode = false;
     vi.mocked(booru.getCachedBooruMedia).mockClear();
     vi.mocked(booru.getCachedBooruMediaForDisplay).mockClear();
@@ -970,6 +1003,64 @@ describe("RoundVideoOverlay", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Handy Menu" }));
 
     expect(mocks.openGlobalHandyOverlay).toHaveBeenCalledTimes(1);
+  });
+
+  it("converts the active attachment to hard mode from the player controls", async () => {
+    let optionsActions: RoundOverlayOptionsAction[] = [];
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 0, pos: 0 },
+        { at: 100, pos: 100 },
+      ],
+    });
+    renderOverlay({
+      installedRounds: [createInstalledRound("round-1", "file:///tmp/legacy.funscript")],
+      onOptionsActionsChange: (actions) => {
+        optionsActions = actions;
+      },
+    });
+
+    await waitFor(() => expect(optionsActions[0]?.label).toBe("Convert to Hard Mode"));
+    act(() => optionsActions[0]?.onClick());
+    fireEvent.click(await screen.findByRole("button", { name: "Convert and Attach" }));
+
+    await waitFor(() =>
+      expect(mocks.db.convertFunscriptToHardMode).toHaveBeenCalledWith("round-1", true)
+    );
+    await waitFor(() =>
+      expect(mocks.playback.loadFunscriptTimeline).toHaveBeenCalledWith(
+        "app://media/generated-hard-mode.funscript"
+      )
+    );
+  });
+
+  it("restores the active round's previous script from the player controls", async () => {
+    let optionsActions: RoundOverlayOptionsAction[] = [];
+    mocks.db.getHardModeFunscriptStatus.mockResolvedValue({ converted: true });
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 0, pos: 0 },
+        { at: 100, pos: 100 },
+      ],
+    });
+    renderOverlay({
+      installedRounds: [
+        createInstalledRound("round-1", "app://media/generated-hard-mode.funscript"),
+      ],
+      onOptionsActionsChange: (actions) => {
+        optionsActions = actions;
+      },
+    });
+
+    await waitFor(() => expect(optionsActions[0]?.label).toBe("Restore Script"));
+    act(() => optionsActions[0]?.onClick());
+
+    await waitFor(() => expect(mocks.db.revertHardModeFunscript).toHaveBeenCalledWith("round-1"));
+    await waitFor(() =>
+      expect(mocks.playback.loadFunscriptTimeline).toHaveBeenCalledWith(
+        "file:///tmp/original.funscript"
+      )
+    );
   });
 
   it("bootstraps TheHandy sync immediately once video metadata and timeline are ready", async () => {

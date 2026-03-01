@@ -1,5 +1,21 @@
 # What's New
 
+## v0.6.07-beta
+
+### Added
+
+- **Legacy funscript → Hard Mode conversion** — convert older half-stroke funscripts into full-range hard-mode scripts directly from three places: the in-round overlay's options menu, the Round Inspector in the installed rounds library, and each hero group header's action menu. The converter reads the source script (local file, HTTP/HTTPS URL, or configured Stash proxy URI), detects pause boundaries, inserts midpoint upstrokes so every down-stroke is paired, writes a managed, content-hashed script into a dedicated `hardmode-funscripts` storage folder, and tags the output with an `fLandHardMode` marker so it is never converted twice. Converting a round that belongs to a hero replaces the primary funscript on every resource-backed round in that hero, and an optional checkbox recalculates the affected rounds' difficulty from the generated script. Each conversion records a revert entry, so a matching **Restore previous script** action (in the same three surfaces) can roll the original attachments back, including for an entire hero at once. Playback is paused and the active haptics session is disconnected and re-synced around the swap so the new script takes over without desync.
+- **Recalculate All Difficulties action** — a new action under Settings → Data & Storage re-estimates the difficulty of every installed round that has a readable primary funscript in one pass, reporting how many rounds were updated and how many were skipped.
+- **Minimum video length filter in the Round Converter** — the source picker now has a Minimum length slider (persisted across sessions) that hides rounds shorter than the chosen duration, and it applies to both the visible round list and the Prev/Next unconverted navigation.
+
+### Changed
+
+- Funscript difficulty estimation is now shared by the Round Converter and the installed-round difficulty calculator via a single `estimateFunscriptDifficulty` helper. The new model normalizes velocity, action density, and duration linearly so common scripts keep useful separation across levels 1–3, while levels 4 and 5 require increasingly unusual motion instead of being reached early by log curves.
+- The `ConfirmDialog` component now accepts optional `children`, used to embed the recalculation checkbox inside the hard-mode conversion prompts.
+- Release metadata and the bundled dependency-license manifest have been refreshed for this version.
+
+---
+
 ## v0.6.06-beta
 
 ### Added

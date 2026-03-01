@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { MenuButton } from "../components/MenuButton";
 import { useControllerSurface } from "../controller";
@@ -21,6 +21,11 @@ import { HotkeyOverlay } from "../features/converter/HotkeyOverlay";
 import { ConverterSourcePicker } from "../features/converter/ConverterSourcePicker";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { EroScriptsFunscriptSearchDialog } from "../components/EroScriptsFunscriptSearchDialog";
+import {
+  CONVERTER_MINIMUM_VIDEO_LENGTH_KEY,
+  normalizeMinimumVideoLength,
+  readMinimumVideoLength,
+} from "../features/converter/sourceFilter";
 
 type SourceSection = "round" | "hero" | "file" | "url";
 
@@ -63,9 +68,22 @@ function ConverterPage() {
         description: t`Use a website video URL like Pornhub, XVideos, or rule34video as the source.`,
       },
     ];
-  const state = useConverterState({ sourceRoundId, heroName });
+  const [minimumVideoLengthMinutes, setMinimumVideoLengthMinutes] =
+    useState(readMinimumVideoLength);
+  const state = useConverterState({ sourceRoundId, heroName, minimumVideoLengthMinutes });
   const [activeSectionId, setActiveSectionId] = useState<SourceSection>("round");
   const [eroscriptsOpen, setEroScriptsOpen] = useState(false);
+
+  const updateMinimumVideoLength = (minutes: number) => {
+    setMinimumVideoLengthMinutes(normalizeMinimumVideoLength(minutes));
+  };
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      CONVERTER_MINIMUM_VIDEO_LENGTH_KEY,
+      String(minimumVideoLengthMinutes)
+    );
+  }, [minimumVideoLengthMinutes]);
 
   const goBack = () => {
     if (window.history.length > 1) {
@@ -171,6 +189,8 @@ function ConverterPage() {
                     void state.selectWebsiteAndEdit(videoUri, funscriptUri)
                   }
                   onSearchEroScripts={() => setEroScriptsOpen(true)}
+                  minimumVideoLengthMinutes={minimumVideoLengthMinutes}
+                  onMinimumVideoLengthChange={updateMinimumVideoLength}
                 />
               </div>
 

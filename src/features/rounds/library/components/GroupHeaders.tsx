@@ -116,9 +116,12 @@ export function HeroGroupHeader({
   pendingPreviewCount,
   expanded,
   converting,
+  convertingHardMode,
   hasTemplateRounds,
   onToggle,
   onConvertToRound,
+  onConvertLegacyFunscript,
+  onRevertHardModeFunscript,
   onEditHero,
   onDeleteHero,
   onRetryTemplateLinking,
@@ -134,9 +137,12 @@ export function HeroGroupHeader({
   pendingPreviewCount: number;
   expanded: boolean;
   converting: boolean;
+  convertingHardMode: boolean;
   hasTemplateRounds: boolean;
   onToggle: () => void;
   onConvertToRound: () => void;
+  onConvertLegacyFunscript: () => void;
+  onRevertHardModeFunscript: () => void;
   onEditHero: () => void;
   onDeleteHero: () => void;
   onRetryTemplateLinking: () => void;
@@ -163,6 +169,18 @@ export function HeroGroupHeader({
       onToggleSelection={onToggleSelection}
       actions={[
         { label: t`Edit hero`, onClick: onEditHero },
+        {
+          label: convertingHardMode
+            ? t`Converting legacy script…`
+            : t`Convert legacy script to hard mode`,
+          onClick: onConvertLegacyFunscript,
+          disabled: convertingHardMode,
+        },
+        {
+          label: t`Restore previous script`,
+          onClick: onRevertHardModeFunscript,
+          disabled: convertingHardMode,
+        },
         { label: t`Delete hero`, onClick: onDeleteHero, danger: true },
         ...(hasTemplateRounds
           ? [

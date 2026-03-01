@@ -86,11 +86,13 @@ import type {
   EroScriptsDialogContext,
   GroupMode,
   HeroEditDraft,
+  HeroHardModeConversionState,
   HeroGroupRoundConversionState,
   HeroTemplateRepairState,
   LegacyPlaylistReviewState,
   LibraryExportDialogState,
   RoundEditDraft,
+  RoundHardModeConversionState,
   RoundLibraryEntry,
   RoundTemplateRepairState,
   WebsiteRoundVideoValidationState,
@@ -547,6 +549,13 @@ export function InstalledRoundsPage({
   const [heroGroupRoundConversion, setHeroGroupRoundConversion] =
     useState<HeroGroupRoundConversionState | null>(null);
   const [convertingHeroGroupKey, setConvertingHeroGroupKey] = useState<string | null>(null);
+  const [heroHardModeConversion, setHeroHardModeConversion] =
+    useState<HeroHardModeConversionState | null>(null);
+  const [convertingHardModeHeroId, setConvertingHardModeHeroId] = useState<string | null>(null);
+  const [roundHardModeConversion, setRoundHardModeConversion] =
+    useState<RoundHardModeConversionState | null>(null);
+  const [convertingHardModeRoundId, setConvertingHardModeRoundId] = useState<string | null>(null);
+  const [revertingHardModeRoundId, setRevertingHardModeRoundId] = useState<string | null>(null);
   const [repairingTemplateRound, setRepairingTemplateRound] =
     useState<RoundTemplateRepairState | null>(null);
   const [repairingTemplateHero, setRepairingTemplateHero] =
@@ -1443,6 +1452,105 @@ export function InstalledRoundsPage({
     []
   );
 
+  const openHeroHardModeConversion = useCallback(
+    (group: Extract<RoundRenderRow, { kind: "hero-group" }>) => {
+      const heroId = group.rounds[0]?.heroId;
+      if (!heroId || convertingHardModeHeroId) return;
+      setHeroHardModeConversion({
+        groupKey: group.groupKey,
+        heroId,
+        heroName: group.heroName,
+        recalculateDifficulty: true,
+      });
+    },
+    [convertingHardModeHeroId]
+  );
+
+  const confirmHeroHardModeConversion = useCallback(async () => {
+    if (!heroHardModeConversion || convertingHardModeHeroId) return;
+
+    setConvertingHardModeHeroId(heroHardModeConversion.heroId);
+    try {
+      const result = await db.hero.convertFunscriptToHardMode({
+        heroId: heroHardModeConversion.heroId,
+        recalculateDifficulty: heroHardModeConversion.recalculateDifficulty,
+      });
+      setHeroHardModeConversion(null);
+      await refreshLibrary();
+      const skippedLabel =
+        result.skippedRounds === 0
+          ? ""
+          : result.skippedRounds === 1
+            ? ` ${t`Skipped 1 round without a media resource.`}`
+            : ` ${t`Skipped ${result.skippedRounds} rounds without media resources.`}`;
+      showToast(
+        `${t`Attached the hard-mode script to ${result.updatedResources} rounds.`}${skippedLabel}`,
+        "success"
+      );
+    } catch (error) {
+      console.error("Failed to convert the hero funscript to hard mode", error);
+      showToast(
+        error instanceof Error ? error.message : t`Failed to convert the legacy funscript.`,
+        "error"
+      );
+    } finally {
+      setConvertingHardModeHeroId(null);
+    }
+  }, [convertingHardModeHeroId, heroHardModeConversion, refreshLibrary, showToast, t]);
+
+  const confirmRoundHardModeConversion = useCallback(async () => {
+    if (!roundHardModeConversion || convertingHardModeRoundId) return;
+    setConvertingHardModeRoundId(roundHardModeConversion.roundId);
+    try {
+      const result = await db.round.convertFunscriptToHardMode(
+        roundHardModeConversion.roundId,
+        roundHardModeConversion.recalculateDifficulty
+      );
+      setRoundHardModeConversion(null);
+      await refreshLibrary();
+      const scopeLabel =
+        result.scope === "hero"
+          ? t`Attached the hard-mode script to ${result.updatedResources} hero rounds.`
+          : t`Attached the hard-mode script to this round.`;
+      const skippedLabel =
+        result.skippedRounds > 0
+          ? ` ${t`Skipped ${result.skippedRounds} rounds without media resources.`}`
+          : "";
+      showToast(`${scopeLabel}${skippedLabel}`, "success");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : t`Failed to convert the legacy funscript.`,
+        "error"
+      );
+    } finally {
+      setConvertingHardModeRoundId(null);
+    }
+  }, [convertingHardModeRoundId, refreshLibrary, roundHardModeConversion, showToast, t]);
+
+  const revertHardModeForRound = useCallback(
+    async (targetRound: RoundLibraryEntry) => {
+      if (revertingHardModeRoundId) return;
+      setRevertingHardModeRoundId(targetRound.id);
+      try {
+        const result = await db.round.revertHardModeFunscript(targetRound.id);
+        await refreshLibrary();
+        const message =
+          result.scope === "hero"
+            ? t`Restored the previous scripts on ${result.updatedResources} hero rounds.`
+            : t`Restored this round's previous script.`;
+        showToast(message, "success");
+      } catch (error) {
+        showToast(
+          error instanceof Error ? error.message : t`Failed to restore the previous funscript.`,
+          "error"
+        );
+      } finally {
+        setRevertingHardModeRoundId(null);
+      }
+    },
+    [refreshLibrary, revertingHardModeRoundId, showToast, t]
+  );
+
   const confirmHeroGroupRoundConversion = useCallback(async () => {
     if (!heroGroupRoundConversion) return;
     if (
@@ -1940,6 +2048,7 @@ export function InstalledRoundsPage({
                       expandedGroupKeySet={expandedGroupKeySet}
                       setExpandedHeroGroups={setExpandedHeroGroups}
                       convertingHeroGroupKey={convertingHeroGroupKey}
+                      convertingHardModeHeroId={convertingHardModeHeroId}
                       cardAssetsByRoundId={cardAssetsByRoundId}
                       websiteVideoScanStatusRunning={isWebsiteVideoCaching}
                       selectionMode={selectionMode}
@@ -1947,6 +2056,9 @@ export function InstalledRoundsPage({
                       selectedHeroIds={selectedHeroIds}
                       toggleHeroGroupSelection={toggleHeroGroupSelection}
                       openHeroGroupRoundConversion={openHeroGroupRoundConversion}
+                      openHeroHardModeConversion={openHeroHardModeConversion}
+                      revertHardModeForRound={revertHardModeForRound}
+                      revertingHardModeRoundId={revertingHardModeRoundId}
                       editHeroEntry={editHeroEntry}
                       deleteHeroEntry={deleteHeroEntry}
                       handleRetryTemplateLinkingForHero={handleRetryTemplateLinkingForHero}
@@ -1984,6 +2096,16 @@ export function InstalledRoundsPage({
               onPlay={() => handlePlayRound(inspectedRound)}
               onEdit={() => handleEditRound(inspectedRound)}
               onConvert={() => handleConvertRoundToHero(inspectedRound)}
+              onConvertHardMode={() =>
+                setRoundHardModeConversion({
+                  roundId: inspectedRound.id,
+                  roundName: inspectedRound.name,
+                  heroName: inspectedRound.hero?.name ?? null,
+                  recalculateDifficulty: true,
+                })
+              }
+              onRevertHardMode={() => void revertHardModeForRound(inspectedRound)}
+              revertingHardMode={revertingHardModeRoundId !== null}
               onRepair={() => handleOpenRepairTemplateRound(inspectedRound)}
               onRetry={() => void handleRetryTemplateLinkingForRound(inspectedRound)}
               onDelete={() =>
@@ -2187,6 +2309,70 @@ export function InstalledRoundsPage({
         />
       )}
       <ConfirmDialog
+        isOpen={heroHardModeConversion !== null}
+        title={t`Convert Legacy Script to Hard Mode?`}
+        message={t`Convert the attached script from “${heroHardModeConversion?.heroName ?? ""}” and attach the generated script to every resource-backed round in the hero?\n\nOnly use this on a legacy half-stroke script. The current attachment may be local or remote and will remain unchanged. Existing funscript attachments for this hero will be replaced.`}
+        confirmLabel={t`Convert and Attach`}
+        variant="warning"
+        isPending={convertingHardModeHeroId !== null}
+        onConfirm={() => void confirmHeroHardModeConversion()}
+        onCancel={() => {
+          if (convertingHardModeHeroId) return;
+          setHeroHardModeConversion(null);
+        }}
+      >
+        <label className="mt-4 flex items-start gap-3 rounded-xl border border-amber-300/20 bg-amber-500/10 p-3 text-sm text-zinc-200">
+          <input
+            type="checkbox"
+            checked={heroHardModeConversion?.recalculateDifficulty ?? true}
+            disabled={convertingHardModeHeroId !== null}
+            onChange={(event) =>
+              setHeroHardModeConversion((current) =>
+                current ? { ...current, recalculateDifficulty: event.target.checked } : current
+              )
+            }
+            className="mt-0.5 h-4 w-4 rounded border-amber-300/40 bg-black/45 text-amber-400 focus:ring-amber-400/60"
+          />
+          <span>
+            {t`Recalculate the difficulty of affected rounds from the converted hard-mode script`}
+          </span>
+        </label>
+      </ConfirmDialog>
+      <ConfirmDialog
+        isOpen={roundHardModeConversion !== null}
+        title={t`Convert Legacy Script to Hard Mode?`}
+        message={
+          roundHardModeConversion?.heroName
+            ? t`Convert the script attached to “${roundHardModeConversion.roundName}”? Because this round belongs to “${roundHardModeConversion.heroName}”, the generated script will replace the primary funscript attachment on every resource-backed round in that hero.\n\nOnly use this on a legacy half-stroke script. The current local or remote source will remain unchanged.`
+            : t`Convert the script attached to “${roundHardModeConversion?.roundName ?? ""}” and replace this round's primary funscript attachment?\n\nOnly use this on a legacy half-stroke script. The current local or remote source will remain unchanged.`
+        }
+        confirmLabel={t`Convert and Attach`}
+        variant="warning"
+        isPending={convertingHardModeRoundId !== null}
+        onConfirm={() => void confirmRoundHardModeConversion()}
+        onCancel={() => {
+          if (convertingHardModeRoundId) return;
+          setRoundHardModeConversion(null);
+        }}
+      >
+        <label className="mt-4 flex items-start gap-3 rounded-xl border border-amber-300/20 bg-amber-500/10 p-3 text-sm text-zinc-200">
+          <input
+            type="checkbox"
+            checked={roundHardModeConversion?.recalculateDifficulty ?? true}
+            disabled={convertingHardModeRoundId !== null}
+            onChange={(event) =>
+              setRoundHardModeConversion((current) =>
+                current ? { ...current, recalculateDifficulty: event.target.checked } : current
+              )
+            }
+            className="mt-0.5 h-4 w-4 rounded border-amber-300/40 bg-black/45 text-amber-400 focus:ring-amber-400/60"
+          />
+          <span>
+            {t`Recalculate the difficulty of affected rounds from the converted hard-mode script`}
+          </span>
+        </label>
+      </ConfirmDialog>
+      <ConfirmDialog
         isOpen={deleteRoundDialog !== null}
         title={t`Delete Round?`}
         message={t`Delete round entry \u201C${deleteRoundDialog?.name ?? ""}\u201D from the database?\n\nThis removes only the database entry. Files on disk will be left untouched.`}
@@ -2243,6 +2429,9 @@ function RoundInspector({
   onPlay,
   onEdit,
   onConvert,
+  onConvertHardMode,
+  onRevertHardMode,
+  revertingHardMode,
   onRepair,
   onRetry,
   onDelete,
@@ -2254,6 +2443,9 @@ function RoundInspector({
   onPlay: () => void;
   onEdit: () => void;
   onConvert: () => void;
+  onConvertHardMode: () => void;
+  onRevertHardMode: () => void;
+  revertingHardMode: boolean;
   onRepair: () => void;
   onRetry: () => void;
   onDelete: () => void;
@@ -2367,6 +2559,29 @@ function RoundInspector({
             >
               <Trans>Convert to hero</Trans>
             </button>
+          )}
+          {hasScript && !isTemplate && (
+            <>
+              <button
+                type="button"
+                onClick={onConvertHardMode}
+                className="round-library-toolbar-button col-span-2 justify-center"
+              >
+                <Trans>Convert legacy script to hard mode</Trans>
+              </button>
+              <button
+                type="button"
+                onClick={onRevertHardMode}
+                disabled={revertingHardMode}
+                className="round-library-toolbar-button col-span-2 justify-center"
+              >
+                {revertingHardMode ? (
+                  <Trans>Restoring previous script…</Trans>
+                ) : (
+                  <Trans>Restore previous script</Trans>
+                )}
+              </button>
+            </>
           )}
           {isTemplate && (
             <>
@@ -3362,6 +3577,7 @@ function HeroGroupHeaderShell({
   expandedGroupKeySet,
   setExpandedHeroGroups,
   convertingHeroGroupKey,
+  convertingHardModeHeroId,
   cardAssetsByRoundId,
   websiteVideoScanStatusRunning,
   selectionMode,
@@ -3369,6 +3585,9 @@ function HeroGroupHeaderShell({
   selectedHeroIds,
   toggleHeroGroupSelection,
   openHeroGroupRoundConversion,
+  openHeroHardModeConversion,
+  revertHardModeForRound,
+  revertingHardModeRoundId,
   editHeroEntry,
   deleteHeroEntry,
   handleRetryTemplateLinkingForHero,
@@ -3382,6 +3601,7 @@ function HeroGroupHeaderShell({
     v: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)
   ) => void;
   convertingHeroGroupKey: string | null;
+  convertingHardModeHeroId: string | null;
   cardAssetsByRoundId: ReadonlyMap<string, import("@/services/db").InstalledRoundCardAssets>;
   websiteVideoScanStatusRunning: boolean;
   selectionMode: boolean;
@@ -3389,6 +3609,9 @@ function HeroGroupHeaderShell({
   selectedHeroIds: Set<string>;
   toggleHeroGroupSelection: (group: Extract<RoundRenderRow, { kind: "hero-group" }>) => void;
   openHeroGroupRoundConversion: (group: Extract<RoundRenderRow, { kind: "hero-group" }>) => void;
+  openHeroHardModeConversion: (group: Extract<RoundRenderRow, { kind: "hero-group" }>) => void;
+  revertHardModeForRound: (round: RoundLibraryEntry) => Promise<void>;
+  revertingHardModeRoundId: string | null;
   editHeroEntry: (round: RoundLibraryEntry) => Promise<void>;
   deleteHeroEntry: (draft: HeroEditDraft | null) => void;
   handleRetryTemplateLinkingForHero: (heroId: string) => Promise<void>;
@@ -3416,6 +3639,7 @@ function HeroGroupHeaderShell({
       expanded={isExpanded}
       onHoverSfx={handleHoverSfx}
       converting={convertingHeroGroupKey === row.groupKey}
+      convertingHardMode={convertingHardModeHeroId === heroId || revertingHardModeRoundId !== null}
       hasTemplateRounds={row.rounds.some((round) => isTemplateRound(round))}
       selectionMode={selectionMode}
       selected={isGroupSelected}
@@ -3433,6 +3657,16 @@ function HeroGroupHeaderShell({
       onConvertToRound={() => {
         handleSelectSfx();
         openHeroGroupRoundConversion(row);
+      }}
+      onConvertLegacyFunscript={() => {
+        handleSelectSfx();
+        void openHeroHardModeConversion(row);
+      }}
+      onRevertHardModeFunscript={() => {
+        const firstRound = row.rounds[0];
+        if (!firstRound) return;
+        handleSelectSfx();
+        void revertHardModeForRound(firstRound);
       }}
       onEditHero={() => {
         const firstRound = row.rounds[0];

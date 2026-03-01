@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { playHoverSound } from "../../utils/audio";
 
@@ -12,6 +12,7 @@ export type ConfirmDialogProps = {
   cancelLabel?: string;
   variant?: ConfirmDialogVariant;
   isPending?: boolean;
+  children?: ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -73,6 +74,7 @@ export function ConfirmDialog({
   cancelLabel,
   variant = "danger",
   isPending = false,
+  children,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -129,6 +131,7 @@ export function ConfirmDialog({
         <p id={descriptionId} className="mt-2 text-sm text-zinc-400 whitespace-pre-line">
           {message}
         </p>
+        {children}
 
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button

@@ -12,6 +12,7 @@ export const MUSIC_CACHE_RELATIVE_PATH = "music-cache";
 export const EROSCRIPTS_CACHE_RELATIVE_PATH = "eroscripts-cache";
 export const FPACK_EXTRACTION_RELATIVE_PATH = "fpacks";
 export const PLAYABLE_VIDEO_CACHE_RELATIVE_PATH = "video-playback-cache";
+export const HARDMODE_FUNSCRIPT_RELATIVE_PATH = "hardmode-funscripts";
 
 export const PORTABLE_STORAGE_DEFAULTS: ReadonlyMap<string, string> = new Map([
   ["webVideo.cacheRootPath", WEBSITE_VIDEO_CACHE_RELATIVE_PATH],

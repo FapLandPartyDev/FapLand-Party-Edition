@@ -31,17 +31,15 @@ const { runDatabaseBackupMock, resolveDatabaseBackupDirMock } = vi.hoisted(() =>
   resolveDatabaseBackupDirMock: vi.fn(() => "/tmp/database-backups"),
 }));
 
-const {
-  createPlaintextSettingsFileMock,
-  runSettingsBackupMock,
-  resolveSettingsBackupDirMock,
-} = vi.hoisted(() => ({
-  createPlaintextSettingsFileMock: vi.fn(async () => ({
-    plaintextPath: "/tmp/settings-backups/f-land-settings-plaintext-2026-04-21T12-00-00.000Z.json",
-  })),
-  runSettingsBackupMock: vi.fn(),
-  resolveSettingsBackupDirMock: vi.fn(() => "/tmp/settings-backups"),
-}));
+const { createPlaintextSettingsFileMock, runSettingsBackupMock, resolveSettingsBackupDirMock } =
+  vi.hoisted(() => ({
+    createPlaintextSettingsFileMock: vi.fn(async () => ({
+      plaintextPath:
+        "/tmp/settings-backups/f-land-settings-plaintext-2026-04-21T12-00-00.000Z.json",
+    })),
+    runSettingsBackupMock: vi.fn(),
+    resolveSettingsBackupDirMock: vi.fn(() => "/tmp/settings-backups"),
+  }));
 
 const { shellOpenPathMock, shellShowItemInFolderMock } = vi.hoisted(() => ({
   shellOpenPathMock: vi.fn(),
@@ -74,10 +72,18 @@ const { getWebsiteVideoCacheStateMock } = vi.hoisted(() => ({
   >(async () => "not_applicable"),
 }));
 
-const { calculateFunscriptDifficultyFromUriMock } = vi.hoisted(() => ({
+const {
+  calculateFunscriptDifficultyFromUriMock,
+  convertLocalFunscriptToManagedHardModeMock,
+  getHardModeAttachmentRevertMock,
+  recordHardModeAttachmentRevertsMock,
+} = vi.hoisted(() => ({
   calculateFunscriptDifficultyFromUriMock: vi.fn<(funscriptUri: string) => Promise<number | null>>(
     async () => null
   ),
+  convertLocalFunscriptToManagedHardModeMock: vi.fn(),
+  getHardModeAttachmentRevertMock: vi.fn(),
+  recordHardModeAttachmentRevertsMock: vi.fn(async () => undefined),
 }));
 
 const { createResourceUriResolverMock, getDisabledRoundIdSetMock, resolveResourceUrisMock } =
@@ -169,6 +175,10 @@ vi.mock("../../services/fpack", () => ({
 
 vi.mock("../../services/funscript", () => ({
   calculateFunscriptDifficultyFromUri: calculateFunscriptDifficultyFromUriMock,
+  convertLocalFunscriptToManagedHardMode: convertLocalFunscriptToManagedHardModeMock,
+  convertFunscriptUriToManagedHardMode: convertLocalFunscriptToManagedHardModeMock,
+  getHardModeAttachmentRevert: getHardModeAttachmentRevertMock,
+  recordHardModeAttachmentReverts: recordHardModeAttachmentRevertsMock,
 }));
 
 vi.mock("../../services/integrations", () => ({
@@ -433,6 +443,12 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     getFpackExtractionRootMock.mockResolvedValue("/tmp/fpacks");
     getWebsiteVideoCacheStateMock.mockResolvedValue("not_applicable");
     calculateFunscriptDifficultyFromUriMock.mockResolvedValue(null);
+    getHardModeAttachmentRevertMock.mockResolvedValue(null);
+    convertLocalFunscriptToManagedHardModeMock.mockResolvedValue({
+      funscriptUri: "app://media/managed-hard-mode.funscript",
+      sourceActions: 3,
+      outputActions: 5,
+    });
     exportInstalledDatabaseMock.mockResolvedValue({
       exportDir: "/tmp/f-land/export/2026-03-05T20-00-00.000Z",
       heroFiles: 1,
@@ -685,20 +701,24 @@ describe("dbRouter local highscore and multiplayer cache", () => {
         },
         round: {
           findFirst: vi.fn(async (input: { where: unknown; with?: { resources?: unknown } }) => {
-            const [value] = extractSqlParams(input.where);
-            if (typeof value === "string") {
-              const existing = roundsByIdRef.get(value) ?? null;
+            const values = extractSqlParams(input.where).filter(
+              (value): value is string => typeof value === "string"
+            );
+            const matchingId = values.find((value) => roundsByIdRef.has(value));
+            if (matchingId) {
+              const existing = roundsByIdRef.get(matchingId) ?? null;
               if (!existing) return null;
               if (input.with?.resources) {
                 return {
                   ...existing,
                   resources: [...resourcesByIdRef.values()]
-                    .filter((entry) => entry.roundId === value)
+                    .filter((entry) => entry.roundId === matchingId)
                     .map((entry) => ({ ...entry })),
                 };
               }
               return existing;
             }
+            if (values.length > 0) return null;
             const fallback = roundsByIdRef.values().next().value ?? null;
             if (!fallback) return null;
             if (input.with?.resources) {
@@ -1616,6 +1636,382 @@ describe("dbRouter local highscore and multiplayer cache", () => {
       updatedResources: 1,
       skippedRounds: 1,
     });
+  });
+
+  it("converts one legacy script and transactionally attaches it to hero primary resources", async () => {
+    const caller = createRendererCaller();
+
+    roundsByIdRef.set("hardmode-round-1", {
+      id: "hardmode-round-1",
+      name: "Hardmode Round 1",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+    roundsByIdRef.set("hardmode-round-template", {
+      id: "hardmode-round-template",
+      name: "Hardmode Template",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 1000,
+      endTime: 2000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+    resourcesByIdRef.set("hardmode-primary", {
+      id: "hardmode-primary",
+      roundId: "hardmode-round-1",
+      videoUri: "file:///tmp/primary.mp4",
+      funscriptUri: "file:///tmp/old-primary.funscript",
+      funscriptOffsetMs: 175,
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+    resourcesByIdRef.set("hardmode-secondary", {
+      id: "hardmode-secondary",
+      roundId: "hardmode-round-1",
+      videoUri: "file:///tmp/secondary.mp4",
+      funscriptUri: "file:///tmp/old-secondary.funscript",
+      funscriptOffsetMs: -75,
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:02.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:02.000Z"),
+    });
+
+    await expect(
+      caller.convertHeroFunscriptToHardMode({
+        heroId: "hero-1",
+      })
+    ).resolves.toEqual({
+      heroId: "hero-1",
+      funscriptUri: "app://media/managed-hard-mode.funscript",
+      updatedResources: 1,
+      skippedRounds: 1,
+      sourceActions: 3,
+      outputActions: 5,
+      recalculatedDifficulty: null,
+    });
+
+    expect(convertLocalFunscriptToManagedHardModeMock).toHaveBeenCalledWith(
+      "file:///tmp/old-primary.funscript"
+    );
+    expect(dbMockRef.transaction).toHaveBeenCalledTimes(1);
+    expect(resourcesByIdRef.get("hardmode-primary")).toMatchObject({
+      funscriptUri: "app://media/managed-hard-mode.funscript",
+      funscriptOffsetMs: 175,
+    });
+    expect(resourcesByIdRef.get("hardmode-secondary")).toMatchObject({
+      funscriptUri: "file:///tmp/old-secondary.funscript",
+      funscriptOffsetMs: -75,
+    });
+  });
+
+  it("does not change hero attachments when hard-mode conversion fails", async () => {
+    const caller = createRendererCaller();
+    roundsByIdRef.set("hardmode-round", {
+      id: "hardmode-round",
+      name: "Hardmode Round",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+    resourcesByIdRef.set("hardmode-resource", {
+      id: "hardmode-resource",
+      roundId: "hardmode-round",
+      videoUri: "file:///tmp/video.mp4",
+      funscriptUri: "file:///tmp/original.funscript",
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+    convertLocalFunscriptToManagedHardModeMock.mockRejectedValueOnce(
+      new Error("This funscript was already converted to hard mode by F-Land.")
+    );
+
+    await expect(
+      caller.convertHeroFunscriptToHardMode({
+        heroId: "hero-1",
+      })
+    ).rejects.toThrow("already converted");
+
+    expect(resourcesByIdRef.get("hardmode-resource")?.funscriptUri).toBe(
+      "file:///tmp/original.funscript"
+    );
+    expect(dbMockRef.transaction).not.toHaveBeenCalled();
+  });
+
+  it("converts a standalone round from its current primary attachment", async () => {
+    const caller = createRendererCaller();
+    roundsByIdRef.set("standalone-hardmode", {
+      id: "standalone-hardmode",
+      name: "Standalone legacy",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: null,
+    });
+    resourcesByIdRef.set("standalone-hardmode-resource", {
+      id: "standalone-hardmode-resource",
+      roundId: "standalone-hardmode",
+      videoUri: "file:///tmp/standalone.mp4",
+      funscriptUri: "https://media.example/standalone.funscript",
+      funscriptOffsetMs: 125,
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+
+    await expect(
+      caller.convertRoundFunscriptToHardMode({ roundId: "standalone-hardmode" })
+    ).resolves.toMatchObject({
+      scope: "round",
+      heroId: null,
+      roundId: "standalone-hardmode",
+      updatedResources: 1,
+      skippedRounds: 0,
+      sourceActions: 3,
+      outputActions: 5,
+    });
+    expect(convertLocalFunscriptToManagedHardModeMock).toHaveBeenCalledWith(
+      "https://media.example/standalone.funscript"
+    );
+    expect(resourcesByIdRef.get("standalone-hardmode-resource")).toMatchObject({
+      funscriptUri: "app://media/managed-hard-mode.funscript",
+      funscriptOffsetMs: 125,
+    });
+  });
+
+  it("recalculates difficulty from the converted hard-mode script when requested", async () => {
+    const caller = createRendererCaller();
+    roundsByIdRef.set("hardmode-difficulty", {
+      id: "hardmode-difficulty",
+      name: "Legacy difficulty",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: 2,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: null,
+    });
+    resourcesByIdRef.set("hardmode-difficulty-resource", {
+      id: "hardmode-difficulty-resource",
+      roundId: "hardmode-difficulty",
+      videoUri: "file:///tmp/difficulty.mp4",
+      funscriptUri: "file:///tmp/difficulty.funscript",
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+    calculateFunscriptDifficultyFromUriMock.mockResolvedValueOnce(4);
+
+    const result = await caller.convertRoundFunscriptToHardMode({
+      roundId: "hardmode-difficulty",
+      recalculateDifficulty: true,
+    });
+
+    expect(calculateFunscriptDifficultyFromUriMock).toHaveBeenCalledWith(
+      "app://media/managed-hard-mode.funscript"
+    );
+    expect(roundsByIdRef.get("hardmode-difficulty")?.difficulty).toBe(4);
+    expect(result.recalculatedDifficulty).toBe(4);
+  });
+
+  it("uses the selected hero round as source and applies its conversion hero-wide", async () => {
+    const caller = createRendererCaller();
+    for (const [id, script, createdAt] of [
+      ["hero-selected", "https://stash.example/selected.funscript", "2026-03-06T00:00:01.000Z"],
+      ["hero-sibling", "file:///tmp/different.funscript", "2026-03-06T00:00:02.000Z"],
+    ] as const) {
+      roundsByIdRef.set(id, {
+        id,
+        name: id,
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        startTime: 0,
+        endTime: 1000,
+        type: "Normal",
+        heroId: "hero-1",
+      });
+      resourcesByIdRef.set(`${id}-resource`, {
+        id: `${id}-resource`,
+        roundId: id,
+        videoUri: `file:///tmp/${id}.mp4`,
+        funscriptUri: script,
+        phash: null,
+        durationMs: 1000,
+        disabled: false,
+        createdAt: new Date(createdAt),
+        updatedAt: new Date(createdAt),
+      });
+    }
+
+    const result = await caller.convertRoundFunscriptToHardMode({ roundId: "hero-selected" });
+
+    expect(result).toMatchObject({ scope: "hero", heroId: "hero-1", updatedResources: 2 });
+    expect(convertLocalFunscriptToManagedHardModeMock).toHaveBeenCalledWith(
+      "https://stash.example/selected.funscript"
+    );
+    expect(resourcesByIdRef.get("hero-selected-resource")?.funscriptUri).toBe(
+      "app://media/managed-hard-mode.funscript"
+    );
+    expect(resourcesByIdRef.get("hero-sibling-resource")?.funscriptUri).toBe(
+      "app://media/managed-hard-mode.funscript"
+    );
+  });
+
+  it("restores each hero resource's exact previous attachment", async () => {
+    const caller = createRendererCaller();
+    for (const id of ["restore-a", "restore-b"] as const) {
+      roundsByIdRef.set(id, {
+        id,
+        name: id,
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        startTime: 0,
+        endTime: 1000,
+        type: "Normal",
+        heroId: "hero-1",
+      });
+      resourcesByIdRef.set(`${id}-resource`, {
+        id: `${id}-resource`,
+        roundId: id,
+        videoUri: `file:///tmp/${id}.mp4`,
+        funscriptUri: "app://media/managed-hard-mode.funscript",
+        phash: null,
+        durationMs: 1000,
+        disabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+    getHardModeAttachmentRevertMock.mockImplementation(
+      async (resourceId: string, hardModeFunscriptUri: string) => {
+        const previousFunscriptUri =
+          resourceId === "restore-a-resource"
+            ? "file:///tmp/original-a.funscript"
+            : resourceId === "restore-b-resource"
+              ? "https://stash.example/original-b.funscript"
+              : null;
+        return previousFunscriptUri
+          ? { resourceId, hardModeFunscriptUri, previousFunscriptUri, converterVersion: 1 }
+          : null;
+      }
+    );
+
+    const result = await caller.revertRoundHardModeFunscript({ roundId: "restore-a" });
+
+    expect(result).toMatchObject({ scope: "hero", updatedResources: 2 });
+    expect(resourcesByIdRef.get("restore-a-resource")?.funscriptUri).toBe(
+      "file:///tmp/original-a.funscript"
+    );
+    expect(resourcesByIdRef.get("restore-b-resource")?.funscriptUri).toBe(
+      "https://stash.example/original-b.funscript"
+    );
+  });
+
+  it("does not change hero attachments when the conversion transaction fails", async () => {
+    const caller = createRendererCaller();
+    roundsByIdRef.set("transaction-round", {
+      id: "transaction-round",
+      name: "Transaction Round",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+    resourcesByIdRef.set("transaction-resource", {
+      id: "transaction-resource",
+      roundId: "transaction-round",
+      videoUri: "file:///tmp/video.mp4",
+      funscriptUri: "file:///tmp/original.funscript",
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+    dbMockRef.transaction.mockRejectedValueOnce(new Error("Database transaction failed."));
+
+    await expect(
+      caller.convertHeroFunscriptToHardMode({
+        heroId: "hero-1",
+      })
+    ).rejects.toThrow("Database transaction failed");
+
+    expect(resourcesByIdRef.get("transaction-resource")?.funscriptUri).toBe(
+      "file:///tmp/original.funscript"
+    );
+  });
+
+  it("rejects a hard-mode conversion when the hero has no resource-backed rounds", async () => {
+    const caller = createRendererCaller();
+    roundsByIdRef.set("template-only", {
+      id: "template-only",
+      name: "Template only",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+
+    await expect(
+      caller.convertHeroFunscriptToHardMode({
+        heroId: "hero-1",
+      })
+    ).rejects.toThrow("no resource-backed rounds");
+  });
+
+  it("rejects hard-mode conversion for a missing hero before reading the source file", async () => {
+    const caller = createRendererCaller();
+
+    await expect(
+      caller.convertHeroFunscriptToHardMode({
+        heroId: "missing-hero",
+      })
+    ).rejects.toThrow("Hero not found");
+
+    expect(convertLocalFunscriptToManagedHardModeMock).not.toHaveBeenCalled();
   });
 
   it("rejects hero funscript updates for a missing hero", async () => {

@@ -11,6 +11,7 @@ import type {
 import { db, type InstalledRound } from "../../services/db";
 import { trpc } from "../../services/trpc";
 import { useToast } from "../ui/ToastHost";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { AntiPerkBeatbar } from "./AntiPerkBeatbar";
 import ControllerHints from "./ControllerHints";
 import {
@@ -110,6 +111,7 @@ export type RoundVideoOverlayProps = {
   cumRequestSignal?: number;
   showCumRoundOutcomeMenuOnCumRequest?: boolean;
   onOpenOptions?: () => void;
+  onOptionsActionsChange?: (actions: RoundOverlayOptionsAction[]) => void;
   allowDebugRoundControls?: boolean;
   extraModifiers?: PlaybackModifier[];
   onFunscriptFrame?: (payload: { timeMs: number; position: number | null }) => void;
@@ -120,6 +122,14 @@ export type RoundVideoOverlayProps = {
   initialShowDisconnectedHapticsStatus?: boolean;
   lastLogMessage?: string;
   roadPalette?: RoadPalette;
+};
+
+export type RoundOverlayOptionsAction = {
+  id: string;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  tone?: "default" | "danger";
 };
 
 type LoadingMediaItem =
@@ -300,6 +310,7 @@ export function RoundVideoOverlay({
   cumRequestSignal,
   showCumRoundOutcomeMenuOnCumRequest = false,
   onOpenOptions,
+  onOptionsActionsChange,
   allowDebugRoundControls = false,
   extraModifiers = [],
   onFunscriptFrame,
@@ -503,6 +514,15 @@ export function RoundVideoOverlay({
   const lastShownAntiPerkAlertRef = useRef<string | null>(null);
 
   const [timeline, setTimeline] = useState<Awaited<ReturnType<typeof loadFunscriptTimeline>>>(null);
+  const [hardModeFunscriptUri, setHardModeFunscriptUri] = useState<string | null>(null);
+  const [isConvertingHardMode, setIsConvertingHardMode] = useState(false);
+  const [showHardModeConversionPrompt, setShowHardModeConversionPrompt] = useState(false);
+  const [recalculateHardModeDifficulty, setRecalculateHardModeDifficulty] = useState(true);
+  const [isRevertingHardMode, setIsRevertingHardMode] = useState(false);
+  const [hardModeStatus, setHardModeStatus] = useState<{
+    roundId: string;
+    converted: boolean;
+  } | null>(null);
 
   useEffect(() => {
     loadingCountdownRef.current = loadingCountdown;
@@ -639,6 +659,7 @@ export function RoundVideoOverlay({
 
   useEffect(() => {
     setPlaylistIndex(0);
+    setHardModeFunscriptUri(null);
   }, [activeRound?.fieldId, activeRound?.roundId]);
 
   const playlistRoundIds = useMemo(() => {
@@ -656,6 +677,28 @@ export function RoundVideoOverlay({
     if (!activeRound) return null;
     return installedRounds.find((round) => round.id === activePlaylistRoundId) ?? null;
   }, [activePlaylistRoundId, activeRound, installedRounds]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!resolvedRound) return;
+    const roundId = resolvedRound.id;
+    void db.round
+      .getHardModeFunscriptStatus(roundId)
+      .then(({ converted }) => {
+        if (!cancelled) setHardModeStatus({ roundId, converted });
+      })
+      .catch(() => {
+        if (!cancelled) setHardModeStatus({ roundId, converted: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedRound]);
+  const isHardModeConverted = Boolean(
+    hardModeStatus &&
+      hardModeStatus.roundId === resolvedRound?.id &&
+      hardModeStatus.converted
+  );
   const resolvedMainResource = useMemo<PlaybackResource | null>(() => {
     const resource = resolvedRound?.resources[0];
     if (!resource) return null;
@@ -663,7 +706,7 @@ export function RoundVideoOverlay({
       id: resource.id,
       roundId: resolvedRound.id,
       videoUri: resource.videoUri,
-      funscriptUri: resource.funscriptUri,
+      funscriptUri: hardModeFunscriptUri ?? resource.funscriptUri,
       funscriptOffsetMs: resource.funscriptOffsetMs,
       invertFunscript: resource.invertFunscript,
       startTime: resolvedRound?.startTime,
@@ -674,7 +717,7 @@ export function RoundVideoOverlay({
         resolvedRound?.endTime
       ),
     };
-  }, [resolvedRound]);
+  }, [hardModeFunscriptUri, resolvedRound]);
 
   const intermediaryVideoUri =
     segment.kind === "intermediary" ? segment.trigger.resource.videoUri : null;
@@ -2029,6 +2072,290 @@ export function RoundVideoOverlay({
     setSyncStatus,
     shouldUseHandySync,
     timeline,
+  ]);
+
+  const convertActiveRoundToHardMode = useCallback(
+    async (recalculateDifficulty: boolean) => {
+      if (
+        isConvertingHardMode ||
+        !resolvedRound ||
+        !resolvedMainResource?.funscriptUri ||
+        segment.kind !== "main"
+      ) {
+        return;
+      }
+
+      const video = mainVideoRef.current;
+      const shouldResume = Boolean(video && !video.paused);
+      const resumeAtMs = Math.max(0, Math.floor((video?.currentTime ?? 0) * 1000));
+      if (video && !video.paused) {
+        allowPauseRef.current = true;
+        video.pause();
+      }
+
+      setIsConvertingHardMode(true);
+      setStatus(t`Converting attached script to hard mode...`);
+      try {
+        await stopHandyIfNeeded();
+        await disconnectHandySessionIfNeeded();
+        resetHandySync("connecting");
+        handyBootstrapKeyRef.current = null;
+        handyBootstrapInFlightRef.current = null;
+
+        const result = await db.round.convertFunscriptToHardMode(
+          resolvedRound.id,
+          recalculateDifficulty
+        );
+        const loaded = await loadFunscriptTimeline(result.funscriptUri);
+        timelineCacheRef.current.set(result.funscriptUri, loaded);
+        const intensityCap = currentPlayer?.pendingIntensityCap ?? null;
+        const shouldInvert =
+          Boolean(resolvedMainResource.invertFunscript) ||
+          Boolean(currentPlayer?.antiPerks.includes("antigravity"));
+        const nextTimeline = invertTimeline(
+          applyTimelineIntensityCap(loaded, intensityCap),
+          shouldInvert
+        );
+
+        setHardModeFunscriptUri(result.funscriptUri);
+        setHardModeStatus({ roundId: resolvedRound.id, converted: true });
+        setTimeline(nextTimeline);
+        setTimelineUri(result.funscriptUri);
+        setFunscriptCount(nextTimeline?.actions.length ?? 0);
+
+        if (
+          handyConnected &&
+          !handyManuallyStoppedRef.current &&
+          hasRequiredHapticsConnection &&
+          nextTimeline?.actions.length
+        ) {
+          const session = await ensureHandySession();
+          if (session) {
+            const effectiveTimeMs = applyHandyOffsetMs(resumeAtMs);
+            const scriptId = `${resolvedMainResource.videoUri}:main:hard-mode`;
+            await preloadHapticsScript(
+              hapticsConfig,
+              session,
+              scriptId,
+              nextTimeline.actions,
+              effectiveTimeMs
+            );
+            await sendHapticsSync(
+              hapticsConfig,
+              session,
+              effectiveTimeMs,
+              video?.playbackRate ?? 1,
+              scriptId,
+              nextTimeline.actions
+            );
+            handyBootstrapKeyRef.current = null;
+            setHandySyncState("synced");
+            setHandySyncError(null);
+            setSyncStatus({ synced: true, error: null });
+          }
+        }
+
+        const scopeMessage =
+          result.scope === "hero"
+            ? t`Hard mode is live for ${result.updatedResources} rounds in this hero.`
+            : t`Hard mode is live for this round.`;
+        setStatus(scopeMessage);
+        showToast(scopeMessage, "success");
+        if (shouldResume && video) {
+          await video.play().catch((error) => {
+            if (!isIgnorableVideoPlayError(error)) throw error;
+          });
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : t`Failed to convert the legacy funscript.`;
+        setStatus(message);
+        showToast(message, "error");
+        handyBootstrapKeyRef.current = null;
+        forceHandySyncMsRef.current = resumeAtMs;
+        if (shouldResume && video) {
+          void video.play().catch(() => undefined);
+        }
+      } finally {
+        setIsConvertingHardMode(false);
+      }
+    },
+    [
+      applyHandyOffsetMs,
+      currentPlayer,
+      disconnectHandySessionIfNeeded,
+      ensureHandySession,
+      handyConnected,
+      hapticsConfig,
+      hasRequiredHapticsConnection,
+      isConvertingHardMode,
+      resetHandySync,
+      resolvedMainResource,
+      resolvedRound,
+      segment.kind,
+      setSyncStatus,
+      showToast,
+      stopHandyIfNeeded,
+      t,
+    ]
+  );
+
+  const revertActiveRoundHardMode = useCallback(async () => {
+    if (
+      isRevertingHardMode ||
+      !resolvedRound ||
+      !resolvedMainResource?.funscriptUri ||
+      segment.kind !== "main"
+    ) {
+      return;
+    }
+
+    const video = mainVideoRef.current;
+    const shouldResume = Boolean(video && !video.paused);
+    const resumeAtMs = Math.max(0, Math.floor((video?.currentTime ?? 0) * 1000));
+    if (video && !video.paused) {
+      allowPauseRef.current = true;
+      video.pause();
+    }
+
+    setIsRevertingHardMode(true);
+    setStatus(t`Restoring the previous script...`);
+    try {
+      await stopHandyIfNeeded();
+      await disconnectHandySessionIfNeeded();
+      resetHandySync("connecting");
+      handyBootstrapKeyRef.current = null;
+      handyBootstrapInFlightRef.current = null;
+
+      const result = await db.round.revertHardModeFunscript(resolvedRound.id);
+      if (!result.funscriptUri) {
+        throw new Error(t`The previous funscript attachment was empty.`);
+      }
+      const loaded = await loadFunscriptTimeline(result.funscriptUri);
+      timelineCacheRef.current.set(result.funscriptUri, loaded);
+      const nextTimeline = invertTimeline(
+        applyTimelineIntensityCap(loaded, currentPlayer?.pendingIntensityCap ?? null),
+        Boolean(resolvedMainResource.invertFunscript) ||
+          Boolean(currentPlayer?.antiPerks.includes("antigravity"))
+      );
+
+      setHardModeFunscriptUri(result.funscriptUri);
+      setHardModeStatus({ roundId: resolvedRound.id, converted: false });
+      setTimeline(nextTimeline);
+      setTimelineUri(result.funscriptUri);
+      setFunscriptCount(nextTimeline?.actions.length ?? 0);
+
+      if (
+        handyConnected &&
+        !handyManuallyStoppedRef.current &&
+        hasRequiredHapticsConnection &&
+        nextTimeline?.actions.length
+      ) {
+        const session = await ensureHandySession();
+        if (session) {
+          const effectiveTimeMs = applyHandyOffsetMs(resumeAtMs);
+          const scriptId = `${resolvedMainResource.videoUri}:main:restored`;
+          await preloadHapticsScript(
+            hapticsConfig,
+            session,
+            scriptId,
+            nextTimeline.actions,
+            effectiveTimeMs
+          );
+          await sendHapticsSync(
+            hapticsConfig,
+            session,
+            effectiveTimeMs,
+            video?.playbackRate ?? 1,
+            scriptId,
+            nextTimeline.actions
+          );
+          setHandySyncState("synced");
+          setHandySyncError(null);
+          setSyncStatus({ synced: true, error: null });
+        }
+      }
+
+      const message =
+        result.scope === "hero"
+          ? t`Previous scripts restored for ${result.updatedResources} hero rounds.`
+          : t`Previous script restored.`;
+      setStatus(message);
+      showToast(message, "success");
+      if (shouldResume && video) {
+        await video.play().catch((error) => {
+          if (!isIgnorableVideoPlayError(error)) throw error;
+        });
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : t`Failed to restore the previous funscript.`;
+      setStatus(message);
+      showToast(message, "error");
+      forceHandySyncMsRef.current = resumeAtMs;
+      if (shouldResume && video) void video.play().catch(() => undefined);
+    } finally {
+      setIsRevertingHardMode(false);
+    }
+  }, [
+    applyHandyOffsetMs,
+    currentPlayer,
+    disconnectHandySessionIfNeeded,
+    ensureHandySession,
+    handyConnected,
+    hapticsConfig,
+    hasRequiredHapticsConnection,
+    isRevertingHardMode,
+    resetHandySync,
+    resolvedMainResource,
+    resolvedRound,
+    segment.kind,
+    setSyncStatus,
+    showToast,
+    stopHandyIfNeeded,
+    t,
+  ]);
+
+  useEffect(() => {
+    if (!onOptionsActionsChange) return;
+    if (
+      !resolvedMainResource?.funscriptUri ||
+      segment.kind !== "main" ||
+      hardModeStatus?.roundId !== resolvedRound?.id
+    ) {
+      onOptionsActionsChange([]);
+      return;
+    }
+    onOptionsActionsChange([
+      isHardModeConverted
+        ? {
+            id: "restore-script",
+            label: isRevertingHardMode ? t`Restoring...` : t`Restore Script`,
+            disabled: isRevertingHardMode || isConvertingHardMode,
+            onClick: () => void revertActiveRoundHardMode(),
+          }
+        : {
+            id: "convert-hard-mode",
+            label: isConvertingHardMode ? t`Converting...` : t`Convert to Hard Mode`,
+            disabled: isConvertingHardMode,
+            onClick: () => {
+              setRecalculateHardModeDifficulty(true);
+              setShowHardModeConversionPrompt(true);
+            },
+          },
+    ]);
+    return () => onOptionsActionsChange([]);
+  }, [
+    isConvertingHardMode,
+    hardModeStatus?.roundId,
+    isHardModeConverted,
+    isRevertingHardMode,
+    onOptionsActionsChange,
+    resolvedMainResource?.funscriptUri,
+    resolvedRound?.id,
+    revertActiveRoundHardMode,
+    segment.kind,
+    t,
   ]);
 
   const bootstrapHandySyncIfReady = useCallback(async (): Promise<boolean> => {
@@ -3413,7 +3740,10 @@ export function RoundVideoOverlay({
     allowPauseRef.current = true;
     video.pause();
     void pauseHandyIfNeeded();
-    const pauseDurationMs = Math.max(1000, roundControl.pauseDurationMs ?? MANUAL_PAUSE_DURATION_MS);
+    const pauseDurationMs = Math.max(
+      1000,
+      roundControl.pauseDurationMs ?? MANUAL_PAUSE_DURATION_MS
+    );
     setStatus(t`Manual pause active (${Math.round(pauseDurationMs / 1000)}s).`);
 
     manualPauseTimerRef.current = window.setTimeout(() => {
@@ -4907,6 +5237,31 @@ export function RoundVideoOverlay({
           )}
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={showHardModeConversionPrompt}
+        title={t`Convert Legacy Script to Hard Mode?`}
+        message={t`Convert the attached legacy script and replace the affected round attachments with the generated hard-mode script?`}
+        confirmLabel={t`Convert and Attach`}
+        variant="warning"
+        isPending={isConvertingHardMode}
+        onConfirm={() => {
+          setShowHardModeConversionPrompt(false);
+          void convertActiveRoundToHardMode(recalculateHardModeDifficulty);
+        }}
+        onCancel={() => setShowHardModeConversionPrompt(false)}
+      >
+        <label className="mt-4 flex items-start gap-3 rounded-xl border border-amber-300/20 bg-amber-500/10 p-3 text-sm text-zinc-200">
+          <input
+            type="checkbox"
+            checked={recalculateHardModeDifficulty}
+            onChange={(event) => setRecalculateHardModeDifficulty(event.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-amber-300/40 bg-black/45 text-amber-400 focus:ring-amber-400/60"
+          />
+          <span>
+            {t`Recalculate the difficulty of affected rounds from the converted hard-mode script`}
+          </span>
+        </label>
+      </ConfirmDialog>
     </div>
   );
 }

@@ -53,10 +53,12 @@ import {
   parseRoundCutRangesJson,
   skipCutIfNeeded,
 } from "../../utils/roundCuts";
+import { getRoundVideoDurationMs, meetsMinimumVideoLength } from "./sourceFilter";
 
 type ConverterSearchParams = {
   sourceRoundId: string;
   heroName: string;
+  minimumVideoLengthMinutes: number;
 };
 
 export type ConverterStep = "select" | "caching" | "edit";
@@ -153,7 +155,11 @@ function getDefaultSegmentCutMarkDraft(): SegmentCutMarkDraft {
 }
 
 export function useConverterState(searchParams: ConverterSearchParams) {
-  const { sourceRoundId: preselectedSourceRoundId, heroName: prefilledHeroName } = searchParams;
+  const {
+    sourceRoundId: preselectedSourceRoundId,
+    heroName: prefilledHeroName,
+    minimumVideoLengthMinutes,
+  } = searchParams;
 
   const [step, setStep] = useState<ConverterStep>(
     preselectedSourceRoundId || prefilledHeroName ? "edit" : "select"
@@ -767,6 +773,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
             difficulty: round.difficulty ?? null,
             excludeFromNumbering: round.excludeFromNumbering ?? false,
             cutRangesJson: round.cutRangesJson ?? null,
+            videoDurationMs: getRoundVideoDurationMs(round),
             videoUri: resource.videoUri,
             funscriptUri: resource.funscriptUri,
             heroName: round.hero?.name ?? null,
@@ -2316,7 +2323,13 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     () => allInstalledSourceOptions.filter((option) => option.heroId === null),
     [allInstalledSourceOptions]
   );
-  const unconvertedSourceOptions = installedSourceOptions;
+  const unconvertedSourceOptions = useMemo(
+    () =>
+      installedSourceOptions.filter((option) =>
+        meetsMinimumVideoLength(option.videoDurationMs, minimumVideoLengthMinutes)
+      ),
+    [installedSourceOptions, minimumVideoLengthMinutes]
+  );
   const currentUnconvertedIndex = useMemo(
     () => unconvertedSourceOptions.findIndex((option) => option.id === selectedInstalledId),
     [selectedInstalledId, unconvertedSourceOptions]

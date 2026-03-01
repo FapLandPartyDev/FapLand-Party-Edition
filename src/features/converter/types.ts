@@ -39,6 +39,7 @@ export type InstalledSourceOption = {
   videoUri: string;
   funscriptUri: string | null;
   cutRangesJson: string | null;
+  videoDurationMs: number | null;
   heroName: string | null;
   heroAuthor: string | null;
   heroDescription: string | null;
