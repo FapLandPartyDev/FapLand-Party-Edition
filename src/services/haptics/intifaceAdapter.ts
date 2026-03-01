@@ -1,8 +1,5 @@
 import type { FunscriptAction } from "../../game/media/playback";
-import {
-  INTIFACE_DOWNLOAD_URL,
-  INTIFACE_MINIMUM_MAJOR_VERSION,
-} from "../../constants/haptics";
+import { INTIFACE_DOWNLOAD_URL, INTIFACE_MINIMUM_MAJOR_VERSION } from "../../constants/haptics";
 import { normalizeHandyStrokeState } from "../theHandyConfig";
 import type {
   HapticsConnectionConfig,
@@ -11,6 +8,7 @@ import type {
   HapticsSession,
   HapticsStrokeState,
 } from "./types";
+import { getFunscriptActionsFingerprint, processFunscriptTrajectory } from "./funscriptRateLimiter";
 
 type ButtplugModule = {
   ButtplugClient: new (name: string) => IntifaceClient;
@@ -69,6 +67,8 @@ export type IntifaceHapticsSession = HapticsSession & {
   websocketUrl: string;
   loadedScriptId: string | null;
   actions: FunscriptAction[];
+  processedActions: FunscriptAction[];
+  processedActionsKey: string | null;
   sourceId: string | null;
   lastCommandAtMs: number;
   lastCommandedTimeMs: number | null;
@@ -81,7 +81,7 @@ export type IntifaceHapticsSession = HapticsSession & {
 const INTIFACE_CLIENT_NAME = "Fap Land";
 const INTIFACE_SESSION_TTL_MS = 60 * 60_000;
 const INTIFACE_SCAN_MS = 2500;
-const INTIFACE_MIN_MOVE_MS = 0;
+const INTIFACE_MIN_MOVE_MS = 1;
 const INTIFACE_MAX_MOVE_MS = 5000;
 const DEFAULT_INTIFACE_URL = "ws://127.0.0.1:12345";
 // Funscript positions span 0..100. A full 0->100 stroke in ~250ms (~400 pos/s)
@@ -205,10 +205,7 @@ function vibrationOutputValues(module: ButtplugModule): unknown[] {
   return [module.OutputType?.Vibrate, "Vibrate"].filter((value) => value !== undefined);
 }
 
-function deviceSupportsOutput(
-  device: IntifaceDevice,
-  outputType: unknown
-): boolean {
+function deviceSupportsOutput(device: IntifaceDevice, outputType: unknown): boolean {
   if (outputType === undefined || typeof device.hasOutput !== "function") return false;
   try {
     return device.hasOutput(outputType) === true;
@@ -338,9 +335,45 @@ async function acquireIntifaceConnection(config: HapticsConnectionConfig): Promi
 }
 
 function scriptId(sourceId: string, actions: FunscriptAction[]): string {
-  const first = actions[0]?.at ?? 0;
-  const last = actions[actions.length - 1]?.at ?? 0;
-  return `${sourceId}:${actions.length}:${first}:${last}`;
+  return `${sourceId}:${getFunscriptActionsFingerprint(actions)}`;
+}
+
+function playbackRateBucket(playbackRate: number): number {
+  return Math.round(playbackRate / 0.05) * 0.05;
+}
+
+function getProcessedPositionActions(
+  config: Extract<HapticsConnectionConfig, { provider: "intiface" }>,
+  session: IntifaceHapticsSession,
+  playbackRate: number
+): FunscriptAction[] {
+  const rate = playbackRateBucket(playbackRate);
+  const normalizedStroke = normalizeHandyStrokeState(config.stroke);
+  const strokeSpanPercent = Math.abs(normalizedStroke.max - normalizedStroke.min) * 100;
+  const enabled = config.funscriptRateLimitEnabled !== false;
+  const key = `${session.loadedScriptId}:rate=${rate.toFixed(2)}:stroke=${strokeSpanPercent.toFixed(2)}:enabled=${enabled}:max-rate=${config.funscriptMaxRate}:epsilon=${config.funscriptRdpEpsilon}`;
+  if (session.processedActionsKey !== key) {
+    const result = processFunscriptTrajectory(session.actions, {
+      enabled,
+      playbackRate: rate,
+      strokeSpanPercent,
+      maxRate: config.funscriptMaxRate,
+      rdpEpsilon: config.funscriptRdpEpsilon,
+    });
+    session.processedActionsKey = key;
+    session.processedActions = result.actions;
+    console.debug("[haptics] Processed Intiface trajectory", {
+      deviceIndex: session.deviceIndex,
+      rateLimitEnabled: enabled,
+      sourceActions: session.actions.length,
+      processedActions: result.actions.length,
+      clampedActions: result.clampedActionCount,
+      maximumSourceRate: Math.round(result.maximumSourceRate),
+      playbackRate: rate,
+      strokeSpanPercent,
+    });
+  }
+  return session.processedActions;
 }
 
 function clampDurationMs(durationMs: number): number {
@@ -531,8 +564,7 @@ function computeVibrationIntensity(
   if (deltaMs <= 0) return 0;
   const deltaPos = Math.abs(next.pos - prev.pos);
   const speedPerSec = (deltaPos / deltaMs) * 1000;
-  const effectiveMax =
-    INTIFACE_MAX_VIBE_SPEED_POS_PER_SEC / Math.max(0.01, sensitivity || 1);
+  const effectiveMax = INTIFACE_MAX_VIBE_SPEED_POS_PER_SEC / Math.max(0.01, sensitivity || 1);
   return Math.max(0, Math.min(1, speedPerSec / effectiveMax));
 }
 
@@ -548,8 +580,7 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
         return {
           success: false,
           provider: "intiface",
-          message:
-            "Intiface connected, but no position- or vibration-capable device was found.",
+          message: "Intiface connected, but no position- or vibration-capable device was found.",
         };
       }
       return {
@@ -592,6 +623,8 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
       websocketUrl: url,
       loadedScriptId: null,
       actions: [],
+      processedActions: [],
+      processedActionsKey: null,
       sourceId: null,
       lastCommandAtMs: 0,
       lastCommandedTimeMs: null,
@@ -604,7 +637,9 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
 
   async preloadScript(_config, session, sourceId, actions): Promise<void> {
     session.loadedScriptId = scriptId(sourceId, actions);
-    session.actions = [...actions].sort((left, right) => left.at - right.at);
+    session.actions = processFunscriptTrajectory(actions, { enabled: false }).actions;
+    session.processedActions = [];
+    session.processedActionsKey = null;
     session.sourceId = sourceId;
     session.lastCommandedTimeMs = null;
     session.lastPlaybackRate = null;
@@ -620,12 +655,12 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
     if (session.loadedScriptId !== id) {
       await intifaceAdapter.preloadScript(config, session, sourceId, actions);
     }
-    const activeActions = session.actions.length > 0 ? session.actions : actions;
+    const sourceActions = session.actions.length > 0 ? session.actions : actions;
     const rate = Math.max(0.25, Math.min(3, playbackRate));
 
     if (session.deviceMode === "vibrate") {
       const intensity = computeVibrationIntensity(
-        activeActions,
+        sourceActions,
         timeMs,
         intifaceConfig.vibrationSensitivity
       );
@@ -639,12 +674,14 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
       return;
     }
 
+    const activeActions = getProcessedPositionActions(intifaceConfig, session, rate);
     const nextAction = getNextAction(activeActions, timeMs);
     if (!nextAction) return;
     if (!shouldSendPositionCommand(session, timeMs, rate, nextAction.at)) return;
 
     const position = applyStroke(nextAction.pos, intifaceConfig.stroke);
     const durationMs = (nextAction.at - timeMs) / rate;
+    if (!Number.isFinite(durationMs) || durationMs <= 0) return;
 
     await runPositionCommand(module, session.device, position, durationMs);
     session.lastCommandAtMs = Date.now();
@@ -675,6 +712,8 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
     if (!session) return;
     session.loadedScriptId = null;
     session.actions = [];
+    session.processedActions = [];
+    session.processedActionsKey = null;
     session.sourceId = null;
     session.lastCommandAtMs = 0;
     session.lastCommandedTimeMs = null;

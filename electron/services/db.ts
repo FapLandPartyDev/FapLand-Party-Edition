@@ -19,6 +19,7 @@ import {
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 let databaseReadyPromise: Promise<void> | null = null;
 let dbClientUrl: string = "";
+const progressionSchemaReadyPromises = new WeakMap<object, Promise<void>>();
 
 const ROUND_EXCLUDE_FROM_RANDOM_MIGRATION_TAG = "0005_round_exclude_from_random";
 const DATABASE_BACKUP_DIR_NAME = "database-backups";
@@ -322,6 +323,27 @@ async function repairProgressionSchema(
   }
 }
 
+/**
+ * Progression was introduced while development builds could remain open
+ * across renderer reloads. Guarding its first use lets those instances, and
+ * installs with an incomplete migration journal, repair themselves without a
+ * factory reset or a second application restart.
+ */
+export function ensureProgressionSchemaReady(
+  dbInstance: ReturnType<typeof drizzle<typeof schema>> = getDb()
+): Promise<void> {
+  const key = dbInstance as object;
+  const existing = progressionSchemaReadyPromises.get(key);
+  if (existing) return existing;
+
+  const attempt = repairProgressionSchema(dbInstance).catch((error) => {
+    progressionSchemaReadyPromises.delete(key);
+    throw error;
+  });
+  progressionSchemaReadyPromises.set(key, attempt);
+  return attempt;
+}
+
 export async function repairSinglePlayerRunSaveSchema(
   dbInstance: ReturnType<typeof drizzle<typeof schema>>
 ): Promise<void> {
@@ -578,7 +600,7 @@ export async function ensureAppDatabaseReady(): Promise<void> {
       await repairLegacyPlaylistSchema(dbInstance);
       await repairCheatModeSchema(dbInstance);
       await repairAssistedSchema(dbInstance);
-      await repairProgressionSchema(dbInstance);
+      await ensureProgressionSchemaReady(dbInstance);
       await repairSinglePlayerRunSaveSchema(dbInstance);
       await repairInstalledLibrarySchema(dbInstance);
       await repairGameplayStatisticsBackfill(dbInstance);

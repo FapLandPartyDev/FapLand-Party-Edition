@@ -6,21 +6,13 @@ import { runCommand } from "./phash/extract";
 import { getFfmpegGpuEnv } from "./ffmpegEnv";
 
 export type PlaylistExportCompressionMode = "copy" | "av1";
+export type PlaylistExportAudioBitrateKbps = 128 | 192 | 256;
 export type PlaylistExportCompressionEncoderKind = "hardware" | "software";
 export type PlaylistExportCompressionPhase =
-  | "idle"
-  | "analyzing"
-  | "copying"
-  | "compressing"
-  | "writing"
-  | "done"
-  | "aborted"
-  | "error";
+  "idle" | "analyzing" | "copying" | "compressing" | "writing" | "done" | "aborted" | "error";
 
 export type PlaylistExportCompressionStrengthLabel =
-  | "Low compression"
-  | "Balanced"
-  | "High compression";
+  "Low compression" | "Balanced" | "High compression";
 
 export type Av1EncoderDetails = {
   name: "av1_nvenc" | "av1_qsv" | "av1_amf" | "av1_vaapi" | "libsvtav1" | "libaom-av1";
@@ -68,6 +60,12 @@ function clamp(value: number, min: number, max: number): number {
 export function normalizeCompressionStrength(value: number | null | undefined): number {
   if (!Number.isFinite(value)) return 80;
   return Math.round(clamp(Number(value), 0, 100));
+}
+
+export function normalizeAudioBitrateKbps(
+  value: number | null | undefined
+): PlaylistExportAudioBitrateKbps {
+  return value === 128 || value === 256 ? value : 192;
 }
 
 export function getCompressionStrengthLabel(
@@ -290,6 +288,7 @@ function estimateCompressedBytesForProbe(input: {
   probe: PlaylistExportVideoProbe;
   strength: number;
   encoderKind: PlaylistExportCompressionEncoderKind;
+  audioBitrateKbps: PlaylistExportAudioBitrateKbps;
 }): { bytes: number; approximate: boolean } {
   if (isAv1Codec(input.probe.codecName) && input.probe.fileSizeBytes !== null) {
     return {
@@ -306,7 +305,7 @@ function estimateCompressedBytesForProbe(input: {
       strength: input.strength,
       encoderKind: input.encoderKind,
     });
-    const audioBytes = (128_000 / 8) * durationSeconds;
+    const audioBytes = (input.audioBitrateKbps * 1000 * durationSeconds) / 8;
     const videoBytes = (videoKbps * 1000 * durationSeconds) / 8;
     return {
       bytes: Math.max(1, Math.round(videoBytes + audioBytes)),
@@ -383,6 +382,7 @@ export function estimateCompressionForProbes(input: {
   strength: number;
   encoderKind: PlaylistExportCompressionEncoderKind;
   parallelJobs: number;
+  audioBitrateKbps?: PlaylistExportAudioBitrateKbps;
 }): PlaylistExportEstimate {
   let approximate = false;
   let sourceVideoBytes = 0;
@@ -394,6 +394,7 @@ export function estimateCompressionForProbes(input: {
       probe,
       strength: input.strength,
       encoderKind: input.encoderKind,
+      audioBitrateKbps: normalizeAudioBitrateKbps(input.audioBitrateKbps),
     });
     const timeEstimate = estimateCompressionSecondsForProbe({
       probe,
@@ -431,6 +432,7 @@ export function buildAv1EncodeArgs(input: {
   strength: number;
   sourcePath: string;
   outputPath: string;
+  audioBitrateKbps?: PlaylistExportAudioBitrateKbps;
 }): string[] {
   const strength = normalizeCompressionStrength(input.strength);
   const args = [
@@ -451,7 +453,15 @@ export function buildAv1EncodeArgs(input: {
   ];
   appendAv1EncoderArgs(args, input.encoderName, strength);
 
-  args.push("-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", input.outputPath);
+  args.push(
+    "-c:a",
+    "aac",
+    "-b:a",
+    `${normalizeAudioBitrateKbps(input.audioBitrateKbps)}k`,
+    "-movflags",
+    "+faststart",
+    input.outputPath
+  );
   return args;
 }
 
@@ -469,6 +479,7 @@ export async function transcodeVideoToAv1(input: {
   outputPath: string;
   encoder: Av1EncoderDetails;
   strength: number;
+  audioBitrateKbps?: PlaylistExportAudioBitrateKbps;
   onSpawn?: (child: ChildProcess) => void;
   onProgress?: (progress: Av1TranscodeProgress) => void;
 }): Promise<void> {
@@ -478,6 +489,7 @@ export async function transcodeVideoToAv1(input: {
     strength: input.strength,
     sourcePath: input.sourcePath,
     outputPath: input.outputPath,
+    audioBitrateKbps: input.audioBitrateKbps,
   });
 
   const gpuEnv = getFfmpegGpuEnv();

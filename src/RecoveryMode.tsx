@@ -27,6 +27,14 @@ type RecoveryStatus = {
   integrityMessage: string;
 };
 
+type DatabaseBackupInfo = {
+  id: string;
+  createdAt: string;
+  bytes: number;
+  integrity: "ok" | "corrupt";
+  integrityMessage: string;
+};
+
 export function RecoveryMode() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selections, setSelections] = useState<ClearDataSelections>(DEFAULT_CLEAR_DATA_SELECTIONS);
@@ -42,6 +50,17 @@ export function RecoveryMode() {
   const [activeRecoveryAction, setActiveRecoveryAction] = useState<string | null>(null);
   const [alwaysRecoveryMode, setAlwaysRecoveryMode] = useState(false);
   const [isTogglingAlwaysRecovery, setIsTogglingAlwaysRecovery] = useState(false);
+  const [databaseBackups, setDatabaseBackups] = useState<DatabaseBackupInfo[]>([]);
+  const [backupsLoading, setBackupsLoading] = useState(true);
+
+  const refreshDatabaseBackups = async () => {
+    try {
+      const backups = await window.electronAPI?.startupRecovery?.listDatabaseBackups?.();
+      setDatabaseBackups(backups ?? []);
+    } finally {
+      setBackupsLoading(false);
+    }
+  };
 
   useEffect(() => {
     trpc.debug.getState
@@ -60,12 +79,13 @@ export function RecoveryMode() {
         setAlwaysRecoveryMode(normalizeAlwaysRecoveryMode(value));
       })
       .catch(() => {});
+    void refreshDatabaseBackups();
   }, []);
 
   const runRecoveryAction = async (
     actionName: string,
     action: () => Promise<unknown>,
-    successMessage: string,
+    successMessage: string | ((result: unknown) => string),
     restartAfter = false
   ) => {
     if (activeRecoveryAction) return;
@@ -73,10 +93,11 @@ export function RecoveryMode() {
     setError(null);
     setNotice(null);
     try {
-      await action();
-      setNotice(successMessage);
+      const result = await action();
+      setNotice(typeof successMessage === "function" ? successMessage(result) : successMessage);
       const status = await window.electronAPI?.startupRecovery?.getStatus?.();
       if (status) setRecoveryStatus(status);
+      await refreshDatabaseBackups();
       if (restartAfter) await window.electronAPI?.startupRecovery?.restart?.();
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : `${actionName} failed.`);
@@ -143,8 +164,9 @@ export function RecoveryMode() {
     try {
       const recoveryApi = window.electronAPI?.startupRecovery;
       if (!recoveryApi?.backupDatabase) throw new Error("Recovery API is unavailable.");
-      await recoveryApi.backupDatabase();
-      setNotice("Database backup created.");
+      const backupPath = await recoveryApi.backupDatabase();
+      await refreshDatabaseBackups();
+      setNotice(`Database backup created at ${backupPath}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to backup database.");
     } finally {
@@ -293,6 +315,69 @@ export function RecoveryMode() {
               </div>
             ) : null}
 
+            <div className="mt-5 rounded-2xl border border-zinc-700 bg-zinc-900/60 p-4">
+              <h3 className="font-bold text-zinc-100">Verified database backups</h3>
+              <p className="mt-1 text-xs leading-5 text-zinc-400">
+                Restore a managed backup before considering a factory reset. A fresh safety copy of
+                the current database is created first.
+              </p>
+              {backupsLoading ? (
+                <p className="mt-3 text-sm text-zinc-400">Checking backups...</p>
+              ) : databaseBackups.length === 0 ? (
+                <p className="mt-3 text-sm text-zinc-400">No managed database backups found.</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {databaseBackups.map((backup) => (
+                    <div
+                      key={backup.id}
+                      className="flex flex-col gap-3 rounded-xl border border-zinc-700 bg-zinc-950/70 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0 text-xs text-zinc-300">
+                        <div className="font-semibold text-zinc-100">
+                          {new Date(backup.createdAt).toLocaleString()} ·{" "}
+                          {(backup.bytes / 1024 / 1024).toFixed(1)} MB
+                        </div>
+                        <div
+                          className={`mt-1 break-words ${backup.integrity === "ok" ? "text-emerald-300" : "text-rose-300"}`}
+                        >
+                          {backup.integrity === "ok" ? "Integrity verified" : "Corrupt"}:{" "}
+                          {backup.integrityMessage}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={Boolean(activeRecoveryAction) || backup.integrity !== "ok"}
+                        onClick={() => {
+                          if (
+                            !window.confirm(
+                              `Restore the verified backup from ${new Date(backup.createdAt).toLocaleString()}? The current database will be backed up again first, and the app will restart after validation.`
+                            )
+                          )
+                            return;
+                          void runRecoveryAction(
+                            "database restore",
+                            async () => {
+                              const api = window.electronAPI?.startupRecovery;
+                              if (!api?.restoreDatabaseBackup)
+                                throw new Error("Recovery API is unavailable.");
+                              return api.restoreDatabaseBackup(backup.id);
+                            },
+                            (rawResult) => {
+                              const result = rawResult as { safetyBackupPath: string };
+                              return `Backup restored and verified. The pre-restore database is archived at ${result.safetyBackupPath}. Restart the app when ready.`;
+                            }
+                          );
+                        }}
+                        className="shrink-0 rounded-lg border border-amber-300/60 bg-amber-500/15 px-3 py-2 text-xs font-bold text-amber-100 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {activeRecoveryAction === "database restore" ? "Restoring..." : "Restore"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <RecoveryActionButton
                 title="1. Repair & Optimize Database"
@@ -390,10 +475,14 @@ export function RecoveryMode() {
                     async () => {
                       const api = window.electronAPI?.startupRecovery;
                       if (!api?.resetInstallation) throw new Error("Recovery API is unavailable.");
-                      await api.resetInstallation(false);
+                      return api.resetInstallation(false);
                     },
-                    "Factory reset complete. Restarting...",
-                    true
+                    (rawResult) => {
+                      const result = rawResult as { databaseArchivePath: string | null };
+                      return result.databaseArchivePath
+                        ? `Factory reset complete. The recovery archive is at ${result.databaseArchivePath}. Restart the app when ready.`
+                        : "Factory reset complete. No prior database was present. Restart the app when ready.";
+                    }
                   );
                 }}
                 className="mt-3 rounded-xl border border-rose-300/70 bg-rose-500/20 px-4 py-2 text-sm font-bold text-rose-50 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"

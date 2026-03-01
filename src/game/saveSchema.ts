@@ -187,6 +187,13 @@ const ZGameConfig = z.object({
     enabledPerkIds: z.array(z.string()),
     enabledAntiPerkIds: z.array(z.string()),
   }),
+  intermediarySelection: z
+    .object({
+      minPerTriggeredRound: z.number().int().min(1).max(5),
+      maxPerTriggeredRound: z.number().int().min(1).max(5),
+    })
+    .optional()
+    .default({ minPerTriggeredRound: 1, maxPerTriggeredRound: 3 }),
   probabilityScaling: z.object({
     initialIntermediaryProbability: z.number(),
     initialAntiPerkProbability: z.number(),
@@ -445,7 +452,11 @@ export const ZPersistedGameState = z.object({
   log: z.array(z.string()),
   lastRoll: z.number().int().nullable(),
   endlessRoundsCompleted: z.number().int().default(0),
-  antiPerkTriggeredThisRound: z.boolean().optional().default(false),
+  antiPerkTriggeredThisRound: z
+    .boolean()
+    .optional()
+    .default(false)
+    .transform(() => false),
   completionReason: z
     .enum([
       "finished",

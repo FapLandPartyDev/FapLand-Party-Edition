@@ -39,6 +39,16 @@ import {
   normalizeTCodeWebSocketInput,
 } from "../services/haptics/tcodeConfig";
 import {
+  DEFAULT_FUNSCRIPT_MAX_RATE,
+  DEFAULT_FUNSCRIPT_RDP_EPSILON,
+  FUNSCRIPT_MAX_RATE_MAX,
+  FUNSCRIPT_MAX_RATE_MIN,
+  FUNSCRIPT_RDP_EPSILON_MAX,
+  FUNSCRIPT_RDP_EPSILON_MIN,
+  normalizeFunscriptMaxRate,
+  normalizeFunscriptRdpEpsilon,
+} from "../services/haptics/funscriptRateLimiter";
+import {
   DEFAULT_MUSIC_LOOP_MODE,
   DEFAULT_MUSIC_VOLUME,
   type MusicLoopMode,
@@ -4290,6 +4300,11 @@ function HardwareSettingsCard({
     intifaceDeviceIndex,
     intifaceVibrationSensitivity,
     setIntifaceVibrationSensitivity,
+    funscriptRateLimitEnabled,
+    setFunscriptRateLimitEnabled,
+    funscriptMaxRate,
+    funscriptRdpEpsilon,
+    setFunscriptRateLimitSettings,
     tcodeTransport,
     tcodeSerialPath,
     tcodeBaudRate,
@@ -4338,6 +4353,10 @@ function HardwareSettingsCard({
   const [inputTCodeBaudRate, setInputTCodeBaudRate] = useState(String(tcodeBaudRate));
   const [inputTCodeHost, setInputTCodeHost] = useState(tcodeWebsocketHost);
   const [inputTCodePrecision, setInputTCodePrecision] = useState<3 | 4>(tcodePrecision);
+  const [inputFunscriptMaxRate, setInputFunscriptMaxRate] = useState(String(funscriptMaxRate));
+  const [inputFunscriptRdpEpsilon, setInputFunscriptRdpEpsilon] = useState(
+    String(funscriptRdpEpsilon)
+  );
   const [tcodeAutoDetecting, setTCodeAutoDetecting] = useState(false);
   const [useCustomApiKey, setUseCustomApiKey] = useState(!isUsingDefaultAppApiKey);
   const [strokeMinSliderValue, setStrokeMinSliderValue] = useState(
@@ -4354,6 +4373,13 @@ function HardwareSettingsCard({
       setStrokeMaxSliderValue(formatHandyStrokeBoundPercent(strokeMax));
     });
   }, [strokeMin, strokeMax]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setInputFunscriptMaxRate(String(funscriptMaxRate));
+      setInputFunscriptRdpEpsilon(String(funscriptRdpEpsilon));
+    });
+  }, [funscriptMaxRate, funscriptRdpEpsilon]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -4955,6 +4981,115 @@ function HardwareSettingsCard({
                 </div>
               </>
             )}
+
+            {provider !== "tcode" ? (
+              <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-cyan-100">
+                      <Trans>Limit fast funscripts</Trans>
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-300">
+                      <Trans>
+                        Keeps demanding scripts within a Handy-compatible movement rate. Disable
+                        only if the device or another application handles speed limiting; fast
+                        scripts may stutter or stop.
+                      </Trans>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-label={t`Limit fast funscripts`}
+                    aria-checked={funscriptRateLimitEnabled}
+                    onClick={() => {
+                      playSelectSound();
+                      void setFunscriptRateLimitEnabled(!funscriptRateLimitEnabled);
+                    }}
+                    className={`relative h-7 w-14 shrink-0 overflow-hidden rounded-full border transition-all duration-200 ${funscriptRateLimitEnabled ? "border-cyan-300/80 bg-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.35)]" : "border-zinc-600 bg-zinc-800"}`}
+                  >
+                    <span
+                      className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ${funscriptRateLimitEnabled ? "translate-x-7" : "translate-x-0"}`}
+                    />
+                  </button>
+                </div>
+
+                <div
+                  className={`mt-4 grid gap-3 border-t border-cyan-300/15 pt-4 sm:grid-cols-2 ${funscriptRateLimitEnabled ? "" : "opacity-50"}`}
+                >
+                  <label className="flex flex-col gap-1.5 text-xs text-zinc-300">
+                    <span className="font-[family-name:var(--font-jetbrains-mono)] font-bold uppercase tracking-wider">
+                      <Trans>Maximum movement rate (%/s)</Trans>
+                    </span>
+                    <input
+                      aria-label={t`Maximum movement rate`}
+                      type="number"
+                      min={FUNSCRIPT_MAX_RATE_MIN}
+                      max={FUNSCRIPT_MAX_RATE_MAX}
+                      step={10}
+                      value={inputFunscriptMaxRate}
+                      disabled={!funscriptRateLimitEnabled}
+                      onChange={(event) => setInputFunscriptMaxRate(event.target.value)}
+                      onBlur={() => {
+                        const nextMaxRate = normalizeFunscriptMaxRate(inputFunscriptMaxRate);
+                        const nextRdpEpsilon =
+                          normalizeFunscriptRdpEpsilon(inputFunscriptRdpEpsilon);
+                        setInputFunscriptMaxRate(String(nextMaxRate));
+                        setInputFunscriptRdpEpsilon(String(nextRdpEpsilon));
+                        void setFunscriptRateLimitSettings(nextMaxRate, nextRdpEpsilon);
+                      }}
+                      className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-cyan-400 disabled:cursor-not-allowed"
+                    />
+                    <span className="text-zinc-500">
+                      <Trans>Maximum physical travel per second. Default: 400.</Trans>
+                    </span>
+                  </label>
+                  <label className="flex flex-col gap-1.5 text-xs text-zinc-300">
+                    <span className="font-[family-name:var(--font-jetbrains-mono)] font-bold uppercase tracking-wider">
+                      <Trans>Simplification tolerance</Trans>
+                    </span>
+                    <input
+                      aria-label={t`Simplification tolerance`}
+                      type="number"
+                      min={FUNSCRIPT_RDP_EPSILON_MIN}
+                      max={FUNSCRIPT_RDP_EPSILON_MAX}
+                      step={0.1}
+                      value={inputFunscriptRdpEpsilon}
+                      disabled={!funscriptRateLimitEnabled}
+                      onChange={(event) => setInputFunscriptRdpEpsilon(event.target.value)}
+                      onBlur={() => {
+                        const nextMaxRate = normalizeFunscriptMaxRate(inputFunscriptMaxRate);
+                        const nextRdpEpsilon =
+                          normalizeFunscriptRdpEpsilon(inputFunscriptRdpEpsilon);
+                        setInputFunscriptMaxRate(String(nextMaxRate));
+                        setInputFunscriptRdpEpsilon(String(nextRdpEpsilon));
+                        void setFunscriptRateLimitSettings(nextMaxRate, nextRdpEpsilon);
+                      }}
+                      className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-cyan-400 disabled:cursor-not-allowed"
+                    />
+                    <span className="text-zinc-500">
+                      <Trans>Higher values remove more tiny movements. Default: 1.</Trans>
+                    </span>
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  disabled={!funscriptRateLimitEnabled}
+                  onClick={() => {
+                    playSelectSound();
+                    setInputFunscriptMaxRate(String(DEFAULT_FUNSCRIPT_MAX_RATE));
+                    setInputFunscriptRdpEpsilon(String(DEFAULT_FUNSCRIPT_RDP_EPSILON));
+                    void setFunscriptRateLimitSettings(
+                      DEFAULT_FUNSCRIPT_MAX_RATE,
+                      DEFAULT_FUNSCRIPT_RDP_EPSILON
+                    );
+                  }}
+                  className="mt-3 rounded-lg border border-zinc-600 bg-zinc-900/70 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-zinc-300 transition-colors hover:border-cyan-400/60 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Trans>Reset limiter defaults</Trans>
+                </button>
+              </div>
+            ) : null}
 
             {provider === "thehandy" && DEFAULT_THEHANDY_APP_API_KEY.trim().length === 0 ? (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm font-[family-name:var(--font-jetbrains-mono)] text-amber-300">

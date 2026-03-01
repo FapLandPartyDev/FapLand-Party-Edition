@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handyIndexMocks = vi.hoisted(() => ({
   getDeviceInfo: vi.fn(),
+  getHspState: vi.fn(async (): Promise<unknown> => ({ result: undefined })),
   getStroke: vi.fn(async () => ({
     result: { min: 0.1, max: 0.9, min_absolute: 20, max_absolute: 180 },
   })),
@@ -264,6 +265,7 @@ describe("sendHspSync", () => {
         body: expect.objectContaining({
           start_time: 500,
           server_time: 30_180,
+          pause_on_starving: true,
         }),
       })
     );
@@ -275,6 +277,31 @@ describe("sendHspSync", () => {
         }),
       })
     );
+  });
+
+  it("tracks reported HSP buffer occupancy without blocking sync", async () => {
+    const session = createLoadedHspSession();
+    handyIndexMocks.getHspState.mockResolvedValueOnce({
+      result: {
+        points: 25,
+        max_points: 800,
+        last_point_time: 42_000,
+        play_state: 4,
+      },
+    });
+
+    await sendHspSync(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      20_000,
+      1,
+      "video-1",
+      longActions
+    );
+    await vi.waitFor(() => expect(session.reportedBufferPoints).toBe(25));
+
+    expect(session.maxBufferPoints).toBe(800);
+    expect(session.reportedBufferedUntilMs).toBe(42_000);
   });
 
   it("forces an immediate unfiltered correction when requested", async () => {
@@ -379,25 +406,24 @@ describe("sendHspSync", () => {
       .mockRejectedValueOnce(new Error("temporary hsp add failure"))
       .mockRejectedValueOnce(new Error("temporary hsp add failure"));
 
-    await expect(
-      sendHspSync(
-        {
-          connectionKey: "conn-key",
-          appApiKey: "app-key",
-        },
-        session,
-        20_000,
-        1,
-        "video-1",
-        longActions
-      )
-    ).rejects.toThrow("temporary hsp add failure");
+    await sendHspSync(
+      {
+        connectionKey: "conn-key",
+        appApiKey: "app-key",
+      },
+      session,
+      20_000,
+      1,
+      "video-1",
+      longActions
+    );
 
     expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(3);
     expect(session.nextStreamPointIndex).toBe(100);
     expect(session.tailPointStreamIndex).toBe(100);
     expect(session.uploadedUntilMs).toBe(49_500);
     expect(session.hspAddBackoffUntilMs).toBeGreaterThan(0);
+    expect(session.hspTopupFailureCount).toBe(1);
   });
 
   it("retries individual hspAdd chunks before giving up", async () => {
@@ -431,19 +457,17 @@ describe("sendHspSync", () => {
       .mockRejectedValueOnce(new Error("temporary hsp add failure"))
       .mockRejectedValueOnce(new Error("temporary hsp add failure"));
 
-    await expect(
-      sendHspSync(
-        {
-          connectionKey: "conn-key",
-          appApiKey: "app-key",
-        },
-        session,
-        20_000,
-        1,
-        "video-1",
-        longActions
-      )
-    ).rejects.toThrow("temporary hsp add failure");
+    await sendHspSync(
+      {
+        connectionKey: "conn-key",
+        appApiKey: "app-key",
+      },
+      session,
+      20_000,
+      1,
+      "video-1",
+      longActions
+    );
 
     nowSpy.mockReturnValue(1_400);
     await sendHspSync(

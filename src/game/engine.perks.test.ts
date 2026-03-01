@@ -540,6 +540,111 @@ describe("engine new perks", () => {
     expect(afterRound.pendingPerkSelection?.options[0]?.id).toBe("treasure-magnet");
   });
 
+  it("rolls automatic anti-perks independently from normal perk selection", () => {
+    const config = makeConfig();
+    config.perkSelection.triggerChancePerCompletedRound = 1;
+    config.probabilityScaling.initialAntiPerkProbability = 1;
+    config.probabilityScaling.maxAntiPerkProbability = 1;
+    config.perkPool.enabledPerkIds = ["shield"];
+    config.perkPool.enabledAntiPerkIds = ["jammed-dice"];
+    const base = createInitialGameState(config);
+    const activeRoundState: GameState = {
+      ...base,
+      activeRound: {
+        fieldId: "path-1",
+        nodeId: "path-1",
+        roundId: "round-1",
+        roundName: "Round 1",
+        selectionKind: "fixed",
+        poolId: null,
+        phaseKind: "normal",
+        campaignIndex: 1,
+      },
+    };
+
+    const afterRound = completeRound(activeRoundState, undefined, [], {
+      antiPerkTriggerRoll: 0.99,
+      antiPerkIndex: 0,
+      perkTriggerRoll: 0.99,
+      perkChoicesRolls: [0],
+    });
+
+    expect(afterRound.players[0]?.antiPerks).toContain("jammed-dice");
+    expect(afterRound.pendingPerkSelection?.options.map((option) => option.id)).toContain("shield");
+  });
+
+  it("keeps perks probabilistic when anti-perks are guaranteed", () => {
+    const config = makeConfig();
+    config.perkSelection.triggerChancePerCompletedRound = 0.5;
+    config.probabilityScaling.initialAntiPerkProbability = 1;
+    config.probabilityScaling.maxAntiPerkProbability = 1;
+    config.perkPool.enabledPerkIds = ["shield"];
+    config.perkPool.enabledAntiPerkIds = ["jammed-dice"];
+    const base = createInitialGameState(config);
+    const afterRound = completeRound(
+      {
+        ...base,
+        activeRound: {
+          fieldId: "path-1",
+          nodeId: "path-1",
+          roundId: "round-1",
+          roundName: "Round 1",
+          selectionKind: "fixed",
+          poolId: null,
+          phaseKind: "normal",
+          campaignIndex: 1,
+        },
+      },
+      undefined,
+      [],
+      { antiPerkTriggerRoll: 0.99, antiPerkIndex: 0, perkTriggerRoll: 0.75 }
+    );
+
+    expect(afterRound.players[0]?.antiPerks).toContain("jammed-dice");
+    expect(afterRound.pendingPerkSelection).toBeNull();
+  });
+
+  it("updates anti-perk probability after the roll and does not reset for an empty pool", () => {
+    const config = makeConfig();
+    config.probabilityScaling.initialAntiPerkProbability = 0.2;
+    config.probabilityScaling.antiPerkIncreasePerRound = 0.1;
+    config.probabilityScaling.maxAntiPerkProbability = 1;
+    config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger = true;
+    config.perkPool.enabledAntiPerkIds = ["jammed-dice"];
+    const base = createInitialGameState(config);
+    const activeRound = {
+      fieldId: "path-1",
+      nodeId: "path-1",
+      roundId: "round-1",
+      roundName: "Round 1",
+      selectionKind: "fixed" as const,
+      poolId: null,
+      phaseKind: "normal" as const,
+      campaignIndex: 1,
+    };
+
+    const triggered = completeRound(
+      { ...base, antiPerkProbability: 0.6, activeRound },
+      undefined,
+      [],
+      { antiPerkTriggerRoll: 0.59, antiPerkIndex: 0, perkTriggerRoll: 1 }
+    );
+    expect(triggered.antiPerkProbability).toBeCloseTo(0.2);
+
+    const emptyPool = completeRound(
+      {
+        ...base,
+        config: { ...config, perkPool: { ...config.perkPool, enabledAntiPerkIds: [] } },
+        antiPerkProbability: 0.6,
+        activeRound,
+      },
+      undefined,
+      [],
+      { antiPerkTriggerRoll: 0, perkTriggerRoll: 1 }
+    );
+    expect(emptyPool.antiPerkProbability).toBeCloseTo(0.7);
+  });
+
   it("uses luck to bias perk rarity", () => {
     const config = makeConfig();
     config.perkSelection.triggerChancePerCompletedRound = 1;

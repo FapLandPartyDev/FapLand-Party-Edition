@@ -19,6 +19,7 @@ import {
 } from "../constants/hapticsTest";
 import {
   DEFAULT_INTIFACE_VIBRATION_SENSITIVITY,
+  DEFAULT_FUNSCRIPT_RATE_LIMIT_ENABLED,
   DEFAULT_INTIFACE_WEBSOCKET_URL,
   DEFAULT_TCODE_AXIS,
   DEFAULT_TCODE_BAUD_RATE,
@@ -32,6 +33,9 @@ import {
   INTIFACE_VIBRATION_SENSITIVITY_MAX,
   INTIFACE_VIBRATION_SENSITIVITY_MIN,
   INTIFACE_VIBRATION_SENSITIVITY_STORE_KEY,
+  INTIFACE_FUNSCRIPT_RATE_LIMIT_STORE_KEY,
+  INTIFACE_FUNSCRIPT_MAX_RATE_STORE_KEY,
+  INTIFACE_FUNSCRIPT_RDP_EPSILON_STORE_KEY,
   INTIFACE_WEBSOCKET_URL_STORE_KEY,
   TCODE_AXIS_STORE_KEY,
   TCODE_BAUD_RATE_STORE_KEY,
@@ -41,7 +45,16 @@ import {
   TCODE_WEBSOCKET_HOST_STORE_KEY,
   TCODE_WEBSOCKET_URL_STORE_KEY,
   HAPTICS_DEVICE_SLOTS_STORE_KEY,
+  THEHANDY_FUNSCRIPT_RATE_LIMIT_STORE_KEY,
+  THEHANDY_FUNSCRIPT_MAX_RATE_STORE_KEY,
+  THEHANDY_FUNSCRIPT_RDP_EPSILON_STORE_KEY,
 } from "../constants/haptics";
+import {
+  DEFAULT_FUNSCRIPT_MAX_RATE,
+  DEFAULT_FUNSCRIPT_RDP_EPSILON,
+  normalizeFunscriptMaxRate,
+  normalizeFunscriptRdpEpsilon,
+} from "../services/haptics/funscriptRateLimiter";
 import {
   normalizeHandyAppApiKeyOverride,
   getHandyStrokeFromBounds,
@@ -98,6 +111,11 @@ type HapticsContextType = {
   intifaceDeviceIndex: number | null;
   intifaceVibrationSensitivity: number;
   setIntifaceVibrationSensitivity: (value: number) => void;
+  funscriptRateLimitEnabled: boolean;
+  setFunscriptRateLimitEnabled: (value: boolean) => Promise<void>;
+  funscriptMaxRate: number;
+  funscriptRdpEpsilon: number;
+  setFunscriptRateLimitSettings: (maxRate: number, rdpEpsilon: number) => Promise<void>;
   tcodeTransport: TCodeTransportKind;
   tcodeSerialPath: string;
   tcodeBaudRate: number;
@@ -176,6 +194,15 @@ function normalizeDeviceSlots(value: unknown): DeviceSlotConfig[] {
     ) {
       return [];
     }
+    const normalizedConfig: HapticsConnectionConfig =
+      config.provider === "thehandy" || config.provider === "intiface"
+        ? {
+            ...config,
+            funscriptRateLimitEnabled: config.funscriptRateLimitEnabled !== false,
+            funscriptMaxRate: normalizeFunscriptMaxRate(config.funscriptMaxRate),
+            funscriptRdpEpsilon: normalizeFunscriptRdpEpsilon(config.funscriptRdpEpsilon),
+          }
+        : config;
     return [
       {
         id: candidate.id,
@@ -188,7 +215,7 @@ function normalizeDeviceSlots(value: unknown): DeviceSlotConfig[] {
                 ? "Intiface device"
                 : "TCode device",
         enabled: candidate.enabled !== false,
-        config,
+        config: normalizedConfig,
         stroke: normalizeHandyStrokeState(candidate.stroke),
         offsetMs: normalizeHandyOffsetMs(candidate.offsetMs),
       },
@@ -224,6 +251,10 @@ function normalizeNullableString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
+function normalizeFunscriptRateLimitEnabled(value: unknown): boolean {
+  return value !== false;
+}
+
 async function loadFromStore(): Promise<{
   provider: HapticsProviderId;
   connectionKey: string;
@@ -233,6 +264,12 @@ async function loadFromStore(): Promise<{
   intifaceDeviceName: string | null;
   intifaceDeviceIndex: number | null;
   intifaceVibrationSensitivity: number;
+  thehandyFunscriptRateLimitEnabled: boolean;
+  intifaceFunscriptRateLimitEnabled: boolean;
+  thehandyFunscriptMaxRate: number;
+  intifaceFunscriptMaxRate: number;
+  thehandyFunscriptRdpEpsilon: number;
+  intifaceFunscriptRdpEpsilon: number;
   tcodeTransport: TCodeTransportKind;
   tcodeSerialPath: string;
   tcodeBaudRate: number;
@@ -253,6 +290,12 @@ async function loadFromStore(): Promise<{
       intifaceDeviceName,
       intifaceDeviceIndex,
       intifaceVibrationSensitivity,
+      thehandyFunscriptRateLimitEnabled,
+      intifaceFunscriptRateLimitEnabled,
+      thehandyFunscriptMaxRate,
+      intifaceFunscriptMaxRate,
+      thehandyFunscriptRdpEpsilon,
+      intifaceFunscriptRdpEpsilon,
       tcodeTransport,
       tcodeSerialPath,
       tcodeBaudRate,
@@ -271,6 +314,12 @@ async function loadFromStore(): Promise<{
       trpc.store.get.query({ key: INTIFACE_DEVICE_NAME_STORE_KEY }),
       trpc.store.get.query({ key: INTIFACE_DEVICE_INDEX_STORE_KEY }),
       trpc.store.get.query({ key: INTIFACE_VIBRATION_SENSITIVITY_STORE_KEY }),
+      trpc.store.get.query({ key: THEHANDY_FUNSCRIPT_RATE_LIMIT_STORE_KEY }),
+      trpc.store.get.query({ key: INTIFACE_FUNSCRIPT_RATE_LIMIT_STORE_KEY }),
+      trpc.store.get.query({ key: THEHANDY_FUNSCRIPT_MAX_RATE_STORE_KEY }),
+      trpc.store.get.query({ key: INTIFACE_FUNSCRIPT_MAX_RATE_STORE_KEY }),
+      trpc.store.get.query({ key: THEHANDY_FUNSCRIPT_RDP_EPSILON_STORE_KEY }),
+      trpc.store.get.query({ key: INTIFACE_FUNSCRIPT_RDP_EPSILON_STORE_KEY }),
       trpc.store.get.query({ key: TCODE_TRANSPORT_STORE_KEY }),
       trpc.store.get.query({ key: TCODE_SERIAL_PATH_STORE_KEY }),
       trpc.store.get.query({ key: TCODE_BAUD_RATE_STORE_KEY }),
@@ -300,6 +349,16 @@ async function loadFromStore(): Promise<{
       intifaceVibrationSensitivity: normalizeIntifaceVibrationSensitivity(
         intifaceVibrationSensitivity
       ),
+      thehandyFunscriptRateLimitEnabled: normalizeFunscriptRateLimitEnabled(
+        thehandyFunscriptRateLimitEnabled
+      ),
+      intifaceFunscriptRateLimitEnabled: normalizeFunscriptRateLimitEnabled(
+        intifaceFunscriptRateLimitEnabled
+      ),
+      thehandyFunscriptMaxRate: normalizeFunscriptMaxRate(thehandyFunscriptMaxRate),
+      intifaceFunscriptMaxRate: normalizeFunscriptMaxRate(intifaceFunscriptMaxRate),
+      thehandyFunscriptRdpEpsilon: normalizeFunscriptRdpEpsilon(thehandyFunscriptRdpEpsilon),
+      intifaceFunscriptRdpEpsilon: normalizeFunscriptRdpEpsilon(intifaceFunscriptRdpEpsilon),
       tcodeTransport: normalizeTCodeTransport(tcodeTransport),
       tcodeSerialPath: typeof tcodeSerialPath === "string" ? tcodeSerialPath.trim() : "",
       tcodeBaudRate: normalizeTCodeBaudRate(tcodeBaudRate),
@@ -321,6 +380,12 @@ async function loadFromStore(): Promise<{
       intifaceDeviceName: null,
       intifaceDeviceIndex: null,
       intifaceVibrationSensitivity: DEFAULT_INTIFACE_VIBRATION_SENSITIVITY,
+      thehandyFunscriptRateLimitEnabled: DEFAULT_FUNSCRIPT_RATE_LIMIT_ENABLED,
+      intifaceFunscriptRateLimitEnabled: DEFAULT_FUNSCRIPT_RATE_LIMIT_ENABLED,
+      thehandyFunscriptMaxRate: DEFAULT_FUNSCRIPT_MAX_RATE,
+      intifaceFunscriptMaxRate: DEFAULT_FUNSCRIPT_MAX_RATE,
+      thehandyFunscriptRdpEpsilon: DEFAULT_FUNSCRIPT_RDP_EPSILON,
+      intifaceFunscriptRdpEpsilon: DEFAULT_FUNSCRIPT_RDP_EPSILON,
       tcodeTransport: DEFAULT_TCODE_TRANSPORT,
       tcodeSerialPath: "",
       tcodeBaudRate: DEFAULT_TCODE_BAUD_RATE,
@@ -378,6 +443,50 @@ async function saveIntifaceToStore(
   }
 }
 
+async function saveFunscriptRateLimitToStore(
+  provider: "thehandy" | "intiface",
+  enabled: boolean
+): Promise<void> {
+  try {
+    await trpc.store.set.mutate({
+      key:
+        provider === "thehandy"
+          ? THEHANDY_FUNSCRIPT_RATE_LIMIT_STORE_KEY
+          : INTIFACE_FUNSCRIPT_RATE_LIMIT_STORE_KEY,
+      value: enabled,
+    });
+  } catch (err) {
+    console.error("Failed to save funscript rate-limit setting", err);
+  }
+}
+
+async function saveFunscriptRateLimitSettingsToStore(
+  provider: "thehandy" | "intiface",
+  maxRate: number,
+  rdpEpsilon: number
+): Promise<void> {
+  try {
+    await Promise.all([
+      trpc.store.set.mutate({
+        key:
+          provider === "thehandy"
+            ? THEHANDY_FUNSCRIPT_MAX_RATE_STORE_KEY
+            : INTIFACE_FUNSCRIPT_MAX_RATE_STORE_KEY,
+        value: normalizeFunscriptMaxRate(maxRate),
+      }),
+      trpc.store.set.mutate({
+        key:
+          provider === "thehandy"
+            ? THEHANDY_FUNSCRIPT_RDP_EPSILON_STORE_KEY
+            : INTIFACE_FUNSCRIPT_RDP_EPSILON_STORE_KEY,
+        value: normalizeFunscriptRdpEpsilon(rdpEpsilon),
+      }),
+    ]);
+  } catch (err) {
+    console.error("Failed to save funscript rate-limit parameters", err);
+  }
+}
+
 async function saveTCodeToStore(input: {
   transport: TCodeTransportKind;
   serialPath: string;
@@ -414,6 +523,24 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [intifaceDeviceIndex, setIntifaceDeviceIndex] = useState<number | null>(null);
   const [intifaceVibrationSensitivity, setIntifaceVibrationSensitivity] = useState(
     DEFAULT_INTIFACE_VIBRATION_SENSITIVITY
+  );
+  const [thehandyFunscriptRateLimitEnabled, setThehandyFunscriptRateLimitEnabled] = useState(
+    DEFAULT_FUNSCRIPT_RATE_LIMIT_ENABLED
+  );
+  const [intifaceFunscriptRateLimitEnabled, setIntifaceFunscriptRateLimitEnabled] = useState(
+    DEFAULT_FUNSCRIPT_RATE_LIMIT_ENABLED
+  );
+  const [thehandyFunscriptMaxRate, setThehandyFunscriptMaxRate] = useState(
+    DEFAULT_FUNSCRIPT_MAX_RATE
+  );
+  const [intifaceFunscriptMaxRate, setIntifaceFunscriptMaxRate] = useState(
+    DEFAULT_FUNSCRIPT_MAX_RATE
+  );
+  const [thehandyFunscriptRdpEpsilon, setThehandyFunscriptRdpEpsilon] = useState(
+    DEFAULT_FUNSCRIPT_RDP_EPSILON
+  );
+  const [intifaceFunscriptRdpEpsilon, setIntifaceFunscriptRdpEpsilon] = useState(
+    DEFAULT_FUNSCRIPT_RDP_EPSILON
   );
   const [tcodeTransport, setTCodeTransport] = useState<TCodeTransportKind>(DEFAULT_TCODE_TRANSPORT);
   const [tcodeSerialPath, setTCodeSerialPath] = useState("");
@@ -540,11 +667,21 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setConnectionKey(slot.config.connectionKey);
         setAppApiKeyOverride(slot.config.appApiKeyOverride);
         setLocalIp(slot.config.localIp);
+        setThehandyFunscriptRateLimitEnabled(slot.config.funscriptRateLimitEnabled !== false);
+        setThehandyFunscriptMaxRate(normalizeFunscriptMaxRate(slot.config.funscriptMaxRate));
+        setThehandyFunscriptRdpEpsilon(
+          normalizeFunscriptRdpEpsilon(slot.config.funscriptRdpEpsilon)
+        );
       } else if (slot.config.provider === "intiface") {
         setIntifaceWebsocketUrl(slot.config.websocketUrl);
         setIntifaceDeviceName(slot.config.deviceName);
         setIntifaceDeviceIndex(slot.config.deviceIndex);
         setIntifaceVibrationSensitivity(slot.config.vibrationSensitivity);
+        setIntifaceFunscriptRateLimitEnabled(slot.config.funscriptRateLimitEnabled !== false);
+        setIntifaceFunscriptMaxRate(normalizeFunscriptMaxRate(slot.config.funscriptMaxRate));
+        setIntifaceFunscriptRdpEpsilon(
+          normalizeFunscriptRdpEpsilon(slot.config.funscriptRdpEpsilon)
+        );
       } else {
         setTCodeTransport(slot.config.transport);
         setTCodeSerialPath(slot.config.serialPath);
@@ -556,6 +693,79 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     },
     [deviceSlots]
+  );
+
+  const funscriptRateLimitEnabled =
+    provider === "intiface" ? intifaceFunscriptRateLimitEnabled : thehandyFunscriptRateLimitEnabled;
+  const funscriptMaxRate =
+    provider === "intiface" ? intifaceFunscriptMaxRate : thehandyFunscriptMaxRate;
+  const funscriptRdpEpsilon =
+    provider === "intiface" ? intifaceFunscriptRdpEpsilon : thehandyFunscriptRdpEpsilon;
+
+  const setFunscriptRateLimitEnabled = useCallback(
+    async (value: boolean): Promise<void> => {
+      if (provider === "tcode") return;
+      userMutatedStateRef.current = true;
+      const enabled = value !== false;
+      if (provider === "thehandy") {
+        setThehandyFunscriptRateLimitEnabled(enabled);
+      } else {
+        setIntifaceFunscriptRateLimitEnabled(enabled);
+      }
+
+      const saved = selectedDeviceId
+        ? deviceSlots.map((slot) =>
+            slot.id === selectedDeviceId && slot.config.provider === provider
+              ? {
+                  ...slot,
+                  config: { ...slot.config, funscriptRateLimitEnabled: enabled },
+                }
+              : slot
+          )
+        : deviceSlots;
+      if (selectedDeviceId) setDeviceSlots(saved);
+      await Promise.all([
+        saveFunscriptRateLimitToStore(provider, enabled),
+        selectedDeviceId ? saveDeviceSlotsToStore(saved) : Promise.resolve(),
+      ]);
+    },
+    [deviceSlots, provider, selectedDeviceId]
+  );
+
+  const setFunscriptRateLimitSettings = useCallback(
+    async (maxRate: number, rdpEpsilon: number): Promise<void> => {
+      if (provider === "tcode") return;
+      userMutatedStateRef.current = true;
+      const normalizedMaxRate = normalizeFunscriptMaxRate(maxRate);
+      const normalizedRdpEpsilon = normalizeFunscriptRdpEpsilon(rdpEpsilon);
+      if (provider === "thehandy") {
+        setThehandyFunscriptMaxRate(normalizedMaxRate);
+        setThehandyFunscriptRdpEpsilon(normalizedRdpEpsilon);
+      } else {
+        setIntifaceFunscriptMaxRate(normalizedMaxRate);
+        setIntifaceFunscriptRdpEpsilon(normalizedRdpEpsilon);
+      }
+      const saved = selectedDeviceId
+        ? deviceSlots.map((slot) =>
+            slot.id === selectedDeviceId && slot.config.provider === provider
+              ? {
+                  ...slot,
+                  config: {
+                    ...slot.config,
+                    funscriptMaxRate: normalizedMaxRate,
+                    funscriptRdpEpsilon: normalizedRdpEpsilon,
+                  },
+                }
+              : slot
+          )
+        : deviceSlots;
+      if (selectedDeviceId) setDeviceSlots(saved);
+      await Promise.all([
+        saveFunscriptRateLimitSettingsToStore(provider, normalizedMaxRate, normalizedRdpEpsilon),
+        selectedDeviceId ? saveDeviceSlotsToStore(saved) : Promise.resolve(),
+      ]);
+    },
+    [deviceSlots, provider, selectedDeviceId]
   );
 
   useEffect(() => {
@@ -574,6 +784,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         intifaceDeviceName: string | null;
         intifaceDeviceIndex: number | null;
         intifaceVibrationSensitivity: number;
+        funscriptRateLimitEnabled: boolean;
+        funscriptMaxRate: number;
+        funscriptRdpEpsilon: number;
         tcodeTransport: TCodeTransportKind;
         tcodeSerialPath: string;
         tcodeBaudRate: number;
@@ -594,6 +807,10 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           stroke: override?.strokeState ?? strokeState,
           vibrationSensitivity:
             override?.intifaceVibrationSensitivity ?? intifaceVibrationSensitivity,
+          funscriptRateLimitEnabled:
+            override?.funscriptRateLimitEnabled ?? intifaceFunscriptRateLimitEnabled,
+          funscriptMaxRate: override?.funscriptMaxRate ?? intifaceFunscriptMaxRate,
+          funscriptRdpEpsilon: override?.funscriptRdpEpsilon ?? intifaceFunscriptRdpEpsilon,
         };
       }
       if (effectiveProvider === "tcode") {
@@ -615,6 +832,10 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         appApiKey: override?.appApiKey ?? appApiKey,
         appApiKeyOverride: override?.appApiKeyOverride ?? appApiKeyOverride,
         localIp: override?.localIp ?? localIp,
+        funscriptRateLimitEnabled:
+          override?.funscriptRateLimitEnabled ?? thehandyFunscriptRateLimitEnabled,
+        funscriptMaxRate: override?.funscriptMaxRate ?? thehandyFunscriptMaxRate,
+        funscriptRdpEpsilon: override?.funscriptRdpEpsilon ?? thehandyFunscriptRdpEpsilon,
       };
     },
     [
@@ -624,8 +845,14 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       intifaceDeviceIndex,
       intifaceDeviceName,
       intifaceVibrationSensitivity,
+      intifaceFunscriptRateLimitEnabled,
+      intifaceFunscriptMaxRate,
+      intifaceFunscriptRdpEpsilon,
       intifaceWebsocketUrl,
       localIp,
+      thehandyFunscriptRateLimitEnabled,
+      thehandyFunscriptMaxRate,
+      thehandyFunscriptRdpEpsilon,
       provider,
       strokeState,
       tcodeAxis,
@@ -689,6 +916,12 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         intifaceDeviceName: savedIntifaceDeviceName,
         intifaceDeviceIndex: savedIntifaceDeviceIndex,
         intifaceVibrationSensitivity: savedIntifaceVibrationSensitivity,
+        thehandyFunscriptRateLimitEnabled: savedThehandyFunscriptRateLimitEnabled,
+        intifaceFunscriptRateLimitEnabled: savedIntifaceFunscriptRateLimitEnabled,
+        thehandyFunscriptMaxRate: savedThehandyFunscriptMaxRate,
+        intifaceFunscriptMaxRate: savedIntifaceFunscriptMaxRate,
+        thehandyFunscriptRdpEpsilon: savedThehandyFunscriptRdpEpsilon,
+        intifaceFunscriptRdpEpsilon: savedIntifaceFunscriptRdpEpsilon,
         tcodeTransport: savedTCodeTransport,
         tcodeSerialPath: savedTCodeSerialPath,
         tcodeBaudRate: savedTCodeBaudRate,
@@ -708,6 +941,12 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setIntifaceDeviceName(savedIntifaceDeviceName);
         setIntifaceDeviceIndex(savedIntifaceDeviceIndex);
         setIntifaceVibrationSensitivity(savedIntifaceVibrationSensitivity);
+        setThehandyFunscriptRateLimitEnabled(savedThehandyFunscriptRateLimitEnabled);
+        setIntifaceFunscriptRateLimitEnabled(savedIntifaceFunscriptRateLimitEnabled);
+        setThehandyFunscriptMaxRate(savedThehandyFunscriptMaxRate);
+        setIntifaceFunscriptMaxRate(savedIntifaceFunscriptMaxRate);
+        setThehandyFunscriptRdpEpsilon(savedThehandyFunscriptRdpEpsilon);
+        setIntifaceFunscriptRdpEpsilon(savedIntifaceFunscriptRdpEpsilon);
         setTCodeTransport(savedTCodeTransport);
         setTCodeSerialPath(savedTCodeSerialPath);
         setTCodeBaudRate(savedTCodeBaudRate);
@@ -718,6 +957,28 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setGlobalOffsetMs(savedOffsetMs);
 
         if (savedDeviceSlots.length > 0) {
+          const firstSlot = savedDeviceSlots[0]!;
+          if (firstSlot.config.provider === "thehandy") {
+            setThehandyFunscriptRateLimitEnabled(
+              firstSlot.config.funscriptRateLimitEnabled !== false
+            );
+            setThehandyFunscriptMaxRate(
+              normalizeFunscriptMaxRate(firstSlot.config.funscriptMaxRate)
+            );
+            setThehandyFunscriptRdpEpsilon(
+              normalizeFunscriptRdpEpsilon(firstSlot.config.funscriptRdpEpsilon)
+            );
+          } else if (firstSlot.config.provider === "intiface") {
+            setIntifaceFunscriptRateLimitEnabled(
+              firstSlot.config.funscriptRateLimitEnabled !== false
+            );
+            setIntifaceFunscriptMaxRate(
+              normalizeFunscriptMaxRate(firstSlot.config.funscriptMaxRate)
+            );
+            setIntifaceFunscriptRdpEpsilon(
+              normalizeFunscriptRdpEpsilon(firstSlot.config.funscriptRdpEpsilon)
+            );
+          }
           setDeviceSlots(savedDeviceSlots);
           setSelectedDeviceId(savedDeviceSlots[0]!.id);
           const enabledSlots = savedDeviceSlots.filter((slot) => slot.enabled);
@@ -782,6 +1043,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   deviceIndex: savedIntifaceDeviceIndex,
                   stroke: DEFAULT_STROKE_STATE,
                   vibrationSensitivity: savedIntifaceVibrationSensitivity,
+                  funscriptRateLimitEnabled: savedIntifaceFunscriptRateLimitEnabled,
+                  funscriptMaxRate: savedIntifaceFunscriptMaxRate,
+                  funscriptRdpEpsilon: savedIntifaceFunscriptRdpEpsilon,
                 }
               : savedProvider === "tcode"
                 ? {
@@ -801,6 +1065,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     appApiKey: effectiveAppApiKey,
                     appApiKeyOverride: savedOverride,
                     localIp: savedIp,
+                    funscriptRateLimitEnabled: savedThehandyFunscriptRateLimitEnabled,
+                    funscriptMaxRate: savedThehandyFunscriptMaxRate,
+                    funscriptRdpEpsilon: savedThehandyFunscriptRdpEpsilon,
                   };
           const result = await verifyHapticsConnection(config);
           if (result.success) {
@@ -921,6 +1188,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           appApiKey: nextApiKey,
           appApiKeyOverride: nextOverride,
           localIp: nextIp,
+          funscriptRateLimitEnabled: thehandyFunscriptRateLimitEnabled,
+          funscriptMaxRate: thehandyFunscriptMaxRate,
+          funscriptRdpEpsilon: thehandyFunscriptRdpEpsilon,
         });
         if (attemptId !== connectionAttemptIdRef.current) return false;
         if (result.success) {
@@ -931,6 +1201,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             appApiKey: nextApiKey,
             appApiKeyOverride: nextOverride,
             localIp: nextIp,
+            funscriptRateLimitEnabled: thehandyFunscriptRateLimitEnabled,
+            funscriptMaxRate: thehandyFunscriptMaxRate,
+            funscriptRdpEpsilon: thehandyFunscriptRdpEpsilon,
           });
           await saveToStore(nextKey, nextOverride, nextIp);
           await refreshStroke({
@@ -955,7 +1228,15 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
     },
-    [appApiKeyOverride, localIp, refreshStroke, rememberDevice]
+    [
+      appApiKeyOverride,
+      localIp,
+      refreshStroke,
+      rememberDevice,
+      thehandyFunscriptMaxRate,
+      thehandyFunscriptRateLimitEnabled,
+      thehandyFunscriptRdpEpsilon,
+    ]
   );
 
   const connectIntiface = useCallback(
@@ -989,6 +1270,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           deviceIndex: requestedDeviceIndex,
           stroke: strokeState,
           vibrationSensitivity: intifaceVibrationSensitivity,
+          funscriptRateLimitEnabled: intifaceFunscriptRateLimitEnabled,
+          funscriptMaxRate: intifaceFunscriptMaxRate,
+          funscriptRdpEpsilon: intifaceFunscriptRdpEpsilon,
         });
         if (attemptId !== connectionAttemptIdRef.current) return false;
         if (result.success) {
@@ -1005,6 +1289,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               deviceIndex: nextDeviceIndex,
               stroke: strokeState,
               vibrationSensitivity: intifaceVibrationSensitivity,
+              funscriptRateLimitEnabled: intifaceFunscriptRateLimitEnabled,
+              funscriptMaxRate: intifaceFunscriptMaxRate,
+              funscriptRdpEpsilon: intifaceFunscriptRdpEpsilon,
             },
             { label: nextDeviceName ?? "Intiface device" }
           );
@@ -1035,6 +1322,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       intifaceDeviceIndex,
       intifaceDeviceName,
       intifaceVibrationSensitivity,
+      intifaceFunscriptRateLimitEnabled,
+      intifaceFunscriptMaxRate,
+      intifaceFunscriptRdpEpsilon,
       intifaceWebsocketUrl,
       rememberDevice,
       strokeState,
@@ -1598,6 +1888,11 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       intifaceDeviceIndex,
       intifaceVibrationSensitivity,
       setIntifaceVibrationSensitivity,
+      funscriptRateLimitEnabled,
+      setFunscriptRateLimitEnabled,
+      funscriptMaxRate,
+      funscriptRdpEpsilon,
+      setFunscriptRateLimitSettings,
       tcodeTransport,
       tcodeSerialPath,
       tcodeBaudRate,
@@ -1664,6 +1959,11 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       intifaceDeviceIndex,
       intifaceVibrationSensitivity,
       setIntifaceVibrationSensitivity,
+      funscriptRateLimitEnabled,
+      setFunscriptRateLimitEnabled,
+      funscriptMaxRate,
+      funscriptRdpEpsilon,
+      setFunscriptRateLimitSettings,
       tcodeTransport,
       tcodeSerialPath,
       tcodeBaudRate,

@@ -47,12 +47,10 @@ function createModule(devices: unknown[], serverName = "Intiface Server") {
         }),
       },
     },
-    ButtplugBrowserWebsocketClientConnector: vi.fn(function Connector(
-      this: {
-        addListener: (event: string, listener: (messages: unknown) => void) => void;
-        removeListener: (event: string, listener: (messages: unknown) => void) => void;
-      }
-    ) {
+    ButtplugBrowserWebsocketClientConnector: vi.fn(function Connector(this: {
+      addListener: (event: string, listener: (messages: unknown) => void) => void;
+      removeListener: (event: string, listener: (messages: unknown) => void) => void;
+    }) {
       this.addListener = (event: string, listener: (messages: unknown) => void) => {
         if (event === "message") messageListeners.push(listener);
       };
@@ -86,6 +84,7 @@ const config: HapticsConnectionConfig = {
   deviceIndex: null,
   stroke: { min: 0.2, max: 0.8, minAbsolute: null, maxAbsolute: null },
   vibrationSensitivity: 1,
+  funscriptRateLimitEnabled: true,
 };
 
 describe("intifaceAdapter", () => {
@@ -299,6 +298,57 @@ describe("intifaceAdapter", () => {
       type: "position-with-duration",
       position: 0.8,
       durationMs: 500,
+    });
+  });
+
+  it("limits overspeed position trajectories when enabled", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule([
+        {
+          name: "Linear Device",
+          hasOutput: (type: unknown) => type === "HwPositionWithDuration",
+          runOutput,
+          stop,
+        },
+      ]) as never
+    );
+    const session = await intifaceAdapter.createSession(config);
+
+    await intifaceAdapter.sendSync(config, session, 0, 1, "script", [
+      { at: 0, pos: 0 },
+      { at: 100, pos: 100 },
+    ]);
+
+    expect(runOutput).toHaveBeenCalledWith({
+      type: "position-with-duration",
+      position: expect.closeTo(0.6, 5),
+      durationMs: 100,
+    });
+  });
+
+  it("uses the raw sanitized trajectory when limiting is disabled", async () => {
+    const unlimitedConfig = { ...config, funscriptRateLimitEnabled: false };
+    setIntifaceButtplugModuleForTests(
+      createModule([
+        {
+          name: "Linear Device",
+          hasOutput: (type: unknown) => type === "HwPositionWithDuration",
+          runOutput,
+          stop,
+        },
+      ]) as never
+    );
+    const session = await intifaceAdapter.createSession(unlimitedConfig);
+
+    await intifaceAdapter.sendSync(unlimitedConfig, session, 0, 1, "script", [
+      { at: 0, pos: 0 },
+      { at: 100, pos: 100 },
+    ]);
+
+    expect(runOutput).toHaveBeenCalledWith({
+      type: "position-with-duration",
+      position: 0.8,
+      durationMs: 100,
     });
   });
 

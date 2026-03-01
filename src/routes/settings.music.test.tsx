@@ -75,6 +75,11 @@ const mocks = vi.hoisted(() => {
       intifaceDeviceIndex: null as number | null,
       intifaceVibrationSensitivity: 1,
       setIntifaceVibrationSensitivity: vi.fn(async () => {}),
+      funscriptRateLimitEnabled: true,
+      setFunscriptRateLimitEnabled: vi.fn(async () => {}),
+      funscriptMaxRate: 400,
+      funscriptRdpEpsilon: 1,
+      setFunscriptRateLimitSettings: vi.fn(async () => {}),
       offsetMs: 0,
       strokeMin: 0,
       strokeMax: 1,
@@ -347,6 +352,8 @@ describe("Settings music section", () => {
     mocks.handy.disconnect.mockClear();
     mocks.handy.forceStop.mockClear();
     mocks.handy.adjustOffset.mockClear();
+    mocks.handy.setFunscriptRateLimitEnabled.mockClear();
+    mocks.handy.setFunscriptRateLimitSettings.mockClear();
     vi.mocked(db.install.backupSettingsNow).mockClear();
     vi.mocked(db.install.createPlaintextSettingsFile).mockClear();
     vi.mocked(db.install.openSettingsBackupFolder).mockClear();
@@ -357,6 +364,9 @@ describe("Settings music section", () => {
     mocks.handy.intifaceWebsocketUrl = "ws://127.0.0.1:12345";
     mocks.handy.intifaceDeviceName = null;
     mocks.handy.intifaceDeviceIndex = null;
+    mocks.handy.funscriptRateLimitEnabled = true;
+    mocks.handy.funscriptMaxRate = 400;
+    mocks.handy.funscriptRdpEpsilon = 1;
     mocks.handy.offsetMs = 0;
     mocks.appUpdate.triggerPrimaryAction.mockClear();
     vi.mocked(trpc.binaries.getResolvedVersions.query).mockClear();
@@ -732,6 +742,37 @@ describe("Settings music section", () => {
     });
   });
 
+  it("renders the default-on fast-funscript limiter switch", async () => {
+    render(<SettingsPage />);
+
+    await waitFor(() => expect(screen.queryByText("Loading...")).toBeNull());
+    fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);
+    const toggle = screen.getByRole("switch", { name: "Limit fast funscripts" });
+
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(toggle);
+    expect(mocks.handy.setFunscriptRateLimitEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it("configures and resets the fast-funscript limiter parameters", async () => {
+    render(<SettingsPage />);
+
+    await waitFor(() => expect(screen.queryByText("Loading...")).toBeNull());
+    fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);
+
+    const maxRate = screen.getByLabelText("Maximum movement rate");
+    const tolerance = screen.getByLabelText("Simplification tolerance");
+    expect((maxRate as HTMLInputElement).value).toBe("400");
+    expect((tolerance as HTMLInputElement).value).toBe("1");
+
+    fireEvent.change(maxRate, { target: { value: "250" } });
+    fireEvent.blur(maxRate);
+    expect(mocks.handy.setFunscriptRateLimitSettings).toHaveBeenCalledWith(250, 1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset limiter defaults" }));
+    expect(mocks.handy.setFunscriptRateLimitSettings).toHaveBeenLastCalledWith(400, 1);
+  });
+
   it("starts the hardware test device loop from hardware settings", async () => {
     mocks.handy.connected = true;
     vi.mocked(trpc.store.getMany.query).mockImplementationOnce(
@@ -783,7 +824,8 @@ describe("Settings music section", () => {
 
   it("shows Intiface connection errors in hardware settings", async () => {
     mocks.handy.provider = "intiface";
-    mocks.handy.error = "Intiface connected, but no position- or vibration-capable device was found.";
+    mocks.handy.error =
+      "Intiface connected, but no position- or vibration-capable device was found.";
     render(<SettingsPage />);
 
     fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);

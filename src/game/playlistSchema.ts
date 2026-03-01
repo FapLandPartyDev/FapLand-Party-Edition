@@ -1,7 +1,7 @@
 import * as z from "zod";
 import { ZAutomationLibrary } from "./automation/schema";
 
-export const CURRENT_PLAYLIST_VERSION = 3;
+export const CURRENT_PLAYLIST_VERSION = 4;
 export const PLAYLIST_FILE_FORMAT = "f-land.playlist";
 export const PLAYLIST_FILE_VERSION = 2;
 export const ZPlaylistSaveMode = z.enum(["none", "checkpoint", "everywhere"]);
@@ -700,6 +700,10 @@ function normalizeLegacyPlaylistConfigInput(input: unknown): unknown {
       explicitPlaylistVersion !== null && explicitPlaylistVersion < 2
         ? normalizeLegacyGraphBoardConfig(input.boardConfig)
         : input.boardConfig,
+    intermediarySelection:
+      explicitPlaylistVersion !== null && explicitPlaylistVersion < 4
+        ? { minPerTriggeredRound: 1, maxPerTriggeredRound: 3 }
+        : input.intermediarySelection,
   };
 }
 
@@ -754,6 +758,22 @@ const ZPlaylistConfigCurrent = z
         enabledAntiPerkIds: z.array(z.string()).default([]),
       })
       .strict(),
+    intermediarySelection: z
+      .object({
+        minPerTriggeredRound: z.number().int().min(1).max(5).default(1),
+        maxPerTriggeredRound: z.number().int().min(1).max(5).default(1),
+      })
+      .strict()
+      .superRefine((value, context) => {
+        if (value.minPerTriggeredRound > value.maxPerTriggeredRound) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "minPerTriggeredRound must be less than or equal to maxPerTriggeredRound",
+            path: ["minPerTriggeredRound"],
+          });
+        }
+      })
+      .default({ minPerTriggeredRound: 1, maxPerTriggeredRound: 1 }),
     probabilityScaling: z
       .object({
         initialIntermediaryProbability: z.number().min(0).max(1).default(0.1),

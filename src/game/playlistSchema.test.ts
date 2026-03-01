@@ -108,6 +108,48 @@ describe("playlistSchema", () => {
     expect(parsed.playlistVersion).toBe(CURRENT_PLAYLIST_VERSION);
     expect(parsed.saveMode).toBe("none");
     expect(parsed.boardConfig.mode).toBe("linear");
+    expect(parsed.intermediarySelection).toEqual({
+      minPerTriggeredRound: 1,
+      maxPerTriggeredRound: 1,
+    });
+  });
+
+  it.each([1, 2, 3])(
+    "migrates version %s playlists to the historical interjection range",
+    (version) => {
+      const parsed = ZPlaylistConfig.parse({
+        ...buildConfig({
+          mode: "linear",
+          totalIndices: 10,
+          safePointIndices: [],
+          normalRoundRefsByIndex: {},
+          normalRoundOrder: [],
+          cumRoundRefs: [],
+        }),
+        playlistVersion: version,
+      });
+      expect(parsed.playlistVersion).toBe(4);
+      expect(parsed.intermediarySelection).toEqual({
+        minPerTriggeredRound: 1,
+        maxPerTriggeredRound: 3,
+      });
+    }
+  );
+
+  it("rejects malformed version 4 interjection ranges", () => {
+    const result = ZPlaylistConfig.safeParse({
+      ...buildConfig({
+        mode: "linear",
+        totalIndices: 10,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+      }),
+      playlistVersion: 4,
+      intermediarySelection: { minPerTriggeredRound: 4, maxPerTriggeredRound: 2 },
+    });
+    expect(result.success).toBe(false);
   });
 
   it("preserves probability reset toggles", () => {
@@ -446,24 +488,36 @@ describe("playlistSchema", () => {
   });
 
   it("parses export envelope with versioned config", () => {
-    const envelope = ZPlaylistEnvelopeV1.parse({
-      format: PLAYLIST_FILE_FORMAT,
-      version: PLAYLIST_FILE_VERSION,
-      metadata: {
-        name: "My Playlist",
-      },
-      config: buildConfig({
-        mode: "linear",
-        totalIndices: 12,
-        safePointIndices: [4, 8],
-        normalRoundRefsByIndex: {},
-        normalRoundOrder: [],
-        cumRoundRefs: [],
-      }),
-    });
+    const envelope = ZPlaylistEnvelopeV1.parse(
+      JSON.parse(
+        JSON.stringify({
+          format: PLAYLIST_FILE_FORMAT,
+          version: PLAYLIST_FILE_VERSION,
+          metadata: {
+            name: "My Playlist",
+          },
+          config: {
+            ...buildConfig({
+              mode: "linear",
+              totalIndices: 12,
+              safePointIndices: [4, 8],
+              normalRoundRefsByIndex: {},
+              normalRoundOrder: [],
+              cumRoundRefs: [],
+            }),
+            playlistVersion: 4,
+            intermediarySelection: { minPerTriggeredRound: 3, maxPerTriggeredRound: 3 },
+          },
+        })
+      )
+    );
 
     expect(envelope.config.playlistVersion).toBe(CURRENT_PLAYLIST_VERSION);
     expect(envelope.config.boardConfig.mode).toBe("linear");
+    expect(envelope.config.intermediarySelection).toEqual({
+      minPerTriggeredRound: 3,
+      maxPerTriggeredRound: 3,
+    });
   });
 
   it("upgrades v1 graph playlists with implicit terminal nodes", () => {

@@ -11,11 +11,13 @@ import { getTotalXpForLevel } from "../../../src/game/progression";
 import * as schema from "../../services/db/schema";
 
 const mocks = vi.hoisted(() => ({
+  ensureProgressionSchemaReady: vi.fn(async () => undefined),
   getDb: vi.fn(),
   store: new Map<string, unknown>(),
 }));
 
 vi.mock("../../services/db", () => ({
+  ensureProgressionSchemaReady: mocks.ensureProgressionSchemaReady,
   getDb: mocks.getDb,
 }));
 

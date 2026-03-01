@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createClient } from "@libsql/client";
 
 const BACKUP_FILE_PREFIX = "f-land-db-backup-";
 const BACKUP_FILE_SUFFIX = ".db";
@@ -67,6 +68,23 @@ export async function runDatabaseBackupForClient({
   await fs.mkdir(backupDir, { recursive: true });
 
   await db.$client.execute(`VACUUM INTO ${sqlStringLiteral(backupPath)}`);
+
+  const stats = await fs.stat(backupPath);
+  if (stats.size <= 0) {
+    await fs.rm(backupPath, { force: true });
+    throw new Error("Database backup validation failed: the backup is empty.");
+  }
+  const validationClient = createClient({ url: `file:${backupPath}` });
+  try {
+    const result = await validationClient.execute("PRAGMA quick_check");
+    const rows = result.rows.map((row) => String(row.quick_check ?? Object.values(row)[0] ?? ""));
+    if (rows.length !== 1 || rows[0]?.toLowerCase() !== "ok") {
+      await fs.rm(backupPath, { force: true });
+      throw new Error(`Database backup validation failed: ${rows.join("; ") || "unknown error"}`);
+    }
+  } finally {
+    validationClient.close();
+  }
 
   const deletedBackups = await pruneOldBackups(now);
   return { backupPath, deletedBackups };

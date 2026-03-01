@@ -19,6 +19,7 @@ const makeEditorConfig = (): EditorGraphConfig => ({
   pathChoiceTimeoutMs: 12000,
   perkSelection: { optionsPerPick: 3, triggerChancePerCompletedRound: 0.35 },
   perkPool: { enabledPerkIds: [], enabledAntiPerkIds: [] },
+  intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 1 },
   probabilityScaling: {
     initialIntermediaryProbability: 0.1,
     initialAntiPerkProbability: 0.1,
@@ -58,6 +59,7 @@ const makePlaylistConfig = (editor: EditorGraphConfig): PlaylistConfig => ({
   },
   perkSelection: editor.perkSelection,
   perkPool: editor.perkPool,
+  intermediarySelection: editor.intermediarySelection,
   probabilityScaling: editor.probabilityScaling,
   economy: {
     startingMoney: 0,

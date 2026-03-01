@@ -54,6 +54,7 @@ const config = {
   appApiKey: "app-key",
   appApiKeyOverride: "app-key",
   localIp: "",
+  funscriptRateLimitEnabled: true,
 };
 
 describe("thehandyAdapter", () => {
@@ -129,5 +130,47 @@ describe("thehandyAdapter", () => {
     releaseStop();
     await Promise.all([stopping, preloading]);
     expect(mocks.preloadHspScript).toHaveBeenCalledTimes(1);
+  });
+
+  it("preprocesses direct Handy uploads and fingerprints the limiter setting", async () => {
+    const session = await thehandyAdapter.createSession(config);
+    const actions = [
+      { at: 0, pos: 0 },
+      { at: 100, pos: 100 },
+    ];
+
+    await thehandyAdapter.preloadScript(config, session, "round", actions);
+    const enabledCall = mocks.preloadHspScript.mock.lastCall as unknown as
+      [unknown, unknown, string, Array<{ at: number; pos: number }>] | undefined;
+    expect(enabledCall?.[2]).toContain("rate-limit=true");
+    expect(enabledCall?.[3]).toEqual([
+      { at: 0, pos: 0 },
+      { at: 100, pos: 40 },
+    ]);
+
+    await thehandyAdapter.preloadScript(
+      { ...config, funscriptMaxRate: 200, funscriptRdpEpsilon: 0 },
+      session,
+      "round",
+      actions
+    );
+    const configuredCall = mocks.preloadHspScript.mock.lastCall as unknown as
+      [unknown, unknown, string, Array<{ at: number; pos: number }>] | undefined;
+    expect(configuredCall?.[2]).toContain("max-rate=200");
+    expect(configuredCall?.[3]).toEqual([
+      { at: 0, pos: 0 },
+      { at: 100, pos: 20 },
+    ]);
+
+    await thehandyAdapter.preloadScript(
+      { ...config, funscriptRateLimitEnabled: false },
+      session,
+      "round",
+      actions
+    );
+    const disabledCall = mocks.preloadHspScript.mock.lastCall as unknown as
+      [unknown, unknown, string, Array<{ at: number; pos: number }>] | undefined;
+    expect(disabledCall?.[2]).toContain("rate-limit=false");
+    expect(disabledCall?.[3]).toEqual(actions);
   });
 });

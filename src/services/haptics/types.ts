@@ -32,6 +32,9 @@ export type HapticsConnectionConfig =
       appApiKey: string;
       appApiKeyOverride: string;
       localIp: string;
+      funscriptRateLimitEnabled: boolean;
+      funscriptMaxRate?: number;
+      funscriptRdpEpsilon?: number;
     }
   | {
       provider: "intiface";
@@ -40,6 +43,9 @@ export type HapticsConnectionConfig =
       deviceIndex: number | null;
       stroke: HapticsStrokeState;
       vibrationSensitivity: number;
+      funscriptRateLimitEnabled: boolean;
+      funscriptMaxRate?: number;
+      funscriptRdpEpsilon?: number;
     }
   | {
       provider: "tcode";

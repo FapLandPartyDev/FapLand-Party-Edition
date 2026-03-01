@@ -18,6 +18,7 @@ vi.mock("electron", () => ({
 
 import {
   configureDatabaseConnection,
+  ensureProgressionSchemaReady,
   markRoundExcludeFromRandomMigrationIfManuallyApplied,
   migratePortableDatabaseIfNeeded,
   repairInstalledLibrarySchema,
@@ -120,6 +121,52 @@ describe("configureDatabaseConnection", () => {
     await configureDatabaseConnection(dbInstance);
 
     expect(execute).toHaveBeenCalledWith("PRAGMA busy_timeout = 5000");
+  });
+});
+
+describe("ensureProgressionSchemaReady", () => {
+  it("repairs a running pre-progression database before the local profile is inserted", async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-progression-repair-"));
+    const client = createClient({ url: `file:${path.join(tempRoot, "legacy.db")}` });
+    const database = drizzle(client);
+
+    try {
+      await client.execute(`
+        CREATE TABLE "GameProfile" (
+          "id" text PRIMARY KEY NOT NULL,
+          "highscore" integer DEFAULT 0 NOT NULL,
+          "highscoreCheatMode" integer DEFAULT 0,
+          "highscoreAssisted" integer DEFAULT 0 NOT NULL,
+          "highscoreAssistedSaveMode" text,
+          "createdAt" integer NOT NULL,
+          "updatedAt" integer NOT NULL
+        )
+      `);
+
+      await ensureProgressionSchemaReady(database as never);
+      await client.execute({
+        sql: `INSERT INTO "GameProfile" (
+          "id", "highscore", "highscoreCheatMode", "highscoreAssisted",
+          "highscoreAssistedSaveMode", "progressionXp", "equippedTitleId",
+          "respecTokens", "createdAt", "updatedAt"
+        ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+        args: ["local", 0, 0, 0, 0, "fresh-face", 0, 1, 1],
+      });
+
+      const columns = await client.execute(`PRAGMA table_info("GameProfile")`);
+      expect(columns.rows.map((row) => row.name)).toEqual(
+        expect.arrayContaining(["progressionXp", "equippedTitleId", "respecTokens"])
+      );
+      await expect(
+        client.execute(`SELECT "enabled" FROM "ProgressionSkillRank" LIMIT 1`)
+      ).resolves.toBeDefined();
+      await expect(
+        client.execute(`SELECT "sourceKind" FROM "ProgressionAward" LIMIT 1`)
+      ).resolves.toBeDefined();
+    } finally {
+      client.close();
+      await fs.rm(tempRoot, { recursive: true, force: true });
+    }
   });
 });
 
@@ -426,9 +473,17 @@ describe("runPreMigrationDatabaseBackup", () => {
   it("creates a database backup before migrations run when the database already exists", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-pre-migration-backup-"));
     const databasePath = path.join(root, "dev.db");
+    const expectedBackupPath =
+      "/tmp/f-land/database-backups/f-land-db-backup-2026-04-21T12-34-56.000Z.db";
     process.env.DATABASE_URL = `file:${databasePath}`;
     await fs.writeFile(databasePath, "sqlite");
-    execute.mockResolvedValue({ rows: [] });
+    await fs.rm(expectedBackupPath, { force: true });
+    execute.mockImplementation(async () => {
+      const backupClient = createClient({ url: `file:${expectedBackupPath}` });
+      await backupClient.execute("CREATE TABLE backup_validation (id INTEGER PRIMARY KEY)");
+      backupClient.close();
+      return { rows: [] };
+    });
 
     try {
       await runPreMigrationDatabaseBackup(dbInstance, new Date("2026-04-21T12:34:56.000Z"));
@@ -438,6 +493,7 @@ describe("runPreMigrationDatabaseBackup", () => {
       );
     } finally {
       await fs.rm(root, { recursive: true, force: true });
+      await fs.rm(expectedBackupPath, { force: true });
     }
   });
 

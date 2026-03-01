@@ -41,6 +41,7 @@ export function PlaylistPackExportDialog({
   onSubmit: (input: {
     compressionMode: CompressionMode;
     compressionStrength: number;
+    audioBitrateKbps: 128 | 192 | 256;
     includeMedia: boolean;
     asFpack: boolean;
   }) => Promise<boolean>;
@@ -49,12 +50,14 @@ export function PlaylistPackExportDialog({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const [compressionMode, setCompressionMode] = useState<CompressionMode | null>(null);
   const [compressionStrength, setCompressionStrength] = useState(80);
+  const [audioBitrateKbps, setAudioBitrateKbps] = useState<128 | 192 | 256>(192);
   const [includeMedia, setIncludeMedia] = useState(true);
   const [asFpack, setAsFpack] = useState(false);
   const [analysis, setAnalysis] = useState<PlaylistExportPackageAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [highCostAcknowledged, setHighCostAcknowledged] = useState(false);
   const userTouchedModeRef = useRef(false);
 
   function getStrengthLabel(value: number): string {
@@ -81,6 +84,7 @@ export function PlaylistPackExportDialog({
             playlistId,
             compressionMode: compressionMode ?? undefined,
             compressionStrength,
+            audioBitrateKbps,
             includeMedia,
           })
           .then((result) => {
@@ -113,7 +117,7 @@ export function PlaylistPackExportDialog({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [playlistId, compressionMode, compressionStrength, includeMedia]);
+  }, [playlistId, compressionMode, compressionStrength, audioBitrateKbps, includeMedia]);
 
   const canEnableCompression = analysis?.compression.supported ?? false;
   const effectiveMode: CompressionMode =
@@ -133,13 +137,22 @@ export function PlaylistPackExportDialog({
     () => formatDurationEstimate(estimate?.estimatedCompressionSeconds ?? 0),
     [estimate?.estimatedCompressionSeconds]
   );
+  const requiresHighCostAcknowledgement =
+    effectiveMode === "av1" &&
+    ((analysis?.videoTotals.estimatedReencodeVideos ?? 0) >= 20 ||
+      (estimate?.estimatedCompressionSeconds ?? 0) > 30 * 60);
 
   const handleSubmit = async () => {
+    if (requiresHighCostAcknowledgement && !highCostAcknowledged) {
+      setError(t`Confirm the large re-encoding job before starting.`);
+      return;
+    }
     setSubmitting(true);
     try {
       const started = await onSubmit({
         compressionMode: effectiveMode,
         compressionStrength,
+        audioBitrateKbps,
         includeMedia,
         asFpack,
       });
@@ -394,6 +407,23 @@ export function PlaylistPackExportDialog({
                       <Trans>High compression</Trans>
                     </span>
                   </div>
+                  <label className="mt-5 block text-xs text-slate-300">
+                    <span className="font-[family-name:var(--font-jetbrains-mono)] uppercase tracking-[0.16em] text-slate-400">
+                      <Trans>Audio Quality</Trans>
+                    </span>
+                    <select
+                      value={audioBitrateKbps}
+                      onChange={(event) =>
+                        setAudioBitrateKbps(Number(event.target.value) as 128 | 192 | 256)
+                      }
+                      disabled={analyzing || submitting}
+                      className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+                    >
+                      <option value={128}>{t`Compact · 128 kbps AAC`}</option>
+                      <option value={192}>{t`Balanced · 192 kbps AAC`}</option>
+                      <option value={256}>{t`High · 256 kbps AAC`}</option>
+                    </select>
+                  </label>
                 </div>
               )}
 
@@ -501,6 +531,24 @@ export function PlaylistPackExportDialog({
             </div>
           </div>
 
+          {requiresHighCostAcknowledgement && (
+            <label className="flex items-start gap-3 rounded-2xl border border-amber-300/35 bg-amber-500/10 p-4 text-sm text-amber-100">
+              <input
+                type="checkbox"
+                checked={highCostAcknowledged}
+                onChange={(event) => setHighCostAcknowledged(event.target.checked)}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span>
+                <Trans>
+                  I understand this will re-encode{" "}
+                  {analysis?.videoTotals.estimatedReencodeVideos ?? 0}
+                  videos and may take about {timeEstimateLabel}.
+                </Trans>
+              </span>
+            </label>
+          )}
+
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-2">
             <p className="text-sm text-slate-400">
               {analyzing
@@ -531,12 +579,14 @@ export function PlaylistPackExportDialog({
                   analyzing ||
                   submitting ||
                   !analysis ||
+                  (requiresHighCostAcknowledgement && !highCostAcknowledged) ||
                   (includeMedia && effectiveMode === "av1" && !canEnableCompression)
                 }
                 className={`rounded-xl border px-5 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] transition-all duration-200 ${
                   analyzing ||
                   submitting ||
                   !analysis ||
+                  (requiresHighCostAcknowledgement && !highCostAcknowledged) ||
                   (includeMedia && effectiveMode === "av1" && !canEnableCompression)
                     ? "cursor-not-allowed border-slate-700 bg-slate-900 text-slate-500"
                     : "border-cyan-300/60 bg-cyan-500/22 text-cyan-100 hover:border-cyan-200/85 hover:bg-cyan-500/36"

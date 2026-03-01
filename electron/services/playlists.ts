@@ -403,6 +403,7 @@ export async function ensureEndlessPlaylist(): Promise<PlaylistRecord | null> {
     disableDiceAnimation: true,
     perkSelection: { optionsPerPick: 3, triggerChancePerCompletedRound: 0.35 },
     perkPool: { enabledPerkIds: [], enabledAntiPerkIds: [] },
+    intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 1 },
     probabilityScaling: {
       initialIntermediaryProbability: 0.1,
       initialAntiPerkProbability: 0.1,

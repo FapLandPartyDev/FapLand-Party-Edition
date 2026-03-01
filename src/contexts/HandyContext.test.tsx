@@ -88,6 +88,33 @@ function Consumer() {
       <div data-testid="stroke-error">{handy.strokeError ?? ""}</div>
       <div data-testid="offset-ms">{String(handy.offsetMs)}</div>
       <div data-testid="session-revision">{String(handy.sessionRevision)}</div>
+      <div data-testid="rate-limit-enabled">{String(handy.funscriptRateLimitEnabled)}</div>
+      <div data-testid="rate-limit-max-rate">{String(handy.funscriptMaxRate)}</div>
+      <div data-testid="rate-limit-tolerance">{String(handy.funscriptRdpEpsilon)}</div>
+      <div data-testid="active-rate-limit-enabled">
+        {String(
+          handy.activeDeviceTargets[0]?.config.provider === "thehandy" ||
+            handy.activeDeviceTargets[0]?.config.provider === "intiface"
+            ? handy.activeDeviceTargets[0].config.funscriptRateLimitEnabled
+            : ""
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          void handy.setFunscriptRateLimitSettings(250, 0.5);
+        }}
+      >
+        configure-rate-limit
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void handy.setFunscriptRateLimitEnabled(!handy.funscriptRateLimitEnabled);
+        }}
+      >
+        toggle-rate-limit
+      </button>
       <button
         type="button"
         onClick={() => {
@@ -242,6 +269,67 @@ describe("HandyContext", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("session-revision").textContent).toBe("1");
+    });
+  });
+
+  it("defaults rate limiting on and persists an explicit per-device opt-out", async () => {
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+
+    expect(screen.getByTestId("rate-limit-enabled").textContent).toBe("true");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "connect" }));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("active-rate-limit-enabled").textContent).toBe("true");
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "toggle-rate-limit" }));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("rate-limit-enabled").textContent).toBe("false");
+      expect(screen.getByTestId("active-rate-limit-enabled").textContent).toBe("false");
+    });
+    expect(mocks.setMutate).toHaveBeenCalledWith({
+      key: "thehandy.funscriptRateLimitEnabled",
+      value: false,
+    });
+  });
+
+  it("defaults and persists configurable limiter parameters per device", async () => {
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+
+    expect(screen.getByTestId("rate-limit-max-rate").textContent).toBe("400");
+    expect(screen.getByTestId("rate-limit-tolerance").textContent).toBe("1");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "connect" }));
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("device-count").textContent).toBe("1");
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "configure-rate-limit" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rate-limit-max-rate").textContent).toBe("250");
+      expect(screen.getByTestId("rate-limit-tolerance").textContent).toBe("0.5");
+    });
+    expect(mocks.setMutate).toHaveBeenCalledWith({
+      key: "thehandy.funscriptMaxRate",
+      value: 250,
+    });
+    expect(mocks.setMutate).toHaveBeenCalledWith({
+      key: "thehandy.funscriptRdpEpsilon",
+      value: 0.5,
     });
   });
 

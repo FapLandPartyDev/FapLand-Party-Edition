@@ -216,6 +216,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getStatus: () => ipcRenderer.invoke("startup-recovery:status"),
     backupDatabase: () => ipcRenderer.invoke("startup-recovery:backup-database"),
     repairDatabase: () => ipcRenderer.invoke("startup-recovery:repair-database"),
+    listDatabaseBackups: () => ipcRenderer.invoke("startup-recovery:list-database-backups"),
+    restoreDatabaseBackup: (backupId: string) =>
+      ipcRenderer.invoke("startup-recovery:restore-database-backup", backupId),
     clearCaches: () => ipcRenderer.invoke("startup-recovery:clear-caches"),
     resetSettings: () => ipcRenderer.invoke("startup-recovery:reset-settings"),
     resetInstallation: (keepDatabase: boolean) =>

@@ -1,8 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import {
-  consumeStartNormallyOnce,
-  normalizeAlwaysRecoveryMode,
-} from "./constants/startupSettings";
+import { consumeStartNormallyOnce, normalizeAlwaysRecoveryMode } from "./constants/startupSettings";
 
 const RECOVERY_SHORTCUT_WINDOW_MS = 5000;
 
@@ -21,6 +18,7 @@ type StartupMode = "pending" | "normal" | "recovery" | "error";
 export function StartupGate() {
   const [mode, setMode] = useState<StartupMode>("pending");
   const [startupError, setStartupError] = useState<string | null>(null);
+  const [latestBackupAt, setLatestBackupAt] = useState<string | null>(null);
   const [attemptId, setAttemptId] = useState(0);
   const recoveryRequestedRef = useRef(false);
   const normalStartCalledRef = useRef(false);
@@ -35,6 +33,12 @@ export function StartupGate() {
     } catch (error) {
       console.error("Failed to start normal app startup", error);
       setStartupError(error instanceof Error ? error.message : String(error));
+      try {
+        const backups = await window.electronAPI?.startupRecovery?.listDatabaseBackups?.();
+        setLatestBackupAt(backups?.[0]?.createdAt ?? null);
+      } catch {
+        setLatestBackupAt(null);
+      }
       return false;
     }
   }, []);
@@ -120,9 +124,11 @@ export function StartupGate() {
     return (
       <StartupError
         error={startupError}
+        latestBackupAt={latestBackupAt}
         onRecovery={() => void enterRecovery()}
         onRetry={() => {
           setStartupError(null);
+          setLatestBackupAt(null);
           setAttemptId((prev) => prev + 1);
           setMode("pending");
         }}
@@ -252,10 +258,12 @@ function StartupSplash({ message }: { message: string }) {
 
 function StartupError({
   error,
+  latestBackupAt,
   onRetry,
   onRecovery,
 }: {
   error: string | null;
+  latestBackupAt: string | null;
   onRetry: () => void;
   onRecovery: () => void;
 }) {
@@ -272,6 +280,11 @@ function StartupError({
             {error}
           </p>
         )}
+        {latestBackupAt ? (
+          <p className="mb-6 text-xs text-emerald-300">
+            Latest verified backup: {new Date(latestBackupAt).toLocaleString()}
+          </p>
+        ) : null}
         <div className="flex items-center justify-center gap-3">
           <button
             type="button"

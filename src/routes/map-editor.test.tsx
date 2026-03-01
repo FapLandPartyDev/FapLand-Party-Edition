@@ -1064,6 +1064,7 @@ describe("MapEditorRoute", () => {
       playlistId: "playlist-1",
       compressionMode: undefined,
       compressionStrength: 80,
+      audioBitrateKbps: 192,
       includeMedia: true,
     });
     await waitFor(() => {

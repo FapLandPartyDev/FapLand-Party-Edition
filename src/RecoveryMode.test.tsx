@@ -15,6 +15,22 @@ const mocks = vi.hoisted(() => ({
     integrity: "ok" as const,
     integrityMessage: "Database integrity check passed.",
   })),
+  listDatabaseBackups: vi.fn<
+    () => Promise<
+      Array<{
+        id: string;
+        createdAt: string;
+        bytes: number;
+        integrity: "ok" | "corrupt";
+        integrityMessage: string;
+      }>
+    >
+  >(async () => []),
+  restoreDatabaseBackup: vi.fn(async () => ({
+    restoredBackupId: "f-land-db-backup-2026.db",
+    safetyBackupPath: "/tmp/pre-restore.db",
+    integrityMessage: "ok",
+  })),
   startNormally: vi.fn(async () => {}),
   setLogLevel: vi.fn(async () => {}),
   getDebugState: vi.fn(async () => ({ logLevel: "off", logFilePath: "" })),
@@ -50,6 +66,9 @@ describe("RecoveryMode", () => {
     mocks.createPlaintextSettingsFile.mockClear();
     mocks.recoveryBackupDatabase.mockClear();
     mocks.getRecoveryStatus.mockClear();
+    mocks.listDatabaseBackups.mockReset();
+    mocks.listDatabaseBackups.mockResolvedValue([]);
+    mocks.restoreDatabaseBackup.mockClear();
     mocks.startNormally.mockClear();
     mocks.setLogLevel.mockClear();
     mocks.openLogFolder.mockClear();
@@ -59,6 +78,8 @@ describe("RecoveryMode", () => {
         startNormally: mocks.startNormally,
         getStatus: mocks.getRecoveryStatus,
         backupDatabase: mocks.recoveryBackupDatabase,
+        listDatabaseBackups: mocks.listDatabaseBackups,
+        restoreDatabaseBackup: mocks.restoreDatabaseBackup,
       },
     } as unknown as typeof window.electronAPI;
   });
@@ -145,7 +166,30 @@ describe("RecoveryMode", () => {
     await waitFor(() => {
       expect(mocks.recoveryBackupDatabase).toHaveBeenCalled();
     });
-    expect(screen.getByText("Database backup created.")).toBeDefined();
+    expect(screen.getByText("Database backup created at /tmp/database-backup.db.")).toBeDefined();
+  });
+
+  it("lists verified backups and restores only after confirmation", async () => {
+    mocks.listDatabaseBackups.mockResolvedValue([
+      {
+        id: "f-land-db-backup-2026.db",
+        createdAt: "2026-08-05T10:00:00.000Z",
+        bytes: 1024 * 1024,
+        integrity: "ok",
+        integrityMessage: "Database integrity check passed.",
+      },
+    ]);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<RecoveryMode />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Restore" }));
+
+    await waitFor(() => {
+      expect(mocks.restoreDatabaseBackup).toHaveBeenCalledWith("f-land-db-backup-2026.db");
+    });
+    expect(
+      await screen.findByText(/pre-restore database is archived at \/tmp\/pre-restore.db/i)
+    ).toBeDefined();
   });
 
   it("backs up the settings", async () => {

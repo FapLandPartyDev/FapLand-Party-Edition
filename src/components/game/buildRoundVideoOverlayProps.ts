@@ -13,6 +13,7 @@ type RoundVideoOverlayPlaybackConfig = Pick<
   | "activeRound"
   | "installedRounds"
   | "intermediaryProbability"
+  | "intermediarySelection"
   | "booruSearchPrompt"
   | "intermediaryLoadingDurationSec"
   | "intermediaryReturnPauseSec"
@@ -66,6 +67,7 @@ export function buildRoundVideoOverlayProps({
     activeRound: playback.activeRound,
     installedRounds: playback.installedRounds,
     intermediaryProbability: playback.intermediaryProbability,
+    intermediarySelection: playback.intermediarySelection,
     booruSearchPrompt: playback.booruSearchPrompt,
     intermediaryLoadingDurationSec: playback.intermediaryLoadingDurationSec,
     intermediaryReturnPauseSec: playback.intermediaryReturnPauseSec,
@@ -103,6 +105,7 @@ export type PreviewRoundVideoOverlayLaunchConfig = {
   activeRound: ActiveRound | null;
   installedRounds: InstalledRound[];
   intermediaryProbability: number;
+  intermediarySelection?: RoundVideoOverlayProps["intermediarySelection"];
   booruSearchPrompt: string;
   intermediaryLoadingDurationSec: number;
   intermediaryReturnPauseSec: number;
@@ -122,6 +125,7 @@ export function buildPreviewRoundVideoOverlayProps(
       activeRound: config.activeRound,
       installedRounds: config.installedRounds,
       intermediaryProbability: config.intermediaryProbability,
+      intermediarySelection: config.intermediarySelection,
       booruSearchPrompt: config.booruSearchPrompt,
       intermediaryLoadingDurationSec: config.intermediaryLoadingDurationSec,
       intermediaryReturnPauseSec: config.intermediaryReturnPauseSec,
@@ -143,6 +147,7 @@ export type GameplayRoundVideoOverlayLaunchConfig = {
   activeRound: ActiveRound | null;
   installedRounds: InstalledRound[];
   intermediaryProbability: number;
+  intermediarySelection?: RoundVideoOverlayProps["intermediarySelection"];
   booruSearchPrompt: string;
   intermediaryLoadingDurationSec: number;
   intermediaryReturnPauseSec: number;

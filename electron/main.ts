@@ -11,7 +11,7 @@ import {
 } from "electron";
 import path from "node:path";
 import { createReadStream } from "node:fs";
-import { readdir, stat } from "node:fs/promises";
+import { appendFile, readdir, stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { createIPCHandler } from "trpc-electron/main";
@@ -21,6 +21,7 @@ import { getNodeEnv } from "../src/zod/env";
 import { isVideoExtension, SUPPORTED_VIDEO_EXTENSIONS } from "../src/constants/videoFormats";
 import { approveDialogPath } from "./services/dialogPathApproval";
 import { normalizeMultiplayerAuthCallback } from "./services/authCallback";
+import { extractOpenedFileArguments } from "./services/openedFileArguments";
 import { ensureAppDatabaseReady, resolveDatabaseUrl } from "./services/db";
 import { initStore, getStore, safeStoreGet, safeStoreSet } from "./services/store";
 import { scanInstallSources } from "./services/installer";
@@ -76,7 +77,9 @@ import {
   backupDatabaseForRecovery,
   clearRecoveryCaches,
   getStartupRecoveryStatus,
+  listDatabaseBackups,
   repairDatabaseForRecovery,
+  restoreDatabaseBackup,
   resetInstallationForRecovery,
   resetSettingsForRecovery,
 } from "./services/startupRecovery";
@@ -530,8 +533,14 @@ async function queueOpenedFiles(filePaths: string[]): Promise<void> {
     await approveOpenedFilePath(filePath);
   }
 
-  pendingOpenedFiles.push(...normalized);
+  for (const filePath of new Set(normalized)) {
+    if (!pendingOpenedFiles.includes(filePath)) pendingOpenedFiles.push(filePath);
+  }
   flushPendingOpenedFiles();
+}
+
+async function queueOpenedFilesFromArgv(argv: readonly string[]): Promise<void> {
+  await queueOpenedFiles(extractOpenedFileArguments(argv, { packaged: app.isPackaged }));
 }
 
 function flushPendingOpenedFiles(): void {
@@ -541,10 +550,16 @@ function flushPendingOpenedFiles(): void {
 
   if (pendingOpenedFiles.length === 0) return;
 
-  mainWindowRef.webContents.send(
-    "app-open:files",
-    pendingOpenedFiles.splice(0, pendingOpenedFiles.length)
-  );
+  const deliveredFiles = pendingOpenedFiles.splice(0, pendingOpenedFiles.length);
+  mainWindowRef.webContents.send("app-open:files", deliveredFiles);
+  const smokeLogPath = process.env.FLAND_OPEN_FILE_SMOKE_LOG?.trim();
+  if (smokeLogPath) {
+    void appendFile(
+      smokeLogPath,
+      `${deliveredFiles.map((filePath) => JSON.stringify(filePath)).join("\n")}\n`,
+      "utf8"
+    ).catch((error) => console.error("Failed to write opened-file smoke log", error));
+  }
 }
 
 function queueAuthCallback(rawUrl: string): void {
@@ -571,7 +586,7 @@ function focusMainWindow(): void {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  void queueOpenedFiles(process.argv.slice(1)).catch((error) => {
+  void queueOpenedFilesFromArgv(process.argv).catch((error) => {
     console.error("Failed to queue opened files", error);
   });
   for (const arg of process.argv) {
@@ -579,7 +594,7 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   app.on("second-instance", (_event, argv) => {
-    void queueOpenedFiles(argv.slice(1)).catch((error) => {
+    void queueOpenedFilesFromArgv(argv).catch((error) => {
       console.error("Failed to queue opened files", error);
     });
     for (const arg of argv) {
@@ -591,7 +606,9 @@ if (!app.requestSingleInstanceLock()) {
 
 app.on("open-file", (event, filePath) => {
   event.preventDefault();
-  void queueOpenedFiles([filePath]).catch((error) => {
+  void queueOpenedFiles(
+    extractOpenedFileArguments([process.execPath, filePath], { packaged: true })
+  ).catch((error) => {
     console.error("Failed to queue opened file", error);
   });
   focusMainWindow();
@@ -1607,6 +1624,11 @@ function registerStartupRecoveryIpc() {
   ipcMain.handle("startup-recovery:status", () => getStartupRecoveryStatus());
   ipcMain.handle("startup-recovery:backup-database", () => backupDatabaseForRecovery());
   ipcMain.handle("startup-recovery:repair-database", () => repairDatabaseForRecovery());
+  ipcMain.handle("startup-recovery:list-database-backups", () => listDatabaseBackups());
+  ipcMain.handle("startup-recovery:restore-database-backup", (_event, backupId: unknown) => {
+    if (typeof backupId !== "string") throw new Error("Invalid database backup identifier.");
+    return restoreDatabaseBackup(backupId);
+  });
   ipcMain.handle("startup-recovery:clear-caches", async () => {
     await session.defaultSession.clearCache();
     return clearRecoveryCaches();

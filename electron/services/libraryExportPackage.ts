@@ -24,11 +24,13 @@ import {
   normalizeCompressionStrength,
   probeLocalVideo,
   transcodeVideoToAv1,
+  normalizeAudioBitrateKbps,
   type Av1TranscodeProgress,
   type Av1EncoderDetails,
   type PlaylistExportCompressionEncoderKind,
   type PlaylistExportEstimate,
   type PlaylistExportCompressionMode,
+  type PlaylistExportAudioBitrateKbps,
   type PlaylistExportCompressionPhase,
   type PlaylistExportVideoProbe,
 } from "./playlistExportCompression";
@@ -43,6 +45,7 @@ export type LibraryExportPackageInput = {
   asFpack?: boolean;
   compressionMode?: PlaylistExportCompressionMode;
   compressionStrength?: number;
+  audioBitrateKbps?: PlaylistExportAudioBitrateKbps;
 };
 
 type AnalyzeLibraryExportPackageInput = {
@@ -51,6 +54,7 @@ type AnalyzeLibraryExportPackageInput = {
   includeMedia?: boolean;
   compressionMode?: PlaylistExportCompressionMode;
   compressionStrength?: number;
+  audioBitrateKbps?: PlaylistExportAudioBitrateKbps;
 };
 
 export type LibraryExportPackageState = "idle" | "running" | "done" | "aborted" | "error";
@@ -134,7 +138,7 @@ export type LibraryExportPackageAnalysis = {
   settings: {
     outputContainer: "mp4";
     audioCodec: "aac";
-    audioBitrateKbps: 128;
+    audioBitrateKbps: PlaylistExportAudioBitrateKbps;
     lowPriority: true;
     parallelJobs: number;
   };
@@ -225,6 +229,7 @@ type PreparedLibraryExport = {
   encoder: Av1EncoderDetails | null;
   effectiveCompressionMode: PlaylistExportCompressionMode;
   compressionStrength: number;
+  audioBitrateKbps: PlaylistExportAudioBitrateKbps;
   parallelJobs: number;
   includeMedia: boolean;
   analysis: LibraryExportPackageAnalysis;
@@ -839,10 +844,7 @@ function toRoundSidecarPayload(entry: RoundResourceEntry) {
   });
 }
 
-function toHeroSidecarPayload(
-  hero: ExportableHero,
-  entries: RoundResourceEntry[]
-) {
+function toHeroSidecarPayload(hero: ExportableHero, entries: RoundResourceEntry[]) {
   return ZHeroSidecar.parse({
     name: hero.name,
     author: hero.author ?? undefined,
@@ -900,7 +902,9 @@ function buildResourceInventory(rounds: ExportableRound[]): {
       resourceReferences.push({ round, resource, preferredBaseName });
 
       const canonicalVideoKey = canonicalizeResourceKey(resource.videoUri);
-      const videoIsStash = Boolean(findStashSourceForUri(resource.videoUri, round.installSourceKey));
+      const videoIsStash = Boolean(
+        findStashSourceForUri(resource.videoUri, round.installSourceKey)
+      );
       if (!videoTaskByKey.has(canonicalVideoKey)) {
         videoTaskByKey.set(canonicalVideoKey, {
           canonicalKey: canonicalVideoKey,
@@ -927,7 +931,9 @@ function buildResourceInventory(rounds: ExportableRound[]): {
 
       if (resource.funscriptUri) {
         const canonicalFunscriptKey = canonicalizeResourceKey(resource.funscriptUri);
-        const funscriptIsStash = Boolean(findStashSourceForUri(resource.funscriptUri, round.installSourceKey));
+        const funscriptIsStash = Boolean(
+          findStashSourceForUri(resource.funscriptUri, round.installSourceKey)
+        );
         if (!funscriptTaskByKey.has(canonicalFunscriptKey)) {
           funscriptTaskByKey.set(canonicalFunscriptKey, {
             canonicalKey: canonicalFunscriptKey,
@@ -1024,6 +1030,7 @@ async function prepareLibraryExport(
   const binaries = await resolvePhashBinaries();
   const encoder = await detectAv1Encoder(binaries.ffmpegPath);
   const compressionStrength = normalizeCompressionStrength(input.compressionStrength);
+  const audioBitrateKbps = normalizeAudioBitrateKbps(input.audioBitrateKbps);
   const defaultMode: PlaylistExportCompressionMode = encoder ? "av1" : "copy";
   const requestedMode = input.compressionMode ?? defaultMode;
   const effectiveCompressionMode =
@@ -1067,6 +1074,7 @@ async function prepareLibraryExport(
           strength: compressionStrength,
           encoderKind: encoder.kind,
           parallelJobs,
+          audioBitrateKbps,
         })
       : ({
           sourceVideoBytes: includeMedia
@@ -1101,6 +1109,7 @@ async function prepareLibraryExport(
     encoder,
     effectiveCompressionMode,
     compressionStrength,
+    audioBitrateKbps,
     parallelJobs,
     includeMedia,
     analysis: {
@@ -1123,7 +1132,7 @@ async function prepareLibraryExport(
       settings: {
         outputContainer: "mp4",
         audioCodec: "aac",
-        audioBitrateKbps: 128,
+        audioBitrateKbps,
         lowPriority: true,
         parallelJobs,
       },
@@ -1188,6 +1197,7 @@ async function materializeVideoTask(input: {
   encoder: Av1EncoderDetails | null;
   compressionMode: PlaylistExportCompressionMode;
   compressionStrength: number;
+  audioBitrateKbps: PlaylistExportAudioBitrateKbps;
   compressionLiveTracker: CompressionLiveTracker | null;
 }): Promise<{ reencoded: boolean; alreadyAv1Copied: boolean; outputBytes: number }> {
   throwIfAbortRequested();
@@ -1322,6 +1332,7 @@ async function materializeVideoTask(input: {
         outputPath: output.absolutePath,
         encoder: input.encoder,
         strength: input.compressionStrength,
+        audioBitrateKbps: input.audioBitrateKbps,
         onSpawn: registerEncodeChild,
         onProgress: input.compressionLiveTracker
           ? (progress) =>
@@ -1463,6 +1474,7 @@ export async function exportLibraryPackage(
   const includeMedia = input.includeMedia ?? true;
   const now = new Date();
   const compressionStrength = normalizeCompressionStrength(input.compressionStrength);
+  const audioBitrateKbps = normalizeAudioBitrateKbps(input.audioBitrateKbps);
 
   const exportBaseDir =
     input.directoryPath ?? (app.isPackaged ? app.getPath("userData") : app.getAppPath());
@@ -1504,6 +1516,7 @@ export async function exportLibraryPackage(
       includeMedia,
       compressionMode: input.compressionMode,
       compressionStrength,
+      audioBitrateKbps,
     });
     const binaries = await resolvePhashBinaries();
     const compressionLiveTracker =
@@ -1590,6 +1603,7 @@ export async function exportLibraryPackage(
           encoder: prepared.encoder,
           compressionMode: prepared.effectiveCompressionMode,
           compressionStrength: prepared.compressionStrength,
+          audioBitrateKbps: prepared.audioBitrateKbps,
           compressionLiveTracker,
         });
         actualVideoBytes += result.outputBytes;
@@ -1612,7 +1626,9 @@ export async function exportLibraryPackage(
     );
     const funscriptOutputByKey = new Map<string, ExportedMediaFile>(
       prepared.funscriptTasks
-        .filter((task): task is FunscriptTask & { output: ExportedMediaFile } => Boolean(task.output))
+        .filter((task): task is FunscriptTask & { output: ExportedMediaFile } =>
+          Boolean(task.output)
+        )
         .map((task) => [`funscript:${task.canonicalKey}`, task.output])
     );
 
@@ -1626,7 +1642,9 @@ export async function exportLibraryPackage(
 
       // When includeMedia is true but a non-stash video has no output, that's an error.
       if (includeMedia && !video) {
-        const task = prepared.videoTasks.find((t) => t.canonicalKey === canonicalizeResourceKey(entry.resource.videoUri));
+        const task = prepared.videoTasks.find(
+          (t) => t.canonicalKey === canonicalizeResourceKey(entry.resource.videoUri)
+        );
         if (task && !task.isStashSource) {
           throw new Error(`Exported video output is missing for ${entry.resource.videoUri}`);
         }
@@ -1662,10 +1680,7 @@ export async function exportLibraryPackage(
       const sidecarBaseName = sanitizeFileSystemName(entry.round.name, `round__${entry.round.id}`);
       const fileName = toUniqueCaseInsensitiveFileName(usedSidecarNames, sidecarBaseName, ".round");
       updatePhase("writing", `Writing sidecar ${fileName}...`);
-      await writeJsonFile(
-        path.join(exportDir, fileName),
-        toRoundSidecarPayload(entry)
-      );
+      await writeJsonFile(path.join(exportDir, fileName), toRoundSidecarPayload(entry));
       incrementStat("roundFiles");
       incrementProgress();
       roundFiles += 1;

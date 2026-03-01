@@ -737,39 +737,6 @@ export function triggerPerkSelection(
   const player = state.players.find((entry) => entry.id === playerId);
   if (!player) return state;
 
-  const antiPerkTriggerRoll = randoms?.antiPerkTriggerRoll ?? Math.random();
-  if (antiPerkTriggerRoll < state.antiPerkProbability) {
-    const antiPool = getEnabledAntiPerkPool(state.config);
-    const antiPerkIndex =
-      randoms?.antiPerkIndex ?? (antiPool.length > 0 ? randomInt(0, antiPool.length - 1) : -1);
-    const selectedAntiPerk = antiPool[antiPerkIndex];
-
-    if (selectedAntiPerk) {
-      const target = state.players.find((player) => player.id === playerId);
-      if (target && getShieldRounds(target) > 0) {
-        return {
-          ...state,
-          log: [`${target.name} blocked ${selectedAntiPerk.name} with Shield.`, ...state.log].slice(
-            0,
-            40
-          ),
-        };
-      }
-      const next = applyPerkToPlayer(state, playerId, selectedAntiPerk);
-      const antiPerkDescription = selectedAntiPerk.description.trim();
-      return {
-        ...next,
-        antiPerkTriggeredThisRound: true,
-        log: [
-          antiPerkDescription.length > 0
-            ? `Computer applied anti-perk: ${selectedAntiPerk.name} - ${antiPerkDescription}`
-            : `Computer applied anti-perk: ${selectedAntiPerk.name}.`,
-          ...next.log,
-        ].slice(0, 40),
-      };
-    }
-  }
-
   const perkChoicePool = getPerkChoicePool(state.config);
   const options = pickUniqueWeighted(
     perkChoicePool,
@@ -794,6 +761,53 @@ export function triggerPerkSelection(
     ...state,
     pendingPerkSelection,
     log: [`Perk selection triggered at ${sourceFieldId}.`, ...state.log].slice(0, 40),
+  };
+}
+
+export function triggerAutomaticAntiPerk(
+  state: GameState,
+  playerId: string,
+  randoms?: { antiPerkTriggerRoll?: number; antiPerkIndex?: number }
+): { state: GameState; triggered: boolean } {
+  const antiPool = getEnabledAntiPerkPool(state.config);
+  if (antiPool.length === 0) return { state, triggered: false };
+
+  const triggerRoll = randoms?.antiPerkTriggerRoll ?? Math.random();
+  if (triggerRoll >= state.antiPerkProbability) return { state, triggered: false };
+
+  const antiPerkIndex = randoms?.antiPerkIndex ?? randomInt(0, antiPool.length - 1);
+  const selectedAntiPerk = antiPool[antiPerkIndex];
+  if (!selectedAntiPerk) return { state, triggered: false };
+
+  const target = state.players.find((player) => player.id === playerId);
+  if (!target) return { state, triggered: false };
+  if (getShieldRounds(target) > 0) {
+    return {
+      state: {
+        ...state,
+        log: [`${target.name} blocked ${selectedAntiPerk.name} with Shield.`, ...state.log].slice(
+          0,
+          40
+        ),
+      },
+      triggered: false,
+    };
+  }
+
+  const next = applyPerkToPlayer(state, playerId, selectedAntiPerk);
+  const description = selectedAntiPerk.description.trim();
+  return {
+    state: {
+      ...next,
+      antiPerkTriggeredThisRound: false,
+      log: [
+        description.length > 0
+          ? `Computer applied anti-perk: ${selectedAntiPerk.name} - ${description}`
+          : `Computer applied anti-perk: ${selectedAntiPerk.name}.`,
+        ...next.log,
+      ].slice(0, 40),
+    },
+    triggered: true,
   };
 }
 
@@ -1648,8 +1662,7 @@ export function createInitialGameState(
         ),
         moneyPerCompletedRound: Math.max(
           0,
-          config.economy.moneyPerCompletedRound +
-            (progression?.moneyPerCompletedRound ?? 0)
+          config.economy.moneyPerCompletedRound + (progression?.moneyPerCompletedRound ?? 0)
         ),
         startingScore: Math.max(
           0,
@@ -1657,8 +1670,7 @@ export function createInitialGameState(
         ),
         scorePerCompletedRound: Math.max(
           0,
-          config.economy.scorePerCompletedRound +
-            (progression?.scorePerCompletedRound ?? 0)
+          config.economy.scorePerCompletedRound + (progression?.scorePerCompletedRound ?? 0)
         ),
       },
     },
@@ -1686,10 +1698,7 @@ export function createInitialGameState(
         roundControl: {
           pauseCharges: Math.max(0, Math.floor(progression?.startingPauseCharges ?? 0)),
           skipCharges: Math.max(0, Math.floor(progression?.startingSkipCharges ?? 0)),
-          pauseDurationMs: Math.max(
-            1000,
-            15_000 + Math.floor(progression?.pauseDurationMs ?? 0)
-          ),
+          pauseDurationMs: Math.max(1000, 15_000 + Math.floor(progression?.pauseDurationMs ?? 0)),
         },
         shieldRoundsRemaining: Math.max(0, Math.floor(progression?.shieldRounds ?? 0)),
         pendingRollMultiplier:
@@ -1966,7 +1975,6 @@ export function completeRound(
     activeAntiPerkCount * state.config.economy.scorePerActiveAntiPerk;
 
   const intermediaryTriggered = intermediaryCount > 0;
-  const antiPerkTriggered = state.antiPerkTriggeredThisRound;
 
   const baseNextIntermediaryProbability = clamp(
     state.intermediaryProbability + state.config.probabilityScaling.intermediaryIncreasePerRound,
@@ -1982,20 +1990,6 @@ export function completeRound(
           state.config.probabilityScaling.maxIntermediaryProbability
         )
       : baseNextIntermediaryProbability;
-
-  const baseNextAntiPerkProbability = clamp(
-    state.antiPerkProbability + state.config.probabilityScaling.antiPerkIncreasePerRound,
-    0,
-    state.config.probabilityScaling.maxAntiPerkProbability
-  );
-  const nextAntiPerkProbability =
-    antiPerkTriggered && state.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger
-      ? clamp(
-          state.config.probabilityScaling.initialAntiPerkProbability,
-          0,
-          state.config.probabilityScaling.maxAntiPerkProbability
-        )
-      : baseNextAntiPerkProbability;
 
   const nextPlayers = updatePlayer(state.players, currentPlayer.id, (player) => ({
     ...player,
@@ -2021,11 +2015,11 @@ export function completeRound(
       activeRound: null,
       activeRoundAudioEffect: null,
       intermediaryProbability: nextIntermediaryProbability,
-      antiPerkProbability: nextAntiPerkProbability,
+      antiPerkProbability: state.antiPerkProbability,
       antiPerkTriggeredThisRound: false,
       endlessRoundsCompleted: state.endlessRoundsCompleted + 1,
       log: [
-        `Round finished. +$${moneyEarned}, +${scoreEarned} score (${intermediaryCount} intermediary, ${activeAntiPerkCount} anti-perks). Chances now ${Math.round(nextIntermediaryProbability * 100)}%/${Math.round(nextAntiPerkProbability * 100)}%.`,
+        `Round finished. +$${moneyEarned}, +${scoreEarned} score (${intermediaryCount} intermediary, ${activeAntiPerkCount} active anti-perks).`,
         ...state.log,
       ].slice(0, 40),
     },
@@ -2036,6 +2030,33 @@ export function completeRound(
       roundPhase: "ended",
     }
   );
+
+  const automaticAntiPerk = triggerAutomaticAntiPerk(next, currentPlayer.id, {
+    antiPerkTriggerRoll: randoms?.antiPerkTriggerRoll,
+    antiPerkIndex: randoms?.antiPerkIndex,
+  });
+  next = automaticAntiPerk.state;
+  const nextAntiPerkProbability =
+    automaticAntiPerk.triggered &&
+    state.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger
+      ? clamp(
+          state.config.probabilityScaling.initialAntiPerkProbability,
+          0,
+          state.config.probabilityScaling.maxAntiPerkProbability
+        )
+      : clamp(
+          state.antiPerkProbability + state.config.probabilityScaling.antiPerkIncreasePerRound,
+          0,
+          state.config.probabilityScaling.maxAntiPerkProbability
+        );
+  next = {
+    ...next,
+    antiPerkProbability: nextAntiPerkProbability,
+    log: [
+      `Chances next round: ${Math.round(nextIntermediaryProbability * 100)}% intermediary / ${Math.round(nextAntiPerkProbability * 100)}% anti-perk.`,
+      ...next.log,
+    ].slice(0, 40),
+  };
 
   if (state.activeRoundAudioEffect?.sourcePerkId && currentPlayer) {
     next = consumeAntiPerkById(next, {
@@ -2137,8 +2158,6 @@ export function completeRound(
     perkTriggerRoll < getEffectivePerkTriggerChance(next, updatedCurrentPlayer)
   ) {
     next = triggerPerkSelection(next, currentPlayer.id, activeRound.fieldId, {
-      antiPerkTriggerRoll: randoms?.antiPerkTriggerRoll,
-      antiPerkIndex: randoms?.antiPerkIndex,
       perkChoicesRolls: randoms?.perkChoicesRolls,
     });
     if (next.pendingPerkSelection || next.pendingPathChoice || next.queuedRound || next.activeRound)

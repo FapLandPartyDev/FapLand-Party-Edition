@@ -137,6 +137,7 @@ export type LibraryExportDialogState = {
   asFpack: boolean;
   compressionMode: "copy" | "av1" | null;
   compressionStrength: number;
+  audioBitrateKbps: 128 | 192 | 256;
   result: LibraryPackageExportResult | null;
   error: string | null;
 };

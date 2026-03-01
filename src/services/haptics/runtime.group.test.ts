@@ -37,6 +37,7 @@ const handyConfig = {
   appApiKey: "app-key",
   appApiKeyOverride: "",
   localIp: "",
+  funscriptRateLimitEnabled: true,
 };
 
 const intifaceConfig = {
@@ -46,6 +47,7 @@ const intifaceConfig = {
   deviceIndex: 2,
   stroke: { min: 0, max: 1, minAbsolute: null, maxAbsolute: null },
   vibrationSensitivity: 1,
+  funscriptRateLimitEnabled: true,
 };
 
 const group: HapticsGroupConfig = {

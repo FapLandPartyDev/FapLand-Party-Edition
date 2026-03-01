@@ -224,6 +224,7 @@ function buildLinearConfig(
       enabledPerkIds: getSinglePlayerPerkPool().map((p) => p.id),
       enabledAntiPerkIds: getSinglePlayerAntiPerkPool().map((p) => p.id),
     },
+    intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 1 },
     probabilityScaling: {
       initialIntermediaryProbability: 0.1,
       initialAntiPerkProbability: 0.1,
@@ -387,6 +388,7 @@ function buildGraphConfig(
       enabledPerkIds: getSinglePlayerPerkPool().map((p) => p.id),
       enabledAntiPerkIds: getSinglePlayerAntiPerkPool().map((p) => p.id),
     },
+    intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 1 },
     probabilityScaling: {
       initialIntermediaryProbability: 0.1,
       initialAntiPerkProbability: 0.1,
@@ -574,6 +576,7 @@ function buildEndlessConfig(
         .map((p) => p.id)
         .filter((id) => !DICE_ANTIPERK_IDS.has(id)),
     },
+    intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 1 },
     probabilityScaling: {
       initialIntermediaryProbability: 0.1,
       initialAntiPerkProbability: 0.1,
@@ -636,6 +639,7 @@ export function toGameConfigFromPlaylist(
     dice: playlistConfig.dice,
     perkSelection: playlistConfig.perkSelection,
     perkPool: playlistConfig.perkPool,
+    intermediarySelection: playlistConfig.intermediarySelection,
     probabilityScaling: playlistConfig.probabilityScaling,
     economy: playlistConfig.economy,
     automations:
@@ -685,6 +689,10 @@ export function createDefaultPlaylistConfig<T extends PlaylistResolutionRoundLik
     perkPool: {
       enabledPerkIds: getSinglePlayerPerkPool().map((p) => p.id),
       enabledAntiPerkIds: getSinglePlayerAntiPerkPool().map((p) => p.id),
+    },
+    intermediarySelection: {
+      minPerTriggeredRound: 1,
+      maxPerTriggeredRound: 1,
     },
     probabilityScaling: {
       initialIntermediaryProbability: 0.1,
@@ -736,6 +744,10 @@ export function createDefaultEndlessPlaylistConfig(): PlaylistConfig {
       enabledAntiPerkIds: getSinglePlayerAntiPerkPool()
         .map((p) => p.id)
         .filter((id) => !DICE_ANTIPERK_IDS.has(id)),
+    },
+    intermediarySelection: {
+      minPerTriggeredRound: 1,
+      maxPerTriggeredRound: 1,
     },
     probabilityScaling: {
       initialIntermediaryProbability: 0.1,

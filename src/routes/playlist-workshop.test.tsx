@@ -272,6 +272,7 @@ vi.mock("../game/playlistRuntime", () => ({
     },
     perkSelection: { optionsPerPick: 3, triggerChancePerCompletedRound: 0.35 },
     perkPool: { enabledPerkIds: [], enabledAntiPerkIds: [] },
+    intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 1 },
     probabilityScaling: {
       initialIntermediaryProbability: 0,
       initialAntiPerkProbability: 0,
@@ -685,6 +686,92 @@ describe("PlaylistWorkshopRoute", () => {
     expect(updateCall.config.economy.startingMoney).toBe(410);
   });
 
+  it("retains every queued round when saving without visiting the rounds tab", async () => {
+    const first = makeRound("round-1", "Round 1");
+    const second = makeRound("round-2", "Round 2");
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
+    playlist.config.boardConfig.normalRoundOrder = [buildRoundRef(first), buildRoundRef(second)];
+    mocks.loaderData = {
+      installedRounds: [first, second],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    render(<Component />);
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
+    await waitFor(() => {
+      expect((screen.getByRole("button", { name: "💾 Save" }) as HTMLButtonElement).disabled).toBe(
+        false
+      );
+    });
+    fireEvent.click(screen.getByRole("button", { name: "💾 Save" }));
+
+    await waitFor(() => expect(mocks.playlists.update).toHaveBeenCalledTimes(1));
+    const update = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: ReturnType<typeof makeLinearPlaylist>["config"];
+    };
+    expect(update.config.boardConfig.normalRoundOrder).toEqual(
+      playlist.config.boardConfig.normalRoundOrder
+    );
+  });
+
+  it("preserves unresolved round references during unrelated edits", async () => {
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist", 120);
+    const unresolved = { idHint: "missing", name: "Missing Round", type: "Normal" as const };
+    playlist.config.boardConfig.normalRoundOrder = [unresolved];
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    render(<Component />);
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
+    fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));
+    const money = await screen.findByDisplayValue("120");
+    await waitFor(() => {
+      expect((screen.getByRole("button", { name: "💾 Save" }) as HTMLButtonElement).disabled).toBe(
+        false
+      );
+    });
+    fireEvent.change(money, { target: { value: "250" } });
+    fireEvent.click(screen.getByRole("button", { name: "💾 Save" }));
+
+    await waitFor(() => expect(mocks.playlists.update).toHaveBeenCalledTimes(1));
+    expect(mocks.playlists.update.mock.calls[0]?.[0]?.config.boardConfig.normalRoundOrder).toEqual([
+      unresolved,
+    ]);
+  });
+
+  it("cannot overwrite a playlist when catalog loading fails", async () => {
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+    mocks.installedRoundsCache.getInstalledRoundCatalogCached.mockRejectedValueOnce(
+      new Error("catalog unavailable")
+    );
+
+    render(<Component />);
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
+
+    expect(
+      await screen.findByText(/saving is disabled to protect the existing queue/i)
+    ).toBeDefined();
+    const save = screen.getByRole("button", { name: "💾 Save" }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.click(save);
+    expect(mocks.playlists.update).not.toHaveBeenCalled();
+  });
+
   it("saves the disable dice animation option for linear playlists", async () => {
     const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
     mocks.loaderData = {
@@ -699,6 +786,11 @@ describe("PlaylistWorkshopRoute", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
     fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));
+    await waitFor(() => {
+      expect((screen.getByRole("button", { name: "💾 Save" }) as HTMLButtonElement).disabled).toBe(
+        false
+      );
+    });
     fireEvent.click(screen.getByRole("button", { name: /disable dice animation toggle/i }));
     fireEvent.click(screen.getByRole("button", { name: "💾 Save" }));
 
@@ -726,6 +818,11 @@ describe("PlaylistWorkshopRoute", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
     fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));
+    await waitFor(() => {
+      expect((screen.getByRole("button", { name: "💾 Save" }) as HTMLButtonElement).disabled).toBe(
+        false
+      );
+    });
     fireEvent.click(
       screen.getByRole("button", {
         name: /reset intermediary chance after trigger toggle/i,
@@ -1006,6 +1103,28 @@ describe("PlaylistWorkshopRoute", () => {
     ]);
   });
 
+  it("creates suggested sections immediately but confirms before replacing existing sections", async () => {
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
+    playlist.config.boardConfig.totalIndices = 100;
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    await openLinearPlaylistAndSection("Linear Playlist", "Rounds");
+    fireEvent.click(screen.getByRole("button", { name: "Create Suggested Sections" }));
+    expect(screen.queryByText(/replaces every existing difficulty section/i)).toBeNull();
+    expect(screen.getAllByLabelText("Start")).toHaveLength(4);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create Suggested Sections" }));
+    expect(screen.getByText(/replaces every existing difficulty section/i)).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getAllByLabelText("Start")).toHaveLength(4);
+  });
+
   it("clamps round count instead of pruning selected rounds", async () => {
     const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
     playlist.config.boardConfig.totalIndices = 10;
@@ -1263,7 +1382,7 @@ describe("PlaylistWorkshopRoute", () => {
     expect(within(availableSection).getByText("Round 1")).toBeDefined();
   });
 
-  it("shows a rounds skeleton again when re-entering the rounds section", async () => {
+  it("keeps the hydrated rounds visible when re-entering the rounds section", async () => {
     const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
     const rounds = [makeRound("round-1", "Round 1"), makeRound("round-2", "Round 2")];
 
@@ -1282,10 +1401,8 @@ describe("PlaylistWorkshopRoute", () => {
 
     clickSidebarSection("Rounds");
 
-    expect(screen.queryByText("Selected Rounds")).toBeNull();
-    expect(document.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
-
-    await waitForRoundsReady();
+    expect(screen.getByText("Selected Rounds")).toBeDefined();
+    expect(document.querySelectorAll(".animate-pulse")).toHaveLength(0);
   });
 
   it("does not refetch the installed round catalog when re-entering rounds", async () => {

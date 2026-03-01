@@ -53,6 +53,75 @@ export function randomizeRoundOrder<T>(values: ReadonlyArray<T>, random = Math.r
   return [...values.slice(1), values[0]!];
 }
 
+export function buildDifficultySectionRoundOrder<T extends RoundSelectionEntry>(input: {
+  sections: ReadonlyArray<DifficultySectionInput>;
+  rounds: ReadonlyArray<T>;
+  shuffle?: boolean;
+  random?: () => number;
+  previousOrder?: readonly string[];
+}): string[] {
+  const usedIds = new Set<string>();
+  const output: string[] = [];
+  const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+  const sortedRounds = [...input.rounds].sort((a, b) => collator.compare(a.name, b.name));
+  const random = input.random ?? Math.random;
+
+  for (const section of input.sections) {
+    const sectionOutputStart = output.length;
+    const sectionShuffleKeys = new Map(
+      sortedRounds.map((round) => [round.id, input.shuffle ? random() : 0] as const)
+    );
+    const slots = Math.max(0, section.endIndex - section.startIndex + 1);
+    for (let slot = 0; slot < slots; slot += 1) {
+      const candidates = sortedRounds
+        .map((round) => {
+          const difficulty = round.difficulty ?? 1;
+          const inRange =
+            difficulty >= section.minDifficulty && difficulty <= section.maxDifficulty;
+          const distance = inRange
+            ? 0
+            : Math.min(
+                Math.abs(difficulty - section.minDifficulty),
+                Math.abs(difficulty - section.maxDifficulty)
+              );
+          return {
+            round,
+            distance,
+            used: usedIds.has(round.id),
+            shuffleKey: sectionShuffleKeys.get(round.id) ?? 0,
+          };
+        })
+        .sort((a, b) => {
+          if (a.used !== b.used) return a.used ? 1 : -1;
+          if (a.distance !== b.distance) return a.distance - b.distance;
+          if (input.shuffle && a.shuffleKey !== b.shuffleKey) return a.shuffleKey - b.shuffleKey;
+          return collator.compare(a.round.name, b.round.name);
+        });
+      const picked = candidates[0]?.round;
+      if (!picked) break;
+      output.push(picked.id);
+      usedIds.add(picked.id);
+    }
+
+    const previousSection = input.previousOrder?.slice(sectionOutputStart, output.length);
+    const currentSection = output.slice(sectionOutputStart);
+    if (
+      input.shuffle &&
+      previousSection &&
+      currentSection.length > 1 &&
+      currentSection.every((roundId, index) => roundId === previousSection[index])
+    ) {
+      output.splice(
+        sectionOutputStart,
+        currentSection.length,
+        ...randomizeRoundOrder(currentSection, random)
+      );
+    }
+  }
+
+  return output;
+}
+
 export function buildProgressiveRoundOrder<T extends RoundSelectionEntry>(
   rounds: ReadonlyArray<T>,
   random = Math.random

@@ -4990,6 +4990,7 @@ export const GameScene = memo(function GameScene({
           intermediaryReturnPauseSec,
           currentPlayer,
           intermediaryProbability: state.intermediaryProbability,
+          intermediarySelection: state.config.intermediarySelection,
           installedRounds: overlayInstalledRounds,
           onFinishRound: handleCompleteRound,
           onRequestCum: requestCumConfirmation,

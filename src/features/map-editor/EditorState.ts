@@ -189,7 +189,11 @@ export interface EditorGraphConfig {
   pathChoiceTimeoutMs: number;
   perkSelection: PlaylistConfig["perkSelection"];
   perkPool: PlaylistConfig["perkPool"];
-  probabilityScaling: PlaylistConfig["probabilityScaling"];
+  intermediarySelection: PlaylistConfig["intermediarySelection"];
+  probabilityScaling: Omit<
+    PlaylistConfig["probabilityScaling"],
+    "resetIntermediaryProbabilityAfterTrigger" | "resetAntiPerkProbabilityAfterTrigger"
+  >;
   resetIntermediaryProbabilityAfterTrigger: boolean;
   resetAntiPerkProbabilityAfterTrigger: boolean;
   economy: Pick<PlaylistConfig["economy"], "startingMoney" | "scorePerCumRoundSuccess">;
@@ -525,6 +529,7 @@ export const toEditorGraphConfig = (input: GraphBoardConfig): EditorGraphConfig 
       enabledPerkIds: getSinglePlayerPerkPool().map((p) => p.id),
       enabledAntiPerkIds: getSinglePlayerAntiPerkPool().map((p) => p.id),
     },
+    intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 1 },
     probabilityScaling: {
       initialIntermediaryProbability: 0.1,
       initialAntiPerkProbability: 0.1,
@@ -657,6 +662,7 @@ export const layoutLinearGraphFromPlaylist = (config: LinearBoardConfig): Editor
       enabledPerkIds: getSinglePlayerPerkPool().map((p) => p.id),
       enabledAntiPerkIds: getSinglePlayerAntiPerkPool().map((p) => p.id),
     },
+    intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 1 },
     probabilityScaling: {
       initialIntermediaryProbability: 0.1,
       initialAntiPerkProbability: 0.1,

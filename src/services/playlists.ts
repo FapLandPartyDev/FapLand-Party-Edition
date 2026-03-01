@@ -47,6 +47,7 @@ export const playlists = {
     playlistId: string;
     compressionMode?: "copy" | "av1";
     compressionStrength?: number;
+    audioBitrateKbps?: 128 | 192 | 256;
     includeMedia?: boolean;
   }) => trpc.playlist.analyzeExportPackage.query(input),
   exportPackage: (input: {
@@ -54,6 +55,7 @@ export const playlists = {
     directoryPath: string;
     compressionMode?: "copy" | "av1";
     compressionStrength?: number;
+    audioBitrateKbps?: 128 | 192 | 256;
     includeMedia?: boolean;
     asFpack?: boolean;
   }) => trpc.playlist.exportPackage.mutate(input),

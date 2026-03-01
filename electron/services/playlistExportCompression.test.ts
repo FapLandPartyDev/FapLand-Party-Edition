@@ -15,6 +15,7 @@ import {
   detectAv1Encoder,
   estimateCompressionForProbes,
   getCompressionStrengthLabel,
+  normalizeAudioBitrateKbps,
   normalizeCompressionStrength,
 } from "./playlistExportCompression";
 
@@ -33,6 +34,13 @@ describe("playlistExportCompression", () => {
     expect(getCompressionStrengthLabel(10)).toBe("Low compression");
     expect(getCompressionStrengthLabel(55)).toBe("Balanced");
     expect(getCompressionStrengthLabel(90)).toBe("High compression");
+  });
+
+  it("defaults audio to balanced and validates supported bitrates", () => {
+    expect(normalizeAudioBitrateKbps(undefined)).toBe(192);
+    expect(normalizeAudioBitrateKbps(128)).toBe(128);
+    expect(normalizeAudioBitrateKbps(256)).toBe(256);
+    expect(normalizeAudioBitrateKbps(160)).toBe(192);
   });
 
   it("builds different AV1 ffmpeg args for different slider strengths", () => {
@@ -64,7 +72,52 @@ describe("playlistExportCompression", () => {
     expect(low).toContain("-progress");
     expect(low).toContain("pipe:1");
     expect(low).toContain("-nostats");
+    expect(low.slice(low.indexOf("-b:a"), low.indexOf("-b:a") + 2)).toEqual(["-b:a", "192k"]);
     expect(low).not.toEqual(high);
+  });
+
+  it("puts the selected AAC bitrate in ffmpeg arguments and size estimates", () => {
+    const compactArgs = buildAv1EncodeArgs({
+      encoderName: "libsvtav1",
+      strength: 80,
+      audioBitrateKbps: 128,
+      sourcePath: "/tmp/source.mp4",
+      outputPath: "/tmp/output.mp4",
+    });
+    const highArgs = buildAv1EncodeArgs({
+      encoderName: "libsvtav1",
+      strength: 80,
+      audioBitrateKbps: 256,
+      sourcePath: "/tmp/source.mp4",
+      outputPath: "/tmp/output.mp4",
+    });
+    expect(compactArgs).toContain("128k");
+    expect(highArgs).toContain("256k");
+
+    const probes = [
+      {
+        codecName: "h264",
+        width: 1920,
+        height: 1080,
+        durationMs: 120_000,
+        fileSizeBytes: 200 * 1024 * 1024,
+      },
+    ];
+    const compact = estimateCompressionForProbes({
+      probes,
+      strength: 80,
+      audioBitrateKbps: 128,
+      encoderKind: "software",
+      parallelJobs: 1,
+    });
+    const high = estimateCompressionForProbes({
+      probes,
+      strength: 80,
+      audioBitrateKbps: 256,
+      encoderKind: "software",
+      parallelJobs: 1,
+    });
+    expect(high.expectedVideoBytes).toBeGreaterThan(compact.expectedVideoBytes);
   });
 
   it("keeps sourceVideoBytes stable across slider values when file sizes are known", () => {

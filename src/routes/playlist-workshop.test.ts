@@ -21,6 +21,8 @@ function makeSetup(
     enabledPerkIds: [],
     enabledAntiPerkIds: [],
     perkTriggerChancePerRound: 0,
+    intermediaryMinPerTriggeredRound: 1,
+    intermediaryMaxPerTriggeredRound: 1,
     roundStartDelaySec: 0,
     disableDiceAnimation: false,
     startingMoney: 120,
@@ -161,5 +163,28 @@ describe("buildDifficultySectionRoundOrder", () => {
     });
 
     expect(order).toEqual(["easy-b", "easy-a"]);
+  });
+
+  it("guarantees a different legal order on repeated shuffled rebuilds", () => {
+    const previousOrder = ["easy-a", "easy-b", "hard-a", "hard-b"];
+    const order = buildDifficultySectionRoundOrder({
+      sections: [
+        { startIndex: 1, endIndex: 2, minDifficulty: 1, maxDifficulty: 1 },
+        { startIndex: 3, endIndex: 4, minDifficulty: 5, maxDifficulty: 5 },
+      ],
+      rounds: [
+        makeRound("easy-a", "Easy A", 1),
+        makeRound("easy-b", "Easy B", 1),
+        makeRound("hard-a", "Hard A", 5),
+        makeRound("hard-b", "Hard B", 5),
+      ],
+      shuffle: true,
+      previousOrder,
+      random: () => 0,
+    });
+
+    expect(order).not.toEqual(previousOrder);
+    expect(new Set(order.slice(0, 2))).toEqual(new Set(["easy-a", "easy-b"]));
+    expect(new Set(order.slice(2, 4))).toEqual(new Set(["hard-a", "hard-b"]));
   });
 });

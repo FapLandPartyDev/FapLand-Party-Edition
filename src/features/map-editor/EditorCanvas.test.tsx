@@ -36,6 +36,7 @@ const baseConfig: EditorGraphConfig = {
   pathChoiceTimeoutMs: 6000,
   perkSelection: { optionsPerPick: 3, triggerChancePerCompletedRound: 0.35 },
   perkPool: { enabledPerkIds: [], enabledAntiPerkIds: [] },
+  intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 1 },
   probabilityScaling: {
     initialIntermediaryProbability: 0,
     initialAntiPerkProbability: 0,

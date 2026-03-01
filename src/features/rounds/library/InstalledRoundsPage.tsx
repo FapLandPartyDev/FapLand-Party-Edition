@@ -160,6 +160,7 @@ function toLegacyPlaylistConfig(
       enabledPerkIds: getSinglePlayerPerkPool().map((perk) => perk.id),
       enabledAntiPerkIds: getSinglePlayerAntiPerkPool().map((perk) => perk.id),
     },
+    intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 3 },
     probabilityScaling: {
       initialIntermediaryProbability: 0.1,
       initialAntiPerkProbability: 0.1,
@@ -1080,6 +1081,7 @@ export function InstalledRoundsPage({
       asFpack: false,
       compressionMode: null,
       compressionStrength: DEFAULT_EXPORT_COMPRESSION_STRENGTH,
+      audioBitrateKbps: 192,
       result: null,
       error: null,
     });
@@ -1119,6 +1121,7 @@ export function InstalledRoundsPage({
           ? (exportDialog.compressionMode ?? "copy")
           : "copy",
         compressionStrength: exportDialog.compressionStrength,
+        audioBitrateKbps: exportDialog.audioBitrateKbps,
       });
       setExportDialog((current) => (current ? { ...current, result, error: null } : current));
     } catch (error) {

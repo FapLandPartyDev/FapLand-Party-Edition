@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createClient } from "@libsql/client";
 
 let storageRoot = "";
 
@@ -21,7 +22,11 @@ vi.mock("./db", () => ({
   resolveDatabaseUrl: () => `file:${path.join(storageRoot, "dev.db")}`,
 }));
 
-import { resetInstallationForRecovery } from "./startupRecovery";
+import {
+  listDatabaseBackups,
+  resetInstallationForRecovery,
+  restoreDatabaseBackup,
+} from "./startupRecovery";
 
 describe("startup recovery installation reset", () => {
   beforeEach(async () => {
@@ -65,5 +70,43 @@ describe("startup recovery installation reset", () => {
     await expect(
       fs.readFile(path.join(result.databaseArchivePath!, "dev.db-wal"), "utf8")
     ).resolves.toBe("pending-wal");
+  });
+
+  it("restores a verified managed backup and preserves a safety copy", async () => {
+    const databasePath = path.join(storageRoot, "dev.db");
+    await fs.rm(databasePath, { force: true });
+    const activeClient = createClient({ url: `file:${databasePath}` });
+    await activeClient.execute("CREATE TABLE records (value TEXT NOT NULL)");
+    await activeClient.execute("INSERT INTO records VALUES ('current')");
+    activeClient.close();
+
+    const backupDir = path.join(storageRoot, "database-backups");
+    await fs.mkdir(backupDir, { recursive: true });
+    const backupId = "f-land-db-backup-2026-08-05T10-00-00.000Z.db";
+    const backupPath = path.join(backupDir, backupId);
+    const backupClient = createClient({ url: `file:${backupPath}` });
+    await backupClient.execute("CREATE TABLE records (value TEXT NOT NULL)");
+    await backupClient.execute("INSERT INTO records VALUES ('legacy')");
+    backupClient.close();
+
+    const backups = await listDatabaseBackups();
+    expect(backups).toMatchObject([{ id: backupId, integrity: "ok" }]);
+
+    const result = await restoreDatabaseBackup(backupId);
+    expect(result.restoredBackupId).toBe(backupId);
+    await expect(fs.stat(result.safetyBackupPath)).resolves.toMatchObject({
+      size: expect.any(Number),
+    });
+
+    const restoredClient = createClient({ url: `file:${databasePath}` });
+    const restored = await restoredClient.execute("SELECT value FROM records");
+    restoredClient.close();
+    expect(restored.rows[0]?.value).toBe("legacy");
+  });
+
+  it("rejects backup identifiers outside the managed backup directory", async () => {
+    await expect(restoreDatabaseBackup("../dev.db")).rejects.toThrow(
+      "Invalid database backup identifier"
+    );
   });
 });

@@ -1,6 +1,7 @@
 import "./configureClient";
 import {
   getDeviceInfo,
+  getHspState,
   getStroke,
   getServerTime,
   hspAdd,
@@ -43,6 +44,10 @@ export type HandySession = {
   lastHspAddAtMs: number;
   hspAddBackoffUntilMs: number;
   hspModeActive: boolean;
+  lastHspStateAtMs?: number;
+  reportedBufferPoints?: number | null;
+  reportedBufferedUntilMs?: number | null;
+  hspTopupFailureCount?: number;
   streamId?: number;
   serverTimeRefreshPromise?: Promise<void> | null;
 };
@@ -648,6 +653,50 @@ async function appendPointsUpToTime(
   return sent;
 }
 
+async function refreshHspState(auth: HandyAuthBundle, session: HandySession): Promise<void> {
+  const now = Date.now();
+  if (session.lastHspStateAtMs && now - session.lastHspStateAtMs < 1000) return;
+  session.lastHspStateAtMs = now;
+  try {
+    const response = assertDeviceResponse(
+      await getHspState({
+        auth: createAuthResolver(requireAppCredential(auth.appApiKey), session.clientToken),
+        responseStyle: "data",
+        requestValidator: undefined,
+        responseValidator: undefined,
+        headers: { "X-Connection-Key": requireConnectionRef(auth.connectionKey) },
+        query: { timeout: 5000 },
+      })
+    ) as {
+      result?: {
+        points?: number;
+        max_points?: number;
+        last_point_time?: number;
+        tail_point_stream_index?: number;
+        play_state?: number;
+      };
+    };
+    const state = response.result;
+    if (!state) return;
+    if (typeof state.points === "number") session.reportedBufferPoints = state.points;
+    if (typeof state.max_points === "number") {
+      session.maxBufferPoints = clampMaxBufferPoints(state.max_points);
+    }
+    if (typeof state.last_point_time === "number") {
+      session.reportedBufferedUntilMs = state.last_point_time;
+    }
+    if (state.play_state === 4) {
+      console.debug("[haptics] Direct Handy HSP is paused on starvation", {
+        bufferedPoints: session.reportedBufferPoints,
+      });
+    }
+  } catch (error) {
+    console.debug("[haptics] Could not refresh direct Handy HSP state", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 async function preloadScript(
   auth: HandyAuthBundle,
   session: HandySession,
@@ -680,6 +729,10 @@ async function preloadScript(
   session.uploadedUntilMs = points[nextIdx]?.t ?? 0;
   session.lastHspAddAtMs = 0;
   session.hspAddBackoffUntilMs = 0;
+  session.lastHspStateAtMs = 0;
+  session.reportedBufferPoints = null;
+  session.reportedBufferedUntilMs = null;
+  session.hspTopupFailureCount = 0;
 
   // Seed enough data for startup to include the first point after the requested
   // start time, even when the script begins inside a long interpolation gap.
@@ -729,13 +782,17 @@ export async function sendHspSync(
   await preloadScript(auth, session, sourceId, actions, timeMs);
 
   if (session.streamedPoints && session.nextStreamPointIndex < session.streamedPoints.length) {
+    // State polling is advisory and must not delay the time-sensitive sync/top-up path.
+    void refreshHspState(auth, session);
     let playingIdx = session.nextStreamPointIndex - 1;
     while (playingIdx > 0 && session.streamedPoints[playingIdx]!.t > timeMs) {
       playingIdx -= 1;
     }
-    const pointsInBuffer = session.nextStreamPointIndex - Math.max(0, playingIdx);
+    const estimatedPointsInBuffer = session.nextStreamPointIndex - Math.max(0, playingIdx);
+    const pointsInBuffer = session.reportedBufferPoints ?? estimatedPointsInBuffer;
 
-    const shouldTopUpByTime = session.uploadedUntilMs - timeMs <= HSP_TOPUP_TRIGGER_MS;
+    const bufferedUntilMs = session.reportedBufferedUntilMs ?? session.uploadedUntilMs;
+    const shouldTopUpByTime = bufferedUntilMs - timeMs <= HSP_TOPUP_TRIGGER_MS;
     const shouldTopUpByPoints =
       pointsInBuffer <= session.maxBufferPoints * HSP_TOPUP_TRIGGER_POINT_RATIO;
     if (shouldTopUpByTime || shouldTopUpByPoints) {
@@ -744,7 +801,23 @@ export async function sendHspSync(
       const pointBudget = Math.max(0, targetPointCount - pointsInBuffer);
       const fetchBudget = Math.min(HSP_TOPUP_MAX_POINTS_PER_SYNC, pointBudget);
       if (fetchBudget > 0) {
-        await appendPointsUpToTime(auth, session, targetMs, fetchBudget, { paced: true });
+        try {
+          const appended = await appendPointsUpToTime(auth, session, targetMs, fetchBudget, {
+            paced: true,
+          });
+          if (appended > 0) {
+            if ((session.hspTopupFailureCount ?? 0) > 0) {
+              console.debug("[haptics] Direct Handy HSP top-up recovered", { appended });
+            }
+            session.hspTopupFailureCount = 0;
+          }
+        } catch (error) {
+          session.hspTopupFailureCount = (session.hspTopupFailureCount ?? 0) + 1;
+          console.warn("[haptics] Direct Handy HSP top-up will be retried", {
+            attempt: session.hspTopupFailureCount,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
     }
   }
@@ -765,7 +838,7 @@ export async function sendHspSync(
           start_time: Math.max(0, Math.floor(timeMs)),
           server_time: Math.round(getEstimatedServerTimeMs(session)),
           playback_rate: nextRate,
-          pause_on_starving: false,
+          pause_on_starving: true,
           loop: false,
         },
         query: { timeout: 5000 },

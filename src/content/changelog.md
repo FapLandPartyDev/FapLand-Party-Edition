@@ -1,5 +1,25 @@
 # What's New
 
+## v0.6.21-beta
+
+### Added
+
+- **Configurable interjection count** — the Map Editor's Graph Settings panel and the Playlist Workshop now expose Minimum / Maximum interjections per triggered round, replacing the old hardcoded 60/30/10 split with a dedicated `intermediarySelection` range (1–5 each) and a `chooseIntermediaryCount` helper. The playlist schema is bumped to version 4 to persist the range; legacy configs migrate to a 1–3 default and new playlists default to exactly one.
+- **Funscript rate limiter (TheHandy & Intiface)** — a new "Limit fast funscripts" toggle in Settings → Hardware & Sync keeps demanding scripts within a Handy-compatible movement rate via a new `funscriptRateLimiter` module that caps the maximum movement rate (%/s) and applies an RDP simplification tolerance. Both parameters are configurable per provider and per multi-device slot, with a reset-to-defaults action.
+- **Verified database backup restore** — the Startup Recovery Center now lists every managed database backup with its integrity status, size, and creation time, and can restore a chosen copy. Restore integrity-checks the backup, snapshots a safety copy of the current database, applies the backup through a temp file, re-migrates, and re-verifies, rolling back to the safety copy if any step fails. Two new IPC channels (`startup-recovery:list-database-backups`, `startup-recovery:restore-database-backup`) back the UI.
+- **Difficulty-section queue builder** — the shared `roundSelection` module gains `buildDifficultySectionRoundOrder`, which fills each difficulty section by picking the closest-matching unused round (distance to the section's min/max band) with optional shuffle that avoids repeating the previous order. The Playlist Workshop wires it into a new suggested-sections action.
+- **Export audio quality selector** — the library and playlist (.fpack) export dialogs now expose an Audio Quality dropdown (Compact 128 / Balanced 192 / High 256 kbps AAC) that feeds the AV1 transcode pipeline.
+- **Windows file-association smoke test** — a new `scripts/windows-file-association-smoke.ps1` script, an `extractOpenedFileArguments` helper that distinguishes packaged vs dev argv, and an `FLAND_OPEN_FILE_SMOKE_LOG` hook validate the open-file pipeline, which now dedupes pending files before delivery.
+
+### Changed
+
+- **Anti-perk timing rework** — anti-perks now roll after a round completes via a new `triggerAutomaticAntiPerk` step instead of being bundled into perk selection, the round-complete log separates the active anti-perk count from the next-round chance line, and `antiPerkTriggeredThisRound` is normalized to false on save load.
+- **Anti-perk beatbar performance** — beat lookup now uses binary search plus slice instead of `filter`, and the beatbar renders beats with CSS container queries and `translate`/`willChange` for GPU-friendly motion instead of animating `left`. A new self-contained `LiveAntiPerkBeatbar` drives its own animation-frame loop, removing the overlay-level elapsed-time plumbing.
+- **Large re-encode acknowledgement** — both export dialogs now require an explicit checkbox before starting AV1 re-encodes of 20 or more videos or jobs estimated above 30 minutes.
+- Translation catalogs have been regenerated.
+
+---
+
 ## v0.6.15-beta
 
 ### Added

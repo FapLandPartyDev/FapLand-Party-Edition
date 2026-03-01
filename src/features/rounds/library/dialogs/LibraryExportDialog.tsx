@@ -49,8 +49,7 @@ export function LibraryExportDialog({
   onClose: () => void;
   onChange: (
     next:
-      | LibraryExportDialogState
-      | ((current: LibraryExportDialogState) => LibraryExportDialogState)
+      LibraryExportDialogState | ((current: LibraryExportDialogState) => LibraryExportDialogState)
   ) => void;
   onSubmit: () => void;
   selectionCount: { rounds: number; heroes: number };
@@ -63,6 +62,7 @@ export function LibraryExportDialog({
   const hasSelection = selectionCount.rounds > 0 || selectionCount.heroes > 0;
   const [analysis, setAnalysis] = useState<LibraryExportPackageAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(!hasResult);
+  const [highCostAcknowledged, setHighCostAcknowledged] = useState(false);
   const userTouchedModeRef = useRef(false);
   const selectedRoundKey = selectionIds.roundIds.join("|");
   const selectedHeroKey = selectionIds.heroIds.join("|");
@@ -92,6 +92,7 @@ export function LibraryExportDialog({
             includeMedia: state.includeMedia,
             compressionMode: state.includeMedia ? (state.compressionMode ?? undefined) : "copy",
             compressionStrength: state.compressionStrength,
+            audioBitrateKbps: state.audioBitrateKbps,
           })
           .then((result) => {
             if (cancelled) return;
@@ -130,6 +131,7 @@ export function LibraryExportDialog({
     selectedRoundKey,
     state.compressionMode,
     state.compressionStrength,
+    state.audioBitrateKbps,
     state.exportMode,
     state.includeMedia,
   ]);
@@ -140,6 +142,10 @@ export function LibraryExportDialog({
   const estimate = analysis?.estimate ?? null;
   const savingsBytes = estimate?.savingsBytes ?? 0;
   const canEnableCompression = state.includeMedia && (analysis?.compression.supported ?? false);
+  const requiresHighCostAcknowledgement =
+    effectiveMode === "av1" &&
+    ((analysis?.videoTotals.estimatedReencodeVideos ?? 0) >= 20 ||
+      (estimate?.estimatedCompressionSeconds ?? 0) > 30 * 60);
   const getStrengthLabel = (value: number) => {
     if (value <= 20) return t`Low compression`;
     if (value <= 60) return t`Balanced`;
@@ -361,7 +367,9 @@ export function LibraryExportDialog({
                           <Trans>Pack into .fpack File</Trans>
                         </span>
                         <p className="text-xs text-slate-400">
-                          <Trans>Packs all exported files into a single ZIP archive (.fpack).</Trans>
+                          <Trans>
+                            Packs all exported files into a single ZIP archive (.fpack).
+                          </Trans>
                         </p>
                       </div>
                     </label>
@@ -436,7 +444,8 @@ export function LibraryExportDialog({
                                 <Trans>Compression Strength</Trans>
                               </p>
                               <p className="mt-1 text-sm text-white">
-                                {state.compressionStrength}% · {getStrengthLabel(state.compressionStrength)}
+                                {state.compressionStrength}% ·{" "}
+                                {getStrengthLabel(state.compressionStrength)}
                               </p>
                             </div>
                             <p className="text-xs text-slate-400">
@@ -460,6 +469,27 @@ export function LibraryExportDialog({
                             }}
                             className="mt-4 h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-800 accent-amber-300"
                           />
+                          <label className="mt-4 block text-xs text-slate-300">
+                            <span className="uppercase tracking-[0.16em] text-slate-400">
+                              <Trans>Audio Quality</Trans>
+                            </span>
+                            <select
+                              value={state.audioBitrateKbps}
+                              disabled={exporting}
+                              onChange={(event) =>
+                                onChange((current) => ({
+                                  ...current,
+                                  audioBitrateKbps: Number(event.target.value) as 128 | 192 | 256,
+                                  error: null,
+                                }))
+                              }
+                              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+                            >
+                              <option value={128}>{t`Compact · 128 kbps AAC`}</option>
+                              <option value={192}>{t`Balanced · 192 kbps AAC`}</option>
+                              <option value={256}>{t`High · 256 kbps AAC`}</option>
+                            </select>
+                          </label>
                           <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-100 sm:grid-cols-4">
                             <ExportStat
                               label={t`Source Size`}
@@ -546,6 +576,25 @@ export function LibraryExportDialog({
             </div>
           )}
 
+          {requiresHighCostAcknowledgement && !hasResult && (
+            <label className="flex items-start gap-3 rounded-2xl border border-amber-300/35 bg-amber-500/10 p-4 text-sm text-amber-100">
+              <input
+                type="checkbox"
+                checked={highCostAcknowledged}
+                onChange={(event) => setHighCostAcknowledged(event.target.checked)}
+                className="mt-0.5 h-4 w-4"
+              />
+              <span>
+                <Trans>
+                  I understand this large job will re-encode{" "}
+                  {analysis?.videoTotals.estimatedReencodeVideos ?? 0}
+                  videos and may take about{" "}
+                  {formatDurationEstimate(estimate?.estimatedCompressionSeconds ?? 0)}.
+                </Trans>
+              </span>
+            </label>
+          )}
+
           {state.error && (
             <p className="rounded-2xl border border-rose-300/35 bg-rose-500/15 px-4 py-3 text-sm text-rose-100">
               {state.error}
@@ -568,21 +617,23 @@ export function LibraryExportDialog({
                   type="button"
                   onClick={onSubmit}
                   disabled={
-                    exporting || analyzing || (state.exportMode === "selected" && !hasSelection)
+                    exporting ||
+                    analyzing ||
+                    (requiresHighCostAcknowledgement && !highCostAcknowledged) ||
+                    (state.exportMode === "selected" && !hasSelection)
                   }
                   className={`rounded-xl border px-5 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] transition-all duration-200 ${
-                    exporting || analyzing || (state.exportMode === "selected" && !hasSelection)
+                    exporting ||
+                    analyzing ||
+                    (requiresHighCostAcknowledgement && !highCostAcknowledged) ||
+                    (state.exportMode === "selected" && !hasSelection)
                       ? "cursor-not-allowed border-slate-700 bg-slate-900 text-slate-500"
                       : "border-cyan-300/60 bg-cyan-500/22 text-cyan-100 hover:border-cyan-200/85 hover:bg-cyan-500/36"
                   }`}
                   data-controller-focus-id="installed-library-export-submit"
                   data-controller-initial="true"
                 >
-                  {exporting
-                    ? t`Exporting...`
-                    : analyzing
-                      ? t`Analyzing...`
-                      : t`Start Export`}
+                  {exporting ? t`Exporting...` : analyzing ? t`Analyzing...` : t`Start Export`}
                 </button>
               )}
             </div>

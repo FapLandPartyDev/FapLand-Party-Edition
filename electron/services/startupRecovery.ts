@@ -1,10 +1,15 @@
 import { createClient } from "@libsql/client";
 import { app } from "electron";
 import fs from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import path from "node:path";
 import { resolveAppStorageBaseDir } from "./appPaths";
 import { getDb, ensureAppDatabaseReady, resetAppDatabaseState, resolveDatabaseUrl } from "./db";
-import { parseFileDatabasePath, runDatabaseBackupForClient } from "./databaseBackupCore";
+import {
+  isDatabaseBackupFileName,
+  parseFileDatabasePath,
+  runDatabaseBackupForClient,
+} from "./databaseBackupCore";
 import { runSettingsBackupForPath } from "./settingsBackupCore";
 import { resolveSettingsStorePath } from "./store";
 
@@ -34,6 +39,20 @@ export type StartupRecoveryStatus = {
   integrityMessage: string;
 };
 
+export type DatabaseBackupInfo = {
+  id: string;
+  createdAt: string;
+  bytes: number;
+  integrity: "ok" | "corrupt";
+  integrityMessage: string;
+};
+
+export type RestoreDatabaseBackupResult = {
+  restoredBackupId: string;
+  safetyBackupPath: string;
+  integrityMessage: string;
+};
+
 function safeTimestamp(now = new Date()): string {
   return now.toISOString().replaceAll(":", "-");
 }
@@ -51,6 +70,10 @@ function getLocalDatabasePath(): string | null {
   return parseFileDatabasePath(resolveDatabaseUrl());
 }
 
+function getDatabaseBackupDir(): string {
+  return path.join(resolveAppStorageBaseDir(), DATABASE_BACKUP_DIR);
+}
+
 async function runIntegrityCheck(databasePath: string): Promise<string[]> {
   const client = createClient({ url: `file:${databasePath}` });
   try {
@@ -58,6 +81,101 @@ async function runIntegrityCheck(databasePath: string): Promise<string[]> {
     return result.rows.map((row) => String(row.quick_check ?? Object.values(row)[0] ?? ""));
   } finally {
     client.close();
+  }
+}
+
+export async function listDatabaseBackups(): Promise<DatabaseBackupInfo[]> {
+  let entries: Dirent[];
+  try {
+    entries = await fs.readdir(getDatabaseBackupDir(), { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+
+  const backups = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && isDatabaseBackupFileName(entry.name))
+      .map(async (entry): Promise<DatabaseBackupInfo> => {
+        const backupPath = path.join(getDatabaseBackupDir(), entry.name);
+        const stats = await fs.stat(backupPath);
+        try {
+          const rows = await runIntegrityCheck(backupPath);
+          const ok = rows.length === 1 && rows[0]?.toLowerCase() === "ok";
+          return {
+            id: entry.name,
+            createdAt: stats.mtime.toISOString(),
+            bytes: stats.size,
+            integrity: ok ? "ok" : "corrupt",
+            integrityMessage: ok ? "Database integrity check passed." : rows.join("; "),
+          };
+        } catch (error) {
+          return {
+            id: entry.name,
+            createdAt: stats.mtime.toISOString(),
+            bytes: stats.size,
+            integrity: "corrupt",
+            integrityMessage: error instanceof Error ? error.message : String(error),
+          };
+        }
+      })
+  );
+  return backups.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export async function restoreDatabaseBackup(
+  backupId: string
+): Promise<RestoreDatabaseBackupResult> {
+  if (!isDatabaseBackupFileName(backupId) || path.basename(backupId) !== backupId) {
+    throw new Error("Invalid database backup identifier.");
+  }
+  const databasePath = getLocalDatabasePath();
+  if (!databasePath) throw new Error("Recovery requires a local SQLite database.");
+
+  const backupPath = path.resolve(getDatabaseBackupDir(), backupId);
+  if (!backupPath.startsWith(`${path.resolve(getDatabaseBackupDir())}${path.sep}`)) {
+    throw new Error("Database backup is outside the managed backup directory.");
+  }
+  if (!(await exists(backupPath)))
+    throw new Error("The selected database backup no longer exists.");
+  const backupIntegrity = await runIntegrityCheck(backupPath);
+  if (backupIntegrity.length !== 1 || backupIntegrity[0]?.toLowerCase() !== "ok") {
+    throw new Error(`The selected backup is corrupt: ${backupIntegrity.join("; ")}`);
+  }
+
+  const safetyBackupPath = await backupDatabaseForRecovery();
+  const temporaryPath = `${databasePath}.restore-${Date.now()}.tmp`;
+  resetAppDatabaseState();
+  await fs.copyFile(backupPath, temporaryPath);
+
+  const replaceDatabase = async (sourcePath: string) => {
+    for (const suffix of DATABASE_SIDECAR_SUFFIXES) {
+      await fs.rm(`${databasePath}${suffix}`, { force: true });
+    }
+    await fs.copyFile(sourcePath, databasePath);
+  };
+
+  try {
+    await replaceDatabase(temporaryPath);
+    await ensureAppDatabaseReady();
+    const restoredIntegrity = await runIntegrityCheck(databasePath);
+    if (restoredIntegrity.length !== 1 || restoredIntegrity[0]?.toLowerCase() !== "ok") {
+      throw new Error(`Restored database integrity failed: ${restoredIntegrity.join("; ")}`);
+    }
+    return {
+      restoredBackupId: backupId,
+      safetyBackupPath,
+      integrityMessage: "Backup restored, migrated, and verified.",
+    };
+  } catch (error) {
+    resetAppDatabaseState();
+    await replaceDatabase(safetyBackupPath);
+    await ensureAppDatabaseReady();
+    throw new Error(
+      `Restore failed and the previous database was recovered: ${error instanceof Error ? error.message : String(error)}`
+    );
+  } finally {
+    await fs.rm(temporaryPath, { force: true });
   }
 }
 
@@ -115,7 +233,7 @@ export async function backupDatabaseForRecovery(now = new Date()): Promise<strin
   try {
     const result = await runDatabaseBackupForClient({
       db: { $client: client },
-      backupDir: path.join(resolveAppStorageBaseDir(), DATABASE_BACKUP_DIR),
+      backupDir: getDatabaseBackupDir(),
       databaseUrl,
       now,
       pruneOldBackups: async () => 0,

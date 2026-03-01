@@ -12,7 +12,7 @@ import { db, type InstalledRound } from "../../services/db";
 import { trpc } from "../../services/trpc";
 import { useToast } from "../ui/ToastHost";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
-import { AntiPerkBeatbar } from "./AntiPerkBeatbar";
+import { LiveAntiPerkBeatbar } from "./AntiPerkBeatbar";
 import ControllerHints from "./ControllerHints";
 import {
   getCachedBooruMedia,
@@ -88,6 +88,12 @@ import {
   type RoundPlaybackTelemetryEvent,
   type RoundPlayStatus,
 } from "../../game/gameplayTelemetry";
+import { chooseIntermediaryCount } from "./intermediarySelection";
+
+const DEFAULT_INTERMEDIARY_SELECTION = {
+  minPerTriggeredRound: 1,
+  maxPerTriggeredRound: 3,
+} as const;
 
 export type RoundVideoOverlayProps = {
   activeRound: ActiveRound | null;
@@ -101,6 +107,10 @@ export type RoundVideoOverlayProps = {
     onUseSkip: () => void;
   };
   intermediaryProbability: number;
+  intermediarySelection?: {
+    minPerTriggeredRound: number;
+    maxPerTriggeredRound: number;
+  };
   boardSequence?: "milker" | "jackhammer" | null;
   idleBoardSequence?: "no-rest" | null;
   onCompleteBoardSequence?: (perkId: "milker" | "jackhammer") => void;
@@ -330,6 +340,7 @@ export function RoundVideoOverlay({
   currentPlayer,
   roundControl,
   intermediaryProbability,
+  intermediarySelection = DEFAULT_INTERMEDIARY_SELECTION,
   boardSequence = null,
   idleBoardSequence = null,
   onCompleteBoardSequence,
@@ -402,6 +413,9 @@ export function RoundVideoOverlay({
     intifaceDeviceName,
     intifaceDeviceIndex,
     intifaceVibrationSensitivity,
+    funscriptRateLimitEnabled,
+    funscriptMaxRate,
+    funscriptRdpEpsilon,
     tcodeTransport,
     tcodeSerialPath,
     tcodeBaudRate,
@@ -500,7 +514,6 @@ export function RoundVideoOverlay({
   const handyBootstrapKeyRef = useRef<string | null>(null);
   const handyBootstrapInFlightRef = useRef<string | null>(null);
   const pendingVideoActivationTokenRef = useRef(0);
-  const antiPerkBeatAnimationFrameRef = useRef<number | null>(null);
 
   const [segment, setSegment] = useState<SegmentState>({ kind: "main" });
   const [activeVideoUri, setActiveVideoUri] = useState<string | null>(null);
@@ -561,7 +574,6 @@ export function RoundVideoOverlay({
   const [activeAntiPerkSequence, setActiveAntiPerkSequence] =
     useState<ActiveAntiPerkSequenceUi | null>(null);
   const activeAntiPerkSequenceRef = useRef<ActiveAntiPerkSequenceUi | null>(null);
-  const [antiPerkBeatElapsedMs, setAntiPerkBeatElapsedMs] = useState(0);
   const [antiPerkAlert, setAntiPerkAlert] = useState<{ text: string; startTime: number } | null>(
     null
   );
@@ -1214,6 +1226,9 @@ export function RoundVideoOverlay({
           maxAbsolute: null,
         },
         vibrationSensitivity: intifaceVibrationSensitivity,
+        funscriptRateLimitEnabled,
+        funscriptMaxRate,
+        funscriptRdpEpsilon,
       };
     }
     if (hapticsProvider === "tcode") {
@@ -1241,15 +1256,22 @@ export function RoundVideoOverlay({
       appApiKey: appApiKey.trim(),
       appApiKeyOverride,
       localIp,
+      funscriptRateLimitEnabled,
+      funscriptMaxRate,
+      funscriptRdpEpsilon,
     };
   }, [
     activeDeviceTargets,
     appApiKey,
     appApiKeyOverride,
     connectionKey,
+    funscriptRateLimitEnabled,
+    funscriptMaxRate,
+    funscriptRdpEpsilon,
     hapticsProvider,
     intifaceDeviceIndex,
     intifaceDeviceName,
+    intifaceVibrationSensitivity,
     intifaceWebsocketUrl,
     localIp,
     strokeMax,
@@ -1381,13 +1403,8 @@ export function RoundVideoOverlay({
   }, []);
 
   const clearAntiPerkBeatUi = useCallback(() => {
-    if (antiPerkBeatAnimationFrameRef.current !== null) {
-      window.cancelAnimationFrame(antiPerkBeatAnimationFrameRef.current);
-      antiPerkBeatAnimationFrameRef.current = null;
-    }
     activeAntiPerkSequenceRef.current = null;
     setActiveAntiPerkSequence(null);
-    setAntiPerkBeatElapsedMs(0);
   }, []);
 
   useEffect(() => {
@@ -2773,40 +2790,6 @@ export function RoundVideoOverlay({
   }, [initialShowDisconnectedHapticsStatus]);
 
   useEffect(() => {
-    if (!activeAntiPerkSequence) {
-      setAntiPerkBeatElapsedMs(0);
-      return;
-    }
-
-    let cancelled = false;
-    const tick = () => {
-      if (cancelled) return;
-      const elapsedMs = Math.max(
-        0,
-        Math.min(
-          activeAntiPerkSequence.durationMs,
-          Math.floor(performance.now() - activeAntiPerkSequence.startedAtMs)
-        )
-      );
-      setAntiPerkBeatElapsedMs(elapsedMs);
-      if (elapsedMs >= activeAntiPerkSequence.durationMs) {
-        antiPerkBeatAnimationFrameRef.current = null;
-        return;
-      }
-      antiPerkBeatAnimationFrameRef.current = window.requestAnimationFrame(tick);
-    };
-
-    antiPerkBeatAnimationFrameRef.current = window.requestAnimationFrame(tick);
-    return () => {
-      cancelled = true;
-      if (antiPerkBeatAnimationFrameRef.current !== null) {
-        window.cancelAnimationFrame(antiPerkBeatAnimationFrameRef.current);
-        antiPerkBeatAnimationFrameRef.current = null;
-      }
-    };
-  }, [activeAntiPerkSequence]);
-
-  useEffect(() => {
     if (!activeAntiPerkSequence) return;
     if (loadingCountdown === null) return;
     if (generatedSequenceTimerRef.current !== null) return;
@@ -3109,8 +3092,7 @@ export function RoundVideoOverlay({
       return;
     }
 
-    const countRoll = Math.random();
-    const count = countRoll < 0.6 ? 1 : countRoll < 0.9 ? 2 : 3;
+    const count = chooseIntermediaryCount(intermediarySelection);
 
     const queue: IntermediaryTrigger[] = [];
     const usedProgress = new Set<number>();
@@ -3145,6 +3127,7 @@ export function RoundVideoOverlay({
     currentPlayer,
     deterministicTestIntermediary,
     intermediaryProbability,
+    intermediarySelection,
     intermediaryResourcePool,
     resolvedMainResource,
     boardSequence,
@@ -4218,10 +4201,11 @@ export function RoundVideoOverlay({
           />
         )}
         {shouldRenderStandaloneBeatbar && standaloneAntiPerkSequence && (
-          <AntiPerkBeatbar
+          <LiveAntiPerkBeatbar
             actions={standaloneAntiPerkSequence.actions}
             beatbarBeats={standaloneAntiPerkSequence.beatbarBeats}
-            elapsedMs={antiPerkBeatElapsedMs}
+            startedAtMs={standaloneAntiPerkSequence.startedAtMs}
+            durationMs={standaloneAntiPerkSequence.durationMs}
             showBeatbar={shouldShowManualBeatbar}
             showBall={shouldShowHandyPositionBall}
             style={standaloneAntiPerkSequence.definition.beatbarStyle}
@@ -5236,10 +5220,11 @@ export function RoundVideoOverlay({
                 />
               )}
               {shouldRenderAntiPerkBeatbar && renderAntiPerkSequence && (
-                <AntiPerkBeatbar
+                <LiveAntiPerkBeatbar
                   actions={renderAntiPerkSequence.actions}
                   beatbarBeats={renderAntiPerkSequence.beatbarBeats}
-                  elapsedMs={antiPerkBeatElapsedMs}
+                  startedAtMs={renderAntiPerkSequence.startedAtMs}
+                  durationMs={renderAntiPerkSequence.durationMs}
                   showBeatbar={shouldShowManualBeatbar}
                   showBall={shouldShowHandyPositionBall}
                   style={renderAntiPerkSequence.definition.beatbarStyle}

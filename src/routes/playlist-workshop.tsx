@@ -31,6 +31,8 @@ import { PlaylistResolutionModal } from "../components/PlaylistResolutionModal";
 import { RoundVideoOverlay } from "../components/game/RoundVideoOverlay";
 import { PlaylistPicker } from "../features/playlist-picker/PlaylistPicker";
 import { DifficultySectionNumberInput } from "../features/playlist-workshop/DifficultySectionNumberInput";
+import { buildDifficultySectionRoundOrder } from "../features/playlist-workshop/roundSelection";
+export { buildDifficultySectionRoundOrder } from "../features/playlist-workshop/roundSelection";
 import {
   countActiveWorkshopRoundFilters,
   createDefaultWorkshopRoundFilters,
@@ -99,6 +101,8 @@ type EditableLinearSetup = {
   enabledPerkIds: string[];
   enabledAntiPerkIds: string[];
   perkTriggerChancePerRound: number;
+  intermediaryMinPerTriggeredRound: number;
+  intermediaryMaxPerTriggeredRound: number;
   roundStartDelaySec: number;
   startingMoney: number;
   probabilities: {
@@ -135,7 +139,8 @@ const AVAILABLE_ROUND_ROW_ESTIMATE_PX = 58;
 const AVAILABLE_ROUNDS_INITIAL_RECT_HEIGHT_PX = 352;
 const LARGE_AVAILABLE_LIST_THRESHOLD = 50;
 type NewPlaylistMode = "fully-random" | "progressive-random" | "endless";
-type RoundOrderConfirmAction = "difficulty" | "random" | "progressive" | "clear";
+type RoundOrderConfirmAction =
+  "difficulty" | "random" | "progressive" | "clear" | "suggested-sections";
 type WorkshopInstalledRound = InstalledRound | InstalledRoundCatalogEntry;
 type RoundsPanePhase = "idle" | "loading-data" | "preparing-ui" | "ready";
 type ResolutionModalState =
@@ -429,55 +434,6 @@ export function sortSelectedRoundsByDifficulty(
     .map(({ round }) => round);
 }
 
-export function buildDifficultySectionRoundOrder(input: {
-  sections: DifficultySection[];
-  rounds: WorkshopInstalledRound[];
-  shuffle?: boolean;
-  random?: () => number;
-}): string[] {
-  const usedIds = new Set<string>();
-  const output: string[] = [];
-  const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
-  const sortedRounds = [...input.rounds].sort((a, b) => collator.compare(a.name, b.name));
-  const random = input.random ?? Math.random;
-
-  for (const section of input.sections) {
-    const slots = Math.max(0, section.endIndex - section.startIndex + 1);
-    for (let slot = 0; slot < slots; slot += 1) {
-      const candidates = sortedRounds
-        .map((round) => {
-          const difficulty = round.difficulty ?? 1;
-          const inRange =
-            difficulty >= section.minDifficulty && difficulty <= section.maxDifficulty;
-          const distance = inRange
-            ? 0
-            : Math.min(
-                Math.abs(difficulty - section.minDifficulty),
-                Math.abs(difficulty - section.maxDifficulty)
-              );
-          return {
-            round,
-            distance,
-            used: usedIds.has(round.id),
-            shuffleKey: input.shuffle ? random() : 0,
-          };
-        })
-        .sort((a, b) => {
-          if (a.used !== b.used) return a.used ? 1 : -1;
-          if (a.distance !== b.distance) return a.distance - b.distance;
-          if (input.shuffle && a.shuffleKey !== b.shuffleKey) return a.shuffleKey - b.shuffleKey;
-          return collator.compare(a.round.name, b.round.name);
-        });
-      const picked = candidates[0]?.round;
-      if (!picked) break;
-      output.push(picked.id);
-      usedIds.add(picked.id);
-    }
-  }
-
-  return output;
-}
-
 function useVisibilityGate<T extends Element>({
   root,
   rootMargin = "240px 0px",
@@ -586,12 +542,7 @@ function buildProgressiveRandomOrder(rounds: WorkshopInstalledRound[]): Workshop
 }
 
 const getInstalledRounds = async (): Promise<InstalledRoundCatalogEntry[]> => {
-  try {
-    return await getInstalledRoundCatalogCached();
-  } catch (error) {
-    console.error("Failed to fetch installed rounds", error);
-    return [];
-  }
+  return getInstalledRoundCatalogCached();
 };
 
 function toEditableSetup(
@@ -599,6 +550,10 @@ function toEditableSetup(
   installedRounds: Array<InstalledRound | InstalledRoundCatalogEntry>
 ): EditableLinearSetup {
   const config = playlist.config;
+  const intermediarySelection = config.intermediarySelection ?? {
+    minPerTriggeredRound: 1,
+    maxPerTriggeredRound: 3,
+  };
 
   if (config.boardConfig.mode !== "linear") {
     return {
@@ -614,6 +569,8 @@ function toEditableSetup(
       enabledPerkIds: [...config.perkPool.enabledPerkIds],
       enabledAntiPerkIds: [...config.perkPool.enabledAntiPerkIds],
       perkTriggerChancePerRound: config.perkSelection.triggerChancePerCompletedRound,
+      intermediaryMinPerTriggeredRound: intermediarySelection.minPerTriggeredRound,
+      intermediaryMaxPerTriggeredRound: intermediarySelection.maxPerTriggeredRound,
       roundStartDelaySec: Math.round((config.roundStartDelayMs ?? 20000) / 1000),
       startingMoney: config.economy.startingMoney,
       probabilities: {
@@ -666,6 +623,8 @@ function toEditableSetup(
     enabledPerkIds: [...config.perkPool.enabledPerkIds],
     enabledAntiPerkIds: [...config.perkPool.enabledAntiPerkIds],
     perkTriggerChancePerRound: config.perkSelection.triggerChancePerCompletedRound,
+    intermediaryMinPerTriggeredRound: intermediarySelection.minPerTriggeredRound,
+    intermediaryMaxPerTriggeredRound: intermediarySelection.maxPerTriggeredRound,
     roundStartDelaySec: Math.round((config.roundStartDelayMs ?? 20000) / 1000),
     startingMoney: config.economy.startingMoney,
     probabilities: {
@@ -942,6 +901,7 @@ function PlaylistWorkshopPage() {
   const [importedPlaylistReview, setImportedPlaylistReview] =
     useState<ImportedPlaylistReview | null>(null);
   const graphRedirectPlaylistIdRef = useRef<string | null>(null);
+  const hydratedSetupRef = useRef<EditableLinearSetup | null>(null);
 
   const activePlaylist = useMemo(
     () => playlistList.find((playlist) => playlist.id === activePlaylistId) ?? null,
@@ -949,11 +909,13 @@ function PlaylistWorkshopPage() {
   );
 
   const [installedRounds, setInstalledRounds] = useState<WorkshopInstalledRound[]>([]);
+  const [installedRoundsStatus, setInstalledRoundsStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
   const [, setIsInstalledRoundsLoading] = useState(false);
   const [roundsPanePhase, setRoundsPanePhase] = useState<RoundsPanePhase>("idle");
   const hasLoadedInstalledRoundsRef = useRef(false);
   const installedRoundsRequestRef = useRef<Promise<void> | null>(null);
-  const roundsPaneRevealFrameRef = useRef<number | null>(null);
   const [setup, setSetup] = useState<EditableLinearSetup>(() =>
     activePlaylist
       ? toEditableSetup(activePlaylist, installedRounds)
@@ -989,55 +951,40 @@ function PlaylistWorkshopPage() {
   }, [availablePlaylists, loaderActivePlaylist, search.open]);
 
   useEffect(() => {
-    if (roundsPaneRevealFrameRef.current !== null) {
-      window.cancelAnimationFrame(roundsPaneRevealFrameRef.current);
-      roundsPaneRevealFrameRef.current = null;
-    }
-
-    if (activeSectionId !== "rounds" && activeSectionId !== "cum-rounds") {
-      setRoundsPanePhase("idle");
+    if (!activePlaylist || activePlaylist.config.boardConfig.mode !== "linear") {
+      setInstalledRoundsStatus("idle");
       return;
     }
-
-    const revealWhenReady = () => {
-      if (roundsPaneRevealFrameRef.current !== null) {
-        window.clearTimeout(roundsPaneRevealFrameRef.current);
-      }
-      roundsPaneRevealFrameRef.current = window.setTimeout(() => {
-        roundsPaneRevealFrameRef.current = null;
-        setRoundsPanePhase((current) =>
-          current === "loading-data" || current === "preparing-ui" ? "ready" : current
-        );
-      }, 50);
-    };
-
     if (hasLoadedInstalledRoundsRef.current) {
-      setRoundsPanePhase("preparing-ui");
-      revealWhenReady();
-      return () => {
-        if (roundsPaneRevealFrameRef.current !== null) {
-          window.clearTimeout(roundsPaneRevealFrameRef.current);
-          roundsPaneRevealFrameRef.current = null;
-        }
-      };
-    }
-
-    if (installedRoundsRequestRef.current) {
-      setRoundsPanePhase("loading-data");
+      const next = toEditableSetup(activePlaylist, installedRounds);
+      hydratedSetupRef.current = next;
+      setSetup(next);
+      setSafePointsInput(formatSafePointsInput(next.safePointIndices));
+      setInstalledRoundsStatus("ready");
       return;
     }
-
+    if (installedRoundsRequestRef.current) return;
     let mounted = true;
-    setRoundsPanePhase("loading-data");
+    setInstalledRoundsStatus("loading");
     setIsInstalledRoundsLoading(true);
     const request = (async () => {
-      const nextRounds = await getInstalledRounds();
-      if (!mounted) return;
-      setInstalledRounds(nextRounds);
-      hasLoadedInstalledRoundsRef.current = true;
-      setIsInstalledRoundsLoading(false);
-      setRoundsPanePhase("preparing-ui");
-      revealWhenReady();
+      try {
+        const nextRounds = await getInstalledRounds();
+        if (!mounted) return;
+        setInstalledRounds(nextRounds);
+        const nextSetup = toEditableSetup(activePlaylist, nextRounds);
+        hydratedSetupRef.current = nextSetup;
+        setSetup(nextSetup);
+        setSafePointsInput(formatSafePointsInput(nextSetup.safePointIndices));
+        hasLoadedInstalledRoundsRef.current = true;
+        setInstalledRoundsStatus("ready");
+      } catch (error) {
+        if (!mounted) return;
+        console.error("Failed to fetch installed rounds", error);
+        setInstalledRoundsStatus("error");
+      } finally {
+        if (mounted) setIsInstalledRoundsLoading(false);
+      }
     })().finally(() => {
       if (installedRoundsRequestRef.current === request) {
         installedRoundsRequestRef.current = null;
@@ -1047,19 +994,17 @@ function PlaylistWorkshopPage() {
 
     return () => {
       mounted = false;
-      if (roundsPaneRevealFrameRef.current !== null) {
-        window.cancelAnimationFrame(roundsPaneRevealFrameRef.current);
-        roundsPaneRevealFrameRef.current = null;
-      }
     };
-  }, [activeSectionId]);
+  }, [activePlaylist]);
 
   useEffect(() => {
-    if (!activePlaylist) return;
-    const next = toEditableSetup(activePlaylist, installedRounds);
-    setSetup(next);
-    setSafePointsInput(formatSafePointsInput(next.safePointIndices));
-  }, [activePlaylist, installedRounds]);
+    const isRoundsSection = activeSectionId === "rounds" || activeSectionId === "cum-rounds";
+    if (!isRoundsSection) {
+      setRoundsPanePhase("idle");
+      return;
+    }
+    setRoundsPanePhase(installedRoundsStatus === "ready" ? "ready" : "loading-data");
+  }, [activeSectionId, installedRoundsStatus]);
 
   useEffect(() => {
     if (!importNotice) return;
@@ -1705,6 +1650,15 @@ function PlaylistWorkshopPage() {
   const persistActivePlaylistBeforeTransfer = async (): Promise<StoredPlaylist | null> => {
     if (!activePlaylist) return null;
     if (!isLinearEditable) return activePlaylist;
+    if (installedRoundsStatus !== "ready") {
+      showImportNotice(
+        installedRoundsStatus === "error"
+          ? t`The round library could not be loaded. The playlist was not changed.`
+          : t`Wait for the round library to finish loading before saving.`,
+        "error"
+      );
+      return null;
+    }
 
     const normalizedSetup = ensureLinearSetupCapacity({
       ...setup,
@@ -1713,10 +1667,53 @@ function PlaylistWorkshopPage() {
     setSetup(normalizedSetup);
     setSafePointsInput(formatSafePointsInput(normalizedSetup.safePointIndices));
 
-    const linearBoardConfig = toLinearBoardConfig(normalizedSetup, installedRounds);
+    let linearBoardConfig = toLinearBoardConfig(normalizedSetup, installedRounds);
+    const originalBoard = activePlaylist.config.boardConfig;
+    const hydratedSetup = hydratedSetupRef.current;
+    if (originalBoard.mode === "linear" && hydratedSetup) {
+      const normalOrderDirty =
+        normalizedSetup.normalRoundOrder.length !== hydratedSetup.normalRoundOrder.length ||
+        normalizedSetup.normalRoundOrder.some(
+          (roundId, index) => roundId !== hydratedSetup.normalRoundOrder[index]
+        );
+      const cumRoundsDirty =
+        normalizedSetup.enabledCumRoundIds.length !== hydratedSetup.enabledCumRoundIds.length ||
+        normalizedSetup.enabledCumRoundIds.some(
+          (roundId, index) => roundId !== hydratedSetup.enabledCumRoundIds[index]
+        );
+      const unresolvedNormalRefs = [
+        ...originalBoard.normalRoundOrder,
+        ...Object.values(originalBoard.normalRoundRefsByIndex),
+      ].some((ref) => !resolvePortableRoundRef(ref, installedRounds));
+      const unresolvedCumRefs = originalBoard.cumRoundRefs.some(
+        (ref) => !resolvePortableRoundRef(ref, installedRounds)
+      );
+
+      if ((normalOrderDirty && unresolvedNormalRefs) || (cumRoundsDirty && unresolvedCumRefs)) {
+        const analysis = analyzePlaylistResolution(activePlaylist.config, installedRounds);
+        setResolutionModalState({
+          context: "playlist",
+          title: activePlaylist.name,
+          analysis,
+        });
+        showImportNotice(t`Resolve missing rounds before changing this queue.`, "error");
+        return null;
+      }
+
+      linearBoardConfig = {
+        ...linearBoardConfig,
+        normalRoundOrder: normalOrderDirty
+          ? linearBoardConfig.normalRoundOrder
+          : originalBoard.normalRoundOrder,
+        normalRoundRefsByIndex: normalOrderDirty
+          ? linearBoardConfig.normalRoundRefsByIndex
+          : originalBoard.normalRoundRefsByIndex,
+        cumRoundRefs: cumRoundsDirty ? linearBoardConfig.cumRoundRefs : originalBoard.cumRoundRefs,
+      };
+    }
     const nextConfig = ZPlaylistConfig.parse({
       ...activePlaylist.config,
-      playlistVersion: activePlaylist.config.playlistVersion ?? CURRENT_PLAYLIST_VERSION,
+      playlistVersion: CURRENT_PLAYLIST_VERSION,
       requiredLevel: Math.max(1, Math.floor(normalizedSetup.requiredLevel ?? 1)),
       boardConfig: linearBoardConfig,
       saveMode: normalizedSetup.saveMode,
@@ -1739,6 +1736,16 @@ function PlaylistWorkshopPage() {
       perkPool: {
         enabledPerkIds: [...normalizedSetup.enabledPerkIds],
         enabledAntiPerkIds: [...normalizedSetup.enabledAntiPerkIds],
+      },
+      intermediarySelection: {
+        minPerTriggeredRound: Math.max(
+          1,
+          Math.min(5, Math.floor(normalizedSetup.intermediaryMinPerTriggeredRound))
+        ),
+        maxPerTriggeredRound: Math.max(
+          normalizedSetup.intermediaryMinPerTriggeredRound,
+          Math.min(5, Math.floor(normalizedSetup.intermediaryMaxPerTriggeredRound))
+        ),
       },
       probabilityScaling: {
         initialIntermediaryProbability: Math.max(
@@ -1837,6 +1844,7 @@ function PlaylistWorkshopPage() {
   const handleStartExportPack = async (input: {
     compressionMode: "copy" | "av1";
     compressionStrength: number;
+    audioBitrateKbps: 128 | 192 | 256;
     includeMedia: boolean;
     asFpack: boolean;
   }): Promise<boolean> => {
@@ -1872,6 +1880,7 @@ function PlaylistWorkshopPage() {
           directoryPath,
           compressionMode: input.compressionMode,
           compressionStrength: input.compressionStrength,
+          audioBitrateKbps: input.audioBitrateKbps,
           includeMedia: input.includeMedia,
           asFpack: input.asFpack,
         });
@@ -2004,7 +2013,7 @@ function PlaylistWorkshopPage() {
     setSetup((prev) => ({ ...prev, normalRoundOrder: [] }));
   };
 
-  const createSuggestedDifficultySections = () => {
+  const applySuggestedDifficultySections = () => {
     setSetup((prev) => ({
       ...prev,
       difficultySections: [
@@ -2034,6 +2043,14 @@ function PlaylistWorkshopPage() {
         },
       ].filter((section) => section.startIndex <= section.endIndex),
     }));
+  };
+
+  const createSuggestedDifficultySections = () => {
+    if (setup.difficultySections.length > 0) {
+      setRoundOrderConfirmAction("suggested-sections");
+      return;
+    }
+    applySuggestedDifficultySections();
   };
 
   const addDifficultySection = () => {
@@ -2094,19 +2111,30 @@ function PlaylistWorkshopPage() {
   };
 
   const rebuildQueueFromDifficultySections = () => {
-    setSetup((prev) => {
-      if (prev.difficultySections.length === 0 || difficultySectionSourceRounds.length === 0) {
-        return prev;
-      }
-      return ensureLinearSetupCapacity({
-        ...prev,
-        normalRoundOrder: buildDifficultySectionRoundOrder({
-          sections: prev.difficultySections,
-          rounds: difficultySectionSourceRounds,
-          shuffle: prev.shuffleDifficultySectionRounds,
-        }),
-      });
+    if (setup.difficultySections.length === 0 || difficultySectionSourceRounds.length === 0) return;
+    const normalRoundOrder = buildDifficultySectionRoundOrder({
+      sections: setup.difficultySections,
+      rounds: difficultySectionSourceRounds,
+      shuffle: setup.shuffleDifficultySectionRounds,
+      previousOrder: setup.normalRoundOrder,
     });
+    const moved = normalRoundOrder.filter(
+      (roundId, index) => roundId !== setup.normalRoundOrder[index]
+    ).length;
+    setSetup(
+      ensureLinearSetupCapacity({
+        ...setup,
+        normalRoundOrder,
+      })
+    );
+    showImportNotice(
+      setup.shuffleDifficultySectionRounds
+        ? moved > 0
+          ? t`Queue rebuilt. ${moved} positions moved.`
+          : t`Queue rebuilt, but no alternative ordering was available.`
+        : t`Queue rebuilt from difficulty sections.`,
+      "info"
+    );
   };
 
   const applyNormalRoundOrdering = (mode: NewPlaylistMode) => {
@@ -2174,11 +2202,19 @@ function PlaylistWorkshopPage() {
     }
     if (action === "clear") {
       clearNormalRounds();
+      return;
+    }
+    if (action === "suggested-sections") {
+      applySuggestedDifficultySections();
     }
   };
 
   const roundOrderConfirmTitle =
-    roundOrderConfirmAction === "clear" ? t`Clear selected rounds?` : t`Reorder selected rounds?`;
+    roundOrderConfirmAction === "clear"
+      ? t`Clear selected rounds?`
+      : roundOrderConfirmAction === "suggested-sections"
+        ? t`Replace difficulty sections?`
+        : t`Reorder selected rounds?`;
   const roundOrderConfirmLabel =
     roundOrderConfirmAction === "difficulty"
       ? t`Sort by Difficulty`
@@ -2186,7 +2222,9 @@ function PlaylistWorkshopPage() {
         ? t`Randomize`
         : roundOrderConfirmAction === "progressive"
           ? t`Apply Progressive`
-          : t`Clear`;
+          : roundOrderConfirmAction === "suggested-sections"
+            ? t`Replace Sections`
+            : t`Clear`;
 
   const toggleCumRound = (roundId: string) => {
     setSetup((prev) => {
@@ -2276,6 +2314,7 @@ function PlaylistWorkshopPage() {
                     playSelectSound();
                     void saveLinearPlaylist();
                   }}
+                  disabled={savePending || installedRoundsStatus !== "ready"}
                 />
                 <MenuButton
                   label={savePending ? t`Saving...` : t`Test`}
@@ -2285,6 +2324,7 @@ function PlaylistWorkshopPage() {
                     playSelectSound();
                     void saveAndTestPlaylist();
                   }}
+                  disabled={savePending || installedRoundsStatus !== "ready"}
                 />
               </>
             ) : (
@@ -2471,12 +2511,13 @@ function PlaylistWorkshopPage() {
                             <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400 opacity-75 blur-md transition duration-300 group-hover:opacity-100 animate-[pulse_3s_ease-in-out_infinite]"></div>
                             <button
                               type="button"
+                              disabled={savePending || installedRoundsStatus !== "ready"}
                               onMouseEnter={playHoverSound}
                               onClick={() => {
                                 playSelectSound();
                                 void handleExportPack();
                               }}
-                              className="relative inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/20 bg-gradient-to-r from-cyan-600 to-emerald-600 px-6 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-[11px] sm:text-xs font-bold uppercase tracking-[0.15em] text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:from-cyan-500 hover:to-emerald-500 hover:shadow-[0_0_25px_rgba(52,211,238,0.35)]"
+                              className="relative inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/20 bg-gradient-to-r from-cyan-600 to-emerald-600 px-6 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-[11px] sm:text-xs font-bold uppercase tracking-[0.15em] text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:from-cyan-500 hover:to-emerald-500 hover:shadow-[0_0_25px_rgba(52,211,238,0.35)] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -2521,7 +2562,9 @@ function PlaylistWorkshopPage() {
                           playSelectSound();
                           void saveLinearPlaylist();
                         }}
-                        disabled={!isLinearEditable}
+                        disabled={
+                          !isLinearEditable || savePending || installedRoundsStatus !== "ready"
+                        }
                       />
                       <MenuButton
                         label={savePending ? t`Saving...` : t`Save and Test`}
@@ -2531,10 +2574,28 @@ function PlaylistWorkshopPage() {
                           playSelectSound();
                           void saveAndTestPlaylist();
                         }}
-                        disabled={!isLinearEditable}
+                        disabled={
+                          !isLinearEditable || savePending || installedRoundsStatus !== "ready"
+                        }
                       />
                     </div>
-                    <ManageActionButton label={t`Export .fplay`} onClick={handleExportFplay} />
+                    <ManageActionButton
+                      label={t`Export .fplay`}
+                      onClick={handleExportFplay}
+                      disabled={savePending || installedRoundsStatus !== "ready"}
+                    />
+                    {installedRoundsStatus !== "ready" && (
+                      <p className="text-xs text-amber-200/80 sm:col-span-2">
+                        {installedRoundsStatus === "error" ? (
+                          <Trans>
+                            The round library could not be loaded. Saving is disabled to protect the
+                            existing queue.
+                          </Trans>
+                        ) : (
+                          <Trans>Loading the round library before saving…</Trans>
+                        )}
+                      </p>
+                    )}
                   </div>
 
                   {importNotice && (
@@ -3840,11 +3901,53 @@ function PlaylistWorkshopPage() {
                     />
                     <NumberInput
                       label={t`Perk Trigger Chance %`}
-                      description={t`Base chance to roll a random perk after each completed round. This does not stack per round; the same chance is checked again each time.`}
+                      description={t`Independent chance to roll a random perk after each completed round. Anti-perks use their own separate chance.`}
                       value={percent(setup.perkTriggerChancePerRound)}
                       disabled={!isLinearEditable}
                       onChange={(value) =>
                         setSetup((prev) => ({ ...prev, perkTriggerChancePerRound: toRatio(value) }))
+                      }
+                    />
+                    <NumberInput
+                      label={t`Minimum Interjections Per Trigger`}
+                      description={t`Minimum number of interjections played when the intermediary chance succeeds. Set both counts to 1 for exactly one.`}
+                      value={setup.intermediaryMinPerTriggeredRound}
+                      min={1}
+                      max={5}
+                      disabled={!isLinearEditable}
+                      onChange={(value) =>
+                        setSetup((prev) => {
+                          const min = Math.max(1, Math.min(5, Math.floor(value)));
+                          return {
+                            ...prev,
+                            intermediaryMinPerTriggeredRound: min,
+                            intermediaryMaxPerTriggeredRound: Math.max(
+                              min,
+                              prev.intermediaryMaxPerTriggeredRound
+                            ),
+                          };
+                        })
+                      }
+                    />
+                    <NumberInput
+                      label={t`Maximum Interjections Per Trigger`}
+                      description={t`Maximum number played when the intermediary chance succeeds. Configured range: ${setup.intermediaryMinPerTriggeredRound}–${setup.intermediaryMaxPerTriggeredRound} interjections per successful trigger.`}
+                      value={setup.intermediaryMaxPerTriggeredRound}
+                      min={1}
+                      max={5}
+                      disabled={!isLinearEditable}
+                      onChange={(value) =>
+                        setSetup((prev) => {
+                          const max = Math.max(1, Math.min(5, Math.floor(value)));
+                          return {
+                            ...prev,
+                            intermediaryMinPerTriggeredRound: Math.min(
+                              prev.intermediaryMinPerTriggeredRound,
+                              max
+                            ),
+                            intermediaryMaxPerTriggeredRound: max,
+                          };
+                        })
                       }
                     />
                     <NumberInput
@@ -3903,7 +4006,7 @@ function PlaylistWorkshopPage() {
                     />
                     <NumberInput
                       label={t`Anti-Perk Initial %`}
-                      description={t`Starting chance for anti-perks at the beginning of the run. This is the first value used before any round-based scaling happens.`}
+                      description={t`Independent anti-perk chance rolled after each completed round. A round can grant both an anti-perk and a normal perk.`}
                       value={percent(setup.probabilities.antiPerk.initial)}
                       disabled={!isLinearEditable}
                       onChange={(value) =>
@@ -4266,7 +4369,11 @@ function PlaylistWorkshopPage() {
       <ConfirmDialog
         isOpen={roundOrderConfirmAction !== null}
         title={roundOrderConfirmTitle}
-        message={t`This changes the order of the entire selected round list. Continue?`}
+        message={
+          roundOrderConfirmAction === "suggested-sections"
+            ? t`This replaces every existing difficulty section with the four suggested ranges. Continue?`
+            : t`This changes the order of the entire selected round list. Continue?`
+        }
         confirmLabel={roundOrderConfirmLabel}
         variant={roundOrderConfirmAction === "clear" ? "danger" : "warning"}
         onConfirm={confirmRoundOrderAction}
@@ -4871,7 +4978,9 @@ function WorkshopRoundFilterPanel({
                     { value: "hero", label: t`Hero rounds only` },
                     { value: "standalone", label: t`Standalone rounds only` },
                   ]}
-                  onChange={(heroStatus) => update({ heroStatus: heroStatus as WorkshopHeroFilter })}
+                  onChange={(heroStatus) =>
+                    update({ heroStatus: heroStatus as WorkshopHeroFilter })
+                  }
                   onHoverSfx={playHoverSound}
                   onSelectSfx={playSelectSound}
                 />
@@ -5515,20 +5624,23 @@ function ManageActionButton({
   label,
   onClick,
   tone = "default",
+  disabled = false,
 }: {
   label: string;
   onClick: () => void | Promise<void>;
   tone?: "default" | "danger";
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onMouseEnter={playHoverSound}
       onClick={() => {
         playSelectSound();
         void onClick();
       }}
-      className={`rounded-xl border px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold uppercase tracking-[0.16em] transition-colors ${
+      className={`rounded-xl border px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
         tone === "danger"
           ? "border-rose-400/45 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20"
           : "border-white/12 bg-white/5 text-zinc-200 hover:bg-white/10"

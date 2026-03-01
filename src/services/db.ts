@@ -304,6 +304,7 @@ export const db = {
       asFpack?: boolean;
       compressionMode?: "copy" | "av1";
       compressionStrength?: number;
+      audioBitrateKbps?: 128 | 192 | 256;
     }) => trpc.db.exportLibraryPackage.mutate(input),
     analyzeExportPackage: (input: {
       roundIds?: string[];
@@ -311,6 +312,7 @@ export const db = {
       includeMedia?: boolean;
       compressionMode?: "copy" | "av1";
       compressionStrength?: number;
+      audioBitrateKbps?: 128 | 192 | 256;
     }) => trpc.db.analyzeLibraryExportPackage.query(input),
     getExportPackageStatus: () => trpc.db.getLibraryExportPackageStatus.query(),
     abortExportPackage: () => trpc.db.abortLibraryExportPackage.mutate(),

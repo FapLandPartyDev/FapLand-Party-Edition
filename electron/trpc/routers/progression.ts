@@ -21,7 +21,7 @@ import {
   CHEAT_MODE_ENABLED_KEY,
   normalizeCheatModeEnabled,
 } from "../../../src/constants/experimentalFeatures";
-import { getDb } from "../../services/db";
+import { ensureProgressionSchemaReady, getDb } from "../../services/db";
 import { gameProfile, progressionAward, progressionSkillRank } from "../../services/db/schema";
 import { safeStoreGet, safeStoreSet } from "../../services/store";
 import { publicProcedure, router } from "../trpc";
@@ -52,14 +52,18 @@ function isCheatModeEnabled(): boolean {
 }
 
 async function ensureLocalProfile(): Promise<void> {
-  await getDb()
+  const db = getDb();
+  await ensureProgressionSchemaReady(db);
+  await db
     .insert(gameProfile)
     .values({ id: LOCAL_PROFILE_ID })
     .onConflictDoNothing({ target: gameProfile.id });
 }
 
 async function profileExists(profileId: string): Promise<boolean> {
-  const profile = await getDb().query.gameProfile.findFirst({
+  const db = getDb();
+  await ensureProgressionSchemaReady(db);
+  const profile = await db.query.gameProfile.findFirst({
     where: eq(gameProfile.id, profileId),
   });
   return Boolean(profile);

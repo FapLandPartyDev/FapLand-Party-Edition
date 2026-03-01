@@ -106,6 +106,20 @@ declare global {
         }>;
         backupDatabase?: () => Promise<string>;
         repairDatabase?: () => Promise<{ backupPath: string; integrityMessage: string }>;
+        listDatabaseBackups?: () => Promise<
+          Array<{
+            id: string;
+            createdAt: string;
+            bytes: number;
+            integrity: "ok" | "corrupt";
+            integrityMessage: string;
+          }>
+        >;
+        restoreDatabaseBackup?: (backupId: string) => Promise<{
+          restoredBackupId: string;
+          safetyBackupPath: string;
+          integrityMessage: string;
+        }>;
         clearCaches?: () => Promise<{ clearedPaths: number }>;
         resetSettings?: () => Promise<{ backupPath: string | null }>;
         resetInstallation?: (

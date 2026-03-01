@@ -16,6 +16,7 @@ interface GraphSettingsPanelProps {
   perkSelection: EditorGraphConfig["perkSelection"];
   perkPool: EditorGraphConfig["perkPool"];
   probabilityScaling: EditorGraphConfig["probabilityScaling"];
+  intermediarySelection: EditorGraphConfig["intermediarySelection"];
   resetIntermediaryProbabilityAfterTrigger: boolean;
   resetAntiPerkProbabilityAfterTrigger: boolean;
   economy: EditorGraphConfig["economy"];
@@ -33,6 +34,10 @@ interface GraphSettingsPanelProps {
   onSetPerkTriggerChance: (value: number) => void;
   onSetProbabilityScaling: (
     key: keyof EditorGraphConfig["probabilityScaling"],
+    value: number
+  ) => void;
+  onSetIntermediaryCount: (
+    key: "minPerTriggeredRound" | "maxPerTriggeredRound",
     value: number
   ) => void;
   onSetResetIntermediaryProbabilityAfterTrigger: (value: boolean) => void;
@@ -84,13 +89,7 @@ const percent = (value: number): number => Math.round(value * 100);
 const toRatio = (value: string): number =>
   Math.max(0, Math.min(100, Number.parseInt(value, 10) || 0)) / 100;
 type BackgroundNumberKey =
-  | "opacity"
-  | "dim"
-  | "blur"
-  | "scale"
-  | "offsetX"
-  | "offsetY"
-  | "parallaxStrength";
+  "opacity" | "dim" | "blur" | "scale" | "offsetX" | "offsetY" | "parallaxStrength";
 type RoadPaletteColorKey = "body" | "railA" | "railB" | "glow" | "center" | "gate" | "marker";
 
 const backgroundNumberPatch = (
@@ -210,6 +209,7 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
     perkSelection,
     perkPool,
     probabilityScaling,
+    intermediarySelection,
     resetIntermediaryProbabilityAfterTrigger,
     resetAntiPerkProbabilityAfterTrigger,
     economy,
@@ -226,6 +226,7 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
     selectedCumRoundIdSet,
     onSetPerkTriggerChance,
     onSetProbabilityScaling,
+    onSetIntermediaryCount,
     onSetResetIntermediaryProbabilityAfterTrigger,
     onSetResetAntiPerkProbabilityAfterTrigger,
     onSetDiceLimit,
@@ -1003,6 +1004,50 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
             </label>
             <label className="block space-y-1">
               <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+                <Trans>Minimum interjections</Trans>
+              </span>
+              <input
+                aria-label={t`Minimum interjections per triggered round`}
+                type="number"
+                min={1}
+                max={5}
+                step={1}
+                value={intermediarySelection.minPerTriggeredRound}
+                onChange={(event) =>
+                  onSetIntermediaryCount("minPerTriggeredRound", Number(event.target.value))
+                }
+                className="w-full rounded-lg border border-zinc-700/50 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-cyan-400/50"
+              />
+              <p className="text-[10px] text-zinc-600">
+                <Trans>Inclusive count after the independent intermediary chance succeeds.</Trans>
+              </p>
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+                <Trans>Maximum interjections</Trans>
+              </span>
+              <input
+                aria-label={t`Maximum interjections per triggered round`}
+                type="number"
+                min={1}
+                max={5}
+                step={1}
+                value={intermediarySelection.maxPerTriggeredRound}
+                onChange={(event) =>
+                  onSetIntermediaryCount("maxPerTriggeredRound", Number(event.target.value))
+                }
+                className="w-full rounded-lg border border-zinc-700/50 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-cyan-400/50"
+              />
+              <p className="text-[10px] text-zinc-600">
+                <Trans>
+                  Configured range: {intermediarySelection.minPerTriggeredRound}–
+                  {intermediarySelection.maxPerTriggeredRound} interjections per successful trigger.
+                  Set both counts to 1 for exactly one.
+                </Trans>
+              </p>
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
                 <Trans>Anti-perk initial</Trans>
               </span>
               <input
@@ -1018,7 +1063,7 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
                 className="w-full rounded-lg border border-zinc-700/50 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-cyan-400/50"
               />
               <p className="text-[10px] text-zinc-600">
-                <Trans>Starting percent chance.</Trans>
+                <Trans>Rolled independently from the normal perk chance after each round.</Trans>
               </p>
             </label>
             <label className="block space-y-1">

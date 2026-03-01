@@ -571,7 +571,7 @@ describe("exportPlaylistPackage", () => {
     const exportedPlaylist = JSON.parse(await fs.readFile(result.playlistFilePath, "utf8")) as {
       config: { playlistVersion: number; boardConfig: { nodes: Array<{ kind: string }> } };
     };
-    expect(exportedPlaylist.config.playlistVersion).toBe(3);
+    expect(exportedPlaylist.config.playlistVersion).toBe(4);
     expect(exportedPlaylist.config.boardConfig.nodes.some((node) => node.kind === "end")).toBe(
       true
     );

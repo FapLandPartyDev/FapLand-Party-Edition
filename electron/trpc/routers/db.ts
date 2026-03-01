@@ -3431,6 +3431,7 @@ export const dbRouter = router({
         asFpack: z.boolean().optional(),
         compressionMode: z.enum(["copy", "av1"]).optional(),
         compressionStrength: z.number().optional(),
+        audioBitrateKbps: z.union([z.literal(128), z.literal(192), z.literal(256)]).optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -3443,6 +3444,7 @@ export const dbRouter = router({
           asFpack: input.asFpack ?? false,
           compressionMode: input.compressionMode,
           compressionStrength: input.compressionStrength,
+          audioBitrateKbps: input.audioBitrateKbps,
         });
       } catch (error) {
         throw new TRPCError({
@@ -3460,6 +3462,7 @@ export const dbRouter = router({
         includeMedia: z.boolean().optional(),
         compressionMode: z.enum(["copy", "av1"]).optional(),
         compressionStrength: z.number().optional(),
+        audioBitrateKbps: z.union([z.literal(128), z.literal(192), z.literal(256)]).optional(),
       })
     )
     .query(async ({ input }) => {
@@ -3470,6 +3473,7 @@ export const dbRouter = router({
           includeMedia: input.includeMedia ?? true,
           compressionMode: input.compressionMode,
           compressionStrength: input.compressionStrength,
+          audioBitrateKbps: input.audioBitrateKbps,
         });
       } catch (error) {
         throw new TRPCError({

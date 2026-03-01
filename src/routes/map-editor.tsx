@@ -218,6 +218,7 @@ const toEditorConfigFromPlaylist = (playlist: StoredPlaylist): EditorGraphConfig
       enabledPerkIds: [...playlist.config.perkPool.enabledPerkIds],
       enabledAntiPerkIds: [...playlist.config.perkPool.enabledAntiPerkIds],
     },
+    intermediarySelection: { ...playlist.config.intermediarySelection },
     probabilityScaling: {
       initialIntermediaryProbability:
         playlist.config.probabilityScaling.initialIntermediaryProbability,
@@ -321,6 +322,7 @@ const makeStartingConfig = (): EditorGraphConfig => ({
     enabledPerkIds: getSinglePlayerPerkPool().map((p) => p.id),
     enabledAntiPerkIds: getSinglePlayerAntiPerkPool().map((p) => p.id),
   },
+  intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 1 },
   probabilityScaling: {
     initialIntermediaryProbability: 0.1,
     initialAntiPerkProbability: 0.1,
@@ -367,6 +369,7 @@ const createPlaylistConfigFromEditorConfig = (editorConfig: EditorGraphConfig): 
       enabledPerkIds: [...editorConfig.perkPool.enabledPerkIds],
       enabledAntiPerkIds: [...editorConfig.perkPool.enabledAntiPerkIds],
     },
+    intermediarySelection: { ...editorConfig.intermediarySelection },
     probabilityScaling: {
       ...editorConfig.probabilityScaling,
       resetIntermediaryProbabilityAfterTrigger:
@@ -1797,6 +1800,28 @@ function MapEditorPage() {
     [updateGraphConfig]
   );
 
+  const setIntermediaryCount = useCallback(
+    (key: "minPerTriggeredRound" | "maxPerTriggeredRound", value: number) => {
+      updateGraphConfig((previous) => {
+        const nextValue = Math.max(1, Math.min(5, Math.floor(value)));
+        const intermediarySelection = { ...previous.intermediarySelection, [key]: nextValue };
+        if (
+          key === "minPerTriggeredRound" &&
+          intermediarySelection.minPerTriggeredRound > intermediarySelection.maxPerTriggeredRound
+        ) {
+          intermediarySelection.maxPerTriggeredRound = intermediarySelection.minPerTriggeredRound;
+        } else if (
+          key === "maxPerTriggeredRound" &&
+          intermediarySelection.maxPerTriggeredRound < intermediarySelection.minPerTriggeredRound
+        ) {
+          intermediarySelection.minPerTriggeredRound = intermediarySelection.maxPerTriggeredRound;
+        }
+        return { ...previous, intermediarySelection };
+      });
+    },
+    [updateGraphConfig]
+  );
+
   const setResetIntermediaryProbabilityAfterTrigger = useCallback(
     (value: boolean) => {
       updateGraphConfig((previous) => ({
@@ -2895,6 +2920,7 @@ function MapEditorPage() {
         enabledPerkIds: [...configRef.current.perkPool.enabledPerkIds],
         enabledAntiPerkIds: [...configRef.current.perkPool.enabledAntiPerkIds],
       },
+      intermediarySelection: { ...configRef.current.intermediarySelection },
       probabilityScaling: {
         ...playlist.config.probabilityScaling,
         ...configRef.current.probabilityScaling,
@@ -4151,6 +4177,7 @@ function MapEditorPage() {
                       perkSelection={config.perkSelection}
                       perkPool={config.perkPool}
                       probabilityScaling={config.probabilityScaling}
+                      intermediarySelection={config.intermediarySelection}
                       resetIntermediaryProbabilityAfterTrigger={
                         config.resetIntermediaryProbabilityAfterTrigger
                       }
@@ -4171,6 +4198,7 @@ function MapEditorPage() {
                       selectedCumRoundIdSet={selectedCumRoundIdSet}
                       onSetPerkTriggerChance={setPerkTriggerChance}
                       onSetProbabilityScaling={setProbabilityScaling}
+                      onSetIntermediaryCount={setIntermediaryCount}
                       onSetResetIntermediaryProbabilityAfterTrigger={
                         setResetIntermediaryProbabilityAfterTrigger
                       }

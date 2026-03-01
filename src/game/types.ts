@@ -393,6 +393,10 @@ export type GameConfig = {
     enabledPerkIds: string[];
     enabledAntiPerkIds: string[];
   };
+  intermediarySelection?: {
+    minPerTriggeredRound: number;
+    maxPerTriggeredRound: number;
+  };
   probabilityScaling: {
     initialIntermediaryProbability: number;
     initialAntiPerkProbability: number;

@@ -11,6 +11,7 @@ describe("playlistStats", () => {
     disableDiceAnimation: false,
     perkSelection: { optionsPerPick: 3, triggerChancePerCompletedRound: 0.35 },
     perkPool: { enabledPerkIds: [], enabledAntiPerkIds: [] },
+    intermediarySelection: { minPerTriggeredRound: 1, maxPerTriggeredRound: 3 },
     probabilityScaling: {
       initialIntermediaryProbability: 0,
       initialAntiPerkProbability: 0,
@@ -18,6 +19,8 @@ describe("playlistStats", () => {
       antiPerkIncreasePerRound: 0.015,
       maxIntermediaryProbability: 1,
       maxAntiPerkProbability: 0.75,
+      resetIntermediaryProbabilityAfterTrigger: false,
+      resetAntiPerkProbabilityAfterTrigger: false,
     },
     economy: {
       startingMoney: 120,

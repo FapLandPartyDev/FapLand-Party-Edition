@@ -2039,11 +2039,11 @@ describe("RoundVideoOverlay", () => {
     };
     const view = render(<AntiPerkBeatbar {...props} elapsedMs={0} />);
     const note = (await screen.findByTestId("anti-perk-beat-note")) as HTMLElement;
-    const initialLeft = Number.parseFloat(note.style.left);
+    const initialTranslate = note.style.translate;
 
     view.rerender(<AntiPerkBeatbar {...props} elapsedMs={300} />);
 
-    expect(Number.parseFloat(note.style.left)).toBeLessThan(initialLeft);
+    expect(note.style.translate).not.toBe(initialTranslate);
   });
 
   it("renders multiple preview markers from generated low-point anti-perk beats", async () => {
