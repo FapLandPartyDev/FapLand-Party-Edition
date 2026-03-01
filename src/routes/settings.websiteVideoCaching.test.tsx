@@ -149,21 +149,34 @@ vi.mock("../services/trpc", () => ({
         mutate: vi.fn(async () => {}),
       },
     },
+    eroscripts: {
+      getLoginStatus: {
+        query: vi.fn(async () => ({
+          loggedIn: false,
+          username: null,
+          hasCredentials: false,
+        })),
+      },
+    },
     store: {
-      get: {
-        query: vi.fn(async ({ key }: { key: string }) => {
-          if (key === "game.intermediary.loadingPrompt") return "animated gif webm score:>300";
-          if (key === "game.intermediary.loadingDurationSec") return 5;
-          if (key === "game.intermediary.returnPauseSec") return 4;
-          if (key === "videoHash.ffmpegSourcePreference") return "auto";
-          if (key === "webVideo.ytDlpBinaryPreference") return "auto";
-          if (key === "background.video.enabled") return true;
-          if (key === "game.backgroundWebsiteVideoCaching.enabled") return true;
-          if (key === "experimental.controllerSupportEnabled") return false;
-          if (key === "experimental.installWebFunscriptUrlEnabled") return false;
-          if (key === "round.video.progressBarAlwaysVisible") return false;
-          if (key === WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY) return null;
-          return null;
+      getMany: {
+        query: vi.fn(async ({ keys }: { keys: string[] }) => {
+          const values: Record<string, unknown> = {};
+          for (const key of keys) {
+            if (key === "game.intermediary.loadingPrompt") values[key] = "animated gif webm score:>300";
+            else if (key === "game.intermediary.loadingDurationSec") values[key] = 5;
+            else if (key === "game.intermediary.returnPauseSec") values[key] = 4;
+            else if (key === "videoHash.ffmpegSourcePreference") values[key] = "auto";
+            else if (key === "webVideo.ytDlpBinaryPreference") values[key] = "auto";
+            else if (key === "background.video.enabled") values[key] = true;
+            else if (key === "game.backgroundWebsiteVideoCaching.enabled") values[key] = true;
+            else if (key === "experimental.controllerSupportEnabled") values[key] = false;
+            else if (key === "experimental.installWebFunscriptUrlEnabled") values[key] = false;
+            else if (key === "round.video.progressBarAlwaysVisible") values[key] = false;
+            else if (key === WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY) values[key] = null;
+            else values[key] = null;
+          }
+          return values;
         }),
       },
       set: {

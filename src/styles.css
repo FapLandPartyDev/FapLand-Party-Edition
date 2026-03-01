@@ -1160,6 +1160,144 @@ body {
   flex-shrink: 0;
 }
 
+.settings-changelog {
+  color: rgba(228, 228, 231, 0.96);
+}
+
+.settings-changelog > :first-child {
+  margin-top: 0;
+}
+
+.settings-changelog > :last-child {
+  margin-bottom: 0;
+}
+
+.settings-changelog h1,
+.settings-changelog h2,
+.settings-changelog h3 {
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: rgba(250, 245, 255, 1);
+}
+
+.settings-changelog h1 {
+  margin: 0 0 1rem;
+  font-size: 1.9rem;
+}
+
+.settings-changelog h2 {
+  margin: 2rem 0 0.85rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid rgba(244, 114, 182, 0.16);
+  font-size: 1.4rem;
+}
+
+.settings-changelog h3 {
+  margin: 1.2rem 0 0.45rem;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(244, 114, 182, 0.88);
+}
+
+.settings-changelog p,
+.settings-changelog ul,
+.settings-changelog ol,
+.settings-changelog blockquote,
+.settings-changelog pre {
+  margin: 0.85rem 0;
+}
+
+.settings-changelog p,
+.settings-changelog li {
+  max-width: 68ch;
+  line-height: 1.72;
+  color: rgba(212, 212, 216, 0.94);
+}
+
+.settings-changelog ul,
+.settings-changelog ol {
+  padding-left: 1.35rem;
+}
+
+.settings-changelog li + li {
+  margin-top: 0.42rem;
+}
+
+.settings-changelog ul li::marker {
+  color: rgba(217, 70, 239, 0.95);
+}
+
+.settings-changelog ol li::marker {
+  color: rgba(196, 181, 253, 0.95);
+  font-weight: 700;
+}
+
+.settings-changelog a {
+  color: rgba(221, 214, 254, 1);
+  text-decoration: underline;
+  text-decoration-color: rgba(192, 132, 252, 0.45);
+  text-underline-offset: 0.2em;
+}
+
+.settings-changelog a:hover {
+  color: rgba(250, 245, 255, 1);
+  text-decoration-color: rgba(244, 114, 182, 0.6);
+}
+
+.settings-changelog code {
+  padding: 0.15rem 0.4rem;
+  border: 1px solid rgba(196, 181, 253, 0.18);
+  border-radius: 0.55rem;
+  background: rgba(30, 27, 75, 0.45);
+  font-family: var(--font-jetbrains-mono);
+  font-size: 0.85em;
+  color: rgba(237, 233, 254, 1);
+}
+
+.settings-changelog pre {
+  overflow-x: auto;
+  padding: 1rem 1.05rem;
+  border: 1px solid rgba(196, 181, 253, 0.16);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(9, 9, 11, 0.96), rgba(24, 24, 27, 0.92));
+}
+
+.settings-changelog pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.settings-changelog blockquote {
+  padding: 0.9rem 1rem;
+  border-left: 3px solid rgba(244, 114, 182, 0.55);
+  border-radius: 0 1rem 1rem 0;
+  background: rgba(244, 114, 182, 0.08);
+  color: rgba(245, 208, 254, 0.95);
+}
+
+.settings-changelog hr {
+  margin: 1.6rem 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 640px) {
+  .settings-changelog h1 {
+    font-size: 1.55rem;
+  }
+
+  .settings-changelog h2 {
+    font-size: 1.2rem;
+  }
+
+  .settings-changelog p,
+  .settings-changelog li {
+    max-width: none;
+  }
+}
+
 /* ─── Controller focus ──────────────────────────────────────────── */
 
 [data-controller-active] [data-controller-focus-id]:focus,

@@ -168,21 +168,34 @@ vi.mock("../services/integrations", () => ({
 
 vi.mock("../services/trpc", () => ({
   trpc: {
+    eroscripts: {
+      getLoginStatus: {
+        query: vi.fn(async () => ({
+          loggedIn: false,
+          username: null,
+          hasCredentials: false,
+        })),
+      },
+    },
     store: {
-      get: {
-        query: vi.fn(async ({ key }: { key: string }) => {
-          if (key === "game.intermediary.loadingPrompt") return "animated gif webm score:>300";
-          if (key === "game.intermediary.loadingDurationSec") return 5;
-          if (key === "game.intermediary.returnPauseSec") return 4;
-          if (key === "videoHash.ffmpegSourcePreference") return "auto";
-          if (key === "webVideo.ytDlpBinaryPreference") return "auto";
-          if (key === "background.video.enabled") return true;
-          if (key === "experimental.controllerSupportEnabled") return false;
-          if (key === "experimental.installWebFunscriptUrlEnabled") return false;
-          if (key === "experimental.systemLanguageEnabled") return false;
-          if (key === "experimental.playlistCacheOngoingRestrictionDisabled") return false;
-          if (key === "round.video.progressBarAlwaysVisible") return false;
-          return null;
+      getMany: {
+        query: vi.fn(async ({ keys }: { keys: string[] }) => {
+          const values: Record<string, unknown> = {};
+          for (const key of keys) {
+            if (key === "game.intermediary.loadingPrompt") values[key] = "animated gif webm score:>300";
+            else if (key === "game.intermediary.loadingDurationSec") values[key] = 5;
+            else if (key === "game.intermediary.returnPauseSec") values[key] = 4;
+            else if (key === "videoHash.ffmpegSourcePreference") values[key] = "auto";
+            else if (key === "webVideo.ytDlpBinaryPreference") values[key] = "auto";
+            else if (key === "background.video.enabled") values[key] = true;
+            else if (key === "experimental.controllerSupportEnabled") values[key] = false;
+            else if (key === "experimental.installWebFunscriptUrlEnabled") values[key] = false;
+            else if (key === "experimental.systemLanguageEnabled") values[key] = false;
+            else if (key === "experimental.playlistCacheOngoingRestrictionDisabled") values[key] = false;
+            else if (key === "round.video.progressBarAlwaysVisible") values[key] = false;
+            else values[key] = null;
+          }
+          return values;
         }),
       },
       set: {
@@ -626,6 +639,47 @@ describe("Settings music section", () => {
     expect(screen.getByText("Open or close the global music overlay.")).toBeDefined();
     expect(screen.getByText("Reconnect TheHandy using the saved connection settings.")).toBeDefined();
     expect(screen.getByText("Save converted rounds to the current hero.")).toBeDefined();
+  });
+
+  it("renders a dedicated changelog section from bundled markdown", async () => {
+    render(<SettingsPage />);
+
+    const helpButton = screen.getAllByRole("button", { name: /Help/ })[0]!;
+    const changelogButton = screen.getByRole("button", { name: "What's New" });
+    const creditsButton = screen.getByRole("button", { name: /Credits \/ License/ });
+
+    expect(
+      (helpButton.compareDocumentPosition(changelogButton) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    ).toBe(true);
+    expect(
+      (changelogButton.compareDocumentPosition(creditsButton) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    ).toBe(true);
+
+    fireEvent.click(changelogButton);
+
+    expect(await screen.findByText("Release Notes")).toBeDefined();
+    expect(screen.getAllByText("What's New").length).toBeGreaterThan(0);
+    expect(screen.getByText("v0.2.8-beta")).toBeDefined();
+    expect(
+      screen.getByText("In-app release notes are now available directly from Settings.")
+    ).toBeDefined();
+
+    const repositoryLink = screen.getByRole("link", {
+      name: "https://github.com/FapLandPartyDev/FapLand-Party-Edition",
+    });
+    expect(repositoryLink.getAttribute("target")).toBe("_blank");
+    expect(repositoryLink.getAttribute("rel")).toBe("noreferrer");
+  });
+
+  it("supports changelog deep links through the settings search section", async () => {
+    mocks.search.section = "changelog";
+
+    render(<SettingsPage />);
+
+    expect(await screen.findByText("v0.2.8-beta")).toBeDefined();
+    expect(
+      screen.getByText("Release notes and shipped improvements bundled directly into the app.")
+    ).toBeDefined();
   });
 
   it("hides debug shortcuts in production builds", () => {

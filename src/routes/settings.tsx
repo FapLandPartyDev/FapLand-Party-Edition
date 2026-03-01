@@ -2,6 +2,8 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { I18n } from "@lingui/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import ReactMarkdown from "react-markdown";
+import changelogMarkdown from "../content/changelog.md?raw";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { MenuButton } from "../components/MenuButton";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
@@ -169,6 +171,7 @@ const SETTINGS_SECTION_IDS = [
   "advanced",
   "experimental",
   "help",
+  "changelog",
   "credits",
 ] as const;
 
@@ -1620,6 +1623,13 @@ export function SettingsPage() {
         settings: [],
       },
       {
+        id: "changelog",
+        icon: "✦",
+        title: t`What's New`,
+        description: t`Recent releases, fixes, and gameplay updates.`,
+        settings: [],
+      },
+      {
         id: "credits",
         icon: "★",
         title: t`Credits / License`,
@@ -2234,6 +2244,8 @@ export function SettingsPage() {
                 </>
               ) : activeSection && activeSection.id === "help" ? (
                 <HelpShortcutsCard cheatModeEnabled={cheatModeEnabled} />
+              ) : activeSection && activeSection.id === "changelog" ? (
+                <ChangelogCard />
               ) : activeSection && activeSection.id === "hardware" ? (
                 <HardwareSettingsCard
                   section={activeSection}
@@ -5753,6 +5765,53 @@ function HelpShortcutsCard({ cheatModeEnabled }: { cheatModeEnabled: boolean }) 
             </div>
           </details>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function ChangelogCard() {
+  const currentVersion = import.meta.env.VITE_APP_VERSION;
+
+  return (
+    <section
+      className="animate-entrance overflow-hidden rounded-3xl border border-fuchsia-400/25 bg-zinc-950/55 backdrop-blur-xl"
+      style={{ animationDelay: "0.08s" }}
+    >
+      <div className="border-b border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(244,114,182,0.18),transparent_42%),linear-gradient(135deg,rgba(91,33,182,0.28),rgba(12,10,24,0.94))] px-5 py-5 sm:px-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[0.65rem] uppercase tracking-[0.35em] text-fuchsia-200/80">
+              <Trans>Release Notes</Trans>
+            </p>
+            <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
+              <Trans>What's New</Trans>
+            </h2>
+            <p className="mt-2 text-sm text-fuchsia-50/80">
+              <Trans>Release notes and shipped improvements bundled directly into the app.</Trans>
+            </p>
+          </div>
+
+          <div className="self-start rounded-full border border-white/15 bg-white/8 px-3 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-[0.16em] text-fuchsia-100">
+            v{currentVersion}
+          </div>
+        </div>
+      </div>
+
+      <div className="px-5 py-5 sm:px-6 sm:py-6">
+        <div className="settings-changelog">
+          <ReactMarkdown
+            components={{
+              a: ({ href, children, ...props }) => (
+                <a href={href} rel="noreferrer" target="_blank" {...props}>
+                  {children}
+                </a>
+              ),
+            }}
+          >
+            {changelogMarkdown}
+          </ReactMarkdown>
+        </div>
       </div>
     </section>
   );
