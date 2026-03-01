@@ -10,6 +10,7 @@ import yauzl from "yauzl";
 import { ZHeroSidecar, ZRoundSidecar } from "../../src/zod/installSidecar";
 import { getStore } from "./store";
 import { FPACK_EXTRACTION_PATH_KEY } from "../../src/constants/fpackSettings";
+import { FPACK_EXTRACTION_RELATIVE_PATH, resolveConfiguredStoragePath } from "./storagePaths";
 
 const FPACK_MANIFEST_NAME = ".fpack-manifest.json";
 
@@ -80,7 +81,9 @@ function resolveArchiveResourceUri(resourceUri: string, archiveEntryPath: string
   if (!trimmed.startsWith("./") && !trimmed.startsWith("../")) {
     return trimmed;
   }
-  const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(archiveEntryPath), trimmed));
+  const resolved = path.posix.normalize(
+    path.posix.join(path.posix.dirname(archiveEntryPath), trimmed)
+  );
   if (!resolved || resolved === "." || resolved.startsWith("../") || resolved.includes("/../")) {
     return trimmed;
   }
@@ -258,14 +261,15 @@ export async function extractFpackToTemp(
 
 export async function getFpackExtractionRoot(): Promise<string> {
   const store = getStore();
-  const configuredPath = store.get(FPACK_EXTRACTION_PATH_KEY);
+  return resolveConfiguredStoragePath(
+    store.get(FPACK_EXTRACTION_PATH_KEY),
+    FPACK_EXTRACTION_RELATIVE_PATH
+  );
+}
 
-  if (typeof configuredPath === "string" && configuredPath.trim().length > 0) {
-    return path.resolve(configuredPath.trim());
-  }
-
-  // Default to a persistent folder in userData
-  return path.join(app.getPath("userData"), "fpacks");
+export async function clearFpackExtractionCache(rootPath?: string): Promise<void> {
+  const resolvedRoot = rootPath ?? (await getFpackExtractionRoot());
+  await fs.rm(resolvedRoot, { recursive: true, force: true });
 }
 
 async function readFpackFileFingerprint(
@@ -287,7 +291,9 @@ async function readFpackFileFingerprint(
   };
 }
 
-async function readExtractionManifest(manifestPath: string): Promise<FpackExtractionManifest | null> {
+async function readExtractionManifest(
+  manifestPath: string
+): Promise<FpackExtractionManifest | null> {
   try {
     const raw = await fs.readFile(manifestPath, "utf8");
     return JSON.parse(raw) as FpackExtractionManifest;
@@ -369,7 +375,7 @@ export async function ensureFpackExtracted(
   await fs.mkdir(destDir, { recursive: true });
 
   const sidecarEntries: FpackExtractionManifest["sidecarEntries"] = [];
-  let archiveEntryCount = await countFpackFileEntries(fpackPath);
+  const archiveEntryCount = await countFpackFileEntries(fpackPath);
   let extractedCount = 0;
 
   await withOpenZip(fpackPath, async (zipfile) => {
@@ -424,7 +430,9 @@ export async function ensureFpackExtracted(
     archiveEntryCount,
     sidecarEntryCount: sidecarEntries.length,
     completedAt: new Date().toISOString(),
-    sidecarEntries: sidecarEntries.sort((a, b) => a.archiveEntryPath.localeCompare(b.archiveEntryPath)),
+    sidecarEntries: sidecarEntries.sort((a, b) =>
+      a.archiveEntryPath.localeCompare(b.archiveEntryPath)
+    ),
   };
   await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
 

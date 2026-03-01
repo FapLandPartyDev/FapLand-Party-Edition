@@ -7,7 +7,6 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import vm from "node:vm";
-import { app } from "electron";
 import { File as MegaFile } from "megajs";
 import {
   getVideoContentTypeByExtension,
@@ -16,6 +15,7 @@ import {
 import { WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY } from "../../../src/constants/websiteVideoCacheSettings";
 import { runCommand } from "../phash/extract";
 import { getStore } from "../store";
+import { resolveConfiguredStoragePath, WEBSITE_VIDEO_CACHE_RELATIVE_PATH } from "../storagePaths";
 import type {
   VideoDownloadProgress,
   WebsiteVideoCacheMetadata,
@@ -25,7 +25,6 @@ import type {
 import { resolveYtDlpBinary } from "./binaries";
 
 const WEBSITE_VIDEO_PROXY_PREFIX = "app://external/web-url?";
-const WEBSITE_VIDEO_CACHE_FOLDER = "web-video-cache";
 const DOWNLOADED_VIDEO_BASENAME = "video";
 const DOWNLOAD_SENTINEL_FILE = "meta.json";
 const DOWNLOAD_IN_PROGRESS_FILE = "download-in-progress.json";
@@ -133,11 +132,6 @@ function normalizeNullableString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
-}
-
-function normalizeConfiguredCacheRoot(value: unknown): string | null {
-  const normalized = normalizeNullableString(value);
-  return normalized ? path.resolve(normalized) : null;
 }
 
 function toDurationMs(value: unknown): number | null {
@@ -273,17 +267,13 @@ function assertGofileSingleFileUrl(url: string): string {
 }
 
 export function resolveWebsiteVideoCacheRoot(): string {
-  const configuredRoot = normalizeConfiguredCacheRoot(
-    getStore().get(WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY)
-  );
-  if (configuredRoot) {
-    return configuredRoot;
-  }
-
   try {
-    return path.join(app.getPath("userData"), WEBSITE_VIDEO_CACHE_FOLDER);
+    return resolveConfiguredStoragePath(
+      getStore().get(WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY),
+      WEBSITE_VIDEO_CACHE_RELATIVE_PATH
+    );
   } catch {
-    return path.join(os.tmpdir(), "f-land", WEBSITE_VIDEO_CACHE_FOLDER);
+    return path.join(os.tmpdir(), "f-land", WEBSITE_VIDEO_CACHE_RELATIVE_PATH);
   }
 }
 
@@ -322,7 +312,10 @@ async function downloadResponseBodyToFile(response: Response, filePath: string):
   if (!response.body) {
     throw new Error("Remote hoster response did not include a body.");
   }
-  await pipeline(Readable.fromWeb(response.body as globalThis.ReadableStream<Uint8Array>), createWriteStream(filePath));
+  await pipeline(
+    Readable.fromWeb(response.body as globalThis.ReadableStream<Uint8Array>),
+    createWriteStream(filePath)
+  );
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -446,7 +439,7 @@ async function inspectMegaSharedFile(url: string): Promise<MegaSharedFile> {
   return {
     file,
     title,
-    contentType: extension ? getVideoContentTypeByExtension(extension) ?? null : null,
+    contentType: extension ? (getVideoContentTypeByExtension(extension) ?? null) : null,
     sizeBytes: typeof file.size === "number" && Number.isFinite(file.size) ? file.size : null,
   };
 }
@@ -485,7 +478,9 @@ async function getGofileWebsiteTokenGenerator(): Promise<(token: string) => stri
 async function createGofileGuestToken(): Promise<string> {
   const response = await fetch("https://api.gofile.io/accounts", { method: "POST" });
   if (!response.ok) {
-    throw new Error(`Failed to create a Gofile guest token: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to create a Gofile guest token: ${response.status} ${response.statusText}`
+    );
   }
   const payload = (await response.json()) as { status?: string; data?: { token?: unknown } };
   const token = typeof payload.data?.token === "string" ? payload.data.token.trim() : "";
@@ -568,7 +563,9 @@ async function inspectPixeldrainSharedFile(url: string): Promise<DirectDownloadT
   const fileId = assertPixeldrainSingleFileUrl(normalizedUrl);
   const response = await fetch(`https://pixeldrain.com/api/file/${fileId}/info`);
   if (!response.ok) {
-    throw new Error(`Pixeldrain metadata request failed: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Pixeldrain metadata request failed: ${response.status} ${response.statusText}`
+    );
   }
 
   const payload = (await response.json()) as {
@@ -582,7 +579,8 @@ async function inspectPixeldrainSharedFile(url: string): Promise<DirectDownloadT
     downloadUrl: `https://pixeldrain.com/api/file/${fileId}?download`,
     title: normalizeNullableString(payload.name),
     contentType: normalizeNullableString(payload.mime_type),
-    sizeBytes: typeof payload.size === "number" && Number.isFinite(payload.size) ? payload.size : null,
+    sizeBytes:
+      typeof payload.size === "number" && Number.isFinite(payload.size) ? payload.size : null,
     extractor: PIXELDRAIN_EXTRACTOR_KEY,
   };
 }
@@ -1212,9 +1210,7 @@ async function downloadDirectHosterVideo(
 
     const response = await fetch(inspected.downloadUrl);
     if (!response.ok) {
-      throw new Error(
-        `Hoster download request failed: ${response.status} ${response.statusText}`
-      );
+      throw new Error(`Hoster download request failed: ${response.status} ${response.statusText}`);
     }
     if (!response.body) {
       throw new Error("Hoster download response did not include a body.");
@@ -1279,9 +1275,11 @@ export function __resetWebsiteVideoCachesForTests(): void {
   downloadProgressByUrl.clear();
 }
 
-export async function clearWebsiteVideoCache(): Promise<void> {
+export async function clearWebsiteVideoCache(
+  rootPath = resolveWebsiteVideoCacheRoot()
+): Promise<void> {
   __resetWebsiteVideoCachesForTests();
-  await fs.rm(resolveWebsiteVideoCacheRoot(), { recursive: true, force: true });
+  await fs.rm(rootPath, { recursive: true, force: true });
 }
 
 export function buildWebsiteVideoCacheKey(url: string): string {

@@ -155,6 +155,7 @@ const MANUAL_PAUSE_DURATION_MS = 15_000;
 const ANTI_PERK_BEATBAR_LEAD_MS = 1_800;
 const ANTI_PERK_BEATBAR_TRAIL_MS = 300;
 const BOARD_VIDEO_VOLUME = 1;
+const MEDIA_NOT_FOUND_AUTO_CLOSE_MS = 10_000;
 
 function teardownVideoElement(video: HTMLVideoElement | null) {
   if (!video) return;
@@ -418,6 +419,7 @@ export function RoundVideoOverlay({
   const lastFrameTimeMsRef = useRef<number | null>(null);
   const finishRequestedRef = useRef(false);
   const needsMainWindowSeekRef = useRef(false);
+  const missingMediaCloseHandledRef = useRef(false);
 
   const handySessionRef = useRef<HandySession | null>(null);
   const handyInitPromiseRef = useRef<Promise<HandySession | null> | null>(null);
@@ -466,6 +468,8 @@ export function RoundVideoOverlay({
   const [handySyncState, setHandySyncState] = useState<HandySyncState>("disconnected");
   const [handySyncError, setHandySyncError] = useState<string | null>(null);
   const [failedVideoUri, setFailedVideoUri] = useState<string | null>(null);
+  const [missingMediaAutoCloseRemainingSec, setMissingMediaAutoCloseRemainingSec] =
+    useState<number | null>(null);
   const { getVideoSrc, ensurePlayableVideo, handleVideoError } = usePlayableVideoFallback();
 
   const applyHandyOffsetMs = useCallback(
@@ -1347,6 +1351,85 @@ export function RoundVideoOverlay({
       segment,
     ]
   );
+
+  const handleMissingMediaClose = useCallback(
+    ({ playSound }: { playSound: boolean }) => {
+      if (missingMediaCloseHandledRef.current) return;
+      missingMediaCloseHandledRef.current = true;
+      setFailedVideoUri(null);
+      setMissingMediaAutoCloseRemainingSec(null);
+
+      if (playSound) {
+        playSelectSound();
+      }
+
+      if (showCloseButton && onClose) {
+        void stopHandyIfNeeded().finally(() => {
+          onClose();
+        });
+        return;
+      }
+
+      if (segment.kind === "intermediary" && resolvedMainResource) {
+        void stopHandyIfNeeded().finally(() => {
+          endIntermediaryAndResume(t`Intermediary media was not found. Returning to main video.`);
+        });
+        return;
+      }
+
+      finishWithSummary();
+    },
+    [
+      endIntermediaryAndResume,
+      finishWithSummary,
+      onClose,
+      resolvedMainResource,
+      segment.kind,
+      showCloseButton,
+      stopHandyIfNeeded,
+      t,
+    ]
+  );
+  const handleMissingMediaCloseRef = useRef(handleMissingMediaClose);
+
+  useEffect(() => {
+    handleMissingMediaCloseRef.current = handleMissingMediaClose;
+  }, [handleMissingMediaClose]);
+
+  const isMissingMediaUiVisible =
+    Boolean(activeRound) && (Boolean(failedVideoUri) || !resolvedMainResource);
+
+  useEffect(() => {
+    if (!isMissingMediaUiVisible) {
+      missingMediaCloseHandledRef.current = false;
+      setMissingMediaAutoCloseRemainingSec(null);
+      return;
+    }
+
+    missingMediaCloseHandledRef.current = false;
+    setMissingMediaAutoCloseRemainingSec(Math.ceil(MEDIA_NOT_FOUND_AUTO_CLOSE_MS / 1000));
+
+    const startedAtMs = Date.now();
+    const intervalId = window.setInterval(() => {
+      const elapsedMs = Date.now() - startedAtMs;
+      const remainingMs = Math.max(0, MEDIA_NOT_FOUND_AUTO_CLOSE_MS - elapsedMs);
+      setMissingMediaAutoCloseRemainingSec(Math.max(1, Math.ceil(remainingMs / 1000)));
+    }, 250);
+    const timeoutId = window.setTimeout(() => {
+      handleMissingMediaCloseRef.current({ playSound: false });
+    }, MEDIA_NOT_FOUND_AUTO_CLOSE_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    activeRound?.fieldId,
+    activeRound?.roundId,
+    failedVideoUri,
+    isMissingMediaUiVisible,
+    segment.kind,
+  ]);
 
   const triggerTestIntermediary = useCallback(() => {
     if (!activeRound || !resolvedMainResource) return;
@@ -2906,6 +2989,11 @@ export function RoundVideoOverlay({
     }
   }, [activeVideoUri, segment.kind]);
 
+  const missingMediaCloseLabel =
+    missingMediaAutoCloseRemainingSec !== null
+      ? t`Close (${missingMediaAutoCloseRemainingSec}s)`
+      : t`Close`;
+
   if (!activeRound && !boardSequence) return null;
 
   if (!activeRound && boardSequence) {
@@ -2998,13 +3086,12 @@ export function RoundVideoOverlay({
           <button
             className="mt-4 rounded-md bg-red-700 px-4 py-2 text-sm font-semibold"
             onClick={() => {
-              playSelectSound();
-              finishWithSummary();
+              handleMissingMediaClose({ playSound: true });
             }}
             onMouseEnter={() => playHoverSound()}
             type="button"
           >
-            {t`Continue`}
+            {missingMediaCloseLabel}
           </button>
         </div>
       </div>
@@ -3394,7 +3481,7 @@ export function RoundVideoOverlay({
               onContextMenu={(event) => event.preventDefault()}
               onError={() => {
                 setFailedVideoUri(
-                  mainVideoRef.current?.currentSrc ?? resolvedMainResource.videoUri
+                  mainVideoRef.current?.currentSrc || resolvedMainResource.videoUri
                 );
                 void handleVideoError(resolvedMainResource.videoUri);
               }}
@@ -3415,6 +3502,7 @@ export function RoundVideoOverlay({
               }}
               onCanPlay={() => {
                 if (segment.kind !== "main") return;
+                setFailedVideoUri(null);
                 if (isRemoteVideoUri) setIsRemoteVideoLoading(false);
                 const video = mainVideoRef.current;
                 if (video) {
@@ -3476,6 +3564,7 @@ export function RoundVideoOverlay({
               }}
               onLoadedData={() => {
                 if (segment.kind !== "main") return;
+                setFailedVideoUri(null);
                 if (isRemoteVideoUri) setIsRemoteVideoLoading(false);
               }}
               onPause={() => {
@@ -3514,7 +3603,7 @@ export function RoundVideoOverlay({
               onContextMenu={(event) => event.preventDefault()}
               onError={() => {
                 setFailedVideoUri(
-                  intermediaryVideoRef.current?.currentSrc ?? segment.trigger.resource.videoUri
+                  intermediaryVideoRef.current?.currentSrc || segment.trigger.resource.videoUri
                 );
                 void handleVideoError(segment.trigger.resource.videoUri);
               }}
@@ -3531,6 +3620,7 @@ export function RoundVideoOverlay({
                 if (isRemoteVideoUri) setIsRemoteVideoLoading(true);
               }}
               onCanPlay={() => {
+                setFailedVideoUri(null);
                 if (isRemoteVideoUri) setIsRemoteVideoLoading(false);
                 const video = intermediaryVideoRef.current;
                 if (video) {
@@ -3574,6 +3664,7 @@ export function RoundVideoOverlay({
                 if (isRemoteVideoUri) setIsRemoteVideoLoading(false);
               }}
               onLoadedData={() => {
+                setFailedVideoUri(null);
                 if (isRemoteVideoUri) setIsRemoteVideoLoading(false);
               }}
               onPause={() => {
@@ -3615,7 +3706,7 @@ export function RoundVideoOverlay({
 
           {failedVideoUri && (
             <div className="pointer-events-none absolute inset-0 z-[45] flex items-center justify-center">
-              <div className="rounded-xl border border-red-400/50 bg-black/70 px-6 py-4 backdrop-blur-sm">
+              <div className="pointer-events-auto rounded-xl border border-red-400/50 bg-black/70 px-6 py-4 text-center backdrop-blur-sm">
                 <p className="text-center text-sm text-red-200">
                   {isWebsiteVideoProxySrc(failedVideoUri)
                     ? t`Website stream playback failed`
@@ -3623,6 +3714,17 @@ export function RoundVideoOverlay({
                       ? t`Local media file not found`
                       : t`Remote media file not found`}
                 </p>
+                <button
+                  className="mt-4 rounded-md border border-red-300/60 bg-red-700/80 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600"
+                  onClick={() => {
+                    handleMissingMediaClose({ playSound: true });
+                  }}
+                  onMouseEnter={() => playHoverSound()}
+                  type="button"
+                  data-controller-focus-id="round-overlay-missing-media-close"
+                >
+                  {missingMediaCloseLabel}
+                </button>
               </div>
             </div>
           )}

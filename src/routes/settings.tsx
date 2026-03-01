@@ -178,7 +178,10 @@ export function getVisibleShortcutGroups(
       description: t`Keyboard mappings that mirror controller input when controller support surfaces are active.`,
       shortcuts: [
         { keys: "Arrow Keys", description: t`Move focus between controller-navigable controls.` },
-        { keys: "Enter or Space", description: t`Trigger the primary action on the focused control.` },
+        {
+          keys: "Enter or Space",
+          description: t`Trigger the primary action on the focused control.`,
+        },
         { keys: "Escape or Backspace", description: t`Trigger the secondary/back action.` },
         { keys: "Q", description: t`Use the left bumper action.` },
         { keys: "E", description: t`Use the right bumper action.` },
@@ -207,7 +210,10 @@ export function getVisibleShortcutGroups(
       description: t`Development-only shortcuts that are only active when round debug controls are enabled.`,
       shortcuts: [
         { keys: "I", description: t`Trigger a test intermediary immediately.` },
-        { keys: "J", description: t`End the current intermediary early and resume the main round.` },
+        {
+          keys: "J",
+          description: t`End the current intermediary early and resume the main round.`,
+        },
         { keys: "K", description: t`Finish the round and jump to the summary screen.` },
       ],
     },
@@ -227,10 +233,16 @@ export function getVisibleShortcutGroups(
       shortcuts: [
         { keys: "Hold Space", description: t`Temporarily enable panning.` },
         { keys: "Ctrl/Cmd+Z", description: t`Undo the last graph edit.` },
-        { keys: "Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y", description: t`Redo the last undone graph edit.` },
+        {
+          keys: "Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y",
+          description: t`Redo the last undone graph edit.`,
+        },
         { keys: "Ctrl/Cmd+S", description: t`Save the current playlist.` },
         { keys: "X", description: t`Delete the current selection.` },
-        { keys: "1-9", description: t`Arm one of the first nine visible tile types for placement.` },
+        {
+          keys: "1-9",
+          description: t`Arm one of the first nine visible tile types for placement.`,
+        },
         {
           keys: "Escape",
           description: t`Clear the current selection and cancel a pending connection.`,
@@ -442,6 +454,8 @@ export function SettingsPage() {
     history: true,
     cache: true,
     videoCache: true,
+    musicCache: true,
+    fpackExtraction: true,
     settings: true,
   });
 
@@ -1227,7 +1241,7 @@ export function SettingsPage() {
     setIsClearingData(true);
     setClearDataError(null);
     try {
-      await trpc.db.clearAllData.mutate(clearSelections);
+      await db.install.clearAllData(clearSelections);
       if (clearSelections.settings) {
         window.localStorage.clear();
         window.sessionStorage.clear();
@@ -1740,8 +1754,8 @@ function MusicCacheLocationCard({
         </div>
         <p className="mt-2 text-xs text-zinc-500">
           <Trans>
-            Changing this only affects the music cache path. Existing downloaded files are not
-            moved automatically.
+            Changing this only affects the music cache path. Existing downloaded files are not moved
+            automatically.
           </Trans>
         </p>
 
@@ -1846,7 +1860,7 @@ function PhashScanCard() {
         </h2>
         <p className="mt-1 text-sm text-zinc-300">
           <Trans>
-            Manually trigger a scan to compute perceptual hashes for rounds that don't have them
+            Manually trigger a scan to compute perceptual hashes for rounds that do not have them
             yet.
           </Trans>
         </p>
@@ -1895,12 +1909,13 @@ function PhashScanCard() {
             scanStatus.state === "error") && (
             <div className="mb-3 flex items-center gap-2">
               <span
-                className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${scanStatus.state === "done"
+                className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
+                  scanStatus.state === "done"
                     ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-100"
                     : scanStatus.state === "aborted"
                       ? "border-amber-300/40 bg-amber-500/15 text-amber-100"
                       : "border-rose-300/40 bg-rose-500/15 text-rose-100"
-                  }`}
+                }`}
               >
                 {scanStatus.state === "done"
                   ? t`Complete`
@@ -1931,10 +1946,11 @@ function PhashScanCard() {
             type="button"
             disabled={isRunning || isStarting}
             onClick={handleStartScan}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${isRunning || isStarting
+            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+              isRunning || isStarting
                 ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                 : "border-violet-300/60 bg-violet-500/30 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/45"
-              }`}
+            }`}
           >
             {isStarting ? t`Starting...` : isRunning ? t`Scanning...` : t`Scan Now`}
           </button>
@@ -2070,12 +2086,13 @@ function WebsiteVideoCacheScanCard() {
             scanStatus.state === "error") && (
             <div className="mb-3 flex items-center gap-2">
               <span
-                className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${scanStatus.state === "done"
+                className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
+                  scanStatus.state === "done"
                     ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-100"
                     : scanStatus.state === "aborted"
                       ? "border-amber-300/40 bg-amber-500/15 text-amber-100"
                       : "border-rose-300/40 bg-rose-500/15 text-rose-100"
-                  }`}
+                }`}
               >
                 {scanStatus.state === "done"
                   ? t`Complete`
@@ -2106,10 +2123,11 @@ function WebsiteVideoCacheScanCard() {
             type="button"
             disabled={isRunning || isStarting}
             onClick={handleStartScan}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${isRunning || isStarting
+            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+              isRunning || isStarting
                 ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                 : "border-violet-300/60 bg-violet-500/30 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/45"
-              }`}
+            }`}
           >
             {isStarting ? t`Starting...` : isRunning ? t`Caching...` : t`Cache Now`}
           </button>
@@ -2160,7 +2178,9 @@ function AppUpdateCard({ appUpdate }: { appUpdate: ReturnType<typeof useAppUpdat
           <Trans>Updates</Trans>
         </h2>
         <p className="mt-1 text-sm text-zinc-300">
-          <Trans>Check for new releases or open the latest available download for this build.</Trans>
+          <Trans>
+            Check for new releases or open the latest available download for this build.
+          </Trans>
         </p>
       </div>
 
@@ -2188,10 +2208,11 @@ function AppUpdateCard({ appUpdate }: { appUpdate: ReturnType<typeof useAppUpdat
               playSelectSound();
               void appUpdate.triggerPrimaryAction();
             }}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${appUpdate.isBusy
+            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+              appUpdate.isBusy
                 ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                 : "border-violet-300/60 bg-violet-500/30 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/45"
-              }`}
+            }`}
           >
             {appUpdate.actionLabel}
           </button>
@@ -2740,8 +2761,8 @@ function MusicSettingsCard() {
           </h2>
           <p className="mt-1 text-sm text-zinc-300">
             <Trans>
-              Build a global queue from local audio files. Music pauses for foreground video playback
-              and resumes from the same spot.
+              Build a global queue from local audio files. Music pauses for foreground video
+              playback and resumes from the same spot.
             </Trans>
           </p>
         </div>
@@ -2765,7 +2786,9 @@ function MusicSettingsCard() {
                   className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ${enabled ? "translate-x-7" : "translate-x-0"}`}
                 />
               </button>
-              <span className={`text-sm font-medium ${enabled ? "text-zinc-100" : "text-zinc-400"}`}>
+              <span
+                className={`text-sm font-medium ${enabled ? "text-zinc-100" : "text-zinc-400"}`}
+              >
                 {enabled ? t`Music Enabled` : t`Music Disabled`}
               </span>
             </div>
@@ -2848,7 +2871,7 @@ function MusicSettingsCard() {
               />
               <span className="w-8 text-zinc-300">{sfxVolumeDraft}%</span>
             </label>
-            <label className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 aria-label={t`Toggle Shuffle`}
@@ -2868,7 +2891,7 @@ function MusicSettingsCard() {
               <span className="text-zinc-400">
                 <Trans>Shuffle</Trans>
               </span>
-            </label>
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-zinc-400">
                 <Trans>Loop:</Trans>
@@ -2900,10 +2923,11 @@ function MusicSettingsCard() {
                     playSelectSound();
                     void addSelectedTracks();
                   }}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${isAddingTracks
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                    isAddingTracks
                       ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                       : "border-violet-300/60 bg-violet-500/30 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/45"
-                    }`}
+                  }`}
                 >
                   {isAddingTracks ? t`Adding...` : t`Add Tracks`}
                 </button>
@@ -2915,10 +2939,11 @@ function MusicSettingsCard() {
                     setShowUrlInput((current) => !current);
                     setUrlError(null);
                   }}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${showUrlInput
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                    showUrlInput
                       ? "border-cyan-300/60 bg-cyan-500/30 text-cyan-100"
                       : "border-purple-300/60 bg-purple-500/30 text-purple-100 hover:border-purple-200/80 hover:bg-purple-500/45"
-                    }`}
+                  }`}
                 >
                   {showUrlInput ? t`Cancel` : t`Add from URL`}
                 </button>
@@ -2927,10 +2952,11 @@ function MusicSettingsCard() {
                   disabled={queue.length === 0}
                   onMouseEnter={playHoverSound}
                   onClick={handleRequestClearQueue}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${queue.length === 0
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                    queue.length === 0
                       ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                       : "border-rose-300/60 bg-rose-500/20 text-rose-100 hover:bg-rose-500/35"
-                    }`}
+                  }`}
                 >
                   <Trans>Clear</Trans>
                 </button>
@@ -2951,10 +2977,11 @@ function MusicSettingsCard() {
                       setUrlMode("track");
                       setUrlResult(null);
                     }}
-                    className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${urlMode === "track"
+                    className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
+                      urlMode === "track"
                         ? "border-cyan-300/60 bg-cyan-500/30 text-cyan-100"
                         : "border-zinc-600 bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-                      }`}
+                    }`}
                   >
                     <Trans>Single Track</Trans>
                   </button>
@@ -2966,10 +2993,11 @@ function MusicSettingsCard() {
                       setUrlMode("playlist");
                       setUrlResult(null);
                     }}
-                    className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${urlMode === "playlist"
+                    className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
+                      urlMode === "playlist"
                         ? "border-cyan-300/60 bg-cyan-500/30 text-cyan-100"
                         : "border-zinc-600 bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-                      }`}
+                    }`}
                   >
                     <Trans>Playlist</Trans>
                   </button>
@@ -2993,20 +3021,22 @@ function MusicSettingsCard() {
                       }
                     }}
                     disabled={isAddingFromUrl}
-                    className={`flex-1 rounded-lg border bg-white/5 px-3 py-1.5 text-xs text-white placeholder-zinc-500 outline-none transition ${urlError
+                    className={`flex-1 rounded-lg border bg-white/5 px-3 py-1.5 text-xs text-white placeholder-zinc-500 outline-none transition ${
+                      urlError
                         ? "border-rose-400/40 focus:border-rose-400/60"
                         : "border-violet-300/30 focus:border-cyan-400/60"
-                      }`}
+                    }`}
                   />
                   <button
                     type="button"
                     onMouseEnter={playHoverSound}
                     onClick={() => void handleAddFromUrl()}
                     disabled={isAddingFromUrl}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${isAddingFromUrl
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                      isAddingFromUrl
                         ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                         : "border-cyan-300/60 bg-cyan-500/30 text-cyan-100 hover:border-cyan-200/80 hover:bg-cyan-500/45"
-                      }`}
+                    }`}
                   >
                     {isAddingFromUrl ? t`Downloading...` : t`Add`}
                   </button>
@@ -3220,8 +3250,8 @@ function MoaningSettingsCard() {
           </h2>
           <p className="mt-1 text-sm text-zinc-300">
             <Trans>
-              Manage the gameplay moaning library used by perks and anti-perks. Add local audio files
-              or download them from supported URLs via yt-dlp.
+              Manage the gameplay moaning library used by perks and anti-perks. Add local audio
+              files or download them from supported URLs via yt-dlp.
             </Trans>
           </p>
         </div>
@@ -3245,7 +3275,9 @@ function MoaningSettingsCard() {
                   className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ${enabled ? "translate-x-7" : "translate-x-0"}`}
                 />
               </button>
-              <span className={`text-sm font-medium ${enabled ? "text-zinc-100" : "text-zinc-400"}`}>
+              <span
+                className={`text-sm font-medium ${enabled ? "text-zinc-100" : "text-zinc-400"}`}
+              >
                 {enabled ? t`Moaning Enabled` : t`Moaning Disabled`}
               </span>
             </div>
@@ -3283,10 +3315,11 @@ function MoaningSettingsCard() {
                     playSelectSound();
                     void previewTrack(queue[0]!.id);
                   }}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${queue.length === 0
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                    queue.length === 0
                       ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                       : "border-cyan-300/60 bg-cyan-500/20 text-cyan-100 hover:border-cyan-200/80 hover:bg-cyan-500/35"
-                    }`}
+                  }`}
                 >
                   <Trans>Preview</Trans>
                 </button>
@@ -3309,10 +3342,11 @@ function MoaningSettingsCard() {
                     playSelectSound();
                     void addSelectedTracks();
                   }}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${isAddingTracks
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                    isAddingTracks
                       ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                       : "border-rose-300/60 bg-rose-500/25 text-rose-100 hover:border-rose-200/80 hover:bg-rose-500/40"
-                    }`}
+                  }`}
                 >
                   {isAddingTracks ? t`Adding...` : t`Add Files`}
                 </button>
@@ -3324,10 +3358,11 @@ function MoaningSettingsCard() {
                     setShowUrlInput((current) => !current);
                     setUrlError(null);
                   }}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${showUrlInput
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                    showUrlInput
                       ? "border-cyan-300/60 bg-cyan-500/30 text-cyan-100"
                       : "border-rose-300/60 bg-rose-500/25 text-rose-100 hover:border-rose-200/80 hover:bg-rose-500/40"
-                    }`}
+                  }`}
                 >
                   {showUrlInput ? t`Cancel` : t`Add from URL`}
                 </button>
@@ -3336,10 +3371,11 @@ function MoaningSettingsCard() {
                   disabled={queue.length === 0}
                   onMouseEnter={playHoverSound}
                   onClick={handleRequestClearQueue}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${queue.length === 0
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                    queue.length === 0
                       ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                       : "border-zinc-500 bg-zinc-800 text-zinc-100 hover:border-zinc-300"
-                    }`}
+                  }`}
                 >
                   <Trans>Clear</Trans>
                 </button>
@@ -3360,10 +3396,11 @@ function MoaningSettingsCard() {
                       setUrlMode("track");
                       setUrlResult(null);
                     }}
-                    className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${urlMode === "track"
+                    className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
+                      urlMode === "track"
                         ? "border-cyan-300/60 bg-cyan-500/30 text-cyan-100"
                         : "border-zinc-600 bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-                      }`}
+                    }`}
                   >
                     <Trans>Single Track</Trans>
                   </button>
@@ -3375,10 +3412,11 @@ function MoaningSettingsCard() {
                       setUrlMode("playlist");
                       setUrlResult(null);
                     }}
-                    className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${urlMode === "playlist"
+                    className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
+                      urlMode === "playlist"
                         ? "border-cyan-300/60 bg-cyan-500/30 text-cyan-100"
                         : "border-zinc-600 bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-                      }`}
+                    }`}
                   >
                     <Trans>Playlist</Trans>
                   </button>
@@ -3402,20 +3440,22 @@ function MoaningSettingsCard() {
                       }
                     }}
                     disabled={isAddingFromUrl}
-                    className={`flex-1 rounded-lg border bg-white/5 px-3 py-1.5 text-xs text-white placeholder-zinc-500 outline-none transition ${urlError
+                    className={`flex-1 rounded-lg border bg-white/5 px-3 py-1.5 text-xs text-white placeholder-zinc-500 outline-none transition ${
+                      urlError
                         ? "border-rose-400/40 focus:border-rose-400/60"
                         : "border-rose-300/30 focus:border-cyan-400/60"
-                      }`}
+                    }`}
                   />
                   <button
                     type="button"
                     onMouseEnter={playHoverSound}
                     onClick={() => void handleAddFromUrl()}
                     disabled={isAddingFromUrl}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${isAddingFromUrl
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                      isAddingFromUrl
                         ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                         : "border-cyan-300/60 bg-cyan-500/30 text-cyan-100 hover:border-cyan-200/80 hover:bg-cyan-500/45"
-                      }`}
+                    }`}
                   >
                     {isAddingFromUrl ? t`Downloading...` : t`Add`}
                   </button>
@@ -3438,8 +3478,13 @@ function MoaningSettingsCard() {
                 </div>
               ) : (
                 queue.map((entry, index) => (
-                  <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                    <span className="min-w-0 flex-1 truncate text-sm text-zinc-200">{entry.name}</span>
+                  <div
+                    key={entry.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-sm text-zinc-200">
+                      {entry.name}
+                    </span>
                     <div className="flex gap-1">
                       <button
                         type="button"
@@ -3541,10 +3586,11 @@ function DangerZoneCard({
         disabled={isPending}
         onMouseEnter={playHoverSound}
         onClick={onOpenConfirm}
-        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${isPending
+        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+          isPending
             ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
             : "border-rose-300/70 bg-rose-500/25 text-rose-100 hover:border-rose-200/90 hover:bg-rose-500/40"
-          }`}
+        }`}
       >
         {isPending ? t`Clearing...` : t`Manage & Clear Data`}
       </button>
@@ -3569,6 +3615,8 @@ function SelectiveClearDialog({
     history: boolean;
     cache: boolean;
     videoCache: boolean;
+    musicCache: boolean;
+    fpackExtraction: boolean;
     settings: boolean;
   };
   onSelectionChange: (next: typeof selections) => void;
@@ -3590,7 +3638,11 @@ function SelectiveClearDialog({
       label: t`Run History`,
       description: t`Records of your past games and sessions.`,
     },
-    { id: "stats", label: t`Global Stats`, description: t`Highscores and overall career progress.` },
+    {
+      id: "stats",
+      label: t`Global Stats`,
+      description: t`Highscores and overall career progress.`,
+    },
     {
       id: "cache",
       label: t`Multiplayer Cache`,
@@ -3600,6 +3652,16 @@ function SelectiveClearDialog({
       id: "videoCache",
       label: t`Video Cache`,
       description: t`Downloaded website videos and generated playback transcodes.`,
+    },
+    {
+      id: "musicCache",
+      label: t`Music Cache`,
+      description: t`Downloaded menu music and imported YouTube audio.`,
+    },
+    {
+      id: "fpackExtraction",
+      label: t`.fpack Extractions`,
+      description: t`Extracted pack contents stored for installed portable packages.`,
     },
     {
       id: "settings",
@@ -3634,10 +3696,11 @@ function SelectiveClearDialog({
               type="button"
               disabled={isPending}
               onClick={() => toggle(cat.id as keyof typeof selections)}
-              className={`flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition-all duration-200 ${selections[cat.id as keyof typeof selections]
+              className={`flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition-all duration-200 ${
+                selections[cat.id as keyof typeof selections]
                   ? "border-rose-400/40 bg-rose-500/10"
                   : "border-zinc-800 bg-black/20 hover:border-zinc-700"
-                }`}
+              }`}
             >
               <div
                 className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${selections[cat.id as keyof typeof selections] ? "border-rose-400 bg-rose-500 text-white" : "border-zinc-700 bg-zinc-900"}`}
@@ -3672,10 +3735,11 @@ function SelectiveClearDialog({
             disabled={isPending}
             onMouseEnter={playHoverSound}
             onClick={onCancel}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${isPending
+            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+              isPending
                 ? "cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500"
                 : "border-zinc-600 bg-zinc-900/80 text-zinc-200 hover:border-zinc-400 hover:text-zinc-100"
-              }`}
+            }`}
           >
             <Trans>Cancel</Trans>
           </button>
@@ -3684,10 +3748,11 @@ function SelectiveClearDialog({
             disabled={isPending || !hasSelection}
             onMouseEnter={playHoverSound}
             onClick={onConfirm}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${isPending || !hasSelection
+            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+              isPending || !hasSelection
                 ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                 : "border-rose-300/70 bg-rose-500/25 text-rose-100 hover:border-rose-200/90 hover:bg-rose-500/40"
-              }`}
+            }`}
           >
             {isPending ? t`Clearing...` : t`Confirm Deletion`}
           </button>
@@ -3729,9 +3794,15 @@ function CheatModeConfirmDialog({
             <Trans>Important consequences:</Trans>
           </p>
           <ul className="mt-2 space-y-1 text-sm text-amber-200/90">
-            <li><Trans>Any highscore you achieve will be permanently marked with 🎭</Trans></li>
-            <li><Trans>Cheat mode has no effect in multiplayer</Trans></li>
-            <li><Trans>The mark on your highscores cannot be removed later</Trans></li>
+            <li>
+              <Trans>Any highscore you achieve will be permanently marked with 🎭</Trans>
+            </li>
+            <li>
+              <Trans>Cheat mode has no effect in multiplayer</Trans>
+            </li>
+            <li>
+              <Trans>The mark on your highscores cannot be removed later</Trans>
+            </li>
           </ul>
         </div>
 
@@ -3767,7 +3838,6 @@ function SkipRoundsCheckConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const { t } = useLingui();
   if (!isOpen) return null;
 
   return (
@@ -3802,7 +3872,9 @@ function SkipRoundsCheckConfirmDialog({
                 Large playlists can still require more installed rounds than the global minimum
               </Trans>
             </li>
-            <li><Trans>You may encounter empty rounds, repeated content, or broken match flows</Trans></li>
+            <li>
+              <Trans>You may encounter empty rounds, repeated content, or broken match flows</Trans>
+            </li>
             <li>
               <Trans>
                 Disabling both checks may result in a bad user experience for you and other players
@@ -3872,10 +3944,11 @@ function AutoScanFoldersCard({
           {notices.map((notice) => (
             <div
               key={`${notice.folderPath}:${notice.message}`}
-              className={`rounded-xl border px-3 py-2 text-xs ${notice.tone === "error"
+              className={`rounded-xl border px-3 py-2 text-xs ${
+                notice.tone === "error"
                   ? "border-rose-300/35 bg-rose-500/10 text-rose-100"
                   : "border-emerald-300/35 bg-emerald-500/10 text-emerald-100"
-                }`}
+              }`}
             >
               <div className="truncate font-semibold">{notice.folderPath}</div>
               <div className="mt-1 text-zinc-200">{notice.message}</div>
@@ -3904,10 +3977,11 @@ function AutoScanFoldersCard({
                 type="button"
                 disabled={isPending}
                 onClick={() => onRemoveFolder(folderPath)}
-                className={`rounded-lg border px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] ${isPending
+                className={`rounded-lg border px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] ${
+                  isPending
                     ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                     : "border-rose-300/60 bg-rose-500/20 text-rose-100 hover:bg-rose-500/35"
-                  }`}
+                }`}
               >
                 <Trans>Remove</Trans>
               </button>
@@ -3921,10 +3995,11 @@ function AutoScanFoldersCard({
         onMouseEnter={playHoverSound}
         disabled={isPending}
         onClick={onAddFolders}
-        className={`mt-4 rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${isPending
+        className={`mt-4 rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+          isPending
             ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
             : "border-violet-300/60 bg-violet-500/30 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/45"
-          }`}
+        }`}
       >
         {isPending ? t`Updating...` : t`Add Folder`}
       </button>
@@ -4206,10 +4281,11 @@ function SourceIntegrationsCard() {
             playSelectSound();
             void syncNow();
           }}
-          className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${isSyncing
+          className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+            isSyncing
               ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
               : "border-violet-300/60 bg-violet-500/30 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/45"
-            }`}
+          }`}
         >
           {isSyncing ? t`Syncing...` : t`Sync Now`}
         </button>
@@ -4345,12 +4421,12 @@ function SourceIntegrationsCard() {
                       { value: "apiKey", label: t`API Key` },
                       ...(draft.authMode === "login"
                         ? [
-                          {
-                            value: LEGACY_LOGIN_AUTH_VALUE,
-                            label: t`Legacy Login`,
-                            disabled: true as const,
-                          },
-                        ]
+                            {
+                              value: LEGACY_LOGIN_AUTH_VALUE,
+                              label: t`Legacy Login`,
+                              disabled: true as const,
+                            },
+                          ]
                         : []),
                     ]}
                     onChange={(value) =>
@@ -4442,9 +4518,9 @@ function SourceIntegrationsCard() {
                               tagSelections: draft.tagSelections.map((selection) =>
                                 selection.id === entry.id
                                   ? {
-                                    ...selection,
-                                    roundTypeFallback: value as "Normal" | "Interjection" | "Cum",
-                                  }
+                                      ...selection,
+                                      roundTypeFallback: value as "Normal" | "Interjection" | "Cum",
+                                    }
                                   : selection
                               ),
                             })
@@ -4620,7 +4696,9 @@ function SecuritySettingsCard() {
       await task();
       setTrustedSites(await security.listTrustedSites());
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : t`Security settings update failed.`);
+      setStatusMessage(
+        error instanceof Error ? error.message : t`Security settings update failed.`
+      );
     }
   };
 
@@ -4664,10 +4742,11 @@ function SecuritySettingsCard() {
                   <button
                     key={mode}
                     type="button"
-                    className={`rounded-md px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] transition ${active
+                    className={`rounded-md px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] transition ${
+                      active
                         ? "bg-violet-500/40 text-violet-100 shadow-[0_0_12px_rgba(139,92,246,0.3)]"
                         : "text-zinc-400 hover:text-zinc-200"
-                      }`}
+                    }`}
                     onMouseEnter={playHoverSound}
                     onClick={() => {
                       playSelectSound();
@@ -5180,7 +5259,10 @@ function CreditsCard() {
             {abbreviateNsfwText(t`anon fapland inventor`, sfwMode)}
           </h3>
           <p className="text-xs text-zinc-400">
-            {abbreviateNsfwText(t`The person who came up with the original fap land idea.`, sfwMode)}
+            {abbreviateNsfwText(
+              t`The person who came up with the original fap land idea.`,
+              sfwMode
+            )}
           </p>
         </div>
         <div className="py-3">

@@ -2,10 +2,10 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { app } from "electron";
 import { resolvePhashBinaries } from "./phash/binaries";
 import { runCommand } from "./phash/extract";
 import { fromLocalMediaUri, isLocalMediaUri, toLocalMediaUri } from "./localMedia";
+import { PLAYABLE_VIDEO_CACHE_RELATIVE_PATH, resolveDefaultStoragePath } from "./storagePaths";
 import {
   buildWebsiteVideoProxyUri,
   getCachedWebsiteVideoLocalPath,
@@ -22,7 +22,6 @@ export type ResolvePlayableVideoUriResult = {
   cacheHit: boolean;
 };
 
-const CACHE_FOLDER_NAME = "video-playback-cache";
 const SUPPORTED_CHROMIUM_VIDEO_CODECS = new Set([
   "av1",
   "avc1",
@@ -70,12 +69,11 @@ export function toLocalVideoPath(videoUri: string): string | null {
   return fromLocalMediaUri(videoUri);
 }
 
-
 function resolveCacheRootPath(): string {
   try {
-    return path.join(app.getPath("userData"), CACHE_FOLDER_NAME);
+    return resolveDefaultStoragePath(PLAYABLE_VIDEO_CACHE_RELATIVE_PATH);
   } catch {
-    return path.join(os.tmpdir(), "f-land", CACHE_FOLDER_NAME);
+    return path.join(os.tmpdir(), "f-land", PLAYABLE_VIDEO_CACHE_RELATIVE_PATH);
   }
 }
 
@@ -159,7 +157,10 @@ function isLikelyChromiumSupportedStream(info: VideoStreamInfo): boolean {
   return false;
 }
 
-async function probePrimaryVideoStream(ffprobePath: string, sourcePath: string): Promise<VideoStreamInfo> {
+async function probePrimaryVideoStream(
+  ffprobePath: string,
+  sourcePath: string
+): Promise<VideoStreamInfo> {
   try {
     const { stdout } = await runCommand(ffprobePath, [
       "-v",
@@ -232,7 +233,9 @@ async function transcodeToPlayableMp4(input: {
   await fs.rename(tempPath, input.outputPath);
 }
 
-export async function resolvePlayableVideoUri(videoUri: string): Promise<ResolvePlayableVideoUriResult> {
+export async function resolvePlayableVideoUri(
+  videoUri: string
+): Promise<ResolvePlayableVideoUriResult> {
   if (isStashProxyUri(videoUri)) {
     const hasSourceId = videoUri.includes("sourceId=");
     if (hasSourceId) {

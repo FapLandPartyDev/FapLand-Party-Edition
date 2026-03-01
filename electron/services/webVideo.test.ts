@@ -11,12 +11,20 @@ let storeValues = new Map<string, unknown>();
 const megaMocks = vi.hoisted(() => ({
   fromURL: vi.fn(),
 }));
+const portableMocks = vi.hoisted(() => ({
+  resolvePortableAwareStoragePath: vi.fn(),
+}));
 
 vi.mock("electron", () => ({
   app: {
     getPath: vi.fn(() => userDataPath),
     getAppPath: vi.fn(() => userDataPath),
   },
+}));
+
+vi.mock("./portable", () => ({
+  normalizeUserDataSuffix: (raw: string | undefined) => raw ?? null,
+  resolvePortableAwareStoragePath: portableMocks.resolvePortableAwareStoragePath,
 }));
 
 vi.mock("./webVideo/binaries", () => ({
@@ -66,6 +74,7 @@ describe("webVideo", () => {
     userDataPath = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-web-video-"));
     storeValues = new Map();
     vi.clearAllMocks();
+    portableMocks.resolvePortableAwareStoragePath.mockReturnValue(null);
     vi.unstubAllGlobals();
     __resetWebsiteVideoCachesForTests();
     megaMocks.fromURL.mockReset();
@@ -85,12 +94,26 @@ describe("webVideo", () => {
 
   it("builds stable cache keys", () => {
     expect(buildWebsiteVideoCacheKey("https://example.com/watch?v=1")).toBe(
-      buildWebsiteVideoCacheKey("https://example.com/watch?v=1#ignored"),
+      buildWebsiteVideoCacheKey("https://example.com/watch?v=1#ignored")
     );
   });
 
   it("uses userData for the default website cache root", () => {
     expect(resolveWebsiteVideoCacheRoot()).toBe(path.join(userDataPath, "web-video-cache"));
+  });
+
+  it("rebases a legacy portable default website cache root to the current zip folder", () => {
+    portableMocks.resolvePortableAwareStoragePath.mockReturnValue(
+      "D:\\Games\\Fap Land\\data\\web-video-cache"
+    );
+    storeValues.set(WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY, "C:\\Old\\Fap Land\\data\\web-video-cache");
+
+    expect(resolveWebsiteVideoCacheRoot()).toBe("D:\\Games\\Fap Land\\data\\web-video-cache");
+    expect(portableMocks.resolvePortableAwareStoragePath).toHaveBeenCalledWith(
+      "C:\\Old\\Fap Land\\data\\web-video-cache",
+      "web-video-cache",
+      null
+    );
   });
 
   it("deduplicates concurrent downloads for the same URL", async () => {
@@ -108,12 +131,14 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            url: "https://media.example.com/stream.mp4",
-            extractor_key: "Generic",
-            title: "Example",
-            duration: 12.34,
-          })),
+          stdout: Buffer.from(
+            JSON.stringify({
+              url: "https://media.example.com/stream.mp4",
+              extractor_key: "Generic",
+              title: "Example",
+              duration: 12.34,
+            })
+          ),
           stderr: Buffer.alloc(0),
         };
       }
@@ -129,7 +154,9 @@ describe("webVideo", () => {
     const second = ensureWebsiteVideoCached("https://example.com/watch?v=1");
 
     await vi.waitFor(() => {
-      expect(vi.mocked(runCommand).mock.calls.filter(([, args]) => args.includes("--output"))).toHaveLength(1);
+      expect(
+        vi.mocked(runCommand).mock.calls.filter(([, args]) => args.includes("--output"))
+      ).toHaveLength(1);
     });
 
     releaseDownload?.();
@@ -158,12 +185,14 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            url: "https://media.example.com/stream.mp4",
-            extractor_key: "Generic",
-            title: "Example",
-            duration: 12.34,
-          })),
+          stdout: Buffer.from(
+            JSON.stringify({
+              url: "https://media.example.com/stream.mp4",
+              extractor_key: "Generic",
+              title: "Example",
+              duration: 12.34,
+            })
+          ),
           stderr: Buffer.alloc(0),
         };
       }
@@ -205,12 +234,14 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            url: "https://media.example.com/stream.mp4",
-            extractor_key: "Generic",
-            title: "Example",
-            duration: 12.34,
-          })),
+          stdout: Buffer.from(
+            JSON.stringify({
+              url: "https://media.example.com/stream.mp4",
+              extractor_key: "Generic",
+              title: "Example",
+              duration: 12.34,
+            })
+          ),
           stderr: Buffer.alloc(0),
         };
       }
@@ -224,8 +255,12 @@ describe("webVideo", () => {
     const first = await ensureWebsiteVideoCached("https://example.com/watch?v=1");
     const second = await ensureWebsiteVideoCached("https://example.com/watch?v=1");
     expect(second.finalFilePath).toBe(first.finalFilePath);
-    expect(vi.mocked(runCommand).mock.calls.filter(([, args]) => args.includes("--output"))).toHaveLength(1);
-    expect(await getCachedWebsiteVideoLocalPath("https://example.com/watch?v=1")).toBe(first.finalFilePath);
+    expect(
+      vi.mocked(runCommand).mock.calls.filter(([, args]) => args.includes("--output"))
+    ).toHaveLength(1);
+    expect(await getCachedWebsiteVideoLocalPath("https://example.com/watch?v=1")).toBe(
+      first.finalFilePath
+    );
   });
 
   it("logs when website video caching starts and finishes", async () => {
@@ -240,12 +275,14 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            url: "https://media.example.com/stream.mp4",
-            extractor_key: "Generic",
-            title: "Example",
-            duration: 12.34,
-          })),
+          stdout: Buffer.from(
+            JSON.stringify({
+              url: "https://media.example.com/stream.mp4",
+              extractor_key: "Generic",
+              title: "Example",
+              duration: 12.34,
+            })
+          ),
           stderr: Buffer.alloc(0),
         };
       }
@@ -259,7 +296,9 @@ describe("webVideo", () => {
     await ensureWebsiteVideoCached("https://example.com/watch?v=1");
 
     expect(infoSpy).toHaveBeenCalledWith("[webVideo] Cache started: https://example.com/watch?v=1");
-    expect(infoSpy).toHaveBeenCalledWith("[webVideo] Cache finished: https://example.com/watch?v=1");
+    expect(infoSpy).toHaveBeenCalledWith(
+      "[webVideo] Cache finished: https://example.com/watch?v=1"
+    );
     infoSpy.mockRestore();
   });
 
@@ -298,12 +337,14 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            url: "https://media.example.com/stream.mp4",
-            extractor_key: "Generic",
-            title: "Recovered",
-            duration: 12.34,
-          })),
+          stdout: Buffer.from(
+            JSON.stringify({
+              url: "https://media.example.com/stream.mp4",
+              extractor_key: "Generic",
+              title: "Recovered",
+              duration: 12.34,
+            })
+          ),
           stderr: Buffer.alloc(0),
         };
       }
@@ -323,7 +364,9 @@ describe("webVideo", () => {
     expect(await getCachedWebsiteVideoLocalPath("https://example.com/watch?v=1")).toBe(
       recovered.finalFilePath
     );
-    expect(await fs.access(path.join(cacheDir, "download-in-progress.json")).catch(() => null)).toBeNull();
+    expect(
+      await fs.access(path.join(cacheDir, "download-in-progress.json")).catch(() => null)
+    ).toBeNull();
   });
 
   it("clears the on-disk website video cache", async () => {
@@ -350,12 +393,14 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            url: "https://media.example.com/stream.mp4",
-            extractor_key: "Generic",
-            title: "Example",
-            duration: 12.34,
-          })),
+          stdout: Buffer.from(
+            JSON.stringify({
+              url: "https://media.example.com/stream.mp4",
+              extractor_key: "Generic",
+              title: "Example",
+              duration: 12.34,
+            })
+          ),
           stderr: Buffer.alloc(0),
         };
       }
@@ -380,12 +425,14 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            url: "https://media.example.com/stream.mp4",
-            extractor_key: "Generic",
-            title: "Example",
-            duration: 12.34,
-          })),
+          stdout: Buffer.from(
+            JSON.stringify({
+              url: "https://media.example.com/stream.mp4",
+              extractor_key: "Generic",
+              title: "Example",
+              duration: 12.34,
+            })
+          ),
           stderr: Buffer.alloc(0),
         };
       }
@@ -397,7 +444,9 @@ describe("webVideo", () => {
     });
 
     const cached = await ensureWebsiteVideoCached("https://example.com/watch?v=1");
-    expect(await getCachedWebsiteVideoLocalPath("https://example.com/watch?v=1")).toBe(cached.finalFilePath);
+    expect(await getCachedWebsiteVideoLocalPath("https://example.com/watch?v=1")).toBe(
+      cached.finalFilePath
+    );
 
     await removeCachedWebsiteVideo("https://example.com/watch?v=1");
 
@@ -420,12 +469,14 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            url: "https://media.example.com/stream.mp4",
-            extractor_key: "Generic",
-            title: "Example",
-            duration: 12.34,
-          })),
+          stdout: Buffer.from(
+            JSON.stringify({
+              url: "https://media.example.com/stream.mp4",
+              extractor_key: "Generic",
+              title: "Example",
+              duration: 12.34,
+            })
+          ),
           stderr: Buffer.alloc(0),
         };
       }
@@ -440,7 +491,9 @@ describe("webVideo", () => {
     const pending = ensureWebsiteVideoCached("https://example.com/watch?v=1");
 
     await vi.waitFor(() => {
-      expect(vi.mocked(runCommand).mock.calls.filter(([, args]) => args.includes("--output"))).toHaveLength(1);
+      expect(
+        vi.mocked(runCommand).mock.calls.filter(([, args]) => args.includes("--output"))
+      ).toHaveLength(1);
     });
 
     await removeCachedWebsiteVideo("https://example.com/watch?v=1");
@@ -461,13 +514,15 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            url: "https://media.example.com/fallback.mp4",
-            http_headers: { Referer: "https://example.com/" },
-            extractor_key: "Generic",
-            title: "Example",
-            duration: 12.34,
-          })),
+          stdout: Buffer.from(
+            JSON.stringify({
+              url: "https://media.example.com/fallback.mp4",
+              http_headers: { Referer: "https://example.com/" },
+              extractor_key: "Generic",
+              title: "Example",
+              duration: 12.34,
+            })
+          ),
           stderr: Buffer.alloc(0),
         };
       }
@@ -498,33 +553,36 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            url: "https://media.example.com/master.m3u8",
-            http_headers: { Referer: "https://example.com/" },
-            extractor_key: "Generic",
-            title: "Example",
-            duration: 12.34,
-            formats: [
-              {
-                url: "https://media.example.com/master.m3u8",
-                ext: "mp4",
-                protocol: "m3u8_native",
-                vcodec: "h264",
-                acodec: "aac",
-                height: 1080,
-                tbr: 4000,
-              },
-              {
-                url: "https://media.example.com/progressive.mp4",
-                ext: "mp4",
-                protocol: "https",
-                vcodec: "h264",
-                acodec: "aac",
-                height: 720,
-                tbr: 2200,
-              },
-            ],
-          }), "utf8"),
+          stdout: Buffer.from(
+            JSON.stringify({
+              url: "https://media.example.com/master.m3u8",
+              http_headers: { Referer: "https://example.com/" },
+              extractor_key: "Generic",
+              title: "Example",
+              duration: 12.34,
+              formats: [
+                {
+                  url: "https://media.example.com/master.m3u8",
+                  ext: "mp4",
+                  protocol: "m3u8_native",
+                  vcodec: "h264",
+                  acodec: "aac",
+                  height: 1080,
+                  tbr: 4000,
+                },
+                {
+                  url: "https://media.example.com/progressive.mp4",
+                  ext: "mp4",
+                  protocol: "https",
+                  vcodec: "h264",
+                  acodec: "aac",
+                  height: 720,
+                  tbr: 2200,
+                },
+              ],
+            }),
+            "utf8"
+          ),
           stderr: Buffer.alloc(0),
         };
       }
@@ -550,24 +608,27 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            extractor_key: "XVideos",
-            title: "Example",
-            duration: 12.34,
-            formats: [
-              {
-                url: "https://media.example.com/video_360p.mp4",
-                ext: "mp4",
-                protocol: "https",
-                vcodec: "h264",
-                acodec: "none",
-                http_headers: {
-                  "User-Agent": "Mozilla/5.0 Test",
-                  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          stdout: Buffer.from(
+            JSON.stringify({
+              extractor_key: "XVideos",
+              title: "Example",
+              duration: 12.34,
+              formats: [
+                {
+                  url: "https://media.example.com/video_360p.mp4",
+                  ext: "mp4",
+                  protocol: "https",
+                  vcodec: "h264",
+                  acodec: "none",
+                  http_headers: {
+                    "User-Agent": "Mozilla/5.0 Test",
+                    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                  },
                 },
-              },
-            ],
-          }), "utf8"),
+              ],
+            }),
+            "utf8"
+          ),
           stderr: Buffer.alloc(0),
         };
       }
@@ -593,13 +654,15 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            url: "https://media.example.com/fallback.mp4",
-            http_headers: { Referer: "https://example.com/" },
-            extractor_key: "Generic",
-            title: "Example",
-            duration: 12.34,
-          })),
+          stdout: Buffer.from(
+            JSON.stringify({
+              url: "https://media.example.com/fallback.mp4",
+              http_headers: { Referer: "https://example.com/" },
+              extractor_key: "Generic",
+              title: "Example",
+              duration: 12.34,
+            })
+          ),
           stderr: Buffer.alloc(0),
         };
       }
@@ -624,11 +687,12 @@ describe("webVideo", () => {
     });
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          `<html><body><a href="https://video7.xhcdn.com/key=abc/video.mp4?e=123&amp;h=456">play</a></body></html>`,
-          { status: 200, headers: { "Content-Type": "text/html" } }
-        )
+      vi.fn(
+        async () =>
+          new Response(
+            `<html><body><a href="https://video7.xhcdn.com/key=abc/video.mp4?e=123&amp;h=456">play</a></body></html>`,
+            { status: 200, headers: { "Content-Type": "text/html" } }
+          )
       )
     );
 
@@ -651,7 +715,7 @@ describe("webVideo", () => {
       directory: false,
       name: "demo.mp4",
       size: 123,
-      loadAttributes: vi.fn(async function(this: unknown) {
+      loadAttributes: vi.fn(async function (this: unknown) {
         return this;
       }),
     });
@@ -676,7 +740,7 @@ describe("webVideo", () => {
       directory: false,
       name: "demo.mp4",
       size: 5,
-      loadAttributes: vi.fn(async function(this: unknown) {
+      loadAttributes: vi.fn(async function (this: unknown) {
         return this;
       }),
       download: vi.fn(() => Readable.from([Buffer.from("video", "utf8")])),
@@ -936,22 +1000,25 @@ describe("webVideo", () => {
       }
       if (args.includes("--dump-single-json")) {
         return {
-          stdout: Buffer.from(JSON.stringify({
-            extractor_key: "Generic",
-            title: "Example",
-            duration: 12.34,
-            formats: [
-              {
-                url: "https://media.example.com/play?token=abc",
-                ext: "mp4",
-                protocol: "https",
-                vcodec: "h264",
-                acodec: "aac",
-                height: 720,
-                tbr: 2200,
-              },
-            ],
-          }), "utf8"),
+          stdout: Buffer.from(
+            JSON.stringify({
+              extractor_key: "Generic",
+              title: "Example",
+              duration: 12.34,
+              formats: [
+                {
+                  url: "https://media.example.com/play?token=abc",
+                  ext: "mp4",
+                  protocol: "https",
+                  vcodec: "h264",
+                  acodec: "aac",
+                  height: 720,
+                  tbr: 2200,
+                },
+              ],
+            }),
+            "utf8"
+          ),
           stderr: Buffer.alloc(0),
         };
       }

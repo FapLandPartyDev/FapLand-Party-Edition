@@ -13,66 +13,66 @@ const mocks = vi.hoisted(() => {
       }
     }),
     globalMusic: {
-    enabled: true,
-    queue: [],
-    currentIndex: 0,
-    currentTrack: null,
-    isPlaying: false,
-    isSuppressedByVideo: false,
-    volume: 0.45,
-    shuffle: false,
-    loopMode: "queue" as const,
-    setEnabled: vi.fn(async () => {}),
-    addTracks: vi.fn(async () => {}),
-    removeTrack: vi.fn(async () => {}),
-    moveTrack: vi.fn(async () => {}),
-    clearQueue: vi.fn(async () => {}),
-    play: vi.fn(async () => {}),
-    pause: vi.fn(),
-    next: vi.fn(async () => {}),
-    previous: vi.fn(async () => {}),
-    setCurrentTrack: vi.fn(async () => {}),
-    setVolume: vi.fn(async () => {}),
-    setShuffle: vi.fn(async () => {}),
-    setLoopMode: vi.fn(async () => {}),
-  },
-  handy: {
-    connectionKey: "",
-    appApiKey: "default-app-key",
-    appApiKeyOverride: "",
-    isUsingDefaultAppApiKey: true,
-    localIp: "",
-    connected: false,
-    manuallyStopped: false,
-    synced: false,
-    syncError: null,
-    isConnecting: false,
-    error: null,
-    connect: vi.fn(async () => {}),
-    disconnect: vi.fn(async () => {}),
-    forceStop: vi.fn(async () => {}),
-    toggleManualStop: vi.fn(async () => "unavailable" as const),
-    setSyncStatus: vi.fn(),
-  },
-    appUpdate: {
-    state: {
-      status: "up_to_date" as const,
-      currentVersion: "0.1.2",
-      latestVersion: "0.1.2",
-      checkedAtIso: "2026-03-20T00:00:00.000Z",
-      releasePageUrl: "https://example.com/release",
-      downloadUrl: null,
-      releaseNotes: null,
-      publishedAtIso: null,
-      canAutoUpdate: false,
-      errorMessage: null,
+      enabled: true,
+      queue: [],
+      currentIndex: 0,
+      currentTrack: null,
+      isPlaying: false,
+      isSuppressedByVideo: false,
+      volume: 0.45,
+      shuffle: false,
+      loopMode: "queue" as const,
+      setEnabled: vi.fn(async () => {}),
+      addTracks: vi.fn(async () => {}),
+      removeTrack: vi.fn(async () => {}),
+      moveTrack: vi.fn(async () => {}),
+      clearQueue: vi.fn(async () => {}),
+      play: vi.fn(async () => {}),
+      pause: vi.fn(),
+      next: vi.fn(async () => {}),
+      previous: vi.fn(async () => {}),
+      setCurrentTrack: vi.fn(async () => {}),
+      setVolume: vi.fn(async () => {}),
+      setShuffle: vi.fn(async () => {}),
+      setLoopMode: vi.fn(async () => {}),
     },
-    isBusy: false,
-    actionLabel: "Check Again",
-    menuBadge: undefined,
-    menuTone: "success" as const,
-    systemMessage: "Installed build is current.",
-    triggerPrimaryAction: vi.fn(async () => {}),
+    handy: {
+      connectionKey: "",
+      appApiKey: "default-app-key",
+      appApiKeyOverride: "",
+      isUsingDefaultAppApiKey: true,
+      localIp: "",
+      connected: false,
+      manuallyStopped: false,
+      synced: false,
+      syncError: null,
+      isConnecting: false,
+      error: null,
+      connect: vi.fn(async () => {}),
+      disconnect: vi.fn(async () => {}),
+      forceStop: vi.fn(async () => {}),
+      toggleManualStop: vi.fn(async () => "unavailable" as const),
+      setSyncStatus: vi.fn(),
+    },
+    appUpdate: {
+      state: {
+        status: "up_to_date" as const,
+        currentVersion: "0.1.2",
+        latestVersion: "0.1.2",
+        checkedAtIso: "2026-03-20T00:00:00.000Z",
+        releasePageUrl: "https://example.com/release",
+        downloadUrl: null,
+        releaseNotes: null,
+        publishedAtIso: null,
+        canAutoUpdate: false,
+        errorMessage: null,
+      },
+      isBusy: false,
+      actionLabel: "Check Again",
+      menuBadge: undefined,
+      menuTone: "success" as const,
+      systemMessage: "Installed build is current.",
+      triggerPrimaryAction: vi.fn(async () => {}),
     },
   };
 });
@@ -207,6 +207,7 @@ vi.mock("../hooks/useAppUpdate", () => ({
 }));
 
 import { SettingsPage } from "./settings";
+import { db } from "../services/db";
 import { trpc } from "../services/trpc";
 
 describe("Settings website video caching", () => {
@@ -261,7 +262,7 @@ describe("Settings website video caching", () => {
   });
 
   it("offers video cache as a separate delete option", async () => {
-    const clearAllDataMutate = vi.mocked(trpc.db.clearAllData.mutate);
+    const clearAllData = vi.mocked(db.install.clearAllData);
 
     render(<SettingsPage />);
 
@@ -272,18 +273,52 @@ describe("Settings website video caching", () => {
     expect(
       screen.getByText("Downloaded website videos and generated playback transcodes.")
     ).toBeDefined();
+    expect(screen.getByText("Music Cache")).toBeDefined();
+    expect(screen.getByText("Downloaded menu music and imported YouTube audio.")).toBeDefined();
+    expect(screen.getByText(".fpack Extractions")).toBeDefined();
+    expect(
+      screen.getByText("Extracted pack contents stored for installed portable packages.")
+    ).toBeDefined();
 
     fireEvent.click(screen.getByRole("button", { name: /Video Cache/i }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm Deletion" }));
 
     await waitFor(() => {
-      expect(clearAllDataMutate).toHaveBeenCalledWith({
+      expect(clearAllData).toHaveBeenCalledWith({
         rounds: true,
         playlists: true,
         stats: true,
         history: true,
         cache: true,
         videoCache: false,
+        musicCache: true,
+        fpackExtraction: true,
+        settings: true,
+      });
+    });
+  });
+
+  it("lets the user clear music and fpack caches independently", async () => {
+    const clearAllData = vi.mocked(db.install.clearAllData);
+
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Data & Storage/ })[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Manage & Clear Data" }));
+    fireEvent.click(screen.getByRole("button", { name: /Music Cache/i }));
+    fireEvent.click(screen.getByRole("button", { name: /.fpack Extractions/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Deletion" }));
+
+    await waitFor(() => {
+      expect(clearAllData).toHaveBeenCalledWith({
+        rounds: true,
+        playlists: true,
+        stats: true,
+        history: true,
+        cache: true,
+        videoCache: true,
+        musicCache: false,
+        fpackExtraction: false,
         settings: true,
       });
     });

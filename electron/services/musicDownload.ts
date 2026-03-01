@@ -2,14 +2,13 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { app } from "electron";
 import { runCommand } from "./phash/extract";
 import { getStore } from "./store";
+import { MUSIC_CACHE_RELATIVE_PATH, resolveConfiguredStoragePath } from "./storagePaths";
 import { resolveYtDlpBinary } from "./webVideo/binaries";
 import { resolvePhashBinaries } from "./phash/binaries";
 
 const MUSIC_CACHE_ROOT_PATH_KEY = "music.cacheRootPath";
-const MUSIC_CACHE_FOLDER = "music-cache";
 
 type MusicDownloadResult = {
   filePath: string;
@@ -90,14 +89,13 @@ function parseYtDlpProgressLine(line: string, url: string): Partial<MusicDownloa
 }
 
 export function resolveMusicCacheRoot(): string {
-  const configuredRoot = getStore().get(MUSIC_CACHE_ROOT_PATH_KEY) as string | undefined;
-  if (configuredRoot) {
-    return path.resolve(configuredRoot);
-  }
   try {
-    return path.join(app.getPath("userData"), MUSIC_CACHE_FOLDER);
+    return resolveConfiguredStoragePath(
+      getStore().get(MUSIC_CACHE_ROOT_PATH_KEY),
+      MUSIC_CACHE_RELATIVE_PATH
+    );
   } catch {
-    return path.join(os.tmpdir(), "f-land", MUSIC_CACHE_FOLDER);
+    return path.join(os.tmpdir(), "f-land", MUSIC_CACHE_RELATIVE_PATH);
   }
 }
 
@@ -366,7 +364,10 @@ async function findDownloadedMedia(cacheDir: string): Promise<string | null> {
   }
 }
 
-async function extractAudioFromDownloadedMedia(inputPath: string, outputPath: string): Promise<void> {
+async function extractAudioFromDownloadedMedia(
+  inputPath: string,
+  outputPath: string
+): Promise<void> {
   const binaries = await resolvePhashBinaries();
   await runCommand(
     binaries.ffmpegPath,
@@ -426,9 +427,9 @@ export function __resetMusicDownloadProgressForTests(): void {
   downloadProgressByUrl.clear();
 }
 
-export async function clearMusicCache(): Promise<void> {
+export async function clearMusicCache(rootPath = resolveMusicCacheRoot()): Promise<void> {
   __resetMusicDownloadProgressForTests();
-  await fs.rm(resolveMusicCacheRoot(), { recursive: true, force: true });
+  await fs.rm(rootPath, { recursive: true, force: true });
 }
 
 export type PlaylistDownloadResult = {

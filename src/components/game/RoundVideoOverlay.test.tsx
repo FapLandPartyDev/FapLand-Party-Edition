@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ActiveRound, PlayerState } from "../../game/types";
 import type { InstalledRound } from "../../services/db";
@@ -227,6 +227,11 @@ function primeVideoElement(
     },
   });
   return currentTimeRef;
+}
+
+function disableAnimationFrameLoop() {
+  vi.stubGlobal("requestAnimationFrame", vi.fn(() => 0));
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
 }
 
 function renderOverlay({
@@ -572,6 +577,137 @@ describe("RoundVideoOverlay", () => {
     expect(screen.queryByRole("button", { name: /Skip/i })).toBeNull();
     expect(screen.queryByRole("button", { name: "Options" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Cum/i })).toBeNull();
+  });
+
+  it("shows a close button when local main media fails to load", async () => {
+    const { container } = renderOverlay();
+    const video = container.querySelector("video");
+    expect(video).not.toBeNull();
+
+    fireEvent.error(video as HTMLVideoElement);
+
+    expect(await screen.findByText("Local media file not found")).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Close/ })).not.toBeNull();
+  });
+
+  it("auto-finishes gameplay when main media is missing for 10 seconds", async () => {
+    vi.useFakeTimers();
+    disableAnimationFrameLoop();
+    const onFinishRound = vi.fn();
+    const { container } = renderOverlay({ onFinishRound });
+    const video = container.querySelector("video");
+    expect(video).not.toBeNull();
+
+    fireEvent.error(video as HTMLVideoElement);
+    expect(screen.getByRole("button", { name: /Close/ })).not.toBeNull();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    act(() => {
+      vi.advanceTimersByTime(9_999);
+    });
+    expect(onFinishRound).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    await Promise.resolve();
+
+    expect(onFinishRound).toHaveBeenCalledTimes(1);
+  });
+
+  it("manual close cancels main media auto-finish", async () => {
+    vi.useFakeTimers();
+    disableAnimationFrameLoop();
+    const onFinishRound = vi.fn();
+    const { container } = renderOverlay({ onFinishRound });
+    const video = container.querySelector("video");
+    expect(video).not.toBeNull();
+
+    fireEvent.error(video as HTMLVideoElement);
+    fireEvent.click(screen.getByRole("button", { name: /Close/ }));
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(onFinishRound).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(10_500);
+    });
+    expect(onFinishRound).toHaveBeenCalledTimes(1);
+  });
+
+  it("auto-closes preview missing media through onClose", async () => {
+    vi.useFakeTimers();
+    disableAnimationFrameLoop();
+    const onClose = vi.fn();
+    const onFinishRound = vi.fn();
+    const { container } = render(
+      <RoundVideoOverlay
+        activeRound={createActiveRound()}
+        installedRounds={[createInstalledRound()]}
+        currentPlayer={undefined}
+        intermediaryProbability={0}
+        booruSearchPrompt="animated gif webm"
+        intermediaryLoadingDurationSec={10}
+        intermediaryReturnPauseSec={4}
+        onFinishRound={onFinishRound}
+        showCloseButton
+        onClose={onClose}
+      />
+    );
+    const video = container.querySelector("video");
+    expect(video).not.toBeNull();
+
+    fireEvent.error(video as HTMLVideoElement);
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onFinishRound).not.toHaveBeenCalled();
+  });
+
+  it("manual close on missing interjection returns to the main video once", async () => {
+    vi.useFakeTimers();
+    disableAnimationFrameLoop();
+    const onFinishRound = vi.fn();
+    const { container } = renderOverlay({
+      installedRounds: [createInstalledRound(), createIntermediaryRound()],
+      allowDebugRoundControls: true,
+      intermediaryLoadingDurationSec: 0,
+      intermediaryReturnPauseSec: 0,
+      onFinishRound,
+    });
+    const mainVideo = container.querySelector('video[src="/video.mp4"]');
+    expect(mainVideo).not.toBeNull();
+    primeVideoElement(mainVideo as HTMLVideoElement, { duration: 30, currentTime: 5 });
+
+    fireEvent.click(screen.getByRole("button", { name: "Test Intermediary (I)" }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const intermediaryVideo = container.querySelector('video[src="/intermediary.mp4"]');
+    expect(intermediaryVideo).not.toBeNull();
+
+    fireEvent.error(intermediaryVideo as HTMLVideoElement);
+    fireEvent.click(screen.getByRole("button", { name: /Close/ }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(container.querySelector('video[src="/intermediary.mp4"]')).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(10_500);
+    });
+    expect(container.querySelector('video[src="/video.mp4"]')).not.toBeNull();
+    expect(onFinishRound).not.toHaveBeenCalled();
   });
 
   it("opens the global TheHandy menu from the round overlay controls", async () => {

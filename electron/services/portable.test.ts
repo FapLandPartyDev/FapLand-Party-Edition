@@ -14,8 +14,11 @@ import {
   getPortableDataRoot,
   getPortableDatabasePath,
   getPortableExecutableDir,
+  isPathInsidePortableDataRoot,
   isPortableMode,
   normalizeUserDataSuffix,
+  resolvePortableAwareStoragePath,
+  resolvePortableDataRelativePath,
 } from "./portable";
 
 describe("portable", () => {
@@ -148,6 +151,125 @@ describe("portable", () => {
 
     expect(getPortableDataRoot(undefined, context)).toBeNull();
     expect(getPortableDatabasePath(undefined, context)).toBeNull();
+  });
+
+  it("resolves default storage paths relative to the current Windows zip folder", () => {
+    const context = {
+      platform: "win32" as const,
+      isPackaged: true,
+      execPath: "D:\\Games\\Fap Land\\Fap Land.exe",
+      markerExists: () => false,
+    };
+
+    expect(resolvePortableDataRelativePath("web-video-cache", undefined, context)).toBe(
+      "D:\\Games\\Fap Land\\data\\web-video-cache"
+    );
+    expect(resolvePortableAwareStoragePath(null, "web-video-cache", undefined, context)).toBe(
+      "D:\\Games\\Fap Land\\data\\web-video-cache"
+    );
+  });
+
+  it("rebases legacy absolute default storage paths after moving a Windows zip folder", () => {
+    const context = {
+      platform: "win32" as const,
+      isPackaged: true,
+      execPath: "D:\\Games\\Fap Land\\Fap Land.exe",
+      markerExists: () => false,
+    };
+
+    expect(
+      resolvePortableAwareStoragePath(
+        "C:\\Old\\Fap Land\\data\\web-video-cache",
+        "web-video-cache",
+        undefined,
+        context
+      )
+    ).toBe("D:\\Games\\Fap Land\\data\\web-video-cache");
+  });
+
+  it("preserves custom absolute paths for Windows zip portable storage", () => {
+    const context = {
+      platform: "win32" as const,
+      isPackaged: true,
+      execPath: "D:\\Games\\Fap Land\\Fap Land.exe",
+      markerExists: () => false,
+    };
+
+    expect(
+      resolvePortableAwareStoragePath(
+        "E:\\Media Cache\\web-video-cache",
+        "web-video-cache",
+        undefined,
+        context
+      )
+    ).toBe("E:\\Media Cache\\web-video-cache");
+  });
+
+  it("resolves relative configured portable paths inside the portable data root", () => {
+    const context = {
+      platform: "win32" as const,
+      isPackaged: true,
+      execPath: "D:\\Games\\Fap Land\\Fap Land.exe",
+      markerExists: () => false,
+    };
+
+    expect(
+      resolvePortableAwareStoragePath("custom-cache", "web-video-cache", undefined, context)
+    ).toBe("D:\\Games\\Fap Land\\data\\custom-cache");
+  });
+
+  it("matches suffixed legacy default storage paths", () => {
+    const context = {
+      platform: "win32" as const,
+      isPackaged: true,
+      execPath: "D:\\Games\\Fap Land\\Fap Land.exe",
+      markerExists: () => false,
+    };
+
+    expect(
+      resolvePortableAwareStoragePath(
+        "C:\\Old\\Fap Land\\data\\mp1\\music-cache",
+        "music-cache",
+        "mp1",
+        context
+      )
+    ).toBe("D:\\Games\\Fap Land\\data\\mp1\\music-cache");
+  });
+
+  it("checks whether paths are inside the portable data root", () => {
+    const context = {
+      platform: "win32" as const,
+      isPackaged: true,
+      execPath: "D:\\Games\\Fap Land\\Fap Land.exe",
+      markerExists: () => false,
+    };
+
+    expect(
+      isPathInsidePortableDataRoot("D:\\Games\\Fap Land\\data\\web-video-cache", undefined, context)
+    ).toBe(true);
+    expect(
+      isPathInsidePortableDataRoot("E:\\Media Cache\\web-video-cache", undefined, context)
+    ).toBe(false);
+  });
+
+  it("does not resolve portable storage paths for Linux or installed Windows builds", () => {
+    expect(
+      resolvePortableAwareStoragePath(null, "web-video-cache", undefined, {
+        platform: "linux",
+        isPackaged: true,
+        execPath: "/tmp/Fap Land.AppImage",
+        markerExists: () => false,
+      })
+    ).toBeNull();
+
+    expect(
+      resolvePortableAwareStoragePath(null, "web-video-cache", undefined, {
+        platform: "win32",
+        isPackaged: true,
+        execPath: "C:\\Program Files\\Fap Land\\Fap Land.exe",
+        markerExists: () => true,
+      })
+    ).toBeNull();
   });
 
   it("normalizes user data suffixes", () => {

@@ -1,7 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
-import path from "node:path";
 import { shell } from "electron";
 import * as z from "zod";
 import { resolveInstallExportBaseDir } from "../../services/appPaths";
@@ -63,8 +62,8 @@ import {
   resolveWebsiteVideoCacheRoot,
   resolveWebsiteVideoStream,
 } from "../../services/webVideo";
-import { resolveMusicCacheRoot } from "../../services/musicDownload";
-import { getFpackExtractionRoot } from "../../services/fpack";
+import { clearMusicCache, resolveMusicCacheRoot } from "../../services/musicDownload";
+import { clearFpackExtractionCache, getFpackExtractionRoot } from "../../services/fpack";
 import { publicProcedure, router } from "../trpc";
 import { and, eq, desc, asc, inArray } from "drizzle-orm";
 import {
@@ -184,7 +183,9 @@ function shouldIncludeInstalledRound(
   return true;
 }
 
-function createWebsiteVideoCacheStatusLoader(): (videoUri: string) => Promise<WebsiteVideoCacheStatus> {
+function createWebsiteVideoCacheStatusLoader(): (
+  videoUri: string
+) => Promise<WebsiteVideoCacheStatus> {
   const websiteVideoCacheStateByUri = new Map<string, Promise<WebsiteVideoCacheStatus>>();
 
   return (videoUri: string) => {
@@ -1730,6 +1731,8 @@ export const dbRouter = router({
           history: z.boolean().optional(),
           cache: z.boolean().optional(),
           videoCache: z.boolean().optional(),
+          musicCache: z.boolean().optional(),
+          fpackExtraction: z.boolean().optional(),
           settings: z.boolean().optional(),
         })
         .optional()
@@ -1743,8 +1746,14 @@ export const dbRouter = router({
         history = true,
         cache = true,
         videoCache = true,
+        musicCache = true,
+        fpackExtraction = true,
         settings = true,
       } = input ?? {};
+
+      const websiteVideoCacheRoot = videoCache ? resolveWebsiteVideoCacheRoot() : null;
+      const musicCacheRoot = musicCache ? resolveMusicCacheRoot() : null;
+      const fpackExtractionRoot = fpackExtraction ? await getFpackExtractionRoot() : null;
 
       await db.transaction(async (tx) => {
         if (cache) {
@@ -1753,6 +1762,7 @@ export const dbRouter = router({
         }
         if (history) {
           await tx.delete(singlePlayerRunHistory);
+          await tx.delete(singlePlayerRunSave);
         }
         if (playlists) {
           await tx.delete(playlistTrackPlay);
@@ -1768,11 +1778,23 @@ export const dbRouter = router({
         }
       });
 
+      const cacheClearTasks: Array<Promise<void>> = [];
+      if (videoCache && websiteVideoCacheRoot) {
+        cacheClearTasks.push(
+          clearWebsiteVideoCache(websiteVideoCacheRoot),
+          clearPlayableVideoCache()
+        );
+      }
+      if (musicCache && musicCacheRoot) {
+        cacheClearTasks.push(clearMusicCache(musicCacheRoot));
+      }
+      if (fpackExtraction && fpackExtractionRoot) {
+        cacheClearTasks.push(clearFpackExtractionCache(fpackExtractionRoot));
+      }
+      await Promise.all(cacheClearTasks);
+
       if (settings) {
         getStore().clear();
-      }
-      if (videoCache) {
-        await Promise.all([clearWebsiteVideoCache(), clearPlayableVideoCache()]);
       }
       return { cleared: true };
     }),

@@ -16,7 +16,9 @@ export type InstalledRoundCatalogEntry = Awaited<
 export type InstalledRoundMediaResources = NonNullable<
   Awaited<ReturnType<typeof trpc.db.getRoundMediaResources.query>>
 >;
-export type BackgroundVideoUri = Awaited<ReturnType<typeof trpc.db.getBackgroundVideoUris.query>>[number];
+export type BackgroundVideoUri = Awaited<
+  ReturnType<typeof trpc.db.getBackgroundVideoUris.query>
+>[number];
 export type InstallScanStatus = Awaited<ReturnType<typeof trpc.db.getInstallScanStatus.query>>;
 export type InstallFolderScanResult = Awaited<
   ReturnType<typeof trpc.db.scanInstallFolderOnce.mutate>
@@ -62,6 +64,7 @@ export type InstallSidecarSecurityAnalysis = Awaited<
 export type VideoDownloadProgress = Awaited<
   ReturnType<typeof trpc.db.getWebsiteVideoDownloadProgresses.query>
 >[number];
+type ClearAllDataOptions = Parameters<typeof trpc.db.clearAllData.mutate>[0];
 
 async function withInstalledRoundCacheInvalidation<T>(action: () => Promise<T>): Promise<T> {
   const result = await action();
@@ -83,7 +86,8 @@ export const db = {
       author?: string | null;
       description?: string | null;
     }) => withInstalledRoundCacheInvalidation(() => trpc.db.updateHero.mutate(input)),
-    delete: (id: string) => withInstalledRoundCacheInvalidation(() => trpc.db.deleteHero.mutate({ id })),
+    delete: (id: string) =>
+      withInstalledRoundCacheInvalidation(() => trpc.db.deleteHero.mutate({ id })),
   },
   round: {
     findByHero: (heroId: string) => trpc.db.getHeroRounds.query({ heroId }),
@@ -112,7 +116,8 @@ export const db = {
       withInstalledRoundCacheInvalidation(() => trpc.db.createWebsiteRound.mutate(input)),
     checkWebsiteVideoSupport: (videoUri: string) =>
       trpc.db.checkWebsiteRoundVideoSupport.query({ videoUri }),
-    delete: (id: string) => withInstalledRoundCacheInvalidation(() => trpc.db.deleteRound.mutate({ id })),
+    delete: (id: string) =>
+      withInstalledRoundCacheInvalidation(() => trpc.db.deleteRound.mutate({ id })),
     repairTemplate: (input: { roundId: string; installedRoundId: string }) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.repairTemplateRound.mutate(input)),
     retryTemplateLinking: (input?: { roundId?: string; heroId?: string }) =>
@@ -190,7 +195,8 @@ export const db = {
     getExportPackageStatus: () => trpc.db.getLibraryExportPackageStatus.query(),
     abortExportPackage: () => trpc.db.abortLibraryExportPackage.mutate(),
     openExportFolder: () => trpc.db.openInstallExportFolder.mutate(),
-    clearAllData: () => withInstalledRoundCacheInvalidation(() => trpc.db.clearAllData.mutate()),
+    clearAllData: (input?: ClearAllDataOptions) =>
+      withInstalledRoundCacheInvalidation(() => trpc.db.clearAllData.mutate(input)),
   },
   gameProfile: {
     getLocalHighscore: () => trpc.db.getLocalHighscore.query(),
