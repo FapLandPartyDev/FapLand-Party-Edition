@@ -22,7 +22,7 @@ import { isVideoExtension, SUPPORTED_VIDEO_EXTENSIONS } from "../src/constants/v
 import { approveDialogPath } from "./services/dialogPathApproval";
 import { normalizeMultiplayerAuthCallback } from "./services/authCallback";
 import { ensureAppDatabaseReady } from "./services/db";
-import { initStore, getStore } from "./services/store";
+import { initStore, getStore, safeStoreGet, safeStoreSet } from "./services/store";
 import { scanInstallSources } from "./services/installer";
 import {
   getPortableDataRoot,
@@ -1494,9 +1494,9 @@ app
     app.setAsDefaultProtocolClient("fland");
     await initStore();
     initializeDebugLogging();
-    pendingGpuRecoveryHint = getStore().get(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY) === true;
+    pendingGpuRecoveryHint = safeStoreGet(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY) === true;
     if (pendingGpuRecoveryHint) {
-      getStore().set(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY, false);
+      safeStoreSet(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY, false);
       debugLog.warn("startup", "GPU crash recovery hint detected from previous session");
     }
     debugLog.info("startup", "Store initialized", {
@@ -1570,11 +1570,7 @@ app
           gpuDiagnostics: getGpuDiagnosticsSnapshot(),
         };
         if (isGameRendererRoute(rendererRoute)) {
-          try {
-            getStore().set(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY, true);
-          } catch {
-            // Best-effort support hint only.
-          }
+          safeStoreSet(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY, true);
         }
         console.error("[GpuProcessGone]", payload);
         debugLog.error("gpu", "GPU process gone", {
