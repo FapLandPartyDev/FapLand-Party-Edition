@@ -6,6 +6,16 @@ import type { NormalizedVideoHashRange } from "./phash/types";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const DEBUG = process.env.FLAND_DEBUG_LOGGING === "1";
+
+function debugLog(...args: unknown[]): void {
+  if (DEBUG) console.log(...args);
+}
+
+function debugError(...args: unknown[]): void {
+  if (DEBUG) console.error(...args);
+}
+
 type PhashTask = {
   taskId: string;
   payload: {
@@ -49,7 +59,7 @@ function ensureWorker(): Promise<UtilityProcess> {
 
   workerReadyPromise = new Promise((resolve, reject) => {
     const workerPath = getWorkerPath();
-    console.log(`[PhashWorkerClient] Spawning worker: ${workerPath}`);
+    debugLog(`[PhashWorkerClient] Spawning worker: ${workerPath}`);
 
     const w = utilityProcess.fork(workerPath, [], {
       stdio: "inherit",
@@ -58,7 +68,7 @@ function ensureWorker(): Promise<UtilityProcess> {
     currentWorker = w;
 
     const startTimeout = setTimeout(() => {
-      console.error(`[PhashWorkerClient] Worker failed to send ready message within timeout`);
+      debugError(`[PhashWorkerClient] Worker failed to send ready message within timeout`);
       workerReadyPromise = null;
       currentWorker = null;
       w.kill();
@@ -66,7 +76,7 @@ function ensureWorker(): Promise<UtilityProcess> {
     }, 30000);
 
     w.on("message", (message: Record<string, unknown>) => {
-      console.log(`[PhashWorkerClient] DEBUG: Received message:`, JSON.stringify(message));
+      debugLog(`[PhashWorkerClient] DEBUG: Received message:`, JSON.stringify(message));
       if (!message || typeof message !== "object") return;
 
       const { type, taskId, payload } = message;
@@ -82,7 +92,7 @@ function ensureWorker(): Promise<UtilityProcess> {
       }
 
       if (type === "worker-ready") {
-        console.log(`[PhashWorkerClient] Worker reported ready`);
+        debugLog(`[PhashWorkerClient] Worker reported ready`);
         clearTimeout(startTimeout);
         resolve(w);
         return;
@@ -92,11 +102,11 @@ function ensureWorker(): Promise<UtilityProcess> {
       if (!task) return;
 
       if (type === "phash-result" && msgPayload) {
-        console.log(`[PhashWorkerClient] [${taskId}] Received result`);
+        debugLog(`[PhashWorkerClient] [${taskId}] Received result`);
         pendingTasks.delete(taskId as string);
         task.resolve(msgPayload.phash as string);
       } else if (type === "phash-error" && msgPayload) {
-        console.error(`[PhashWorkerClient] [${taskId}] Received error: ${msgPayload.message}`);
+        debugError(`[PhashWorkerClient] [${taskId}] Received error: ${msgPayload.message}`);
         pendingTasks.delete(taskId as string);
         const error = new Error(msgPayload.message as string);
         error.stack = msgPayload.stack as string | undefined;
@@ -105,7 +115,7 @@ function ensureWorker(): Promise<UtilityProcess> {
     });
 
     w.on("exit", (code) => {
-      console.log(`[PhashWorkerClient] Worker exited with code ${code}`);
+      debugLog(`[PhashWorkerClient] Worker exited with code ${code}`);
       clearTimeout(startTimeout);
       workerReadyPromise = null;
       currentWorker = null;
@@ -119,7 +129,7 @@ function ensureWorker(): Promise<UtilityProcess> {
     });
 
     w.on("error", (err) => {
-      console.error(`[PhashWorkerClient] Worker error:`, err);
+      debugError(`[PhashWorkerClient] Worker error:`, err);
       reject(err);
     });
   });
@@ -147,7 +157,7 @@ export async function computePhashInWorker(
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       if (pendingTasks.has(taskId)) {
-        console.error(`[PhashWorkerClient] [${taskId}] Task timed out after ${TASK_TIMEOUT_MS}ms`);
+        debugError(`[PhashWorkerClient] [${taskId}] Task timed out after ${TASK_TIMEOUT_MS}ms`);
         pendingTasks.delete(taskId);
         killWorker();
         reject(new Error(`Phash computation timed out after ${TASK_TIMEOUT_MS}ms`));
@@ -167,7 +177,7 @@ export async function computePhashInWorker(
       },
     });
 
-    console.log(`[PhashWorkerClient] [${taskId}] Sending task to worker`);
+    debugLog(`[PhashWorkerClient] [${taskId}] Sending task to worker`);
     w.postMessage({
       type: "compute-phash",
       taskId,

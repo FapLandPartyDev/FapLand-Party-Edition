@@ -34,10 +34,14 @@ function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function pickWeightedRoundId(entries: Array<{ roundId: string; weight: number }>): string | null {
+function pickWeightedRoundId(
+  entries: Array<{ roundId: string; weight: number }>,
+  roll?: number
+): string | null {
   if (entries.length === 0) return null;
   const totalWeight = entries.reduce((acc, entry) => acc + Math.max(0.000001, entry.weight), 0);
-  let target = Math.random() * totalWeight;
+  const targetRoll = roll ?? Math.random();
+  let target = targetRoll * totalWeight;
   for (const entry of entries) {
     target -= Math.max(0.000001, entry.weight);
     if (target <= 0) return entry.roundId;
@@ -45,14 +49,20 @@ function pickWeightedRoundId(entries: Array<{ roundId: string; weight: number }>
   return entries[entries.length - 1]?.roundId ?? null;
 }
 
-function pickUniqueWeighted<T>(items: T[], count: number, getWeight: (item: T) => number): T[] {
+function pickUniqueWeighted<T>(
+  items: T[],
+  count: number,
+  getWeight: (item: T) => number,
+  rolls?: number[]
+): T[] {
   const pool = [...items];
   const picked: T[] = [];
 
   while (pool.length > 0 && picked.length < count) {
     const weights = pool.map((item) => Math.max(0.000001, getWeight(item)));
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-    let target = Math.random() * totalWeight;
+    const targetRoll = rolls?.[picked.length] ?? Math.random();
+    let target = targetRoll * totalWeight;
     let selectedIndex = 0;
 
     for (let index = 0; index < pool.length; index += 1) {
@@ -610,10 +620,15 @@ function startCumPhase(state: GameState, installedRounds: InstalledRound[]): Gam
   );
 }
 
-function triggerPerkSelection(
+export function triggerPerkSelection(
   state: GameState,
   playerId: string,
-  sourceFieldId: string
+  sourceFieldId: string,
+  randoms?: {
+    antiPerkTriggerRoll?: number;
+    antiPerkIndex?: number;
+    perkChoicesRolls?: number[];
+  }
 ): GameState {
   if (
     state.pendingPerkSelection ||
@@ -625,10 +640,13 @@ function triggerPerkSelection(
   const player = state.players.find((entry) => entry.id === playerId);
   if (!player) return state;
 
-  if (Math.random() < state.antiPerkProbability) {
+  const antiPerkTriggerRoll = randoms?.antiPerkTriggerRoll ?? Math.random();
+  if (antiPerkTriggerRoll < state.antiPerkProbability) {
     const antiPool = getEnabledAntiPerkPool(state.config);
-    const selectedAntiPerk =
-      antiPool.length > 0 ? antiPool[randomInt(0, antiPool.length - 1)] : undefined;
+    const antiPerkIndex =
+      randoms?.antiPerkIndex ?? (antiPool.length > 0 ? randomInt(0, antiPool.length - 1) : -1);
+    const selectedAntiPerk = antiPool[antiPerkIndex];
+
     if (selectedAntiPerk) {
       const target = state.players.find((player) => player.id === playerId);
       if (target && getShieldRounds(target) > 0) {
@@ -658,7 +676,8 @@ function triggerPerkSelection(
   const options = pickUniqueWeighted(
     perkChoicePool,
     state.config.perkSelection.optionsPerPick,
-    (perk) => getPerkRarityWeight(perk, player)
+    (perk) => getPerkRarityWeight(perk, player),
+    randoms?.perkChoicesRolls
   );
   if (options.length === 0) {
     return {
@@ -869,7 +888,15 @@ function resolveTerminalLanding(
   };
 }
 
-function resolveFinalNodeLanding(state: GameState, installedRounds: InstalledRound[]): GameState {
+function resolveFinalNodeLanding(
+  state: GameState,
+  installedRounds: InstalledRound[],
+  randoms?: {
+    antiPerkTriggerRoll?: number;
+    antiPerkIndex?: number;
+    perkChoicesRolls?: number[];
+  }
+): GameState {
   const player = state.players[state.currentPlayerIndex];
   if (!player) return state;
 
@@ -951,7 +978,7 @@ function resolveFinalNodeLanding(state: GameState, installedRounds: InstalledRou
       };
     }
 
-    return triggerPerkSelection(state, player.id, field.id);
+    return triggerPerkSelection(state, player.id, field.id, randoms);
   }
 
   return state;
@@ -1018,7 +1045,12 @@ function traverseMovement(
   state: GameState,
   installedRounds: InstalledRound[],
   remainingSteps: number,
-  traversedNodeIds: string[]
+  traversedNodeIds: string[],
+  randoms?: {
+    antiPerkTriggerRoll?: number;
+    antiPerkIndex?: number;
+    perkChoicesRolls?: number[];
+  }
 ): { state: GameState; stoppedAtSafePoint: boolean } {
   let nextState = state;
   let steps = remainingSteps;
@@ -1110,7 +1142,7 @@ function traverseMovement(
     !nextState.activeRound &&
     nextState.sessionPhase === "normal"
   ) {
-    nextState = resolveFinalNodeLanding(nextState, installedRounds);
+    nextState = resolveFinalNodeLanding(nextState, installedRounds, randoms);
   }
 
   return {
@@ -1125,7 +1157,12 @@ function traverseMovement(
 export function selectPathEdge(
   state: GameState,
   edgeId: string,
-  installedRounds: InstalledRound[]
+  installedRounds: InstalledRound[],
+  randoms?: {
+    antiPerkTriggerRoll?: number;
+    antiPerkIndex?: number;
+    perkChoicesRolls?: number[];
+  }
 ): GameState {
   const pending = state.pendingPathChoice;
   if (!pending) return state;
@@ -1173,13 +1210,14 @@ export function selectPathEdge(
   }
 
   if (traversedFirst.remainingSteps <= 0) {
-    next = resolveFinalNodeLanding(next, installedRounds);
+    next = resolveFinalNodeLanding(next, installedRounds, randoms);
   } else {
     const continued = traverseMovement(
       next,
       installedRounds,
       traversedFirst.remainingSteps,
-      traversedFirst.traversedNodeIds
+      traversedFirst.traversedNodeIds,
+      randoms
     );
     next = continued.state;
     if (continued.stoppedAtSafePoint) {
@@ -1201,7 +1239,13 @@ export function selectPathEdge(
 
 export function resolvePathChoiceTimeout(
   state: GameState,
-  installedRounds: InstalledRound[]
+  installedRounds: InstalledRound[],
+  randoms?: {
+    pathChoiceRoll?: number;
+    antiPerkTriggerRoll?: number;
+    antiPerkIndex?: number;
+    perkChoicesRolls?: number[];
+  }
 ): GameState {
   const pending = state.pendingPathChoice;
   if (!pending || pending.options.length === 0) return state;
@@ -1231,11 +1275,12 @@ export function resolvePathChoiceTimeout(
   });
 
   const selectedEdgeId = pickWeightedRoundId(
-    weighted.map((entry) => ({ roundId: entry.edgeId, weight: entry.weight }))
+    weighted.map((entry) => ({ roundId: entry.edgeId, weight: entry.weight })),
+    randoms?.pathChoiceRoll
   );
   if (!selectedEdgeId) return state;
 
-  return selectPathEdge(state, selectedEdgeId, installedRounds);
+  return selectPathEdge(state, selectedEdgeId, installedRounds, randoms);
 }
 
 export function createInitialGameState(
@@ -1322,7 +1367,13 @@ export function reportPlayerCum(state: GameState): GameState {
 export function rollTurn(
   state: GameState,
   installedRounds: InstalledRound[],
-  forcedRoll?: number
+  forcedRoll?: number,
+  randoms?: {
+    baseRoll?: number;
+    antiPerkTriggerRoll?: number;
+    antiPerkIndex?: number;
+    perkChoicesRolls?: number[];
+  }
 ): GameState {
   if (state.sessionPhase !== "normal") return state;
   if (state.pendingPerkSelection || state.pendingPathChoice || state.activeRound) return state;
@@ -1334,7 +1385,7 @@ export function rollTurn(
   const baseRoll =
     typeof forcedRoll === "number"
       ? clamp(Math.floor(forcedRoll), player.stats.diceMin, player.stats.diceMax)
-      : randomInt(player.stats.diceMin, player.stats.diceMax);
+      : (randoms?.baseRoll ?? randomInt(player.stats.diceMin, player.stats.diceMax));
   const rollCeiling =
     player.pendingRollCeiling == null ? null : clamp(Math.floor(player.pendingRollCeiling), 1, 12);
   const cappedBaseRoll = rollCeiling == null ? baseRoll : Math.min(baseRoll, rollCeiling);
@@ -1372,7 +1423,11 @@ export function rollTurn(
     lastTraversalPathNodeIds: [player.currentNodeId],
   };
 
-  const resolved = traverseMovement(movedState, installedRounds, roll, [player.currentNodeId]);
+  const resolved = traverseMovement(movedState, installedRounds, roll, [player.currentNodeId], {
+    antiPerkTriggerRoll: randoms?.antiPerkTriggerRoll,
+    antiPerkIndex: randoms?.antiPerkIndex,
+    perkChoicesRolls: randoms?.perkChoicesRolls,
+  });
 
   if (
     resolved.stoppedAtSafePoint ||
@@ -1414,7 +1469,13 @@ export function shouldAutoStartQueuedRound(state: GameState): boolean {
 export function completeRound(
   state: GameState,
   summary: CompletedRoundSummary | undefined,
-  installedRounds: InstalledRound[]
+  installedRounds: InstalledRound[],
+  randoms?: {
+    perkTriggerRoll?: number;
+    antiPerkTriggerRoll?: number;
+    antiPerkIndex?: number;
+    perkChoicesRolls?: number[];
+  }
 ): GameState {
   if (!state.activeRound) return state;
 
@@ -1544,11 +1605,19 @@ export function completeRound(
   }
 
   const updatedCurrentPlayer = next.players[next.currentPlayerIndex];
+  const roundField = next.config.board.find((f) => f.id === activeRound.fieldId);
+  const isPerkNode = roundField?.kind === "perk";
+  const perkTriggerRoll = randoms?.perkTriggerRoll ?? Math.random();
   if (
     updatedCurrentPlayer &&
-    Math.random() < getEffectivePerkTriggerChance(next, updatedCurrentPlayer)
+    !isPerkNode &&
+    perkTriggerRoll < getEffectivePerkTriggerChance(next, updatedCurrentPlayer)
   ) {
-    next = triggerPerkSelection(next, currentPlayer.id, activeRound.fieldId);
+    next = triggerPerkSelection(next, currentPlayer.id, activeRound.fieldId, {
+      antiPerkTriggerRoll: randoms?.antiPerkTriggerRoll,
+      antiPerkIndex: randoms?.antiPerkIndex,
+      perkChoicesRolls: randoms?.perkChoicesRolls,
+    });
     if (next.pendingPerkSelection || next.pendingPathChoice || next.queuedRound || next.activeRound)
       return next;
   }

@@ -26,4 +26,21 @@ describe("EditorState", () => {
 
     expect(config.nodes.find((node) => node.id === "legacy-event")?.kind).toBe("path");
   });
+
+  it("preserves starting money in editor economy state", () => {
+    const config = toEditorGraphConfig({
+      mode: "graph",
+      startNodeId: "start",
+      nodes: [
+        { id: "start", name: "Start", kind: "start" },
+        { id: "end", name: "End", kind: "end" },
+      ],
+      edges: [{ id: "edge-1", fromNodeId: "start", toNodeId: "end" }],
+      randomRoundPools: [],
+      cumRoundRefs: [],
+      pathChoiceTimeoutMs: 6000,
+    });
+
+    expect(config.economy.startingMoney).toBe(120);
+  });
 });

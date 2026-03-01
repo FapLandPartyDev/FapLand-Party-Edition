@@ -1,6 +1,18 @@
-import { fetchScenesForTag, sanitizeStashMediaUri, toNormalizedPhash, toStashDisplayAuthor } from "../stashClient";
+import {
+  fetchScenesForTag,
+  sanitizeStashMediaUri,
+  selectBrowserCompatibleStreamUrl,
+  toNormalizedPhash,
+  toStashDisplayAuthor,
+} from "../stashClient";
 import { normalizeBaseUrl } from "../store";
-import type { ExternalProvider, ExternalSource, ExternalSyncContext, MediaPurpose, NormalizedSceneImportItem } from "../types";
+import type {
+  ExternalProvider,
+  ExternalSource,
+  ExternalSyncContext,
+  MediaPurpose,
+  NormalizedSceneImportItem,
+} from "../types";
 
 function normalizeNullableText(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
@@ -20,7 +32,10 @@ function toReadableTitleCandidate(value: string | null | undefined): string | nu
   }
 
   const base = decoded.replace(/\.[A-Za-z0-9]{1,8}$/u, "").trim();
-  const pretty = base.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim();
+  const pretty = base
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!pretty) return null;
 
   const normalizedLower = pretty.toLowerCase();
@@ -39,13 +54,17 @@ function toSecondaryTitleFromFiles(files: Array<{ basename: string | null }>): s
   return null;
 }
 
-function toSceneDisplayName(sceneTitle: string | null, files: Array<{ basename: string | null }>): string {
+function toSceneDisplayName(
+  sceneTitle: string | null,
+  files: Array<{ basename: string | null }>
+): string {
   return normalizeNullableText(sceneTitle) ?? toSecondaryTitleFromFiles(files) ?? "Untitled Scene";
 }
 
 function toSceneDurationMs(files: Array<{ duration: number | null }>): number | null {
   for (const file of files) {
-    if (typeof file.duration !== "number" || !Number.isFinite(file.duration) || file.duration <= 0) continue;
+    if (typeof file.duration !== "number" || !Number.isFinite(file.duration) || file.duration <= 0)
+      continue;
     return Math.floor(file.duration * 1000);
   }
   return null;
@@ -140,7 +159,10 @@ export const stashProvider: ExternalProvider = {
 
         context.onSceneSeen();
 
-        const videoUri = sanitizeStashMediaUri(scene.paths.stream, source.baseUrl);
+        const videoUri = sanitizeStashMediaUri(
+          selectBrowserCompatibleStreamUrl(scene.sceneStreams, scene.paths.stream),
+          source.baseUrl
+        );
         if (!videoUri) continue;
 
         const normalized: NormalizedSceneImportItem = {

@@ -21,6 +21,7 @@ import { SUPPORTED_VIDEO_EXTENSIONS } from "../src/constants/videoFormats";
 import { approveDialogPath } from "./services/dialogPathApproval";
 import { normalizeMultiplayerAuthCallback } from "./services/authCallback";
 import { ensureAppDatabaseReady } from "./services/db";
+import { initStore } from "./services/store";
 import { scanInstallSources } from "./services/installer";
 import { proxyExternalRequest } from "./services/integrations";
 import { startContinuousPhashScan } from "./services/phashScanService";
@@ -168,7 +169,10 @@ function flushPendingOpenedFiles(): void {
 
   if (pendingOpenedFiles.length === 0) return;
 
-  mainWindowRef.webContents.send("app-open:files", pendingOpenedFiles.splice(0, pendingOpenedFiles.length));
+  mainWindowRef.webContents.send(
+    "app-open:files",
+    pendingOpenedFiles.splice(0, pendingOpenedFiles.length)
+  );
 }
 
 function queueAuthCallback(rawUrl: string): void {
@@ -795,6 +799,7 @@ app
   .whenReady()
   .then(async () => {
     app.setAsDefaultProtocolClient("fland");
+    await initStore();
     await ensureAppDatabaseReady();
     registerFileProtocol();
     registerWindowControlsIpc();

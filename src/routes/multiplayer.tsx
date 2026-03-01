@@ -144,10 +144,6 @@ function MultiplayerRoute() {
     return null;
   }
 
-  if (sfwModeEnabled) {
-    return null;
-  }
-
   const {
     activePlaylist,
     availablePlaylists,

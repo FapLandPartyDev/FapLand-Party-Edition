@@ -147,6 +147,11 @@ vi.mock("../services/playlists", () => ({
 
 vi.mock("../services/trpc", () => ({
   trpc: {
+    store: {
+      get: {
+        query: vi.fn().mockResolvedValue(false),
+      },
+    },
     db: new Proxy({}, { get: () => ({ query: vi.fn(), mutate: vi.fn() }) }),
     playlist: new Proxy({}, { get: () => ({ query: vi.fn(), mutate: vi.fn() }) }),
   },
@@ -557,9 +562,6 @@ describe("MapEditorRoute", () => {
     await enterEditor();
 
     const before = getCanvasNodePositions();
-    fireEvent.change(screen.getByLabelText("Layout strategy"), {
-      target: { value: "layeredVertical" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Apply Layout" }));
 
     await waitFor(() => {
@@ -643,9 +645,6 @@ describe("MapEditorRoute", () => {
     render(<MapEditorRoute />);
     await enterEditor();
 
-    fireEvent.change(screen.getByLabelText("Layout strategy"), {
-      target: { value: "layeredVertical" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Apply Layout" }));
     await waitFor(() => {
       expect(screen.getByText(/unsaved/i)).toBeDefined();
@@ -668,9 +667,6 @@ describe("MapEditorRoute", () => {
     render(<MapEditorRoute />);
     await enterEditor();
 
-    fireEvent.change(screen.getByLabelText("Layout strategy"), {
-      target: { value: "layeredVertical" },
-    });
     fireEvent.click(screen.getByRole("button", { name: "Apply Layout" }));
     await waitFor(() => {
       expect(screen.getByText(/unsaved/i)).toBeDefined();
@@ -682,6 +678,7 @@ describe("MapEditorRoute", () => {
       playlistId: "playlist-1",
       compressionMode: undefined,
       compressionStrength: 80,
+      includeMedia: true,
     });
     await waitFor(() => {
       const button = screen.getByRole("button", {
@@ -786,6 +783,7 @@ describe("MapEditorRoute", () => {
     fireEvent.change(screen.getByLabelText("Anti-perk initial"), { target: { value: "3" } });
     fireEvent.change(screen.getByLabelText("Anti-perk increase"), { target: { value: "9" } });
     fireEvent.change(screen.getByLabelText("Anti-perk max"), { target: { value: "77" } });
+    fireEvent.change(screen.getByLabelText("Starting Money"), { target: { value: "275" } });
     fireEvent.change(screen.getByLabelText("Cum round bonus score"), { target: { value: "180" } });
 
     fireEvent.click(screen.getByRole("button", { name: /Loaded Dice/i }));
@@ -807,6 +805,7 @@ describe("MapEditorRoute", () => {
     expect(updateCall.config.probabilityScaling.initialAntiPerkProbability).toBe(0.03);
     expect(updateCall.config.probabilityScaling.antiPerkIncreasePerRound).toBe(0.09);
     expect(updateCall.config.probabilityScaling.maxAntiPerkProbability).toBe(0.77);
+    expect(updateCall.config.economy.startingMoney).toBe(275);
     expect(updateCall.config.economy.scorePerCumRoundSuccess).toBe(180);
     expect(updateCall.config.perkPool.enabledPerkIds).toContain("loaded-dice");
     expect(updateCall.config.perkPool.enabledAntiPerkIds).toContain("jammed-dice");
@@ -937,8 +936,6 @@ describe("MapEditorRoute", () => {
   });
 
   it("does not reset the graph when reset confirmation is cancelled", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
-
     render(<MapEditorRoute />);
     await enterEditor();
 
@@ -949,18 +946,12 @@ describe("MapEditorRoute", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Reset Graph" }));
-
-    expect(confirmSpy).toHaveBeenCalledWith(
-      "Are you sure you want to reset the graph? This will delete all progress made."
-    );
+    expect(await screen.findByText("Are you sure you want to reset the graph? This will delete all progress made.")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByTestId("node-count").textContent).toBe("5");
-
-    confirmSpy.mockRestore();
   });
 
   it("resets the graph after explicit confirmation", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-
     render(<MapEditorRoute />);
     await enterEditor();
 
@@ -971,11 +962,11 @@ describe("MapEditorRoute", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Reset Graph" }));
+    const confirmButtons = screen.getAllByRole("button", { name: "Reset Graph" });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]!);
 
     await waitFor(() => {
       expect(screen.getByTestId("node-count").textContent).toBe("4");
     });
-
-    confirmSpy.mockRestore();
   });
 });

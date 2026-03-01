@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { createInitialGameState } from "./engine";
+import { getSinglePlayerPerkPool } from "./data/perks";
 import type { GameConfig, GameState } from "./types";
 import {
   CUM_ROUND_COUNTDOWN_DURATION,
@@ -86,6 +87,37 @@ function withQueuedRound(state: GameState, phaseKind: "normal" | "cum"): GameSta
   };
 }
 
+function makePerkConfig(): GameConfig {
+  return {
+    ...makeConfig(),
+    board: [
+      { id: "start", name: "Start", kind: "start" },
+      { id: "perk-1", name: "Perk 1", kind: "perk" },
+    ],
+    runtimeGraph: {
+      startNodeId: "start",
+      pathChoiceTimeoutMs: 6000,
+      edges: [{ id: "e1", fromNodeId: "start", toNodeId: "perk-1", gateCost: 0, weight: 1 }],
+      edgesById: {
+        e1: { id: "e1", fromNodeId: "start", toNodeId: "perk-1", gateCost: 0, weight: 1 },
+      },
+      outgoingEdgeIdsByNodeId: { start: ["e1"] },
+      randomRoundPoolsById: {},
+      nodeIndexById: { start: 0, "perk-1": 1 },
+    },
+    dice: { min: 1, max: 1 },
+    perkSelection: {
+      optionsPerPick: 1,
+      triggerChancePerCompletedRound: 0,
+    },
+    perkPool: {
+      enabledPerkIds: [getSinglePlayerPerkPool()[0]?.id ?? "loaded-dice"],
+      enabledAntiPerkIds: [],
+    },
+    roundStartDelayMs: 1000,
+  };
+}
+
 describe("useGameAnimation", () => {
   it("resolves countdown duration by round type", () => {
     expect(resolveRoundCountdownDuration(null)).toBe(NORMAL_ROUND_COUNTDOWN_DURATION);
@@ -129,5 +161,41 @@ describe("useGameAnimation", () => {
     expect(result.current.state.activeRound?.phaseKind).toBe("cum");
     expect(result.current.state.activeRound?.roundName).toBe("Finale");
     expect(result.current.state.queuedRound).toBeNull();
+  });
+
+  it("does not auto-skip or replace a pending perk selection during perk reveal", () => {
+    const initialState = createInitialGameState(makePerkConfig());
+    const { result } = renderHook(() => useGameAnimation(initialState, []));
+
+    act(() => {
+      result.current.handleRoll();
+    });
+
+    act(() => {
+      result.current.tickAnim(2);
+    });
+
+    act(() => {
+      result.current.tickAnim(1);
+    });
+
+    act(() => {
+      result.current.tickAnim(1);
+    });
+
+    expect(result.current.animPhase.kind).toBe("perkReveal");
+    expect(result.current.state.pendingPerkSelection).not.toBeNull();
+    const initialOptions = result.current.state.pendingPerkSelection?.options.map((option) => option.id);
+
+    act(() => {
+      result.current.tickAnim(2);
+    });
+
+    expect(result.current.state.pendingPerkSelection).not.toBeNull();
+    expect(result.current.state.pendingPerkSelection?.options.map((option) => option.id)).toEqual(
+      initialOptions
+    );
+    expect(result.current.state.turn).toBe(1);
+    expect(result.current.state.lastRoll).toBe(1);
   });
 });

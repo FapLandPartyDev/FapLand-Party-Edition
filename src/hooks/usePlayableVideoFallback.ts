@@ -52,6 +52,11 @@ function getDefaultVideoSrc(originalUri: string): string | undefined {
   return originalUri;
 }
 
+function buildForcedLocalTranscodeUri(originalUri: string): string | null {
+  if (!originalUri.startsWith("app://media/")) return null;
+  return `${originalUri}${originalUri.includes("?") ? "&" : "?"}transcode=1`;
+}
+
 export function isLocalVideoUriForFallback(videoUri: string): boolean {
   if (isRawWebsiteVideoPageUri(videoUri)) return true;
 
@@ -143,7 +148,20 @@ export function usePlayableVideoFallback(resolver: PlayableResolver = defaultPla
   );
 
   const handleVideoError = useCallback(
-    async (originalUri: string | null | undefined): Promise<string | null> => resolveFallback(originalUri),
+    async (originalUri: string | null | undefined): Promise<string | null> => {
+      const resolved = await resolveFallback(originalUri);
+      if (resolved || !originalUri) return resolved;
+
+      const forcedTranscodeUri = buildForcedLocalTranscodeUri(originalUri);
+      if (!forcedTranscodeUri) return null;
+
+      if (fallbackByOriginalUriRef.current[originalUri] !== forcedTranscodeUri) {
+        fallbackByOriginalUriRef.current[originalUri] = forcedTranscodeUri;
+        forceUpdate((n) => n + 1);
+      }
+      attemptedOriginalUrisRef.current.add(originalUri);
+      return forcedTranscodeUri;
+    },
     [resolveFallback]
   );
 

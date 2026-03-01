@@ -9,6 +9,7 @@ import {
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   openGlobalMusicOverlay: vi.fn(),
+  openGlobalHandyOverlay: vi.fn(),
   handy: {
     manuallyStopped: false,
     toggleManualStop: vi.fn(async () => "stopped" as const),
@@ -21,6 +22,10 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("./GlobalMusicOverlay", () => ({
   openGlobalMusicOverlay: mocks.openGlobalMusicOverlay,
+}));
+
+vi.mock("./GlobalHandyOverlay", () => ({
+  openGlobalHandyOverlay: mocks.openGlobalHandyOverlay,
 }));
 
 vi.mock("../contexts/HandyContext", () => ({
@@ -59,6 +64,25 @@ describe("CommandPalette", () => {
 
     await waitFor(() => {
       expect(mocks.openGlobalMusicOverlay).toHaveBeenCalledTimes(1);
+    });
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("opens the TheHandy menu from the command palette", async () => {
+    render(
+      <CommandPaletteGuardProvider>
+        <CommandPalette />
+      </CommandPaletteGuardProvider>
+    );
+
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+
+    const input = await screen.findByPlaceholderText("Search pages, settings, actions...");
+    fireEvent.change(input, { target: { value: "handy menu" } });
+    fireEvent.click(screen.getByRole("button", { name: /TheHandy Menu/i }));
+
+    await waitFor(() => {
+      expect(mocks.openGlobalHandyOverlay).toHaveBeenCalledTimes(1);
     });
     expect(mocks.navigate).not.toHaveBeenCalled();
   });

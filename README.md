@@ -96,7 +96,8 @@ Packaged desktop OAuth callbacks use the `fland://auth/callback` protocol.
 
 ## Local Multiplayer Workflow
 
-1. Copy [`.example.env`](./.example.env) to `.env`.
+1. Copy [`.example.env`](.
+2. /.example.env) to `.env`.
 2. Set `VITE_MULTIPLAYER_DEVELOPMENT_SUPABASE_ANON_KEY` to the anon key from your local Supabase instance.
 3. Run `npm run supabase:local:setup`.
 4. Run `npm run dev:multiplayer`.

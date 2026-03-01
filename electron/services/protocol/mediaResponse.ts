@@ -102,21 +102,77 @@ export async function createMediaResponse(
 
     const ffmpeg = spawn(ffmpegPath, ffmpegArgs);
 
-    // We don't read from stderr here to avoid buffering issues, 
-    // but we should ensure the process is killed on request close.
+    // We don't read from stderr here to avoid buffering issues.
+    // Guard the stream controller so request cancellation and FFmpeg teardown
+    // cannot race each other into double close/error calls.
+    let settled = false;
+    let cancelled = false;
+    let cleanup = () => {};
+
     const stream = new ReadableStream({
       start(controller) {
-        ffmpeg.stdout.on("data", (chunk) => {
-          controller.enqueue(new Uint8Array(chunk));
-        });
-        ffmpeg.stdout.on("end", () => {
+        cleanup = () => {
+          ffmpeg.stdout.off("data", handleData);
+          ffmpeg.stdout.off("end", handleEnd);
+          ffmpeg.off("error", handleError);
+          ffmpeg.off("close", handleClose);
+        };
+
+        const settleClose = () => {
+          if (settled) return;
+          settled = true;
+          cleanup();
           controller.close();
-        });
-        ffmpeg.on("error", (err) => {
-          controller.error(err);
-        });
+        };
+
+        const settleError = (error: unknown) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          controller.error(error);
+        };
+
+        const handleData = (chunk: Buffer) => {
+          if (settled) return;
+          controller.enqueue(new Uint8Array(chunk));
+        };
+
+        const handleEnd = () => {
+          settleClose();
+        };
+
+        const handleError = (error: Error) => {
+          settleError(error);
+        };
+
+        const handleClose = (code: number | null, signal: NodeJS.Signals | null) => {
+          if (settled) return;
+          if (cancelled) {
+            settled = true;
+            cleanup();
+            return;
+          }
+          if (code === 0) {
+            settleClose();
+            return;
+          }
+          settleError(
+            new Error(
+              `FFmpeg live transcode exited unexpectedly (code=${code ?? "null"}, signal=${signal ?? "null"}).`
+            )
+          );
+        };
+
+        ffmpeg.stdout.on("data", handleData);
+        ffmpeg.stdout.on("end", handleEnd);
+        ffmpeg.on("error", handleError);
+        ffmpeg.on("close", handleClose);
       },
       cancel() {
+        if (settled) return;
+        cancelled = true;
+        settled = true;
+        cleanup();
         ffmpeg.kill("SIGKILL");
       }
     });

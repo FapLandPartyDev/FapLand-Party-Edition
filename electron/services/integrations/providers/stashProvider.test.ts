@@ -72,6 +72,13 @@ describe("stash provider", () => {
               stream: "https://stash.example.com/api/scene-1/stream?apikey=abc",
               funscript: null,
             },
+            sceneStreams: [
+              {
+                url: "https://stash.example.com/api/scene-1/stream.mp4?apikey=abc",
+                mime_type: "video/mp4",
+                label: "MP4",
+              },
+            ],
             files: [{ duration: null, fingerprint: "ABC" }],
           },
           {
@@ -83,6 +90,7 @@ describe("stash provider", () => {
             performers: [],
             tags: [],
             paths: { screenshot: null, stream: null, funscript: null },
+            sceneStreams: [],
             files: [],
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,6 +111,13 @@ describe("stash provider", () => {
             stream: "https://stash.example.com/api/scene-1/stream?apikey=abc",
             funscript: null,
           },
+          sceneStreams: [
+            {
+              url: "https://stash.example.com/api/scene-1/stream.mp4?apikey=abc",
+              mime_type: "video/mp4",
+              label: "MP4",
+            },
+          ],
           files: [],
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -127,7 +142,7 @@ describe("stash provider", () => {
     const [payload] = ingestScene.mock.calls[0]!;
     expect(payload.sceneId).toBe("scene-1");
     expect(payload.previewImageUri).toBe("https://stash.example.com/scene-1/screenshot");
-    expect(payload.videoUri).toBe("https://stash.example.com/api/scene-1/stream");
+    expect(payload.videoUri).toBe("https://stash.example.com/api/scene-1/stream.mp4");
     expect(payload.phash).toBe("abc");
     expect(payload.durationMs).toBeNull();
   });
@@ -148,6 +163,7 @@ describe("stash provider", () => {
           stream: "https://stash.example.com/api/scene/123/stream?apikey=abc",
           funscript: null,
         },
+        sceneStreams: [],
         files: [{ duration: null, fingerprint: null, basename: "My%20Great.Video-01.mp4" }],
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -192,6 +208,7 @@ describe("stash provider", () => {
           stream: "/api/scene/123/stream?apikey=abc",
           funscript: "api/scene/123/funscript?apikey=abc",
         },
+        sceneStreams: [],
         files: [{ duration: null, fingerprint: null, basename: null }],
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -238,6 +255,7 @@ describe("stash provider", () => {
           stream: "https://stash.example.com/api/scene/321/stream?apikey=abc",
           funscript: null,
         },
+        sceneStreams: [],
         files: [
           { duration: 123.9, fingerprint: null, basename: null },
           { duration: 5, fingerprint: null, basename: null },
@@ -264,5 +282,104 @@ describe("stash provider", () => {
 
     const [payload] = ingestScene.mock.calls[0]!;
     expect(payload.durationMs).toBe(123_900);
+  });
+
+  it("prefers MP4 transcoded stream over default stream during sync", async () => {
+    const mockedFetchScenesForTag = vi.mocked(fetchScenesForTag);
+    mockedFetchScenesForTag.mockResolvedValue([
+      {
+        id: "scene-mp4",
+        title: "MP4 Scene",
+        details: null,
+        date: null,
+        studio: null,
+        performers: [],
+        tags: [],
+        paths: {
+          screenshot: null,
+          stream: "https://stash.example.com/api/scene/999/stream?apikey=abc",
+          funscript: null,
+        },
+        sceneStreams: [
+          {
+            url: "https://stash.example.com/api/scene/999/stream?apikey=abc",
+            mime_type: "video/x-matroska",
+            label: "MKV",
+          },
+          {
+            url: "https://stash.example.com/api/scene/999/stream.mp4?apikey=abc",
+            mime_type: "video/mp4",
+            label: "MP4",
+          },
+        ],
+        files: [{ duration: 60, fingerprint: null, basename: null }],
+      },
+    ] as any);
+
+    const ingestScene = vi.fn<ExternalSyncContext["ingestScene"]>().mockResolvedValue({
+      created: 1,
+      updated: 0,
+      linked: 0,
+      resourcesAdded: 1,
+      managedRoundId: "round-mp4",
+    });
+
+    await stashProvider.syncSource(
+      {
+        ...baseSource,
+        tagSelections: [{ id: "tag-1", name: "Tag 1", roundTypeFallback: "Normal" }],
+      },
+      { ingestScene, onSceneSeen: vi.fn() }
+    );
+
+    const [payload] = ingestScene.mock.calls[0]!;
+    expect(payload.videoUri).toBe("https://stash.example.com/api/scene/999/stream.mp4");
+  });
+
+  it("falls back to paths.stream when no MP4 stream is available", async () => {
+    const mockedFetchScenesForTag = vi.mocked(fetchScenesForTag);
+    mockedFetchScenesForTag.mockResolvedValue([
+      {
+        id: "scene-no-mp4",
+        title: "No MP4 Scene",
+        details: null,
+        date: null,
+        studio: null,
+        performers: [],
+        tags: [],
+        paths: {
+          screenshot: null,
+          stream: "https://stash.example.com/api/scene/888/stream?apikey=abc",
+          funscript: null,
+        },
+        sceneStreams: [
+          {
+            url: "https://stash.example.com/api/scene/888/stream?apikey=abc",
+            mime_type: "video/x-matroska",
+            label: "MKV",
+          },
+        ],
+        files: [],
+      },
+    ] as any);
+
+    const ingestScene = vi.fn<ExternalSyncContext["ingestScene"]>().mockResolvedValue({
+      created: 1,
+      updated: 0,
+      linked: 0,
+      resourcesAdded: 1,
+      managedRoundId: "round-no-mp4",
+    });
+
+    await stashProvider.syncSource(
+      {
+        ...baseSource,
+        tagSelections: [{ id: "tag-1", name: "Tag 1", roundTypeFallback: "Normal" }],
+      },
+      { ingestScene, onSceneSeen: vi.fn() }
+    );
+
+    const [payload] = ingestScene.mock.calls[0]!;
+    expect(payload.videoUri).toBe("https://stash.example.com/api/scene/888/stream");
   });
 });

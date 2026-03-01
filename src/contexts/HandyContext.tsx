@@ -1,7 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { THEHANDY_APP_API_KEY_OVERRIDE_STORE_KEY } from "../constants/theHandy";
+import {
+    THEHANDY_APP_API_KEY_OVERRIDE_STORE_KEY,
+    THEHANDY_OFFSET_MS_STORE_KEY,
+} from "../constants/theHandy";
 import { verifyConnection } from "../services/handyApi";
-import { normalizeHandyAppApiKeyOverride, resolveHandyAppApiKey } from "../services/theHandyConfig";
+import {
+    normalizeHandyAppApiKeyOverride,
+    normalizeHandyOffsetMs,
+    resolveHandyAppApiKey,
+} from "../services/theHandyConfig";
 import { issueHandySession, stopHandyPlayback } from "../services/thehandy/runtime";
 import { trpc } from "../services/trpc";
 
@@ -11,6 +18,7 @@ type HandyContextType = {
     appApiKeyOverride: string;
     isUsingDefaultAppApiKey: boolean;
     localIp: string;
+    offsetMs: number;
     connected: boolean;
     manuallyStopped: boolean;
     synced: boolean;
@@ -22,6 +30,8 @@ type HandyContextType = {
     forceStop: () => Promise<void>;
     toggleManualStop: () => Promise<"stopped" | "resumed" | "unavailable">;
     setSyncStatus: (next: { synced: boolean; error?: string | null }) => void;
+    adjustOffset: (deltaMs: number) => Promise<number>;
+    resetOffset: () => Promise<void>;
 };
 
 const CONNECTION_KEY_STORE_KEY = "connectionKey";
@@ -29,21 +39,23 @@ const LOCAL_IP_STORE_KEY = "localIp";
 
 const HandyContext = createContext<HandyContextType | undefined>(undefined);
 
-async function loadFromStore(): Promise<{ connectionKey: string; appApiKeyOverride: string; localIp: string }> {
+async function loadFromStore(): Promise<{ connectionKey: string; appApiKeyOverride: string; localIp: string; offsetMs: number }> {
     try {
-        const [connectionKey, appApiKeyOverride, localIp] = await Promise.all([
+        const [connectionKey, appApiKeyOverride, localIp, offsetMs] = await Promise.all([
             trpc.store.get.query({ key: CONNECTION_KEY_STORE_KEY }),
             trpc.store.get.query({ key: THEHANDY_APP_API_KEY_OVERRIDE_STORE_KEY }),
             trpc.store.get.query({ key: LOCAL_IP_STORE_KEY }),
+            trpc.store.get.query({ key: THEHANDY_OFFSET_MS_STORE_KEY }),
         ]);
         return {
             connectionKey: (connectionKey as string | undefined) ?? "",
             appApiKeyOverride: normalizeHandyAppApiKeyOverride(appApiKeyOverride as string | undefined),
             localIp: (localIp as string | undefined) ?? "",
+            offsetMs: normalizeHandyOffsetMs(offsetMs),
         };
     } catch (err) {
         console.warn("Could not load handy store", err);
-        return { connectionKey: "", appApiKeyOverride: "", localIp: "" };
+        return { connectionKey: "", appApiKeyOverride: "", localIp: "", offsetMs: 0 };
     }
 }
 
@@ -63,6 +75,7 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [connectionKey, setConnectionKey] = useState("");
     const [appApiKeyOverride, setAppApiKeyOverride] = useState("");
     const [localIp, setLocalIp] = useState("");
+    const [offsetMs, setOffsetMs] = useState(0);
     const [connected, setConnected] = useState(false);
     const [manuallyStopped, setManuallyStopped] = useState(false);
     const [synced, setSynced] = useState(false);
@@ -74,10 +87,11 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const isUsingDefaultAppApiKey = normalizeHandyAppApiKeyOverride(appApiKeyOverride).length === 0;
 
     useEffect(() => {
-        loadFromStore().then(async ({ connectionKey: savedKey, appApiKeyOverride: savedOverride, localIp: savedIp }) => {
+        loadFromStore().then(async ({ connectionKey: savedKey, appApiKeyOverride: savedOverride, localIp: savedIp, offsetMs: savedOffsetMs }) => {
             if (savedKey) setConnectionKey(savedKey);
             if (savedOverride) setAppApiKeyOverride(savedOverride);
             if (savedIp) setLocalIp(savedIp);
+            setOffsetMs(savedOffsetMs);
 
             if (!savedKey) return;
 
@@ -109,6 +123,19 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 setIsConnecting(false);
             }
         });
+    }, []);
+
+    const persistOffset = useCallback(async (nextOffsetMs: number): Promise<number> => {
+        const normalized = normalizeHandyOffsetMs(nextOffsetMs);
+        setOffsetMs(normalized);
+
+        try {
+            await trpc.store.set.mutate({ key: THEHANDY_OFFSET_MS_STORE_KEY, value: normalized });
+        } catch (err) {
+            console.error("Failed to save handy offset", err);
+        }
+
+        return normalized;
     }, []);
 
     const connect = useCallback(async (key: string, ip?: string, apiKeyOverride?: string) => {
@@ -226,12 +253,21 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSyncError(next.error ?? null);
     }, []);
 
+    const adjustOffset = useCallback(async (deltaMs: number): Promise<number> => {
+        return persistOffset(offsetMs + deltaMs);
+    }, [offsetMs, persistOffset]);
+
+    const resetOffset = useCallback(async () => {
+        await persistOffset(0);
+    }, [persistOffset]);
+
     const value = useMemo(() => ({
         connectionKey,
         appApiKey,
         appApiKeyOverride,
         isUsingDefaultAppApiKey,
         localIp,
+        offsetMs,
         connected,
         manuallyStopped,
         synced,
@@ -243,12 +279,15 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         forceStop,
         toggleManualStop,
         setSyncStatus,
+        adjustOffset,
+        resetOffset,
     }), [
         connectionKey,
         appApiKey,
         appApiKeyOverride,
         isUsingDefaultAppApiKey,
         localIp,
+        offsetMs,
         connected,
         manuallyStopped,
         synced,
@@ -260,6 +299,8 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         forceStop,
         toggleManualStop,
         setSyncStatus,
+        adjustOffset,
+        resetOffset,
     ]);
 
     return (

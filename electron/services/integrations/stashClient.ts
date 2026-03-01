@@ -19,11 +19,14 @@ function extractCookieHeader(response: Response): string | null {
   const headers = response.headers as Headers & { getSetCookie?: () => string[] };
   const fromMethod = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [];
 
-  const rawList = fromMethod.length > 0 ? fromMethod : (() => {
-    const header = response.headers.get("set-cookie");
-    if (!header) return [] as string[];
-    return header.split(/,(?=[^;]+?=)/g);
-  })();
+  const rawList =
+    fromMethod.length > 0
+      ? fromMethod
+      : (() => {
+          const header = response.headers.get("set-cookie");
+          if (!header) return [] as string[];
+          return header.split(/,(?=[^;]+?=)/g);
+        })();
 
   const values = rawList
     .map((value) => value.split(";")[0]?.trim())
@@ -89,12 +92,20 @@ function ensureApiKeyQueryParam(source: ExternalSource, targetUrl: string): stri
   return parsed.toString();
 }
 
-async function ensureLoginSessionCookie(source: ExternalSource, forceRefresh = false): Promise<string | null> {
+async function ensureLoginSessionCookie(
+  source: ExternalSource,
+  forceRefresh = false
+): Promise<string | null> {
   if (source.authMode !== "login") return null;
 
   const scopeKey = buildSessionScopeKey(source);
   const cached = stashSessionCache.get(source.id);
-  if (!forceRefresh && cached && cached.scopeKey === scopeKey && Date.now() - cached.createdAtMs < SESSION_TTL_MS) {
+  if (
+    !forceRefresh &&
+    cached &&
+    cached.scopeKey === scopeKey &&
+    Date.now() - cached.createdAtMs < SESSION_TTL_MS
+  ) {
     return cached.cookieHeader;
   }
 
@@ -134,7 +145,10 @@ async function ensureLoginSessionCookie(source: ExternalSource, forceRefresh = f
   return cookieHeader;
 }
 
-export async function buildAuthHeaders(source: ExternalSource, forceRefreshLogin = false): Promise<Record<string, string>> {
+export async function buildAuthHeaders(
+  source: ExternalSource,
+  forceRefreshLogin = false
+): Promise<Record<string, string>> {
   if (source.authMode === "none") {
     return {};
   }
@@ -163,7 +177,7 @@ export async function buildAuthHeaders(source: ExternalSource, forceRefreshLogin
 export async function executeStashGraphQL<T>(
   source: ExternalSource,
   query: string,
-  variables: Record<string, unknown> = {},
+  variables: Record<string, unknown> = {}
 ): Promise<T> {
   const endpoint = `${normalizeBaseUrl(source.baseUrl)}/graphql`;
 
@@ -180,7 +194,11 @@ export async function executeStashGraphQL<T>(
       body: JSON.stringify({ query, variables }),
     });
 
-    if ((response.status === 401 || response.status === 403) && source.authMode === "login" && !forceRefreshLogin) {
+    if (
+      (response.status === 401 || response.status === 403) &&
+      source.authMode === "login" &&
+      !forceRefreshLogin
+    ) {
       return perform(true);
     }
 
@@ -190,7 +208,10 @@ export async function executeStashGraphQL<T>(
 
     const json = (await response.json()) as GraphQLResult<T>;
     if (Array.isArray(json.errors) && json.errors.length > 0) {
-      const message = json.errors.map((error) => error.message).filter((value): value is string => Boolean(value)).join("; ");
+      const message = json.errors
+        .map((error) => error.message)
+        .filter((value): value is string => Boolean(value))
+        .join("; ");
       throw new Error(message || "Stash GraphQL request failed.");
     }
 
@@ -216,7 +237,7 @@ type FindTagsData = {
 
 export async function searchStashTags(
   source: ExternalSource,
-  input: { query: string; page: number; perPage: number },
+  input: { query: string; page: number; perPage: number }
 ): Promise<FindTagsData["findTags"]> {
   const data = await executeStashGraphQL<FindTagsData>(
     source,
@@ -243,11 +264,17 @@ export async function searchStashTags(
       q: input.query,
       page: input.page,
       perPage: input.perPage,
-    },
+    }
   );
 
   return data.findTags;
 }
+
+export type StashSceneStreamEndpoint = {
+  url: string;
+  mime_type: string | null;
+  label: string | null;
+};
 
 type FindScenesData = {
   findScenes: {
@@ -264,6 +291,7 @@ type FindScenesData = {
         stream: string | null;
         funscript: string | null;
       };
+      sceneStreams: Array<StashSceneStreamEndpoint>;
       files: Array<{
         duration: number | null;
         fingerprint: string | null;
@@ -278,7 +306,7 @@ export type StashScene = FindScenesData["findScenes"]["scenes"][number];
 
 export async function fetchScenesForTag(
   source: ExternalSource,
-  selection: StashTagSelection,
+  selection: StashTagSelection
 ): Promise<StashScene[]> {
   const perPage = 100;
   const maxPages = 50;
@@ -321,6 +349,11 @@ export async function fetchScenesForTag(
                 stream
                 funscript
               }
+              sceneStreams {
+                url
+                mime_type
+                label
+              }
               files {
                 duration
                 fingerprint(type: "phash")
@@ -334,7 +367,7 @@ export async function fetchScenesForTag(
         tagId: selection.id,
         page,
         perPage,
-      },
+      }
     );
 
     scenes.push(...data.findScenes.scenes);
@@ -360,13 +393,16 @@ export async function testStashConnection(source: ExternalSource): Promise<{ ok:
           count
         }
       }
-    `,
+    `
   );
 
   return { ok: true };
 }
 
-export function sanitizeStashMediaUri(uri: string | null | undefined, baseUrl?: string): string | null {
+export function sanitizeStashMediaUri(
+  uri: string | null | undefined,
+  baseUrl?: string
+): string | null {
   const stripped = stripApiKeyFromUri(uri, baseUrl);
   return stripped;
 }
@@ -389,6 +425,22 @@ export function toNormalizedPhash(value: string | null | undefined): string | nu
   return normalized.toLowerCase();
 }
 
+export function selectBrowserCompatibleStreamUrl(
+  sceneStreams: Array<StashSceneStreamEndpoint> | null | undefined,
+  fallbackStreamUrl: string | null
+): string | null {
+  if (Array.isArray(sceneStreams) && sceneStreams.length > 0) {
+    const mp4Stream = sceneStreams.find(
+      (stream) => stream.mime_type && stream.mime_type.toLowerCase().includes("mp4")
+    );
+    if (mp4Stream) {
+      return mp4Stream.url;
+    }
+  }
+
+  return fallbackStreamUrl ?? null;
+}
+
 export function clearStashSessionCache(sourceId?: string): void {
   if (sourceId) {
     stashSessionCache.delete(sourceId);
@@ -398,12 +450,7 @@ export function clearStashSessionCache(sourceId?: string): void {
   stashSessionCache.clear();
 }
 
-const FORWARDED_MEDIA_HEADERS = [
-  "accept",
-  "if-modified-since",
-  "if-none-match",
-  "range",
-] as const;
+const FORWARDED_MEDIA_HEADERS = ["accept", "if-modified-since", "if-none-match", "range"] as const;
 
 function isAllowedMediaProxyMethod(method: string): boolean {
   return method === "GET" || method === "HEAD";
@@ -425,7 +472,7 @@ function buildForwardHeaders(request: Request): Headers {
 export async function fetchStashMediaWithAuth(
   source: ExternalSource,
   targetUrl: string,
-  request: Request,
+  request: Request
 ): Promise<Response> {
   if (!isAllowedMediaProxyMethod(request.method)) {
     throw new Error("Unsupported proxy method.");
@@ -445,7 +492,11 @@ export async function fetchStashMediaWithAuth(
       headers,
     });
 
-    if ((response.status === 401 || response.status === 403) && source.authMode === "login" && !forceRefreshLogin) {
+    if (
+      (response.status === 401 || response.status === 403) &&
+      source.authMode === "login" &&
+      !forceRefreshLogin
+    ) {
       return run(true);
     }
 

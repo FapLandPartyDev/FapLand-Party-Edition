@@ -178,6 +178,27 @@ describe("GlobalMusicContext", () => {
     });
   });
 
+  it("defaults to enabled when no persisted music toggle exists", async () => {
+    mocks.getQuery.mockImplementation(async ({ key }: { key: string }) => {
+      if (key === "music.enabled") return null;
+      if (key === "music.queue") {
+        return [{ id: "t1", filePath: "/music/one.mp3", name: "one.mp3" }];
+      }
+      if (key === "music.volume") return 0.5;
+      if (key === "music.shuffle") return false;
+      if (key === "music.loopMode") return "queue" satisfies MusicLoopMode;
+      if (key === "music.currentIndex") return 0;
+      return null;
+    });
+
+    renderProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("one.mp3");
+      expect(audioInstances[0]?.play).toHaveBeenCalled();
+    });
+  });
+
   it("pauses for foreground video and resumes from the same timestamp", async () => {
     renderProviders();
 

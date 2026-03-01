@@ -5,6 +5,11 @@ import { AnimatedBackground } from "../components/AnimatedBackground";
 import { MenuButton } from "../components/MenuButton";
 import { PlaylistMapPreview } from "../components/PlaylistMapPreview";
 import { PlaylistLaunchTransition } from "../components/game/PlaylistLaunchTransition";
+import {
+  DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED,
+  PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED_KEY,
+  normalizePlaylistCacheOngoingRestrictionDisabled,
+} from "../constants/experimentalFeatures";
 import { useControllerSurface } from "../controller";
 import { buildPlaylistWebsiteCacheSummary } from "../features/webVideo/cacheStatus";
 import type { PlaylistConfig } from "../game/playlistSchema";
@@ -13,6 +18,7 @@ import { describePlaylistBoard } from "../game/playlistStats";
 import { resolvePortableRoundRef } from "../game/playlistRuntime";
 import { db, type InstalledRound } from "../services/db";
 import { playlists, type StoredPlaylist } from "../services/playlists";
+import { trpc } from "../services/trpc";
 import { formatDurationLabel, getRoundDurationSec } from "../utils/duration";
 import { playHoverSound, playSelectSound, playPlaylistLaunchSound } from "../utils/audio";
 
@@ -97,6 +103,10 @@ export function SinglePlayerSetupRoute() {
   const [notice, setNotice] = useState<string | null>(search.notice ?? null);
   const [launchState, setLaunchState] = useState<LaunchState>({ kind: "idle" });
   const [launchProgress, setLaunchProgress] = useState(0);
+  const [
+    playlistCacheOngoingRestrictionDisabled,
+    setPlaylistCacheOngoingRestrictionDisabled,
+  ] = useState(DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED);
   const scopeRef = useRef<HTMLDivElement | null>(null);
   const goBack = () => {
     if (window.history.length > 1) {
@@ -141,6 +151,28 @@ export function SinglePlayerSetupRoute() {
   const isLaunchAnimating = launchState.kind === "animating";
   const selectedSavedRun = selectedPlaylist ? savedRunByPlaylistId.get(selectedPlaylist.id) ?? null : null;
   const hasResumeRun = Boolean(selectedSavedRun);
+  const canStartSelectedPlaylist =
+    !selectedPlaylistCacheSummary.hasPending || playlistCacheOngoingRestrictionDisabled;
+
+  useEffect(() => {
+    let mounted = true;
+
+    void trpc.store.get
+      .query({ key: PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED_KEY })
+      .then((stored) => {
+        if (!mounted) return;
+        setPlaylistCacheOngoingRestrictionDisabled(
+          normalizePlaylistCacheOngoingRestrictionDisabled(stored)
+        );
+      })
+      .catch((error) => {
+        console.error("Failed to load playlist cache ongoing restriction setting", error);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (launchState.kind !== "animating") {
@@ -169,7 +201,7 @@ export function SinglePlayerSetupRoute() {
   };
 
   const handleStart = async () => {
-    if (pendingAction || !selectedPlaylist || selectedPlaylistCacheSummary.hasPending) return;
+    if (pendingAction || !selectedPlaylist || !canStartSelectedPlaylist) return;
     setPendingAction("start");
     setNotice(null);
     try {
@@ -197,7 +229,7 @@ export function SinglePlayerSetupRoute() {
   };
 
   const handleResume = async () => {
-    if (pendingAction || !selectedPlaylist || !selectedSavedRun || selectedPlaylistCacheSummary.hasPending) return;
+    if (pendingAction || !selectedPlaylist || !selectedSavedRun || !canStartSelectedPlaylist) return;
     setPendingAction("start");
     setNotice(null);
     try {
@@ -349,7 +381,7 @@ export function SinglePlayerSetupRoute() {
               Pick And Start
             </h1>
             <p className="mt-2 text-sm text-zinc-400">
-              Choose a playlist on the left, then start when all required web rounds are fully cached.
+              Choose a playlist on the left, review any cache warnings, then start your run.
             </p>
           </div>
 
@@ -502,9 +534,9 @@ export function SinglePlayerSetupRoute() {
                   </div>
                   {selectedPlaylistCacheSummary.hasPending && (
                     <p className="mt-3 text-sm text-amber-100/85">
-                      {selectedPlaylistCacheSummary.pendingRoundCount} required web round
-                      {selectedPlaylistCacheSummary.pendingRoundCount === 1 ? "" : "s"} are still caching
-                      in the background. Playback unlocks automatically when caching finishes.
+                      {playlistCacheOngoingRestrictionDisabled
+                        ? `${selectedPlaylistCacheSummary.pendingRoundCount} required web round${selectedPlaylistCacheSummary.pendingRoundCount === 1 ? "" : "s"} are still caching in the background. Some rounds may not play, and the web version is used instead of the local cache.`
+                        : `${selectedPlaylistCacheSummary.pendingRoundCount} required web round${selectedPlaylistCacheSummary.pendingRoundCount === 1 ? "" : "s"} are still caching in the background. Playback unlocks automatically when caching finishes.`}
                     </p>
                   )}
                   {selectedSavedRun && (
@@ -531,8 +563,18 @@ export function SinglePlayerSetupRoute() {
                       </div>
                       <MenuButton
                         label={
-                          selectedPlaylistCacheSummary.hasPending
+                          selectedPlaylistCacheSummary.hasPending &&
+                          !playlistCacheOngoingRestrictionDisabled
                             ? "Caching Ongoing"
+                            : selectedPlaylistCacheSummary.hasPending &&
+                                playlistCacheOngoingRestrictionDisabled
+                              ? hasResumeRun
+                                ? pendingAction === "start"
+                                  ? "Resuming..."
+                                  : "Resume With Web Fallback"
+                                : pendingAction === "start"
+                                  ? "Starting..."
+                                  : "Start With Web Fallback"
                             : hasResumeRun
                               ? pendingAction === "start"
                                 ? "Resuming..."
@@ -542,16 +584,26 @@ export function SinglePlayerSetupRoute() {
                               : "Start Selected Playlist"
                         }
                         subLabel={
-                          selectedPlaylistCacheSummary.hasPending
+                          selectedPlaylistCacheSummary.hasPending &&
+                          !playlistCacheOngoingRestrictionDisabled
                             ? "Wait until the required web rounds finish caching"
+                            : selectedPlaylistCacheSummary.hasPending &&
+                                playlistCacheOngoingRestrictionDisabled
+                              ? "Some rounds may not play; uncached rounds use the web version"
                             : hasResumeRun
                               ? "Continue the saved run for this playlist"
                               : "Fastest path into a round"
                         }
-                        badge={selectedPlaylistCacheSummary.hasPending ? "Blocked" : undefined}
+                        badge={
+                          selectedPlaylistCacheSummary.hasPending
+                            ? playlistCacheOngoingRestrictionDisabled
+                              ? "Warning"
+                              : "Blocked"
+                            : undefined
+                        }
                         statusTone={selectedPlaylistCacheSummary.hasPending ? "warning" : "default"}
                         primary
-                        disabled={selectedPlaylistCacheSummary.hasPending}
+                        disabled={!canStartSelectedPlaylist}
                         onHover={playHoverSound}
                         onClick={() => {
                           playSelectSound();
@@ -564,7 +616,7 @@ export function SinglePlayerSetupRoute() {
                       <MenuButton
                         label={pendingAction === "start" ? "Starting..." : "Start Selected Playlist"}
                         subLabel="Begin a fresh run and replace the saved one"
-                        disabled={selectedPlaylistCacheSummary.hasPending}
+                        disabled={!canStartSelectedPlaylist}
                         onHover={playHoverSound}
                         onClick={() => {
                           playSelectSound();

@@ -39,6 +39,16 @@ export function normalizeInstallWebFunscriptUrlEnabled(value: unknown): boolean 
   return typeof value === "boolean" ? value : DEFAULT_INSTALL_WEB_FUNSCRIPT_URL_ENABLED;
 }
 
+export const PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED_KEY =
+  "experimental.playlistCacheOngoingRestrictionDisabled";
+export const DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED = false;
+
+export function normalizePlaylistCacheOngoingRestrictionDisabled(value: unknown): boolean {
+  return typeof value === "boolean"
+    ? value
+    : DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED;
+}
+
 export const MULTIPLAYER_MINIMUM_ROUNDS = 100;
 
 export const STARTUP_SAFE_MODE_SHORTCUT_ENABLED_KEY = "experimental.startupSafeModeShortcutEnabled";

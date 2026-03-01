@@ -43,7 +43,6 @@ const DEFAULT_INTERMEDIARY_LOADING_DURATION_SEC = 5;
 const DEFAULT_INTERMEDIARY_RETURN_PAUSE_SEC = 4;
 const DEFAULT_APPLY_PERK_DIRECTLY = true;
 const ECONOMY_STORE_KEYS = {
-  startingMoney: "game.economy.startingMoney",
   moneyPerCompletedRound: "game.economy.moneyPerCompletedRound",
   startingScore: "game.economy.startingScore",
   scorePerCompletedRound: "game.economy.scorePerCompletedRound",

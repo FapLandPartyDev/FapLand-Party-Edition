@@ -83,7 +83,7 @@ export function ConfirmDialog({
   const s = variantStyles[variant];
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
       <div
         className={`w-full max-w-lg rounded-3xl border ${s.border} bg-zinc-950/95 p-6 ${s.shadow}`}
       >

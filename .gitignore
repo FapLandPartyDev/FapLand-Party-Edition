@@ -23,6 +23,10 @@ release/
 # Misc
 count.txt
 todos.json
+f-land.json
+analyze_funscript.js
+analyze_funscript_new.js
+analyze_funscript.ts
 
 # Editor directories and files
 .vscode/*

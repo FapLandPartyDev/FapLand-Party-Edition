@@ -158,6 +158,7 @@ const toEditorConfigFromPlaylist = (playlist: StoredPlaylist): EditorGraphConfig
       maxAntiPerkProbability: playlist.config.probabilityScaling.maxAntiPerkProbability,
     },
     economy: {
+      startingMoney: playlist.config.economy.startingMoney,
       scorePerCumRoundSuccess: playlist.config.economy.scorePerCumRoundSuccess,
     },
     dice: { ...playlist.config.dice },
@@ -242,6 +243,7 @@ const makeStartingConfig = (): EditorGraphConfig => ({
     maxAntiPerkProbability: 0.75,
   },
   economy: {
+    startingMoney: 120,
     scorePerCumRoundSuccess: 120,
   },
   dice: {
@@ -770,6 +772,19 @@ export function MapEditorRoute() {
         economy: {
           ...previous.economy,
           scorePerCumRoundSuccess: Math.max(0, Math.floor(value)),
+        },
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const setStartingMoney = useCallback(
+    (value: number) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        economy: {
+          ...previous.economy,
+          startingMoney: Math.max(0, Math.floor(value)),
         },
       }));
     },
@@ -1991,6 +2006,7 @@ export function MapEditorRoute() {
                       onSetProbabilityScaling={setProbabilityScaling}
                       onSetDiceLimit={setDiceLimit}
                       onSetSaveMode={setSaveMode}
+                      onSetStartingMoney={setStartingMoney}
                       onSetCumRoundBonusScore={setCumRoundBonusScore}
                       onTogglePerk={togglePerkEnabled}
                       onToggleAntiPerk={toggleAntiPerkEnabled}

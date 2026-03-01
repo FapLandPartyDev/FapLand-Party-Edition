@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "../game/data/perks";
 import type { InstalledRound } from "../services/db";
@@ -61,6 +61,7 @@ const mocks = vi.hoisted(() => ({
     importFromFile: vi.fn(),
     setActive: vi.fn(),
   },
+  roundVideoOverlay: vi.fn(() => null),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -91,6 +92,7 @@ vi.mock("../services/trpc", () => ({
 
 vi.mock("../hooks/useSfwMode", () => ({
   useSfwMode: () => false,
+  useSfwModeState: () => ({ enabled: false, resolved: true }),
 }));
 
 vi.mock("../utils/audio", () => ({
@@ -103,7 +105,8 @@ vi.mock("../components/AnimatedBackground", () => ({
 }));
 
 vi.mock("../components/game/RoundVideoOverlay", () => ({
-  RoundVideoOverlay: () => null,
+  RoundVideoOverlay: (props: unknown) =>
+    (mocks.roundVideoOverlay as unknown as (props: unknown) => null)(props),
 }));
 
 vi.mock("../components/MenuButton", () => ({
@@ -134,6 +137,7 @@ function makeRound({
   installSourceKey = null,
   previewImage = null,
   websiteVideoCacheStatus = "not_applicable",
+  videoUri = null,
 }: {
   id: string;
   name: string;
@@ -147,6 +151,7 @@ function makeRound({
   installSourceKey?: string | null;
   previewImage?: string | null;
   websiteVideoCacheStatus?: "not_applicable" | "cached" | "pending";
+  videoUri?: string | null;
 }): InstalledRound {
   const heroId = hero?.id ?? (hero?.name ? `hero-${hero.name}` : null);
   return {
@@ -177,7 +182,7 @@ function makeRound({
           {
             id: `res-${id}`,
             roundId: id,
-            videoUri: null,
+            videoUri,
             funscriptUri,
             phash: null,
             disabled: false,
@@ -469,6 +474,7 @@ beforeEach(() => {
     includeMedia: true,
   });
   mocks.db.install.openExportFolder.mockResolvedValue({ path: "/tmp/app-export" });
+  mocks.roundVideoOverlay.mockClear();
 });
 
 afterEach(() => {
@@ -787,6 +793,163 @@ describe("InstalledRoundsPage hero grouping", () => {
     expect(screen.queryByRole("heading", { name: "Hero Website Round" })).toBeNull();
   });
 
+  it("launches the installed rounds overlay with the canonical installed round list", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "main-round",
+        name: "Main Round",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        videoUri: "app://media/%2Ftmp%2Fmain-round.mp4",
+      }),
+      makeRound({
+        id: "zelda-interjection",
+        name: "Zelda Interjection",
+        createdAt: "2026-03-01T09:00:00.000Z",
+        videoUri: "app://media/%2Ftmp%2FFugtrup%2520Zelda%2520x%2520Bokoblin.mp4",
+      }),
+      makeRound({
+        id: "other-interjection",
+        name: "Other Interjection",
+        createdAt: "2026-03-01T08:00:00.000Z",
+        videoUri: "app://media/%2Ftmp%2Fother-interjection.mp4",
+      }),
+    ].map((round, index) =>
+      index === 0 ? round : ({ ...round, type: "Interjection" } as InstalledRound)
+    );
+
+    render(<InstalledRoundsPage />);
+
+    fireEvent.click(await screen.findByLabelText("Play Main Round"));
+
+    await waitFor(() => expect(mocks.roundVideoOverlay).toHaveBeenCalled());
+    const lastCall = mocks.roundVideoOverlay.mock.calls.at(-1)?.[0] as unknown as {
+      installedRounds: InstalledRound[];
+    };
+    expect(lastCall.installedRounds.map((round) => round.id)).toEqual([
+      "main-round",
+      "zelda-interjection",
+      "other-interjection",
+    ]);
+  });
+
+  it("launches preview rounds through the normal overlay phase with the selected round id", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "preview-round",
+        name: "Preview Round",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        videoUri: "app://media/%2Ftmp%2Fpreview-round.mp4",
+        funscriptUri: "app://media/%2Ftmp%2Fpreview-round.funscript",
+      }),
+    ];
+
+    render(<InstalledRoundsPage />);
+
+    fireEvent.click(await screen.findByLabelText("Play Preview Round"));
+
+    await waitFor(() => expect(mocks.roundVideoOverlay).toHaveBeenCalled());
+    const lastCall = mocks.roundVideoOverlay.mock.calls.at(-1)?.[0] as unknown as {
+      activeRound: { roundId: string; phaseKind: string };
+      currentPlayer: unknown;
+      showCloseButton: boolean;
+      onClose: () => void;
+      onFinishRound: () => void;
+    };
+    expect(lastCall.activeRound.roundId).toBe("preview-round");
+    expect(lastCall.activeRound.phaseKind).toBe("normal");
+    expect(lastCall.currentPlayer).toBeUndefined();
+    expect(lastCall.showCloseButton).toBe(true);
+    expect(lastCall.onClose).toBeTypeOf("function");
+    expect(lastCall.onFinishRound).toBeTypeOf("function");
+  });
+
+  it("clears the installed preview overlay on close and finish callbacks", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "preview-round",
+        name: "Preview Round",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        videoUri: "app://media/%2Ftmp%2Fpreview-round.mp4",
+      }),
+    ];
+
+    render(<InstalledRoundsPage />);
+
+    fireEvent.click(await screen.findByLabelText("Play Preview Round"));
+
+    await waitFor(() => expect(mocks.roundVideoOverlay).toHaveBeenCalledTimes(1));
+    const onClose = (mocks.roundVideoOverlay.mock.calls.at(-1)?.[0] as unknown as {
+      onClose: () => void;
+    }).onClose;
+    await act(async () => {
+      onClose();
+    });
+
+    await waitFor(() => expect(mocks.roundVideoOverlay).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(await screen.findByLabelText("Play Preview Round"));
+
+    await waitFor(() => expect(mocks.roundVideoOverlay).toHaveBeenCalledTimes(2));
+    const onFinishRound = (mocks.roundVideoOverlay.mock.calls.at(-1)?.[0] as unknown as {
+      onFinishRound: () => void;
+    }).onFinishRound;
+    await act(async () => {
+      onFinishRound();
+    });
+
+    await waitFor(() => expect(mocks.roundVideoOverlay).toHaveBeenCalledTimes(2));
+  });
+
+  it("tears down the card preview video before launching the overlay", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "main-round",
+        name: "Main Round",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        videoUri: "app://media/%2Ftmp%2Fmain-round.mp4",
+      }),
+    ];
+
+    const { container } = render(<InstalledRoundsPage />);
+
+    const heading = await screen.findByRole("heading", { name: "Main Round" });
+    const card = heading.closest("article");
+    expect(card).not.toBeNull();
+    fireEvent.mouseEnter(card!);
+
+    await waitFor(() => expect(container.querySelector("video")).not.toBeNull());
+
+    fireEvent.click(screen.getByLabelText("Play Main Round"));
+
+    await waitFor(() => expect(container.querySelector("video")).toBeNull());
+    await waitFor(() => expect(mocks.roundVideoOverlay).toHaveBeenCalled());
+  });
+
+  it("explicitly reloads the card preview video when hover preview activates", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "main-round",
+        name: "Main Round",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        videoUri: "app://media/%2Ftmp%2Fmain-round.mp4",
+      }),
+    ];
+
+    const loadSpy = vi
+      .spyOn(HTMLMediaElement.prototype, "load")
+      .mockImplementation(() => undefined);
+
+    render(<InstalledRoundsPage />);
+
+    const heading = await screen.findByRole("heading", { name: "Main Round" });
+    const card = heading.closest("article");
+    expect(card).not.toBeNull();
+
+    fireEvent.mouseEnter(card!);
+
+    await waitFor(() => expect(loadSpy).toHaveBeenCalled());
+  });
+
   it("shows caching ongoing for website rounds that are still waiting for the cache", () => {
     mocks.loaderData.rounds = [
       makeRound({
@@ -1067,21 +1230,20 @@ describe("InstalledRoundsPage hero grouping", () => {
       makeRound({ id: "solo", name: "Solo Round", createdAt: "2026-03-03T11:00:00.000Z" }),
     ];
 
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-
     render(<InstalledRoundsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "Edit Round" }));
+    fireEvent.change(screen.getByDisplayValue("Solo Round"), {
+      target: { value: "" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Delete Round" }));
+
+    expect(screen.getByText(/Delete round entry “Solo Round” from the database\?/)).toBeDefined();
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete Round" }).at(-1)!);
 
     await waitFor(() => {
       expect(mocks.db.round.delete).toHaveBeenCalledWith("solo");
     });
-
-    expect(confirmSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Files on disk will be left untouched")
-    );
-    confirmSpy.mockRestore();
   });
 
   it("deletes a hero from the edit dialog together with attached rounds", async () => {
@@ -1093,23 +1255,17 @@ describe("InstalledRoundsPage hero grouping", () => {
         hero: { id: "h1", name: "Hero One" },
       }),
     ];
-
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-
     render(<InstalledRoundsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Hero" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete Hero" }));
+    expect(screen.getByText(/Delete hero entry “Hero One” from the database\?/)).toBeDefined();
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete Hero" }).at(-1)!);
 
     await waitFor(() => {
       expect(mocks.db.hero.delete).toHaveBeenCalledWith("h1");
     });
-
-    expect(confirmSpy).toHaveBeenCalledWith(
-      expect.stringContaining("permanently deletes all attached rounds")
-    );
-    confirmSpy.mockRestore();
   });
 
   it("deletes a hero directly from the installed rounds hero-group actions", async () => {
@@ -1122,21 +1278,16 @@ describe("InstalledRoundsPage hero grouping", () => {
       }),
     ];
 
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-
     render(<InstalledRoundsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete Hero" }));
+    expect(screen.getByText(/Delete hero entry “Hero One” from the database\?/)).toBeDefined();
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete Hero" }).at(-1)!);
 
     await waitFor(() => {
       expect(mocks.db.hero.delete).toHaveBeenCalledWith("h1");
     });
-
-    expect(confirmSpy).toHaveBeenCalledWith(
-      expect.stringContaining("permanently deletes all attached rounds")
-    );
-    confirmSpy.mockRestore();
   });
 
   it("prompts for an export destination before packaging the library", async () => {

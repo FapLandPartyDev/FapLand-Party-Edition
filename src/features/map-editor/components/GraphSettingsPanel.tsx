@@ -27,6 +27,7 @@ interface GraphSettingsPanelProps {
   ) => void;
   onSetDiceLimit: (key: keyof EditorGraphConfig["dice"], value: number) => void;
   onSetSaveMode: (value: EditorGraphConfig["saveMode"]) => void;
+  onSetStartingMoney: (value: number) => void;
   onSetCumRoundBonusScore: (value: number) => void;
   onTogglePerk: (perkId: string) => void;
   onToggleAntiPerk: (perkId: string) => void;
@@ -120,6 +121,7 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
     onSetProbabilityScaling,
     onSetDiceLimit,
     onSetSaveMode,
+    onSetStartingMoney,
     onSetCumRoundBonusScore,
     onTogglePerk,
     onToggleAntiPerk,
@@ -356,6 +358,26 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
               className="w-full rounded-lg border border-zinc-700/50 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-cyan-400/50"
             />
             <p className="text-[10px] text-zinc-600">Highest anti-perk chance allowed.</p>
+          </label>
+          <label className="block space-y-1 sm:col-span-2">
+            <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+              Starting Money
+            </span>
+            <input
+              aria-label="Starting Money"
+              type="number"
+              min={0}
+              max={100000}
+              step={1}
+              value={economy.startingMoney}
+              onChange={(event) =>
+                onSetStartingMoney(Number.parseInt(event.target.value, 10) || 0)
+              }
+              className="w-full rounded-lg border border-zinc-700/50 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition focus:border-cyan-400/50"
+            />
+            <p className="text-[10px] text-zinc-600">
+              Money available at the start of a new run from this playlist.
+            </p>
           </label>
           <label className="block space-y-1 sm:col-span-2">
             <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">

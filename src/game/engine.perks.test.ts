@@ -530,4 +530,37 @@ describe("engine new perks", () => {
     expect(withMilker.players[withMilker.currentPlayerIndex]!.antiPerks).not.toContain("no-rest");
     expect(withMilker.log.some(line => line.includes("Milker replaced No Rest."))).toBe(true);
   });
+
+  it("skips random post-round perk selection if the round was played on a perk node", () => {
+    const config = makeConfig();
+    // Configure path-1 as a perk node with a fixed round
+    config.board[1] = {
+      id: "path-1",
+      name: "Perk Round Node",
+      kind: "perk",
+      fixedRoundId: "round-1",
+    };
+    config.perkSelection.triggerChancePerCompletedRound = 1.0; // Always trigger post-round perk normally
+
+    const base = createInitialGameState(config);
+    const activeRoundState: GameState = {
+      ...base,
+      activeRound: {
+        fieldId: "path-1",
+        nodeId: "path-1",
+        roundId: "round-1",
+        roundName: "Round 1",
+        selectionKind: "fixed",
+        poolId: null,
+        phaseKind: "normal",
+        campaignIndex: 1,
+      },
+    };
+
+    // Even with 100% trigger chance, it should be skipped because it's a perk node
+    const afterRound = completeRound(activeRoundState, undefined, []);
+    expect(afterRound.pendingPerkSelection).toBeNull();
+    // And it should advance the turn because no perk was triggered
+    expect(afterRound.turn).toBe(base.turn + 1);
+  });
 });

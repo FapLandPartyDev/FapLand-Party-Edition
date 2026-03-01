@@ -46,6 +46,25 @@ describe("usePlayableVideoFallback", () => {
     });
   });
 
+  it("forces a transcode uri when a local app media source still has no replacement on error", async () => {
+    const resolver = vi.fn(async () => ({
+      videoUri: "app://media/%2Ftmp%2Fsource.mp4",
+      transcoded: false,
+      cacheHit: false,
+    }));
+
+    render(<FallbackHarness resolver={resolver} videoUri="app://media/%2Ftmp%2Fsource.mp4" />);
+    expect(screen.getByTestId("src").textContent).toBe("app://media/%2Ftmp%2Fsource.mp4");
+
+    fireEvent.click(screen.getByRole("button", { name: "trigger" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("src").textContent).toBe(
+        "app://media/%2Ftmp%2Fsource.mp4?transcode=1"
+      );
+    });
+  });
+
   it("does not resolve fallback for remote sources", async () => {
     const resolver = vi.fn(async () => ({
       videoUri: "https://cdn.example.com/video.mp4",

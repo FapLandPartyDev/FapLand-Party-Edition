@@ -41,6 +41,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
       }>,
     selectConverterFunscriptFile: () =>
       ipcRenderer.invoke("dialog:selectConverterFunscriptFile") as Promise<string | null>,
+    selectFpackExtractionDirectory: () =>
+      ipcRenderer.invoke("dialog:selectFpackExtractionDirectory") as Promise<string | null>,
   },
   window: {
     isFullscreen: () => ipcRenderer.invoke("window:isFullscreen") as Promise<boolean>,

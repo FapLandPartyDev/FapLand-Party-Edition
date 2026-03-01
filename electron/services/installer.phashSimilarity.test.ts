@@ -549,6 +549,48 @@ describe("installer phash similarity", () => {
     );
   });
 
+  it("marks website-backed hero rounds as web when the sidecar uses proxy video URIs", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-installer-web-hero-"));
+    const heroPath = path.join(root, "website.hero");
+    await fs.writeFile(
+      heroPath,
+      JSON.stringify({
+        name: "Website Hero",
+        rounds: [
+          {
+            name: "Round A",
+            phash: "website-hero-a",
+            resources: [
+              {
+                videoUri:
+                  "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3Da",
+              },
+            ],
+          },
+          {
+            name: "Round B",
+            phash: "website-hero-b",
+            resources: [
+              {
+                videoUri:
+                  "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3Db",
+              },
+            ],
+          },
+        ],
+      })
+    );
+
+    const { importInstallSidecarFile } = await import("./installer");
+    const result = await importInstallSidecarFile(heroPath);
+
+    expect(result.status.stats.installed).toBe(2);
+    const keys = Array.from(state.roundIdByInstallSourceKey.keys());
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toMatch(/^website:/);
+    expect(keys[1]).toMatch(/^website:/);
+  });
+
   it("persists sidecars in sorted order even when preparation completes out of order", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-installer-order-"));
     const aPath = path.join(root, "a.round");

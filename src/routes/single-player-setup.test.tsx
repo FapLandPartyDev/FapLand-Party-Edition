@@ -102,6 +102,13 @@ const mocks = vi.hoisted(() => ({
   playlists: {
     setActive: vi.fn(),
   },
+  trpc: {
+    store: {
+      get: {
+        query: vi.fn(async () => false),
+      },
+    },
+  },
   search: {},
 }));
 
@@ -139,6 +146,10 @@ vi.mock("../services/playlists", () => ({
   playlists: mocks.playlists,
 }));
 
+vi.mock("../services/trpc", () => ({
+  trpc: mocks.trpc,
+}));
+
 vi.mock("../utils/audio", () => ({
   playHoverSound: vi.fn(),
   playPlaylistLaunchSound: vi.fn(),
@@ -149,6 +160,7 @@ import { SinglePlayerSetupRoute } from "./single-player-setup";
 
 beforeEach(() => {
   mocks.playlists.setActive.mockResolvedValue(undefined);
+  mocks.trpc.store.get.query.mockResolvedValue(false);
 });
 
 afterEach(() => {
@@ -328,5 +340,55 @@ describe("SinglePlayerSetupRoute", () => {
 
     expect(mocks.playlists.setActive).not.toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("allows starting during caching when the experimental override is enabled", async () => {
+    vi.useFakeTimers();
+    mocks.trpc.store.get.query.mockResolvedValue(true);
+
+    const basePlaylist = makePlaylist("playlist-1", "Web Playlist");
+    const playlist = {
+      ...basePlaylist,
+      config: {
+        ...basePlaylist.config,
+        boardConfig: {
+          ...basePlaylist.config.boardConfig,
+          totalIndices: 1,
+          normalRoundOrder: [{ idHint: "web-round", name: "Web Round", type: "Normal" as const }],
+        },
+      },
+    };
+
+    mocks.loaderData = {
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+      installedRounds: [makeRound("web-round", "Web Round", "pending")],
+      savedRuns: [],
+    };
+
+    render(<SinglePlayerSetupRoute />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/some rounds may not play, and the web version is used instead of the local cache/i)
+      ).toBeDefined();
+    });
+
+    const startButton = screen.getByRole("button", { name: "Start With Web Fallback" });
+    expect(startButton.getAttribute("disabled")).toBeNull();
+
+    fireEvent.click(startButton);
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(PLAYLIST_LAUNCH_DURATION_MS);
+    await Promise.resolve();
+
+    expect(mocks.playlists.setActive).toHaveBeenCalledWith("playlist-1");
+    expect(mocks.navigate).toHaveBeenCalledWith({
+      to: "/game",
+      search: {
+        playlistId: "playlist-1",
+        launchNonce: expect.any(Number),
+      },
+    });
   });
 });

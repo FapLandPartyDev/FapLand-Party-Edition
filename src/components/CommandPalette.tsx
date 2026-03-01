@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { openGlobalHandyOverlay } from "./GlobalHandyOverlay";
 import { openGlobalMusicOverlay } from "./GlobalMusicOverlay";
 import { playHoverSound, playSelectSound } from "../utils/audio";
 import { useCommandPaletteGuard } from "../contexts/CommandPaletteGuardContext";
 import { useHandy } from "../contexts/HandyContext";
+
+let _setOpenFromOutside: ((open: boolean) => void) | null = null;
+
+export function openGlobalCommandPalette() {
+  _setOpenFromOutside?.(true);
+}
 
 type CommandItem = {
   id: string;
@@ -156,6 +163,19 @@ export function CommandPalette() {
   const guard = useCommandPaletteGuard();
   const { manuallyStopped, toggleManualStop } = useHandy();
 
+  useEffect(() => {
+    _setOpenFromOutside = (value: boolean) => {
+      setOpen(value);
+      if (value) {
+        setQuery("");
+        setTimeout(() => inputRef.current?.focus(), 50);
+      }
+    };
+    return () => {
+      _setOpenFromOutside = null;
+    };
+  }, []);
+
   const commands = useMemo<CommandItem[]>(
     () => [
       ...NAVIGATION_COMMANDS,
@@ -182,6 +202,14 @@ export function CommandPalette() {
         category: "Media",
         action: openGlobalMusicOverlay,
         keywords: ["music", "player", "overlay", "queue"],
+      },
+      {
+        id: "thehandy-menu",
+        label: "TheHandy Menu",
+        description: "Open the global TheHandy overlay",
+        category: "Hardware",
+        action: openGlobalHandyOverlay,
+        keywords: ["handy", "thehandy", "device", "sync", "overlay", "offset"],
       },
       {
         id: "thehandy-toggle",
@@ -213,7 +241,7 @@ export function CommandPalette() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "k") {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         if (guard.blocked) {
           setToast(guard.reason ?? "You cannot use the command palette here.");
@@ -249,6 +277,14 @@ export function CommandPalette() {
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+        setQuery("");
+        return;
+      }
+
       if (event.key === "ArrowDown") {
         event.preventDefault();
         setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1));

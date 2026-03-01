@@ -280,7 +280,7 @@ function MultiplayerLobbyRoute() {
       void refreshLobby().catch((refreshError) => {
         setError(refreshError instanceof Error ? refreshError.message : "Failed to refresh lobby.");
       });
-    }, 3000);
+    }, 15000);
 
     return () => {
       window.clearInterval(interval);
@@ -650,7 +650,10 @@ function MultiplayerLobbyRoute() {
                 <span className="font-semibold text-cyan-300">
                   {lobby.allowLateJoin ? "enabled" : "disabled"}
                 </span>
-                . {lobby.isPublic ? "Public lobbies appear in the browser when they are also open and joinable." : "Private lobbies are invite-code only."}
+                .{" "}
+                {lobby.isPublic
+                  ? "Public lobbies appear in the browser when they are also open and joinable."
+                  : "Private lobbies are invite-code only."}
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3">

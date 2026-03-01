@@ -44,6 +44,7 @@ const mocks = vi.hoisted(() => {
       appApiKeyOverride: "",
       isUsingDefaultAppApiKey: true,
       localIp: "",
+      offsetMs: 0,
       connected: false,
       manuallyStopped: false,
       synced: false,
@@ -53,6 +54,8 @@ const mocks = vi.hoisted(() => {
       connect: vi.fn(async () => {}),
       disconnect: vi.fn(async () => {}),
       forceStop: vi.fn(async () => {}),
+      adjustOffset: vi.fn(async (deltaMs: number) => deltaMs),
+      resetOffset: vi.fn(async () => {}),
       toggleManualStop: vi.fn(async () => "unavailable" as const),
       setSyncStatus: vi.fn(),
     },
@@ -148,6 +151,7 @@ vi.mock("../services/trpc", () => ({
           if (key === "background.video.enabled") return true;
           if (key === "experimental.controllerSupportEnabled") return false;
           if (key === "experimental.installWebFunscriptUrlEnabled") return false;
+          if (key === "experimental.playlistCacheOngoingRestrictionDisabled") return false;
           if (key === "round.video.progressBarAlwaysVisible") return false;
           return null;
         }),
@@ -185,6 +189,9 @@ describe("Settings music section", () => {
     mocks.handy.connect.mockClear();
     mocks.handy.disconnect.mockClear();
     mocks.handy.forceStop.mockClear();
+    mocks.handy.adjustOffset.mockClear();
+    mocks.handy.resetOffset.mockClear();
+    mocks.handy.offsetMs = 0;
     mocks.appUpdate.triggerPrimaryAction.mockClear();
 
     window.electronAPI = {
@@ -328,6 +335,28 @@ describe("Settings music section", () => {
     });
   });
 
+  it("persists the playlist cache ongoing override toggle", async () => {
+    const setMutate = vi.mocked(trpc.store.set.mutate);
+
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Experimental/ })[0]!);
+
+    const toggle = await screen.findByRole("switch", {
+      name: "Toggle Allow Playlist Start During Cache Ongoing",
+    });
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(setMutate).toHaveBeenCalledWith({
+        key: "experimental.playlistCacheOngoingRestrictionDisabled",
+        value: true,
+      });
+    });
+  });
+
   it("only persists settings volume when slider interaction completes", async () => {
     render(<SettingsPage />);
 
@@ -356,6 +385,38 @@ describe("Settings music section", () => {
 
     await waitFor(() => {
       expect(mocks.handy.connect).toHaveBeenCalledWith("conn-key-123", "", "");
+    });
+  });
+
+  it("renders and uses TheHandy offset controls in hardware settings", async () => {
+    mocks.handy.offsetMs = 75;
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);
+
+    expect(screen.getByText("Global Sync Offset")).toBeDefined();
+    const offsetLayer = screen.getByTestId("thehandy-offset-layer");
+    const connectButton = screen.getByRole("button", { name: "Connect" });
+    expect(
+      (connectButton.compareDocumentPosition(offsetLayer) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    ).toBe(true);
+    fireEvent.change(screen.getByLabelText("TheHandy offset slider"), {
+      target: { value: "120" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "-25ms" }));
+    fireEvent.click(screen.getByRole("button", { name: "-1ms" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    fireEvent.click(screen.getByRole("button", { name: "+1ms" }));
+    fireEvent.click(screen.getByRole("button", { name: "+25ms" }));
+
+    await waitFor(() => {
+      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(1, 45);
+      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(2, -25);
+      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(3, -1);
+      expect(mocks.handy.resetOffset).toHaveBeenCalledTimes(1);
+      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(4, 1);
+      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(5, 25);
     });
   });
 

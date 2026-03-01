@@ -1,4 +1,4 @@
-import { getDeviceInfo, hspAdd, hspFlush, hspPause, hspPlay, hspResume, hspSetup, hspStop, isConnected, issueToken, setHspPaybackRate, setHspTime, setMode } from "./index";
+import { getDeviceInfo, getServerTime, hspAdd, hspFlush, hspPause, hspPlay, hspResume, hspSetup, hspStop, isConnected, issueToken, setHspPaybackRate, setHspTime, setMode } from "./index";
 import type { FunscriptAction } from "../../game/media/playback";
 
 export type HandyAuthBundle = {
@@ -10,6 +10,8 @@ export type HandySession = {
   mode: "token" | "appId";
   clientToken: string | null;
   expiresAtMs: number;
+  serverTimeOffsetMs: number;
+  serverTimeOffsetMeasuredAtMs: number;
   loadedScriptId: string | null;
   activeScriptId: string | null;
   lastSyncAtMs: number;
@@ -27,6 +29,9 @@ const HSP_INITIAL_PREFETCH_MS = 15_000;
 const HSP_PREFETCH_MS = 180_000;
 const HSP_TOPUP_TRIGGER_MS = 45_000;
 const HSP_MAX_POINTS_PER_SYNC = 600;
+const SERVER_TIME_SAMPLE_COUNT = 3;
+const SERVER_TIME_SAMPLE_KEEP_COUNT = 2;
+const SERVER_TIME_OFFSET_TTL_MS = 5 * 60_000;
 
 function requireConnectionRef(value: string): string {
   const normalized = typeof value === "string" ? value.trim() : "";
@@ -79,6 +84,67 @@ function toHspPoints(actions: FunscriptAction[]): Array<{ t: number; x: number }
     .sort((a, b) => a.t - b.t);
 }
 
+function extractServerTimeMs(payload: unknown): number | null {
+  if (!payload || typeof payload !== "object") return null;
+  const serverTime = "server_time" in payload ? (payload as { server_time?: unknown }).server_time : undefined;
+  return typeof serverTime === "number" && Number.isFinite(serverTime) ? serverTime : null;
+}
+
+async function refreshServerTimeOffset(auth: HandyAuthBundle, session: HandySession): Promise<void> {
+  const now = Date.now();
+  if (
+    session.serverTimeOffsetMeasuredAtMs > 0 &&
+    now - session.serverTimeOffsetMeasuredAtMs < SERVER_TIME_OFFSET_TTL_MS
+  ) {
+    return;
+  }
+
+  const appCredential = requireAppCredential(auth.appApiKey);
+  const samples: Array<{ offsetMs: number; roundTripMs: number }> = [];
+
+  for (let index = 0; index < SERVER_TIME_SAMPLE_COUNT; index += 1) {
+    try {
+      const sentAtMs = Date.now();
+      const response = unwrapPayload(
+        await getServerTime({
+          auth: appCredential,
+          responseStyle: "data",
+          requestValidator: undefined,
+          responseValidator: undefined,
+        }),
+      );
+      const receivedAtMs = Date.now();
+      const serverTimeMs = extractServerTimeMs(response);
+      if (serverTimeMs === null) continue;
+      const roundTripMs = Math.max(0, receivedAtMs - sentAtMs);
+      const estimatedServerTimeAtReceiveMs = serverTimeMs + roundTripMs / 2;
+      samples.push({
+        offsetMs: estimatedServerTimeAtReceiveMs - receivedAtMs,
+        roundTripMs,
+      });
+    } catch {
+      // Time sampling is an accuracy improvement, not a hard dependency.
+    }
+  }
+
+  if (samples.length === 0) {
+    session.serverTimeOffsetMs = 0;
+    session.serverTimeOffsetMeasuredAtMs = now;
+    return;
+  }
+
+  samples.sort((left, right) => left.roundTripMs - right.roundTripMs);
+  const bestSamples = samples.slice(0, Math.min(SERVER_TIME_SAMPLE_KEEP_COUNT, samples.length));
+  const offsetSum = bestSamples.reduce((sum, sample) => sum + sample.offsetMs, 0);
+
+  session.serverTimeOffsetMs = offsetSum / bestSamples.length;
+  session.serverTimeOffsetMeasuredAtMs = now;
+}
+
+function getEstimatedServerTimeMs(session: HandySession): number {
+  return Date.now() + session.serverTimeOffsetMs;
+}
+
 function clampMaxBufferPoints(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) {
     const normalized = Math.floor(value);
@@ -128,10 +194,12 @@ export async function issueHandySession(auth: HandyAuthBundle): Promise<HandySes
     if (token) {
       const expiresAtRaw = response.result?.expires_at;
       const expiresAtMs = expiresAtRaw ? Date.parse(expiresAtRaw) : Date.now() + 45 * 60_000;
-      return {
+      const session: HandySession = {
         mode: "token",
         clientToken: token,
         expiresAtMs: Number.isFinite(expiresAtMs) ? expiresAtMs : Date.now() + 45 * 60_000,
+        serverTimeOffsetMs: 0,
+        serverTimeOffsetMeasuredAtMs: 0,
         loadedScriptId: null,
         activeScriptId: null,
         lastSyncAtMs: 0,
@@ -142,15 +210,19 @@ export async function issueHandySession(auth: HandyAuthBundle): Promise<HandySes
         tailPointStreamIndex: 0,
         uploadedUntilMs: 0,
       };
+      await refreshServerTimeOffset(auth, session);
+      return session;
     }
   } catch {
     // Fallback for Application ID style auth without client token.
   }
 
-  return {
+  const session: HandySession = {
     mode: "appId",
     clientToken: null,
     expiresAtMs: Date.now() + 60 * 60_000,
+    serverTimeOffsetMs: 0,
+    serverTimeOffsetMeasuredAtMs: 0,
     loadedScriptId: null,
     activeScriptId: null,
     lastSyncAtMs: 0,
@@ -161,6 +233,8 @@ export async function issueHandySession(auth: HandyAuthBundle): Promise<HandySes
     tailPointStreamIndex: 0,
     uploadedUntilMs: 0,
   };
+  await refreshServerTimeOffset(auth, session);
+  return session;
 }
 
 export async function verifyHandyV3Connection(auth: HandyAuthBundle): Promise<{ connected: boolean; firmwareVersion: string | null }> {
@@ -398,6 +472,9 @@ export async function sendHspSync(
   const connectionRef = requireConnectionRef(auth.connectionKey);
   const appCredential = requireAppCredential(auth.appApiKey);
   const scriptId = toScriptId(sourceId, actions);
+  if (Date.now() - session.serverTimeOffsetMeasuredAtMs >= SERVER_TIME_OFFSET_TTL_MS) {
+    void refreshServerTimeOffset(auth, session);
+  }
   await preloadScript(auth, session, sourceId, actions, timeMs);
 
   // Continuously stream upcoming points into the HSP buffer without dropping points.
@@ -420,7 +497,7 @@ export async function sendHspSync(
       },
       body: {
         start_time: Math.max(0, Math.floor(timeMs)),
-        server_time: Date.now(),
+        server_time: Math.round(getEstimatedServerTimeMs(session)),
         playback_rate: 1,
         pause_on_starving: true,
         loop: false,
@@ -466,7 +543,7 @@ export async function sendHspSync(
       },
       body: {
         current_time: Math.max(0, Math.floor(timeMs)),
-        server_time: now,
+        server_time: Math.round(getEstimatedServerTimeMs(session)),
         filter: 0.12,
       },
       query: {
@@ -515,6 +592,9 @@ export async function resumeHandyPlayback(
 ): Promise<void> {
   const connectionRef = requireConnectionRef(auth.connectionKey);
   const appCredential = requireAppCredential(auth.appApiKey);
+  if (Date.now() - session.serverTimeOffsetMeasuredAtMs >= SERVER_TIME_OFFSET_TTL_MS) {
+    void refreshServerTimeOffset(auth, session);
+  }
 
   // Use hspResume with pick_up=true to jump to the current 'live' stream
   // position. This is near-instant because the point buffer was never
@@ -544,7 +624,7 @@ export async function resumeHandyPlayback(
     },
     body: {
       current_time: Math.max(0, Math.floor(resumeAtMs)),
-      server_time: now,
+      server_time: Math.round(getEstimatedServerTimeMs(session)),
       filter: 0.12,
     },
     query: {

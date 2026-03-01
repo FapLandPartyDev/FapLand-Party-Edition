@@ -7,13 +7,23 @@ import * as handyRuntime from "../../services/thehandy/runtime";
 import * as booru from "../../services/booru";
 
 const mocks = vi.hoisted(() => ({
+  openGlobalHandyOverlay: vi.fn(),
   handy: {
     connectionKey: "",
     appApiKey: "",
+    offsetMs: 0,
     connected: false,
     manuallyStopped: false,
     setSyncStatus: vi.fn(),
     toggleManualStop: vi.fn(async () => "unavailable" as const),
+  },
+  playback: {
+    getFunscriptPositionAtMs: vi.fn<
+      (timeline: { actions: Array<{ at: number; pos: number }> } | null, timeMs: number) => number | null
+    >(() => null),
+    loadFunscriptTimeline: vi.fn<
+      (funscriptUri: string) => Promise<{ actions: Array<{ at: number; pos: number }> } | null>
+    >(async () => null),
   },
   isGameDevelopmentMode: vi.fn(() => false),
   playAntiPerkBeatSound: vi.fn(),
@@ -36,6 +46,7 @@ vi.mock("../../hooks/useForegroundVideoRegistration", () => ({
 }));
 
 vi.mock("../../hooks/usePlayableVideoFallback", () => ({
+  isLocalVideoUriForFallback: () => true,
   usePlayableVideoFallback: () => ({
     getVideoSrc: (uri: string) => uri,
     ensurePlayableVideo: vi.fn(async (uri: string) => uri),
@@ -45,6 +56,10 @@ vi.mock("../../hooks/usePlayableVideoFallback", () => ({
 
 vi.mock("../../contexts/HandyContext", () => ({
   useHandy: () => mocks.handy,
+}));
+
+vi.mock("../GlobalHandyOverlay", () => ({
+  openGlobalHandyOverlay: mocks.openGlobalHandyOverlay,
 }));
 
 vi.mock("../../services/thehandy/runtime", () => ({
@@ -59,8 +74,8 @@ vi.mock("../../game/media/playback", () => ({
   buildIntermediaryQueue: vi.fn(() => []),
   computePlaybackRate: vi.fn(() => 1),
   getActivePlaybackModifiers: vi.fn(() => []),
-  getFunscriptPositionAtMs: vi.fn(() => null),
-  loadFunscriptTimeline: vi.fn(async () => null),
+  getFunscriptPositionAtMs: mocks.playback.getFunscriptPositionAtMs,
+  loadFunscriptTimeline: mocks.playback.loadFunscriptTimeline,
 }));
 
 vi.mock("../../utils/audio", async () => {
@@ -86,7 +101,7 @@ vi.mock("../../hooks/useSfwMode", () => ({
 
 import { RoundVideoOverlay } from "./RoundVideoOverlay";
 
-function createInstalledRound(roundId = "round-1"): InstalledRound {
+function createInstalledRound(roundId = "round-1", funscriptUri: string | null = null): InstalledRound {
   return {
     id: roundId,
     name: "Round 1",
@@ -97,7 +112,7 @@ function createInstalledRound(roundId = "round-1"): InstalledRound {
     resources: [
       {
         videoUri: "/video.mp4",
-        funscriptUri: null,
+        funscriptUri,
       },
     ],
   } as unknown as InstalledRound;
@@ -114,6 +129,41 @@ function createActiveRound(roundId = "round-1"): ActiveRound {
     phaseKind: "normal",
     campaignIndex: 0,
   };
+}
+
+function createHandySession(): handyRuntime.HandySession {
+  return {
+    mode: "appId",
+    clientToken: null,
+    expiresAtMs: Date.now() + 60_000,
+    serverTimeOffsetMs: 0,
+    serverTimeOffsetMeasuredAtMs: 0,
+    loadedScriptId: null,
+    activeScriptId: null,
+    lastSyncAtMs: 0,
+    lastPlaybackRate: 1,
+    maxBufferPoints: 4000,
+    streamedPoints: null,
+    nextStreamPointIndex: 0,
+    tailPointStreamIndex: 0,
+    uploadedUntilMs: 0,
+  };
+}
+
+function primeVideoElement(video: HTMLVideoElement, options?: { duration?: number; currentTime?: number }) {
+  Object.defineProperty(video, "readyState", {
+    configurable: true,
+    get: () => HTMLMediaElement.HAVE_METADATA,
+  });
+  Object.defineProperty(video, "duration", {
+    configurable: true,
+    get: () => options?.duration ?? 30,
+  });
+  Object.defineProperty(video, "currentTime", {
+    configurable: true,
+    get: () => options?.currentTime ?? 0,
+    set: vi.fn(),
+  });
 }
 
 function renderOverlay({
@@ -157,11 +207,18 @@ function renderOverlay({
 describe("RoundVideoOverlay", () => {
   beforeEach(() => {
     mocks.isGameDevelopmentMode.mockReturnValue(false);
+    mocks.openGlobalHandyOverlay.mockClear();
     mocks.playAntiPerkBeatSound.mockClear();
     mocks.handy.connectionKey = "";
     mocks.handy.appApiKey = "";
+    mocks.handy.offsetMs = 0;
     mocks.handy.connected = false;
     mocks.handy.manuallyStopped = false;
+    mocks.handy.setSyncStatus.mockClear();
+    mocks.playback.getFunscriptPositionAtMs.mockReset();
+    mocks.playback.getFunscriptPositionAtMs.mockReturnValue(null);
+    mocks.playback.loadFunscriptTimeline.mockReset();
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue(null);
     mocks.sfwMode = false;
     vi.mocked(booru.getCachedBooruMedia).mockClear();
     vi.mocked(booru.getCachedBooruMediaForDisplay).mockClear();
@@ -425,6 +482,325 @@ describe("RoundVideoOverlay", () => {
     expect(mainVideo?.volume).toBe(1);
   });
 
+  it("hides gameplay-only controls during preview playback while keeping the close action", async () => {
+    render(
+      <RoundVideoOverlay
+        activeRound={createActiveRound()}
+        installedRounds={[createInstalledRound()]}
+        currentPlayer={undefined}
+        intermediaryProbability={0}
+        booruSearchPrompt="animated gif webm"
+        intermediaryLoadingDurationSec={10}
+        intermediaryReturnPauseSec={4}
+        onFinishRound={vi.fn()}
+        showCloseButton
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Close" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /Pause/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Skip/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Options" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Cum/i })).toBeNull();
+  });
+
+  it("opens the global TheHandy menu from the round overlay controls", async () => {
+    mocks.handy.connected = true;
+
+    renderOverlay();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Handy Menu" }));
+
+    expect(mocks.openGlobalHandyOverlay).toHaveBeenCalledTimes(1);
+  });
+
+  it("bootstraps TheHandy sync immediately once video metadata and timeline are ready", async () => {
+    mocks.handy.connectionKey = "conn-key";
+    mocks.handy.appApiKey = "app-key";
+    mocks.handy.connected = true;
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [{ at: 0, pos: 10 }],
+    });
+    mocks.playback.getFunscriptPositionAtMs.mockReturnValue(10);
+    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+
+    const playSpy = vi.spyOn(HTMLMediaElement.prototype, "play");
+    const { container } = renderOverlay({
+      installedRounds: [createInstalledRound("round-1", "/script.funscript")],
+    });
+
+    const video = await waitFor(() => {
+      const candidate = container.querySelector("video");
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(video, { duration: 30, currentTime: 0 });
+
+    fireEvent.loadedMetadata(video);
+
+    await waitFor(() => {
+      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        "/video.mp4:main",
+        [{ at: 0, pos: 10 }],
+        0
+      );
+      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalled();
+      expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({ synced: true, error: null });
+      expect(playSpy).toHaveBeenCalled();
+    });
+  });
+
+  it("applies the persisted TheHandy offset during bootstrap sync", async () => {
+    mocks.handy.connectionKey = "conn-key";
+    mocks.handy.appApiKey = "app-key";
+    mocks.handy.connected = true;
+    mocks.handy.offsetMs = 125;
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [{ at: 0, pos: 10 }],
+    });
+    mocks.playback.getFunscriptPositionAtMs.mockReturnValue(10);
+    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+
+    const { container } = renderOverlay({
+      installedRounds: [createInstalledRound("round-1", "/script.funscript")],
+    });
+
+    const video = await waitFor(() => {
+      const candidate = container.querySelector("video");
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(video, { duration: 30, currentTime: 0.5 });
+
+    fireEvent.loadedMetadata(video);
+
+    await waitFor(() => {
+      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        "/video.mp4:main",
+        [{ at: 0, pos: 10 }],
+        625
+      );
+      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        625,
+        expect.any(Number),
+        "/video.mp4:main",
+        [{ at: 0, pos: 10 }]
+      );
+    });
+  });
+
+  it("runs the initial TheHandy bootstrap only once per active segment", async () => {
+    mocks.handy.connectionKey = "conn-key";
+    mocks.handy.appApiKey = "app-key";
+    mocks.handy.connected = true;
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [{ at: 0, pos: 10 }],
+    });
+    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+
+    const { container } = renderOverlay({
+      installedRounds: [createInstalledRound("round-1", "/script.funscript")],
+    });
+
+    const video = await waitFor(() => {
+      const candidate = container.querySelector("video");
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(video, { duration: 30, currentTime: 0 });
+
+    fireEvent.loadedMetadata(video);
+    fireEvent.canPlay(video);
+    fireEvent.loadedMetadata(video);
+
+    await waitFor(() => {
+      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("does not reload the video element just because the active round object identity changed", async () => {
+    const loadSpy = vi
+      .spyOn(HTMLMediaElement.prototype, "load")
+      .mockImplementation(() => undefined);
+
+    const initialRound = createActiveRound("round-1");
+    const view = renderOverlay({
+      activeRound: initialRound,
+      installedRounds: [createInstalledRound("round-1")],
+    });
+
+    await waitFor(() => {
+      const candidate = view.container.querySelector("video");
+      expect(candidate).not.toBeNull();
+    });
+
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <RoundVideoOverlay
+        activeRound={{ ...initialRound }}
+        installedRounds={[createInstalledRound("round-1")]}
+        currentPlayer={undefined}
+        intermediaryProbability={0}
+        booruSearchPrompt="animated gif webm"
+        intermediaryLoadingDurationSec={10}
+        intermediaryReturnPauseSec={4}
+        onFinishRound={vi.fn()}
+      />
+    );
+
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("resets the initial TheHandy bootstrap for a new preview round", async () => {
+    mocks.handy.connectionKey = "conn-key";
+    mocks.handy.appApiKey = "app-key";
+    mocks.handy.connected = true;
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [{ at: 0, pos: 10 }],
+    });
+    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+
+    const view = renderOverlay({
+      activeRound: createActiveRound("round-1"),
+      installedRounds: [createInstalledRound("round-1", "/script-1.funscript")],
+    });
+
+    const firstVideo = await waitFor(() => {
+      const candidate = view.container.querySelector("video");
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(firstVideo, { duration: 30, currentTime: 0 });
+    fireEvent.loadedMetadata(firstVideo);
+
+    await waitFor(() => {
+      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledTimes(1);
+    });
+
+    view.rerender(
+      <RoundVideoOverlay
+        activeRound={createActiveRound("round-2")}
+        installedRounds={[createInstalledRound("round-2", "/script-2.funscript")]}
+        currentPlayer={undefined}
+        intermediaryProbability={0}
+        booruSearchPrompt="animated gif webm"
+        intermediaryLoadingDurationSec={10}
+        intermediaryReturnPauseSec={4}
+        onFinishRound={vi.fn()}
+      />
+    );
+
+    const secondVideo = await waitFor(() => {
+      const candidate = view.container.querySelector("video");
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(secondVideo, { duration: 30, currentTime: 0 });
+    fireEvent.loadedMetadata(secondVideo);
+
+    await waitFor(() => {
+      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("retries the initial TheHandy bootstrap after a failed first sync", async () => {
+    mocks.handy.connectionKey = "conn-key";
+    mocks.handy.appApiKey = "app-key";
+    mocks.handy.connected = true;
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [{ at: 0, pos: 10 }],
+    });
+    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+    vi.mocked(handyRuntime.sendHspSync)
+      .mockRejectedValueOnce(new Error("sync failed"))
+      .mockResolvedValue(undefined);
+
+    const { container } = renderOverlay({
+      installedRounds: [createInstalledRound("round-1", "/script.funscript")],
+    });
+
+    const video = await waitFor(() => {
+      const candidate = container.querySelector("video");
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(video, { duration: 30, currentTime: 0 });
+
+    fireEvent.loadedMetadata(video);
+    await waitFor(() => {
+      expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({
+        synced: false,
+        error: "sync failed",
+      });
+      expect(screen.getByTestId("thehandy-sync-card")).not.toBeNull();
+      expect(screen.getByText("sync failed")).not.toBeNull();
+    });
+
+    fireEvent.canPlay(video);
+
+    await waitFor(() => {
+      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalledTimes(2);
+      expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({ synced: true, error: null });
+    });
+  });
+
+  it("shows an in-game TheHandy sync card with an idle no-script preview", async () => {
+    mocks.handy.connectionKey = "conn-key";
+    mocks.handy.appApiKey = "app-key";
+    mocks.handy.connected = true;
+    mocks.handy.offsetMs = 75;
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue(null);
+
+    renderOverlay();
+
+    expect(await screen.findByTestId("thehandy-sync-card")).not.toBeNull();
+    expect(screen.getByText("+75ms")).not.toBeNull();
+    expect(screen.getByText("No Script")).not.toBeNull();
+  });
+
+  it("shows the live preview orb using the offset-adjusted script position", async () => {
+    mocks.handy.connectionKey = "conn-key";
+    mocks.handy.appApiKey = "app-key";
+    mocks.handy.connected = true;
+    mocks.handy.offsetMs = 50;
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [{ at: 0, pos: 10 }],
+    });
+    mocks.playback.getFunscriptPositionAtMs.mockReturnValue(42);
+    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+
+    const { container } = renderOverlay({
+      installedRounds: [createInstalledRound("round-1", "/script.funscript")],
+    });
+
+    const video = await waitFor(() => {
+      const candidate = container.querySelector("video");
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(video, { duration: 30, currentTime: 0.25 });
+
+    fireEvent.loadedMetadata(video);
+
+    await waitFor(() => {
+      expect(mocks.playback.getFunscriptPositionAtMs).toHaveBeenCalledWith(
+        { actions: [{ at: 0, pos: 10 }] },
+        300
+      );
+      const orb = screen.getByTestId("thehandy-preview-orb");
+      expect(orb.getAttribute("style")).toContain("top: 58%");
+    });
+  });
+
   it("does not apply an opaque black backdrop during active round playback", () => {
     const { container } = renderOverlay();
     const root = container.firstChild as HTMLElement | null;
@@ -506,6 +882,8 @@ describe("RoundVideoOverlay", () => {
       mode: "appId",
       clientToken: null,
       expiresAtMs: Date.now() + 60_000,
+      serverTimeOffsetMs: 0,
+      serverTimeOffsetMeasuredAtMs: 0,
       loadedScriptId: null,
       activeScriptId: null,
       lastSyncAtMs: 0,
@@ -558,6 +936,8 @@ describe("RoundVideoOverlay", () => {
       mode: "appId",
       clientToken: null,
       expiresAtMs: Date.now() + 60_000,
+      serverTimeOffsetMs: 0,
+      serverTimeOffsetMeasuredAtMs: 0,
       loadedScriptId: null,
       activeScriptId: null,
       lastSyncAtMs: 0,
@@ -602,6 +982,8 @@ describe("RoundVideoOverlay", () => {
       mode: "appId",
       clientToken: null,
       expiresAtMs: Date.now() + 60_000,
+      serverTimeOffsetMs: 0,
+      serverTimeOffsetMeasuredAtMs: 0,
       loadedScriptId: null,
       activeScriptId: null,
       lastSyncAtMs: 0,
@@ -661,6 +1043,8 @@ describe("RoundVideoOverlay", () => {
       mode: "appId",
       clientToken: null,
       expiresAtMs: Date.now() + 60_000,
+      serverTimeOffsetMs: 0,
+      serverTimeOffsetMeasuredAtMs: 0,
       loadedScriptId: null,
       activeScriptId: null,
       lastSyncAtMs: 0,

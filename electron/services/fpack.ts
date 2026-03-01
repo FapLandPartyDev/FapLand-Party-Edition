@@ -35,7 +35,12 @@ export async function extractFpack(fpackPath: string, destDir: string): Promise<
       });
 
       zipfile.on("entry", (entry) => {
-        const entryPath = path.join(destDir, entry.fileName);
+        const entryPath = path.resolve(destDir, entry.fileName);
+        const resolvedDest = path.resolve(destDir);
+        if (!entryPath.startsWith(resolvedDest + path.sep) && entryPath !== resolvedDest) {
+          zipfile.readEntry();
+          return;
+        }
 
         if (/\/$/.test(entry.fileName)) {
           fs.mkdir(entryPath, { recursive: true })
@@ -102,7 +107,7 @@ export async function extractFpackToTemp(
   await extractFpack(fpackPath, tempDir);
 
   const cleanup = async () => {
-    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => { });
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
   };
 
   return { dir: tempDir, cleanup };
@@ -120,9 +125,7 @@ export async function getFpackExtractionRoot(): Promise<string> {
   return path.join(app.getPath("userData"), "fpacks");
 }
 
-export async function extractFpackToPersistent(
-  fpackPath: string
-): Promise<{ dir: string }> {
+export async function extractFpackToPersistent(fpackPath: string): Promise<{ dir: string }> {
   const root = await getFpackExtractionRoot();
   const destDir = path.join(
     root,

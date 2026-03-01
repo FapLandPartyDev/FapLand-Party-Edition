@@ -48,6 +48,7 @@ import {
   type ImportSecurityWarning,
   type InstallSidecarSecurityAnalysis,
 } from "./security";
+import { parseWebsiteVideoProxyUri } from "./webVideo";
 import { startWebsiteVideoScan } from "./webVideoScanService";
 
 const AUTO_SCAN_FOLDERS_KEY = "install.autoScanFolders";
@@ -1277,6 +1278,14 @@ function isWebUri(uri: string): boolean {
   return uri.startsWith("http://") || uri.startsWith("https://");
 }
 
+function toWebsiteBackedVideoUri(uri: string): string | null {
+  const proxiedWebsiteUri = parseWebsiteVideoProxyUri(uri)?.targetUrl ?? null;
+  if (proxiedWebsiteUri) {
+    return proxiedWebsiteUri;
+  }
+  return isWebUri(uri) ? uri : null;
+}
+
 function toWebsiteRoundInstallSourceKey(
   name: string,
   videoUri: string,
@@ -1313,11 +1322,13 @@ async function prepareRoundWrite(
     (await calculateMissingDifficultyFromResources(prepared.resources));
 
   let resolvedInstallSourceKey = installSourceKey;
-  if (prepared.resources.length > 0 && prepared.resources.every((res) => isWebUri(res.videoUri))) {
+  const websiteVideoUris = prepared.resources.map((res) => toWebsiteBackedVideoUri(res.videoUri));
+  if (websiteVideoUris.length > 0 && websiteVideoUris.every((uri) => uri !== null)) {
+    const firstWebsiteVideoUri = websiteVideoUris[0];
     const firstResource = prepared.resources[0];
     resolvedInstallSourceKey = toWebsiteRoundInstallSourceKey(
       normalizedRound.name,
-      firstResource.videoUri,
+      firstWebsiteVideoUri,
       firstResource.funscriptUri
     );
   }

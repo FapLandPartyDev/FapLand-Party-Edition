@@ -5,8 +5,33 @@ import { createInitialGameState } from "../../game/engine";
 import type { GameConfig, GameState } from "../../game/types";
 import { GameScene } from "./GameScene";
 
-const { mockedUseGameAnimation } = vi.hoisted(() => ({
+type PixiDisplayObject = {
+  cursor?: string;
+  eventHandlers?: Record<string, Array<() => void>>;
+  children?: PixiDisplayObject[];
+  text?: string;
+};
+
+const {
+  mockedUseGameAnimation,
+  pixiDisplayObjects,
+  pointerTapHandlers,
+  rafCallbacks,
+  handyMock,
+} = vi.hoisted(() => ({
   mockedUseGameAnimation: vi.fn(),
+  pixiDisplayObjects: [] as PixiDisplayObject[],
+  pointerTapHandlers: [] as Array<() => void>,
+  rafCallbacks: [] as FrameRequestCallback[],
+  handyMock: {
+    connected: false,
+    manuallyStopped: false,
+    offsetMs: 0,
+    toggleManualStop: vi.fn(),
+    forceStop: vi.fn(),
+    adjustOffset: vi.fn(async (deltaMs: number) => deltaMs),
+    resetOffset: vi.fn(async () => undefined),
+  },
 }));
 
 vi.mock("../../hooks/useSfwMode", () => ({
@@ -29,6 +54,7 @@ vi.mock("pixi.js", () => {
     children: unknown[] = [];
     text = "";
     style: Record<string, unknown> = {};
+    eventHandlers: Record<string, Array<() => void>> = {};
     scale = {
       x: 1,
       y: 1,
@@ -93,7 +119,15 @@ vi.mock("pixi.js", () => {
 
     destroy() {}
 
-    on() {
+    on(eventName: string, handler?: () => void) {
+      if (handler) {
+        const handlers = this.eventHandlers[eventName] ?? [];
+        handlers.push(handler);
+        this.eventHandlers[eventName] = handlers;
+        if (eventName === "pointertap") {
+          pointerTapHandlers.push(handler);
+        }
+      }
       return this;
     }
   }
@@ -112,11 +146,36 @@ vi.mock("pixi.js", () => {
   class Graphics extends DisplayObject {}
   class Container extends DisplayObject {}
   class Text extends DisplayObject {}
+  class Rectangle {
+    constructor(
+      public x: number,
+      public y: number,
+      public width: number,
+      public height: number
+    ) {}
+  }
   class TextStyle {
     constructor(public options: Record<string, unknown>) {}
   }
 
-  return { Application, Container, Graphics, Text, TextStyle };
+  pixiDisplayObjects.length = 0;
+  pointerTapHandlers.length = 0;
+  const trackClass = <TBase extends new (...args: any[]) => DisplayObject>(Base: TBase) =>
+    class extends Base {
+      constructor(...args: any[]) {
+        super(...args);
+        pixiDisplayObjects.push(this);
+      }
+    };
+
+  return {
+    Application,
+    Container: trackClass(Container),
+    Graphics: trackClass(Graphics),
+    Rectangle,
+    Text: trackClass(Text),
+    TextStyle,
+  };
 });
 
 vi.mock("../../game/useGameAnimation", () => ({
@@ -129,12 +188,7 @@ vi.mock("../../game/useGameAnimation", () => ({
 }));
 
 vi.mock("../../contexts/HandyContext", () => ({
-  useHandy: () => ({
-    connected: false,
-    manuallyStopped: false,
-    toggleManualStop: vi.fn(),
-    forceStop: vi.fn(),
-  }),
+  useHandy: () => handyMock,
 }));
 
 vi.mock("../../services/trpc", () => ({
@@ -254,6 +308,18 @@ function withPendingPerkSelection(
   };
 }
 
+function getPerkOverlayPointerTapHandlers(): Array<() => void> {
+  return pointerTapHandlers.slice(-5);
+}
+
+function flushAnimationFrames() {
+  const callbacks = [...rafCallbacks];
+  rafCallbacks.length = 0;
+  for (const callback of callbacks) {
+    callback(16);
+  }
+}
+
 describe("GameScene keyboard perk selection", () => {
   const handleRoll = vi.fn();
   const handleStartQueuedRound = vi.fn();
@@ -273,6 +339,18 @@ describe("GameScene keyboard perk selection", () => {
 
   beforeEach(() => {
     cleanup();
+    pixiDisplayObjects.length = 0;
+    pointerTapHandlers.length = 0;
+    rafCallbacks.length = 0;
+    handyMock.connected = false;
+    handyMock.manuallyStopped = false;
+    handyMock.offsetMs = 0;
+    handyMock.toggleManualStop.mockReset();
+    handyMock.forceStop.mockReset();
+    handyMock.adjustOffset.mockReset();
+    handyMock.adjustOffset.mockImplementation(async (deltaMs: number) => deltaMs);
+    handyMock.resetOffset.mockReset();
+    handyMock.resetOffset.mockImplementation(async () => undefined);
     mockedUseGameAnimation.mockImplementation(() => ({
       state: currentState,
       animPhase: { kind: "idle" as const },
@@ -308,6 +386,7 @@ describe("GameScene keyboard perk selection", () => {
       vi.fn((callback: FrameRequestCallback) => {
         const nextId = ++frameId;
         callbacks.set(nextId, callback);
+        rafCallbacks.push(callback);
         return nextId;
       })
     );
@@ -343,9 +422,10 @@ describe("GameScene keyboard perk selection", () => {
     cleanup();
   });
 
-  function renderScene() {
+  async function renderScene() {
     const initialState = createInitialGameState(makeConfig());
-    return render(
+    currentState ??= initialState;
+    const view = render(
       <ControllerProvider>
         <GameScene
           initialState={initialState}
@@ -359,15 +439,18 @@ describe("GameScene keyboard perk selection", () => {
         />
       </ControllerProvider>
     );
+    await Promise.resolve();
+    flushAnimationFrames();
+    return view;
   }
 
-  it("resets perk selection to the first option when a new prompt opens", () => {
+  it("resets perk selection to the first option when a new prompt opens", async () => {
     currentState = withPendingPerkSelection(createInitialGameState(makeConfig()), [
       { id: "loaded-dice", name: "Loaded Dice", cost: 10 },
       { id: "shield", name: "Shield", cost: 20 },
     ]);
 
-    const view = renderScene();
+    const view = await renderScene();
 
     fireEvent.keyDown(window, { key: "ArrowDown" });
 
@@ -390,6 +473,8 @@ describe("GameScene keyboard perk selection", () => {
         />
       </ControllerProvider>
     );
+    await Promise.resolve();
+    flushAnimationFrames();
 
     fireEvent.keyDown(window, { key: " " });
 
@@ -398,18 +483,102 @@ describe("GameScene keyboard perk selection", () => {
     expect(handleSelectPerk).toHaveBeenCalledWith("steady-steps", { applyDirectly: false });
   });
 
-  it("handles space as a single perk selection action", () => {
+  it("handles space as a single perk selection action", async () => {
     currentState = withPendingPerkSelection(createInitialGameState(makeConfig()), [
       { id: "loaded-dice", name: "Loaded Dice", cost: 10 },
       { id: "shield", name: "Shield", cost: 20 },
     ]);
 
-    renderScene();
+    await renderScene();
 
     fireEvent.keyDown(window, { key: " " });
 
     expect(handleSelectPerk).toHaveBeenCalledTimes(1);
     expect(handleSelectPerk).toHaveBeenCalledWith("loaded-dice", { applyDirectly: false });
     expect(handleRoll).not.toHaveBeenCalled();
+  });
+
+  it("adjusts the global TheHandy offset with physical bracket hotkeys", async () => {
+    handyMock.offsetMs = 10;
+    await renderScene();
+
+    fireEvent.keyDown(window, { code: "BracketLeft" });
+    fireEvent.keyDown(window, { code: "BracketRight" });
+    fireEvent.keyDown(window, { code: "BracketLeft", shiftKey: true });
+    fireEvent.keyDown(window, { code: "BracketRight", shiftKey: true });
+    fireEvent.keyDown(window, { code: "Backslash" });
+
+    expect(handyMock.adjustOffset).toHaveBeenNthCalledWith(1, -25);
+    expect(handyMock.adjustOffset).toHaveBeenNthCalledWith(2, 25);
+    expect(handyMock.adjustOffset).toHaveBeenNthCalledWith(3, -1);
+    expect(handyMock.adjustOffset).toHaveBeenNthCalledWith(4, 1);
+    expect(handyMock.resetOffset).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not trigger TheHandy offset hotkeys while typing in an input", async () => {
+    await renderScene();
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    fireEvent.keyDown(input, { code: "BracketLeft" });
+    fireEvent.keyDown(input, { code: "BracketRight", shiftKey: true });
+    fireEvent.keyDown(input, { code: "Backslash" });
+
+    expect(handyMock.adjustOffset).not.toHaveBeenCalled();
+    expect(handyMock.resetOffset).not.toHaveBeenCalled();
+
+    input.remove();
+  });
+
+  it("selects an affordable perk via pointer tap", async () => {
+    currentState = withPendingPerkSelection(createInitialGameState(makeConfig()), [
+      { id: "loaded-dice", name: "Loaded Dice", cost: 10 },
+      { id: "shield", name: "Shield", cost: 20 },
+    ]);
+
+    await renderScene();
+
+    const tapHandler = getPerkOverlayPointerTapHandlers()[0];
+    expect(tapHandler).toBeDefined();
+
+    tapHandler?.();
+
+    expect(handleSelectPerk).toHaveBeenCalledTimes(1);
+    expect(handleSelectPerk).toHaveBeenCalledWith("loaded-dice", { applyDirectly: false });
+  });
+
+  it("does not select an unaffordable perk via pointer tap", async () => {
+    currentState = withPendingPerkSelection(createInitialGameState(makeConfig()), [
+      { id: "loaded-dice", name: "Loaded Dice", cost: 999 },
+      { id: "shield", name: "Shield", cost: 20 },
+    ]);
+
+    await renderScene();
+
+    const tapHandler = getPerkOverlayPointerTapHandlers()[0];
+    expect(tapHandler).toBeDefined();
+
+    tapHandler?.();
+
+    expect(handleSelectPerk).not.toHaveBeenCalled();
+  });
+
+  it("skips perk selection via pointer tap", async () => {
+    currentState = withPendingPerkSelection(createInitialGameState(makeConfig()), [
+      { id: "loaded-dice", name: "Loaded Dice", cost: 10 },
+      { id: "shield", name: "Shield", cost: 20 },
+    ]);
+
+    await renderScene();
+
+    const overlayHandlers = getPerkOverlayPointerTapHandlers();
+    const tapHandler = overlayHandlers[4] ?? overlayHandlers[3];
+    expect(tapHandler).toBeDefined();
+
+    tapHandler?.();
+
+    expect(handleSkipPerk).toHaveBeenCalledTimes(1);
   });
 });

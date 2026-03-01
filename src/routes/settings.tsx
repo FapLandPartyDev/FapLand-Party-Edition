@@ -4,7 +4,13 @@ import { AnimatedBackground } from "../components/AnimatedBackground";
 import { MenuButton } from "../components/MenuButton";
 import { GameDropdown } from "../components/ui/GameDropdown";
 import { useControllerSurface } from "../controller";
-import { DEFAULT_THEHANDY_APP_API_KEY } from "../constants/theHandy";
+import {
+  DEFAULT_THEHANDY_APP_API_KEY,
+  THEHANDY_OFFSET_FINE_STEP_MS,
+  THEHANDY_OFFSET_MAX_MS,
+  THEHANDY_OFFSET_MIN_MS,
+  THEHANDY_OFFSET_STEP_MS,
+} from "../constants/theHandy";
 import {
   DEFAULT_MUSIC_LOOP_MODE,
   DEFAULT_MUSIC_VOLUME,
@@ -76,6 +82,9 @@ import {
   INSTALL_WEB_FUNSCRIPT_URL_ENABLED_KEY,
   DEFAULT_INSTALL_WEB_FUNSCRIPT_URL_ENABLED,
   normalizeInstallWebFunscriptUrlEnabled,
+  PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED_KEY,
+  DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED,
+  normalizePlaylistCacheOngoingRestrictionDisabled,
   STARTUP_SAFE_MODE_SHORTCUT_ENABLED_KEY,
   DEFAULT_STARTUP_SAFE_MODE_SHORTCUT_ENABLED,
   normalizeStartupSafeModeShortcutEnabled,
@@ -149,6 +158,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     description: "Available anywhere unless an input field is actively being edited.",
     shortcuts: [
       { keys: "Ctrl/Cmd+M", description: "Open or close the global music overlay." },
+      { keys: "Ctrl/Cmd+H", description: "Open or close the global TheHandy overlay." },
       { keys: "Escape", description: "Close the global music overlay when it is open." },
       { keys: "F11", description: "Toggle fullscreen for the app window." },
       { keys: "Ctrl/Cmd+= or Ctrl/Cmd++", description: "Zoom the app window in." },
@@ -182,6 +192,10 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: "C", description: "Open the cum confirmation flow." },
       { keys: "Escape", description: "Open the in-game options menu." },
       { keys: "Ctrl/Cmd+W", description: "Toggle TheHandy manual stop state." },
+      {
+        keys: "[ / ] / \\\\ physical keys",
+        description: "Adjust the global TheHandy offset; hold Shift for 1ms fine tuning.",
+      },
       { keys: "R", description: "Resync TheHandy timing to the current round video." },
     ],
   },
@@ -367,6 +381,8 @@ export function SettingsPage() {
   const [installWebFunscriptUrlEnabled, setInstallWebFunscriptUrlEnabled] = useState(
     DEFAULT_INSTALL_WEB_FUNSCRIPT_URL_ENABLED
   );
+  const [playlistCacheOngoingRestrictionDisabled, setPlaylistCacheOngoingRestrictionDisabled] =
+    useState(DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED);
   const [startupSafeModeShortcutEnabled, setStartupSafeModeShortcutEnabled] = useState(
     DEFAULT_STARTUP_SAFE_MODE_SHORTCUT_ENABLED
   );
@@ -439,6 +455,7 @@ export function SettingsPage() {
           rawApplyPerkDirectly,
           rawMultiplayerSkipRoundsCheck,
           rawInstallWebFunscriptUrlEnabled,
+          rawPlaylistCacheOngoingRestrictionDisabled,
           rawStartupSafeModeShortcutEnabled,
           rawWebsiteVideoCacheRootPath,
           rawMusicCacheRootPath,
@@ -462,6 +479,7 @@ export function SettingsPage() {
           trpc.store.get.query({ key: APPLY_PERK_DIRECTLY_KEY }),
           trpc.store.get.query({ key: MULTIPLAYER_SKIP_ROUNDS_CHECK_KEY }),
           trpc.store.get.query({ key: INSTALL_WEB_FUNSCRIPT_URL_ENABLED_KEY }),
+          trpc.store.get.query({ key: PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED_KEY }),
           trpc.store.get.query({ key: STARTUP_SAFE_MODE_SHORTCUT_ENABLED_KEY }),
           trpc.store.get.query({ key: WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY }),
           trpc.store.get.query({ key: MUSIC_CACHE_ROOT_PATH_KEY }),
@@ -512,6 +530,11 @@ export function SettingsPage() {
           );
           setInstallWebFunscriptUrlEnabled(
             normalizeInstallWebFunscriptUrlEnabled(rawInstallWebFunscriptUrlEnabled)
+          );
+          setPlaylistCacheOngoingRestrictionDisabled(
+            normalizePlaylistCacheOngoingRestrictionDisabled(
+              rawPlaylistCacheOngoingRestrictionDisabled
+            )
           );
           setBackgroundPhashScanningEnabled(
             normalizeBackgroundPhashScanningEnabled(rawBackgroundPhashScanningEnabled)
@@ -625,7 +648,7 @@ export function SettingsPage() {
             type: "toggle",
             label: "Show Anti-Perk Beatbar",
             description:
-              "Shows a synchronized manual beatbar and kick hits during jackhammer and milker anti-perk sequences.",
+              "Shows a synchronized manual beatbar during jackhammer and milker anti-perk sequences.",
             value: antiPerkBeatbarEnabled,
             onChange: async (next: boolean) => {
               await trpc.store.set.mutate({ key: ANTI_PERK_BEATBAR_ENABLED_KEY, value: next });
@@ -911,6 +934,21 @@ export function SettingsPage() {
             },
           },
           {
+            id: "playlist-cache-ongoing-restriction-disabled",
+            type: "toggle",
+            label: "Allow Playlist Start During Cache Ongoing",
+            description:
+              "Lets singleplayer start while required web rounds are still caching. Warning: some rounds may not play, and the web version is used instead of the local cache.",
+            value: playlistCacheOngoingRestrictionDisabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED_KEY,
+                value: next,
+              });
+              setPlaylistCacheOngoingRestrictionDisabled(next);
+            },
+          },
+          {
             id: "install-web-funscript-url-enabled",
             type: "toggle",
             label: "Show Web Install Funscript URL",
@@ -957,6 +995,7 @@ export function SettingsPage() {
       sfwModeEnabled,
       multiplayerSkipRoundsCheck,
       installWebFunscriptUrlEnabled,
+      playlistCacheOngoingRestrictionDisabled,
       videoHashFfmpegSourcePreference,
       ytDlpBinaryPreference,
       backgroundPhashScanningEnabled,
@@ -2071,6 +2110,7 @@ function HardwareSettingsCard({
     connectionKey,
     appApiKeyOverride,
     isUsingDefaultAppApiKey,
+    offsetMs,
     connected,
     synced,
     syncError,
@@ -2079,6 +2119,8 @@ function HardwareSettingsCard({
     connect,
     disconnect,
     forceStop,
+    adjustOffset,
+    resetOffset,
   } = useHandy();
   const [inputKey, setInputKey] = useState(connectionKey);
   const [inputApiKeyOverride, setInputApiKeyOverride] = useState(appApiKeyOverride);
@@ -2273,6 +2315,129 @@ function HardwareSettingsCard({
                 Force Stop
               </button>
             </div>
+          </div>
+        </div>
+
+        <div
+          className="rounded-2xl border border-cyan-300/20 bg-[linear-gradient(160deg,rgba(8,20,36,0.72),rgba(12,16,38,0.72))] p-4 shadow-[0_0_32px_rgba(34,211,238,0.08)] transition-colors duration-200 hover:border-cyan-300/35"
+          data-testid="thehandy-offset-layer"
+          onMouseEnter={playHoverSound}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] text-cyan-200/80">
+                Global Sync Offset
+              </p>
+              <p className="mt-1 text-sm text-zinc-200">
+                Applies to all TheHandy sync operations. Use this if the device is slightly ahead
+                or behind the video.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-cyan-300/30 bg-cyan-400/10 px-4 py-2 text-right">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-100/70">
+                Current
+              </div>
+              <div className="bg-gradient-to-r from-cyan-100 via-sky-100 to-indigo-100 bg-clip-text text-3xl font-black tracking-tight text-transparent">
+                {offsetMs >= 0 ? "+" : ""}
+                {offsetMs}ms
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                playSelectSound();
+                void adjustOffset(-THEHANDY_OFFSET_STEP_MS);
+              }}
+              className="rounded-xl border border-cyan-300/30 bg-cyan-500/10 px-3 py-2 text-sm font-semibold text-cyan-100 transition-colors hover:bg-cyan-500/20"
+            >
+              -25ms
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                playSelectSound();
+                void adjustOffset(-THEHANDY_OFFSET_FINE_STEP_MS);
+              }}
+              className="rounded-xl border border-cyan-300/20 bg-white/5 px-3 py-2 text-sm font-semibold text-zinc-100 transition-colors hover:bg-white/10"
+            >
+              -1ms
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                playSelectSound();
+                void resetOffset();
+              }}
+              className="rounded-xl border border-violet-300/30 bg-violet-500/10 px-3 py-2 text-sm font-semibold text-violet-100 transition-colors hover:bg-violet-500/20"
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                playSelectSound();
+                void adjustOffset(THEHANDY_OFFSET_FINE_STEP_MS);
+              }}
+              className="rounded-xl border border-cyan-300/20 bg-white/5 px-3 py-2 text-sm font-semibold text-zinc-100 transition-colors hover:bg-white/10"
+            >
+              +1ms
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                playSelectSound();
+                void adjustOffset(THEHANDY_OFFSET_STEP_MS);
+              }}
+              className="rounded-xl border border-cyan-300/30 bg-cyan-500/10 px-3 py-2 text-sm font-semibold text-cyan-100 transition-colors hover:bg-cyan-500/20"
+            >
+              +25ms
+            </button>
+          </div>
+
+          <div className="mt-4">
+            <label
+              className="mb-2 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-100/70"
+              htmlFor="settings-handy-offset-slider"
+            >
+              Offset Slider
+            </label>
+            <input
+              id="settings-handy-offset-slider"
+              type="range"
+              min={THEHANDY_OFFSET_MIN_MS}
+              max={THEHANDY_OFFSET_MAX_MS}
+              step={1}
+              value={offsetMs}
+              aria-label="TheHandy offset slider"
+              onChange={(event) => {
+                const nextOffsetMs = Number(event.target.value);
+                if (!Number.isFinite(nextOffsetMs)) return;
+                const deltaMs = nextOffsetMs - offsetMs;
+                if (deltaMs === 0) return;
+                void adjustOffset(deltaMs);
+              }}
+              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[linear-gradient(90deg,rgba(56,189,248,0.24),rgba(168,85,247,0.28))] accent-cyan-300"
+            />
+            <div className="mt-2 flex items-center justify-between text-[11px] font-medium text-zinc-400">
+              <span>{THEHANDY_OFFSET_MIN_MS}ms</span>
+              <span>0ms</span>
+              <span>+{THEHANDY_OFFSET_MAX_MS}ms</span>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-zinc-400">
+            <span>
+              <code>[</code> / <code>]</code> physical keys in-game for coarse adjustment
+            </span>
+            <span>
+              <code>Shift</code> + keys for 1ms fine tuning
+            </span>
+            <span>
+              <code>\</code> in-game resets to 0ms
+            </span>
           </div>
         </div>
       </div>

@@ -6,7 +6,7 @@ export const MUSIC_LOOP_MODE_KEY = "music.loopMode";
 export const MUSIC_CURRENT_INDEX_KEY = "music.currentIndex";
 export const MUSIC_CACHE_ROOT_PATH_KEY = "music.cacheRootPath";
 
-export const DEFAULT_MUSIC_ENABLED = false;
+export const DEFAULT_MUSIC_ENABLED = true;
 export const DEFAULT_MUSIC_VOLUME = 0.45;
 export const DEFAULT_MUSIC_SHUFFLE = false;
 export const DEFAULT_MUSIC_LOOP_MODE = "queue" as const;

@@ -221,20 +221,6 @@ export const PERK_LIBRARY: PerkDefinition[] = [
     ],
   },
   {
-    id: "no-rest",
-    name: "No Rest",
-    description:
-      "Handy performs a low-intensity filler sequence while you are on the board. Persistent until a round or another intermediary starts.",
-    iconKey: "noRest",
-    cost: 220,
-    rarity: "rare",
-    kind: "antiPerk",
-    target: "self",
-    durationRounds: null,
-    application: "persistent",
-    effects: [],
-  },
-  {
     id: "highspeed",
     name: "Highspeed",
     description: "Increase round playback speed to 1.2x for one round.",

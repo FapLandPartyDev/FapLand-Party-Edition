@@ -1,5 +1,60 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+function makeLinearPlaylist(id: string, name: string, startingMoney = 120) {
+  return {
+    id,
+    name,
+    description: null,
+    formatVersion: 1,
+    config: {
+      playlistVersion: 1,
+      boardConfig: {
+        mode: "linear" as const,
+        totalIndices: 10,
+        safePointIndices: [],
+        safePointRestMsByIndex: {},
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+      },
+      saveMode: "none" as const,
+      roundStartDelayMs: 20000,
+      perkSelection: {
+        optionsPerPick: 3,
+        triggerChancePerCompletedRound: 0.35,
+      },
+      perkPool: {
+        enabledPerkIds: [],
+        enabledAntiPerkIds: [],
+      },
+      probabilityScaling: {
+        initialIntermediaryProbability: 0,
+        initialAntiPerkProbability: 0,
+        intermediaryIncreasePerRound: 0.02,
+        antiPerkIncreasePerRound: 0.015,
+        maxIntermediaryProbability: 1,
+        maxAntiPerkProbability: 0.75,
+      },
+      economy: {
+        startingMoney,
+        moneyPerCompletedRound: 50,
+        startingScore: 0,
+        scorePerCompletedRound: 100,
+        scorePerIntermediary: 30,
+        scorePerActiveAntiPerk: 25,
+        scorePerCumRoundSuccess: 420,
+      },
+      dice: {
+        min: 1,
+        max: 6,
+      },
+    },
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  };
+}
 
 function makeGraphPlaylist(id: string, name: string) {
   return {
@@ -62,6 +117,7 @@ const mocks = vi.hoisted(() => ({
     getActive: vi.fn(),
     setActive: vi.fn(),
     create: vi.fn(),
+    update: vi.fn(),
     analyzeImportFile: vi.fn(),
     importFromFile: vi.fn(),
     getExportPackageStatus: vi.fn(),
@@ -208,8 +264,14 @@ beforeEach(() => {
     activePlaylist: playlist,
   };
   mocks.searchData = {};
+  mocks.playlists.list.mockResolvedValue([playlist]);
+  mocks.playlists.getActive.mockResolvedValue(playlist);
   mocks.playlists.setActive.mockResolvedValue(undefined);
   mocks.playlists.create.mockResolvedValue(makeGraphPlaylist("created-playlist", "Created Playlist"));
+  mocks.playlists.update.mockImplementation(async ({ playlistId, config }: { playlistId: string; config: unknown }) => ({
+    ...makeLinearPlaylist(playlistId, "Updated Playlist"),
+    config,
+  }));
   mocks.playlists.analyzeImportFile.mockResolvedValue({
     metadata: { name: "Imported Playlist", description: null, exportedAt: null },
     config: makeGraphPlaylist("imported-playlist", "Imported Playlist").config,
@@ -281,5 +343,36 @@ describe("PlaylistWorkshopRoute", () => {
     await waitFor(() => {
       expect(mocks.navigate).not.toHaveBeenCalledWith({ to: "/map-editor" });
     });
+  });
+
+  it("loads and saves starting money for linear playlists", async () => {
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist", 275);
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    render(<PlaylistWorkshopRoute />);
+
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist.*open/i }));
+    fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));
+
+    const startingMoneyInput = await screen.findByDisplayValue("275");
+    expect(startingMoneyInput).toBeDefined();
+
+    fireEvent.change(startingMoneyInput, { target: { value: "410" } });
+    fireEvent.click(screen.getByRole("button", { name: "💾 Save" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+    });
+
+    const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: ReturnType<typeof makeLinearPlaylist>["config"];
+    };
+    expect(updateCall.config.economy.startingMoney).toBe(410);
   });
 });

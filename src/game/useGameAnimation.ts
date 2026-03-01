@@ -219,28 +219,41 @@ export function useGameAnimation(
 
   const handleCompleteRound = useCallback(
     (summary?: CompletedRoundSummary) => {
+      const randoms = {
+        perkTriggerRoll: Math.random(),
+        antiPerkTriggerRoll: Math.random(),
+        antiPerkIndex: Math.floor(Math.random() * 20),
+      };
+
       setState((prev: GameState) => {
-        const next = completeRound(prev, summary, installedRounds);
-        stateRef.current = next;
-        syncPathChoiceRef(next);
+        const next = completeRound(prev, summary, installedRounds, randoms);
         return next;
       });
+
+      // Maintain ref and sync path choice outside of setState
+      const nextRef = completeRound(stateRef.current, summary, installedRounds, randoms);
+      stateRef.current = nextRef;
+      syncPathChoiceRef(nextRef);
+
       const nextPhase: AnimPhase = { kind: "idle" };
       animPhaseRef.current = nextPhase;
       setAnimPhase(nextPhase);
       turnTimerElapsedRef.current = 0;
       setNextAutoRollInSec(null);
     },
-    [installedRounds]
+    [installedRounds, syncPathChoiceRef]
   );
 
   const handleReportCum = useCallback(() => {
     setState((prev: GameState) => {
       const next = reportPlayerCum(prev);
-      stateRef.current = next;
-      syncPathChoiceRef(next);
       return next;
     });
+
+    const nextRef = reportPlayerCum(stateRef.current);
+    stateRef.current = nextRef;
+    syncPathChoiceRef(nextRef);
+
     const nextPhase: AnimPhase = { kind: "idle" };
     animPhaseRef.current = nextPhase;
     setAnimPhase(nextPhase);
@@ -252,10 +265,16 @@ export function useGameAnimation(
 
   const handleSelectPathEdge = useCallback(
     (edgeId: string) => {
-      const current = stateRef.current;
-      const nextState = selectPathEdge(current, edgeId, installedRounds);
+      const randoms = {
+        antiPerkTriggerRoll: Math.random(),
+        antiPerkIndex: Math.floor(Math.random() * 20),
+        perkChoicesRolls: [Math.random(), Math.random(), Math.random()],
+      };
+
+      setState((prev) => selectPathEdge(prev, edgeId, installedRounds, randoms));
+
+      const nextState = selectPathEdge(stateRef.current, edgeId, installedRounds, randoms);
       stateRef.current = nextState;
-      setState(nextState);
       syncPathChoiceRef(nextState);
       setPathChoiceRemainingMs(null);
       pathChoiceElapsedRef.current = 0;
@@ -290,12 +309,17 @@ export function useGameAnimation(
   );
 
   const handleResolvePathChoiceTimeout = useCallback(() => {
-    const current = stateRef.current;
-    if (!current.pendingPathChoice) return;
+    const randoms = {
+      pathChoiceRoll: Math.random(),
+      antiPerkTriggerRoll: Math.random(),
+      antiPerkIndex: Math.floor(Math.random() * 20),
+      perkChoicesRolls: [Math.random(), Math.random(), Math.random()],
+    };
 
-    const nextState = resolvePathChoiceTimeout(current, installedRounds);
+    setState((prev) => resolvePathChoiceTimeout(prev, installedRounds, randoms));
+
+    const nextState = resolvePathChoiceTimeout(stateRef.current, installedRounds, randoms);
     stateRef.current = nextState;
-    setState(nextState);
     syncPathChoiceRef(nextState);
     setPathChoiceRemainingMs(null);
     pathChoiceElapsedRef.current = 0;
@@ -328,10 +352,10 @@ export function useGameAnimation(
   }, [installedRounds, syncPathChoiceRef, toGateStepIndices, toPathIndices]);
 
   const handleSelectPerk = useCallback((perkId: string, options?: { applyDirectly?: boolean }) => {
-    const current = stateRef.current;
-    const nextState = selectPerk(current, perkId, options);
+    setState((prev) => selectPerk(prev, perkId, options));
+
+    const nextState = selectPerk(stateRef.current, perkId, options);
     stateRef.current = nextState;
-    setState(nextState);
     syncPathChoiceRef(nextState);
     playPerkActionSound();
 
@@ -348,12 +372,10 @@ export function useGameAnimation(
   }, [syncPathChoiceRef]);
 
   const handleSkipPerk = useCallback(() => {
-    const current = stateRef.current;
-    if (!current.pendingPerkSelection) return;
+    setState((prev) => skipPerkSelection(prev));
 
-    const nextState = skipPerkSelection(current);
+    const nextState = skipPerkSelection(stateRef.current);
     stateRef.current = nextState;
-    setState(nextState);
     syncPathChoiceRef(nextState);
     playPerkActionSound();
 
@@ -369,11 +391,8 @@ export function useGameAnimation(
 
   const handleApplyExternalPerk = useCallback(
     (input: { targetPlayerId: string; perkId: string; sourceLabel?: string }) => {
-      setState((prev) => {
-        const next = applyPerkByIdToPlayer(prev, input);
-        stateRef.current = next;
-        return next;
-      });
+      setState((prev) => applyPerkByIdToPlayer(prev, input));
+      stateRef.current = applyPerkByIdToPlayer(stateRef.current, input);
       playPerkActionSound();
     },
     []
@@ -381,11 +400,8 @@ export function useGameAnimation(
 
   const handleApplyInventoryItemToSelf = useCallback(
     (input: { playerId: string; itemId: string }) => {
-      setState((prev) => {
-        const next = applyInventoryItemToSelf(prev, input);
-        stateRef.current = next;
-        return next;
-      });
+      setState((prev) => applyInventoryItemToSelf(prev, input));
+      stateRef.current = applyInventoryItemToSelf(stateRef.current, input);
       playPerkActionSound();
     },
     []
@@ -393,33 +409,24 @@ export function useGameAnimation(
 
   const handleConsumeInventoryItem = useCallback(
     (input: { playerId: string; itemId: string; reason?: string }) => {
-      setState((prev) => {
-        const next = consumeInventoryItem(prev, input);
-        stateRef.current = next;
-        return next;
-      });
+      setState((prev) => consumeInventoryItem(prev, input));
+      stateRef.current = consumeInventoryItem(stateRef.current, input);
     },
     []
   );
 
   const handleAdjustPlayerMoney = useCallback(
     (input: { playerId: string; delta: number; reason?: string }) => {
-      setState((prev) => {
-        const next = adjustPlayerMoney(prev, input);
-        stateRef.current = next;
-        return next;
-      });
+      setState((prev) => adjustPlayerMoney(prev, input));
+      stateRef.current = adjustPlayerMoney(stateRef.current, input);
     },
     []
   );
 
   const handleUseRoundControl = useCallback(
     (input: { playerId: string; control: "pause" | "skip" }) => {
-      setState((prev) => {
-        const next = useRoundControl(prev, input);
-        stateRef.current = next;
-        return next;
-      });
+      setState((prev) => useRoundControl(prev, input));
+      stateRef.current = useRoundControl(stateRef.current, input);
       playPerkActionSound();
     },
     []
@@ -427,11 +434,8 @@ export function useGameAnimation(
 
   const handleConsumeAntiPerkById = useCallback(
     (input: { playerId: string; perkId: string; reason?: string }) => {
-      setState((prev) => {
-        const next = consumeAntiPerkById(prev, input);
-        stateRef.current = next;
-        return next;
-      });
+      setState((prev) => consumeAntiPerkById(prev, input));
+      stateRef.current = consumeAntiPerkById(stateRef.current, input);
     },
     []
   );
@@ -450,9 +454,10 @@ export function useGameAnimation(
       );
 
       const canCountdownRun =
-        (phase.kind === "idle" || phase.kind === "perkReveal") &&
+        phase.kind === "idle" &&
         !s.activeRound &&
         !s.pendingPathChoice &&
+        !s.pendingPerkSelection &&
         !hasBoardSequenceAntiPerk &&
         s.sessionPhase !== "completed";
 
@@ -469,8 +474,8 @@ export function useGameAnimation(
           let nextState = s;
           if (s.pendingPerkSelection) {
             nextState = skipPerkSelection(s);
-            stateRef.current = nextState;
             setState(nextState);
+            stateRef.current = nextState;
             syncPathChoiceRef(nextState);
           }
 
@@ -533,8 +538,8 @@ export function useGameAnimation(
           const path = toPathIndices(nextState);
           const gateStepIndices = toGateStepIndices(nextState);
 
-          stateRef.current = nextState;
           setState(nextState);
+          stateRef.current = nextState;
           syncPathChoiceRef(nextState);
           playDiceResultSound();
 
@@ -657,11 +662,8 @@ export function useGameAnimation(
         const newElapsed = phase.elapsed + dt;
         const remaining = Math.max(0, phase.duration - newElapsed);
         if (newElapsed >= phase.duration) {
-          setState((prev: GameState) => {
-            const nextState = triggerQueuedRound(prev);
-            stateRef.current = nextState;
-            return nextState;
-          });
+          setState((prev: GameState) => triggerQueuedRound(prev));
+          stateRef.current = triggerQueuedRound(stateRef.current);
           const next: AnimPhase = { kind: "idle" };
           animPhaseRef.current = next;
           setAnimPhase(next);

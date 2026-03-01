@@ -52,6 +52,7 @@ type EditableLinearSetup = {
   enabledAntiPerkIds: string[];
   perkTriggerChancePerRound: number;
   roundStartDelaySec: number;
+  startingMoney: number;
   probabilities: {
     intermediary: {
       initial: number;
@@ -72,7 +73,6 @@ type EditableLinearSetup = {
 const DEFAULT_SAFE_PRESET = [25, 50, 75];
 const DEFAULT_INTERMEDIARY_LOADING_DURATION_SEC = 5;
 const DEFAULT_INTERMEDIARY_RETURN_PAUSE_SEC = 4;
-const ZELDA_INTERMEDIARY_VIDEO_URI_FRAGMENT = "Fugtrup%20Zelda%20x%20Bokoblin.mp4";
 type NewPlaylistMode = "fully-random" | "progressive-random";
 type NormalRoundSort = "selected-first" | "queue" | "name-asc" | "name-desc" | "author";
 type DurationFilter = "any" | "short" | "medium" | "long" | "unknown";
@@ -348,6 +348,7 @@ function toEditableSetup(
       enabledAntiPerkIds: [...config.perkPool.enabledAntiPerkIds],
       perkTriggerChancePerRound: config.perkSelection.triggerChancePerCompletedRound,
       roundStartDelaySec: Math.round((config.roundStartDelayMs ?? 20000) / 1000),
+      startingMoney: config.economy.startingMoney,
       probabilities: {
         intermediary: {
           initial: config.probabilityScaling.initialIntermediaryProbability,
@@ -391,6 +392,7 @@ function toEditableSetup(
     enabledAntiPerkIds: [...config.perkPool.enabledAntiPerkIds],
     perkTriggerChancePerRound: config.perkSelection.triggerChancePerCompletedRound,
     roundStartDelaySec: Math.round((config.roundStartDelayMs ?? 20000) / 1000),
+    startingMoney: config.economy.startingMoney,
     probabilities: {
       intermediary: {
         initial: config.probabilityScaling.initialIntermediaryProbability,
@@ -731,16 +733,6 @@ export function PlaylistWorkshopRoute() {
         : null,
     [activePreviewRound]
   );
-  const previewInstalledRounds = useMemo(() => {
-    if (!activePreviewRound) return [];
-    const zeldaPool = installedRounds.filter((round) => {
-      if (round.id === activePreviewRound.id || round.type !== "Interjection") return false;
-      const videoUri = round.resources[0]?.videoUri ?? "";
-      return videoUri.includes(ZELDA_INTERMEDIARY_VIDEO_URI_FRAGMENT);
-    });
-    return [activePreviewRound, ...zeldaPool];
-  }, [activePreviewRound, installedRounds]);
-
   const isLinearEditable = activePlaylist?.config.boardConfig.mode === "linear";
   const shouldAutoOpenActivePlaylist = search.open === "active";
   const shouldRedirectGraphPlaylist =
@@ -1245,6 +1237,7 @@ export function PlaylistWorkshopRoute() {
         },
         economy: {
           ...activePlaylist.config.economy,
+          startingMoney: Math.max(0, Math.floor(setup.startingMoney)),
           scorePerCumRoundSuccess: Math.max(0, Math.floor(setup.scorePerCumRoundSuccess)),
         },
       });
@@ -2438,6 +2431,20 @@ export function PlaylistWorkshopRoute() {
 
                   <div className="bg-black/40 border border-white/10 rounded-xl p-6 backdrop-blur-md">
                     <NumberInput
+                      label="Starting Money"
+                      description="Money available at the beginning of a new run from this playlist. Existing resumed runs keep their saved money."
+                      value={setup.startingMoney}
+                      min={0}
+                      max={100000}
+                      disabled={!isLinearEditable}
+                      onChange={(value) =>
+                        setSetup((prev) => ({
+                          ...prev,
+                          startingMoney: Math.max(0, value),
+                        }))
+                      }
+                    />
+                    <NumberInput
                       label="Round Start Delay (sec)"
                       description="Time to wait before each round starts. Set to 0 for instant transitions. Default is 20 seconds."
                       value={setup.roundStartDelaySec}
@@ -2792,7 +2799,7 @@ export function PlaylistWorkshopRoute() {
       {activePreviewRound && (
         <RoundVideoOverlay
           activeRound={activePreview}
-          installedRounds={previewInstalledRounds}
+          installedRounds={installedRounds}
           currentPlayer={undefined}
           intermediaryProbability={1}
           allowAutomaticIntermediaries

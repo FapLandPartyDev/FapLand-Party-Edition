@@ -3,6 +3,8 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { MenuButton } from "../components/MenuButton";
 import { openGlobalMusicOverlay } from "../components/GlobalMusicOverlay";
+import { openGlobalHandyOverlay } from "../components/GlobalHandyOverlay";
+import { openGlobalCommandPalette } from "../components/CommandPalette";
 import { useControllerSurface } from "../controller";
 import {
   MULTIPLAYER_MINIMUM_ROUNDS,
@@ -53,7 +55,8 @@ const getOverallHighscore = async (): Promise<{
 
     const localScore = typeof localResult === "number" ? localResult : localResult.highscore;
     const localCheatMode = typeof localResult === "number" ? false : localResult.highscoreCheatMode;
-    const localAssisted = typeof localResult === "number" ? false : (localResult.highscoreAssisted ?? false);
+    const localAssisted =
+      typeof localResult === "number" ? false : (localResult.highscoreAssisted ?? false);
     const localAssistedSaveMode =
       typeof localResult === "number" ? null : (localResult.highscoreAssistedSaveMode ?? null);
 
@@ -259,9 +262,9 @@ const Home = memo(() => {
     onBack:
       depth > 0
         ? () => {
-          goBack();
-          return true;
-        }
+            goBack();
+            return true;
+          }
         : undefined,
   });
 
@@ -401,54 +404,59 @@ const Home = memo(() => {
             </div>
 
             <div
-              className={`rounded-lg border px-3 py-1.5 backdrop-blur-sm transition-all duration-300 ${connected
-                ? "border-emerald-400/30 bg-emerald-950/8"
-                : isConnecting
-                  ? "border-cyan-400/30 bg-cyan-950/8"
-                  : "border-amber-400/30 bg-amber-950/8"
-                }`}
+              className={`rounded-lg border px-3 py-1.5 backdrop-blur-sm transition-all duration-300 ${
+                connected
+                  ? "border-emerald-400/30 bg-emerald-950/8"
+                  : isConnecting
+                    ? "border-cyan-400/30 bg-cyan-950/8"
+                    : "border-amber-400/30 bg-amber-950/8"
+              }`}
             >
               <div className="flex items-center gap-1.5 mb-1">
                 <span
-                  className={`text-[8px] ${connected
-                    ? "text-emerald-300/80"
-                    : isConnecting
-                      ? "text-cyan-300/80 animate-pulse"
-                      : "text-amber-300/80"
-                    }`}
+                  className={`text-[8px] ${
+                    connected
+                      ? "text-emerald-300/80"
+                      : isConnecting
+                        ? "text-cyan-300/80 animate-pulse"
+                        : "text-amber-300/80"
+                  }`}
                 >
                   ◆
                 </span>
                 <p
-                  className={`font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.14em] font-medium ${connected
-                    ? "text-emerald-200/70"
-                    : isConnecting
-                      ? "text-cyan-200/70"
-                      : "text-amber-200/70"
-                    }`}
+                  className={`font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.14em] font-medium ${
+                    connected
+                      ? "text-emerald-200/70"
+                      : isConnecting
+                        ? "text-cyan-200/70"
+                        : "text-amber-200/70"
+                  }`}
                 >
                   TheHandy
                 </p>
               </div>
               <div className="pl-3.5">
                 <div
-                  className={`font-[family-name:var(--font-jetbrains-mono)] text-[10px] tracking-wide ${connected
-                    ? "text-emerald-100/90"
-                    : isConnecting
-                      ? "text-cyan-100/90"
-                      : "text-amber-100/90"
-                    }`}
+                  className={`font-[family-name:var(--font-jetbrains-mono)] text-[10px] tracking-wide ${
+                    connected
+                      ? "text-emerald-100/90"
+                      : isConnecting
+                        ? "text-cyan-100/90"
+                        : "text-amber-100/90"
+                  }`}
                 >
                   {handyLabel}
                 </div>
                 {handyWarning && (
                   <div
-                    className={`mt-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[9px] tracking-wide normal-case ${connected
-                      ? "text-emerald-200/60"
-                      : isConnecting
-                        ? "text-cyan-200/60"
-                        : "text-amber-200/60"
-                      }`}
+                    className={`mt-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[9px] tracking-wide normal-case ${
+                      connected
+                        ? "text-emerald-200/60"
+                        : isConnecting
+                          ? "text-cyan-200/60"
+                          : "text-amber-200/60"
+                    }`}
                   >
                     {handyWarning}
                   </div>
@@ -463,90 +471,97 @@ const Home = memo(() => {
             <WebsiteVideoScanStatusPoller />
 
             <div
-              className={`rounded-lg border px-3 py-1.5 backdrop-blur-sm transition-all duration-300 ${appUpdate.state.status === "update_available"
-                ? "border-amber-400/30 bg-amber-950/8"
-                : appUpdate.state.status === "up_to_date"
-                  ? "border-emerald-400/30 bg-emerald-950/8"
-                  : appUpdate.state.status === "error"
-                    ? "border-rose-400/30 bg-rose-950/8"
-                    : "border-zinc-400/20 bg-zinc-950/8"
-                }`}
+              className={`rounded-lg border px-3 py-1.5 backdrop-blur-sm transition-all duration-300 ${
+                appUpdate.state.status === "update_available"
+                  ? "border-amber-400/30 bg-amber-950/8"
+                  : appUpdate.state.status === "up_to_date"
+                    ? "border-emerald-400/30 bg-emerald-950/8"
+                    : appUpdate.state.status === "error"
+                      ? "border-rose-400/30 bg-rose-950/8"
+                      : "border-zinc-400/20 bg-zinc-950/8"
+              }`}
             >
               <div className="flex items-center gap-1.5 mb-1">
                 <span
-                  className={`text-[8px] ${appUpdate.state.status === "update_available"
-                    ? "text-amber-300/80"
-                    : appUpdate.state.status === "up_to_date"
-                      ? "text-emerald-300/80"
-                      : appUpdate.state.status === "error"
-                        ? "text-rose-300/80"
-                        : "text-zinc-300/80"
-                    }`}
+                  className={`text-[8px] ${
+                    appUpdate.state.status === "update_available"
+                      ? "text-amber-300/80"
+                      : appUpdate.state.status === "up_to_date"
+                        ? "text-emerald-300/80"
+                        : appUpdate.state.status === "error"
+                          ? "text-rose-300/80"
+                          : "text-zinc-300/80"
+                  }`}
                 >
                   ◆
                 </span>
                 <p
-                  className={`font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.14em] font-medium ${appUpdate.state.status === "update_available"
-                    ? "text-amber-200/70"
-                    : appUpdate.state.status === "up_to_date"
-                      ? "text-emerald-200/70"
-                      : appUpdate.state.status === "error"
-                        ? "text-rose-200/70"
-                        : "text-zinc-200/70"
-                    }`}
+                  className={`font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.14em] font-medium ${
+                    appUpdate.state.status === "update_available"
+                      ? "text-amber-200/70"
+                      : appUpdate.state.status === "up_to_date"
+                        ? "text-emerald-200/70"
+                        : appUpdate.state.status === "error"
+                          ? "text-rose-200/70"
+                          : "text-zinc-200/70"
+                  }`}
                 >
                   Update Status
                 </p>
               </div>
               <div className="pl-3.5 space-y-0">
                 <div
-                  className={`font-[family-name:var(--font-jetbrains-mono)] text-[10px] tracking-wide ${appUpdate.state.status === "update_available"
-                    ? "text-amber-100/90"
-                    : appUpdate.state.status === "up_to_date"
-                      ? "text-emerald-100/90"
-                      : appUpdate.state.status === "error"
-                        ? "text-rose-100/90"
-                        : "text-zinc-100/90"
-                    }`}
+                  className={`font-[family-name:var(--font-jetbrains-mono)] text-[10px] tracking-wide ${
+                    appUpdate.state.status === "update_available"
+                      ? "text-amber-100/90"
+                      : appUpdate.state.status === "up_to_date"
+                        ? "text-emerald-100/90"
+                        : appUpdate.state.status === "error"
+                          ? "text-rose-100/90"
+                          : "text-zinc-100/90"
+                  }`}
                 >
                   {updateStateLabel}
                 </div>
                 <div
-                  className={`font-[family-name:var(--font-jetbrains-mono)] text-[9px] tracking-wide ${appUpdate.state.status === "update_available"
-                    ? "text-amber-200/60"
-                    : appUpdate.state.status === "up_to_date"
-                      ? "text-emerald-200/60"
-                      : appUpdate.state.status === "error"
-                        ? "text-rose-200/60"
-                        : "text-zinc-200/60"
-                    }`}
-                >
-                  Installed v{appUpdate.state.currentVersion}
-                </div>
-                {appUpdate.state.latestVersion && (
-                  <div
-                    className={`font-[family-name:var(--font-jetbrains-mono)] text-[9px] tracking-wide ${appUpdate.state.status === "update_available"
+                  className={`font-[family-name:var(--font-jetbrains-mono)] text-[9px] tracking-wide ${
+                    appUpdate.state.status === "update_available"
                       ? "text-amber-200/60"
                       : appUpdate.state.status === "up_to_date"
                         ? "text-emerald-200/60"
                         : appUpdate.state.status === "error"
                           ? "text-rose-200/60"
                           : "text-zinc-200/60"
-                      }`}
+                  }`}
+                >
+                  Installed v{appUpdate.state.currentVersion}
+                </div>
+                {appUpdate.state.latestVersion && (
+                  <div
+                    className={`font-[family-name:var(--font-jetbrains-mono)] text-[9px] tracking-wide ${
+                      appUpdate.state.status === "update_available"
+                        ? "text-amber-200/60"
+                        : appUpdate.state.status === "up_to_date"
+                          ? "text-emerald-200/60"
+                          : appUpdate.state.status === "error"
+                            ? "text-rose-200/60"
+                            : "text-zinc-200/60"
+                    }`}
                   >
                     Latest v{appUpdate.state.latestVersion}
                   </div>
                 )}
                 {appUpdate.systemMessage && (
                   <div
-                    className={`mt-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[9px] tracking-wide normal-case ${appUpdate.state.status === "update_available"
-                      ? "text-amber-200/60"
-                      : appUpdate.state.status === "up_to_date"
-                        ? "text-emerald-200/60"
-                        : appUpdate.state.status === "error"
-                          ? "text-rose-200/60"
-                          : "text-zinc-200/60"
-                      }`}
+                    className={`mt-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[9px] tracking-wide normal-case ${
+                      appUpdate.state.status === "update_available"
+                        ? "text-amber-200/60"
+                        : appUpdate.state.status === "up_to_date"
+                          ? "text-emerald-200/60"
+                          : appUpdate.state.status === "error"
+                            ? "text-rose-200/60"
+                            : "text-zinc-200/60"
+                    }`}
                   >
                     {appUpdate.systemMessage}
                   </div>
@@ -557,26 +572,49 @@ const Home = memo(() => {
         </div>
       </aside>
 
-      <div className="absolute left-6 bottom-6 z-10 flex gap-3">
+      <div className="absolute left-6 bottom-6 z-10 flex items-center gap-2 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.15em] text-zinc-500 transition-colors">
+        <button
+          type="button"
+          onClick={() => {
+            openGlobalCommandPalette();
+          }}
+          className="transition-colors hover:text-zinc-300"
+          data-controller-focus-id="home-command-palette"
+        >
+          ⌘K
+        </button>
+        <span className="text-zinc-700">·</span>
+        <button
+          type="button"
+          onClick={() => {
+            openGlobalHandyOverlay();
+          }}
+          className="transition-colors hover:text-zinc-300"
+          data-controller-focus-id="home-handy"
+        >
+          Handy
+        </button>
+        <span className="text-zinc-700">·</span>
         <button
           type="button"
           onClick={() => {
             openGlobalMusicOverlay();
           }}
-          className="rounded-lg border border-zinc-600/70 bg-zinc-950/70 px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] text-zinc-200 transition-colors hover:border-violet-300/60 hover:text-violet-100"
+          className="transition-colors hover:text-zinc-300"
           data-controller-focus-id="home-music"
         >
-          Music (Ctrl + M)
+          Music
         </button>
+        <span className="text-zinc-700">·</span>
         <button
           type="button"
           onClick={() => {
             void handleFullscreenToggle();
           }}
-          className="rounded-lg border border-zinc-600/70 bg-zinc-950/70 px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] text-zinc-200 transition-colors hover:border-violet-300/60 hover:text-violet-100"
+          className="transition-colors hover:text-zinc-300"
           data-controller-focus-id="home-fullscreen"
         >
-          Fullscreen F11
+          F11
         </button>
       </div>
     </div>
@@ -651,45 +689,44 @@ function HighscoreDisplay({
       style={{ animationDelay: "0.5s", animationDuration: "1s" }}
     >
       <div
-        className="relative group overflow-hidden rounded-2xl border border-fuchsia-400/30 bg-black/40 p-4 backdrop-blur-md shadow-[0_0_20px_rgba(217,70,239,0.15)] transition-all duration-500 hover:border-fuchsia-400/60 hover:shadow-[0_0_30px_rgba(217,70,239,0.3)] hover:scale-105"
+        className="flex flex-col items-start gap-0.5"
         title={
           cheatMode
             ? "This highscore was achieved with cheat mode active"
-            : (assisted ? getAssistedTooltip(assistedSaveMode) : undefined)
+            : assisted
+              ? getAssistedTooltip(assistedSaveMode)
+              : undefined
         }
       >
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-fuchsia-500/10 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
-        <div className="flex flex-col items-start gap-1">
-          <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] text-fuchsia-200/80 drop-shadow-[0_0_5px_rgba(217,70,239,0.5)]">
-            Global Best
-          </p>
-          <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-fuchsia-100 to-fuchsia-300 drop-shadow-[0_0_10px_rgba(217,70,239,0.8)] tabular-nums">
-              {displayScore.toLocaleString()}
+        <p className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.18em] text-zinc-500">
+          Best
+        </p>
+        <div className="flex items-baseline gap-1">
+          <span className="font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold tabular-nums text-zinc-300">
+            {displayScore.toLocaleString()}
+          </span>
+          {cheatMode && (
+            <span
+              className="text-xs cursor-help"
+              title="This highscore was achieved with cheat mode active"
+            >
+              🎭
             </span>
-            {cheatMode && (
-              <span
-                className="text-lg cursor-help"
-                title="This highscore was achieved with cheat mode active"
-              >
-                🎭
-              </span>
-            )}
-            {assisted && assistedSaveMode && (
-              <span className="text-lg cursor-help" title={getAssistedTooltip(assistedSaveMode)}>
-                {getSaveModeEmoji(assistedSaveMode)}
-              </span>
-            )}
-          </div>
-          {!hideCumLoadCount && (
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase tracking-[0.12em] text-fuchsia-100/85">
-              {abbreviateNsfwText(
-                `💦 ${cumLoadCount.toLocaleString()} cum loads extracted`,
-                Boolean(hideCumLoadCount)
-              )}
-            </p>
+          )}
+          {assisted && assistedSaveMode && (
+            <span className="text-xs cursor-help" title={getAssistedTooltip(assistedSaveMode)}>
+              {getSaveModeEmoji(assistedSaveMode)}
+            </span>
           )}
         </div>
+        {!hideCumLoadCount && (
+          <p className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] tracking-wide text-zinc-600">
+            {abbreviateNsfwText(
+              `${cumLoadCount.toLocaleString()} total`,
+              Boolean(hideCumLoadCount)
+            )}
+          </p>
+        )}
       </div>
     </div>
   );

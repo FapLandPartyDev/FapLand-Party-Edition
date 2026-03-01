@@ -14,6 +14,7 @@ import * as z from "zod";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { SfwGuard } from "../components/SfwGuard";
 import { RoundVideoOverlay } from "../components/game/RoundVideoOverlay";
+import { buildPreviewRoundVideoOverlayProps } from "../components/game/buildRoundVideoOverlayProps";
 import { InlineMetrics } from "../components/ui";
 import { GameDropdown } from "../components/ui/GameDropdown";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
@@ -90,6 +91,14 @@ type HeroEditDraft = {
   name: string;
   author: string;
   description: string;
+};
+type DeleteRoundDialogState = {
+  id: string;
+  name: string;
+};
+type DeleteHeroDialogState = {
+  id: string;
+  name: string;
 };
 type HeroGroupRoundConversionState = {
   groupKey: string;
@@ -345,7 +354,6 @@ const LibraryTransferStats = memo(() => {
 });
 const DEFAULT_INTERMEDIARY_LOADING_DURATION_SEC = 5;
 const DEFAULT_INTERMEDIARY_RETURN_PAUSE_SEC = 4;
-const ZELDA_INTERMEDIARY_VIDEO_URI_FRAGMENT = "Fugtrup%20Zelda%20x%20Bokoblin.mp4";
 const roundNameCollator = new Intl.Collator();
 const ROUND_SECTIONS: RoundSection[] = [
   {
@@ -687,8 +695,8 @@ export function InstalledRoundsPage() {
     installWebFunscriptUrlEnabled,
   } = Route.useLoaderData();
   const { showToast } = useToast();
-  const [deleteRoundDialogOpen, setDeleteRoundDialogOpen] = useState(false);
-  const [deleteHeroDialogOpen, setDeleteHeroDialogOpen] = useState(false);
+  const [deleteRoundDialog, setDeleteRoundDialog] = useState<DeleteRoundDialogState | null>(null);
+  const [deleteHeroDialog, setDeleteHeroDialog] = useState<DeleteHeroDialogState | null>(null);
   const [rounds, setRounds] = useState<InstalledRound[]>(initialRounds);
   const [availablePlaylists, setAvailablePlaylists] = useState<StoredPlaylist[]>(initialPlaylists);
   const [showDisabledRounds, setShowDisabledRounds] = useState(false);
@@ -845,28 +853,44 @@ export function InstalledRoundsPage() {
     () =>
       activePreviewRound
         ? {
-            fieldId: "preview-field",
-            nodeId: "preview-node",
-            roundId: activePreviewRound.id,
-            roundName: activePreviewRound.name,
-            selectionKind: "fixed",
-            poolId: null,
-            phaseKind: "normal",
-            campaignIndex: 1,
-          }
+          fieldId: "preview-field",
+          nodeId: "preview-node",
+          roundId: activePreviewRound.id,
+          roundName: activePreviewRound.name,
+          selectionKind: "fixed",
+          poolId: null,
+          phaseKind: "normal",
+          campaignIndex: 1,
+        }
         : null,
     [activePreviewRound]
   );
-  const previewInstalledRounds = useMemo(() => {
-    if (!activePreviewRound) return [];
-    const zeldaPool = rounds.filter((round) => {
-      if (round.id === activePreviewRound.id || round.type !== "Interjection") return false;
-      const videoUri = round.resources[0]?.videoUri ?? "";
-      return videoUri.includes(ZELDA_INTERMEDIARY_VIDEO_URI_FRAGMENT);
-    });
-    return [activePreviewRound, ...zeldaPool];
-  }, [activePreviewRound, rounds]);
-
+  const previewOverlayProps = useMemo(
+    () =>
+      buildPreviewRoundVideoOverlayProps({
+        activeRound: activePreview,
+        installedRounds: rounds,
+        intermediaryProbability: 1,
+        booruSearchPrompt: intermediaryLoadingPrompt,
+        intermediaryLoadingDurationSec,
+        intermediaryReturnPauseSec,
+        initialShowProgressBarAlways: roundProgressBarAlwaysVisible,
+        onClose: () => {
+          setActivePreviewRound(null);
+        },
+        onFinishRound: () => {
+          setActivePreviewRound(null);
+        },
+      }),
+    [
+      activePreview,
+      intermediaryLoadingDurationSec,
+      intermediaryLoadingPrompt,
+      intermediaryReturnPauseSec,
+      roundProgressBarAlwaysVisible,
+      rounds,
+    ]
+  );
   const refreshInstalledRounds = useCallback(async () => {
     const [refreshed, disabledIds] = await Promise.all([
       getInstalledRounds(showDisabledRounds),
@@ -1158,7 +1182,7 @@ export function InstalledRoundsPage() {
       handleSelectSfx();
       setActivePreviewRound(round);
     },
-    [handleSelectSfx]
+    [handleSelectSfx, rounds.length]
   );
   const handleEditRound = useCallback(
     (round: InstalledRound) => {
@@ -1328,14 +1352,14 @@ export function InstalledRoundsPage() {
     setLegacyPlaylistReview((current) =>
       current
         ? {
-            ...current,
-            error: null,
-            slots: current.slots.map((slot) =>
-              slot.id === slotId
-                ? { ...slot, selectedAsCheckpoint: !slot.selectedAsCheckpoint }
-                : slot
-            ),
-          }
+          ...current,
+          error: null,
+          slots: current.slots.map((slot) =>
+            slot.id === slotId
+              ? { ...slot, selectedAsCheckpoint: !slot.selectedAsCheckpoint }
+              : slot
+          ),
+        }
         : null
     );
   };
@@ -1344,12 +1368,12 @@ export function InstalledRoundsPage() {
     setLegacyPlaylistReview((current) =>
       current
         ? {
-            ...current,
-            error: null,
-            slots: current.slots.map((slot) =>
-              slot.id === slotId ? { ...slot, excludedFromImport: !slot.excludedFromImport } : slot
-            ),
-          }
+          ...current,
+          error: null,
+          slots: current.slots.map((slot) =>
+            slot.id === slotId ? { ...slot, excludedFromImport: !slot.excludedFromImport } : slot
+          ),
+        }
         : null
     );
   };
@@ -1362,11 +1386,11 @@ export function InstalledRoundsPage() {
     setLegacyPlaylistReview((current) =>
       current
         ? {
-            ...current,
-            playlistName,
-            creating: true,
-            error: null,
-          }
+          ...current,
+          playlistName,
+          creating: true,
+          error: null,
+        }
         : null
     );
 
@@ -1389,10 +1413,10 @@ export function InstalledRoundsPage() {
         setLegacyPlaylistReview((current) =>
           current
             ? {
-                ...current,
-                creating: false,
-                error: result.status.lastMessage ?? "Legacy import did not finish.",
-              }
+              ...current,
+              creating: false,
+              error: result.status.lastMessage ?? "Legacy import did not finish.",
+            }
             : null
         );
         return;
@@ -1411,10 +1435,10 @@ export function InstalledRoundsPage() {
       setLegacyPlaylistReview((current) =>
         current
           ? {
-              ...current,
-              creating: false,
-              error: error instanceof Error ? error.message : "Failed to create legacy playlist.",
-            }
+            ...current,
+            creating: false,
+            error: error instanceof Error ? error.message : "Failed to create legacy playlist.",
+          }
           : null
       );
     } finally {
@@ -1453,10 +1477,10 @@ export function InstalledRoundsPage() {
       setExportDialog((current) =>
         current
           ? {
-              ...current,
-              result,
-              error: null,
-            }
+            ...current,
+            result,
+            error: null,
+          }
           : current
       );
     } catch (error) {
@@ -1464,9 +1488,9 @@ export function InstalledRoundsPage() {
       setExportDialog((current) =>
         current
           ? {
-              ...current,
-              error: error instanceof Error ? error.message : "Failed to export library package.",
-            }
+            ...current,
+            error: error instanceof Error ? error.message : "Failed to export library package.",
+          }
           : current
       );
     } finally {
@@ -1710,13 +1734,13 @@ export function InstalledRoundsPage() {
   };
 
   const confirmDeleteRound = useCallback(async () => {
-    if (!editingRound || isSavingEdit) return;
-    setDeleteRoundDialogOpen(false);
+    if (!deleteRoundDialog || isSavingEdit) return;
+    setDeleteRoundDialog(null);
 
     setIsSavingEdit(true);
     try {
-      await db.round.delete(editingRound.id);
-      setEditingRound(null);
+      await db.round.delete(deleteRoundDialog.id);
+      setEditingRound((current) => (current?.id === deleteRoundDialog.id ? null : current));
       await refreshInstalledRounds();
     } catch (error) {
       console.error("Failed to delete round", error);
@@ -1724,22 +1748,27 @@ export function InstalledRoundsPage() {
     } finally {
       setIsSavingEdit(false);
     }
-  }, [editingRound, isSavingEdit, refreshInstalledRounds, showToast]);
+  }, [deleteRoundDialog, isSavingEdit, refreshInstalledRounds, showToast]);
 
   const deleteRoundEntry = () => {
     if (!editingRound || isSavingEdit) return;
-    setDeleteRoundDialogOpen(true);
+    const persistedRoundName =
+      rounds.find((round) => round.id === editingRound.id)?.name ?? editingRound.name;
+    setDeleteRoundDialog({
+      id: editingRound.id,
+      name: editingRound.name.trim() || persistedRoundName.trim(),
+    });
   };
 
   const confirmDeleteHero = useCallback(
-    async (heroDraft: HeroEditDraft | null = editingHero) => {
-      if (!heroDraft || isSavingEdit) return;
-      setDeleteHeroDialogOpen(false);
+    async () => {
+      if (!deleteHeroDialog || isSavingEdit) return;
+      setDeleteHeroDialog(null);
 
       setIsSavingEdit(true);
       try {
-        await db.hero.delete(heroDraft.id);
-        setEditingHero((current) => (current?.id === heroDraft.id ? null : current));
+        await db.hero.delete(deleteHeroDialog.id);
+        setEditingHero((current) => (current?.id === deleteHeroDialog.id ? null : current));
         await refreshInstalledRounds();
       } catch (error) {
         console.error("Failed to delete hero", error);
@@ -1748,12 +1777,17 @@ export function InstalledRoundsPage() {
         setIsSavingEdit(false);
       }
     },
-    [editingHero, isSavingEdit, refreshInstalledRounds, showToast]
+    [deleteHeroDialog, isSavingEdit, refreshInstalledRounds, showToast]
   );
 
   const deleteHeroEntry = (heroDraft: HeroEditDraft | null = editingHero) => {
     if (!heroDraft || isSavingEdit) return;
-    setDeleteHeroDialogOpen(true);
+    const persistedHeroName =
+      rounds.find((round) => round.hero?.id === heroDraft.id)?.hero?.name ?? heroDraft.name;
+    setDeleteHeroDialog({
+      id: heroDraft.id,
+      name: heroDraft.name.trim() || persistedHeroName.trim(),
+    });
   };
 
   const retryTemplateLinkingForRound = async (round: InstalledRound) => {
@@ -1945,11 +1979,10 @@ export function InstalledRoundsPage() {
                         setGroupMode(option.value as GroupMode);
                       });
                     }}
-                    className={`rounded-xl px-3 py-2 text-left font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] transition-all duration-200 ${
-                      active
+                    className={`rounded-xl px-3 py-2 text-left font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] transition-all duration-200 ${active
                         ? "border border-cyan-300/45 bg-cyan-500/18 text-cyan-100"
                         : "border border-transparent bg-zinc-900/55 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
-                    }`}
+                      }`}
                   >
                     {option.label}
                   </button>
@@ -2108,11 +2141,10 @@ export function InstalledRoundsPage() {
                                 setSelectedHeroIds(new Set());
                               }
                             }}
-                            className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${
-                              selectionMode
+                            className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${selectionMode
                                 ? "border-violet-300/60 bg-violet-500/25 text-violet-100"
                                 : "border-slate-600 bg-slate-900/70 text-slate-300 hover:border-violet-300/40"
-                            }`}
+                              }`}
                           >
                             {selectionMode ? "Cancel Selection" : "Select Items"}
                           </button>
@@ -2199,11 +2231,10 @@ export function InstalledRoundsPage() {
                             });
                           }}
                           disabled={!hasActiveFilters}
-                          className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${
-                            hasActiveFilters
+                          className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${hasActiveFilters
                               ? "border-violet-300/50 bg-violet-500/15 text-violet-100 hover:border-violet-200/75 hover:bg-violet-500/25"
                               : "cursor-not-allowed border-zinc-700 bg-zinc-900/70 text-zinc-500"
-                          }`}
+                            }`}
                         >
                           Clear Filters
                         </button>
@@ -2335,11 +2366,10 @@ export function InstalledRoundsPage() {
                             });
                           }}
                           disabled={visibleGroupKeys.length === 0 || allVisibleGroupsExpanded}
-                          className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${
-                            visibleGroupKeys.length > 0 && !allVisibleGroupsExpanded
+                          className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${visibleGroupKeys.length > 0 && !allVisibleGroupsExpanded
                               ? "border-cyan-300/45 bg-cyan-500/15 text-cyan-100 hover:border-cyan-200/75 hover:bg-cyan-500/25"
                               : "cursor-not-allowed border-zinc-700 bg-zinc-900/70 text-zinc-500"
-                          }`}
+                            }`}
                         >
                           Expand All Groups
                         </button>
@@ -2357,11 +2387,10 @@ export function InstalledRoundsPage() {
                             });
                           }}
                           disabled={visibleGroupKeys.length === 0 || !allVisibleGroupsExpanded}
-                          className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${
-                            visibleGroupKeys.length > 0 && allVisibleGroupsExpanded
+                          className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${visibleGroupKeys.length > 0 && allVisibleGroupsExpanded
                               ? "border-violet-300/45 bg-violet-500/15 text-violet-100 hover:border-violet-200/75 hover:bg-violet-500/25"
                               : "cursor-not-allowed border-zinc-700 bg-zinc-900/70 text-zinc-500"
-                          }`}
+                            }`}
                         >
                           Collapse Groups
                         </button>
@@ -2753,24 +2782,7 @@ export function InstalledRoundsPage() {
         onHoverSfx={handleHoverSfx}
       />
       {activePreviewRound && (
-        <RoundVideoOverlay
-          activeRound={activePreview}
-          installedRounds={previewInstalledRounds}
-          currentPlayer={undefined}
-          intermediaryProbability={1}
-          allowAutomaticIntermediaries
-          showCloseButton
-          onClose={() => {
-            setActivePreviewRound(null);
-          }}
-          booruSearchPrompt={intermediaryLoadingPrompt}
-          intermediaryLoadingDurationSec={intermediaryLoadingDurationSec}
-          intermediaryReturnPauseSec={intermediaryReturnPauseSec}
-          initialShowProgressBarAlways={roundProgressBarAlwaysVisible}
-          onFinishRound={() => {
-            setActivePreviewRound(null);
-          }}
-        />
+        <RoundVideoOverlay {...previewOverlayProps} />
       )}
       {editingRound && (
         <EditDialog
@@ -2918,9 +2930,9 @@ export function InstalledRoundsPage() {
                           setEditingRound((previous) =>
                             previous
                               ? {
-                                  ...previous,
-                                  funscriptUri: window.electronAPI.file.convertFileSrc(filePath),
-                                }
+                                ...previous,
+                                funscriptUri: window.electronAPI.file.convertFileSrc(filePath),
+                              }
                               : previous
                           );
                         });
@@ -3001,10 +3013,10 @@ export function InstalledRoundsPage() {
                   setHeroGroupRoundConversion((current) =>
                     current
                       ? {
-                          ...current,
-                          confirmationText: event.target.value,
-                          error: null,
-                        }
+                        ...current,
+                        confirmationText: event.target.value,
+                        error: null,
+                      }
                       : current
                   )
                 }
@@ -3159,13 +3171,13 @@ export function InstalledRoundsPage() {
                         setRepairingTemplateHero((current) =>
                           current
                             ? {
-                                ...current,
-                                assignments: current.assignments.map((entry) =>
-                                  entry.roundId === assignment.roundId
-                                    ? { ...entry, installedRoundId: value }
-                                    : entry
-                                ),
-                              }
+                              ...current,
+                              assignments: current.assignments.map((entry) =>
+                                entry.roundId === assignment.roundId
+                                  ? { ...entry, installedRoundId: value }
+                                  : entry
+                              ),
+                            }
                             : current
                         )
                       }
@@ -3206,10 +3218,10 @@ export function InstalledRoundsPage() {
                   setLegacyPlaylistReview((current) =>
                     current
                       ? {
-                          ...current,
-                          createPlaylist: event.target.checked,
-                          error: null,
-                        }
+                        ...current,
+                        createPlaylist: event.target.checked,
+                        error: null,
+                      }
                       : null
                   )
                 }
@@ -3225,10 +3237,10 @@ export function InstalledRoundsPage() {
                   setLegacyPlaylistReview((current) =>
                     current
                       ? {
-                          ...current,
-                          deferPhash: event.target.checked,
-                          error: null,
-                        }
+                        ...current,
+                        deferPhash: event.target.checked,
+                        error: null,
+                      }
                       : null
                   )
                 }
@@ -3243,19 +3255,18 @@ export function InstalledRoundsPage() {
                   setLegacyPlaylistReview((current) =>
                     current
                       ? {
-                          ...current,
-                          playlistName: event.target.value,
-                          error: null,
-                        }
+                        ...current,
+                        playlistName: event.target.value,
+                        error: null,
+                      }
                       : null
                   )
                 }
                 disabled={!legacyPlaylistReview.createPlaylist}
-                className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all duration-200 ${
-                  legacyPlaylistReview.createPlaylist
+                className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all duration-200 ${legacyPlaylistReview.createPlaylist
                     ? "border-violet-300/35 bg-black/45 text-zinc-100 focus:border-violet-200/80 focus:ring-2 focus:ring-violet-400/25"
                     : "cursor-not-allowed border-zinc-700 bg-zinc-900/70 text-zinc-500"
-                }`}
+                  }`}
                 placeholder="Legacy Playlist"
               />
             </ModalField>
@@ -3334,22 +3345,22 @@ export function InstalledRoundsPage() {
         />
       )}
       <ConfirmDialog
-        isOpen={deleteRoundDialogOpen}
+        isOpen={deleteRoundDialog !== null}
         title="Delete Round?"
-        message={`Delete round entry \u201C${editingRound?.name ?? ""}\u201D from the database?\n\nThis removes only the database entry. Files on disk will be left untouched.`}
+        message={`Delete round entry \u201C${deleteRoundDialog?.name ?? ""}\u201D from the database?\n\nThis removes only the database entry. Files on disk will be left untouched.`}
         confirmLabel="Delete Round"
         variant="danger"
         onConfirm={confirmDeleteRound}
-        onCancel={() => setDeleteRoundDialogOpen(false)}
+        onCancel={() => setDeleteRoundDialog(null)}
       />
       <ConfirmDialog
-        isOpen={deleteHeroDialogOpen}
+        isOpen={deleteHeroDialog !== null}
         title="Delete Hero?"
-        message={`Delete hero entry \u201C${editingHero?.name ?? ""}\u201D from the database?\n\nThis also permanently deletes all attached rounds from the database. Files on disk will be left untouched.`}
+        message={`Delete hero entry \u201C${deleteHeroDialog?.name ?? ""}\u201D from the database?\n\nThis also permanently deletes all attached rounds from the database. Files on disk will be left untouched.`}
         confirmLabel="Delete Hero"
         variant="danger"
         onConfirm={confirmDeleteHero}
-        onCancel={() => setDeleteHeroDialogOpen(false)}
+        onCancel={() => setDeleteHeroDialog(null)}
       />
     </div>
   );
@@ -3394,6 +3405,7 @@ const RoundCard = memo(function RoundCard({
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [hasActivatedPreview, setHasActivatedPreview] = useState(false);
   const [isPreviewActive, setIsPreviewActive] = useState(false);
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const previewUri = round.resources[0]?.videoUri;
   const previewImage = round.previewImage;
   const primaryResource = round.resources[0];
@@ -3413,6 +3425,16 @@ const RoundCard = memo(function RoundCard({
   const displayAuthor = abbreviateNsfwText(round.author ?? "Unknown", sfwMode);
   const displayHeroName = round.hero?.name ? abbreviateNsfwText(round.hero.name, sfwMode) : "N/A";
   const displayLibraryLabel = abbreviateNsfwText(round.author ?? round.hero?.name ?? "Installed", sfwMode);
+  const stopPreviewPlayback = useCallback(() => {
+    setIsPreviewActive(false);
+    setHasActivatedPreview(false);
+    const video = previewVideoRef.current;
+    if (!video) return;
+    video.pause();
+    video.currentTime = 0;
+    video.removeAttribute("src");
+    video.load();
+  }, []);
 
   return (
     <article
@@ -3468,6 +3490,7 @@ const RoundCard = memo(function RoundCard({
         )}
         {canPreview && hasActivatedPreview ? (
           <RoundCardPreviewVideo
+            videoRef={previewVideoRef}
             previewUri={previewUri}
             previewImage={previewImage}
             startTime={round.startTime}
@@ -3527,7 +3550,10 @@ const RoundCard = memo(function RoundCard({
             aria-label={`Play ${displayName}`}
             className="absolute left-1/2 top-1/2 z-20 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/45 bg-black/55 text-white opacity-0 shadow-[0_0_30px_rgba(0,0,0,0.45)] transition-all duration-200 group-hover/video:scale-105 group-hover/video:opacity-100 focus-visible:opacity-100"
             onMouseEnter={onHoverSfx}
-            onClick={() => onPlay(round)}
+            onClick={() => {
+              stopPreviewPlayback();
+              onPlay(round);
+            }}
           >
             <span className="ml-1 text-2xl leading-none">▶</span>
           </button>
@@ -3567,13 +3593,12 @@ const RoundCard = memo(function RoundCard({
             </p>
           </div>
           <span
-            className={`shrink-0 rounded-full border px-2.5 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.24em] backdrop-blur-md ${
-              showWebsiteCachingState
+            className={`shrink-0 rounded-full border px-2.5 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.24em] backdrop-blur-md ${showWebsiteCachingState
                 ? "border-amber-300/45 bg-amber-500/18 text-amber-100"
                 : hasFunscript
                   ? "border-emerald-300/35 bg-emerald-500/18 text-emerald-100"
                   : "border-orange-300/35 bg-orange-500/18 text-orange-100"
-            }`}
+              }`}
           >
             {showWebsiteCachingState
               ? downloadProgress
@@ -3728,19 +3753,20 @@ const RoundCard = memo(function RoundCard({
 });
 
 const RoundCardPreviewVideo = memo(function RoundCardPreviewVideo({
+  videoRef,
   previewUri,
   previewImage,
   startTime,
   endTime,
   active,
 }: {
+  videoRef: { current: HTMLVideoElement | null };
   previewUri: string;
   previewImage: string | null;
   startTime: number | null;
   endTime: number | null;
   active: boolean;
 }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const { getVideoSrc, ensurePlayableVideo, handleVideoError } = usePlayableVideoFallback();
   const previewVideoSrc = getVideoSrc(previewUri);
   const previewWindowSec = useMemo(() => {
@@ -3791,9 +3817,20 @@ const RoundCardPreviewVideo = memo(function RoundCardPreviewVideo({
     const { startSec } = resolvePreviewWindow(video);
     video.currentTime = startSec;
     void video.play().catch((error) => {
-      console.error("Preview play blocked", error);
+      const isIgnorable =
+        error instanceof DOMException &&
+        (error.name === "AbortError" || error.name === "NotAllowedError");
+      if (!isIgnorable) {
+        console.error("Preview play blocked", error);
+      }
     });
   }, [active, resolvePreviewWindow]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !active || !previewVideoSrc) return;
+    video.load();
+  }, [active, previewVideoSrc, videoRef]);
 
   return (
     <SfwGuard>
@@ -4153,11 +4190,10 @@ function EditDialog({
               type="button"
               onClick={onDestructiveAction}
               disabled={disabled}
-              className={`mr-auto rounded-xl border px-4 py-2 text-sm font-semibold ${
-                disabled
+              className={`mr-auto rounded-xl border px-4 py-2 text-sm font-semibold ${disabled
                   ? "cursor-not-allowed border-zinc-700 bg-zinc-800 text-zinc-500"
                   : "border-rose-300/60 bg-rose-500/20 text-rose-100 hover:bg-rose-500/35"
-              }`}
+                }`}
             >
               {destructiveActionLabel}
             </button>
@@ -4328,11 +4364,10 @@ function InstallImportOverlay({
                 type="button"
                 onClick={onAbort}
                 disabled={aborting}
-                className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] transition-all duration-200 ${
-                  aborting
+                className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] transition-all duration-200 ${aborting
                     ? "cursor-wait border-zinc-700 bg-zinc-800 text-zinc-500"
                     : "border-rose-300/55 bg-rose-500/20 text-rose-100 hover:border-rose-200/80 hover:bg-rose-500/35"
-                }`}
+                  }`}
               >
                 {aborting ? "Aborting..." : "Abort Import"}
               </button>
@@ -4400,11 +4435,10 @@ function InstalledDatabaseExportDialog({
               type="button"
               onClick={onClose}
               disabled={disableClose}
-              className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] ${
-                disableClose
+              className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] ${disableClose
                   ? "cursor-not-allowed border-slate-700 bg-slate-900 text-slate-500"
                   : "border-slate-600/80 bg-black/30 text-slate-300 transition-all duration-200 hover:border-cyan-200/60 hover:text-white"
-              }`}
+                }`}
             >
               Close
             </button>
@@ -4466,11 +4500,10 @@ function InstalledDatabaseExportDialog({
                           error: null,
                         }))
                       }
-                      className={`flex-1 rounded-2xl border p-4 text-left transition-all ${
-                        state.exportMode === "all"
+                      className={`flex-1 rounded-2xl border p-4 text-left transition-all ${state.exportMode === "all"
                           ? "border-cyan-300/60 bg-cyan-500/15"
                           : "border-slate-600 bg-slate-900/50 hover:border-slate-500"
-                      }`}
+                        }`}
                     >
                       <p className="font-semibold text-white">All</p>
                       <p className="mt-1 text-xs text-slate-400">Export entire library</p>
@@ -4485,13 +4518,12 @@ function InstalledDatabaseExportDialog({
                         }))
                       }
                       disabled={!hasSelection}
-                      className={`flex-1 rounded-2xl border p-4 text-left transition-all ${
-                        !hasSelection
+                      className={`flex-1 rounded-2xl border p-4 text-left transition-all ${!hasSelection
                           ? "cursor-not-allowed border-slate-700 bg-slate-900/30 opacity-50"
                           : state.exportMode === "selected"
                             ? "border-violet-300/60 bg-violet-500/15"
                             : "border-slate-600 bg-slate-900/50 hover:border-slate-500"
-                      }`}
+                        }`}
                     >
                       <p className="font-semibold text-white">Selected</p>
                       <p className="mt-1 text-xs text-slate-400">
@@ -4616,11 +4648,10 @@ function InstalledDatabaseExportDialog({
                   type="button"
                   onClick={onSubmit}
                   disabled={exporting || (state.exportMode === "selected" && !hasSelection)}
-                  className={`rounded-xl border px-5 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] transition-all duration-200 ${
-                    exporting || (state.exportMode === "selected" && !hasSelection)
+                  className={`rounded-xl border px-5 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] transition-all duration-200 ${exporting || (state.exportMode === "selected" && !hasSelection)
                       ? "cursor-not-allowed border-slate-700 bg-slate-900 text-slate-500"
                       : "border-cyan-300/60 bg-cyan-500/22 text-cyan-100 hover:border-cyan-200/85 hover:bg-cyan-500/36"
-                  }`}
+                    }`}
                 >
                   {exporting ? "Exporting..." : "Start Export"}
                 </button>
@@ -4665,11 +4696,10 @@ function RoundActionButton({
       onMouseEnter={onHover}
       onFocus={onHover}
       onClick={onClick}
-      className={`rounded-2xl border px-4 py-3 text-left font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${
-        disabled
+      className={`rounded-2xl border px-4 py-3 text-left font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${disabled
           ? "cursor-not-allowed border-zinc-700 bg-zinc-900/70 text-zinc-500"
           : activeToneClass
-      }`}
+        }`}
     >
       <div>{label}</div>
       {description && (
@@ -4782,11 +4812,10 @@ function WebsiteRoundInstallDialog({
               onMouseEnter={onHoverSfx}
               onClick={onClose}
               disabled={installing}
-              className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] ${
-                installing
+              className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] ${installing
                   ? "cursor-not-allowed border-slate-700 bg-slate-900 text-slate-500"
                   : "border-slate-600/80 bg-black/30 text-slate-300 transition-all duration-200 hover:border-fuchsia-200/60 hover:text-white"
-              }`}
+                }`}
             >
               Close
             </button>
@@ -4818,26 +4847,24 @@ function WebsiteRoundInstallDialog({
                 value={videoUrl}
                 onChange={(event) => onVideoUrlChange(event.target.value)}
                 placeholder="https://www.pornhub.com/view_video.php?viewkey=..."
-                className={`w-full rounded-xl border bg-black/45 px-4 py-3 text-sm text-zinc-100 outline-none transition-colors focus:border-fuchsia-200/75 ${
-                  videoValidation.state === "unsupported"
+                className={`w-full rounded-xl border bg-black/45 px-4 py-3 text-sm text-zinc-100 outline-none transition-colors focus:border-fuchsia-200/75 ${videoValidation.state === "unsupported"
                     ? "border-rose-300/60"
                     : videoValidation.state === "supported"
                       ? "border-emerald-300/60"
                       : videoValidation.state === "checking"
                         ? "border-cyan-300/60"
                         : "border-fuchsia-300/30"
-                }`}
+                  }`}
                 aria-label="Video URL"
               />
               {videoValidation.message ? (
                 <span
-                  className={`mt-2 block text-xs ${
-                    videoValidation.state === "unsupported"
+                  className={`mt-2 block text-xs ${videoValidation.state === "unsupported"
                       ? "text-rose-200"
                       : videoValidation.state === "supported"
                         ? "text-emerald-200"
                         : "text-cyan-200"
-                  }`}
+                    }`}
                 >
                   {videoValidation.message}
                 </span>

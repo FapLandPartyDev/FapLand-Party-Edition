@@ -63,7 +63,7 @@ const makeConfig = (): EditorGraphConfig => ({
     maxIntermediaryProbability: 1,
     maxAntiPerkProbability: 0.75,
   },
-  economy: { scorePerCumRoundSuccess: 420 },
+  economy: { startingMoney: 120, scorePerCumRoundSuccess: 420 },
   dice: { min: 1, max: 6 },
 });
 
