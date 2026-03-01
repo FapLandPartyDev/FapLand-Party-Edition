@@ -23,6 +23,7 @@ type ButtplugModule = {
   OutputType?: {
     Position?: unknown;
     Linear?: unknown;
+    HwPositionWithDuration?: unknown;
   };
 };
 
@@ -131,9 +132,14 @@ function getClientDevices(client: IntifaceClient): Array<{ index: number; device
 }
 
 function outputValues(module: ButtplugModule): unknown[] {
-  return [module.OutputType?.Position, module.OutputType?.Linear, "Position", "Linear"].filter(
-    (value) => value !== undefined
-  );
+  return [
+    module.OutputType?.Position,
+    module.OutputType?.Linear,
+    module.OutputType?.HwPositionWithDuration,
+    "Position",
+    "Linear",
+    "HwPositionWithDuration",
+  ].filter((value) => value !== undefined);
 }
 
 function isPositionCapable(module: ButtplugModule, device: IntifaceDevice): boolean {

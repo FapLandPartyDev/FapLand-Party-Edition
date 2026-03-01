@@ -14,7 +14,11 @@ const stopScanning = vi.fn(async () => undefined);
 
 function createModule(devices: unknown[]) {
   return {
-    OutputType: { Position: "Position", Vibrate: "Vibrate" },
+    OutputType: {
+      Position: "Position",
+      HwPositionWithDuration: "HwPositionWithDuration",
+      Vibrate: "Vibrate",
+    },
     DeviceOutput: {
       PositionWithDuration: {
         percent: (position: number, durationMs: number) => ({
@@ -74,6 +78,28 @@ describe("intifaceAdapter", () => {
       deviceIndex: 0,
     });
     expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("connects when a device only advertises hardware position-with-duration", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule([
+        {
+          name: "The Handy",
+          hasOutput: (type: unknown) => type === "HwPositionWithDuration",
+          runOutput,
+          stop,
+        },
+      ]) as never
+    );
+
+    const result = await intifaceAdapter.verifyConnection(config);
+
+    expect(result).toMatchObject({
+      success: true,
+      provider: "intiface",
+      deviceName: "The Handy",
+      deviceIndex: 0,
+    });
   });
 
   it("fails clearly when only non-position devices exist", async () => {
