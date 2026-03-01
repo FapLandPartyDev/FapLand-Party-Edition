@@ -78,14 +78,14 @@ msgstr "Vidéos {0} / {1}"
 #. placeholder {1}: progress?.positionIndex ?? 0
 #. placeholder {2}: progress?.money ?? 0
 #. placeholder {3}: progress?.score ?? player.finalScore ?? 0
-#: src/routes/multiplayer-match.tsx:1554
+#: src/routes/multiplayer-match.tsx:1556
 msgid "{0} | Pos {1} | $ {2} | Score {3}"
 msgstr "{0} | Pos {1} | $ {2} | Note {3}"
 
 #. placeholder {0}: player.state
 #. placeholder {1}: progress?.positionIndex ?? 0
 #. placeholder {2}: progress?.score ?? player.finalScore ?? 0
-#: src/routes/multiplayer-match.tsx:1638
+#: src/routes/multiplayer-match.tsx:1640
 msgid "{0} | Pos {1} | Score {2}"
 msgstr "{0} | Pos {1} | Note {2}"
 
@@ -507,7 +507,7 @@ msgid "📚 Library"
 msgstr "📚 Bibliothèque"
 
 #. placeholder {0}: remote.money
-#: src/routes/multiplayer-match.tsx:1399
+#: src/routes/multiplayer-match.tsx:1401
 msgid "$ {0}"
 msgstr "$ {0}"
 
@@ -1174,7 +1174,7 @@ msgid "hud.antiPerkApplied"
 msgstr "ANTI-AVANTAGE APPLIQUÉ :"
 
 #: src/routes/multiplayer-lobby.tsx:903
-#: src/routes/multiplayer-match.tsx:1568
+#: src/routes/multiplayer-match.tsx:1570
 msgid "Anti-Perk Feed"
 msgstr "Flux anti-avantage"
 
@@ -1410,7 +1410,7 @@ msgid "Apply Order"
 msgstr "Appliquer l'ordre"
 
 #: src/components/game/GameScene.tsx:5139
-#: src/routes/multiplayer-match.tsx:1512
+#: src/routes/multiplayer-match.tsx:1514
 msgid "Apply Perk"
 msgstr "Appliquer l'avantage"
 
@@ -1706,7 +1706,7 @@ msgstr "Tours disponibles"
 msgid "Back"
 msgstr "Retour"
 
-#: src/routes/game.tsx:948
+#: src/routes/game.tsx:949
 msgid "Back to Editor"
 msgstr "Retour à l'éditeur"
 
@@ -1776,7 +1776,7 @@ msgid "Balanced"
 msgstr "Équilibré"
 
 #: src/routes/multiplayer-lobby.tsx:887
-#: src/routes/multiplayer-match.tsx:1663
+#: src/routes/multiplayer-match.tsx:1665
 msgid "Ban"
 msgstr "Interdiction"
 
@@ -1885,7 +1885,7 @@ msgstr "Flou"
 msgid "board"
 msgstr "planche"
 
-#: src/routes/multiplayer-match.tsx:1373
+#: src/routes/multiplayer-match.tsx:1375
 msgid "Board Progress"
 msgstr "Progrès du Conseil"
 
@@ -2513,11 +2513,11 @@ msgstr "Fermer l'inventaire"
 msgid "Close inventory controls"
 msgstr "Fermer les contrôles d’inventaire"
 
-#: src/routes/multiplayer-match.tsx:1475
+#: src/routes/multiplayer-match.tsx:1477
 msgid "Close lobby control"
 msgstr "Fermer le contrôle du hall"
 
-#: src/routes/multiplayer-match.tsx:1476
+#: src/routes/multiplayer-match.tsx:1478
 msgid "Close Lobby Control"
 msgstr "Fermer le contrôle du hall"
 
@@ -3183,7 +3183,7 @@ msgstr "Point de sperme"
 msgid "CUM POINT SAVED"
 msgstr "POINT DE SPERME ENREGISTRÉ"
 
-#: src/routes/game.tsx:897
+#: src/routes/game.tsx:898
 msgid "Cum Point saved. You can resume here later."
 msgstr "Point de sperme enregistré. Vous pourrez reprendre ici plus tard."
 
@@ -3746,7 +3746,7 @@ msgstr "Difficulté : {label}"
 msgid "Dim"
 msgstr "Assombrir"
 
-#: src/routes/multiplayer-match.tsx:1525
+#: src/routes/multiplayer-match.tsx:1527
 msgid "Direct"
 msgstr "Immédiat"
 
@@ -4102,7 +4102,7 @@ msgid "Editor"
 msgstr "Éditeur"
 
 #. placeholder {0}: remote.activeEffectsCount
-#: src/routes/multiplayer-match.tsx:1415
+#: src/routes/multiplayer-match.tsx:1417
 msgid "Effects {0}"
 msgstr "Effets {0}"
 
@@ -4202,15 +4202,15 @@ msgstr "Terminer l’intermédiaire actuel plus tôt et reprendre la ronde princ
 msgid "End Time (ms)"
 msgstr "Heure de fin (ms)"
 
-#: src/features/playlist-picker/PlaylistPicker.tsx:248
-#: src/routes/playlist-workshop.tsx:5391
-msgid "Endless"
-msgstr "Infini"
-
 #. js-lingui-explicit-id
 #: src/features/playlist-picker/PlaylistPicker.tsx:78
 msgid "playlist-picker.mode.endless"
 msgstr "Sans fin"
+
+#: src/features/playlist-picker/PlaylistPicker.tsx:248
+#: src/routes/playlist-workshop.tsx:5391
+msgid "Endless"
+msgstr "Infini"
 
 #: src/routes/single-result.tsx:131
 msgid "Endless Run Ended"
@@ -4672,7 +4672,7 @@ msgid "Failed to auto-set ready state."
 msgstr "Échec de la définition automatique de l'état prêt."
 
 #: src/routes/multiplayer-lobby.tsx:881
-#: src/routes/multiplayer-match.tsx:1125
+#: src/routes/multiplayer-match.tsx:1126
 msgid "Failed to ban player."
 msgstr "Échec du bannissement du joueur."
 
@@ -4762,7 +4762,7 @@ msgstr "Échec de la suppression de la source."
 msgid "Failed to detect portable installation."
 msgstr "Impossible de détecter l'installation portable."
 
-#: src/routes/multiplayer-match.tsx:834
+#: src/routes/multiplayer-match.tsx:835
 msgid "Failed to directly send anti-perk."
 msgstr "Échec de l'envoi direct de l'anti-avantage."
 
@@ -4796,11 +4796,11 @@ msgstr "Échec de l'exportation du pack de playlist."
 msgid "Failed to export playlist."
 msgstr "Échec de l'exportation de la playlist."
 
-#: src/routes/multiplayer-match.tsx:788
+#: src/routes/multiplayer-match.tsx:789
 msgid "Failed to finalize completed run."
 msgstr "Échec de la finalisation de l'exécution terminée."
 
-#: src/routes/multiplayer-match.tsx:1276
+#: src/routes/multiplayer-match.tsx:1278
 msgid "Failed to give up."
 msgstr "Je n'ai pas réussi à abandonner."
 
@@ -4849,7 +4849,7 @@ msgid "Failed to join running match."
 msgstr "Échec de la participation au match en cours."
 
 #: src/routes/multiplayer-lobby.tsx:861
-#: src/routes/multiplayer-match.tsx:1112
+#: src/routes/multiplayer-match.tsx:1113
 msgid "Failed to kick player."
 msgstr "Échec de l'expulsion du joueur."
 
@@ -5008,7 +5008,7 @@ msgstr "Échec de l'enregistrement de la liste de lecture."
 msgid "Failed to save server profile."
 msgstr "Échec de l'enregistrement du profil du serveur."
 
-#: src/routes/multiplayer-match.tsx:1061
+#: src/routes/multiplayer-match.tsx:1062
 msgid "Failed to send anti-perk."
 msgstr "Échec de l'envoi de l'anti-avantage."
 
@@ -5073,7 +5073,7 @@ msgid "Failed to update hero."
 msgstr "Échec de la mise à jour du héros."
 
 #: src/routes/multiplayer-lobby.tsx:725
-#: src/routes/multiplayer-match.tsx:1153
+#: src/routes/multiplayer-match.tsx:1154
 msgid "Failed to update lobby lock state."
 msgstr "Échec de la mise à jour de l'état de verrouillage du lobby."
 
@@ -5149,7 +5149,7 @@ msgstr "CHAMP"
 
 #. placeholder {0}: remote.positionIndex + 1
 #. placeholder {1}: remote.boardFieldName
-#: src/routes/multiplayer-match.tsx:1365
+#: src/routes/multiplayer-match.tsx:1367
 msgid "Field {0}: {1}"
 msgstr "Champ {0} : {1}"
 
@@ -5188,7 +5188,7 @@ msgid "Final Matches"
 msgstr "Matchs finaux"
 
 #. placeholder {0}: finalizedAtIso ? ` at ${new Date(finalizedAtIso).toLocaleString()}` : "."
-#: src/routes/multiplayer-result.tsx:272
+#: src/routes/multiplayer-result.tsx:277
 msgid "Final result synced{0}"
 msgstr "Résultat final synchronisé{0}"
 
@@ -5196,7 +5196,7 @@ msgstr "Résultat final synchronisé{0}"
 msgid "Final Score"
 msgstr "Score final"
 
-#: src/routes/multiplayer-result.tsx:268
+#: src/routes/multiplayer-result.tsx:273
 msgid "Final Standings"
 msgstr "Classement final"
 
@@ -5477,7 +5477,7 @@ msgstr "Gagne une charge de saut qui termine immédiatement une manche normale a
 msgid "settings.help.shortcuts.gameDebug.title"
 msgstr "Débogage du jeu"
 
-#: src/routes/game.tsx:921
+#: src/routes/game.tsx:922
 msgid "Game saved."
 msgstr "Jeu sauvegardé."
 
@@ -5566,7 +5566,7 @@ msgid "Gift guaranteed perk"
 msgstr "Cadeau garanti"
 
 #: src/components/game/GameScene.tsx:5497
-#: src/routes/game.tsx:948
+#: src/routes/game.tsx:949
 msgid "Give Up"
 msgstr "Abandonner"
 
@@ -5628,15 +5628,15 @@ msgstr "Buuuut"
 msgid "GPU Preference (FFmpeg & Electron)"
 msgstr "Préférence GPU (FFmpeg et Electron)"
 
-#: src/features/playlist-picker/PlaylistPicker.tsx:247
-#: src/routes/playlist-workshop.tsx:2350
-msgid "Graph"
-msgstr "Graphique"
-
 #. js-lingui-explicit-id
 #: src/features/playlist-picker/PlaylistPicker.tsx:76
 msgid "playlist-picker.mode.graph"
 msgstr "Graphe"
+
+#: src/features/playlist-picker/PlaylistPicker.tsx:247
+#: src/routes/playlist-workshop.tsx:2350
+msgid "Graph"
+msgstr "Graphique"
 
 #: src/features/map-editor/components/ValidationPanel.tsx:20
 msgid "Graph is valid"
@@ -5909,7 +5909,7 @@ msgstr "Chance intermédiaire la plus élevée autorisée."
 
 #: src/routes/highscores.tsx:429
 #: src/routes/highscores.tsx:480
-#: src/routes/multiplayer-result.tsx:300
+#: src/routes/multiplayer-result.tsx:305
 msgid "Highscore Hub"
 msgstr "Centre des meilleurs scores"
 
@@ -5942,7 +5942,7 @@ msgstr "Page d'accueil :"
 
 #: src/routes/multiplayer-lobby.tsx:811
 #: src/routes/multiplayer-lobby.tsx:822
-#: src/routes/multiplayer-match.tsx:1486
+#: src/routes/multiplayer-match.tsx:1488
 msgid "Host"
 msgstr "Hôte"
 
@@ -6602,7 +6602,7 @@ msgid "items"
 msgstr "articles"
 
 #. placeholder {0}: remote.inventoryCount
-#: src/routes/multiplayer-match.tsx:1421
+#: src/routes/multiplayer-match.tsx:1423
 msgid "Items {0}"
 msgstr "Articles {0}"
 
@@ -6719,7 +6719,7 @@ msgid "Keyboard Shortcuts"
 msgstr "Raccourcis clavier"
 
 #: src/routes/multiplayer-lobby.tsx:867
-#: src/routes/multiplayer-match.tsx:1653
+#: src/routes/multiplayer-match.tsx:1655
 msgid "Kick"
 msgstr "Coup de pied"
 
@@ -6939,14 +6939,14 @@ msgstr "Limiter ffmpeg de prévisualisation à un seul thread"
 msgid "Limits how many missing video fingerprints are calculated during each automatic background pass. Manual scans still process the full backlog."
 msgstr "Limite le nombre d'empreintes vidéo manquantes calculées à chaque passe automatique en arrière-plan. Les analyses manuelles traitent toujours tout le retard."
 
-#: src/features/playlist-picker/PlaylistPicker.tsx:246
-#: src/routes/playlist-workshop.tsx:2350
-msgid "Linear"
-msgstr "Linéaire"
-
 #. js-lingui-explicit-id
 #: src/features/playlist-picker/PlaylistPicker.tsx:74
 msgid "playlist-picker.mode.linear"
+msgstr "Linéaire"
+
+#: src/features/playlist-picker/PlaylistPicker.tsx:246
+#: src/routes/playlist-workshop.tsx:2350
+msgid "Linear"
 msgstr "Linéaire"
 
 #. js-lingui-explicit-id
@@ -7058,11 +7058,11 @@ msgstr "Hall d’entrée {0}"
 
 #. placeholder {0}: search.lobbyId.slice(0, 8)
 #. placeholder {1}: applyPerkDirectly ? t`Direct` : t`Store`
-#: src/routes/multiplayer-match.tsx:1525
+#: src/routes/multiplayer-match.tsx:1527
 msgid "Lobby {0} • {1}"
 msgstr "Hall d'entrée {0} • {1}"
 
-#: src/routes/multiplayer-match.tsx:1614
+#: src/routes/multiplayer-match.tsx:1616
 msgid "Lobby Control"
 msgstr "Contrôle du hall"
 
@@ -7070,7 +7070,7 @@ msgstr "Contrôle du hall"
 msgid "Lobby Controls"
 msgstr "Contrôles du hall"
 
-#: src/routes/multiplayer-match.tsx:1501
+#: src/routes/multiplayer-match.tsx:1503
 msgid "Lobby Inventory"
 msgstr "Inventaire du lobby"
 
@@ -7153,7 +7153,7 @@ msgstr "Fichier vidéo local"
 msgid "Local Videos"
 msgstr "Vidéos locales"
 
-#: src/routes/multiplayer-match.tsx:1240
+#: src/routes/multiplayer-match.tsx:1241
 msgid "Lock Lobby"
 msgstr "Verrouiller le hall"
 
@@ -7292,7 +7292,7 @@ msgstr "Menu principal"
 msgid "command-palette.home.description"
 msgstr "Menu principal"
 
-#: src/routes/multiplayer-result.tsx:311
+#: src/routes/multiplayer-result.tsx:316
 #: src/routes/progression.tsx:185
 msgid "Main Menu"
 msgstr "Menu principal"
@@ -7761,7 +7761,7 @@ msgstr "Le multijoueur est le mode partagé. Plusieurs joueurs exécutent la mê
 msgid "Multiplayer requires at least {MULTIPLAYER_MINIMUM_ROUNDS} installed rounds. You have <0>{installedRoundCount}</0>. Install more via the <1>Installed Rounds</1> page."
 msgstr "Le multijoueur nécessite au moins des tours installés de {MULTIPLAYER_MINIMUM_ROUNDS}. Vous avez <0>{installedRoundCount}</0>. Installez-en davantage via la page <1>Séries installées</1>."
 
-#: src/routes/multiplayer-result.tsx:265
+#: src/routes/multiplayer-result.tsx:270
 msgid "Multiplayer Result"
 msgstr "Résultat multijoueur"
 
@@ -8210,7 +8210,7 @@ msgstr "Aucun nouveau record établi"
 msgid "No perks available."
 msgstr "Aucun avantage disponible."
 
-#: src/routes/multiplayer-match.tsx:1621
+#: src/routes/multiplayer-match.tsx:1623
 msgid "No players available for moderation."
 msgstr "Aucun joueur disponible pour la modération."
 
@@ -8341,7 +8341,7 @@ msgstr "Aucune source configurée pour le moment."
 msgid "No standalone rounds available. Install some rounds first."
 msgstr "Aucun tour autonome disponible. Installez d'abord quelques tours."
 
-#: src/routes/multiplayer-result.tsx:353
+#: src/routes/multiplayer-result.tsx:358
 msgid "No standings available yet. Keep this page open or check back from the Highscore Hub later."
 msgstr "Aucun classement disponible pour l'instant. Gardez cette page ouverte ou revenez plus tard sur le Highscore Hub."
 
@@ -8417,7 +8417,7 @@ msgid "Nodes"
 msgstr "Nœuds"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:796
-#: src/routes/multiplayer-match.tsx:1425
+#: src/routes/multiplayer-match.tsx:1427
 #: src/routes/multiplayer.tsx:909
 msgid "None"
 msgstr "Aucun"
@@ -8635,11 +8635,11 @@ msgstr "Inventaire ouvert"
 msgid "Open inventory controls"
 msgstr "Contrôles d'inventaire ouverts"
 
-#: src/routes/multiplayer-match.tsx:1475
+#: src/routes/multiplayer-match.tsx:1477
 msgid "Open lobby control"
 msgstr "Contrôle du lobby ouvert"
 
-#: src/routes/multiplayer-match.tsx:1476
+#: src/routes/multiplayer-match.tsx:1478
 msgid "Open Lobby Control"
 msgstr "Contrôle du lobby ouvert"
 
@@ -8788,7 +8788,7 @@ msgstr "Les fichiers originaux ont été supprimés."
 msgid "Original files will be deleted after copying."
 msgstr "Les fichiers originaux seront supprimés après la copie."
 
-#: src/routes/multiplayer-match.tsx:1340
+#: src/routes/multiplayer-match.tsx:1342
 msgid "Other Players"
 msgstr "Autres joueurs"
 
@@ -9050,11 +9050,11 @@ msgstr "Record personnel"
 msgid "Phase: {0}"
 msgstr "Phase : {0}"
 
-#: src/routes/multiplayer-match.tsx:1519
+#: src/routes/multiplayer-match.tsx:1521
 msgid "Pick a target player before sending this anti-perk."
 msgstr "Choisissez un joueur cible avant d'envoyer cet anti-avantage."
 
-#: src/routes/multiplayer-match.tsx:1036
+#: src/routes/multiplayer-match.tsx:1037
 msgid "Pick a target player."
 msgstr "Choisissez un joueur cible."
 
@@ -9152,7 +9152,7 @@ msgstr "Joueur"
 msgid "hud.player"
 msgstr "Joueur"
 
-#: src/routes/multiplayer-match.tsx:1537
+#: src/routes/multiplayer-match.tsx:1539
 msgid "Player Standings"
 msgstr "Classement des joueurs"
 
@@ -9345,7 +9345,7 @@ msgstr "PDV"
 #. placeholder {0}: progress?.positionIndex ?? 0
 #. placeholder {1}: progress?.money ?? 0
 #. placeholder {2}: progress?.score ?? player.finalScore ?? 0
-#: src/routes/multiplayer-match.tsx:983
+#: src/routes/multiplayer-match.tsx:984
 msgid "Pos {0} • ${1} • Score {2}"
 msgstr "Pos. {0} • ${1} • Score {2}"
 
@@ -9826,7 +9826,7 @@ msgid "Reencoded"
 msgstr "Réencodé"
 
 #: src/routes/first-start.tsx:2722
-#: src/routes/multiplayer-result.tsx:290
+#: src/routes/multiplayer-result.tsx:295
 #: src/routes/multiplayer.tsx:1123
 #: src/routes/settings.tsx:4807
 #: src/routes/settings.tsx:7186
@@ -9860,7 +9860,7 @@ msgid "Refreshing local and remote result history."
 msgstr "Actualisation de l'historique des résultats locaux et distants."
 
 #: src/routes/first-start.tsx:2722
-#: src/routes/multiplayer-result.tsx:290
+#: src/routes/multiplayer-result.tsx:295
 #: src/routes/multiplayer.tsx:1123
 #: src/routes/settings.tsx:4806
 #: src/routes/settings.tsx:7186
@@ -10364,7 +10364,7 @@ msgid "Road Palette"
 msgstr "Palette des routes"
 
 #. placeholder {0}: remote.lastRoll ?? "-"
-#: src/routes/multiplayer-match.tsx:1412
+#: src/routes/multiplayer-match.tsx:1414
 msgid "Roll {0}"
 msgstr "Rouleau {0}"
 
@@ -10621,7 +10621,7 @@ msgstr "Enregistrer l'actuel comme palette"
 msgid "Save Endpoint"
 msgstr "Enregistrer le point de terminaison"
 
-#: src/routes/game.tsx:915
+#: src/routes/game.tsx:916
 msgid "Save Game"
 msgstr "Sauvegarder la partie"
 
@@ -10746,12 +10746,12 @@ msgstr "Analyse en cours..."
 msgid "Scenes:"
 msgstr "Scènes :"
 
-#: src/routes/multiplayer-result.tsx:386
+#: src/routes/multiplayer-result.tsx:391
 msgid "score"
 msgstr "score"
 
 #: src/components/game/GameScene.tsx:5153
-#: src/routes/multiplayer-result.tsx:330
+#: src/routes/multiplayer-result.tsx:335
 msgid "Score"
 msgstr "Score"
 
@@ -10766,7 +10766,7 @@ msgid "game.reward.score"
 msgstr "NOTE"
 
 #. placeholder {0}: remote.score
-#: src/routes/multiplayer-match.tsx:1388
+#: src/routes/multiplayer-match.tsx:1390
 msgid "Score {0}"
 msgstr "Note {0}"
 
@@ -11055,7 +11055,7 @@ msgstr "Sélectionnez un tour installé pour réparer ce modèle."
 msgid "Select an installed round to see its preview here."
 msgstr "Sélectionnez un tour installé pour voir son aperçu ici."
 
-#: src/routes/multiplayer-match.tsx:1021
+#: src/routes/multiplayer-match.tsx:1022
 msgid "Select an item first."
 msgstr "Sélectionnez d'abord un élément."
 
@@ -11228,7 +11228,7 @@ msgstr "S'appliquer à soi-même"
 msgid "Self-Reported Finish"
 msgstr "Fin autodéclarée"
 
-#: src/routes/multiplayer-match.tsx:1512
+#: src/routes/multiplayer-match.tsx:1514
 msgid "Send Anti-Perk"
 msgstr "Envoyer un anti-avantage"
 
@@ -12014,7 +12014,7 @@ msgstr "Cacher les hôtes"
 msgid "command-palette.settings-sources.description"
 msgstr "Stash, dossiers de scan automatique"
 
-#: src/routes/multiplayer-result.tsx:380
+#: src/routes/multiplayer-result.tsx:385
 msgid "state"
 msgstr "état"
 
@@ -12098,7 +12098,7 @@ msgid "Storage Locations"
 msgstr "Emplacements de stockage"
 
 #: src/components/game/PerkInventoryPanel.tsx:139
-#: src/routes/multiplayer-match.tsx:1525
+#: src/routes/multiplayer-match.tsx:1527
 msgid "Store"
 msgstr "Magasin"
 
@@ -12132,7 +12132,7 @@ msgid "Stored Items"
 msgstr "Articles stockés"
 
 #. placeholder {0}: activeInventoryFx.item.name
-#: src/routes/multiplayer-match.tsx:1216
+#: src/routes/multiplayer-match.tsx:1217
 msgid "Stored: {0}"
 msgstr "Stocké : {0}"
 
@@ -12377,7 +12377,7 @@ msgstr "Activer temporairement le panoramique."
 msgid "Temporary progression is clearly marked and removed when Cheat Mode is disabled"
 msgstr "La progression temporaire est clairement signalée et supprimée lorsque le mode triche est désactivé"
 
-#: src/routes/multiplayer-result.tsx:268
+#: src/routes/multiplayer-result.tsx:273
 msgid "Temporary Standings"
 msgstr "Classement temporaire"
 
@@ -12685,7 +12685,7 @@ msgstr "Cette file d'attente définit l'ordre utilisé en premier au cours de la
 msgid "This removes the stored single-player run from local history and may lower your local best score."
 msgstr "Cela supprime la partie solo stockée de l'historique local et peut réduire votre meilleur score local."
 
-#: src/routes/multiplayer-result.tsx:273
+#: src/routes/multiplayer-result.tsx:278
 msgid "This result is temporary. {activePlayers} player(s) still active. Final standings will auto-sync."
 msgstr "Ce résultat est temporaire. Lecteur(s) {activePlayers} toujours actif. Le classement final sera automatiquement synchronisé."
 
@@ -13035,7 +13035,7 @@ msgstr "inconnu"
 
 #: src/routes/multiplayer-lobby.tsx:568
 #: src/routes/multiplayer-lobby.tsx:768
-#: src/routes/multiplayer-match.tsx:939
+#: src/routes/multiplayer-match.tsx:940
 #: src/routes/multiplayer.tsx:672
 #: src/routes/playlist-workshop.tsx:4394
 #: src/routes/playlist-workshop.tsx:4674
@@ -13066,7 +13066,7 @@ msgstr "Durée inconnue"
 msgid "Unknown File"
 msgstr "Fichier inconnu"
 
-#: src/routes/multiplayer-match.tsx:1240
+#: src/routes/multiplayer-match.tsx:1241
 msgid "Unlock Lobby"
 msgstr "Déverrouiller le lobby"
 
@@ -13181,7 +13181,7 @@ msgstr "Utiliser par défaut"
 msgid "Use Item"
 msgstr "Utiliser l'article"
 
-#: src/routes/multiplayer-match.tsx:1502
+#: src/routes/multiplayer-match.tsx:1504
 msgid "Use perks on yourself, fire anti-perks at opponents, or discard stored items."
 msgstr "Utilisez des avantages sur vous-même, lancez des anti-avantages sur vos adversaires ou défaussez les objets stockés."
 
@@ -13643,7 +13643,7 @@ msgstr "Vous avez besoin d'au moins des tours installés {MULTIPLAYER_MINIMUM_RO
 msgid "You need at least {MULTIPLAYER_MINIMUM_ROUNDS} installed rounds to join. You have {installedRoundCount}."
 msgstr "Vous avez besoin d'au moins des séries installées {MULTIPLAYER_MINIMUM_ROUNDS} pour participer. Vous avez {installedRoundCount}."
 
-#: src/routes/multiplayer-match.tsx:889
+#: src/routes/multiplayer-match.tsx:890
 msgid "You were removed from this game."
 msgstr "Vous avez été exclu de ce jeu."
 
@@ -13671,7 +13671,7 @@ msgstr "Votre exportation est prête. Vous pouvez fermer cette boîte de dialogu
 msgid "Your level will not progress while cheat mode is active"
 msgstr "Votre niveau ne progressera pas tant que le mode triche est actif"
 
-#: src/routes/multiplayer-result.tsx:319
+#: src/routes/multiplayer-result.tsx:324
 msgid "Your Placement"
 msgstr "Votre placement"
 

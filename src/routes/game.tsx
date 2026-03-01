@@ -818,6 +818,7 @@ function GameRoute() {
           sourceId: progressionAwardSourceId,
           outcome: successfulCompletion ? "success" : "failure",
           completedRounds: Math.max(0, Math.floor(nextState.endlessRoundsCompleted)),
+          playtimeSec: survivedDurationSec,
           blockReason,
           disabledSkillRanks: runDisabledSkillRanks,
         })

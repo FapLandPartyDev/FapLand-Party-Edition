@@ -91,6 +91,21 @@ describe("progression cheat profile", () => {
     await rm(databasePath, { force: true });
   });
 
+  it("does not persist XP for runs shorter than two minutes", async () => {
+    const caller = progressionRouter.createCaller({ event: { sender: {} } } as never);
+    const result = await caller.awardRun({
+      sourceKind: "single_player",
+      sourceId: "short-run",
+      outcome: "success",
+      completedRounds: 100,
+      playtimeSec: 119,
+    });
+
+    expect(result.award?.xpAwarded).toBe(0);
+    expect(result.profile.totalXp).toBe(0);
+    expect(result.breakdown.totalXp).toBe(0);
+  });
+
   it("keeps the genuine profile isolated and restores it on reset and disable", async () => {
     const caller = progressionRouter.createCaller({ event: { sender: {} } } as never);
     await caller.setCheatModeEnabled({ enabled: true });

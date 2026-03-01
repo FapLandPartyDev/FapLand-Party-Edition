@@ -9,6 +9,7 @@ export type ProgressionBlockReason = "cheat_mode" | "level_bypass" | "map_editor
 export type ProgressionAwardInput = {
   completedRounds: number;
   outcome: ProgressionAwardOutcome;
+  playtimeSec: number;
   blockReason?: ProgressionBlockReason | null;
   disabledSkillRanks?: number;
 };
@@ -24,6 +25,7 @@ export type ProgressionAwardBreakdown = {
 
 export const XP_BONUS_PERCENT_PER_DISABLED_SKILL_RANK = 5;
 export const MAX_SKILL_DEACTIVATION_XP_BONUS_PERCENT = 100;
+export const MIN_XP_PLAYTIME_SEC = 120;
 
 export function getSkillDeactivationXpBonusPercent(disabledSkillRanks: number): number {
   const normalizedRanks = Math.max(0, Math.floor(disabledSkillRanks));
@@ -74,7 +76,7 @@ export function getLevelProgress(totalXp: number): {
 }
 
 export function calculateProgressionAward(input: ProgressionAwardInput): ProgressionAwardBreakdown {
-  if (input.blockReason) {
+  if (input.blockReason || input.playtimeSec < MIN_XP_PLAYTIME_SEC) {
     return {
       participationXp: 0,
       progressXp: 0,

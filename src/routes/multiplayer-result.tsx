@@ -207,6 +207,10 @@ function MultiplayerResultRoute() {
     const completedRounds = Number.isFinite(rawCompletedRounds)
       ? Math.max(0, Math.floor(rawCompletedRounds))
       : 0;
+    const rawPlaytimeSec = Number(payload.playtimeSec ?? 0);
+    const playtimeSec = Number.isFinite(rawPlaytimeSec)
+      ? Math.max(0, Math.floor(rawPlaytimeSec))
+      : 0;
     const successful =
       ownRow.state === "finished" ||
       payload.completionReason === "finished" ||
@@ -218,6 +222,7 @@ function MultiplayerResultRoute() {
         sourceId: `${search.lobbyId}:${ownRow.playerId}`,
         outcome: successful ? "success" : "failure",
         completedRounds,
+        playtimeSec,
         blockReason: null,
       })
       .then((result) => {

@@ -31,6 +31,7 @@ const ZAwardInput = z.object({
   sourceId: z.string().trim().min(1),
   outcome: z.enum(["success", "failure"]),
   completedRounds: z.number().int().min(0),
+  playtimeSec: z.number().int().min(0),
   disabledSkillRanks: z.number().int().min(0).optional(),
   blockReason: z.enum(["cheat_mode", "level_bypass", "map_editor_test"]).nullable().optional(),
 });

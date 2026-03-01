@@ -764,6 +764,7 @@ function MultiplayerMatchRoute() {
       completionReason: localState.completionReason,
       finalScore: player.score,
       completedRounds: Math.max(0, Math.floor(localState.endlessRoundsCompleted)),
+      playtimeSec: Math.max(0, Math.floor((Date.now() - sessionStartedAtMsRef.current) / 1000)),
       completedAtIso: new Date().toISOString(),
     };
 
@@ -1259,9 +1260,10 @@ function MultiplayerMatchRoute() {
                   const finalPayload = {
                     completionReason: "gave_up",
                     finalScore,
-                    completedRounds: Math.max(
+                    completedRounds: Math.max(0, Math.floor(localState.endlessRoundsCompleted)),
+                    playtimeSec: Math.max(
                       0,
-                      Math.floor(localState.endlessRoundsCompleted)
+                      Math.floor((Date.now() - sessionStartedAtMsRef.current) / 1000)
                     ),
                     completedAtIso: new Date().toISOString(),
                   };

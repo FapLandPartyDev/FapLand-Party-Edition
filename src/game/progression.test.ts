@@ -36,7 +36,13 @@ describe("progression curve", () => {
 
 describe("run XP", () => {
   it("awards participation and capped progress for failures", () => {
-    expect(calculateProgressionAward({ completedRounds: 200, outcome: "failure" })).toEqual({
+    expect(
+      calculateProgressionAward({
+        completedRounds: 200,
+        outcome: "failure",
+        playtimeSec: 120,
+      })
+    ).toEqual({
       participationXp: 10,
       progressXp: 400,
       completionXp: 0,
@@ -47,7 +53,13 @@ describe("run XP", () => {
   });
 
   it("adds a capped completion bonus", () => {
-    expect(calculateProgressionAward({ completedRounds: 12, outcome: "success" })).toEqual({
+    expect(
+      calculateProgressionAward({
+        completedRounds: 12,
+        outcome: "success",
+        playtimeSec: 120,
+      })
+    ).toEqual({
       participationXp: 10,
       progressXp: 48,
       completionXp: 100,
@@ -62,6 +74,7 @@ describe("run XP", () => {
       calculateProgressionAward({
         completedRounds: 12,
         outcome: "success",
+        playtimeSec: 120,
         disabledSkillRanks: 3,
       })
     ).toEqual({
@@ -78,6 +91,7 @@ describe("run XP", () => {
     const award = calculateProgressionAward({
       completedRounds: 12,
       outcome: "success",
+      playtimeSec: 120,
       disabledSkillRanks: 999,
     });
     expect(award.skillDeactivationBonusPercent).toBe(100);
@@ -89,10 +103,43 @@ describe("run XP", () => {
     "blocks XP for %s",
     (blockReason) => {
       expect(
-        calculateProgressionAward({ completedRounds: 100, outcome: "success", blockReason }).totalXp
+        calculateProgressionAward({
+          completedRounds: 100,
+          outcome: "success",
+          playtimeSec: 120,
+          blockReason,
+        }).totalXp
       ).toBe(0);
     }
   );
+
+  it("awards no XP when playtime is under two minutes", () => {
+    expect(
+      calculateProgressionAward({
+        completedRounds: 100,
+        outcome: "success",
+        playtimeSec: 119,
+        disabledSkillRanks: 20,
+      })
+    ).toEqual({
+      participationXp: 0,
+      progressXp: 0,
+      completionXp: 0,
+      skillDeactivationBonusXp: 0,
+      skillDeactivationBonusPercent: 0,
+      totalXp: 0,
+    });
+  });
+
+  it("awards XP at exactly two minutes", () => {
+    expect(
+      calculateProgressionAward({
+        completedRounds: 1,
+        outcome: "failure",
+        playtimeSec: 120,
+      }).totalXp
+    ).toBe(14);
+  });
 });
 
 describe("progression unlocks", () => {
