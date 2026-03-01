@@ -1,5 +1,6 @@
 import { app, shell } from "electron";
 import { getNodeEnv } from "../../src/zod/env";
+import { isPortableMode } from "./portable";
 
 export type AppUpdateStatus =
     | "idle"
@@ -34,6 +35,12 @@ interface GitHubLatestReleaseResponse {
     published_at?: unknown;
     assets?: unknown;
 }
+
+type ReleaseAssetPreference =
+    | "windows-portable"
+    | "windows-installer"
+    | "macos"
+    | "linux-appimage";
 
 const CHECK_STALE_AFTER_MS = 15 * 60 * 1000;
 
@@ -110,14 +117,14 @@ function asTrimmedString(value: unknown): string | null {
     return trimmed.length > 0 ? trimmed : null;
 }
 
-function getPreferredAssetExtensions(): string[] {
+export function getReleaseAssetPreference(): ReleaseAssetPreference {
     switch (process.platform) {
         case "win32":
-            return [".exe", ".msi"];
+            return isPortableMode() ? "windows-portable" : "windows-installer";
         case "darwin":
-            return [".dmg", ".zip"];
+            return "macos";
         default:
-            return [".appimage"];
+            return "linux-appimage";
     }
 }
 
@@ -125,41 +132,71 @@ function assetMatchesExtension(assetName: string, extension: string): boolean {
     return assetName.toLowerCase().endsWith(extension);
 }
 
-export function resolveReleaseAssetUrl(assets: unknown): string | null {
+function isPortableAssetName(assetName: string): boolean {
+    return assetName.includes("portable");
+}
+
+function isInstallerAssetName(assetName: string): boolean {
+    return assetName.endsWith(".msi") || assetName.includes("setup") || assetName.includes("installer");
+}
+
+function toReleaseAssets(assets: unknown): Array<{ name: string; url: string }> | null {
     if (!Array.isArray(assets)) return null;
+    return (assets as GitHubReleaseAsset[]).flatMap((asset) => {
+        const name = asTrimmedString(asset.name);
+        const url = asTrimmedString(asset.browser_download_url);
+        return name && url ? [{ name, url }] : [];
+    });
+}
 
-    const parsedAssets = assets as GitHubReleaseAsset[];
-    const preferredExtensions = getPreferredAssetExtensions();
-
-    for (const extension of preferredExtensions) {
-        const matched = parsedAssets.find((asset) => {
-            const name = asTrimmedString(asset.name);
-            const url = asTrimmedString(asset.browser_download_url);
-            if (!name || !url) return false;
-            return assetMatchesExtension(name, extension);
+function findMatchingAsset(
+    assets: Array<{ name: string; url: string }>,
+    predicate: (assetName: string) => boolean,
+    extensions: string[],
+): string | null {
+    for (const extension of extensions) {
+        const matched = assets.find((asset) => {
+            const normalizedName = asset.name.toLowerCase();
+            return assetMatchesExtension(normalizedName, extension) && predicate(normalizedName);
         });
-
         if (matched) {
-            /*
-             ### Build-Time Hardening
-             1.  **Vite define**: I've updated `vite.config.ts` to explicitly apply the `define` block (which includes `FLAND_UPDATE_REPOSITORY`) to the main process, preload, and renderer builds. This ensures that the environment variable set in GitHub Actions is baked into the final executable as a constant.
-             2.  **Package Metadata**: Added the `repository` field to `package.json`. This helps `electron-builder` and other tools automatically identify the correct repository for updates and publishing.
- 
-             ## Verification Results
- 
-             ### Configuration Persistence
-             By using Vite's `define` feature, the value of `FLAND_UPDATE_REPOSITORY` from the build environment is injected directly into the source code as a fallback. This means every user will have the correct update repository set by default, even without a local `.env` file.
- 
-             ### Automated Tests
-             Ran `npm test electron/services/updater.test.ts`:
-             - **8 passed** (including 3 specifically verifying repository parsing).
-             - Verified that trailing slashes are automatically handled.
-             */
-            return asTrimmedString(matched.browser_download_url);
+            return matched.url;
         }
     }
-
     return null;
+}
+
+export function resolveReleaseAssetUrl(
+    assets: unknown,
+    preference: ReleaseAssetPreference = getReleaseAssetPreference(),
+): string | null {
+    const parsedAssets = toReleaseAssets(assets);
+    if (!parsedAssets) return null;
+
+    if (preference === "windows-portable") {
+        return findMatchingAsset(parsedAssets, (assetName) => isPortableAssetName(assetName), [".exe"]);
+    }
+
+    if (preference === "windows-installer") {
+        return (
+            findMatchingAsset(
+                parsedAssets,
+                (assetName) => isInstallerAssetName(assetName) && !isPortableAssetName(assetName),
+                [".exe", ".msi"],
+            )
+            ?? findMatchingAsset(
+                parsedAssets,
+                (assetName) => !isPortableAssetName(assetName),
+                [".exe", ".msi"],
+            )
+        );
+    }
+
+    if (preference === "macos") {
+        return findMatchingAsset(parsedAssets, () => true, [".dmg", ".zip"]);
+    }
+
+    return findMatchingAsset(parsedAssets, () => true, [".appimage"]);
 }
 
 export function getReleaseConfig(): { apiUrl: string; releasePageUrl: string } | null {

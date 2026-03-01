@@ -2,8 +2,9 @@ import { TRPCError } from "@trpc/server";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { app, shell } from "electron";
+import { shell } from "electron";
 import * as z from "zod";
+import { resolveInstallExportBaseDir } from "../../services/appPaths";
 import { getDb } from "../../services/db";
 import { exportInstalledDatabase } from "../../services/installExport";
 import {
@@ -59,8 +60,11 @@ import {
   getWebsiteVideoDownloadProgress,
   getWebsiteVideoTargetUrl,
   removeCachedWebsiteVideo,
+  resolveWebsiteVideoCacheRoot,
   resolveWebsiteVideoStream,
 } from "../../services/webVideo";
+import { resolveMusicCacheRoot } from "../../services/musicDownload";
+import { getFpackExtractionRoot } from "../../services/fpack";
 import { publicProcedure, router } from "../trpc";
 import { and, eq, desc, asc, inArray } from "drizzle-orm";
 import {
@@ -107,11 +111,6 @@ function toWebsiteRoundInstallSourceKey(input: {
   ].join("|");
   const digest = crypto.createHash("sha256").update(payload).digest("hex");
   return `website:${digest}`;
-}
-
-function getInstallExportBaseDir(): string {
-  const exportBaseDir = app.isPackaged ? app.getPath("userData") : app.getAppPath();
-  return path.join(exportBaseDir, "export");
 }
 
 function queueWebsiteVideoCaching(): void {
@@ -1685,7 +1684,7 @@ export const dbRouter = router({
   }),
 
   openInstallExportFolder: publicProcedure.mutation(async () => {
-    const exportBaseDir = getInstallExportBaseDir();
+    const exportBaseDir = resolveInstallExportBaseDir();
     await fs.mkdir(exportBaseDir, { recursive: true });
     const openError = await shell.openPath(exportBaseDir);
     if (openError) {
@@ -1696,6 +1695,30 @@ export const dbRouter = router({
     }
     return { path: exportBaseDir };
   }),
+
+  openConfiguredPath: publicProcedure
+    .input(
+      z.object({
+        target: z.enum(["website-video-cache", "music-cache", "fpack-extraction"]),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const resolvedPath =
+        input.target === "website-video-cache"
+          ? resolveWebsiteVideoCacheRoot()
+          : input.target === "music-cache"
+            ? resolveMusicCacheRoot()
+            : await getFpackExtractionRoot();
+      await fs.mkdir(resolvedPath, { recursive: true });
+      const openError = await shell.openPath(resolvedPath);
+      if (openError) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: openError,
+        });
+      }
+      return { path: resolvedPath };
+    }),
 
   clearAllData: publicProcedure
     .input(

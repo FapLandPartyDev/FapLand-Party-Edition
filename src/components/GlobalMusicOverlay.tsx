@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useControllerSubscription, useControllerSurface } from "../controller";
 import type { MusicLoopMode } from "../constants/musicSettings";
 import { useGlobalMusic } from "../hooks/useGlobalMusic";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { subscribeToGlobalMusicOverlayOpen } from "./globalMusicOverlayControls";
 import { playHoverSound, playSelectSound } from "../utils/audio";
 
@@ -106,6 +107,7 @@ export function GlobalMusicOverlay() {
   const [urlMode, setUrlMode] = useState<"track" | "playlist">("track");
   const [urlResult, setUrlResult] = useState<{ added: number; errors: number } | null>(null);
   const [showQueue, setShowQueue] = useState(true);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [volumeDraft, setVolumeDraft] = useState(() => Math.round(volume * 100));
   const overlayRef = useRef<HTMLElement | null>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -219,6 +221,23 @@ export function GlobalMusicOverlay() {
 
   const handleToggleOverlay = useCallback(() => {
     setOpen((current) => !current);
+  }, []);
+
+  const handleRequestClearQueue = useCallback(() => {
+    if (queue.length === 0) return;
+    playSelectSound();
+    setIsClearConfirmOpen(true);
+  }, [queue.length]);
+
+  const handleConfirmClearQueue = useCallback(() => {
+    playSelectSound();
+    setIsClearConfirmOpen(false);
+    void clearQueue();
+  }, [clearQueue]);
+
+  const handleCancelClearQueue = useCallback(() => {
+    playSelectSound();
+    setIsClearConfirmOpen(false);
   }, []);
 
   useControllerSubscription(
@@ -675,10 +694,7 @@ export function GlobalMusicOverlay() {
                       <button
                         type="button"
                         onMouseEnter={playHoverSound}
-                        onClick={() => {
-                          playSelectSound();
-                          void clearQueue();
-                        }}
+                        onClick={handleRequestClearQueue}
                         className="rounded-lg border border-rose-300/30 bg-rose-400/10 px-2.5 py-1 text-[10px] font-semibold text-rose-200 transition hover:bg-rose-400/18"
                       >
                         Clear
@@ -733,6 +749,16 @@ export function GlobalMusicOverlay() {
               </div>
             </div>
           </motion.section>
+          <ConfirmDialog
+            isOpen={isClearConfirmOpen}
+            title="Clear music playlist?"
+            message="This will remove every track from the current music playlist."
+            confirmLabel="Clear Playlist"
+            cancelLabel="Keep Playlist"
+            variant="warning"
+            onConfirm={handleConfirmClearQueue}
+            onCancel={handleCancelClearQueue}
+          />
         </motion.div>
       ) : null}
     </AnimatePresence>

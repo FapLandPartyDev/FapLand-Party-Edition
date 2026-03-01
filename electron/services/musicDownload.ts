@@ -89,7 +89,7 @@ function parseYtDlpProgressLine(line: string, url: string): Partial<MusicDownloa
   return { url, percent, speedBytesPerSec, etaSeconds, totalBytes, downloadedBytes };
 }
 
-function resolveMusicCacheRoot(): string {
+export function resolveMusicCacheRoot(): string {
   const configuredRoot = getStore().get(MUSIC_CACHE_ROOT_PATH_KEY) as string | undefined;
   if (configuredRoot) {
     return path.resolve(configuredRoot);

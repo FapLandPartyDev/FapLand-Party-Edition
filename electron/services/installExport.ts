@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { app } from "electron";
 import { ZHeroSidecar, ZRoundSidecar } from "../../src/zod/installSidecar";
 import { getDb } from "./db";
+import { resolveInstallExportBaseDir } from "./appPaths";
 import { asc } from "drizzle-orm";
 import { round } from "./db/schema";
 export type RoundType = "Normal" | "Interjection" | "Cum";
@@ -101,8 +101,7 @@ export async function exportInstalledDatabase(
 ): Promise<ExportInstalledDatabaseResult> {
   const includeResourceUris = input.includeResourceUris ?? false;
   const now = new Date();
-  const exportBaseDir = app.isPackaged ? app.getPath("userData") : app.getAppPath();
-  const exportDir = path.join(exportBaseDir, "export", toSafeIsoTimestamp(now));
+  const exportDir = path.join(resolveInstallExportBaseDir(), toSafeIsoTimestamp(now));
 
   const rounds = (await getDb().query.round.findMany({
     with: {

@@ -49,32 +49,47 @@ describe("updater.compareVersions", () => {
 });
 
 describe("updater.resolveReleaseAssetUrl", () => {
-  it("selects the current platform asset when available", () => {
+  it("selects the Windows installer asset when both installer and portable assets exist", () => {
     const assets = [
-      { name: "Fap-Land-0.2.0.dmg", browser_download_url: "https://example.test/f-land.dmg" },
-      { name: "Fap-Land-0.2.0.AppImage", browser_download_url: "https://example.test/f-land.AppImage" },
-      { name: "Fap-Land-Setup-0.2.0.exe", browser_download_url: "https://example.test/f-land.exe" },
+      { name: "Fap Land-Portable-0.2.0.exe", browser_download_url: "https://example.test/f-land-portable.exe" },
+      { name: "Fap Land-Setup-0.2.0.exe", browser_download_url: "https://example.test/f-land-setup.exe" },
     ];
 
-    const result = resolveReleaseAssetUrl(assets);
+    expect(resolveReleaseAssetUrl(assets, "windows-installer")).toBe(
+      "https://example.test/f-land-setup.exe"
+    );
+  });
 
-    if (process.platform === "win32") {
-      expect(result).toBe("https://example.test/f-land.exe");
-      return;
-    }
+  it("selects the Windows portable asset when both installer and portable assets exist", () => {
+    const assets = [
+      { name: "Fap Land-Setup-0.2.0.exe", browser_download_url: "https://example.test/f-land-setup.exe" },
+      { name: "Fap Land-Portable-0.2.0.exe", browser_download_url: "https://example.test/f-land-portable.exe" },
+    ];
 
-    if (process.platform === "darwin") {
-      expect(result).toBe("https://example.test/f-land.dmg");
-      return;
-    }
+    expect(resolveReleaseAssetUrl(assets, "windows-portable")).toBe(
+      "https://example.test/f-land-portable.exe"
+    );
+  });
 
-    expect(result).toBe("https://example.test/f-land.AppImage");
+  it("keeps macOS and Linux asset selection unchanged", () => {
+    expect(
+      resolveReleaseAssetUrl(
+        [{ name: "Fap-Land-0.2.0.dmg", browser_download_url: "https://example.test/f-land.dmg" }],
+        "macos"
+      )
+    ).toBe("https://example.test/f-land.dmg");
+    expect(
+      resolveReleaseAssetUrl(
+        [{ name: "Fap-Land-0.2.0.AppImage", browser_download_url: "https://example.test/f-land.AppImage" }],
+        "linux-appimage"
+      )
+    ).toBe("https://example.test/f-land.AppImage");
   });
 
   it("returns null when no compatible asset exists", () => {
     expect(resolveReleaseAssetUrl([
       { name: "latest.yml", browser_download_url: "https://example.test/latest.yml" },
-    ])).toBeNull();
+    ], "windows-portable")).toBeNull();
   });
 });
 

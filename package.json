@@ -2,7 +2,7 @@
   "name": "f-land",
   "private": true,
   "type": "module",
-  "version": "0.1.23-beta",
+  "version": "0.1.24-beta",
   "author": "FapLandDev",
   "description": "Fap Land — Party Edition",
   "license": "AGPL-3.0-only",
@@ -141,6 +141,7 @@
       "output": "release"
     },
     "linux": {
+      "artifactName": "Fap Land-${version}.${ext}",
       "target": [
         "AppImage"
       ],
@@ -152,13 +153,18 @@
     },
     "win": {
       "target": [
-        "nsis"
+        "nsis",
+        "portable"
       ]
     },
     "nsis": {
+      "artifactName": "Fap Land-Setup-${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false
+    },
+    "portable": {
+      "artifactName": "Fap Land-Portable-${version}.${ext}"
     },
     "fileAssociations": [
       {

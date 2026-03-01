@@ -10,7 +10,7 @@ vi.mock("electron", () => ({
   },
 }));
 
-import { repairSinglePlayerRunSaveSchema } from "./db";
+import { repairSinglePlayerRunSaveSchema, resolveDatabaseUrl } from "./db";
 
 type ExecuteResult = {
   rows: Array<Record<string, unknown>>;
@@ -82,5 +82,12 @@ describe("repairSinglePlayerRunSaveSchema", () => {
     expect(execute).toHaveBeenCalledWith(
       expect.stringContaining('CREATE UNIQUE INDEX "SinglePlayerRunSave_playlistId_unique"'),
     );
+  });
+});
+
+describe("resolveDatabaseUrl", () => {
+  it("uses the app storage base dir when no DATABASE_URL is configured", () => {
+    vi.unstubAllEnvs();
+    expect(resolveDatabaseUrl()).toBe("file:/tmp/f-land/dev.db");
   });
 });

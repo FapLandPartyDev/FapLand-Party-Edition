@@ -55,6 +55,7 @@ import {
   isDirectRemoteMediaUri,
   isWebsiteVideoCandidateUri,
   removeCachedWebsiteVideo,
+  resolveWebsiteVideoCacheRoot,
 } from "./webVideo";
 
 const MULTI_FILE_WEBSITE_VIDEO_ERROR =
@@ -86,6 +87,10 @@ describe("webVideo", () => {
     expect(buildWebsiteVideoCacheKey("https://example.com/watch?v=1")).toBe(
       buildWebsiteVideoCacheKey("https://example.com/watch?v=1#ignored"),
     );
+  });
+
+  it("uses userData for the default website cache root", () => {
+    expect(resolveWebsiteVideoCacheRoot()).toBe(path.join(userDataPath, "web-video-cache"));
   });
 
   it("deduplicates concurrent downloads for the same URL", async () => {

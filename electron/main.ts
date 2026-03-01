@@ -24,6 +24,7 @@ import { normalizeMultiplayerAuthCallback } from "./services/authCallback";
 import { ensureAppDatabaseReady } from "./services/db";
 import { initStore } from "./services/store";
 import { scanInstallSources } from "./services/installer";
+import { getPortableDataRoot } from "./services/portable";
 import { proxyExternalRequest } from "./services/integrations";
 import { startContinuousPhashScan } from "./services/phashScanService";
 import { startContinuousWebsiteVideoScan } from "./services/webVideoScanService";
@@ -90,7 +91,11 @@ function normalizeUserDataSuffix(raw: string | undefined): string | null {
 }
 
 const userDataSuffix = normalizeUserDataSuffix(process.env.FLAND_USER_DATA_SUFFIX);
-if (userDataSuffix) {
+const portableDataRoot = getPortableDataRoot(userDataSuffix);
+if (portableDataRoot) {
+  app.setPath("userData", portableDataRoot);
+  app.setPath("sessionData", path.join(portableDataRoot, "session"));
+} else if (userDataSuffix) {
   // Allow running multiple clients on one machine with isolated session/state storage.
   app.setPath("userData", path.join(app.getPath("appData"), `f-land-${userDataSuffix}`));
 }

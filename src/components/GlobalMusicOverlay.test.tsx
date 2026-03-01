@@ -187,4 +187,20 @@ describe("GlobalMusicOverlay", () => {
       expect(mocks.globalMusic.setVolume).toHaveBeenCalledWith(0.72);
     });
   });
+
+  it("confirms before clearing the overlay playlist", async () => {
+    render(<GlobalMusicOverlay />);
+    fireEvent.keyDown(window, { key: "m", ctrlKey: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect(mocks.globalMusic.clearQueue).not.toHaveBeenCalled();
+    expect(screen.getByText("Clear music playlist?")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear Playlist" }));
+
+    await waitFor(() => {
+      expect(mocks.globalMusic.clearQueue).toHaveBeenCalled();
+    });
+  });
 });

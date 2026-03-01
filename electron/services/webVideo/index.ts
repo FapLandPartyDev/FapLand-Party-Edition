@@ -272,7 +272,7 @@ function assertGofileSingleFileUrl(url: string): string {
   return contentId;
 }
 
-function resolveWebsiteVideoCacheRoot(): string {
+export function resolveWebsiteVideoCacheRoot(): string {
   const configuredRoot = normalizeConfiguredCacheRoot(
     getStore().get(WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY)
   );

@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { MenuButton } from "../components/MenuButton";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { GameDropdown } from "../components/ui/GameDropdown";
 import { useControllerSurface } from "../controller";
 import {
@@ -416,6 +417,9 @@ export function SettingsPage() {
     useState(false);
   const [isUpdatingMusicCacheRootPath, setIsUpdatingMusicCacheRootPath] = useState(false);
   const [isUpdatingFpackExtractionPath, setIsUpdatingFpackExtractionPath] = useState(false);
+  const [openingPathTarget, setOpeningPathTarget] = useState<
+    "website-video-cache" | "music-cache" | "fpack-extraction" | null
+  >(null);
   const [autoScanFolders, setAutoScanFolders] = useState<string[]>([]);
   const [isLoadingAutoScanFolders, setIsLoadingAutoScanFolders] = useState(true);
   const [isUpdatingAutoScanFolders, setIsUpdatingAutoScanFolders] = useState(false);
@@ -1180,6 +1184,20 @@ export function SettingsPage() {
     }
   };
 
+  const openConfiguredPath = async (
+    target: "website-video-cache" | "music-cache" | "fpack-extraction"
+  ) => {
+    if (openingPathTarget) return;
+    setOpeningPathTarget(target);
+    try {
+      await trpc.db.openConfiguredPath.mutate({ target });
+    } catch (error) {
+      console.error("Failed to open configured path", error);
+    } finally {
+      setOpeningPathTarget(null);
+    }
+  };
+
   const clearData = async () => {
     if (isClearingData) return;
 
@@ -1327,9 +1345,14 @@ export function SettingsPage() {
                     configuredPath={musicCacheRootPath}
                     isLoading={isLoadingMusicCacheRootPath}
                     isPending={isUpdatingMusicCacheRootPath}
+                    isOpening={openingPathTarget === "music-cache"}
                     onChooseFolder={() => {
                       playSelectSound();
                       void chooseMusicCacheFolder();
+                    }}
+                    onOpenCurrentLocation={() => {
+                      playSelectSound();
+                      void openConfiguredPath("music-cache");
                     }}
                     onReset={() => {
                       playSelectSound();
@@ -1340,9 +1363,14 @@ export function SettingsPage() {
                     configuredPath={websiteVideoCacheRootPath}
                     isLoading={isLoadingWebsiteVideoCacheRootPath}
                     isPending={isUpdatingWebsiteVideoCacheRootPath}
+                    isOpening={openingPathTarget === "website-video-cache"}
                     onChooseFolder={() => {
                       playSelectSound();
                       void chooseWebsiteVideoCacheFolder();
+                    }}
+                    onOpenCurrentLocation={() => {
+                      playSelectSound();
+                      void openConfiguredPath("website-video-cache");
                     }}
                     onReset={() => {
                       playSelectSound();
@@ -1354,9 +1382,14 @@ export function SettingsPage() {
                     configuredPath={fpackExtractionPath}
                     isLoading={isLoadingFpackExtractionPath}
                     isPending={isUpdatingFpackExtractionPath}
+                    isOpening={openingPathTarget === "fpack-extraction"}
                     onChooseFolder={() => {
                       playSelectSound();
                       void chooseFpackExtractionFolder();
+                    }}
+                    onOpenCurrentLocation={() => {
+                      playSelectSound();
+                      void openConfiguredPath("fpack-extraction");
                     }}
                     onReset={() => {
                       playSelectSound();
@@ -1471,13 +1504,17 @@ function FpackExtractionLocationCard({
   configuredPath,
   isLoading,
   isPending,
+  isOpening,
   onChooseFolder,
+  onOpenCurrentLocation,
   onReset,
 }: {
   configuredPath: string | null;
   isLoading: boolean;
   isPending: boolean;
+  isOpening: boolean;
   onChooseFolder: () => void;
+  onOpenCurrentLocation: () => void;
   onReset: () => void;
 }) {
   return (
@@ -1517,6 +1554,15 @@ function FpackExtractionLocationCard({
           </button>
           <button
             type="button"
+            disabled={isLoading || isPending || isOpening}
+            onMouseEnter={playHoverSound}
+            onClick={onOpenCurrentLocation}
+            className="rounded-xl border border-cyan-300/60 bg-cyan-500/20 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/80 hover:bg-cyan-500/35 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isOpening ? "Opening..." : "Open Current Folder"}
+          </button>
+          <button
+            type="button"
             disabled={isLoading || isPending || configuredPath === null}
             onMouseEnter={playHoverSound}
             onClick={onReset}
@@ -1534,13 +1580,17 @@ function WebsiteVideoCacheLocationCard({
   configuredPath,
   isLoading,
   isPending,
+  isOpening,
   onChooseFolder,
+  onOpenCurrentLocation,
   onReset,
 }: {
   configuredPath: string | null;
   isLoading: boolean;
   isPending: boolean;
+  isOpening: boolean;
   onChooseFolder: () => void;
+  onOpenCurrentLocation: () => void;
   onReset: () => void;
 }) {
   return (
@@ -1582,6 +1632,15 @@ function WebsiteVideoCacheLocationCard({
           </button>
           <button
             type="button"
+            disabled={isLoading || isPending || isOpening}
+            onMouseEnter={playHoverSound}
+            onClick={onOpenCurrentLocation}
+            className="rounded-xl border border-cyan-300/60 bg-cyan-500/20 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/80 hover:bg-cyan-500/35 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isOpening ? "Opening..." : "Open Current Folder"}
+          </button>
+          <button
+            type="button"
             disabled={isLoading || isPending || configuredPath === null}
             onMouseEnter={playHoverSound}
             onClick={onReset}
@@ -1599,13 +1658,17 @@ function MusicCacheLocationCard({
   configuredPath,
   isLoading,
   isPending,
+  isOpening,
   onChooseFolder,
+  onOpenCurrentLocation,
   onReset,
 }: {
   configuredPath: string | null;
   isLoading: boolean;
   isPending: boolean;
+  isOpening: boolean;
   onChooseFolder: () => void;
+  onOpenCurrentLocation: () => void;
   onReset: () => void;
 }) {
   return (
@@ -1644,6 +1707,15 @@ function MusicCacheLocationCard({
             className="rounded-xl border border-violet-300/60 bg-violet-500/30 px-4 py-2 text-sm font-semibold text-violet-100 transition hover:border-violet-200/80 hover:bg-violet-500/45 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? "Updating..." : "Choose Folder"}
+          </button>
+          <button
+            type="button"
+            disabled={isLoading || isPending || isOpening}
+            onMouseEnter={playHoverSound}
+            onClick={onOpenCurrentLocation}
+            className="rounded-xl border border-cyan-300/60 bg-cyan-500/20 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/80 hover:bg-cyan-500/35 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isOpening ? "Opening..." : "Open Current Folder"}
           </button>
           <button
             type="button"
@@ -2479,6 +2551,7 @@ function MusicSettingsCard() {
   const [urlError, setUrlError] = useState<string | null>(null);
   const [urlMode, setUrlMode] = useState<"track" | "playlist">("track");
   const [urlResult, setUrlResult] = useState<{ added: number; errors: number } | null>(null);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [volumeDraft, setVolumeDraft] = useState(() => Math.round(DEFAULT_MUSIC_VOLUME * 100));
   const [loopDraft, setLoopDraft] = useState<MusicLoopMode>(DEFAULT_MUSIC_LOOP_MODE);
   const [sfxVolumeDraft, setSfxVolumeDraft] = useState(() => Math.round(DEFAULT_SFX_VOLUME * 100));
@@ -2563,11 +2636,29 @@ function MusicSettingsCard() {
     }
   };
 
+  const handleRequestClearQueue = () => {
+    if (queue.length === 0) return;
+    playSelectSound();
+    setIsClearConfirmOpen(true);
+  };
+
+  const handleConfirmClearQueue = () => {
+    playSelectSound();
+    setIsClearConfirmOpen(false);
+    void clearQueue();
+  };
+
+  const handleCancelClearQueue = () => {
+    playSelectSound();
+    setIsClearConfirmOpen(false);
+  };
+
   return (
-    <section
-      className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl"
-      style={{ animationDelay: "0.08s" }}
-    >
+    <>
+      <section
+        className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl"
+        style={{ animationDelay: "0.08s" }}
+      >
       <div className="mb-4">
         <h2 className="text-lg font-extrabold tracking-tight text-violet-100">Music</h2>
         <p className="mt-1 text-sm text-zinc-300">
@@ -2752,10 +2843,7 @@ function MusicSettingsCard() {
                 type="button"
                 disabled={queue.length === 0}
                 onMouseEnter={playHoverSound}
-                onClick={() => {
-                  playSelectSound();
-                  void clearQueue();
-                }}
+                onClick={handleRequestClearQueue}
                 className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
                   queue.length === 0
                     ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
@@ -2922,7 +3010,18 @@ function MusicSettingsCard() {
           </div>
         </div>
       </div>
-    </section>
+      </section>
+      <ConfirmDialog
+        isOpen={isClearConfirmOpen}
+        title="Clear music playlist?"
+        message="This will remove every track from the current music playlist."
+        confirmLabel="Clear Playlist"
+        cancelLabel="Keep Playlist"
+        variant="warning"
+        onConfirm={handleConfirmClearQueue}
+        onCancel={handleCancelClearQueue}
+      />
+    </>
   );
 }
 
@@ -2949,6 +3048,7 @@ function MoaningSettingsCard() {
   const [urlError, setUrlError] = useState<string | null>(null);
   const [urlMode, setUrlMode] = useState<"track" | "playlist">("track");
   const [urlResult, setUrlResult] = useState<{ added: number; errors: number } | null>(null);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [volumeDraft, setVolumeDraft] = useState(() => Math.round(DEFAULT_MOANING_VOLUME * 100));
 
   useEffect(() => {
@@ -3009,11 +3109,29 @@ function MoaningSettingsCard() {
     }
   };
 
+  const handleRequestClearQueue = () => {
+    if (queue.length === 0) return;
+    playSelectSound();
+    setIsClearConfirmOpen(true);
+  };
+
+  const handleConfirmClearQueue = () => {
+    playSelectSound();
+    setIsClearConfirmOpen(false);
+    void clearQueue();
+  };
+
+  const handleCancelClearQueue = () => {
+    playSelectSound();
+    setIsClearConfirmOpen(false);
+  };
+
   return (
-    <section
-      className="animate-entrance rounded-3xl border border-rose-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl"
-      style={{ animationDelay: "0.1s" }}
-    >
+    <>
+      <section
+        className="animate-entrance rounded-3xl border border-rose-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl"
+        style={{ animationDelay: "0.1s" }}
+      >
       <div className="mb-4">
         <h2 className="text-lg font-extrabold tracking-tight text-rose-100">Moaning</h2>
         <p className="mt-1 text-sm text-zinc-300">
@@ -3130,10 +3248,7 @@ function MoaningSettingsCard() {
                 type="button"
                 disabled={queue.length === 0}
                 onMouseEnter={playHoverSound}
-                onClick={() => {
-                  playSelectSound();
-                  void clearQueue();
-                }}
+                onClick={handleRequestClearQueue}
                 className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
                   queue.length === 0
                     ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
@@ -3290,7 +3405,18 @@ function MoaningSettingsCard() {
           </div>
         </div>
       </div>
-    </section>
+      </section>
+      <ConfirmDialog
+        isOpen={isClearConfirmOpen}
+        title="Clear moaning playlist?"
+        message="This will remove every file from the current moaning playlist."
+        confirmLabel="Clear Playlist"
+        cancelLabel="Keep Playlist"
+        variant="warning"
+        onConfirm={handleConfirmClearQueue}
+        onCancel={handleCancelClearQueue}
+      />
+    </>
   );
 }
 

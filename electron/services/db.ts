@@ -4,6 +4,7 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 import { app } from "electron";
 import path from "node:path";
 import { getNodeEnv } from "../../src/zod/env";
+import { resolveAppStorageBaseDir } from "./appPaths";
 import * as schema from "./db/schema";
 
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
@@ -160,8 +161,7 @@ export function resolveDatabaseUrl(): string {
     const env = getNodeEnv();
     if (env.databaseUrlRaw) return env.databaseUrl;
 
-    const baseDir = app.isPackaged ? app.getPath("userData") : app.getAppPath();
-    return `file:${path.join(baseDir, "dev.db")}`;
+    return `file:${path.join(resolveAppStorageBaseDir(), "dev.db")}`;
 }
 
 export function getDb() {

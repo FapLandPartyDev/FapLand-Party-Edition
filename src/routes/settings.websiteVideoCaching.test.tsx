@@ -2,9 +2,17 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY } from "../constants/websiteVideoCacheSettings";
 
-const mocks = vi.hoisted(() => ({
-  navigate: vi.fn(),
-  globalMusic: {
+const mocks = vi.hoisted(() => {
+  const search = { section: undefined as string | undefined };
+
+  return {
+    search,
+    navigate: vi.fn((options?: { search?: { section?: string } }) => {
+      if (options?.search) {
+        Object.assign(search, options.search);
+      }
+    }),
+    globalMusic: {
     enabled: true,
     queue: [],
     currentIndex: 0,
@@ -46,7 +54,7 @@ const mocks = vi.hoisted(() => ({
     toggleManualStop: vi.fn(async () => "unavailable" as const),
     setSyncStatus: vi.fn(),
   },
-  appUpdate: {
+    appUpdate: {
     state: {
       status: "up_to_date" as const,
       currentVersion: "0.1.2",
@@ -65,12 +73,13 @@ const mocks = vi.hoisted(() => ({
     menuTone: "success" as const,
     systemMessage: "Installed build is current.",
     triggerPrimaryAction: vi.fn(async () => {}),
-  },
-}));
+    },
+  };
+});
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => () => ({
-    useSearch: () => ({ section: "general" }),
+    useSearch: () => mocks.search,
   }),
   useNavigate: () => mocks.navigate,
 }));
@@ -107,6 +116,11 @@ vi.mock("../services/db", () => ({
     phash: {
       getScanStatus: vi.fn(async () => null),
     },
+    webVideoCache: {
+      getScanStatus: vi.fn(async () => null),
+      startScan: vi.fn(async () => {}),
+      abortScan: vi.fn(async () => {}),
+    },
   },
 }));
 
@@ -127,6 +141,9 @@ vi.mock("../services/integrations", () => ({
 vi.mock("../services/trpc", () => ({
   trpc: {
     db: {
+      openConfiguredPath: {
+        mutate: vi.fn(async () => ({ path: "/tmp/web-video-cache" })),
+      },
       clearAllData: {
         mutate: vi.fn(async () => {}),
       },
@@ -217,6 +234,7 @@ describe("Settings website video caching", () => {
         addMoaningFromUrl: vi.fn(),
         addMoaningPlaylistFromUrl: vi.fn(),
         selectConverterFunscriptFile: vi.fn(),
+        selectFpackExtractionDirectory: vi.fn(),
       },
       window: {
         isFullscreen: vi.fn(async () => false),
@@ -280,7 +298,7 @@ describe("Settings website video caching", () => {
     render(<SettingsPage />);
 
     fireEvent.click(screen.getAllByRole("button", { name: /Data & Storage/ })[0]!);
-    fireEvent.click(screen.getByRole("button", { name: "Choose Folder" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Choose Folder" })[1]!);
 
     await waitFor(() => {
       expect(window.electronAPI.dialog.selectWebsiteVideoCacheDirectory).toHaveBeenCalled();
@@ -301,12 +319,30 @@ describe("Settings website video caching", () => {
     render(<SettingsPage />);
 
     fireEvent.click(screen.getAllByRole("button", { name: /Data & Storage/ })[0]!);
-    fireEvent.click(screen.getByRole("button", { name: "Use Default" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Use Default" })[1]!);
 
     await waitFor(() => {
       expect(setMutate).toHaveBeenCalledWith({
         key: WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY,
         value: null,
+      });
+    });
+  });
+
+  it("opens the current website video cache folder", async () => {
+    const openConfiguredPathMutate = vi.mocked(trpc.db.openConfiguredPath.mutate);
+
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Data & Storage/ })[0]!);
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "Open Current Folder" })[1]).toBeDefined();
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Open Current Folder" })[1]!);
+
+    await waitFor(() => {
+      expect(openConfiguredPathMutate).toHaveBeenCalledWith({
+        target: "website-video-cache",
       });
     });
   });

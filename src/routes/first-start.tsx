@@ -2,12 +2,16 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { DEFAULT_INTERMEDIARY_LOADING_PROMPT } from "../constants/booruSettings";
+import { FPACK_EXTRACTION_PATH_KEY } from "../constants/fpackSettings";
+import { MUSIC_CACHE_ROOT_PATH_KEY } from "../constants/musicSettings";
 import {
   BACKGROUND_PHASH_SCANNING_ENABLED_KEY,
   DEFAULT_BACKGROUND_PHASH_SCANNING_ENABLED,
   normalizeBackgroundPhashScanningEnabled,
 } from "../constants/phashSettings";
+import { WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY } from "../constants/websiteVideoCacheSettings";
 import { useHandy } from "../contexts/HandyContext";
+import { useGameplayMoaning } from "../hooks/useGameplayMoaning";
 import { useGlobalMusic } from "../hooks/useGlobalMusic";
 import { useSfwMode } from "../hooks/useSfwMode";
 import { db } from "../services/db";
@@ -33,7 +37,14 @@ type StepDefinition = {
   title: string;
   description: string;
   details: string[];
-  interactive?: "music" | "round-packs" | "booru" | "handy" | "phash";
+  interactive?:
+    | "music"
+    | "moaning"
+    | "round-packs"
+    | "storage"
+    | "booru"
+    | "handy"
+    | "phash";
 };
 
 const STEPS: StepDefinition[] = [
@@ -84,6 +95,21 @@ const STEPS: StepDefinition[] = [
     interactive: "music",
   },
   {
+    id: "moaning",
+    icon: "🔊",
+    shortLabel: "Moaning",
+    eyebrow: "Optional Setup",
+    title: "Set up gameplay moaning so moaning perks actually have content",
+    description:
+      "Gameplay moaning is optional, but some perks and anti-perks use it. If you want those effects to do something, add a few moaning files now.",
+    details: [
+      "The moaning library is separate from menu music. It is used by gameplay events that trigger one-shot or looping moaning audio.",
+      "You can add local audio files from your computer or download supported URLs through yt-dlp.",
+      "If you skip this, moaning-related gameplay effects stay unavailable until you add files later in Settings.",
+    ],
+    interactive: "moaning",
+  },
+  {
     id: "round-packs",
     icon: "💿",
     shortLabel: "Rounds",
@@ -113,6 +139,22 @@ const STEPS: StepDefinition[] = [
       "If you want to build your own pack, the usual flow is simple: create rounds in the Round Converter, place them into a linear or graph board, then export the finished result.",
       "That means you do not need a hard workflow to start making content. The converter, the editors, and the export tools are built so custom pack creation stays approachable.",
     ],
+  },
+  {
+    id: "storage",
+    icon: "🗄️",
+    shortLabel: "Storage",
+    eyebrow: "Optional Setup",
+    title: "Choose where cached and extracted files should live",
+    description:
+      "You can keep the default app-managed folders, or point storage-heavy features at custom locations now.",
+    details: [
+      "Music cache stores downloaded menu music and YouTube imports.",
+      "Website video cache stores downloaded website videos and related playback files.",
+      ".fpack extraction location stores extracted pack contents in a persistent folder so those rounds stay playable later.",
+      "You can skip this and change any of these later in Settings under Data & Storage.",
+    ],
+    interactive: "storage",
   },
   {
     id: "phash",
@@ -174,6 +216,16 @@ function FirstStartPage() {
   const search = Route.useSearch();
   const { queue, addTracks, addTrackFromUrl, addPlaylistFromUrl } = useGlobalMusic();
   const {
+    enabled: moaningEnabled,
+    queue: moaningQueue,
+    setEnabled: setMoaningEnabled,
+    addTracks: addMoaningTracks,
+    addTrackFromUrl: addMoaningTrackFromUrl,
+    addPlaylistFromUrl: addMoaningPlaylistFromUrl,
+    previewTrack: previewMoaningTrack,
+    stopPreview: stopMoaningPreview,
+  } = useGameplayMoaning();
+  const {
     connectionKey,
     connected: handyConnected,
     isConnecting: handyIsConnecting,
@@ -188,13 +240,25 @@ function FirstStartPage() {
   const [urlInput, setUrlInput] = useState("");
   const [urlError, setUrlError] = useState<string | null>(null);
   const [roundMessage, setRoundMessage] = useState<string | null>(null);
+  const [moaningMessage, setMoaningMessage] = useState<string | null>(null);
+  const [showMoaningUrlInput, setShowMoaningUrlInput] = useState(false);
+  const [moaningUrlInput, setMoaningUrlInput] = useState("");
+  const [moaningUrlError, setMoaningUrlError] = useState<string | null>(null);
+  const [moaningUrlMode, setMoaningUrlMode] = useState<"track" | "playlist">("track");
   const [booruPrompt, setBooruPrompt] = useState(DEFAULT_INTERMEDIARY_LOADING_PROMPT);
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(true);
   const [backgroundPhashScanningEnabled, setBackgroundPhashScanningEnabled] = useState(
     DEFAULT_BACKGROUND_PHASH_SCANNING_ENABLED
   );
+  const [websiteVideoCacheRootPath, setWebsiteVideoCacheRootPath] = useState<string | null>(null);
+  const [musicCacheRootPath, setMusicCacheRootPath] = useState<string | null>(null);
+  const [fpackExtractionPath, setFpackExtractionPath] = useState<string | null>(null);
   const [isLoadingBackgroundPhashScanningEnabled, setIsLoadingBackgroundPhashScanningEnabled] =
     useState(true);
+  const [isLoadingStorageSettings, setIsLoadingStorageSettings] = useState(true);
+  const [updatingStorageTarget, setUpdatingStorageTarget] = useState<
+    "music-cache" | "website-video-cache" | "fpack-extraction" | null
+  >(null);
   const [isSkipping, setIsSkipping] = useState(false);
   const [contentKey, setContentKey] = useState(0);
   const [handyInputKey, setHandyInputKey] = useState("");
@@ -210,7 +274,8 @@ function FirstStartPage() {
   const isContinueDisabled =
     isBusy ||
     (currentStep.id === "booru" && isLoadingPrompt) ||
-    (currentStep.id === "phash" && isLoadingBackgroundPhashScanningEnabled);
+    (currentStep.id === "phash" && isLoadingBackgroundPhashScanningEnabled) ||
+    (currentStep.id === "storage" && isLoadingStorageSettings);
   const progressPercent = ((stepIndex + 1) / STEPS.length) * 100;
 
   useEffect(() => {
@@ -231,6 +296,46 @@ function FirstStartPage() {
       .finally(() => {
         if (!cancelled) {
           setIsLoadingPrompt(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      trpc.store.get.query({ key: WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY }),
+      trpc.store.get.query({ key: MUSIC_CACHE_ROOT_PATH_KEY }),
+      trpc.store.get.query({ key: FPACK_EXTRACTION_PATH_KEY }),
+    ])
+      .then(([rawWebsiteVideoCacheRootPath, rawMusicCacheRootPath, rawFpackExtractionPath]) => {
+        if (cancelled) return;
+        setWebsiteVideoCacheRootPath(
+          typeof rawWebsiteVideoCacheRootPath === "string" &&
+            rawWebsiteVideoCacheRootPath.trim().length > 0
+            ? rawWebsiteVideoCacheRootPath.trim()
+            : null
+        );
+        setMusicCacheRootPath(
+          typeof rawMusicCacheRootPath === "string" && rawMusicCacheRootPath.trim().length > 0
+            ? rawMusicCacheRootPath.trim()
+            : null
+        );
+        setFpackExtractionPath(
+          typeof rawFpackExtractionPath === "string" && rawFpackExtractionPath.trim().length > 0
+            ? rawFpackExtractionPath.trim()
+            : null
+        );
+      })
+      .catch((error) => {
+        console.error("Failed to load onboarding storage settings", error);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingStorageSettings(false);
         }
       });
 
@@ -436,12 +541,138 @@ function FirstStartPage() {
     }
   };
 
+  const addMoaningFiles = async () => {
+    if (isBusy) return;
+    setIsBusy(true);
+    setMoaningMessage(null);
+    try {
+      const filePaths = await window.electronAPI.dialog.selectMoaningFiles();
+      if (filePaths.length === 0) {
+        setMoaningMessage(
+          "No moaning files were selected. You can continue and add them later in Settings."
+        );
+        return;
+      }
+      await addMoaningTracks(filePaths);
+      setMoaningMessage(
+        `Added ${filePaths.length} moaning file${filePaths.length === 1 ? "" : "s"} to the gameplay library.`
+      );
+    } catch (error) {
+      console.error("Failed to add onboarding moaning tracks", error);
+      setMoaningMessage(error instanceof Error ? error.message : "Failed to add moaning files.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const addMoaningFromUrl = async () => {
+    if (isBusy) return;
+    const trimmed = moaningUrlInput.trim();
+    if (!trimmed) {
+      setMoaningUrlError("Please enter a URL");
+      return;
+    }
+    try {
+      new URL(trimmed);
+    } catch {
+      setMoaningUrlError("Invalid URL format");
+      return;
+    }
+    setMoaningUrlError(null);
+    setIsBusy(true);
+    setMoaningMessage(null);
+    try {
+      if (moaningUrlMode === "playlist") {
+        const result = await addMoaningPlaylistFromUrl(trimmed);
+        if (result.addedCount > 0) {
+          setMoaningMessage(
+            `Added playlist: ${result.addedCount} moaning file${result.addedCount === 1 ? "" : "s"} added${result.errorCount > 0 ? ` (${result.errorCount} failed)` : ""}.`
+          );
+          setMoaningUrlInput("");
+          setShowMoaningUrlInput(false);
+        } else {
+          setMoaningMessage("All files from this playlist are already in your moaning library.");
+        }
+      } else {
+        await addMoaningTrackFromUrl(trimmed);
+        setMoaningMessage("Moaning file added to the gameplay library.");
+        setMoaningUrlInput("");
+        setShowMoaningUrlInput(false);
+      }
+    } catch (error) {
+      setMoaningMessage(error instanceof Error ? error.message : "Failed to add from URL.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const handleHandyConnect = async () => {
     if (handyConnected) {
       await handyDisconnect();
       return;
     }
     await handyConnect(handyInputKey.trim());
+  };
+
+  const updateStoragePath = async (
+    target: "music-cache" | "website-video-cache" | "fpack-extraction"
+  ) => {
+    if (isBusy || updatingStorageTarget) return;
+    setUpdatingStorageTarget(target);
+    try {
+      if (target === "music-cache") {
+        const selected = await window.electronAPI.dialog.selectMusicCacheDirectory();
+        if (!selected) return;
+        const value = selected.trim();
+        await trpc.store.set.mutate({ key: MUSIC_CACHE_ROOT_PATH_KEY, value });
+        setMusicCacheRootPath(value);
+        return;
+      }
+
+      if (target === "website-video-cache") {
+        const selected = await window.electronAPI.dialog.selectWebsiteVideoCacheDirectory();
+        if (!selected) return;
+        const value = selected.trim();
+        await trpc.store.set.mutate({ key: WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY, value });
+        setWebsiteVideoCacheRootPath(value);
+        return;
+      }
+
+      const selected = await window.electronAPI.dialog.selectFpackExtractionDirectory();
+      if (!selected) return;
+      const value = selected.trim();
+      await trpc.store.set.mutate({ key: FPACK_EXTRACTION_PATH_KEY, value });
+      setFpackExtractionPath(value);
+    } catch (error) {
+      console.error("Failed to update onboarding storage path", error);
+    } finally {
+      setUpdatingStorageTarget(null);
+    }
+  };
+
+  const resetStoragePath = async (
+    target: "music-cache" | "website-video-cache" | "fpack-extraction"
+  ) => {
+    if (isBusy || updatingStorageTarget) return;
+    setUpdatingStorageTarget(target);
+    try {
+      if (target === "music-cache") {
+        await trpc.store.set.mutate({ key: MUSIC_CACHE_ROOT_PATH_KEY, value: null });
+        setMusicCacheRootPath(null);
+        return;
+      }
+      if (target === "website-video-cache") {
+        await trpc.store.set.mutate({ key: WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY, value: null });
+        setWebsiteVideoCacheRootPath(null);
+        return;
+      }
+      await trpc.store.set.mutate({ key: FPACK_EXTRACTION_PATH_KEY, value: null });
+      setFpackExtractionPath(null);
+    } catch (error) {
+      console.error("Failed to reset onboarding storage path", error);
+    } finally {
+      setUpdatingStorageTarget(null);
+    }
   };
 
   return (
@@ -772,6 +1003,219 @@ function FirstStartPage() {
                   </div>
                 )}
 
+                {currentStep.interactive === "moaning" && (
+                  <div
+                    className="mt-3 rounded-2xl border border-rose-400/30 bg-gradient-to-br from-rose-500/10 via-pink-500/5 to-orange-500/10 p-4 animate-entrance"
+                    style={{ animationDelay: "0.3s" }}
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="text-rose-300">🔊</span>
+                      <p className="text-sm font-semibold text-rose-100">Gameplay Moaning</p>
+                      {moaningQueue.length > 0 && (
+                        <span className="ml-auto rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+                          {moaningQueue.length} file{moaningQueue.length === 1 ? "" : "s"}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-zinc-400">
+                      Add moaning audio so moaning-based perks and anti-perks have something to
+                      play during the run.
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        aria-label="Toggle Enable Moaning"
+                        role="switch"
+                        aria-checked={moaningEnabled}
+                        onMouseEnter={playHoverSound}
+                        onClick={() => {
+                          playSelectSound();
+                          void setMoaningEnabled(!moaningEnabled);
+                        }}
+                        className={`relative h-7 w-14 shrink-0 overflow-hidden rounded-full border transition-all duration-200 ${moaningEnabled ? "border-rose-300/80 bg-rose-500/50 shadow-[0_0_20px_rgba(251,113,133,0.35)]" : "border-zinc-600 bg-zinc-800"}`}
+                      >
+                        <span
+                          className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ${moaningEnabled ? "translate-x-7" : "translate-x-0"}`}
+                        />
+                      </button>
+                      <span
+                        className={`text-sm font-medium ${moaningEnabled ? "text-zinc-100" : "text-zinc-400"}`}
+                      >
+                        Moaning {moaningEnabled ? "Enabled" : "Disabled"}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onMouseEnter={playHoverSound}
+                        onClick={() => {
+                          playSelectSound();
+                          void addMoaningFiles();
+                        }}
+                        className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                          isBusy
+                            ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                            : "border-rose-400/50 bg-rose-500/20 text-rose-100 hover:border-rose-300/70 hover:bg-rose-500/30 hover:shadow-[0_0_20px_rgba(251,113,133,0.3)]"
+                        }`}
+                      >
+                        {isBusy ? (
+                          <>
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-rose-400/30 border-t-rose-300" />
+                            <span>Adding...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>📁</span>
+                            <span>Add Moaning Files</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isBusy || moaningQueue.length === 0}
+                        onMouseEnter={playHoverSound}
+                        onClick={() => {
+                          playSelectSound();
+                          void previewMoaningTrack(moaningQueue[0]!.id);
+                        }}
+                        className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                          isBusy || moaningQueue.length === 0
+                            ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                            : "border-cyan-400/50 bg-cyan-500/20 text-cyan-100 hover:border-cyan-300/70 hover:bg-cyan-500/30"
+                        }`}
+                      >
+                        <span>▶</span>
+                        <span>Preview First File</span>
+                      </button>
+                      <button
+                        type="button"
+                        onMouseEnter={playHoverSound}
+                        onClick={() => {
+                          playSelectSound();
+                          stopMoaningPreview();
+                        }}
+                        className="flex items-center gap-2 rounded-xl border border-zinc-500/50 bg-zinc-800/60 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition-all hover:border-zinc-300/60 hover:bg-zinc-700/70"
+                      >
+                        <span>⏹</span>
+                        <span>Stop Preview</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onMouseEnter={playHoverSound}
+                        onClick={() => {
+                          playSelectSound();
+                          setShowMoaningUrlInput((current) => !current);
+                          setMoaningUrlError(null);
+                        }}
+                        className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                          showMoaningUrlInput
+                            ? "border-cyan-400/50 bg-cyan-500/20 text-cyan-100"
+                            : "border-orange-400/50 bg-orange-500/20 text-orange-100 hover:border-orange-300/70 hover:bg-orange-500/30"
+                        }`}
+                      >
+                        <span>⊕</span>
+                        <span>Add from URL</span>
+                      </button>
+                    </div>
+
+                    {showMoaningUrlInput && (
+                      <div className="mt-3 space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-xs text-zinc-400">
+                          Add from any yt-dlp-supported URL. Single tracks and playlists are both
+                          supported.
+                        </p>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onMouseEnter={playHoverSound}
+                            onClick={() => {
+                              playSelectSound();
+                              setMoaningUrlMode("track");
+                            }}
+                            className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
+                              moaningUrlMode === "track"
+                                ? "border-cyan-300/60 bg-cyan-500/30 text-cyan-100"
+                                : "border-zinc-600 bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                            }`}
+                          >
+                            Single Track
+                          </button>
+                          <button
+                            type="button"
+                            onMouseEnter={playHoverSound}
+                            onClick={() => {
+                              playSelectSound();
+                              setMoaningUrlMode("playlist");
+                            }}
+                            className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
+                              moaningUrlMode === "playlist"
+                                ? "border-cyan-300/60 bg-cyan-500/30 text-cyan-100"
+                                : "border-zinc-600 bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                            }`}
+                          >
+                            Playlist
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="url"
+                            placeholder={
+                              moaningUrlMode === "playlist"
+                                ? "https://example.com/playlist-or-collection"
+                                : "https://example.com/video-or-audio"
+                            }
+                            value={moaningUrlInput}
+                            onChange={(e) => {
+                              setMoaningUrlInput(e.target.value);
+                              setMoaningUrlError(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                void addMoaningFromUrl();
+                              }
+                            }}
+                            disabled={isBusy}
+                            className={`flex-1 rounded-lg border bg-white/5 px-3 py-2 text-xs text-white placeholder-zinc-500 outline-none transition ${
+                              moaningUrlError
+                                ? "border-rose-400/40 focus:border-rose-400/60"
+                                : "border-white/10 focus:border-rose-400/60"
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onMouseEnter={playHoverSound}
+                            onClick={() => void addMoaningFromUrl()}
+                            disabled={isBusy}
+                            className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
+                              isBusy
+                                ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                                : "border-cyan-400/50 bg-cyan-500/20 text-cyan-50 hover:bg-cyan-500/30"
+                            }`}
+                          >
+                            {isBusy ? "Downloading..." : "Add"}
+                          </button>
+                        </div>
+                        {moaningUrlError && <p className="text-xs text-rose-300">{moaningUrlError}</p>}
+                      </div>
+                    )}
+
+                    {moaningMessage && (
+                      <div
+                        className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm ${
+                          moaningMessage.includes("Added")
+                            ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
+                            : "border-cyan-400/30 bg-cyan-500/10 text-cyan-200"
+                        }`}
+                      >
+                        <span>{moaningMessage.includes("Added") ? "✓" : "ℹ"}</span>
+                        <span>{moaningMessage}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Round Packs Section */}
                 {currentStep.interactive === "round-packs" && (
                   <div
@@ -851,6 +1295,85 @@ function FirstStartPage() {
                         <span>{roundMessage}</span>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {currentStep.interactive === "storage" && (
+                  <div
+                    className="mt-3 rounded-2xl border border-sky-400/30 bg-gradient-to-br from-sky-500/10 via-cyan-500/5 to-indigo-500/10 p-4 animate-entrance"
+                    style={{ animationDelay: "0.3s" }}
+                  >
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="text-sky-300">🗄️</span>
+                      <p className="text-sm font-semibold text-sky-100">Storage Locations</p>
+                    </div>
+                    <div className="space-y-3">
+                      {[
+                        {
+                          id: "music-cache" as const,
+                          title: "Music Cache",
+                          description: "Downloaded menu music and imported YouTube audio.",
+                          value: musicCacheRootPath,
+                          fallback: "Default app data folder",
+                        },
+                        {
+                          id: "website-video-cache" as const,
+                          title: "Website Video Cache",
+                          description: "Downloaded website videos and cache files.",
+                          value: websiteVideoCacheRootPath,
+                          fallback: "Default app data folder",
+                        },
+                        {
+                          id: "fpack-extraction" as const,
+                          title: ".fpack Extraction",
+                          description: "Persistent extracted contents from imported .fpack files.",
+                          value: fpackExtractionPath,
+                          fallback: "Default app data folder",
+                        },
+                      ].map((location) => {
+                        const isPending = updatingStorageTarget === location.id;
+                        return (
+                          <div
+                            key={location.id}
+                            className="rounded-xl border border-white/10 bg-black/20 p-3"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-semibold text-white">{location.title}</p>
+                              <p className="text-xs text-zinc-400">{location.description}</p>
+                            </div>
+                            <div className="mt-2 break-all font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-300">
+                              {isLoadingStorageSettings ? "Loading..." : (location.value ?? location.fallback)}
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={isLoadingStorageSettings || isPending}
+                                onMouseEnter={playHoverSound}
+                                onClick={() => {
+                                  playSelectSound();
+                                  void updateStoragePath(location.id);
+                                }}
+                                className="rounded-xl border border-sky-400/50 bg-sky-500/20 px-4 py-2 text-sm font-semibold text-sky-100 transition-all hover:border-sky-300/70 hover:bg-sky-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {isPending ? "Updating..." : "Choose Folder"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isLoadingStorageSettings || isPending || location.value === null}
+                                onMouseEnter={playHoverSound}
+                                onClick={() => {
+                                  playSelectSound();
+                                  void resetStoragePath(location.id);
+                                }}
+                                className="rounded-xl border border-zinc-500/50 bg-zinc-800/60 px-4 py-2 text-sm font-semibold text-zinc-200 transition-all hover:border-zinc-300/60 hover:bg-zinc-700/70 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Use Default
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 

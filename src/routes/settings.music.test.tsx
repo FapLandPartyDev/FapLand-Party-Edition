@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -37,6 +37,28 @@ const mocks = vi.hoisted(() => {
       setVolume: vi.fn(async () => {}),
       setShuffle: vi.fn(async () => {}),
       setLoopMode: vi.fn(async () => {}),
+    },
+    gameplayMoaning: {
+      enabled: true,
+      queue: [
+        { id: "moan-1", filePath: "/moans/one.mp3", name: "one.mp3" },
+        { id: "moan-2", filePath: "/moans/two.mp3", name: "two.mp3" },
+      ],
+      volume: 0.3,
+      isAvailableForGameplay: false,
+      setEnabled: vi.fn(async () => {}),
+      setVolume: vi.fn(async () => {}),
+      addTracks: vi.fn(async () => {}),
+      addTrackFromUrl: vi.fn(async () => {}),
+      addPlaylistFromUrl: vi.fn(async () => ({ addedCount: 0, errorCount: 0 })),
+      removeTrack: vi.fn(async () => {}),
+      moveTrack: vi.fn(async () => {}),
+      clearQueue: vi.fn(async () => {}),
+      previewTrack: vi.fn(async () => {}),
+      stopPreview: vi.fn(),
+      playRandomOneShot: vi.fn(async () => {}),
+      startContinuousLoop: vi.fn(async () => {}),
+      stopContinuousLoop: vi.fn(),
     },
     handy: {
       connectionKey: "",
@@ -121,6 +143,11 @@ vi.mock("../services/db", () => ({
     phash: {
       getScanStatus: vi.fn(async () => null),
     },
+    webVideoCache: {
+      getScanStatus: vi.fn(async () => null),
+      startScanManual: vi.fn(async () => {}),
+      abortScan: vi.fn(async () => {}),
+    },
   },
 }));
 
@@ -168,25 +195,7 @@ vi.mock("../hooks/useGlobalMusic", () => ({
 }));
 
 vi.mock("../hooks/useGameplayMoaning", () => ({
-  useGameplayMoaning: () => ({
-    enabled: true,
-    queue: [],
-    volume: 0.3,
-    isAvailableForGameplay: false,
-    setEnabled: vi.fn(async () => {}),
-    setVolume: vi.fn(async () => {}),
-    addTracks: vi.fn(async () => {}),
-    addTrackFromUrl: vi.fn(async () => {}),
-    addPlaylistFromUrl: vi.fn(async () => ({ addedCount: 0, errorCount: 0 })),
-    removeTrack: vi.fn(async () => {}),
-    moveTrack: vi.fn(async () => {}),
-    clearQueue: vi.fn(async () => {}),
-    previewTrack: vi.fn(async () => {}),
-    stopPreview: vi.fn(),
-    playRandomOneShot: vi.fn(async () => {}),
-    startContinuousLoop: vi.fn(async () => {}),
-    stopContinuousLoop: vi.fn(),
-  }),
+  useGameplayMoaning: () => mocks.gameplayMoaning,
 }));
 
 vi.mock("../contexts/HandyContext", () => ({
@@ -202,12 +211,15 @@ import { getVisibleShortcutGroups, SettingsPage } from "./settings";
 
 describe("Settings music section", () => {
   beforeEach(() => {
+    cleanup();
     mocks.search.section = undefined;
     mocks.navigate.mockClear();
     mocks.globalMusic.addTracks.mockClear();
+    mocks.globalMusic.clearQueue.mockClear();
     mocks.globalMusic.moveTrack.mockClear();
     mocks.globalMusic.removeTrack.mockClear();
     mocks.globalMusic.setVolume.mockClear();
+    mocks.gameplayMoaning.clearQueue.mockClear();
     mocks.handy.connect.mockClear();
     mocks.handy.disconnect.mockClear();
     mocks.handy.forceStop.mockClear();
@@ -268,14 +280,46 @@ describe("Settings music section", () => {
       ]);
     });
 
-    fireEvent.click(screen.getAllByText("Down")[0]!);
+    fireEvent.click(screen.getAllByText("↓")[0]!);
     await waitFor(() => {
       expect(mocks.globalMusic.moveTrack).toHaveBeenCalledWith("track-1", "down");
     });
 
-    fireEvent.click(screen.getAllByText("Remove")[0]!);
+    fireEvent.click(screen.getAllByText("✕")[0]!);
     await waitFor(() => {
       expect(mocks.globalMusic.removeTrack).toHaveBeenCalledWith("track-1");
+    });
+  });
+
+  it("confirms before clearing the music playlist", async () => {
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Audio/ })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: "Clear" })[0]!);
+
+    expect(mocks.globalMusic.clearQueue).not.toHaveBeenCalled();
+    expect(screen.getByText("Clear music playlist?")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear Playlist" }));
+
+    await waitFor(() => {
+      expect(mocks.globalMusic.clearQueue).toHaveBeenCalled();
+    });
+  });
+
+  it("confirms before clearing the moaning playlist", async () => {
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Audio/ })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: "Clear" })[1]!);
+
+    expect(mocks.gameplayMoaning.clearQueue).not.toHaveBeenCalled();
+    expect(screen.getByText("Clear moaning playlist?")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear Playlist" }));
+
+    await waitFor(() => {
+      expect(mocks.gameplayMoaning.clearQueue).toHaveBeenCalled();
     });
   });
 
@@ -484,9 +528,9 @@ describe("Settings music section", () => {
     expect(screen.getByText("Converter")).toBeDefined();
     expect(screen.getByText("Map Editor")).toBeDefined();
     expect(screen.getByText("Ctrl/Cmd+M")).toBeDefined();
-    expect(screen.getByText("Ctrl/Cmd+S")).toBeDefined();
+    expect(screen.getAllByText("Ctrl/Cmd+S").length).toBeGreaterThan(0);
     expect(screen.getByText("Open or close the global music overlay.")).toBeDefined();
-    expect(screen.getByText("Save the current converter mapping immediately.")).toBeDefined();
+    expect(screen.getByText("Save converted rounds to the current hero.")).toBeDefined();
   });
 
   it("hides debug shortcuts in production builds", () => {
