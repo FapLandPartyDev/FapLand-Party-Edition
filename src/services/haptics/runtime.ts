@@ -1,4 +1,5 @@
 import type { FunscriptAction } from "../../game/media/playback";
+import { enhancedSourceId, getEnhancedTrajectory } from "./enhancedTrajectory";
 import { intifaceAdapter, type IntifaceHapticsSession } from "./intifaceAdapter";
 import { tcodeAdapter, type TCodeHapticsSession } from "./tcodeAdapter";
 import { thehandyAdapter, type TheHandyHapticsSession } from "./thehandyAdapter";
@@ -127,7 +128,14 @@ export async function preloadHapticsScript(
     throw new Error("Haptics group configuration does not match its session.");
   }
   assertMatchingProvider(config, session);
-  await getAdapter(session.provider).preloadScript(config, session, sourceId, actions, skipToMs);
+  const enhanced = await getEnhancedTrajectory(config, actions);
+  await getAdapter(session.provider).preloadScript(
+    config,
+    session,
+    enhancedSourceId(sourceId, actions, enhanced),
+    enhanced,
+    skipToMs
+  );
 }
 
 export async function sendHapticsSync(
@@ -160,10 +168,20 @@ export async function sendHapticsSync(
   }
   assertMatchingProvider(config, session);
   const adapter = getAdapter(session.provider);
+  const enhanced = await getEnhancedTrajectory(config, actions, playbackRate);
+  const preparedSourceId = enhancedSourceId(sourceId, actions, enhanced);
   if (options === undefined) {
-    await adapter.sendSync(config, session, timeMs, playbackRate, sourceId, actions);
+    await adapter.sendSync(config, session, timeMs, playbackRate, preparedSourceId, enhanced);
   } else {
-    await adapter.sendSync(config, session, timeMs, playbackRate, sourceId, actions, options);
+    await adapter.sendSync(
+      config,
+      session,
+      timeMs,
+      playbackRate,
+      preparedSourceId,
+      enhanced,
+      options
+    );
   }
 }
 

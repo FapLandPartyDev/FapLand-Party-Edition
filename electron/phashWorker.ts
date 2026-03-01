@@ -547,7 +547,7 @@ async function extractSpriteBmp(
     tSeconds,
     "-vf",
     `fps=${fps.toFixed(4)},trim=0:end_frame=${SPRITE_FRAME_COUNT},scale=${frameWidth}:-1,tile=${tileLayout}:padding=0:margin=0,scale=${totalWidth}:${totalHeight}:force_original_aspect_ratio=disable`,
-    "-vsync",
+    "-fps_mode",
     "vfr",
     "-frames:v",
     "1",

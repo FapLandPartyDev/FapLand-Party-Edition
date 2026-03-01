@@ -27,6 +27,7 @@ import {
   type MainMenuThemeId,
 } from "../constants/menuThemeSettings";
 import { trpc } from "../services/trpc";
+import { McpBridge } from "../mcp/McpBridge";
 import "../styles.css";
 
 let queryClient: QueryClient | null = null;
@@ -246,6 +247,7 @@ function RootComponent() {
     <RootErrorBoundary>
       <RendererPerformanceReporter />
       <QueryClientProvider client={getQueryClient()}>
+        <McpBridge />
         <ControllerProvider>
           <ForegroundMediaProvider>
             <GlobalMusicProvider>

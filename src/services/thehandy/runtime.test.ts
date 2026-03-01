@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handyIndexMocks = vi.hoisted(() => ({
+  clockSync: vi.fn(async (): Promise<unknown> => ({
+    result: { time: 1000, clock_offset: 9000, rtd: 50 },
+  })),
   getDeviceInfo: vi.fn(),
   getHspState: vi.fn(async (): Promise<unknown> => ({ result: undefined })),
   getStroke: vi.fn(async () => ({
@@ -45,6 +48,7 @@ function createLoadedHspSession(overrides: Partial<HandySession> = {}): HandySes
     expiresAtMs: 120_000,
     serverTimeOffsetMs: 0,
     serverTimeOffsetMeasuredAtMs: Date.now(),
+    deviceClockSynchronizedAtMs: Date.now(),
     loadedScriptId: "video-1:500:0:249500",
     activeScriptId: "video-1:500:0:249500",
     lastSyncAtMs: Date.now(),
@@ -255,6 +259,7 @@ describe("sendHspSync", () => {
 
   it("uses the cached estimated Handy server time instead of raw local wall-clock time", async () => {
     vi.spyOn(Date, "now")
+      .mockReturnValue(50_000)
       .mockReturnValueOnce(20_000)
       .mockReturnValueOnce(30_000)
       .mockReturnValueOnce(40_000)
@@ -303,7 +308,7 @@ describe("sendHspSync", () => {
       expect.objectContaining({
         body: expect.objectContaining({
           start_time: 500,
-          server_time: 30_180,
+          server_time: 20_180,
           pause_on_starving: true,
         }),
       })
@@ -312,13 +317,13 @@ describe("sendHspSync", () => {
       expect.objectContaining({
         body: expect.objectContaining({
           current_time: 500,
-          server_time: 50_180,
+          server_time: 20_180,
         }),
       })
     );
   });
 
-  it("tracks reported HSP buffer occupancy without blocking sync", async () => {
+  it("tracks reported HSP buffer occupancy including subsequent appends", async () => {
     const session = createLoadedHspSession();
     handyIndexMocks.getHspState.mockResolvedValueOnce({
       result: {
@@ -337,10 +342,10 @@ describe("sendHspSync", () => {
       "video-1",
       longActions
     );
-    await vi.waitFor(() => expect(session.reportedBufferPoints).toBe(25));
+    expect(session.reportedBufferPoints).toBe(125);
 
     expect(session.maxBufferPoints).toBe(800);
-    expect(session.reportedBufferedUntilMs).toBe(42_000);
+    expect(session.reportedBufferedUntilMs).toBe(99_500);
   });
 
   it("automatically restarts HSP playback after the device reports starvation", async () => {
@@ -355,7 +360,7 @@ describe("sendHspSync", () => {
         })
     );
 
-    await sendHspSync(
+    const sync = sendHspSync(
       { connectionKey: "conn-key", appApiKey: "app-key" },
       session,
       20_000,
@@ -363,6 +368,7 @@ describe("sendHspSync", () => {
       "video-1",
       longActions
     );
+    await vi.waitFor(() => expect(handyIndexMocks.getHspState).toHaveBeenCalled());
     reportStarvation({
       result: {
         points: 0,
@@ -371,7 +377,7 @@ describe("sendHspSync", () => {
         play_state: 4,
       },
     });
-    await vi.waitFor(() => expect(session.hspStarved).toBe(true));
+    await sync;
 
     await sendHspSync(
       { connectionKey: "conn-key", appApiKey: "app-key" },
@@ -385,11 +391,85 @@ describe("sendHspSync", () => {
     expect(handyIndexMocks.hspPlay).toHaveBeenCalledTimes(1);
     expect(handyIndexMocks.hspPlay).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: expect.objectContaining({ start_time: 20_100 }),
+        body: expect.objectContaining({ start_time: 20_000 }),
       })
     );
     expect(session.hspStarved).toBe(false);
     expect(session.activeScriptId).toBe("video-1:500:0:249500");
+  });
+
+  it("anchors playback and corrections to the media sample before slow device requests", async () => {
+    let now = 10_000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    const session = createLoadedHspSession({
+      activeScriptId: null,
+      serverTimeOffsetMs: 250,
+    });
+    handyIndexMocks.getHspState.mockImplementationOnce(async () => {
+      now += 300;
+      return { result: undefined };
+    });
+    handyIndexMocks.hspAdd.mockImplementationOnce(async () => {
+      now += 700;
+      return { result: {} };
+    });
+    handyIndexMocks.hspPlay.mockImplementationOnce(async () => {
+      now += 400;
+      return { result: {} };
+    });
+
+    await sendHspSync(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      20_000,
+      1.5,
+      "video-1",
+      longActions
+    );
+
+    expect(now).toBe(11_400);
+    expect(handyIndexMocks.hspPlay).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ start_time: 20_000, server_time: 10_250 }),
+      })
+    );
+    expect(handyIndexMocks.setHspTime).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ current_time: 20_000, server_time: 10_250 }),
+      })
+    );
+  });
+
+  it("corrects an already playing stream before a slow top-up using the original timestamp", async () => {
+    let now = 10_000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    const session = createLoadedHspSession({ lastSyncAtMs: 7000 });
+    handyIndexMocks.hspAdd.mockImplementationOnce(async () => {
+      now += 600;
+      return { result: {} };
+    });
+
+    await sendHspSync(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      20_000,
+      1,
+      "video-1",
+      longActions,
+      { forceTimeSync: true, timeFilter: null },
+      9800
+    );
+
+    expect(handyIndexMocks.hspPlay).not.toHaveBeenCalled();
+    expect(handyIndexMocks.setHspTime).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { current_time: 20_000, server_time: 9800 } })
+    );
+    expect(handyIndexMocks.setHspTime.mock.invocationCallOrder[0]).toBeLessThan(
+      handyIndexMocks.hspAdd.mock.invocationCallOrder[0]!
+    );
+    expect(handyIndexMocks.setHspTime.mock.invocationCallOrder[0]).toBeLessThan(
+      handyIndexMocks.getHspState.mock.invocationCallOrder[0]!
+    );
   });
 
   it("forces an immediate unfiltered correction when requested", async () => {
@@ -410,6 +490,86 @@ describe("sendHspSync", () => {
         body: expect.not.objectContaining({ filter: expect.anything() }),
       })
     );
+  });
+
+  it("does not overwrite unplayed points when a stale low occupancy report is reused", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1000);
+    const session = createLoadedHspSession({ maxBufferPoints: 240 });
+    handyIndexMocks.getHspState.mockResolvedValueOnce({
+      result: { points: 20, max_points: 240, last_point_time: 49_500 },
+    });
+    await sendHspSync(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      40_000,
+      1,
+      "video-1",
+      longActions
+    );
+    expect(session.reportedBufferPoints).toBe(120);
+    vi.mocked(Date.now).mockReturnValue(1600);
+    await sendHspSync(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      40_000,
+      1,
+      "video-1",
+      longActions
+    );
+    // The 204-point target leaves headroom; repeatedly adding 100 based on
+    // the unchanged 20-point report would eventually overwrite live points.
+    expect(getHspAddCall(1).body.points).toHaveLength(84);
+    expect(session.reportedBufferPoints).toBe(204);
+    expect(handyIndexMocks.getHspState).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses append response state and releases capacity as playback advances", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1000);
+    const session = createLoadedHspSession({ maxBufferPoints: 240 });
+    handyIndexMocks.hspAdd.mockResolvedValueOnce({
+      result: { points: 120, max_points: 240, current_time: 40_000, last_point_time: 99_500 },
+    });
+    await sendHspSync(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      40_000,
+      1,
+      "video-1",
+      longActions
+    );
+    vi.mocked(Date.now).mockReturnValue(1600);
+    await sendHspSync(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      60_000,
+      1,
+      "video-1",
+      longActions
+    );
+    expect(handyIndexMocks.getHspState).toHaveBeenCalledTimes(1);
+    expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(2);
+    expect(session.nextStreamPointIndex).toBe(300);
+  });
+
+  it("rebuilds a starved buffer at the current video time without reconnecting", async () => {
+    const session = createLoadedHspSession();
+    handyIndexMocks.getHspState.mockResolvedValueOnce({
+      result: { points: 0, max_points: 1000, last_point_time: 49_500, play_state: 4 },
+    });
+    await sendHspSync(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      150_000,
+      1,
+      "video-1",
+      longActions
+    );
+    expect(getHspAddCall(0).body.points[0].t).toBe(149_500);
+    expect(handyIndexMocks.hspPlay).toHaveBeenCalledWith(
+      expect.objectContaining({ body: expect.objectContaining({ start_time: 150_000 }) })
+    );
+    expect(handyIndexMocks.issueToken).not.toHaveBeenCalled();
+    expect(session.hspStarved).toBe(false);
   });
 
   it("does not throttle the retry after a device-level sync error", async () => {
@@ -557,7 +717,7 @@ describe("sendHspSync", () => {
       longActions
     );
 
-    nowSpy.mockReturnValue(1_400);
+    nowSpy.mockReturnValue(1_600);
     await sendHspSync(
       {
         connectionKey: "conn-key",
@@ -651,7 +811,7 @@ describe("sendHspSync", () => {
     expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(1);
     expect(session.nextStreamPointIndex).toBe(200);
 
-    nowSpy.mockReturnValue(1_400);
+    nowSpy.mockReturnValue(1_600);
     await sendHspSync(
       {
         connectionKey: "conn-key",
@@ -725,6 +885,156 @@ describe("sendHspSync", () => {
         x: action.pos,
       }))
     );
+  });
+});
+
+describe("device clock synchronization", () => {
+  const auth = { connectionKey: "conn-key", appApiKey: "app-key" };
+  const actions = [{ at: 0, pos: 50 }];
+  const freshSession = () =>
+    createLoadedHspSession({
+      deviceClockSynchronizedAtMs: undefined,
+      loadedScriptId: null,
+      activeScriptId: null,
+    });
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it("waits for device clock synchronization before uploading or playing", async () => {
+    let completeSync!: (value: unknown) => void;
+    handyIndexMocks.clockSync.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          completeSync = resolve;
+        })
+    );
+    const session = freshSession();
+    const syncing = sendHspSync(auth, session, 0, 1, "video", actions);
+
+    await vi.waitFor(() => expect(handyIndexMocks.clockSync).toHaveBeenCalledTimes(1));
+    expect(handyIndexMocks.hspSetup).not.toHaveBeenCalled();
+    expect(handyIndexMocks.hspPlay).not.toHaveBeenCalled();
+    expect(handyIndexMocks.clockSync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: { "X-Connection-Key": "conn-key" },
+        query: { s: true, timeout: 5000 },
+      })
+    );
+
+    completeSync({ result: { time: 1000, clock_offset: 9000, rtd: 50 } });
+    await syncing;
+    expect(handyIndexMocks.hspPlay).toHaveBeenCalledTimes(1);
+    expect(session.deviceClockSynchronizedAtMs).toBeGreaterThan(0);
+  });
+
+  it("synchronizes again for a reconnected session without repeating on every tick", async () => {
+    const session = freshSession();
+    await sendHspSync(auth, session, 0, 1, "video", actions);
+    await sendHspSync(auth, session, 10, 1, "video", actions);
+    expect(handyIndexMocks.clockSync).toHaveBeenCalledTimes(1);
+
+    await sendHspSync(auth, freshSession(), 10, 1, "video", actions);
+    expect(handyIndexMocks.clockSync).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes an expired device clock even when the script is already loaded", async () => {
+    const session = freshSession();
+    await sendHspSync(auth, session, 0, 1, "video", actions);
+    session.deviceClockSynchronizedAtMs = Date.now() - 5 * 60_000;
+    await sendHspSync(auth, session, 20, 1, "video", actions);
+
+    expect(handyIndexMocks.clockSync).toHaveBeenCalledTimes(2);
+    expect(handyIndexMocks.hspSetup).toHaveBeenCalledTimes(1);
+    expect(handyIndexMocks.setHspTime).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        body: { current_time: 20, server_time: expect.any(Number) },
+      })
+    );
+  });
+
+  it("forces both clocks to refresh on manual resync despite recent successful measurements", async () => {
+    const session = freshSession();
+    await sendHspSync(auth, session, 0, 1, "video", actions);
+    handyIndexMocks.clockSync.mockClear();
+    handyIndexMocks.getServerTime.mockClear();
+    handyIndexMocks.setHspTime.mockClear();
+
+    await sendHspSync(auth, session, 5000, 1, "video", actions, {
+      forceClockSync: true,
+      forceTimeSync: true,
+      timeFilter: null,
+    });
+
+    expect(handyIndexMocks.getServerTime).toHaveBeenCalledTimes(3);
+    expect(handyIndexMocks.clockSync).toHaveBeenCalledTimes(1);
+    expect(handyIndexMocks.hspSetup).toHaveBeenCalledTimes(1);
+    expect(handyIndexMocks.setHspTime).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { current_time: 5000, server_time: expect.any(Number) } })
+    );
+    expect(handyIndexMocks.clockSync.mock.invocationCallOrder[0]).toBeLessThan(
+      handyIndexMocks.setHspTime.mock.invocationCallOrder[0]!
+    );
+  });
+
+  it("refreshes an expired clock before resuming retained playback", async () => {
+    const session = createLoadedHspSession({ deviceClockSynchronizedAtMs: undefined });
+    await resumeHandyPlayback(auth, session, 5000);
+
+    expect(handyIndexMocks.clockSync).toHaveBeenCalledTimes(1);
+    expect(handyIndexMocks.clockSync.mock.invocationCallOrder[0]).toBeLessThan(
+      handyIndexMocks.hspPlay.mock.invocationCallOrder[0]!
+    );
+  });
+
+  it("keeps the media timestamp paired with its sample during a slow clock refresh", async () => {
+    let now = 10_000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    handyIndexMocks.clockSync.mockImplementationOnce(async () => {
+      now += 1400;
+      return { result: { time: 1000, clock_offset: 9000, rtd: 50 } };
+    });
+    const session = createLoadedHspSession({
+      deviceClockSynchronizedAtMs: undefined,
+      serverTimeOffsetMs: 600,
+    });
+
+    await resumeHandyPlayback(auth, session, 5000);
+
+    expect(handyIndexMocks.hspPlay).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ start_time: 5000, server_time: 10_600 }),
+      })
+    );
+  });
+
+  it("retries failed synchronization and keeps playback blocked until a later success", async () => {
+    vi.useFakeTimers();
+    try {
+      handyIndexMocks.clockSync
+        .mockRejectedValueOnce(new Error("timeout"))
+        .mockResolvedValueOnce({ error: { message: "Device busy" } })
+        .mockResolvedValueOnce({ result: {} });
+      const session = freshSession();
+      const failure = expect(sendHspSync(auth, session, 0, 1, "video", actions)).rejects.toThrow(
+        "Failed to synchronize TheHandy device clock"
+      );
+      await vi.runAllTimersAsync();
+      await failure;
+
+      expect(handyIndexMocks.clockSync).toHaveBeenCalledTimes(3);
+      expect(handyIndexMocks.hspPlay).not.toHaveBeenCalled();
+      expect(session.deviceClockSynchronizedAtMs).toBeUndefined();
+      expect(session.deviceClockSyncPromise).toBeNull();
+
+      await sendHspSync(auth, session, 0, 1, "video", actions);
+      expect(handyIndexMocks.clockSync).toHaveBeenCalledTimes(4);
+      expect(handyIndexMocks.hspPlay).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

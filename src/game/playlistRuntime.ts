@@ -192,6 +192,33 @@ function buildLinearConfig(
     kind: "end",
   });
 
+  if (config.shuffleDifficultyBandRoundsOnRun) {
+    // Checkpoints and configured band edges divide the virtual board into independent groups.
+    const boundaries = new Set<number>();
+    for (const section of config.difficultySections ?? []) {
+      boundaries.add(section.startIndex);
+      boundaries.add(section.endIndex + 1);
+    }
+    let group: number[] = [];
+    const shuffleGroup = () => {
+      const roundIds = group.map((index) => normalRoundIdsByIndex[index]);
+      for (let cursor = roundIds.length - 1; cursor > 0; cursor -= 1) {
+        const other = randomIndex(cursor + 1, randomValue);
+        [roundIds[cursor], roundIds[other]] = [roundIds[other], roundIds[cursor]];
+      }
+      group.forEach((index, cursor) => {
+        normalRoundIdsByIndex[index] = roundIds[cursor];
+        board[index].fixedRoundId = roundIds[cursor];
+      });
+      group = [];
+    };
+    for (let index = 1; index <= totalIndices; index += 1) {
+      if (safeSet.has(index) || boundaries.has(index)) shuffleGroup();
+      if (normalRoundIdsByIndex[index] && !safeSet.has(index)) group.push(index);
+    }
+    shuffleGroup();
+  }
+
   const edges: RuntimeGraphEdge[] = [];
   for (let index = 0; index < board.length - 1; index += 1) {
     const from = board[index];

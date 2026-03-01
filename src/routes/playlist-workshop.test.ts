@@ -15,6 +15,7 @@ function makeSetup(
     safePointIndices: [],
     difficultySections: [],
     shuffleDifficultySectionRounds: false,
+    shuffleDifficultyBandRoundsOnRun: false,
     saveMode: "none",
     normalRoundOrder: [],
     enabledCumRoundIds: [],

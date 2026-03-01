@@ -15,6 +15,7 @@ F-Land is an adult-oriented party/board-game app with both solo and multiplayer 
 - Highscores and cached match history
 - TheHandy connection and sync controls
 - Desktop packaging, auto-update wiring, and custom file associations
+- MCP app control for chat clients: rounds, playlists, advanced maps, settings and visible UI ([setup guide](./docs/mcp.md))
 
 ## Stack
 

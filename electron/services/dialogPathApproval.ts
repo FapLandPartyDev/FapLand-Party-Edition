@@ -1,4 +1,12 @@
 import path from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
+
+const localControlPaths = new AsyncLocalStorage<boolean>();
+
+/** Local MCP calls supply paths directly instead of opening OS file pickers. */
+export function withLocalControlPaths<T>(callback: () => T): T {
+  return localControlPaths.run(true, callback);
+}
 
 export type DialogPathApprovalKind =
   | "installFolder"
@@ -48,6 +56,8 @@ export function assertApprovedDialogPath(
   if (!normalizedPath) {
     throw new Error("Path must be selected through the system dialog.");
   }
+
+  if (localControlPaths.getStore()) return normalizedPath;
 
   const approvals = pruneExpiredApprovals(kind, Date.now());
   const expiresAtMs = approvals.get(normalizedPath);

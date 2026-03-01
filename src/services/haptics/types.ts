@@ -67,6 +67,8 @@ export type HapticsSession = {
 
 export type HapticsSyncOptions = {
   forceTimeSync?: boolean;
+  /** Refresh both app and device clocks, bypassing cached measurements. */
+  forceClockSync?: boolean;
   /** `null` deliberately omits the provider's smoothing filter. */
   timeFilter?: number | null;
 };

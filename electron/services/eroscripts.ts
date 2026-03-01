@@ -1,5 +1,8 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import os from "node:os";
 import path from "node:path";
 import { BrowserWindow, session, type Cookie } from "electron";
@@ -182,6 +185,30 @@ async function authHeaders(): Promise<Record<string, string>> {
   return cookieHeader ? { Cookie: cookieHeader } : {};
 }
 
+async function fetchSessionAttachment(
+  url: string,
+  accept = "application/json,text/plain,*/*"
+): Promise<Response> {
+  let target = url;
+  for (let redirects = 0; redirects <= 10; redirects++) {
+    const headers = new URL(target).origin === EROSCRIPTS_BASE_URL ? await authHeaders() : {};
+    const response = await fetch(target, {
+      redirect: "manual",
+      headers: {
+        Accept: accept,
+        "User-Agent": "F-Land EroScripts Search",
+        ...headers,
+      },
+    });
+    if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+    const location = response.headers.get("location");
+    await response.body?.cancel();
+    if (!location) throw new Error("Attachment redirect did not provide a destination.");
+    target = normalizeHttpUrl(new URL(location, target).href);
+  }
+  throw new Error("Too many attachment download redirects.");
+}
+
 function blankLoginStatus(cookieCount: number, error: string | null = null): EroScriptsLoginStatus {
   return {
     loggedIn: false,
@@ -267,11 +294,9 @@ export async function getEroScriptsLoginStatus(): Promise<EroScriptsLoginStatus>
       error: null,
     };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "EroScripts login check failed.";
+    const message = error instanceof Error ? error.message : "EroScripts login check failed.";
     const isTimeout =
-      error instanceof Error &&
-      (error.name === "TimeoutError" || error.name === "AbortError");
+      error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
     return blankLoginStatus(
       cookies.length,
       isTimeout ? "EroScripts login check timed out." : message
@@ -544,6 +569,7 @@ function isLikelyDownloaderVideoUrl(url: string): boolean {
 }
 
 function isTrustedDownloaderVideoUrl(url: string): boolean {
+  if (new URL(url).origin === EROSCRIPTS_BASE_URL && isLikelyVideoUrl(url)) return true;
   if (!isLikelyDownloaderVideoUrl(url)) return false;
   return classifyTrustedUrl(url)?.decision === "trusted";
 }
@@ -727,14 +753,7 @@ export async function downloadEroScriptsFunscript(input: {
     await fs.rm(cacheDir, { recursive: true, force: true });
     await fs.mkdir(cacheDir, { recursive: true });
 
-    const headers = await authHeaders();
-    const response = await fetch(normalizedUrl, {
-      headers: {
-        Accept: "application/json,text/plain,*/*",
-        "User-Agent": "F-Land EroScripts Search",
-        ...headers,
-      },
-    });
+    const response = await fetchSessionAttachment(normalizedUrl);
     if (!response.ok) {
       throw new Error(`Funscript download failed: ${response.status} ${response.statusText}`);
     }
@@ -834,6 +853,50 @@ export async function downloadEroScriptsVideo(input: {
 
     await fs.rm(cacheDir, { recursive: true, force: true });
     await fs.mkdir(cacheDir, { recursive: true });
+
+    if (new URL(normalizedUrl).origin === EROSCRIPTS_BASE_URL) {
+      const response = await fetchSessionAttachment(
+        normalizedUrl,
+        "video/*,application/octet-stream,*/*"
+      );
+      if (!response.ok || !response.body)
+        throw new Error(`Video attachment download failed: ${response.status}`);
+      if (/text\/html|application\/json/iu.test(response.headers.get("content-type") ?? "")) {
+        await response.body.cancel();
+        throw new Error(
+          "The attachment returned a login or error page instead of a video. Check the integrated EroScripts session."
+        );
+      }
+      const filename = `video${path.extname(new URL(normalizedUrl).pathname).toLowerCase()}`;
+      const filePath = path.join(cacheDir, filename);
+      const temporaryPath = `${filePath}.part`;
+      try {
+        await pipeline(
+          Readable.fromWeb(response.body as unknown as import("node:stream/web").ReadableStream),
+          createWriteStream(temporaryPath)
+        );
+        if (!(await isNonEmptyFile(temporaryPath))) throw new Error("Video attachment was empty.");
+        await fs.rename(temporaryPath, filePath);
+      } catch (error) {
+        await fs.rm(temporaryPath, { force: true });
+        throw error;
+      }
+      await writeMetadata(metadataPath, {
+        kind: "video",
+        sourceUrl: normalizedUrl,
+        topicId: input.topicId,
+        postId: input.postId ?? null,
+        filename,
+        createdAt: new Date().toISOString(),
+      });
+      return {
+        filePath,
+        videoUri: toLocalMediaUri(filePath),
+        filename,
+        title: null,
+        cached: false,
+      };
+    }
 
     const [binary, info] = await Promise.all([resolveYtDlpBinary(), inspectVideo(normalizedUrl)]);
     const outputTemplate = path.join(cacheDir, "video.%(ext)s");

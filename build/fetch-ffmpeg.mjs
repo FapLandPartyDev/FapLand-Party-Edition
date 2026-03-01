@@ -215,7 +215,7 @@ async function downloadFile(url, outputFile, expectedSha256) {
 }
 
 async function extractArchive(archivePath, archiveType, destinationDir) {
-  const isWindows = os.platform() === 'win32';
+  const isWindows = os.platform() === "win32";
 
   if (archiveType === "zip") {
     if (isWindows) {
@@ -223,7 +223,7 @@ async function extractArchive(archivePath, archiveType, destinationDir) {
       await runCommand("powershell", [
         "-NoProfile",
         "-Command",
-        `Expand-Archive -Path '${archivePath}' -DestinationPath '${destinationDir}' -Force`
+        `Expand-Archive -Path '${archivePath}' -DestinationPath '${destinationDir}' -Force`,
       ]);
     } else {
       await runCommand("unzip", ["-qq", archivePath, "-d", destinationDir]);
@@ -259,76 +259,83 @@ async function findFileByBasename(rootDir, fileName) {
   return null;
 }
 
-const latestTarget = await fetchLatestTarget();
-const outputDir = path.join(repoRoot, "build", "vendor", "ffmpeg", targetKey);
-const ffmpegOutputPath = path.join(outputDir, latestTarget.ffmpegBinaryName);
-const ffprobeOutputPath = path.join(outputDir, latestTarget.ffprobeBinaryName);
-const manifestPath = path.join(outputDir, "manifest.json");
+async function main() {
+  const latestTarget = await fetchLatestTarget();
+  const outputDir = path.join(repoRoot, "build", "vendor", "ffmpeg", targetKey);
+  const ffmpegOutputPath = path.join(outputDir, latestTarget.ffmpegBinaryName);
+  const ffprobeOutputPath = path.join(outputDir, latestTarget.ffprobeBinaryName);
+  const manifestPath = path.join(outputDir, "manifest.json");
 
-await fs.mkdir(outputDir, { recursive: true });
+  await fs.mkdir(outputDir, { recursive: true });
 
-const existingManifest = await loadManifest(manifestPath);
-if (
-  existingManifest?.sha256 === latestTarget.sha256 &&
-  (await fileExists(ffmpegOutputPath)) &&
-  (await fileExists(ffprobeOutputPath))
-) {
-  await ensureExecutable(ffmpegOutputPath);
-  await ensureExecutable(ffprobeOutputPath);
-  console.log(`[ffmpeg] Using cached ${latestTarget.releaseName}`);
-  process.exit(0);
-}
-
-const tempRoot = await fs.mkdtemp(path.join(tmpdir(), "f-land-ffmpeg-"));
-const archivePath = path.join(tempRoot, latestTarget.assetName);
-const extractDir = path.join(tempRoot, "extract");
-
-try {
-  await fs.mkdir(extractDir, { recursive: true });
-  console.log(
-    `[ffmpeg] Downloading ${latestTarget.assetName} from ${latestTarget.releaseName}${latestTarget.publishedAt ? ` (${latestTarget.publishedAt})` : ""}`
-  );
-  await downloadFile(latestTarget.downloadUrl, archivePath, latestTarget.sha256);
-
-  const archiveDigest = await sha256File(archivePath);
-  if (archiveDigest !== latestTarget.sha256) {
-    throw new Error(
-      `Archive checksum mismatch after download: expected ${latestTarget.sha256}, got ${archiveDigest}`
-    );
+  const existingManifest = await loadManifest(manifestPath);
+  if (
+    existingManifest?.sha256 === latestTarget.sha256 &&
+    (await fileExists(ffmpegOutputPath)) &&
+    (await fileExists(ffprobeOutputPath))
+  ) {
+    await ensureExecutable(ffmpegOutputPath);
+    await ensureExecutable(ffprobeOutputPath);
+    console.log(`[ffmpeg] Using cached ${latestTarget.releaseName}`);
+    return;
   }
 
-  await extractArchive(archivePath, latestTarget.archiveType, extractDir);
+  const tempRoot = await fs.mkdtemp(path.join(tmpdir(), "f-land-ffmpeg-"));
+  const archivePath = path.join(tempRoot, latestTarget.assetName);
+  const extractDir = path.join(tempRoot, "extract");
 
-  const extractedFfmpegPath = await findFileByBasename(extractDir, latestTarget.ffmpegBinaryName);
-  const extractedFfprobePath = await findFileByBasename(extractDir, latestTarget.ffprobeBinaryName);
-
-  if (!extractedFfmpegPath || !extractedFfprobePath) {
-    throw new Error(
-      `Unable to locate ${latestTarget.ffmpegBinaryName} and ${latestTarget.ffprobeBinaryName} in extracted archive.`
+  try {
+    await fs.mkdir(extractDir, { recursive: true });
+    console.log(
+      `[ffmpeg] Downloading ${latestTarget.assetName} from ${latestTarget.releaseName}${latestTarget.publishedAt ? ` (${latestTarget.publishedAt})` : ""}`
     );
+    await downloadFile(latestTarget.downloadUrl, archivePath, latestTarget.sha256);
+
+    const archiveDigest = await sha256File(archivePath);
+    if (archiveDigest !== latestTarget.sha256) {
+      throw new Error(
+        `Archive checksum mismatch after download: expected ${latestTarget.sha256}, got ${archiveDigest}`
+      );
+    }
+
+    await extractArchive(archivePath, latestTarget.archiveType, extractDir);
+
+    const extractedFfmpegPath = await findFileByBasename(extractDir, latestTarget.ffmpegBinaryName);
+    const extractedFfprobePath = await findFileByBasename(
+      extractDir,
+      latestTarget.ffprobeBinaryName
+    );
+
+    if (!extractedFfmpegPath || !extractedFfprobePath) {
+      throw new Error(
+        `Unable to locate ${latestTarget.ffmpegBinaryName} and ${latestTarget.ffprobeBinaryName} in extracted archive.`
+      );
+    }
+
+    await fs.copyFile(extractedFfmpegPath, ffmpegOutputPath);
+    await fs.copyFile(extractedFfprobePath, ffprobeOutputPath);
+    await ensureExecutable(ffmpegOutputPath);
+    await ensureExecutable(ffprobeOutputPath);
+
+    await fs.writeFile(
+      manifestPath,
+      `${JSON.stringify(
+        {
+          releaseName: latestTarget.releaseName,
+          publishedAt: latestTarget.publishedAt,
+          assetName: latestTarget.assetName,
+          sha256: latestTarget.sha256,
+        },
+        null,
+        2
+      )}\n`,
+      "utf8"
+    );
+
+    console.log(`[ffmpeg] Ready at ${path.relative(repoRoot, outputDir)}`);
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
   }
-
-  await fs.copyFile(extractedFfmpegPath, ffmpegOutputPath);
-  await fs.copyFile(extractedFfprobePath, ffprobeOutputPath);
-  await ensureExecutable(ffmpegOutputPath);
-  await ensureExecutable(ffprobeOutputPath);
-
-  await fs.writeFile(
-    manifestPath,
-    `${JSON.stringify(
-      {
-        releaseName: latestTarget.releaseName,
-        publishedAt: latestTarget.publishedAt,
-        assetName: latestTarget.assetName,
-        sha256: latestTarget.sha256,
-      },
-      null,
-      2
-    )}\n`,
-    "utf8"
-  );
-
-  console.log(`[ffmpeg] Ready at ${path.relative(repoRoot, outputDir)}`);
-} finally {
-  await fs.rm(tempRoot, { recursive: true, force: true });
 }
+
+await main();

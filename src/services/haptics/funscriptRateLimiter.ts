@@ -63,13 +63,34 @@ function sanitizeActions(actions: FunscriptAction[]): FunscriptAction[] {
   return result;
 }
 
-function simplifyRdp(actions: FunscriptAction[], epsilon: number): FunscriptAction[] {
+function simplifyRdp(
+  actions: FunscriptAction[],
+  epsilon: number,
+  playbackRate: number
+): FunscriptAction[] {
   if (actions.length < 3 || epsilon <= 0) return [...actions];
 
   const keep = new Uint8Array(actions.length);
   keep[0] = 1;
   keep[actions.length - 1] = 1;
-  const stack: Array<[number, number]> = [[0, actions.length - 1]];
+  const stack: Array<[number, number]> = [];
+  let anchor = 0;
+  for (let index = 1; index < actions.length - 1; index += 1) {
+    const before = actions[index - 1]!;
+    const current = actions[index]!;
+    const after = actions[index + 1]!;
+    // Small, rapid reversals carry vibration even when they fall below epsilon.
+    // Split RDP at them so a later device-processing pass cannot erase the carrier.
+    if (
+      (current.pos - before.pos) * (after.pos - current.pos) < 0 &&
+      Math.max(current.at - before.at, after.at - current.at) / playbackRate <= 160
+    ) {
+      keep[index] = 1;
+      stack.push([anchor, index]);
+      anchor = index;
+    }
+  }
+  stack.push([anchor, actions.length - 1]);
   const epsilonSquared = epsilon * epsilon;
 
   while (stack.length > 0) {
@@ -166,7 +187,7 @@ export function processFunscriptTrajectory(
   }
 
   return {
-    actions: simplifyRdp(limited, normalizeFunscriptRdpEpsilon(options.rdpEpsilon)),
+    actions: simplifyRdp(limited, normalizeFunscriptRdpEpsilon(options.rdpEpsilon), playbackRate),
     clampedActionCount,
     maximumSourceRate,
   };

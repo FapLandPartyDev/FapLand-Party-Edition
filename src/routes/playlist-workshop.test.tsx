@@ -665,6 +665,39 @@ describe("PlaylistWorkshopRoute", () => {
     });
   });
 
+  it.each(["Updated description\nSecond line", ""])(
+    "persists the linear playlist description %j",
+    async (description) => {
+      const playlist = {
+        ...makeLinearPlaylist("linear-playlist", "Linear Playlist"),
+        description: "Existing description",
+      };
+      mocks.loaderData = {
+        installedRounds: [],
+        availablePlaylists: [playlist],
+        activePlaylist: playlist,
+      };
+      mocks.playlists.list.mockResolvedValue([playlist]);
+      mocks.playlists.getActive.mockResolvedValue(playlist);
+      render(<Component />);
+      fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
+      const field = (await screen.findByLabelText("Description")) as HTMLTextAreaElement;
+      expect(field.value).toBe("Existing description");
+      fireEvent.change(field, { target: { value: description } });
+      await waitFor(() => {
+        expect(
+          (screen.getByRole("button", { name: "💾 Save" }) as HTMLButtonElement).disabled
+        ).toBe(false);
+      });
+      fireEvent.click(screen.getByRole("button", { name: "💾 Save" }));
+      await waitFor(() => {
+        expect(mocks.playlists.update).toHaveBeenCalledWith(
+          expect.objectContaining({ playlistId: "linear-playlist", description })
+        );
+      });
+    }
+  );
+
   it("loads and saves starting money for linear playlists", async () => {
     const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist", 275);
     mocks.loaderData = {

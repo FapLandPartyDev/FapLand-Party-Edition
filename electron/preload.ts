@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { exposeElectronTRPC } from "trpc-electron/main";
 import type { AppUpdateState } from "./services/updater";
 import type { EroScriptsLoginStatus } from "./services/eroscripts";
+import type { McpChange, McpStatus, McpUiRequest } from "../src/mcp/types";
 
 process.once("loaded", () => {
   exposeElectronTRPC();
@@ -42,6 +43,25 @@ window.addEventListener("unhandledrejection", (event) => {
 
 // Keep the app:// media URL helper separate from the tRPC bridge.
 contextBridge.exposeInMainWorld("electronAPI", {
+  mcp: {
+    status: () => ipcRenderer.invoke("mcp:status") as Promise<McpStatus>,
+    configure: (input: { enabled: boolean; port: number }) => ipcRenderer.invoke("mcp:configure", input) as Promise<McpStatus>,
+    onChanged: (callback: (change: McpChange) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, change: McpChange) => callback(change);
+      ipcRenderer.on("mcp:changed", listener);
+      return () => ipcRenderer.removeListener("mcp:changed", listener);
+    },
+    onUiRequest: (callback: (input: McpUiRequest) => Promise<unknown>) => {
+      const listener = (_event: Electron.IpcRendererEvent, request: { id: string; input: McpUiRequest }) => {
+        void Promise.resolve().then(() => callback(request.input)).then(
+          (value) => ipcRenderer.send("mcp:ui-response", { id: request.id, value }),
+          (error: unknown) => ipcRenderer.send("mcp:ui-response", { id: request.id, error: error instanceof Error ? error.message : String(error) })
+        );
+      };
+      ipcRenderer.on("mcp:ui-request", listener);
+      return () => ipcRenderer.removeListener("mcp:ui-request", listener);
+    },
+  },
   file: {
     convertFileSrc: (filePath: string): string => `app://media/${encodeURIComponent(filePath)}`,
   },

@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { generateRoundPreviewImageDataUri } from "./roundPreview";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import {
+  generateQueuedRoundPreviewImageDataUri,
+  generateRoundPreviewImageDataUri,
+} from "./roundPreview";
+
+const videoPath = path.resolve("/tmp/video.mp4");
 
 const {
   resolvePhashBinariesMock,
@@ -53,7 +60,7 @@ describe("generateRoundPreviewImageDataUri", () => {
     });
 
     const result = await generateRoundPreviewImageDataUri({
-      videoUri: "file:///tmp/video.mp4",
+      videoUri: pathToFileURL(videoPath).href,
       startTimeMs: 5_000,
       endTimeMs: 9_000,
     });
@@ -61,27 +68,31 @@ describe("generateRoundPreviewImageDataUri", () => {
     expect(result).toBe(
       `data:image/jpeg;base64,${Buffer.from("preview-bytes").toString("base64")}`
     );
-    expect(runCommandMock).toHaveBeenCalledWith("/tmp/ffmpeg", [
-      "-hide_banner",
-      "-loglevel",
-      "error",
-      "-nostdin",
-      "-ss",
-      "7.000000",
-      "-i",
-      "/tmp/video.mp4",
-      "-frames:v",
-      "1",
-      "-vf",
-      "scale=480:-2",
-      "-q:v",
-      "6",
-      "-f",
-      "image2pipe",
-      "-vcodec",
-      "mjpeg",
-      "-",
-    ]);
+    expect(runCommandMock).toHaveBeenCalledWith(
+      "/tmp/ffmpeg",
+      [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-nostdin",
+        "-ss",
+        "7.000000",
+        "-i",
+        videoPath,
+        "-frames:v",
+        "1",
+        "-vf",
+        "scale=480:-2",
+        "-q:v",
+        "6",
+        "-f",
+        "image2pipe",
+        "-vcodec",
+        "mjpeg",
+        "-",
+      ],
+      { lowPriority: true, timeoutMs: 15_000 }
+    );
   });
 
   it("adds single-thread ffmpeg args only when the setting is enabled", async () => {
@@ -92,12 +103,13 @@ describe("generateRoundPreviewImageDataUri", () => {
     });
 
     await generateRoundPreviewImageDataUri({
-      videoUri: "file:///tmp/video.mp4",
+      videoUri: pathToFileURL(videoPath).href,
     });
 
     expect(runCommandMock).toHaveBeenCalledWith(
       "/tmp/ffmpeg",
-      expect.arrayContaining(["-threads", "1"])
+      expect.arrayContaining(["-threads", "1"]),
+      expect.objectContaining({ lowPriority: true })
     );
   });
 
@@ -131,7 +143,8 @@ describe("generateRoundPreviewImageDataUri", () => {
     );
     expect(runCommandMock).toHaveBeenCalledWith(
       "/tmp/ffmpeg",
-      expect.arrayContaining(["-i", "/tmp/cached-video.mp4"])
+      expect.arrayContaining(["-i", path.normalize("/tmp/cached-video.mp4")]),
+      expect.objectContaining({ timeoutMs: 15_000 })
     );
   });
 
@@ -151,7 +164,56 @@ describe("generateRoundPreviewImageDataUri", () => {
     );
     expect(runCommandMock).toHaveBeenCalledWith(
       "/tmp/ffmpeg",
-      expect.arrayContaining(["-i", "https://example.com/watch?v=1"])
+      expect.arrayContaining(["-i", "https://example.com/watch?v=1"]),
+      expect.objectContaining({ timeoutMs: 15_000 })
     );
+  });
+
+  it("decodes app media paths without adding a leading slash to Windows drive letters", async () => {
+    const localPath = path.resolve("/tmp/round #1 100%.mp4");
+    runCommandMock.mockResolvedValue({ stdout: Buffer.from("preview"), stderr: Buffer.alloc(0) });
+    await generateRoundPreviewImageDataUri({
+      videoUri: `app://media/${encodeURIComponent(localPath)}`,
+    });
+    expect(runCommandMock).toHaveBeenCalledWith(
+      "/tmp/ffmpeg",
+      expect.arrayContaining(["-i", localPath]),
+      expect.any(Object)
+    );
+  });
+
+  it("deduplicates and serializes background extraction and limits its threads", async () => {
+    let finish!: (value: { stdout: Buffer; stderr: Buffer }) => void;
+    runCommandMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    runCommandMock.mockResolvedValue({ stdout: Buffer.from("second"), stderr: Buffer.alloc(0) });
+    const firstInput = {
+      videoUri: `app://media/${encodeURIComponent(videoPath)}`,
+      startTimeMs: 123,
+    };
+    const first = generateQueuedRoundPreviewImageDataUri(firstInput);
+    expect(generateQueuedRoundPreviewImageDataUri(firstInput)).toBe(first);
+    const second = generateQueuedRoundPreviewImageDataUri({ ...firstInput, startTimeMs: 456 });
+    await vi.waitFor(() => expect(runCommandMock).toHaveBeenCalledTimes(1));
+    finish({ stdout: Buffer.from("first"), stderr: Buffer.alloc(0) });
+    await Promise.all([first, second]);
+    expect(runCommandMock).toHaveBeenCalledTimes(2);
+    expect(runCommandMock).toHaveBeenLastCalledWith(
+      "/tmp/ffmpeg",
+      expect.arrayContaining(["-threads", "1", "-filter_threads", "1"]),
+      { lowPriority: true, timeoutMs: 15_000 }
+    );
+  });
+
+  it("does not repeatedly decode a failing file when cards are revisited", async () => {
+    runCommandMock.mockRejectedValue(new Error("unreadable media"));
+    const input = { videoUri: `app://media/${encodeURIComponent(videoPath)}`, startTimeMs: 789 };
+    expect(await generateQueuedRoundPreviewImageDataUri(input)).toBeNull();
+    expect(await generateQueuedRoundPreviewImageDataUri(input)).toBeNull();
+    expect(runCommandMock).toHaveBeenCalledTimes(1);
   });
 });

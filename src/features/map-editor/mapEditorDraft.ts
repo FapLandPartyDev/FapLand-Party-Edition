@@ -16,6 +16,7 @@ export type MapEditorSaveStatus = "saved" | "dirty" | "saving" | "error";
 export interface MapEditorDraftSnapshot {
   version: 1;
   name: string;
+  description?: string;
   config: EditorGraphConfig;
   viewport: ViewportState;
   showGrid: boolean;
@@ -68,6 +69,7 @@ const ZDraftConfig = z.custom<EditorGraphConfig>((value) => {
 export const ZMapEditorDraftSnapshot = z.object({
   version: z.literal(1),
   name: z.string(),
+  description: z.string().optional(),
   config: ZDraftConfig,
   viewport: ZViewport,
   showGrid: z.boolean(),

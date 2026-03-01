@@ -3,6 +3,12 @@ declare global {
 
   interface Window {
     electronAPI: {
+      mcp?: {
+        status: () => Promise<import("./mcp/types").McpStatus>;
+        configure: (input: { enabled: boolean; port: number }) => Promise<import("./mcp/types").McpStatus>;
+        onChanged: (callback: (change: import("./mcp/types").McpChange) => void) => () => void;
+        onUiRequest: (callback: (input: import("./mcp/types").McpUiRequest) => Promise<unknown>) => () => void;
+      };
       file: {
         convertFileSrc: (filePath: string) => string;
       };

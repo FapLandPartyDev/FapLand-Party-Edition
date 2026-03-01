@@ -1,5 +1,24 @@
 # What's New
 
+## v0.6.27-beta.1
+
+### Added
+
+- **MCP app control** — connect local AI clients to manage rounds, downloads, playlists, maps and settings, inspect the app, and interact with the visible UI. Includes screenshots, visual input, live map-editor collaboration, a stdio bridge and setup documentation. Connected clients have full app access, including changing or deleting local content.
+- **Per-script enhancement** — enable repeatable motion variation with a Wildness slider for individual funscripts and a global master switch. Settings are saved per script without modifying the original files.
+- **Quick funscript inversion** — invert or restore scripts from the in-round Options menu, Round Inspector and hero group menus, with connected haptics resynchronized automatically.
+- **Playlist authoring options** — edit playlist descriptions and optionally shuffle rounds within difficulty bands for each new run while preserving checkpoints and resumed runs.
+
+### Changed
+
+- Improved Handy pause/resume, buffering and starvation recovery, with playback-speed-aware movement limiting and enhanced trajectories.
+- Reduced library preview load by queuing background thumbnail generation, sharing requests and caching failures; improved local video path handling and media replacement.
+- Improved EroScripts download handling, converter media inspection and funscript timeline normalization.
+- Updated video fingerprint extraction for FFmpeg versions that have removed the legacy frame-sync option.
+- Updated FFmpeg preparation, dependency/license metadata and translations for English, German, Spanish, French and Chinese.
+
+---
+
 ## v0.6.25-beta
 
 ### Added

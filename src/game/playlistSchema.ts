@@ -150,6 +150,7 @@ export const ZLinearBoardConfig = z
     cumRoundRefs: z.array(ZPortableRoundRef).default([]),
     difficultySections: z.array(ZDifficultySection).optional(),
     shuffleDifficultySectionRounds: z.boolean().optional(),
+    shuffleDifficultyBandRoundsOnRun: z.boolean().optional(),
   })
   .strict()
   .superRefine((value, context) => {

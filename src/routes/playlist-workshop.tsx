@@ -98,6 +98,7 @@ type EditableLinearSetup = {
   safePointIndices: number[];
   difficultySections: DifficultySection[];
   shuffleDifficultySectionRounds: boolean;
+  shuffleDifficultyBandRoundsOnRun: boolean;
   saveMode: "none" | "checkpoint" | "everywhere";
   normalRoundOrder: string[];
   enabledCumRoundIds: string[];
@@ -522,6 +523,7 @@ function toEditableSetup(
       safePointIndices: [...DEFAULT_SAFE_PRESET],
       difficultySections: [],
       shuffleDifficultySectionRounds: false,
+      shuffleDifficultyBandRoundsOnRun: false,
       saveMode: config.saveMode ?? "none",
       normalRoundOrder: [],
       enabledCumRoundIds: [],
@@ -578,6 +580,7 @@ function toEditableSetup(
     safePointIndices: [...board.safePointIndices],
     difficultySections: [...(board.difficultySections ?? [])],
     shuffleDifficultySectionRounds: board.shuffleDifficultySectionRounds ?? false,
+    shuffleDifficultyBandRoundsOnRun: board.shuffleDifficultyBandRoundsOnRun ?? false,
     saveMode: config.saveMode ?? "none",
     normalRoundOrder,
     enabledCumRoundIds,
@@ -644,6 +647,7 @@ function toLinearBoardConfig(
     cumRoundRefs,
     difficultySections: setup.difficultySections,
     shuffleDifficultySectionRounds: setup.shuffleDifficultySectionRounds,
+    shuffleDifficultyBandRoundsOnRun: setup.shuffleDifficultyBandRoundsOnRun,
   };
 }
 
@@ -870,6 +874,13 @@ function PlaylistWorkshopPage() {
     () => playlistList.find((playlist) => playlist.id === activePlaylistId) ?? null,
     [activePlaylistId, playlistList]
   );
+
+  const [playlistDescriptionDraft, setPlaylistDescriptionDraft] = useState(
+    activePlaylist?.description ?? ""
+  );
+  useEffect(() => {
+    setPlaylistDescriptionDraft(activePlaylist?.description ?? "");
+  }, [activePlaylist?.id, activePlaylist?.description]);
 
   const [installedRounds, setInstalledRounds] = useState<WorkshopInstalledRound[]>([]);
   const [installedRoundsStatus, setInstalledRoundsStatus] = useState<
@@ -1732,6 +1743,7 @@ function PlaylistWorkshopPage() {
 
     const updated = await playlists.update({
       playlistId: activePlaylist.id,
+      description: playlistDescriptionDraft,
       config: nextConfig,
     });
     if (importedPlaylistReview?.playlistId === activePlaylist.id) {
@@ -2344,6 +2356,21 @@ function PlaylistWorkshopPage() {
                         </span>
                       </div>
 
+                      <label
+                        htmlFor="playlist-workshop-description"
+                        className="block text-sm text-zinc-300"
+                      >
+                        <span className="mb-2 block">{t`Description`}</span>
+                        <textarea
+                          id="playlist-workshop-description"
+                          value={playlistDescriptionDraft}
+                          onChange={(event) => setPlaylistDescriptionDraft(event.target.value)}
+                          disabled={!isLinearEditable}
+                          rows={3}
+                          className="w-full resize-y rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-cyan-400/50 disabled:opacity-50"
+                        />
+                      </label>
+
                       <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.12em] text-zinc-300">
                         <span className="playlist-theme-pill rounded-full border px-3 py-1">
                           <Trans>Playlist Version {activePlaylist.config.playlistVersion}</Trans>
@@ -2942,6 +2969,29 @@ function PlaylistWorkshopPage() {
                                   Shuffle rounds within difficulty bands on each rebuild
                                 </Trans>
                               </label>
+                              <label className="mt-2 flex items-center gap-2 text-xs text-cyan-50/75">
+                                <input
+                                  type="checkbox"
+                                  checked={setup.shuffleDifficultyBandRoundsOnRun}
+                                  disabled={!isLinearEditable}
+                                  onChange={(event) =>
+                                    setSetup((previous) => ({
+                                      ...previous,
+                                      shuffleDifficultyBandRoundsOnRun: event.target.checked,
+                                    }))
+                                  }
+                                  className="h-4 w-4 rounded border-cyan-300/40 bg-black/45 text-cyan-400 focus:ring-cyan-400/60"
+                                />
+                                <Trans>
+                                  Shuffle rounds within difficulty bands on each new run
+                                </Trans>
+                              </label>
+                              <p className="mt-1 text-[10px] text-cyan-50/50">
+                                <Trans>
+                                  Keeps checkpoints and the saved playlist order unchanged. Resuming
+                                  keeps the same shuffled run.
+                                </Trans>
+                              </p>
                               {setup.difficultySections.length > 0 && (
                                 <div className="mt-3 grid gap-2">
                                   {setup.difficultySections.map((section, sectionIndex) => (

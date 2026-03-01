@@ -5,6 +5,8 @@ import {
   normalizeAutofixBrokenFunscripts,
 } from "../../constants/funscriptSettings";
 import { trpc } from "../../services/trpc";
+import { identifyScriptActions } from "../../services/haptics/scriptEnhancement";
+import { normalizeFunscriptTimelineDocument } from "./funscriptNormalization";
 
 export type PlaybackResource = Pick<Resource, "videoUri" | "funscriptUri"> & {
   id?: string | null;
@@ -111,15 +113,6 @@ export function buildIntermediaryQueue(
     .sort((a, b) => a.atProgress - b.atProgress);
 }
 
-function toNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
 const funscriptTimelineCache = new Map<string, FunscriptTimeline>();
 const funscriptTimelineInFlight = new Map<string, Promise<FunscriptTimeline | null>>();
 
@@ -155,32 +148,10 @@ export async function loadFunscriptTimeline(
         inverted?: unknown;
       };
       const autofixBrokenFunscripts = await shouldAutofixBrokenFunscripts();
-      const range = toNumber(raw.range);
-      const effectiveRange = autofixBrokenFunscripts && range === 90 ? 100 : range;
-      const normalizeRange = effectiveRange !== null && effectiveRange > 0 ? effectiveRange : 100;
-      const isInverted = raw.inverted === true;
-      const actions = (raw.actions ?? [])
-        .map((action) => {
-          const at = toNumber(action.at);
-          const pos = toNumber(action.pos);
-          if (at === null || pos === null) return null;
-          const normalizedPos = Math.max(0, Math.min(100, (pos / normalizeRange) * 100));
-          const finalPos = isInverted ? 100 - normalizedPos : normalizedPos;
-          return { at: Math.max(0, at), pos: finalPos } satisfies FunscriptAction;
-        })
-        .filter((action): action is FunscriptAction => action !== null)
-        .sort((a, b) => a.at - b.at);
-
-      // Ensure a t=0 anchor so HSP playback does not start in a starvation gap
-      // when the first funscript action is delayed.
-      if (actions.length > 0) {
-        const first = actions[0];
-        if (first && first.at > 0) {
-          actions.unshift({ at: 0, pos: first.pos });
-        }
-      }
+      const actions = normalizeFunscriptTimelineDocument(raw, autofixBrokenFunscripts);
 
       const timeline = { actions };
+      identifyScriptActions(actions, funscriptUri);
       funscriptTimelineCache.set(funscriptUri, timeline);
       return timeline;
     } catch (error) {

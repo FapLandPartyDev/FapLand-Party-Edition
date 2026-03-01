@@ -328,6 +328,35 @@ export function peekInstalledRoundCardAssetsCached(
     .filter((entry): entry is CachedInstalledRoundCardAssets[number] => entry != null);
 }
 
+export async function loadInstalledRoundPreviewImage(
+  entry: CachedInstalledRoundCardAssets[number],
+  includeDisabled = false
+): Promise<CachedInstalledRoundCardAssets[number]> {
+  const key = getCardAssetKey(entry.roundId, includeDisabled);
+  const cached = cardAssetCache.get(key);
+  if (cached && cached !== entry) return cached;
+  if (
+    entry.previewImage ||
+    !entry.previewVideoUri ||
+    !(
+      entry.previewVideoUri.startsWith("app://media/") ||
+      entry.previewVideoUri.startsWith("file://")
+    )
+  ) {
+    return entry;
+  }
+  const previewImage = await trpc.db.getInstalledRoundPreviewImage.query({
+    roundId: entry.roundId,
+    includeDisabled,
+  });
+  if (!previewImage) return entry;
+  // An edit or deletion while extraction was running must not restore stale assets.
+  if (cardAssetCache.get(key) !== entry) return entry;
+  const updated = { ...entry, previewImage };
+  touchLruEntry(cardAssetCache, key, updated, MAX_CARD_ASSET_CACHE_ENTRIES);
+  return updated;
+}
+
 export function invalidateInstalledRoundCaches(): void {
   catalogRequests.clear();
   runtimeCatalogRequests.clear();

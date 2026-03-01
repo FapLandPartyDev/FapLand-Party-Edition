@@ -149,6 +149,8 @@ export const db = {
       withInstalledRoundCacheInvalidation(() =>
         trpc.db.convertHeroFunscriptToHardMode.mutate(input)
       ),
+    invertFunscript: (input: { heroId: string; invert?: boolean }) =>
+      withInstalledRoundCacheInvalidation(() => trpc.db.invertHeroFunscript.mutate(input)),
     delete: (id: string) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.deleteHero.mutate({ id })),
   },
@@ -223,6 +225,10 @@ export const db = {
     convertFunscriptToHardMode: (roundId: string, recalculateDifficulty: boolean) =>
       withInstalledRoundCacheInvalidation(() =>
         trpc.db.convertRoundFunscriptToHardMode.mutate({ roundId, recalculateDifficulty })
+      ),
+    invertFunscript: (roundId: string, invert?: boolean) =>
+      withInstalledRoundCacheInvalidation(() =>
+        trpc.db.invertRoundFunscript.mutate({ roundId, invert })
       ),
     revertHardModeFunscript: (roundId: string) =>
       withInstalledRoundCacheInvalidation(() =>

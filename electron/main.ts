@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { createIPCHandler } from "trpc-electron/main";
 import { config as loadDotenv } from "dotenv";
 import { appRouter } from "./trpc/router";
+import { installMcp } from "./mcp/integration";
 import { getNodeEnv } from "../src/zod/env";
 import { isVideoExtension, SUPPORTED_VIDEO_EXTENSIONS } from "../src/constants/videoFormats";
 import { approveDialogPath } from "./services/dialogPathApproval";
@@ -104,6 +105,7 @@ let rendererDevToolsWindowRef: BrowserWindow | null = null;
 let trpcIpcHandler: { attachWindow: (window: BrowserWindow) => void } | null = null;
 let performanceSnapshotTimer: ReturnType<typeof setInterval> | null = null;
 let normalStartupPromise: Promise<void> | null = null;
+let mcpRuntime: ReturnType<typeof installMcp> | null = null;
 let startupRecoveryActive = false;
 let gpuCrashHandlerRegistered = false;
 let selectedSerialPortMetadata: {
@@ -1650,8 +1652,9 @@ function registerAuthCallbackIpc() {
 }
 
 function registerStartupRecoveryIpc() {
-  ipcMain.handle("startup-recovery:enter", () => {
+  ipcMain.handle("startup-recovery:enter", async () => {
     startupRecoveryActive = true;
+    await mcpRuntime?.stop();
     stopContinuousPhashScan();
     stopContinuousWebsiteVideoScan();
     stopContinuousDatabaseBackup();
@@ -1761,6 +1764,8 @@ function runNormalStartupOnce(): Promise<void> {
     }
     if (startupRecoveryActive) return;
 
+    await mcpRuntime?.start();
+
     try {
       const defaultSourcesPath = app.isPackaged
         ? path.join(process.resourcesPath, "acquisition-sources.txt")
@@ -1838,6 +1843,7 @@ app
     registerAuthCallbackIpc();
     registerGpuRecoveryIpc();
     registerStartupRecoveryIpc();
+    mcpRuntime = installMcp(() => mainWindowRef);
     Menu.setApplicationMenu(null);
     await createWindow();
 
@@ -1859,4 +1865,8 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("before-quit", () => {
+  void mcpRuntime?.stop();
 });

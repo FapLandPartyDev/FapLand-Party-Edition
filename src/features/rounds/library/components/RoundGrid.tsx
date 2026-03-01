@@ -118,18 +118,6 @@ function collectRoundIdsFromShelf(shelf: RoundGridShelf | undefined): string[] {
   return shelf.items.map((item) => item.round.id);
 }
 
-function collectAllRoundIds(rows: RoundRenderRow[]): string[] {
-  const ids: string[] = [];
-  for (const row of rows) {
-    if (row.kind === "standalone") {
-      ids.push(row.round.id);
-      continue;
-    }
-    for (const round of row.rounds) ids.push(round.id);
-  }
-  return [...new Set(ids)];
-}
-
 export type RoundGridProps = {
   rows: RoundRenderRow[];
   expandedGroupKeys: ReadonlySet<string>;
@@ -298,7 +286,7 @@ export function RoundGrid({
 
   // Surface visible round ids so the parent can lazy-load card assets.
   useEffect(() => {
-    if (!onVisibleRoundIdsChange || isScrolling) return;
+    if (!onVisibleRoundIdsChange || !scrollContainer || isScrolling) return;
     const next = [
       ...new Set(virtualItems.flatMap((item) => collectRoundIdsFromShelf(shelves[item.index]))),
     ];
@@ -306,17 +294,7 @@ export function RoundGrid({
     if (lastVisibleKeyRef.current === key) return;
     lastVisibleKeyRef.current = key;
     onVisibleRoundIdsChange(next);
-  }, [isScrolling, onVisibleRoundIdsChange, shelves, virtualItems]);
-
-  // When no scroll container is available yet (initial mount), still surface all ids.
-  useEffect(() => {
-    if (!onVisibleRoundIdsChange || scrollContainer) return;
-    const next = collectAllRoundIds(rows);
-    const key = next.join("|");
-    if (lastVisibleKeyRef.current === key) return;
-    lastVisibleKeyRef.current = key;
-    onVisibleRoundIdsChange(next);
-  }, [onVisibleRoundIdsChange, rows, scrollContainer]);
+  }, [isScrolling, onVisibleRoundIdsChange, scrollContainer, shelves, virtualItems]);
 
   const renderShelf = useCallback(
     (shelf: RoundGridShelf) => {

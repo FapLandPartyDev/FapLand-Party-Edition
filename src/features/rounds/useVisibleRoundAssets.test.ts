@@ -5,12 +5,16 @@ const mocks = vi.hoisted(() => ({
   getInstalledRoundCardAssetsCached: vi.fn(),
   invalidateInstalledRoundCardAssets: vi.fn(),
   peekInstalledRoundCardAssetsCached: vi.fn(),
+  loadInstalledRoundPreviewImage: vi.fn(
+    async (entry: { roundId: string; previewImage: string | null }) => entry
+  ),
 }));
 
 vi.mock("../../services/installedRoundsCache", () => ({
   getInstalledRoundCardAssetsCached: mocks.getInstalledRoundCardAssetsCached,
   invalidateInstalledRoundCardAssets: mocks.invalidateInstalledRoundCardAssets,
   peekInstalledRoundCardAssetsCached: mocks.peekInstalledRoundCardAssetsCached,
+  loadInstalledRoundPreviewImage: mocks.loadInstalledRoundPreviewImage,
 }));
 
 import { useVisibleRoundAssets } from "./useVisibleRoundAssets";
@@ -86,6 +90,36 @@ describe("useVisibleRoundAssets", () => {
     expect(mocks.getInstalledRoundCardAssetsCached).not.toHaveBeenCalled();
   });
 
+  it("repairs cached missing thumbnails asynchronously and displays the result", async () => {
+    const entry = {
+      roundId: "round-1",
+      previewImage: null,
+      previewVideoUri: "app://media/local.mp4",
+      websiteVideoCacheStatus: "not_applicable",
+      primaryResourceId: "resource-1",
+    };
+    const visibleRoundIds = [entry.roundId];
+    mocks.peekInstalledRoundCardAssetsCached.mockReturnValue([entry]);
+    mocks.loadInstalledRoundPreviewImage.mockResolvedValueOnce({
+      ...entry,
+      previewImage: "repaired",
+    });
+    const { result } = renderHook(() =>
+      useVisibleRoundAssets({
+        visibleRoundIds,
+        selectedRoundId: null,
+        includeDisabled: false,
+        isScrolling: false,
+      })
+    );
+    expect(mocks.loadInstalledRoundPreviewImage).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(mocks.getInstalledRoundCardAssetsCached).not.toHaveBeenCalled();
+    expect(result.current.cardAssetsByRoundId.get(entry.roundId)?.previewImage).toBe("repaired");
+  });
+
   it("loads visible previews in batches of four", async () => {
     mocks.peekInstalledRoundCardAssetsCached.mockReturnValue([]);
     mocks.getInstalledRoundCardAssetsCached.mockResolvedValue([]);
@@ -109,6 +143,46 @@ describe("useVisibleRoundAssets", () => {
       false
     );
     expect(mocks.getInstalledRoundCardAssetsCached).toHaveBeenNthCalledWith(2, ["round-5"], false);
+  });
+
+  it("delivers every visible card's assets before waiting for thumbnail extraction", async () => {
+    const visibleRoundIds = ["1", "2", "3", "4", "5"];
+    mocks.peekInstalledRoundCardAssetsCached.mockReturnValue([]);
+    mocks.getInstalledRoundCardAssetsCached.mockImplementation(async (ids: string[]) =>
+      ids.map((roundId) => ({
+        roundId,
+        previewImage: null,
+        previewVideoUri: "app://media/local.mp4",
+        websiteVideoCacheStatus: "not_applicable",
+        primaryResourceId: roundId,
+      }))
+    );
+    let finish!: (entry: { roundId: string; previewImage: string | null }) => void;
+    mocks.loadInstalledRoundPreviewImage.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    const { result, unmount } = renderHook(() =>
+      useVisibleRoundAssets({
+        visibleRoundIds,
+        selectedRoundId: null,
+        includeDisabled: false,
+        isScrolling: false,
+      })
+    );
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(mocks.getInstalledRoundCardAssetsCached).toHaveBeenCalledTimes(2);
+    expect(result.current.cardAssetsByRoundId.size).toBe(5);
+    expect(mocks.loadInstalledRoundPreviewImage).toHaveBeenCalledTimes(1);
+    unmount();
+    await act(async () => {
+      finish({ roundId: "1", previewImage: "finished" });
+    });
+    expect(mocks.loadInstalledRoundPreviewImage).toHaveBeenCalledTimes(1);
   });
 
   it("cancels queued visible preview work when scrolling starts", async () => {

@@ -5,14 +5,17 @@ import path from "node:path";
 import { createRequire } from "node:module";
 
 const cwd = process.cwd();
-const requireFromRoot = createRequire(path.join(cwd, "package.json"));
 const outputPath = path.join(cwd, "src/generated/licenses.generated.json");
 const rootPackagePath = path.join(cwd, "package.json");
 const rootLicensePath = path.join(cwd, "LICENSE");
 const licenseFilePattern = /^(licen[cs]e|copying|notice|unlicense)(\..+)?$/i;
 
-function getNpmCommand() {
-  return process.platform === "win32" ? "npm.cmd" : "npm";
+function getNpmInvocation() {
+  const npmCli =
+    process.env.npm_execpath ??
+    path.join(path.dirname(process.execPath), "node_modules/npm/bin/npm-cli.js");
+  if (existsSync(npmCli)) return { command: process.execPath, prefix: [npmCli] };
+  return { command: "npm", prefix: [] };
 }
 
 function formatLicenseField(license) {
@@ -129,12 +132,17 @@ function collectTreeEntries(node, entries, visitedPaths) {
 
 function getProductionTreeFromNpm() {
   try {
-    const command = getNpmCommand();
-    const output = execFileSync(command, ["ls", "--omit=dev", "--all", "--json", "--long"], {
-      cwd,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const { command, prefix } = getNpmInvocation();
+    const output = execFileSync(
+      command,
+      [...prefix, "ls", "--omit=dev", "--all", "--json", "--long"],
+      {
+        cwd,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        maxBuffer: 32 * 1024 * 1024,
+      }
+    );
 
     return JSON.parse(output);
   } catch (error) {
@@ -171,9 +179,14 @@ async function collectEntriesFromResolutionFallback() {
 
     let packageJsonPath;
     try {
-      packageJsonPath = requireFromRoot.resolve(`${current.name}/package.json`, {
-        paths: [current.basedir],
-      });
+      // Read the package root manifest rather than an exported subpath. Some
+      // packages export package.json to a nested manifest containing only type.
+      const resolver = createRequire(path.join(current.basedir, "package.json"));
+      packageJsonPath = resolver.resolve
+        .paths(current.name)
+        ?.map((directory) => path.join(directory, current.name, "package.json"))
+        .find((candidate) => existsSync(candidate));
+      if (!packageJsonPath) continue;
     } catch {
       continue;
     }

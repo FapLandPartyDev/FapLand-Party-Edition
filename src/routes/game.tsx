@@ -525,8 +525,12 @@ function GameRoute() {
     assistedSaveMode: effectiveAssistedSaveMode,
   });
 
+  const [baseConfig] = useState<GameConfig>(
+    () =>
+      savedSnapshot?.gameState.config ??
+      toGameConfigFromPlaylist(activePlaylist.config, installedRounds)
+  );
   const config = useMemo(() => {
-    const baseConfig = toGameConfigFromPlaylist(activePlaylist.config, installedRounds);
     const runtimeGraph =
       mapEditorTestStartNodeId &&
       baseConfig.runtimeGraph.nodeIndexById[mapEditorTestStartNodeId] !== undefined
@@ -556,11 +560,10 @@ function GameRoute() {
       },
     };
   }, [
-    activePlaylist.config,
+    baseConfig,
     allowHapticsPerksWithoutDevice,
     economyOverrides,
     handyConnected,
-    installedRounds,
     mapEditorTestStartNodeId,
     moaningAvailable,
   ]);

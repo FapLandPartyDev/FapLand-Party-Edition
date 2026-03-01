@@ -11,5 +11,7 @@ export default defineConfig({
     },
   ],
   format: "po",
+  // Explicit IDs can share text; sort by unique ID to keep extraction stable.
+  orderBy: "messageId",
   compileNamespace: "es",
 });

@@ -1,5 +1,6 @@
 import "./configureClient";
 import {
+  clockSync,
   getDeviceInfo,
   getHspState,
   getStroke,
@@ -45,12 +46,15 @@ export type HandySession = {
   hspModeActive: boolean;
   lastHspStateAtMs?: number;
   reportedBufferPoints?: number | null;
+  reportedBufferTimeMs?: number;
   reportedBufferedUntilMs?: number | null;
   hspTopupFailureCount?: number;
   /** Set when the device pauses HSP playback because its point buffer ran dry. */
   hspStarved?: boolean;
   streamId?: number;
   serverTimeRefreshPromise?: Promise<void> | null;
+  deviceClockSynchronizedAtMs?: number;
+  deviceClockSyncPromise?: Promise<void> | null;
 };
 
 export class HandyDeviceError extends Error {
@@ -80,7 +84,7 @@ const HSP_PREFETCH_MS = 180_000;
 const HSP_TOPUP_TRIGGER_MS = 45_000;
 const HSP_TOPUP_TRIGGER_POINT_RATIO = 0.55;
 const HSP_TOPUP_TARGET_POINT_RATIO = 0.85;
-const HSP_TOPUP_APPEND_MIN_INTERVAL_MS = 350;
+const HSP_TOPUP_APPEND_MIN_INTERVAL_MS = 500;
 const HSP_TOPUP_MAX_POINTS_PER_SYNC = HSP_CHUNK_SIZE;
 const SERVER_TIME_SAMPLE_COUNT = 3;
 const SERVER_TIME_SAMPLE_KEEP_COUNT = 2;
@@ -89,6 +93,35 @@ const HSP_ADD_MAX_RETRIES = 2;
 const HSP_ADD_RETRY_BASE_DELAY_MS = 200;
 const HSP_MODE_MAX_RETRIES = 2;
 const HSP_MODE_RETRY_BASE_DELAY_MS = 300;
+const HSP_STATE_INTERVAL_MS = 5000;
+
+type HspBufferState = {
+  points?: number;
+  max_points?: number;
+  last_point_time?: number;
+  current_time?: number;
+  tail_point_stream_index?: number;
+  play_state?: number;
+};
+
+function recordHspState(session: HandySession, state?: HspBufferState): void {
+  if (!state) return;
+  if (typeof state.points === "number") {
+    session.reportedBufferPoints = Math.max(0, state.points);
+    session.reportedBufferTimeMs = state.current_time;
+  }
+  if (typeof state.max_points === "number") {
+    session.maxBufferPoints = clampMaxBufferPoints(state.max_points);
+  }
+  if (typeof state.last_point_time === "number") {
+    session.reportedBufferedUntilMs = state.last_point_time;
+  }
+  session.lastHspStateAtMs = Date.now();
+  if (state.play_state === 4) {
+    session.hspStarved = true;
+    session.activeScriptId = null;
+  }
+}
 
 async function withRetry<T>(
   operation: () => Promise<T>,
@@ -271,8 +304,58 @@ async function refreshServerTimeOffset(
   }
 }
 
-function getEstimatedServerTimeMs(session: HandySession): number {
-  return Date.now() + session.serverTimeOffsetMs;
+function getEstimatedServerTimeMs(session: HandySession, sampledAtMs = Date.now()): number {
+  return sampledAtMs + session.serverTimeOffsetMs;
+}
+
+async function synchronizeDeviceClock(auth: HandyAuthBundle, session: HandySession): Promise<void> {
+  if (
+    session.deviceClockSynchronizedAtMs !== undefined &&
+    Date.now() - session.deviceClockSynchronizedAtMs < SERVER_TIME_OFFSET_TTL_MS
+  ) {
+    return;
+  }
+  if (session.deviceClockSyncPromise) return session.deviceClockSyncPromise;
+
+  // Sampling /servertime only synchronizes the app. The device has its own
+  // clock, which can retain a bad offset after reconnecting on a slow network.
+  const syncPromise = withRetry(
+    async () => {
+      const response = assertDeviceResponse(
+        await clockSync({
+          auth: createAuthResolver(requireAppCredential(auth.appApiKey), session.clientToken),
+          responseStyle: "data",
+          requestValidator: undefined,
+          responseValidator: undefined,
+          headers: { "X-Connection-Key": requireConnectionRef(auth.connectionKey) },
+          query: { s: true, timeout: 5000 },
+        })
+      );
+      const result = response.result;
+      if (
+        !result ||
+        !Number.isFinite(result.time) ||
+        !Number.isFinite(result.clock_offset) ||
+        !Number.isFinite(result.rtd)
+      ) {
+        throw new Error("TheHandy did not confirm device clock synchronization.");
+      }
+    },
+    HSP_MODE_MAX_RETRIES,
+    HSP_MODE_RETRY_BASE_DELAY_MS
+  );
+  session.deviceClockSyncPromise = syncPromise;
+  try {
+    await syncPromise;
+    session.deviceClockSynchronizedAtMs = Date.now();
+    session.lastSyncAtMs = 0;
+  } catch (error) {
+    throw new Error("Failed to synchronize TheHandy device clock. Please retry the connection.", {
+      cause: error,
+    });
+  } finally {
+    session.deviceClockSyncPromise = null;
+  }
 }
 
 function clampMaxBufferPoints(value: unknown): number {
@@ -612,7 +695,7 @@ async function appendPointsUpToTime(
 
     const nextTailPointStreamIndex = session.tailPointStreamIndex + chunk.length;
     try {
-      await withRetry(
+      const response = await withRetry(
         async () =>
           assertDeviceResponse(
             await hspAdd({
@@ -636,6 +719,13 @@ async function appendPointsUpToTime(
         HSP_ADD_MAX_RETRIES,
         HSP_ADD_RETRY_BASE_DELAY_MS
       );
+      // Add returns the device's buffer state. Reuse it instead of polling in
+      // parallel, and account for additions even when no state is returned.
+      if (typeof session.reportedBufferPoints === "number") {
+        session.reportedBufferPoints += chunk.length;
+      }
+      session.reportedBufferedUntilMs = chunk[chunk.length - 1]!.t;
+      recordHspState(session, (response as { result?: HspBufferState }).result);
     } catch (error) {
       session.hspAddBackoffUntilMs = Date.now() + HSP_TOPUP_APPEND_MIN_INTERVAL_MS;
       throw error;
@@ -656,7 +746,7 @@ async function appendPointsUpToTime(
 
 async function refreshHspState(auth: HandyAuthBundle, session: HandySession): Promise<void> {
   const now = Date.now();
-  if (session.lastHspStateAtMs && now - session.lastHspStateAtMs < 1000) return;
+  if (session.lastHspStateAtMs && now - session.lastHspStateAtMs < HSP_STATE_INTERVAL_MS) return;
   session.lastHspStateAtMs = now;
   try {
     const response = assertDeviceResponse(
@@ -668,30 +758,13 @@ async function refreshHspState(auth: HandyAuthBundle, session: HandySession): Pr
         headers: { "X-Connection-Key": requireConnectionRef(auth.connectionKey) },
         query: { timeout: 5000 },
       })
-    ) as {
-      result?: {
-        points?: number;
-        max_points?: number;
-        last_point_time?: number;
-        tail_point_stream_index?: number;
-        play_state?: number;
-      };
-    };
+    ) as { result?: HspBufferState };
     const state = response.result;
     if (!state) return;
-    if (typeof state.points === "number") session.reportedBufferPoints = state.points;
-    if (typeof state.max_points === "number") {
-      session.maxBufferPoints = clampMaxBufferPoints(state.max_points);
-    }
-    if (typeof state.last_point_time === "number") {
-      session.reportedBufferedUntilMs = state.last_point_time;
-    }
+    recordHspState(session, state);
     if (state.play_state === 4) {
-      // A starved HSP stream remains paused even after more points are added. Mark
-      // it inactive so the next regular sync restarts playback at the current
-      // media time instead of requiring a full reconnect.
-      session.hspStarved = true;
-      session.activeScriptId = null;
+      // pause_on_starving freezes the device clock while the video advances.
+      // Re-anchor playback to the media clock after refilling the buffer.
       console.debug("[haptics] Direct Handy HSP is paused on starvation", {
         bufferedPoints: session.reportedBufferPoints,
       });
@@ -711,6 +784,7 @@ async function preloadScript(
   skipToMs: number = 0
 ): Promise<void> {
   const scriptId = toScriptId(sourceId, actions);
+  await synchronizeDeviceClock(auth, session);
   if (session.loadedScriptId === scriptId) return;
 
   const points = toHspPoints(actions);
@@ -737,6 +811,7 @@ async function preloadScript(
   session.hspAddBackoffUntilMs = 0;
   session.lastHspStateAtMs = 0;
   session.reportedBufferPoints = null;
+  session.reportedBufferTimeMs = undefined;
   session.reportedBufferedUntilMs = null;
   session.hspTopupFailureCount = 0;
   session.hspStarved = false;
@@ -776,58 +851,90 @@ export async function sendHspSync(
   playbackRate: number,
   sourceId: string,
   actions: FunscriptAction[],
-  options: HapticsSyncOptions = {}
+  options: HapticsSyncOptions = {},
+  sampledAtMs = Date.now()
 ): Promise<void> {
   if (actions.length === 0) return;
 
   const connectionRef = requireConnectionRef(auth.connectionKey);
   const appCredential = requireAppCredential(auth.appApiKey);
   const scriptId = toScriptId(sourceId, actions);
-  if (Date.now() - session.serverTimeOffsetMeasuredAtMs >= SERVER_TIME_OFFSET_TTL_MS) {
+  if (options.forceClockSync) {
+    session.deviceClockSynchronizedAtMs = undefined;
+    session.serverTimeOffsetMeasuredAtMs = 0;
+  }
+  const previousClockSyncAtMs = session.deviceClockSynchronizedAtMs;
+  if (
+    options.forceClockSync ||
+    Date.now() - session.serverTimeOffsetMeasuredAtMs >= SERVER_TIME_OFFSET_TTL_MS
+  ) {
     await refreshServerTimeOffset(auth, session);
   }
   await preloadScript(auth, session, sourceId, actions, timeMs);
 
-  if (session.streamedPoints && session.nextStreamPointIndex < session.streamedPoints.length) {
-    // State polling is advisory and must not delay the time-sensitive sync/top-up path.
-    void refreshHspState(auth, session);
-    let playingIdx = session.nextStreamPointIndex - 1;
-    while (playingIdx > 0 && session.streamedPoints[playingIdx]!.t > timeMs) {
-      playingIdx -= 1;
-    }
-    const estimatedPointsInBuffer = session.nextStreamPointIndex - Math.max(0, playingIdx);
-    const pointsInBuffer = session.reportedBufferPoints ?? estimatedPointsInBuffer;
+  const maintainBuffer = async () => {
+    if (session.streamedPoints && session.nextStreamPointIndex < session.streamedPoints.length) {
+      // Keep state reads inside the serialized device operation. An unawaited
+      // poll can overwrite a newer append result or a different script's state.
+      await refreshHspState(auth, session);
+      if (session.hspStarved && session.uploadedUntilMs < timeMs) {
+        // Unsent points may now be far behind the video. Seed from the current
+        // time rather than spending requests replaying obsolete history.
+        session.loadedScriptId = null;
+        await preloadScript(auth, session, sourceId, actions, timeMs);
+      }
+      let playingIdx = session.nextStreamPointIndex - 1;
+      while (playingIdx > 0 && session.streamedPoints[playingIdx]!.t > timeMs) {
+        playingIdx -= 1;
+      }
+      const estimatedPointsInBuffer = session.nextStreamPointIndex - Math.max(0, playingIdx);
+      let reportedPoints = session.reportedBufferPoints;
+      if (typeof reportedPoints === "number" && session.reportedBufferTimeMs !== undefined) {
+        let consumed = 0;
+        for (let index = session.nextStreamPointIndex - 1; index >= 0; index -= 1) {
+          const pointTime = session.streamedPoints[index]!.t;
+          if (pointTime <= session.reportedBufferTimeMs) break;
+          if (pointTime <= timeMs) consumed += 1;
+        }
+        reportedPoints = Math.max(0, reportedPoints - consumed);
+      }
+      const pointsInBuffer = Math.max(estimatedPointsInBuffer, reportedPoints ?? 0);
 
-    const bufferedUntilMs = session.reportedBufferedUntilMs ?? session.uploadedUntilMs;
-    const shouldTopUpByTime = bufferedUntilMs - timeMs <= HSP_TOPUP_TRIGGER_MS;
-    const shouldTopUpByPoints =
-      pointsInBuffer <= session.maxBufferPoints * HSP_TOPUP_TRIGGER_POINT_RATIO;
-    if (shouldTopUpByTime || shouldTopUpByPoints) {
-      const targetMs = Math.max(timeMs + HSP_PREFETCH_MS, session.uploadedUntilMs);
-      const targetPointCount = Math.floor(session.maxBufferPoints * HSP_TOPUP_TARGET_POINT_RATIO);
-      const pointBudget = Math.max(0, targetPointCount - pointsInBuffer);
-      const fetchBudget = Math.min(HSP_TOPUP_MAX_POINTS_PER_SYNC, pointBudget);
-      if (fetchBudget > 0) {
-        try {
-          const appended = await appendPointsUpToTime(auth, session, targetMs, fetchBudget, {
-            paced: true,
-          });
-          if (appended > 0) {
-            if ((session.hspTopupFailureCount ?? 0) > 0) {
-              console.debug("[haptics] Direct Handy HSP top-up recovered", { appended });
+      const bufferedUntilMs = session.reportedBufferedUntilMs ?? session.uploadedUntilMs;
+      const shouldTopUpByTime = bufferedUntilMs - timeMs <= HSP_TOPUP_TRIGGER_MS;
+      const shouldTopUpByPoints =
+        pointsInBuffer <= session.maxBufferPoints * HSP_TOPUP_TRIGGER_POINT_RATIO;
+      if (shouldTopUpByTime || shouldTopUpByPoints) {
+        const targetMs = Math.max(timeMs + HSP_PREFETCH_MS, session.uploadedUntilMs);
+        const targetPointCount = Math.floor(session.maxBufferPoints * HSP_TOPUP_TARGET_POINT_RATIO);
+        const pointBudget = Math.max(0, targetPointCount - pointsInBuffer);
+        const fetchBudget = Math.min(HSP_TOPUP_MAX_POINTS_PER_SYNC, pointBudget);
+        if (fetchBudget > 0) {
+          try {
+            const appended = await appendPointsUpToTime(auth, session, targetMs, fetchBudget, {
+              paced: true,
+            });
+            if (appended > 0) {
+              if ((session.hspTopupFailureCount ?? 0) > 0) {
+                console.debug("[haptics] Direct Handy HSP top-up recovered", { appended });
+              }
+              session.hspTopupFailureCount = 0;
             }
-            session.hspTopupFailureCount = 0;
+          } catch (error) {
+            session.hspTopupFailureCount = (session.hspTopupFailureCount ?? 0) + 1;
+            console.warn("[haptics] Direct Handy HSP top-up will be retried", {
+              attempt: session.hspTopupFailureCount,
+              message: error instanceof Error ? error.message : String(error),
+            });
           }
-        } catch (error) {
-          session.hspTopupFailureCount = (session.hspTopupFailureCount ?? 0) + 1;
-          console.warn("[haptics] Direct Handy HSP top-up will be retried", {
-            attempt: session.hspTopupFailureCount,
-            message: error instanceof Error ? error.message : String(error),
-          });
         }
       }
     }
-  }
+  };
+  // A live offset correction must reach the device before optional polling or uploads.
+  const correctBeforeBuffering =
+    options.forceTimeSync === true && session.activeScriptId === scriptId;
+  if (!correctBeforeBuffering) await maintainBuffer();
 
   const nextRate = Math.max(0.25, Math.min(3, playbackRate));
   const authResolver = createAuthResolver(appCredential, session.clientToken);
@@ -843,7 +950,9 @@ export async function sendHspSync(
         headers,
         body: {
           start_time: Math.max(0, Math.floor(timeMs)),
-          server_time: Math.round(getEstimatedServerTimeMs(session)),
+          // The media position and server timestamp must describe the same
+          // instant, including time spent queued, polling, or uploading points.
+          server_time: Math.round(getEstimatedServerTimeMs(session, sampledAtMs)),
           playback_rate: nextRate,
           pause_on_starving: true,
           loop: false,
@@ -862,8 +971,10 @@ export async function sendHspSync(
   const needsTimeSync = options.forceTimeSync === true || now - session.lastSyncAtMs >= 2000;
   const timeBody = {
     current_time: Math.max(0, Math.floor(timeMs)),
-    server_time: Math.round(getEstimatedServerTimeMs(session)),
-    ...(options.timeFilter === null ? {} : { filter: options.timeFilter ?? 0.12 }),
+    server_time: Math.round(getEstimatedServerTimeMs(session, sampledAtMs)),
+    ...(options.timeFilter === null || previousClockSyncAtMs !== session.deviceClockSynchronizedAtMs
+      ? {}
+      : { filter: options.timeFilter ?? 0.12 }),
   };
 
   if (needsRateUpdate && needsTimeSync) {
@@ -916,6 +1027,7 @@ export async function sendHspSync(
     );
     session.lastSyncAtMs = Date.now();
   }
+  if (correctBeforeBuffering) await maintainBuffer();
 }
 
 export async function pauseHandyPlayback(
@@ -956,6 +1068,8 @@ export async function resumeHandyPlayback(
   resumeAtMs: number,
   playbackRate: number = 1
 ): Promise<void> {
+  const sampledAtMs = Date.now();
+  await synchronizeDeviceClock(auth, session);
   const connectionRef = requireConnectionRef(auth.connectionKey);
   const appCredential = requireAppCredential(auth.appApiKey);
   const authResolver = createAuthResolver(appCredential, session.clientToken);
@@ -980,7 +1094,7 @@ export async function resumeHandyPlayback(
       headers,
       body: {
         start_time: Math.max(0, Math.floor(resumeAtMs)),
-        server_time: Math.round(getEstimatedServerTimeMs(session)),
+        server_time: Math.round(getEstimatedServerTimeMs(session, sampledAtMs)),
         playback_rate: nextRate,
         pause_on_starving: true,
         loop: false,

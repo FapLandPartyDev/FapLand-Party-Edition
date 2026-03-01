@@ -3,6 +3,7 @@ import type { InstalledRoundCardAssets } from "../../services/db";
 import {
   getInstalledRoundCardAssetsCached,
   invalidateInstalledRoundCardAssets,
+  loadInstalledRoundPreviewImage,
   peekInstalledRoundCardAssetsCached,
 } from "../../services/installedRoundsCache";
 
@@ -82,16 +83,21 @@ export function useVisibleRoundAssets({
 
     const cachedRoundIds = new Set(cachedCardAssetsByRoundId.keys());
     const missingRoundIds = loadableRoundIds.filter((roundId) => !cachedRoundIds.has(roundId));
-    if (missingRoundIds.length === 0) {
+    const cachedMissingPreviews = loadableRoundIds
+      .map((id) => cachedCardAssetsByRoundId.get(id))
+      .filter((entry): entry is InstalledRoundCardAssets => !!entry && !entry.previewImage);
+    if (missingRoundIds.length === 0 && cachedMissingPreviews.length === 0) {
       return;
     }
 
     let cancelled = false;
     let idleCallbackId: number | null = null;
     let fallbackTimeoutId: number | null = null;
+    let resolveIdle: (() => void) | null = null;
 
     const waitForIdle = () =>
       new Promise<void>((resolve) => {
+        resolveIdle = resolve;
         if (typeof window.requestIdleCallback === "function") {
           idleCallbackId = window.requestIdleCallback(
             () => {
@@ -109,6 +115,7 @@ export function useVisibleRoundAssets({
       });
 
     const loadMissingAssets = async () => {
+      const previewCandidates = [...cachedMissingPreviews];
       const chunks = chunkIds(missingRoundIds, CARD_ASSET_FETCH_CHUNK_SIZE);
       for (let index = 0; index < chunks.length; index += 1) {
         await waitForIdle();
@@ -119,10 +126,11 @@ export function useVisibleRoundAssets({
           if (cancelled) {
             return;
           }
+          previewCandidates.push(...entries.filter((entry) => !entry.previewImage));
           setFetchedCardAssetsState((previous) => {
             const next =
               previous.includeDisabled === includeDisabled
-                ? new Map(previous.entries)
+                ? new Map([...previous.entries].filter(([id]) => requestedRoundIds.includes(id)))
                 : new Map<string, InstalledRoundCardAssets>();
             let changed = false;
             for (const entry of entries) {
@@ -140,12 +148,35 @@ export function useVisibleRoundAssets({
           console.error("Failed to load installed round card assets", error);
         }
       }
+
+      // Deliver all lightweight card assets first, then repair missing local
+      // thumbnails one at a time, yielding between cards and stopping on scroll.
+      for (const entry of previewCandidates) {
+        await waitForIdle();
+        if (cancelled) return;
+        try {
+          const updated = await loadInstalledRoundPreviewImage(entry, includeDisabled);
+          if (cancelled) return;
+          if (updated === entry) continue;
+          setFetchedCardAssetsState((previous) => {
+            if (previous.includeDisabled !== includeDisabled) return previous;
+            const next = new Map(
+              [...previous.entries].filter(([id]) => requestedRoundIds.includes(id))
+            );
+            next.set(updated.roundId, updated);
+            return { includeDisabled, entries: next };
+          });
+        } catch (error) {
+          console.error("Failed to generate installed round preview", error);
+        }
+      }
     };
 
     void loadMissingAssets();
 
     return () => {
       cancelled = true;
+      resolveIdle?.();
       if (idleCallbackId !== null && typeof window.cancelIdleCallback === "function") {
         window.cancelIdleCallback(idleCallbackId);
       }

@@ -28,6 +28,7 @@ import {
 } from "../constants/musicSettings";
 import { trpc } from "../services/trpc";
 import { useForegroundMedia } from "./ForegroundMediaContext";
+import { useMcpSettingsRevision } from "../mcp/useMcpSettingsRevision";
 
 export type GlobalMusicState = {
   enabled: boolean;
@@ -103,6 +104,7 @@ function shuffleIndices(indices: number[]): number[] {
 }
 
 export function GlobalMusicProvider({ children }: { children: React.ReactNode }) {
+  const mcpSettingsRevision = useMcpSettingsRevision("music.");
   const { activeForegroundVideoCount } = useForegroundMedia();
   const [enabled, setEnabledState] = useState(DEFAULT_MUSIC_ENABLED);
   const [queue, setQueue] = useState<MusicQueueEntry[]>([]);
@@ -294,7 +296,7 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mcpSettingsRevision]);
 
   useEffect(() => {
     const audio = audioRef.current;

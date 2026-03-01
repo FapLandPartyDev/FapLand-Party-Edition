@@ -1,4 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ActiveRound,
@@ -77,6 +79,13 @@ const mocks = vi.hoisted(() => ({
       skippedRounds: 0,
     })),
     getHardModeFunscriptStatus: vi.fn(async () => ({ converted: false })),
+    invertFunscript: vi.fn(async () => ({
+      roundId: "round-1",
+      heroId: null,
+      scope: "round" as const,
+      invertFunscript: true,
+      updatedResources: 1,
+    })),
   },
   showToast: vi.fn(),
   recordVideoEvent: vi.fn(async () => undefined),
@@ -119,6 +128,7 @@ vi.mock("../../services/db", () => ({
       convertFunscriptToHardMode: mocks.db.convertFunscriptToHardMode,
       revertHardModeFunscript: mocks.db.revertHardModeFunscript,
       getHardModeFunscriptStatus: mocks.db.getHardModeFunscriptStatus,
+      invertFunscript: mocks.db.invertFunscript,
     },
   },
 }));
@@ -126,6 +136,9 @@ vi.mock("../../services/db", () => ({
 vi.mock("../../services/trpc", () => ({
   trpc: {
     store: {
+      get: {
+        query: vi.fn(async () => undefined),
+      },
       set: {
         mutate: vi.fn(async () => undefined),
       },
@@ -452,6 +465,14 @@ describe("RoundVideoOverlay", () => {
     mocks.db.revertHardModeFunscript.mockClear();
     mocks.db.getHardModeFunscriptStatus.mockReset();
     mocks.db.getHardModeFunscriptStatus.mockResolvedValue({ converted: false });
+    mocks.db.invertFunscript.mockReset();
+    mocks.db.invertFunscript.mockResolvedValue({
+      roundId: "round-1",
+      heroId: null,
+      scope: "round" as const,
+      invertFunscript: true,
+      updatedResources: 1,
+    });
     mocks.sfwMode = false;
     vi.mocked(booru.getCachedBooruMedia).mockClear();
     vi.mocked(booru.getCachedBooruMediaForDisplay).mockClear();
@@ -1170,6 +1191,84 @@ describe("RoundVideoOverlay", () => {
     );
   });
 
+  it("inverts the active funscript from the player controls options menu", async () => {
+    let optionsActions: RoundOverlayOptionsAction[] = [];
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 0, pos: 0 },
+        { at: 100, pos: 100 },
+      ],
+    });
+    renderOverlay({
+      installedRounds: [createInstalledRound("round-1", "file:///tmp/normal.funscript")],
+      onOptionsActionsChange: (actions) => {
+        optionsActions = actions;
+      },
+    });
+
+    await waitFor(() =>
+      expect(optionsActions.find((a) => a.id === "invert-funscript")?.label).toBe("Invert Funscript")
+    );
+    const invertAction = optionsActions.find((a) => a.id === "invert-funscript");
+    act(() => invertAction?.onClick());
+
+    await waitFor(() => expect(mocks.db.invertFunscript).toHaveBeenCalledWith("round-1"));
+    await waitFor(() =>
+      expect(optionsActions.find((a) => a.id === "invert-funscript")?.label).toBe(
+        "Uninvert Funscript"
+      )
+    );
+  });
+
+  it("restores normal motion when un-inverting an inverted funscript", async () => {
+    let optionsActions: RoundOverlayOptionsAction[] = [];
+    mocks.db.invertFunscript.mockResolvedValueOnce({
+      roundId: "round-1",
+      heroId: null,
+      scope: "round" as const,
+      invertFunscript: false,
+      updatedResources: 1,
+    });
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 0, pos: 0 },
+        { at: 100, pos: 100 },
+      ],
+    });
+    renderOverlay({
+      installedRounds: [
+        createInstalledRound("round-1", "file:///tmp/inverted.funscript", {
+          resources: [
+            {
+              id: "resource-1",
+              videoUri: "/video.mp4",
+              funscriptUri: "file:///tmp/inverted.funscript",
+              funscriptOffsetMs: null,
+              durationMs: 30_000,
+              invertFunscript: true,
+            },
+          ],
+        }),
+      ],
+      onOptionsActionsChange: (actions) => {
+        optionsActions = actions;
+      },
+    });
+
+    await waitFor(() =>
+      expect(optionsActions.find((a) => a.id === "invert-funscript")?.label).toBe(
+        "Uninvert Funscript"
+      )
+    );
+    const invertAction = optionsActions.find((a) => a.id === "invert-funscript");
+    act(() => invertAction?.onClick());
+
+    await waitFor(() => expect(mocks.db.invertFunscript).toHaveBeenCalledWith("round-1"));
+    await waitFor(() =>
+      expect(optionsActions.find((a) => a.id === "invert-funscript")?.label).toBe("Invert Funscript")
+    );
+  });
+
   it("bootstraps TheHandy sync immediately once video metadata and timeline are ready", async () => {
     mocks.handy.connectionKey = "conn-key";
     mocks.handy.appApiKey = "app-key";
@@ -1348,6 +1447,160 @@ describe("RoundVideoOverlay", () => {
       syncCallCountWhilePausing
     );
   });
+
+  it.each(["button", "keyboard"])(
+    "forces clock synchronization on resync via %s",
+    async (trigger) => {
+      mocks.handy.connectionKey = "conn-key";
+      mocks.handy.appApiKey = "app-key";
+      mocks.handy.connected = true;
+      mocks.handy.offsetMs = 125;
+      const actions = [{ at: 0, pos: 10 }];
+      mocks.playback.loadFunscriptTimeline.mockResolvedValue({ actions });
+      mocks.playback.getFunscriptPositionAtMs.mockReturnValue(10);
+      const session = createAnyHapticsSession();
+      vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(session);
+
+      const { container } = render(
+        <I18nProvider i18n={setupI18n({ locale: "en", messages: { en: {} } })}>
+          <RoundVideoOverlay
+            activeRound={createActiveRound("round-1")}
+            installedRounds={[createInstalledRound("round-1", "/script.funscript")]}
+            currentPlayer={undefined}
+            intermediaryProbability={0}
+            booruSearchPrompt="animated gif webm"
+            intermediaryLoadingDurationSec={10}
+            intermediaryReturnPauseSec={4}
+            onFinishRound={vi.fn()}
+          />
+        </I18nProvider>
+      );
+      const video = await waitFor(() => {
+        const candidate = container.querySelector("video");
+        expect(candidate).not.toBeNull();
+        return candidate as HTMLVideoElement;
+      });
+      primeVideoElement(video, { duration: 30, currentTime: 0.5 });
+      fireEvent.loadedMetadata(video);
+      await waitFor(() => {
+        expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({ synced: true, error: null });
+      });
+      video.currentTime = 5;
+      video.playbackRate = 1.25;
+      vi.mocked(handyRuntime.sendHapticsSync).mockClear();
+
+      if (trigger === "button") fireEvent.click(screen.getByRole("button", { name: "Resync (R)" }));
+      if (trigger === "keyboard") fireEvent.keyDown(window, { key: "r" });
+
+      await waitFor(() => {
+        expect(handyRuntime.sendHapticsSync).toHaveBeenCalledWith(
+          expect.anything(),
+          session,
+          5125,
+          1.25,
+          "/video.mp4:main",
+          actions,
+          { forceClockSync: true, forceTimeSync: true, timeFilter: null }
+        );
+      });
+    }
+  );
+
+  it.each([false, true])(
+    "applies live offset changes without waiting for a timer (request pending: %s)",
+    async (pending) => {
+      mocks.handy.connectionKey = "conn-key";
+      mocks.handy.appApiKey = "app-key";
+      mocks.handy.connected = true;
+      const actions = [{ at: 0, pos: 10 }];
+      mocks.playback.loadFunscriptTimeline.mockResolvedValue({ actions });
+      mocks.playback.getFunscriptPositionAtMs.mockReturnValue(10);
+      const session = createAnyHapticsSession();
+      vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(session);
+      const activeRound = createActiveRound("round-1");
+      const installedRounds = [createInstalledRound("round-1", "/script.funscript")];
+      const i18n = setupI18n({ locale: "en", messages: { en: {} } });
+      const overlay = () => (
+        <I18nProvider i18n={i18n}>
+          <RoundVideoOverlay
+            activeRound={activeRound}
+            installedRounds={installedRounds}
+            currentPlayer={undefined}
+            intermediaryProbability={0}
+            booruSearchPrompt="animated gif webm"
+            intermediaryLoadingDurationSec={10}
+            intermediaryReturnPauseSec={4}
+            onFinishRound={vi.fn()}
+          />
+        </I18nProvider>
+      );
+      const { container, rerender } = render(overlay());
+      const video = await waitFor(() => {
+        const candidate = container.querySelector("video");
+        expect(candidate).not.toBeNull();
+        return candidate as HTMLVideoElement;
+      });
+      primeVideoElement(video, { duration: 30, currentTime: 0 });
+      fireEvent.loadedMetadata(video);
+      await waitFor(() => {
+        expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({ synced: true, error: null });
+      });
+      await act(async () => {});
+      video.currentTime = 5;
+      vi.useFakeTimers();
+      vi.mocked(handyRuntime.sendHapticsSync).mockClear();
+      let finishRequest: (() => void) | undefined;
+      if (pending) {
+        vi.mocked(handyRuntime.sendHapticsSync).mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve) => {
+              finishRequest = resolve;
+            })
+        );
+      }
+      try {
+        mocks.handy.offsetMs = 100;
+        await act(async () => {
+          rerender(overlay());
+        });
+        expect(handyRuntime.sendHapticsSync).toHaveBeenLastCalledWith(
+          expect.anything(),
+          session,
+          5100,
+          1,
+          "/video.mp4:main",
+          actions,
+          { forceTimeSync: true, timeFilter: null }
+        );
+        mocks.handy.offsetMs = 200;
+        await act(async () => {
+          rerender(overlay());
+        });
+        mocks.handy.offsetMs = -100;
+        await act(async () => {
+          rerender(overlay());
+        });
+        if (pending) {
+          expect(handyRuntime.sendHapticsSync).toHaveBeenCalledTimes(1);
+          await act(async () => {
+            finishRequest?.();
+          });
+          expect(handyRuntime.sendHapticsSync).toHaveBeenCalledTimes(2);
+        }
+        expect(handyRuntime.sendHapticsSync).toHaveBeenLastCalledWith(
+          expect.anything(),
+          session,
+          4900,
+          1,
+          "/video.mp4:main",
+          actions,
+          { forceTimeSync: true, timeFilter: null }
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+  );
 
   it("applies the persisted TheHandy offset during bootstrap sync", async () => {
     mocks.handy.connectionKey = "conn-key";
@@ -1598,6 +1851,49 @@ describe("RoundVideoOverlay", () => {
       expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalledTimes(2);
       expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({ synced: true, error: null });
     });
+  });
+
+  it("retries a temporary Handy sync error using the retained playback session", async () => {
+    mocks.handy.connectionKey = "conn-key";
+    mocks.handy.appApiKey = "app-key";
+    mocks.handy.connected = true;
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 0, pos: 10 },
+        { at: 30_000, pos: 90 },
+      ],
+    });
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
+    vi.mocked(handyRuntime.sendHapticsSync).mockResolvedValue(undefined);
+    const { container } = renderOverlay({
+      installedRounds: [createInstalledRound("round-1", "/script.funscript")],
+    });
+    const video = await waitFor(() => {
+      const candidate = container.querySelector("video");
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(video);
+    fireEvent.loadedMetadata(video);
+    await waitFor(() =>
+      expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({
+        synced: true,
+        error: null,
+      })
+    );
+    vi.mocked(handyRuntime.disconnectHapticsSession).mockClear();
+    vi.mocked(handyRuntime.sendHapticsSync).mockClear();
+    vi.mocked(handyRuntime.sendHapticsSync).mockRejectedValueOnce(new Error("Device timeout"));
+    mocks.playback.getFunscriptPositionAtMs.mockReturnValue(10);
+    await waitFor(() =>
+      expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({
+        synced: false,
+        error: "Device timeout",
+      })
+    );
+    await waitFor(() => expect(handyRuntime.sendHapticsSync).toHaveBeenCalledTimes(2));
+    expect(handyRuntime.disconnectHapticsSession).not.toHaveBeenCalled();
+    expect(handyRuntime.createHapticsSession).toHaveBeenCalledTimes(1);
   });
 
   it("does not mark TheHandy synced if manual stop is enabled while bootstrap sync is in flight", async () => {

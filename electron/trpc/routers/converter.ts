@@ -3,6 +3,14 @@ import * as z from "zod";
 import { saveConvertedRounds } from "../../services/converter";
 import { massTrimHeroes } from "../../services/converterMassTrim";
 import { publicProcedure, router } from "../trpc";
+import {
+  ZInspectFrames,
+  ZInspectFunscript,
+  ZAutoDetect,
+  inspectVideoFrames,
+  inspectFunscript,
+  autoDetectRounds,
+} from "../../services/converterInspection";
 
 const ZRoundType = z.enum(["Normal", "Interjection", "Cum"]);
 const ZRoundCutRange = z.object({
@@ -11,6 +19,13 @@ const ZRoundCutRange = z.object({
 });
 
 export const converterRouter = router({
+  inspectFrames: publicProcedure
+    .input(ZInspectFrames)
+    .query(({ input }) => inspectVideoFrames(input)),
+  inspectFunscript: publicProcedure
+    .input(ZInspectFunscript)
+    .query(({ input }) => inspectFunscript(input)),
+  autoDetect: publicProcedure.input(ZAutoDetect).query(({ input }) => autoDetectRounds(input)),
   massTrimHeroes: publicProcedure
     .input(
       z.object({

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getInstalledRoundCatalog: vi.fn(async (): Promise<Array<{ id: string }>> => []),
+  getInstalledRoundPreviewImage: vi.fn(async (): Promise<string | null> => null),
   getInstalledRoundRuntimeCatalog: vi.fn(async (): Promise<Array<{ id: string }>> => []),
   getInstalledRoundCardAssets: vi.fn(
     async (): Promise<
@@ -25,6 +26,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("./trpc", () => ({
   trpc: {
     db: {
+      getInstalledRoundPreviewImage: { query: mocks.getInstalledRoundPreviewImage },
       getInstalledRoundCatalog: {
         query: mocks.getInstalledRoundCatalog,
       },
@@ -54,12 +56,42 @@ import {
   invalidateInstalledRoundCardAssets,
   invalidateInstalledRoundMedia,
   peekInstalledRoundCardAssetsCached,
+  loadInstalledRoundPreviewImage,
 } from "./installedRoundsCache";
 
 describe("installedRoundsCache", () => {
   beforeEach(() => {
     invalidateInstalledRoundCaches();
     vi.clearAllMocks();
+  });
+
+  it("caches repaired thumbnails and leaves invalidated entries untouched", async () => {
+    const entry = {
+      roundId: "repair",
+      previewImage: null,
+      previewVideoUri: "app://media/video.mp4",
+      websiteVideoCacheStatus: "not_applicable" as const,
+      primaryResourceId: "resource",
+    };
+    mocks.getInstalledRoundCardAssets.mockResolvedValueOnce([entry]);
+    await getInstalledRoundCardAssetsCached([entry.roundId]);
+    mocks.getInstalledRoundPreviewImage.mockResolvedValueOnce("data:image/jpeg;base64,fixed");
+    const updated = await loadInstalledRoundPreviewImage(entry);
+    expect(updated.previewImage).toBe("data:image/jpeg;base64,fixed");
+    expect(peekInstalledRoundCardAssetsCached([entry.roundId])).toEqual([updated]);
+    mocks.getInstalledRoundPreviewImage.mockClear();
+    await loadInstalledRoundPreviewImage(updated);
+    expect(mocks.getInstalledRoundPreviewImage).not.toHaveBeenCalled();
+
+    mocks.getInstalledRoundCardAssets.mockResolvedValueOnce([entry]);
+    invalidateInstalledRoundCardAssets(entry.roundId);
+    await getInstalledRoundCardAssetsCached([entry.roundId]);
+    mocks.getInstalledRoundPreviewImage.mockImplementationOnce(async () => {
+      invalidateInstalledRoundCardAssets(entry.roundId);
+      return "data:image/jpeg;base64,stale";
+    });
+    expect(await loadInstalledRoundPreviewImage(entry)).toBe(entry);
+    expect(peekInstalledRoundCardAssetsCached([entry.roundId])).toEqual([]);
   });
 
   it("reuses the same in-flight catalog request and refetches after invalidation", async () => {

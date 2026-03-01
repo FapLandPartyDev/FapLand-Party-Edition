@@ -105,4 +105,19 @@ describe("processFunscriptTrajectory", () => {
     ];
     expect(processFunscriptTrajectory(source, { enabled: false }).actions).toEqual(source);
   });
+
+  it("preserves rapid sub-epsilon reversals while still simplifying straight samples", () => {
+    const vibration = Array.from({ length: 21 }, (_, index) => ({
+      at: index * 30,
+      pos: 50 + (index % 2) * 0.5,
+    }));
+    expect(
+      processFunscriptTrajectory(vibration, { enabled: true, rdpEpsilon: 20 }).actions
+    ).toEqual(vibration);
+    const ramp = Array.from({ length: 21 }, (_, index) => ({ at: index * 30, pos: index }));
+    expect(processFunscriptTrajectory(ramp, { enabled: true }).actions).toEqual([
+      ramp[0],
+      ramp.at(-1),
+    ]);
+  });
 });

@@ -1436,6 +1436,40 @@ describe("MapEditorRoute", () => {
     expect(window.electronAPI.dialog.addMusicFromUrl).not.toHaveBeenCalled();
   });
 
+  it.each(["Updated description\nSecond line", ""])(
+    "persists the map description %j",
+    async (description) => {
+      const playlist = {
+        ...makePlaylist("playlist-1", "Test Playlist"),
+        description: "Existing description",
+      };
+      mocks.loaderData.availablePlaylists = [playlist];
+      mocks.loaderData.activePlaylist = playlist;
+      render(<Component />);
+      await enterEditor();
+      fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+      const field = screen.getByLabelText("Description") as HTMLTextAreaElement;
+      expect(field.value).toBe("Existing description");
+      fireEvent.change(field, { target: { value: description } });
+      expect(screen.getByText("• unsaved")).toBeDefined();
+      await waitFor(
+        () => {
+          expect(mocks.playlists.saveEditorDraft).toHaveBeenCalledWith(
+            "playlist-1",
+            expect.objectContaining({ description })
+          );
+        },
+        { timeout: 3000 }
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => {
+        expect(mocks.playlists.update).toHaveBeenCalledWith(
+          expect.objectContaining({ playlistId: "playlist-1", description })
+        );
+      });
+    }
+  );
+
   it("persists renamed map names from the advanced editor header", async () => {
     render(<Component />);
     await enterEditor();

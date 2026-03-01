@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { registerMapEditor, type LiveMapEditor } from "../mcp/mapEditorControl";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { PlaylistPackExportDialog } from "../components/PlaylistPackExportDialog";
 import { PlaylistExportOverlay } from "../components/PlaylistExportOverlay";
@@ -565,6 +566,7 @@ function MapEditorPage() {
   );
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [playlistNameDraft, setPlaylistNameDraft] = useState("");
+  const [playlistDescriptionDraft, setPlaylistDescriptionDraft] = useState("");
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [createPlaylistPending, setCreatePlaylistPending] = useState(false);
   const [managePlaylistPendingId, setManagePlaylistPendingId] = useState<string | null>(null);
@@ -816,6 +818,7 @@ function MapEditorPage() {
   const draftRevisionRef = useRef(0);
   const draftUiStateRef = useRef({
     name: playlistNameDraft,
+    description: playlistDescriptionDraft,
     viewport,
     showGrid,
     snapToGrid,
@@ -831,6 +834,7 @@ function MapEditorPage() {
   useEffect(() => {
     draftUiStateRef.current = {
       name: playlistNameDraft,
+      description: playlistDescriptionDraft,
       viewport,
       showGrid,
       snapToGrid,
@@ -848,6 +852,7 @@ function MapEditorPage() {
     heroSearch,
     heroSort,
     playlistNameDraft,
+    playlistDescriptionDraft,
     roundSearch,
     roundSort,
     roundTypeFilter,
@@ -862,6 +867,7 @@ function MapEditorPage() {
     return {
       version: 1,
       name: draftUi.name,
+      description: draftUi.description,
       config: configRef.current,
       viewport: draftUi.viewport,
       showGrid: draftUi.showGrid,
@@ -941,6 +947,7 @@ function MapEditorPage() {
     autosaveRevision,
     flushEditorDraft,
     playlistNameDraft,
+    playlistDescriptionDraft,
     selectedPlaylist,
     showGrid,
     snapToGrid,
@@ -960,7 +967,10 @@ function MapEditorPage() {
     selectedPlaylist !== null &&
     normalizedPlaylistNameDraft.length > 0 &&
     normalizedPlaylistNameDraft !== selectedPlaylist.name;
-  const isEditorDirty = isDirty || hasPlaylistNameChange;
+  const hasPlaylistDescriptionChange =
+    selectedPlaylist !== null &&
+    playlistDescriptionDraft.trim() !== (selectedPlaylist.description ?? "");
+  const isEditorDirty = isDirty || hasPlaylistNameChange || hasPlaylistDescriptionChange;
 
   const applyEditorConfig = useCallback(
     (nextConfig: EditorGraphConfig) => {
@@ -981,9 +991,10 @@ function MapEditorPage() {
   );
 
   const applyDraftSnapshot = useCallback(
-    (snapshot: MapEditorDraftSnapshot) => {
+    (snapshot: MapEditorDraftSnapshot, playlist: StoredPlaylist) => {
       applyEditorConfig(snapshot.config);
       setPlaylistNameDraft(snapshot.name);
+      setPlaylistDescriptionDraft(snapshot.description ?? playlist.description ?? "");
       setViewport(snapshot.viewport);
       setShowGrid(snapshot.showGrid);
       setSnapToGrid(snapshot.snapToGrid);
@@ -1006,6 +1017,7 @@ function MapEditorPage() {
       setSelectedPlaylistId(playlist.id);
       selectedPlaylistIdRef.current = playlist.id;
       setPlaylistNameDraft(playlist.name);
+      setPlaylistDescriptionDraft(playlist.description ?? "");
       applyEditorConfig(toEditorConfigFromPlaylist(playlist));
       setDraftSaveStatus("saved");
       try {
@@ -1017,7 +1029,7 @@ function MapEditorPage() {
           await playlists.deleteEditorDraft(playlist.id);
           return;
         }
-        applyDraftSnapshot(draft.snapshot);
+        applyDraftSnapshot(draft.snapshot, playlist);
         const canonicalConfig = toEditorConfigFromPlaylist(playlist);
         setIsDirty(
           draft.snapshot.name !== playlist.name ||
@@ -3032,10 +3044,12 @@ function MapEditorPage() {
       const updated = await playlists.update({
         playlistId: playlist.id,
         name: nextName,
+        description: playlistDescriptionDraft,
         config: createUpdatedPlaylistConfig(playlist),
       });
       updatePlaylistListEntry(updated);
       setPlaylistNameDraft(updated.name);
+      setPlaylistDescriptionDraft(updated.description ?? "");
       if (importedPlaylistReview?.playlistId === playlist.id) {
         setImportedPlaylistReview(null);
       }
@@ -3052,6 +3066,7 @@ function MapEditorPage() {
       importedPlaylistReview?.playlistId,
       installedRounds,
       playlistNameDraft,
+      playlistDescriptionDraft,
       updatePlaylistListEntry,
     ]
   );
@@ -3152,6 +3167,7 @@ function MapEditorPage() {
     setSelectedPlaylistId(null);
     selectedPlaylistIdRef.current = null;
     setPlaylistNameDraft("");
+    setPlaylistDescriptionDraft("");
     setSaveNotice(null);
     void refreshPlaylistPickerData();
   }, [flushEditorDraft, refreshPlaylistPickerData]);
@@ -3161,6 +3177,7 @@ function MapEditorPage() {
     playSelectSound();
     setSelectedPlaylistId(null);
     setPlaylistNameDraft("");
+    setPlaylistDescriptionDraft("");
     setSaveNotice(null);
     void refreshPlaylistPickerData();
   }, [refreshPlaylistPickerData]);
@@ -3377,6 +3394,55 @@ function MapEditorPage() {
     testMapPending,
   ]);
 
+  const liveEditorRef = useRef<LiveMapEditor>(null!);
+  const liveEditor: LiveMapEditor = {
+    read: () => ({
+      playlistId: selectedPlaylistIdRef.current,
+      name: playlistNameDraft,
+      config: configRef.current,
+      selection,
+      viewport,
+      tool,
+      showGrid,
+      snapToGrid,
+      validation: validateGraphConfig(configRef.current, installedRounds),
+      dirty: isDirty,
+      draftSaveStatus,
+      saveNotice,
+      canUndo: undoManagerRef.current.canUndo(),
+      canRedo: undoManagerRef.current.canRedo(),
+      tileCatalog,
+    }),
+    busy: () => dragSessionRef.current.active || importPending || savePending || testMapPending,
+    apply: (next) => {
+      updateGraphConfig(() => next, true);
+    },
+    undo: handleUndo,
+    redo: handleRedo,
+    saveDraft: flushEditorDraft,
+    publish: async () => {
+      if (!selectedPlaylist) throw new Error("Choose or create a playlist first.");
+      const configBeforeSave = JSON.stringify(configRef.current);
+      if (!(await flushEditorDraft())) throw new Error("Draft saving failed.");
+      if (
+        selectedPlaylistIdRef.current !== selectedPlaylist.id ||
+        JSON.stringify(configRef.current) !== configBeforeSave ||
+        draftUiStateRef.current.name !== playlistNameDraft ||
+        draftUiStateRef.current.description !== playlistDescriptionDraft
+      ) {
+        throw new Error("The live editor changed while saving. Inspect again before publishing.");
+      }
+      const updated = await persistEditedPlaylist(selectedPlaylist);
+      if (!updated)
+        throw new Error("Map cannot be published. Inspect validation and the map name.");
+      return { published: true, playlistId: updated.id };
+    },
+  };
+  useLayoutEffect(() => {
+    liveEditorRef.current = liveEditor;
+  });
+  useEffect(() => registerMapEditor(() => liveEditorRef.current), []);
+
   const handleConfirmLinearConversion = useCallback(async () => {
     setLinearConversionDialogOpen(false);
     if (!selectedPlaylist) {
@@ -3398,12 +3464,14 @@ function MapEditorPage() {
       const updated = await playlists.update({
         playlistId: selectedPlaylist.id,
         name: nextName,
+        description: playlistDescriptionDraft,
         config: parsedConfig,
       });
       await playlists.setActive(updated.id);
       updatePlaylistListEntry(updated);
       setActivePlaylistId(updated.id);
       setPlaylistNameDraft(updated.name);
+      setPlaylistDescriptionDraft(updated.description ?? "");
       if (importedPlaylistReview?.playlistId === selectedPlaylist.id) {
         setImportedPlaylistReview(null);
       }
@@ -3427,6 +3495,7 @@ function MapEditorPage() {
     importPending,
     navigate,
     playlistNameDraft,
+    playlistDescriptionDraft,
     savePending,
     selectedPlaylist,
     t,
@@ -4249,78 +4318,96 @@ function MapEditorPage() {
                     />
                   )}
                   {inspectorTab === "settings" && (
-                    <GraphSettingsPanel
-                      perkSelection={config.perkSelection}
-                      perkPool={config.perkPool}
-                      probabilityScaling={config.probabilityScaling}
-                      intermediarySelection={config.intermediarySelection}
-                      disableInterjectionsDuringCumRounds={
-                        config.disableInterjectionsDuringCumRounds ?? true
-                      }
-                      allowPausingDuringFinalCumRound={config.allowPausingDuringFinalCumRound}
-                      resetIntermediaryProbabilityAfterTrigger={
-                        config.resetIntermediaryProbabilityAfterTrigger
-                      }
-                      resetAntiPerkProbabilityAfterTrigger={
-                        config.resetAntiPerkProbabilityAfterTrigger
-                      }
-                      economy={config.economy}
-                      dice={config.dice}
-                      disableDiceAnimation={config.disableDiceAnimation}
-                      saveMode={config.saveMode}
-                      requiredLevel={config.requiredLevel ?? 1}
-                      style={config.style}
-                      perkOptions={perkOptions}
-                      antiPerkOptions={antiPerkOptions}
-                      cumRoundRefs={config.cumRoundRefs}
-                      cumRounds={cumRounds}
-                      installedRounds={installedRounds}
-                      selectedCumRoundIdSet={selectedCumRoundIdSet}
-                      onSetPerkTriggerChance={setPerkTriggerChance}
-                      onSetProbabilityScaling={setProbabilityScaling}
-                      onSetIntermediaryCount={setIntermediaryCount}
-                      onSetDisableInterjectionsDuringCumRounds={
-                        setDisableInterjectionsDuringCumRounds
-                      }
-                      onSetAllowPausingDuringFinalCumRound={setAllowPausingDuringFinalCumRound}
-                      onSetResetIntermediaryProbabilityAfterTrigger={
-                        setResetIntermediaryProbabilityAfterTrigger
-                      }
-                      onSetResetAntiPerkProbabilityAfterTrigger={
-                        setResetAntiPerkProbabilityAfterTrigger
-                      }
-                      onSetDiceLimit={setDiceLimit}
-                      onSetDisableDiceAnimation={setDisableDiceAnimation}
-                      onSetSaveMode={setSaveMode}
-                      onSetRequiredLevel={setRequiredLevel}
-                      onSetStartingMoney={setStartingMoney}
-                      onSetCumRoundBonusScore={setCumRoundBonusScore}
-                      onChooseMapBackground={chooseMapBackground}
-                      onSetMapBackground={setMapBackground}
-                      onPatchMapBackground={patchMapBackground}
-                      onSetRoadPalette={setRoadPalette}
-                      onPatchRoadPalette={patchRoadPalette}
-                      onResetRoadPalette={resetRoadPalette}
-                      customPalettes={customPalettes}
-                      isLoadingCustomPalettes={isLoadingCustomPalettes}
-                      onSaveCustomPalette={saveCustomPalette}
-                      onUpdateCustomPalette={updateCustomPalette}
-                      onDeleteCustomPalette={deleteCustomPalette}
-                      onTogglePerk={togglePerkEnabled}
-                      onToggleAntiPerk={toggleAntiPerkEnabled}
-                      onSetAllPerksEnabled={setAllPerksEnabled}
-                      onSetAllAntiPerksEnabled={setAllAntiPerksEnabled}
-                      onToggleCumRound={toggleCumRound}
-                      onMoveCumRound={moveCumRound}
-                      onRemoveCumRoundByIndex={removeCumRoundByIndex}
-                      music={config.music}
-                      onChoosePlaylistMusicFiles={choosePlaylistMusicFiles}
-                      onAddPlaylistMusicFromUrl={addPlaylistMusicFromUrl}
-                      onRemovePlaylistMusicTrack={removePlaylistMusicTrack}
-                      onMovePlaylistMusicTrack={movePlaylistMusicTrack}
-                      onClearPlaylistMusicTracks={clearPlaylistMusicTracks}
-                      onSetPlaylistMusicLoop={setPlaylistMusicLoop}
-                    />
+                    <>
+                      <label
+                        htmlFor="map-editor-description"
+                        className="mb-4 block text-xs text-zinc-300"
+                      >
+                        <span className="mb-2 block">{t`Description`}</span>
+                        <textarea
+                          id="map-editor-description"
+                          value={playlistDescriptionDraft}
+                          onChange={(event) => {
+                            setPlaylistDescriptionDraft(event.target.value);
+                            setSaveNotice(null);
+                          }}
+                          rows={3}
+                          className="w-full resize-y rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-cyan-400/50"
+                        />
+                      </label>
+                      <GraphSettingsPanel
+                        perkSelection={config.perkSelection}
+                        perkPool={config.perkPool}
+                        probabilityScaling={config.probabilityScaling}
+                        intermediarySelection={config.intermediarySelection}
+                        disableInterjectionsDuringCumRounds={
+                          config.disableInterjectionsDuringCumRounds ?? true
+                        }
+                        allowPausingDuringFinalCumRound={config.allowPausingDuringFinalCumRound}
+                        resetIntermediaryProbabilityAfterTrigger={
+                          config.resetIntermediaryProbabilityAfterTrigger
+                        }
+                        resetAntiPerkProbabilityAfterTrigger={
+                          config.resetAntiPerkProbabilityAfterTrigger
+                        }
+                        economy={config.economy}
+                        dice={config.dice}
+                        disableDiceAnimation={config.disableDiceAnimation}
+                        saveMode={config.saveMode}
+                        requiredLevel={config.requiredLevel ?? 1}
+                        style={config.style}
+                        perkOptions={perkOptions}
+                        antiPerkOptions={antiPerkOptions}
+                        cumRoundRefs={config.cumRoundRefs}
+                        cumRounds={cumRounds}
+                        installedRounds={installedRounds}
+                        selectedCumRoundIdSet={selectedCumRoundIdSet}
+                        onSetPerkTriggerChance={setPerkTriggerChance}
+                        onSetProbabilityScaling={setProbabilityScaling}
+                        onSetIntermediaryCount={setIntermediaryCount}
+                        onSetDisableInterjectionsDuringCumRounds={
+                          setDisableInterjectionsDuringCumRounds
+                        }
+                        onSetAllowPausingDuringFinalCumRound={setAllowPausingDuringFinalCumRound}
+                        onSetResetIntermediaryProbabilityAfterTrigger={
+                          setResetIntermediaryProbabilityAfterTrigger
+                        }
+                        onSetResetAntiPerkProbabilityAfterTrigger={
+                          setResetAntiPerkProbabilityAfterTrigger
+                        }
+                        onSetDiceLimit={setDiceLimit}
+                        onSetDisableDiceAnimation={setDisableDiceAnimation}
+                        onSetSaveMode={setSaveMode}
+                        onSetRequiredLevel={setRequiredLevel}
+                        onSetStartingMoney={setStartingMoney}
+                        onSetCumRoundBonusScore={setCumRoundBonusScore}
+                        onChooseMapBackground={chooseMapBackground}
+                        onSetMapBackground={setMapBackground}
+                        onPatchMapBackground={patchMapBackground}
+                        onSetRoadPalette={setRoadPalette}
+                        onPatchRoadPalette={patchRoadPalette}
+                        onResetRoadPalette={resetRoadPalette}
+                        customPalettes={customPalettes}
+                        isLoadingCustomPalettes={isLoadingCustomPalettes}
+                        onSaveCustomPalette={saveCustomPalette}
+                        onUpdateCustomPalette={updateCustomPalette}
+                        onDeleteCustomPalette={deleteCustomPalette}
+                        onTogglePerk={togglePerkEnabled}
+                        onToggleAntiPerk={toggleAntiPerkEnabled}
+                        onSetAllPerksEnabled={setAllPerksEnabled}
+                        onSetAllAntiPerksEnabled={setAllAntiPerksEnabled}
+                        onToggleCumRound={toggleCumRound}
+                        onMoveCumRound={moveCumRound}
+                        onRemoveCumRoundByIndex={removeCumRoundByIndex}
+                        music={config.music}
+                        onChoosePlaylistMusicFiles={choosePlaylistMusicFiles}
+                        onAddPlaylistMusicFromUrl={addPlaylistMusicFromUrl}
+                        onRemovePlaylistMusicTrack={removePlaylistMusicTrack}
+                        onMovePlaylistMusicTrack={movePlaylistMusicTrack}
+                        onClearPlaylistMusicTracks={clearPlaylistMusicTracks}
+                        onSetPlaylistMusicLoop={setPlaylistMusicLoop}
+                      />
+                    </>
                   )}
                   {inspectorTab === "automation" && (
                     <AutomationPanel
@@ -4535,6 +4622,7 @@ function MapEditorPage() {
           setSelectedPlaylistId(null);
           selectedPlaylistIdRef.current = null;
           setPlaylistNameDraft("");
+          setPlaylistDescriptionDraft("");
           setSaveNotice(null);
           void refreshPlaylistPickerData();
         }}

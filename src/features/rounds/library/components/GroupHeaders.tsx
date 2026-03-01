@@ -122,6 +122,9 @@ export function HeroGroupHeader({
   convertingHardMode,
   isHardModeConverted,
   hasTemplateRounds,
+  invertingFunscript,
+  isFunscriptInverted,
+  onToggleInvertFunscript,
   onToggle,
   onConvertToRound,
   onConvertLegacyFunscript,
@@ -144,6 +147,9 @@ export function HeroGroupHeader({
   convertingHardMode: boolean;
   isHardModeConverted: boolean;
   hasTemplateRounds: boolean;
+  invertingFunscript?: boolean;
+  isFunscriptInverted?: boolean;
+  onToggleInvertFunscript?: () => void;
   onToggle: () => void;
   onConvertToRound: () => void;
   onConvertLegacyFunscript: () => void;
@@ -187,6 +193,19 @@ export function HeroGroupHeader({
           onClick: onRevertHardModeFunscript,
           disabled: convertingHardMode,
         },
+        ...(onToggleInvertFunscript
+          ? [
+              {
+                label: invertingFunscript
+                  ? t`Updating funscript inversion…`
+                  : isFunscriptInverted
+                    ? t`Uninvert funscript`
+                    : t`Invert funscript`,
+                onClick: onToggleInvertFunscript,
+                disabled: invertingFunscript,
+              },
+            ]
+          : []),
         { label: t`Delete hero`, onClick: onDeleteHero, danger: true },
         ...(hasTemplateRounds
           ? [

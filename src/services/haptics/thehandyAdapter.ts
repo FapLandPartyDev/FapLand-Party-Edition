@@ -142,6 +142,7 @@ export const thehandyAdapter: HapticsRuntimeAdapter<TheHandyHapticsSession> = {
   },
 
   async sendSync(config, session, timeMs, playbackRate, sourceId, actions, options): Promise<void> {
+    const sampledAtMs = Date.now();
     const processed = getProcessedActions(config, session, sourceId, actions, playbackRate);
     await runDeviceOperation(config, () =>
       sendHspSync(
@@ -151,7 +152,8 @@ export const thehandyAdapter: HapticsRuntimeAdapter<TheHandyHapticsSession> = {
         playbackRate,
         processed.sourceId,
         processed.actions,
-        options
+        options,
+        sampledAtMs
       )
     );
   },

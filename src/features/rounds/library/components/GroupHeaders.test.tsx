@@ -55,4 +55,32 @@ describe("HeroGroupHeader", () => {
 
     expect(screen.getByText("Hard Mode")).toBeDefined();
   });
+
+  it("offers hero-wide funscript inversion", () => {
+    const onToggleInvertFunscript = vi.fn();
+    renderHeroHeader({ onToggleInvertFunscript, isFunscriptInverted: false });
+
+    fireEvent.click(screen.getByRole("button", { name: "Collection actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Invert funscript" }));
+
+    expect(onToggleInvertFunscript).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows uninvert action when hero funscript is already inverted", () => {
+    const onToggleInvertFunscript = vi.fn();
+    renderHeroHeader({ onToggleInvertFunscript, isFunscriptInverted: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Collection actions" }));
+    expect(screen.getByRole("button", { name: "Uninvert funscript" })).toBeDefined();
+  });
+
+  it("disables funscript inversion while pending", () => {
+    const onToggleInvertFunscript = vi.fn();
+    renderHeroHeader({ onToggleInvertFunscript, invertingFunscript: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Collection actions" }));
+    const action = screen.getByRole("button", { name: "Updating funscript inversion…" });
+
+    expect(action.hasAttribute("disabled")).toBe(true);
+  });
 });

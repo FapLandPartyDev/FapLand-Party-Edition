@@ -5,6 +5,7 @@ import { shell } from "electron";
 import * as z from "zod";
 import { resolveInstallExportBaseDir } from "../../services/appPaths";
 import { getDb, repairInstalledLibrarySchema } from "../../services/db";
+import { replaceRoundMedia, ZReplaceRoundMedia } from "../../services/roundMediaReplacement";
 import { exportInstalledDatabase } from "../../services/installExport";
 import {
   analyzeLibraryExportPackage,
@@ -62,7 +63,11 @@ import {
   startWebsiteVideoScan,
   startWebsiteVideoScanManual,
 } from "../../services/webVideoScanService";
-import { generateRoundPreviewImageDataUri } from "../../services/roundPreview";
+import {
+  generateRoundPreviewImageDataUri,
+  generateQueuedRoundPreviewImageDataUri,
+} from "../../services/roundPreview";
+import { isLocalMediaUri } from "../../services/localMedia";
 import { clearPlayableVideoCache } from "../../services/playableVideo";
 import {
   clearWebsiteVideoCache,
@@ -80,7 +85,7 @@ import { clearFpackExtractionCache, getFpackExtractionRoot } from "../../service
 import { clearEroScriptsCache, resolveEroScriptsCacheRoot } from "../../services/eroscripts";
 import { clearAcquisitionDownloadData } from "../../services/acquisition";
 import { publicProcedure, router } from "../trpc";
-import { and, eq, desc, asc, inArray } from "drizzle-orm";
+import { and, eq, desc, asc, inArray, isNull } from "drizzle-orm";
 import {
   gameProfile,
   singlePlayerRunHistory,
@@ -540,6 +545,10 @@ function toInstalledRoundCatalogEntry(entry: {
 }
 
 export const dbRouter = router({
+  replaceRoundMedia: publicProcedure
+    .input(ZReplaceRoundMedia)
+    .mutation(({ input }) => replaceRoundMedia(input)),
+
   getLocalHighscore: publicProcedure.query(async () => {
     const db = getDb();
     const profile = await db.select().from(gameProfile).where(eq(gameProfile.id, "local")).get();
@@ -1595,6 +1604,80 @@ export const dbRouter = router({
       };
     }),
 
+  invertHeroFunscript: publicProcedure
+    .input(
+      z.object({
+        heroId: z.string().min(1),
+        invert: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const existing = await db.query.hero.findFirst({
+        where: eq(hero.id, input.heroId),
+        columns: { id: true },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Hero not found.",
+        });
+      }
+
+      const attachedRounds = await db.query.round.findMany({
+        where: eq(round.heroId, input.heroId),
+        columns: { id: true },
+        with: {
+          resources: {
+            orderBy: [asc(resource.createdAt), asc(resource.id)],
+            columns: { id: true, funscriptUri: true, invertFunscript: true },
+          },
+        },
+      });
+
+      const firstResourceWithScript = attachedRounds
+        .flatMap((r) => r.resources)
+        .find((res) => Boolean(res.funscriptUri));
+
+      if (!firstResourceWithScript) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This hero has no rounds with a funscript attached.",
+        });
+      }
+
+      const nextInvert = input.invert ?? !firstResourceWithScript.invertFunscript;
+
+      let updatedResources = 0;
+      let skippedRounds = 0;
+
+      await db.transaction(async (tx) => {
+        for (const attachedRound of attachedRounds) {
+          const primaryResource = attachedRound.resources[0];
+          if (!primaryResource) {
+            skippedRounds += 1;
+            continue;
+          }
+
+          await tx
+            .update(resource)
+            .set({
+              invertFunscript: nextInvert,
+              updatedAt: new Date(),
+            })
+            .where(eq(resource.id, primaryResource.id));
+          updatedResources += 1;
+        }
+      });
+
+      return {
+        heroId: input.heroId,
+        invertFunscript: nextInvert,
+        updatedResources,
+        skippedRounds,
+      };
+    }),
+
   convertRoundFunscriptToHardMode: publicProcedure
     .input(
       z.object({
@@ -1792,6 +1875,79 @@ export const dbRouter = router({
         funscriptUri: selectedRestore?.funscriptUri ?? null,
         updatedResources: restores.length,
         skippedRounds,
+      };
+    }),
+
+  invertRoundFunscript: publicProcedure
+    .input(
+      z.object({
+        roundId: z.string().min(1),
+        invert: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const selectedRound = await db.query.round.findFirst({
+        where: eq(round.id, input.roundId),
+        columns: { id: true, heroId: true },
+        with: {
+          resources: {
+            orderBy: [asc(resource.createdAt), asc(resource.id)],
+            columns: { id: true, videoUri: true, funscriptUri: true, invertFunscript: true },
+          },
+        },
+      });
+      if (!selectedRound) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Round not found." });
+      }
+
+      const sourceResource = selectedRound.resources[0];
+      if (!sourceResource) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This round has no media resource.",
+        });
+      }
+      if (!sourceResource.funscriptUri) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This round has no funscript attached.",
+        });
+      }
+
+      const nextInvert = input.invert ?? !sourceResource.invertFunscript;
+
+      const targetRounds = selectedRound.heroId
+        ? await db.query.round.findMany({
+            where: eq(round.heroId, selectedRound.heroId),
+            columns: { id: true },
+            with: {
+              resources: {
+                orderBy: [asc(resource.createdAt), asc(resource.id)],
+                columns: { id: true, funscriptUri: true },
+              },
+            },
+          })
+        : [selectedRound];
+      const primaryResourceIds = targetRounds
+        .map((entry) => entry.resources[0]?.id ?? null)
+        .filter((id): id is string => id !== null);
+
+      await db.transaction(async (tx) => {
+        for (const primaryResourceId of primaryResourceIds) {
+          await tx
+            .update(resource)
+            .set({ invertFunscript: nextInvert, updatedAt: new Date() })
+            .where(eq(resource.id, primaryResourceId));
+        }
+      });
+
+      return {
+        scope: selectedRound.heroId ? ("hero" as const) : ("round" as const),
+        heroId: selectedRound.heroId,
+        roundId: selectedRound.id,
+        invertFunscript: nextInvert,
+        updatedResources: primaryResourceIds.length,
       };
     }),
 
@@ -3082,6 +3238,40 @@ export const dbRouter = router({
       return uniqueRoundIds
         .map((roundId) => assetsByRoundId.get(roundId))
         .filter((entry): entry is NonNullable<typeof entry> => entry != null);
+    }),
+
+  getInstalledRoundPreviewImage: publicProcedure
+    .input(z.object({ roundId: z.string().min(1), includeDisabled: z.boolean().optional() }))
+    .query(async ({ input }) => {
+      const includeDisabled = input.includeDisabled ?? false;
+      if (!includeDisabled && getDisabledRoundIdSet().has(input.roundId)) return null;
+      const db = getDb();
+      const entry = await db.query.round.findFirst({
+        where: eq(round.id, input.roundId),
+        columns: { id: true, previewImage: true, startTime: true, endTime: true },
+        with: { resources: { columns: { videoUri: true, disabled: true } } },
+      });
+      if (!entry) return null;
+      if (entry.previewImage) return entry.previewImage;
+      const resource = getVisibleResources(entry.resources, includeDisabled)[0];
+      if (!resource) return null;
+      const videoUri = createResourceUriResolver()({
+        videoUri: resource.videoUri,
+        funscriptUri: null,
+      }).videoUri;
+      // Do not start network downloads or remote probing just to render a card.
+      if (!videoUri || !isLocalMediaUri(videoUri)) return null;
+      const image = await generateQueuedRoundPreviewImageDataUri({
+        videoUri,
+        startTimeMs: entry.startTime,
+        endTimeMs: entry.endTime,
+      });
+      if (image) {
+        await db.update(round).set({ previewImage: image }).where(
+          and(eq(round.id, entry.id), isNull(round.previewImage))
+        );
+      }
+      return image;
     }),
 
   getRoundMediaResources: publicProcedure

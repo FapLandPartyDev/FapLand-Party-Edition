@@ -11,8 +11,16 @@ import {
   searchEroScripts,
 } from "../../services/eroscripts";
 import { publicProcedure, router } from "../trpc";
+import { eroscriptsDownloads, ZEroScriptsDownload } from "../../services/eroscriptsDownloads";
 
 export const eroscriptsRouter = router({
+  startDownload: publicProcedure
+    .input(ZEroScriptsDownload)
+    .mutation(({ input }) => eroscriptsDownloads.start(input)),
+  getDownload: publicProcedure
+    .input(z.object({ jobId: z.string().min(1) }))
+    .query(({ input }) => eroscriptsDownloads.get(input.jobId)),
+  listDownloads: publicProcedure.query(() => eroscriptsDownloads.list()),
   getLoginStatus: publicProcedure.query(() => getEroScriptsLoginStatus()),
 
   openLoginWindow: publicProcedure.mutation(() => openEroScriptsLoginWindow()),

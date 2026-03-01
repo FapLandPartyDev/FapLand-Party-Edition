@@ -604,6 +604,8 @@ export function InstalledRoundsPage({
     useState<RoundHardModeConversionState | null>(null);
   const [convertingHardModeRoundId, setConvertingHardModeRoundId] = useState<string | null>(null);
   const [revertingHardModeRoundId, setRevertingHardModeRoundId] = useState<string | null>(null);
+  const [invertingFunscriptHeroId, setInvertingFunscriptHeroId] = useState<string | null>(null);
+  const [invertingFunscriptRoundId, setInvertingFunscriptRoundId] = useState<string | null>(null);
   const [repairingTemplateRound, setRepairingTemplateRound] =
     useState<RoundTemplateRepairState | null>(null);
   const [repairingTemplateHero, setRepairingTemplateHero] =
@@ -1673,6 +1675,59 @@ export function InstalledRoundsPage({
     [refreshLibrary, revertingHardModeRoundId, showToast, t]
   );
 
+  const toggleInvertFunscriptForRound = useCallback(
+    async (targetRound: RoundLibraryEntry) => {
+      if (invertingFunscriptRoundId) return;
+      setInvertingFunscriptRoundId(targetRound.id);
+      try {
+        const result = await db.round.invertFunscript(targetRound.id);
+        await refreshLibrary();
+        let message = t`Inverted funscript for this round.`;
+        if (result.invertFunscript && result.scope === "hero") {
+          message = t`Inverted funscript for ${result.updatedResources} hero rounds.`;
+        }
+        if (!result.invertFunscript && result.scope === "hero") {
+          message = t`Restored normal funscript motion for ${result.updatedResources} hero rounds.`;
+        }
+        if (!result.invertFunscript && result.scope !== "hero") {
+          message = t`Restored normal funscript motion for this round.`;
+        }
+        showToast(message, "success");
+      } catch (error) {
+        showToast(
+          error instanceof Error ? error.message : t`Failed to invert the funscript.`,
+          "error"
+        );
+      } finally {
+        setInvertingFunscriptRoundId(null);
+      }
+    },
+    [invertingFunscriptRoundId, refreshLibrary, showToast, t]
+  );
+
+  const toggleInvertFunscriptForHero = useCallback(
+    async (heroId: string) => {
+      if (invertingFunscriptHeroId) return;
+      setInvertingFunscriptHeroId(heroId);
+      try {
+        const result = await db.hero.invertFunscript({ heroId });
+        await refreshLibrary();
+        const message = result.invertFunscript
+          ? t`Inverted funscript for ${result.updatedResources} hero rounds.`
+          : t`Restored normal funscript motion for ${result.updatedResources} hero rounds.`;
+        showToast(message, "success");
+      } catch (error) {
+        showToast(
+          error instanceof Error ? error.message : t`Failed to invert the hero funscript.`,
+          "error"
+        );
+      } finally {
+        setInvertingFunscriptHeroId(null);
+      }
+    },
+    [invertingFunscriptHeroId, refreshLibrary, showToast, t]
+  );
+
   const confirmHeroGroupRoundConversion = useCallback(async () => {
     if (!heroGroupRoundConversion) return;
     if (
@@ -2237,6 +2292,8 @@ export function InstalledRoundsPage({
                       setExpandedHeroGroups={setExpandedHeroGroups}
                       convertingHeroGroupKey={convertingHeroGroupKey}
                       convertingHardModeHeroId={convertingHardModeHeroId}
+                      invertingFunscriptHeroId={invertingFunscriptHeroId}
+                      toggleInvertFunscriptForHero={toggleInvertFunscriptForHero}
                       cardAssetsByRoundId={cardAssetsByRoundId}
                       websiteVideoScanStatusRunning={isWebsiteVideoCaching}
                       selectionMode={selectionMode}
@@ -2325,6 +2382,8 @@ export function InstalledRoundsPage({
               }
               onRevertHardMode={() => void revertHardModeForRound(inspectedRound)}
               revertingHardMode={revertingHardModeRoundId !== null}
+              onToggleInvertFunscript={() => void toggleInvertFunscriptForRound(inspectedRound)}
+              invertingFunscript={invertingFunscriptRoundId !== null}
               onRepair={() => handleOpenRepairTemplateRound(inspectedRound)}
               onRetry={() => void handleRetryTemplateLinkingForRound(inspectedRound)}
               onDelete={() =>
@@ -2676,6 +2735,8 @@ function RoundInspector({
   onConvertHardMode,
   onRevertHardMode,
   revertingHardMode,
+  onToggleInvertFunscript,
+  invertingFunscript = false,
   onRepair,
   onRetry,
   onDelete,
@@ -2690,6 +2751,8 @@ function RoundInspector({
   onConvertHardMode: () => void;
   onRevertHardMode: () => void;
   revertingHardMode: boolean;
+  onToggleInvertFunscript?: () => void;
+  invertingFunscript?: boolean;
   onRepair: () => void;
   onRetry: () => void;
   onDelete: () => void;
@@ -2825,6 +2888,22 @@ function RoundInspector({
                   <Trans>Restore previous script</Trans>
                 )}
               </button>
+              {onToggleInvertFunscript && (
+                <button
+                  type="button"
+                  onClick={onToggleInvertFunscript}
+                  disabled={invertingFunscript}
+                  className="round-library-toolbar-button col-span-2 justify-center"
+                >
+                  {invertingFunscript ? (
+                    <Trans>Updating funscript inversion…</Trans>
+                  ) : round.resources[0]?.invertFunscript ? (
+                    <Trans>Uninvert funscript</Trans>
+                  ) : (
+                    <Trans>Invert funscript</Trans>
+                  )}
+                </button>
+              )}
             </>
           )}
           {isTemplate && (
@@ -3918,6 +3997,8 @@ function HeroGroupHeaderShell({
   setExpandedHeroGroups,
   convertingHeroGroupKey,
   convertingHardModeHeroId,
+  invertingFunscriptHeroId,
+  toggleInvertFunscriptForHero,
   cardAssetsByRoundId,
   websiteVideoScanStatusRunning,
   selectionMode,
@@ -3942,6 +4023,8 @@ function HeroGroupHeaderShell({
   ) => void;
   convertingHeroGroupKey: string | null;
   convertingHardModeHeroId: string | null;
+  invertingFunscriptHeroId: string | null;
+  toggleInvertFunscriptForHero: (heroId: string) => Promise<void>;
   cardAssetsByRoundId: ReadonlyMap<string, import("@/services/db").InstalledRoundCardAssets>;
   websiteVideoScanStatusRunning: boolean;
   selectionMode: boolean;
@@ -3970,6 +4053,10 @@ function HeroGroupHeaderShell({
     cardAssetsByRoundId,
     websiteVideoScanStatusRunning
   );
+  const hasScript = row.rounds.some((round) => roundHasFunscript(round));
+  const isFunscriptInverted = row.rounds.some(
+    (round) => Boolean(round.resources[0]?.invertFunscript)
+  );
   return (
     <HeroGroupHeader
       heroName={row.heroName}
@@ -3982,6 +4069,16 @@ function HeroGroupHeaderShell({
       convertingHardMode={convertingHardModeHeroId === heroId || revertingHardModeRoundId !== null}
       isHardModeConverted={row.rounds.some((round) => round.isHardModeConverted)}
       hasTemplateRounds={row.rounds.some((round) => isTemplateRound(round))}
+      invertingFunscript={invertingFunscriptHeroId === heroId}
+      isFunscriptInverted={isFunscriptInverted}
+      onToggleInvertFunscript={
+        hasScript && heroId
+          ? () => {
+              handleSelectSfx();
+              void toggleInvertFunscriptForHero(heroId);
+            }
+          : undefined
+      }
       selectionMode={selectionMode}
       selected={isGroupSelected}
       onToggleSelection={() => {

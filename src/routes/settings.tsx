@@ -5,6 +5,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import ReactMarkdown from "react-markdown";
 import changelogMarkdown from "../content/changelog.md?raw";
 import { AnimatedBackground } from "../components/AnimatedBackground";
+import { McpSettingsCard } from "../components/McpSettingsCard";
+import { MCP_CHANGED_EVENT } from "../mcp/types";
 import { AntiPerkBeatbar } from "../components/game/AntiPerkBeatbar";
 import { HandyStrokeRangeControl } from "../components/HandyStrokeRangeControl";
 import { MenuButton } from "../components/MenuButton";
@@ -16,6 +18,12 @@ import {
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { GameDropdown } from "../components/ui/GameDropdown";
 import { useToast } from "../components/ui/ToastHost";
+import {
+  SCRIPT_ENHANCEMENT_ENABLED_KEY,
+  DEFAULT_SCRIPT_ENHANCEMENT_ENABLED,
+  normalizeScriptEnhancementEnabled,
+  saveGlobalScriptEnhancementEnabled,
+} from "../services/scriptEnhancementSettings";
 import { useControllerSurface } from "../controller";
 import {
   DEFAULT_THEHANDY_APP_API_KEY,
@@ -795,6 +803,9 @@ export function SettingsPage() {
   const [autofixBrokenFunscripts, setAutofixBrokenFunscripts] = useState(
     DEFAULT_AUTOFIX_BROKEN_FUNSCRIPTS
   );
+  const [scriptEnhancementEnabled, setScriptEnhancementEnabled] = useState(
+    DEFAULT_SCRIPT_ENHANCEMENT_ENABLED
+  );
   const [stashReattachFunscriptsMode, setStashReattachFunscriptsMode] =
     useState<StashReattachFunscriptsMode>(DEFAULT_STASH_REATTACH_FUNSCRIPTS_MODE);
   const [roundProgressBarAlwaysVisible, setRoundProgressBarAlwaysVisible] = useState(
@@ -997,6 +1008,7 @@ export function SettingsPage() {
         BACKGROUND_VIDEO_ENABLED_KEY,
         MENU_THEME_KEY,
         AUTOFIX_BROKEN_FUNSCRIPTS_KEY,
+        SCRIPT_ENHANCEMENT_ENABLED_KEY,
         STASH_REATTACH_FUNSCRIPTS_ENABLED_KEY,
         ROUND_PROGRESS_BAR_ALWAYS_VISIBLE_KEY,
         ANTI_PERK_BEATBAR_ENABLED_KEY,
@@ -1058,6 +1070,9 @@ export function SettingsPage() {
         const rawBackgroundVideoEnabled = storeValues[BACKGROUND_VIDEO_ENABLED_KEY];
         const rawMainMenuTheme = storeValues[MENU_THEME_KEY];
         const rawAutofixBrokenFunscripts = storeValues[AUTOFIX_BROKEN_FUNSCRIPTS_KEY];
+        setScriptEnhancementEnabled(
+          normalizeScriptEnhancementEnabled(storeValues[SCRIPT_ENHANCEMENT_ENABLED_KEY])
+        );
         const rawStashReattachFunscriptsEnabled =
           storeValues[STASH_REATTACH_FUNSCRIPTS_ENABLED_KEY];
         const rawRoundProgressBarAlwaysVisible = storeValues[ROUND_PROGRESS_BAR_ALWAYS_VISIBLE_KEY];
@@ -1275,8 +1290,12 @@ export function SettingsPage() {
 
     void loadSettings();
 
+    const refreshMcpSettings = () => { void loadSettings(); };
+    window.addEventListener(MCP_CHANGED_EVENT, refreshMcpSettings);
+
     return () => {
       mounted = false;
+      window.removeEventListener(MCP_CHANGED_EVENT, refreshMcpSettings);
     };
   }, []);
 
@@ -1573,6 +1592,17 @@ export function SettingsPage() {
             onChange: async (next: boolean) => {
               await trpc.store.set.mutate({ key: AUTOFIX_BROKEN_FUNSCRIPTS_KEY, value: next });
               setAutofixBrokenFunscripts(next);
+            },
+          },
+          {
+            id: "auto-enhance-scripts",
+            type: "toggle",
+            label: t`Auto enhance scripts`,
+            description: t`Master switch for script enhancement. Only scripts enabled individually are enhanced, using their saved Wildness. Turning this off preserves all per-script settings.`,
+            value: scriptEnhancementEnabled,
+            onChange: async (next: boolean) => {
+              await saveGlobalScriptEnhancementEnabled(next);
+              setScriptEnhancementEnabled(next);
             },
           },
         ],
@@ -2350,6 +2380,7 @@ export function SettingsPage() {
       hapticsDisconnectedStatusVisible,
       applyPerkDirectly,
       autofixBrokenFunscripts,
+      scriptEnhancementEnabled,
       stashReattachFunscriptsMode,
       intermediaryLoadingDurationSec,
       intermediaryLoadingPrompt,
@@ -2960,6 +2991,7 @@ export function SettingsPage() {
                 <>
                   <SettingsSectionCard section={activeSection} loading={isInitialLoading} />
                   <SecuritySettingsCard />
+                  <McpSettingsCard />
                 </>
               ) : activeSection && activeSection.id === "app" ? (
                 <>

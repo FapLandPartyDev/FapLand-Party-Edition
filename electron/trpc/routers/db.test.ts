@@ -6,6 +6,15 @@ const { getDbMock } = vi.hoisted(() => ({
   getDbMock: vi.fn(),
 }));
 
+const { generateQueuedRoundPreviewImageDataUriMock } = vi.hoisted(() => ({
+  generateQueuedRoundPreviewImageDataUriMock: vi.fn(async (): Promise<string | null> => null),
+}));
+
+vi.mock("../../services/roundPreview", () => ({
+  generateQueuedRoundPreviewImageDataUri: generateQueuedRoundPreviewImageDataUriMock,
+  generateRoundPreviewImageDataUri: vi.fn(async () => null),
+}));
+
 const { queueWebsiteVideoCacheImmediatelyMock } = vi.hoisted(() => ({
   queueWebsiteVideoCacheImmediatelyMock: vi.fn(async () => {}),
 }));
@@ -427,6 +436,7 @@ type ResourceRow = {
   videoUri: string;
   funscriptUri: string | null;
   funscriptOffsetMs?: number | null;
+  invertFunscript?: boolean;
   phash: string | null;
   durationMs: number | null;
   disabled: boolean;
@@ -2028,6 +2038,111 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     );
   });
 
+  it("toggles funscript inversion on a standalone round", async () => {
+    const caller = createRendererCaller();
+    roundsByIdRef.set("invert-round", {
+      id: "invert-round",
+      name: "Invert round",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: null,
+    });
+    resourcesByIdRef.set("invert-round-resource", {
+      id: "invert-round-resource",
+      roundId: "invert-round",
+      videoUri: "file:///tmp/invert.mp4",
+      funscriptUri: "file:///tmp/invert.funscript",
+      invertFunscript: false,
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+
+    const result1 = await caller.invertRoundFunscript({ roundId: "invert-round" });
+    expect(result1).toMatchObject({
+      scope: "round",
+      roundId: "invert-round",
+      invertFunscript: true,
+      updatedResources: 1,
+    });
+    expect(resourcesByIdRef.get("invert-round-resource")?.invertFunscript).toBe(true);
+
+    const result2 = await caller.invertRoundFunscript({ roundId: "invert-round" });
+    expect(result2).toMatchObject({
+      scope: "round",
+      roundId: "invert-round",
+      invertFunscript: false,
+      updatedResources: 1,
+    });
+    expect(resourcesByIdRef.get("invert-round-resource")?.invertFunscript).toBe(false);
+  });
+
+  it("applies funscript inversion hero-wide when inverting a hero round or hero", async () => {
+    const caller = createRendererCaller();
+    heroesByIdRef.set("hero-inv", {
+      id: "hero-inv",
+      name: "Hero Invert",
+      author: null,
+      description: null,
+      tagsJson: "[]",
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+    for (const id of ["hero-inv-1", "hero-inv-2"] as const) {
+      roundsByIdRef.set(id, {
+        id,
+        name: id,
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        startTime: 0,
+        endTime: 1000,
+        type: "Normal",
+        heroId: "hero-inv",
+      });
+      resourcesByIdRef.set(`${id}-resource`, {
+        id: `${id}-resource`,
+        roundId: id,
+        videoUri: `file:///tmp/${id}.mp4`,
+        funscriptUri: `file:///tmp/${id}.funscript`,
+        invertFunscript: false,
+        phash: null,
+        durationMs: 1000,
+        disabled: false,
+        createdAt: new Date("2026-03-06T00:00:01.000Z"),
+        updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+      });
+    }
+
+    const roundInvertResult = await caller.invertRoundFunscript({ roundId: "hero-inv-1" });
+    expect(roundInvertResult).toMatchObject({
+      scope: "hero",
+      heroId: "hero-inv",
+      roundId: "hero-inv-1",
+      invertFunscript: true,
+      updatedResources: 2,
+    });
+    expect(resourcesByIdRef.get("hero-inv-1-resource")?.invertFunscript).toBe(true);
+    expect(resourcesByIdRef.get("hero-inv-2-resource")?.invertFunscript).toBe(true);
+
+    const heroInvertResult = await caller.invertHeroFunscript({ heroId: "hero-inv" });
+    expect(heroInvertResult).toMatchObject({
+      heroId: "hero-inv",
+      invertFunscript: false,
+      updatedResources: 2,
+    });
+    expect(resourcesByIdRef.get("hero-inv-1-resource")?.invertFunscript).toBe(false);
+    expect(resourcesByIdRef.get("hero-inv-2-resource")?.invertFunscript).toBe(false);
+  });
+
   it("restores each hero resource's exact previous attachment", async () => {
     const caller = createRendererCaller();
     for (const id of ["restore-a", "restore-b"] as const) {
@@ -2489,6 +2604,7 @@ describe("dbRouter local highscore and multiplayer cache", () => {
       compressionStrength: 70,
       audioBitrateKbps: undefined,
       includeAcquisitionSources: true,
+      replaceOriginalLinksWithAcquisition: false,
     });
 
     await expect(caller.getLibraryExportPackageStatus()).resolves.toMatchObject({
@@ -2874,6 +2990,32 @@ describe("dbRouter local highscore and multiplayer cache", () => {
       },
     ]);
     expect(getWebsiteVideoCacheStateMock).not.toHaveBeenCalled();
+  });
+
+  it("repairs and persists a missing local preview on demand", async () => {
+    const caller = createRendererCaller();
+    generateQueuedRoundPreviewImageDataUriMock.mockResolvedValueOnce("data:image/jpeg;base64,repaired");
+    const result = await caller.getInstalledRoundPreviewImage({ roundId: "round-1" });
+    expect(result).toBe("data:image/jpeg;base64,repaired");
+    expect(generateQueuedRoundPreviewImageDataUriMock).toHaveBeenCalledWith({
+      videoUri: "file:///tmp/round-1.mp4", startTimeMs: 1000, endTimeMs: 5000,
+    });
+    expect(roundsByIdRef.get("round-1")?.previewImage).toBe(result);
+    generateQueuedRoundPreviewImageDataUriMock.mockClear();
+    expect(await caller.getInstalledRoundPreviewImage({ roundId: "round-1" })).toBe(result);
+    expect(generateQueuedRoundPreviewImageDataUriMock).not.toHaveBeenCalled();
+  });
+
+  it("does not extract remote or disabled preview resources", async () => {
+    const caller = createRendererCaller();
+    generateQueuedRoundPreviewImageDataUriMock.mockClear();
+    const resource = resourcesByIdRef.get("resource-1")!;
+    resource.videoUri = "https://example.com/video.mp4";
+    expect(await caller.getInstalledRoundPreviewImage({ roundId: "round-1" })).toBeNull();
+    resource.videoUri = "file:///tmp/round-1.mp4";
+    resource.disabled = true;
+    expect(await caller.getInstalledRoundPreviewImage({ roundId: "round-1" })).toBeNull();
+    expect(generateQueuedRoundPreviewImageDataUriMock).not.toHaveBeenCalled();
   });
 
   it("returns round media resources with request-scoped uri resolution", async () => {

@@ -175,6 +175,42 @@ describe("thehandyAdapter", () => {
     expect(disabledCall?.[3]).toEqual(actions);
   });
 
+  it("captures sync time before waiting for another device operation", async () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(10_000);
+    try {
+      let finishStop: (() => void) | undefined;
+      mocks.stopHandyPlayback.mockImplementationOnce(
+        () =>
+          new Promise<undefined>((resolve) => {
+            finishStop = () => resolve(undefined);
+          })
+      );
+      const session = await thehandyAdapter.createSession(config);
+      const stopping = thehandyAdapter.stopPlayback(config, session);
+      await vi.waitFor(() => expect(finishStop).toBeDefined());
+      const syncing = thehandyAdapter.sendSync(config, session, 20_000, 1, "round", [
+        { at: 0, pos: 50 },
+      ]);
+      expect(mocks.sendHspSync).not.toHaveBeenCalled();
+      nowSpy.mockReturnValue(10_600);
+      finishStop!();
+      await Promise.all([stopping, syncing]);
+
+      expect(mocks.sendHspSync).toHaveBeenCalledWith(
+        expect.anything(),
+        session,
+        20_000,
+        1,
+        expect.any(String),
+        expect.any(Array),
+        undefined,
+        10_000
+      );
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
   it("keeps the configured movement limit at faster playback rates", async () => {
     const session = await thehandyAdapter.createSession(config);
     const actions = [

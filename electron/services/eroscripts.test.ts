@@ -287,6 +287,89 @@ describe("eroscripts service", () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps integrated session cookies on EroScripts when attachments redirect to external storage", async () => {
+    eroscriptsCookies.push({
+      name: "_forum_session",
+      value: "private-session",
+      domain: "discuss.eroscripts.com",
+      path: "/",
+      secure: true,
+    });
+    const requests: Array<{ url: string; options: RequestInit | undefined }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url, options) => {
+        requests.push({ url: String(url), options });
+        return requests.length === 1
+          ? new Response(null, {
+              status: 302,
+              headers: { location: "https://storage.example.com/script.funscript" },
+            })
+          : new Response(JSON.stringify({ actions: [{ at: 0, pos: 50 }] }));
+      })
+    );
+    await downloadEroScriptsFunscript({
+      topicId: 1,
+      url: "https://discuss.eroscripts.com/uploads/redirect.funscript",
+      filename: "redirect.funscript",
+    });
+    expect(requests[0].options?.headers).toMatchObject({
+      Cookie: "_forum_session=private-session",
+    });
+    expect(requests[1].options?.headers).not.toHaveProperty("Cookie");
+    expect(requests.every((request) => request.options?.redirect === "manual")).toBe(true);
+  });
+
+  it("lists and streams video attachments with the integrated session and reuses their cache", async () => {
+    eroscriptsCookies.push({
+      name: "_forum_session",
+      value: "private-session",
+      domain: "discuss.eroscripts.com",
+      path: "/",
+      secure: true,
+    });
+    const video = Buffer.from("video attachment bytes");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url, options) => {
+        expect(options?.headers).toMatchObject({ Cookie: "_forum_session=private-session" });
+        return String(url).endsWith(".json")
+          ? jsonResponse({
+              post_stream: {
+                posts: [
+                  {
+                    id: 10,
+                    topic_id: 99,
+                    uploads: [{ url: "/uploads/video.mp4", original_filename: "video.mp4" }],
+                  },
+                ],
+              },
+            })
+          : new Response(video, { headers: { "content-type": "video/mp4" } });
+      })
+    );
+    const media = await listEroScriptsTopicMedia(99);
+    expect(media.videos).toHaveLength(1);
+    const downloaded = await downloadEroScriptsVideo(media.videos[0]);
+    expect(await fs.readFile(downloaded.filePath)).toEqual(video);
+    const cached = await downloadEroScriptsVideo(media.videos[0]);
+    expect(cached).toMatchObject({ cached: true, filePath: downloaded.filePath });
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not cache a video attachment login page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("Log in", { headers: { "content-type": "text/html" } }))
+    );
+    await expect(
+      downloadEroScriptsVideo({
+        topicId: 1,
+        url: "https://discuss.eroscripts.com/uploads/login.mp4",
+      })
+    ).rejects.toThrow("login");
+  });
+
   it("downloads videos into the EroScripts cache", async () => {
     vi.mocked(runCommand).mockImplementation(async (_command, args) => {
       if (args.includes("--dump-single-json")) {

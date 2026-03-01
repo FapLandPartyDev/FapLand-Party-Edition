@@ -6,6 +6,12 @@ import { HARDMODE_FUNSCRIPT_RELATIVE_PATH, resolveDefaultStoragePath } from "./s
 import { isStashProxyUri } from "./webVideo";
 import { proxyExternalRequest } from "./integrations";
 import { estimateFunscriptDifficulty } from "../../src/utils/funscriptDifficulty";
+import { normalizeFunscriptTimelineDocument } from "../../src/game/media/funscriptNormalization";
+import {
+  AUTOFIX_BROKEN_FUNSCRIPTS_KEY,
+  normalizeAutofixBrokenFunscripts,
+} from "../../src/constants/funscriptSettings";
+import { safeStoreGet } from "./store";
 
 type FunscriptAction = {
   at: number;
@@ -276,6 +282,18 @@ export async function readFunscriptActions(uri: string): Promise<FunscriptAction
   if (!uri.trim()) return [];
   const { content } = await readSourceFunscript(uri);
   return normalizeActions(parseFunscriptDocument(content).actions);
+}
+
+export async function readFunscriptForInspection(uri: string) {
+  const { content } = await readSourceFunscript(uri);
+  const document = parseFunscriptDocument(content);
+  const { actions: rawActions, ...metadata } = document;
+  const raw = normalizeActions(rawActions);
+  const actions = normalizeFunscriptTimelineDocument(
+    document,
+    normalizeAutofixBrokenFunscripts(safeStoreGet(AUTOFIX_BROKEN_FUNSCRIPTS_KEY))
+  );
+  return { metadata, rawActions: raw, actions };
 }
 
 export async function convertFunscriptUriToManagedHardMode(

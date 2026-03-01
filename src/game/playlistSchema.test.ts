@@ -13,6 +13,8 @@ import {
 } from "./playlistRuntime";
 import { toEditorGraphConfig, toGraphBoardConfig } from "../features/map-editor/EditorState";
 import type { InstalledRound } from "../services/db";
+import { ZSinglePlayerRunSaveSnapshot } from "./saveSchema";
+import { createInitialGameState } from "./engine";
 
 function buildConfig(boardConfig: unknown): Record<string, unknown> {
   return {
@@ -82,6 +84,80 @@ function makeRound(
 }
 
 describe("playlistSchema", () => {
+  it("shuffles only the virtual run within band and checkpoint boundaries and resumes it", () => {
+    const rounds = Array.from({ length: 8 }, (_, index) =>
+      makeRound(`r${index}`, `Round ${index}`)
+    );
+    const playlist = createDefaultPlaylistConfig(rounds);
+    if (playlist.boardConfig.mode !== "linear") throw new Error("Expected linear playlist");
+    Object.assign(playlist.boardConfig, {
+      totalIndices: 9,
+      safePointIndices: [4],
+      difficultySections: [
+        { startIndex: 1, endIndex: 6, minDifficulty: 1, maxDifficulty: 2 },
+        { startIndex: 7, endIndex: 9, minDifficulty: 3, maxDifficulty: 5 },
+      ],
+      shuffleDifficultyBandRoundsOnRun: true,
+      normalRoundRefsByIndex: { "9": playlist.boardConfig.normalRoundOrder[7] },
+    });
+    const original = structuredClone(playlist);
+    const runtime = toGameConfigFromPlaylist(playlist, rounds, () => 0);
+    expect(runtime.singlePlayer.normalRoundIdsByIndex).toEqual({
+      1: "r1",
+      2: "r2",
+      3: "r0",
+      5: "r4",
+      6: "r3",
+      7: "r6",
+      8: "r7",
+      9: "r5",
+    });
+    expect(runtime.board[4].kind).toBe("safePoint");
+    expect(runtime.board[0].kind).toBe("start");
+    expect(runtime.board.at(-1)?.kind).toBe("end");
+    for (const [index, roundId] of Object.entries(runtime.singlePlayer.normalRoundIdsByIndex)) {
+      expect(runtime.board[Number(index)].fixedRoundId).toBe(roundId);
+    }
+    expect(playlist).toEqual(original);
+    const nextRun = toGameConfigFromPlaylist(playlist, rounds, () => 0.999);
+    expect(nextRun.singlePlayer.normalRoundIdsByIndex).not.toEqual(
+      runtime.singlePlayer.normalRoundIdsByIndex
+    );
+
+    const snapshot = {
+      version: 1,
+      playlistId: "test",
+      playlistFormatVersion: 1,
+      playlistConfig: playlist,
+      saveMode: "checkpoint",
+      gameState: createInitialGameState(runtime),
+      sessionStartedAtMs: 1,
+      savedAtMs: 2,
+    };
+    const resumed = ZSinglePlayerRunSaveSnapshot.parse(JSON.parse(JSON.stringify(snapshot)));
+    expect(resumed.gameState.config.board).toEqual(runtime.board);
+    expect(resumed.gameState.config.singlePlayer.normalRoundIdsByIndex).toEqual(
+      runtime.singlePlayer.normalRoundIdsByIndex
+    );
+    expect(resumed.playlistConfig).toEqual(ZPlaylistConfig.parse(original));
+  });
+
+  it("leaves legacy linear playlists in order and uses checkpoints as implicit bands", () => {
+    const rounds = Array.from({ length: 4 }, (_, index) =>
+      makeRound(`r${index}`, `Round ${index}`)
+    );
+    const playlist = createDefaultPlaylistConfig(rounds);
+    if (playlist.boardConfig.mode !== "linear") throw new Error("Expected linear playlist");
+    Object.assign(playlist.boardConfig, { totalIndices: 5, safePointIndices: [3] });
+    expect(
+      toGameConfigFromPlaylist(playlist, rounds, () => 0).singlePlayer.normalRoundIdsByIndex
+    ).toEqual({ 1: "r0", 2: "r1", 4: "r2", 5: "r3" });
+    playlist.boardConfig.shuffleDifficultyBandRoundsOnRun = true;
+    expect(
+      toGameConfigFromPlaylist(playlist, rounds, () => 0).singlePlayer.normalRoundIdsByIndex
+    ).toEqual({ 1: "r1", 2: "r0", 4: "r3", 5: "r2" });
+  });
+
   it("supports solo level requirements and treats legacy configs as level one", () => {
     const legacy = ZPlaylistConfig.parse(
       buildConfig({

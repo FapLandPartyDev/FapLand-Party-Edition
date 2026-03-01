@@ -1,5 +1,5 @@
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fromLocalMediaUri, resolveExistingLocalMediaPath } from "./localMedia";
 import { resolvePhashBinaries } from "./phash/binaries";
 import { runCommand } from "./phash/extract";
 import {
@@ -16,6 +16,7 @@ type GenerateRoundPreviewImageInput = {
   videoUri: string;
   startTimeMs?: number | null;
   endTimeMs?: number | null;
+  background?: boolean;
 };
 
 function normalizeTimestampMs(value: number | null | undefined): number | null {
@@ -44,16 +45,11 @@ function resolvePreviewTimestampMs(startTimeMs?: number | null, endTimeMs?: numb
 }
 
 async function toFfmpegInput(videoUri: string): Promise<string | null> {
+  const localPath = fromLocalMediaUri(videoUri);
+  if (localPath) return resolveExistingLocalMediaPath(localPath);
+
   try {
     const parsed = new URL(videoUri);
-
-    if (parsed.protocol === "app:" && parsed.hostname === "media") {
-      return decodeURIComponent(parsed.pathname.replace(/^\/+/, "/"));
-    }
-
-    if (parsed.protocol === "file:") {
-      return fileURLToPath(parsed);
-    }
 
     if (parsed.protocol === "http:" || parsed.protocol === "https:") {
       return parsed.toString();
@@ -81,15 +77,18 @@ export async function generateRoundPreviewImageDataUri(
 
   try {
     const binaries = await resolvePhashBinaries();
-    const limitThreads = normalizePreviewFfmpegSingleThreadEnabled(
-      getStore().get(PREVIEW_FFMPEG_SINGLE_THREAD_ENABLED_KEY)
-    );
+    const limitThreads =
+      input.background ||
+      normalizePreviewFfmpegSingleThreadEnabled(
+        getStore().get(PREVIEW_FFMPEG_SINGLE_THREAD_ENABLED_KEY)
+      );
     const args = [
       "-hide_banner",
       "-loglevel",
       "error",
       "-nostdin",
       ...(limitThreads ? ["-threads", "1"] : []),
+      ...(input.background ? ["-filter_threads", "1"] : []),
       "-ss",
       timestampSeconds,
       "-i",
@@ -106,11 +105,50 @@ export async function generateRoundPreviewImageDataUri(
       "mjpeg",
       "-",
     ];
-    const { stdout } = await runCommand(binaries.ffmpegPath, args);
+    const { stdout } = await runCommand(binaries.ffmpegPath, args, {
+      lowPriority: true,
+      timeoutMs: 15_000,
+    });
 
     if (stdout.length === 0) return null;
     return `data:image/jpeg;base64,${stdout.toString("base64")}`;
   } catch {
     return null;
   }
+}
+
+// Browsing the library must never launch a decoder for every visible card at once.
+// Share in-flight requests and briefly remember failures to avoid repeated disk work.
+let previewQueue: Promise<unknown> = Promise.resolve();
+const pendingPreviews = new Map<string, Promise<string | null>>();
+const failedPreviews = new Map<string, number>();
+
+export function generateQueuedRoundPreviewImageDataUri(
+  input: GenerateRoundPreviewImageInput
+): Promise<string | null> {
+  const key = JSON.stringify(input);
+  const pending = pendingPreviews.get(key);
+  if (pending) return pending;
+  const failedAt = failedPreviews.get(key);
+  if (failedAt && Date.now() - failedAt < 60_000) return Promise.resolve(null);
+
+  const request = previewQueue
+    .then(() => generateRoundPreviewImageDataUri({ ...input, background: true }))
+    .catch(() => null)
+    .then((image) => {
+      pendingPreviews.delete(key);
+      if (!image) {
+        failedPreviews.delete(key);
+        failedPreviews.set(key, Date.now());
+        if (failedPreviews.size > 128) {
+          failedPreviews.delete(failedPreviews.keys().next().value!);
+        }
+      } else {
+        failedPreviews.delete(key);
+      }
+      return image;
+    });
+  pendingPreviews.set(key, request);
+  previewQueue = request;
+  return request;
 }

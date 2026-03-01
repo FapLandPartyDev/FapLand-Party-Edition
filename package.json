@@ -2,7 +2,7 @@
   "name": "f-land",
   "private": true,
   "type": "module",
-  "version": "0.6.26-beta",
+  "version": "0.6.27-beta.1",
   "author": "FapLandDev",
   "description": "Fap Land - Party Edition",
   "license": "AGPL-3.0-only",
@@ -48,7 +48,10 @@
     "supabase:local:setup": "./scripts/setup-supabase-local.sh",
     "supabase:migrate": "./scripts/migrate-supabase-local.sh",
     "supabase:deploy:prod": "./scripts/deploy-supabase-prod.sh",
-    "supabase:reset": "nix develop -c supabase stop && nix develop -c supabase start"
+    "supabase:reset": "nix develop -c supabase stop && nix develop -c supabase start",
+    "mcp:stdio": "node ./scripts/mcp-stdio.mjs",
+    "test:mcp": "vitest run --config vitest.mcp.config.ts",
+    "test:mcp:visual": "node ./scripts/test-mcp-visual.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -61,6 +64,7 @@
     "@lingui/core": "^5.9.5",
     "@lingui/macro": "^5.9.5",
     "@lingui/react": "^5.9.5",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@paralleldrive/cuid2": "^3.3.0",
     "@pixi/react": "^8.0.5",
     "@supabase/supabase-js": "^2.99.1",
@@ -167,6 +171,14 @@
       {
         "from": "build/vendor/yt-dlp",
         "to": "yt-dlp"
+      },
+      {
+        "from": "scripts/mcp-stdio.mjs",
+        "to": "mcp/mcp-stdio.mjs"
+      },
+      {
+        "from": "docs/mcp.md",
+        "to": "mcp/README.md"
       }
     ],
     "directories": {

@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import path from "node:path";
 import {
   approveDialogPath,
   assertApprovedDialogPath,
@@ -18,7 +19,7 @@ describe("dialogPathApproval", () => {
     approveDialogPath("playlistImportFile", "/tmp/example/../playlist.fplay");
 
     expect(assertApprovedDialogPath("playlistImportFile", "/tmp/playlist.fplay")).toBe(
-      "/tmp/playlist.fplay"
+      path.resolve("/tmp/playlist.fplay")
     );
     expect(() => assertApprovedDialogPath("playlistImportFile", "/tmp/playlist.fplay")).toThrow(
       "Path must be selected through the system dialog."

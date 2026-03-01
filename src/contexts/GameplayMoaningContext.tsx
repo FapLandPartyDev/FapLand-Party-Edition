@@ -23,6 +23,7 @@ import {
   DEFAULT_SFW_MODE_ENABLED,
 } from "../constants/experimentalFeatures";
 import { trpc } from "../services/trpc";
+import { useMcpSettingsRevision } from "../mcp/useMcpSettingsRevision";
 
 type GameplayMoaningState = {
   enabled: boolean;
@@ -76,6 +77,7 @@ function resolveSfwModeFromStorage(): boolean {
 }
 
 export function GameplayMoaningProvider({ children }: { children: React.ReactNode }) {
+  const mcpSettingsRevision = useMcpSettingsRevision("moaning.");
   const [enabled, setEnabledState] = useState(DEFAULT_MOANING_ENABLED);
   const [queue, setQueue] = useState<MoaningQueueEntry[]>([]);
   const [volume, setVolumeState] = useState(DEFAULT_MOANING_VOLUME);
@@ -154,7 +156,7 @@ export function GameplayMoaningProvider({ children }: { children: React.ReactNod
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mcpSettingsRevision]);
 
   useEffect(() => {
     const handleSfwChange = (event: Event) => {
