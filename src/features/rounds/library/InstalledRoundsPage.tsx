@@ -62,6 +62,7 @@ import { abbreviateNsfwText } from "@/utils/sfwText";
 import { useVisibleRoundAssets } from "@/features/rounds/useVisibleRoundAssets";
 import { THEHANDY_OFFSET_MAX_MS, THEHANDY_OFFSET_MIN_MS } from "@/constants/theHandy";
 import { GameDropdown } from "@/components/ui/GameDropdown";
+import { RangeSlider } from "@/components/ui/RangeSlider";
 
 import { DEFAULT_EXPORT_COMPRESSION_STRENGTH } from "./constants";
 import {
@@ -297,6 +298,14 @@ export function InstalledRoundsPage({
     roundsWithScriptCount,
     sourceHeroOptions,
   } = roundLibraryIndex;
+  const maxRoundLengthMinutes = useMemo(
+    () =>
+      Math.max(
+        1,
+        Math.ceil(indexedRounds.reduce((max, entry) => Math.max(max, entry.lengthSec), 0) / 60)
+      ),
+    [indexedRounds]
+  );
 
   const deferredQuery = query;
   const filteredRounds = useMemo(
@@ -2072,6 +2081,7 @@ export function InstalledRoundsPage({
                   setAddedDateFilter={setAddedDateFilter}
                   lengthRangeFilter={lengthRangeFilter}
                   setLengthRangeFilter={setLengthRangeFilter}
+                  maxRoundLengthMinutes={maxRoundLengthMinutes}
                   sortMode={sortMode}
                   updateSearch={updateSearch}
                   showDisabledRounds={showDisabledRounds}
@@ -2774,6 +2784,7 @@ type LibrarySectionProps = {
   setAddedDateFilter: Dispatch<SetStateAction<AddedDateFilter>>;
   lengthRangeFilter: LengthRangeFilter;
   setLengthRangeFilter: Dispatch<SetStateAction<LengthRangeFilter>>;
+  maxRoundLengthMinutes: number;
   sortMode: SortMode;
   updateSearch: (patch: Record<string, unknown>) => void;
   showDisabledRounds: boolean;
@@ -2865,6 +2876,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
     setAddedDateFilter,
     lengthRangeFilter,
     setLengthRangeFilter,
+    maxRoundLengthMinutes,
     sortMode,
     updateSearch,
     showDisabledRounds,
@@ -3523,47 +3535,43 @@ function LibrarySectionContent(props: LibrarySectionProps) {
               </>
             )}
 
-            <label className="block">
-              <span className="mb-2 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.25em] text-zinc-300">
-                <Trans>Minimum length (minutes)</Trans>
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="0.5"
-                aria-label={t`Minimum length in minutes`}
-                value={lengthRangeFilter.minMinutes}
-                onChange={(event) =>
-                  setLengthRangeFilter((current) => ({
-                    ...current,
-                    minMinutes: event.target.value,
-                  }))
+            <div className="rounded-xl border border-purple-300/20 bg-black/25 px-4 py-3 lg:col-span-2">
+              <div className="mb-1 flex items-center justify-between gap-4">
+                <span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.25em] text-zinc-300">
+                  <Trans>Length range</Trans>
+                </span>
+                <span className="text-xs font-semibold text-violet-200">
+                  {lengthRangeFilter.minMinutes || "0"}–
+                  {lengthRangeFilter.maxMinutes || maxRoundLengthMinutes} <Trans>min</Trans>
+                </span>
+              </div>
+              <RangeSlider
+                min={0}
+                max={maxRoundLengthMinutes}
+                step={0.5}
+                minValue={
+                  lengthRangeFilter.minMinutes === "" ? 0 : Number(lengthRangeFilter.minMinutes)
                 }
-                placeholder={t`No minimum`}
-                className="w-full rounded-xl border border-purple-300/30 bg-black/45 px-4 py-3 text-sm text-zinc-100 outline-none transition-all duration-200 focus:border-purple-300/75 focus:ring-2 focus:ring-purple-400/30"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.25em] text-zinc-300">
-                <Trans>Maximum length (minutes)</Trans>
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="0.5"
-                aria-label={t`Maximum length in minutes`}
-                value={lengthRangeFilter.maxMinutes}
-                onChange={(event) =>
-                  setLengthRangeFilter((current) => ({
-                    ...current,
-                    maxMinutes: event.target.value,
-                  }))
+                maxValue={
+                  lengthRangeFilter.maxMinutes === ""
+                    ? maxRoundLengthMinutes
+                    : Number(lengthRangeFilter.maxMinutes)
                 }
-                placeholder={t`No maximum`}
-                className="w-full rounded-xl border border-purple-300/30 bg-black/45 px-4 py-3 text-sm text-zinc-100 outline-none transition-all duration-200 focus:border-purple-300/75 focus:ring-2 focus:ring-purple-400/30"
+                minAriaLabel={t`Minimum round length`}
+                maxAriaLabel={t`Maximum round length`}
+                onChange={(minValue, maxValue) =>
+                  setLengthRangeFilter({
+                    minMinutes: minValue <= 0 ? "" : String(minValue),
+                    maxMinutes: maxValue >= maxRoundLengthMinutes ? "" : String(maxValue),
+                  })
+                }
+                activeTrackClassName="bg-violet-400/80"
               />
-            </label>
+              <div className="flex justify-between text-[10px] text-zinc-500">
+                <span>0</span>
+                <span>{maxRoundLengthMinutes} min</span>
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">

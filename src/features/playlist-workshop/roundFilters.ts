@@ -4,7 +4,13 @@ import { getRoundDurationSec } from "../../utils/duration";
 export type WorkshopFilterRound = InstalledRound | InstalledRoundCatalogEntry;
 export type WorkshopRoundType = "Normal" | "Interjection" | "Cum";
 export type WorkshopRoundSource = "local" | "web" | "stash";
-export type WorkshopDurationFilter = "any" | "short" | "medium" | "long" | "unknown";
+export const WORKSHOP_DURATION_MAX_MINUTES = 30;
+
+export type WorkshopDurationFilter = {
+  minMinutes: number;
+  maxMinutes: number;
+  includeUnknown: boolean;
+};
 export type WorkshopScriptFilter = "any" | "installed" | "missing";
 export type WorkshopHeroFilter = "any" | "hero" | "standalone";
 export type WorkshopRandomEligibilityFilter = "any" | "eligible" | "excluded";
@@ -68,7 +74,11 @@ export function createDefaultWorkshopRoundFilters(): WorkshopRoundFilters {
   return {
     includedTypes: ["Normal"],
     difficulties: [...ALL_DIFFICULTIES],
-    duration: "any",
+    duration: {
+      minMinutes: 0,
+      maxMinutes: WORKSHOP_DURATION_MAX_MINUTES,
+      includeUnknown: true,
+    },
     bpmMin: "",
     bpmMax: "",
     includeUnknownBpm: true,
@@ -178,13 +188,11 @@ function matchesAddedDate(createdAt: Date | string | undefined, filter: Workshop
 }
 
 function matchesDuration(round: WorkshopFilterRound, filter: WorkshopDurationFilter): boolean {
-  if (filter === "any") return true;
   const duration = getRoundDurationSec(round);
-  if (duration <= 0) return filter === "unknown";
-  if (filter === "unknown") return false;
-  if (filter === "short") return duration < 180;
-  if (filter === "medium") return duration >= 180 && duration <= 600;
-  return duration > 600;
+  if (duration <= 0) return filter.includeUnknown;
+  const minDurationSec = filter.minMinutes * 60;
+  const hasUpperBound = filter.maxMinutes < WORKSHOP_DURATION_MAX_MINUTES;
+  return duration >= minDurationSec && (!hasUpperBound || duration <= filter.maxMinutes * 60);
 }
 
 function parseOptionalNumber(value: string): number | null {
@@ -357,7 +365,11 @@ export function countActiveWorkshopRoundFilters(filters: WorkshopRoundFilters): 
   count += ALL_DIFFICULTIES.filter(
     (difficulty) => !filters.difficulties.includes(difficulty)
   ).length;
-  count += filters.duration === "any" ? 0 : 1;
+  count +=
+    filters.duration.minMinutes > 0 || filters.duration.maxMinutes < WORKSHOP_DURATION_MAX_MINUTES
+      ? 1
+      : 0;
+  count += filters.duration.includeUnknown ? 0 : 1;
   count += filters.bpmMin.trim() || filters.bpmMax.trim() ? 1 : 0;
   count += ALL_SOURCES.filter((source) => !filters.sources.includes(source)).length;
   count += filters.script === "any" ? 0 : 1;

@@ -8,6 +8,7 @@ import {
   filterWorkshopRounds,
   sortWorkshopRounds,
   workshopRoundHasPrimaryFunscript,
+  WORKSHOP_DURATION_MAX_MINUTES,
   type WorkshopFilterRound,
   type WorkshopRoundFilters,
 } from "./roundFilters";
@@ -151,7 +152,11 @@ describe("Playlist Workshop round filters", () => {
     const filters: WorkshopRoundFilters = {
       ...createDefaultWorkshopRoundFilters(),
       difficulties: [4],
-      duration: "long" as const,
+      duration: {
+        minMinutes: 10,
+        maxMinutes: WORKSHOP_DURATION_MAX_MINUTES,
+        includeUnknown: false,
+      },
       bpmMin: "110",
       bpmMax: "130",
       includeUnknownBpm: false,
@@ -175,12 +180,53 @@ describe("Playlist Workshop round filters", () => {
     ).toEqual([]);
   });
 
+  it("filters an inclusive duration range and treats the maximum endpoint as open-ended", () => {
+    const rounds = [
+      makeRound("below", { endTime: 179_000 }),
+      makeRound("lower", { endTime: 180_000 }),
+      makeRound("upper", { endTime: 600_000 }),
+      makeRound("above", { endTime: 601_000 }),
+      makeRound("over-cap", { endTime: (WORKSHOP_DURATION_MAX_MINUTES + 5) * 60_000 }),
+      makeRound("unknown", { startTime: null, endTime: null }),
+    ];
+    const filters = createDefaultWorkshopRoundFilters();
+
+    expect(
+      filterWorkshopRounds({
+        rounds,
+        query: "",
+        filters: {
+          ...filters,
+          duration: { minMinutes: 3, maxMinutes: 10, includeUnknown: false },
+        },
+      }).map((round) => round.id)
+    ).toEqual(["lower", "upper"]);
+    expect(
+      filterWorkshopRounds({
+        rounds,
+        query: "",
+        filters: {
+          ...filters,
+          duration: {
+            minMinutes: 10,
+            maxMinutes: WORKSHOP_DURATION_MAX_MINUTES,
+            includeUnknown: true,
+          },
+        },
+      }).map((round) => round.id)
+    ).toEqual(["upper", "above", "over-cap", "unknown"]);
+  });
+
   it("supports explicitly filtering unknown metadata", () => {
     const unknown = makeRound("unknown", { startTime: null, endTime: null });
     const filters: WorkshopRoundFilters = {
       ...createDefaultWorkshopRoundFilters(),
       difficulties: ["unknown"] as WorkshopRoundFilters["difficulties"],
-      duration: "unknown" as const,
+      duration: {
+        minMinutes: 0,
+        maxMinutes: WORKSHOP_DURATION_MAX_MINUTES,
+        includeUnknown: true,
+      },
       bpmMin: "100",
       includeUnknownBpm: true,
     };

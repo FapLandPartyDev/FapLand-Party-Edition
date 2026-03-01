@@ -23,6 +23,7 @@ import { AnimatedBackground } from "../components/AnimatedBackground";
 import { SfwGuard } from "../components/SfwGuard";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { GameDropdown } from "../components/ui/GameDropdown";
+import { RangeSlider } from "../components/ui/RangeSlider";
 import { PlaylistPackExportDialog } from "../components/PlaylistPackExportDialog";
 import { MenuButton } from "../components/MenuButton";
 import { PlaylistExportOverlay } from "../components/PlaylistExportOverlay";
@@ -37,9 +38,9 @@ import {
   extractWorkshopRoundMetadataOptions,
   filterAndSortWorkshopRounds,
   filterWorkshopRounds,
+  WORKSHOP_DURATION_MAX_MINUTES,
   type WorkshopAddedDateFilter,
   type WorkshopDifficultyFilter,
-  type WorkshopDurationFilter,
   type WorkshopHeroFilter,
   type WorkshopRoundFilters,
   type WorkshopRoundMetadataOptions,
@@ -4400,17 +4401,32 @@ function WorkshopRoundFilterPanel({
       remove: () => update({ difficulties: allDifficulties }),
     });
   }
-  if (filters.duration !== "any") {
-    const labels: Record<Exclude<WorkshopDurationFilter, "any">, string> = {
-      short: t`Under 3 min`,
-      medium: t`3–10 min`,
-      long: t`Over 10 min`,
-      unknown: t`Unknown duration`,
-    };
+  const hasDurationRange =
+    filters.duration.minMinutes > 0 || filters.duration.maxMinutes < WORKSHOP_DURATION_MAX_MINUTES;
+  if (hasDurationRange) {
+    const minLabel = filters.duration.minMinutes === 0 ? "0" : filters.duration.minMinutes;
+    const maxLabel =
+      filters.duration.maxMinutes === WORKSHOP_DURATION_MAX_MINUTES
+        ? `${WORKSHOP_DURATION_MAX_MINUTES}+`
+        : filters.duration.maxMinutes;
     chips.push({
       key: "duration",
-      label: labels[filters.duration],
-      remove: () => update({ duration: "any" }),
+      label: t`Duration: ${minLabel}–${maxLabel} min`,
+      remove: () =>
+        update({
+          duration: {
+            ...filters.duration,
+            minMinutes: 0,
+            maxMinutes: WORKSHOP_DURATION_MAX_MINUTES,
+          },
+        }),
+    });
+  }
+  if (!filters.duration.includeUnknown) {
+    chips.push({
+      key: "unknown-duration",
+      label: t`Unknown duration hidden`,
+      remove: () => update({ duration: { ...filters.duration, includeUnknown: true } }),
     });
   }
   if (filters.bpmMin.trim() || filters.bpmMax.trim()) {
@@ -4689,20 +4705,56 @@ function WorkshopRoundFilterPanel({
                 )}
               </div>
               <div className="mt-3">
-                <GameDropdown
-                  label={t`Duration`}
-                  value={filters.duration}
-                  options={[
-                    { value: "any", label: t`Any duration` },
-                    { value: "short", label: t`Under 3 min` },
-                    { value: "medium", label: t`3–10 min` },
-                    { value: "long", label: t`Over 10 min` },
-                    { value: "unknown", label: t`Unknown` },
-                  ]}
-                  onChange={(duration) => update({ duration })}
-                  onHoverSfx={playHoverSound}
-                  onSelectSfx={playSelectSound}
+                <div className="flex items-center justify-between gap-2 text-[10px] text-zinc-400">
+                  <span>
+                    <Trans>Duration</Trans>
+                  </span>
+                  <span className="font-[family-name:var(--font-jetbrains-mono)] text-violet-200">
+                    {filters.duration.minMinutes}–
+                    {filters.duration.maxMinutes === WORKSHOP_DURATION_MAX_MINUTES
+                      ? `${WORKSHOP_DURATION_MAX_MINUTES}+`
+                      : filters.duration.maxMinutes}{" "}
+                    <Trans>min</Trans>
+                  </span>
+                </div>
+                <RangeSlider
+                  min={0}
+                  max={WORKSHOP_DURATION_MAX_MINUTES}
+                  minValue={filters.duration.minMinutes}
+                  maxValue={filters.duration.maxMinutes}
+                  minAriaLabel={t`Minimum duration in minutes`}
+                  maxAriaLabel={t`Maximum duration in minutes`}
+                  onChange={(minMinutes, maxMinutes) =>
+                    update({
+                      duration: { ...filters.duration, minMinutes, maxMinutes },
+                    })
+                  }
+                  trackClassName="bg-zinc-800"
+                  activeTrackClassName="bg-violet-400/80"
                 />
+                <div className="-mt-1 flex justify-between text-[9px] text-zinc-500">
+                  <span>
+                    0 <Trans>min</Trans>
+                  </span>
+                  <span>
+                    {WORKSHOP_DURATION_MAX_MINUTES}+ <Trans>min</Trans>
+                  </span>
+                </div>
+                <label className="mt-2 flex items-center gap-2 text-[11px] text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={filters.duration.includeUnknown}
+                    onChange={(event) =>
+                      update({
+                        duration: {
+                          ...filters.duration,
+                          includeUnknown: event.target.checked,
+                        },
+                      })
+                    }
+                  />
+                  <Trans>Include unknown duration</Trans>
+                </label>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <label className="text-[10px] text-zinc-400">
