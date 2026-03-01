@@ -11,13 +11,30 @@ type CommandResult = {
 export async function runCommand(
   command: string,
   args: string[],
-  options?: { lowPriority?: boolean; onLine?: (line: string) => void }
+  options?: {
+    lowPriority?: boolean;
+    timeoutMs?: number;
+    onLine?: (line: string) => void;
+    env?: Record<string, string>;
+  }
 ): Promise<CommandResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
+      env: options?.env ? { ...process.env, ...options.env } : process.env,
     });
+
+    let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
+    let timedOut = false;
+
+    if (options?.timeoutMs) {
+      timeoutTimer = setTimeout(() => {
+        timedOut = true;
+        child.kill("SIGKILL");
+        reject(new Error(`Command timed out after ${options.timeoutMs}ms: ${command} ${args.join(" ")}`));
+      }, options.timeoutMs);
+    }
 
     if (options?.lowPriority) {
       try {
@@ -46,10 +63,15 @@ export async function runCommand(
     child.stderr.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
 
     child.on("error", (error) => {
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      if (timedOut) return;
       reject(error);
     });
 
     child.on("close", (code, signal) => {
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      if (timedOut) return;
+
       if (options?.onLine && stdoutRemainder) {
         options.onLine(stdoutRemainder);
       }
@@ -113,7 +135,7 @@ export async function extractSpriteBmp(
     "-",
   ];
 
-  const { stdout } = await runCommand(ffmpegPath, args, options);
+  const { stdout } = await runCommand(ffmpegPath, args, { ...options, timeoutMs: 120_000 });
   if (stdout.length === 0) {
     throw new Error("ffmpeg returned an empty frame output.");
   }

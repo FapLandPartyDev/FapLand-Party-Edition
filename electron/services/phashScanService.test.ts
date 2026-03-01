@@ -7,11 +7,13 @@ const {
   getInstallScanStatusMock,
   generateVideoPhashMock,
   getCachedWebsiteVideoLocalPathMock,
+  isStashProxyUriMock,
 } = vi.hoisted(() => ({
   getDbMock: vi.fn(),
   getInstallScanStatusMock: vi.fn(),
   generateVideoPhashMock: vi.fn(),
   getCachedWebsiteVideoLocalPathMock: vi.fn(),
+  isStashProxyUriMock: vi.fn(),
 }));
 
 vi.mock("./db", () => ({
@@ -28,6 +30,7 @@ vi.mock("./phash", () => ({
 
 vi.mock("./webVideo", () => ({
   getCachedWebsiteVideoLocalPath: getCachedWebsiteVideoLocalPathMock,
+  isStashProxyUri: isStashProxyUriMock,
 }));
 
 function buildDbMock(rows: Array<{
@@ -75,6 +78,32 @@ describe("phashScanService", () => {
     getInstallScanStatusMock.mockReturnValue({ state: "idle" });
     generateVideoPhashMock.mockResolvedValue("phash-1");
     getCachedWebsiteVideoLocalPathMock.mockResolvedValue(null);
+    isStashProxyUriMock.mockReturnValue(false);
+  });
+
+  it("ignores stash proxy URIs", async () => {
+    const dbMock = buildDbMock([
+      {
+        roundId: "round-stash",
+        roundName: "Stash Round",
+        resourceId: "res-stash",
+        videoUri: "app://external/stash?target=http://localhost:9999/stream",
+        startTime: 0,
+        endTime: 1000,
+      },
+    ]);
+    getDbMock.mockReturnValue(dbMock);
+    isStashProxyUriMock.mockImplementation((uri: string) => uri.includes("/stash"));
+
+    const service = await import("./phashScanService");
+    const result = await service.startPhashScanManual();
+
+    expect(isStashProxyUriMock).toHaveBeenCalledWith("app://external/stash?target=http://localhost:9999/stream");
+    expect(getCachedWebsiteVideoLocalPathMock).not.toHaveBeenCalled();
+    expect(generateVideoPhashMock).not.toHaveBeenCalled();
+    expect(result.completedCount).toBe(0);
+    expect(result.skippedCount).toBe(1);
+    expect(result.state).toBe("done");
   });
 
   it("computes phash for cached website videos via the phash service", async () => {

@@ -9,7 +9,7 @@ import {
 } from "../../src/constants/phashSettings";
 import { generateVideoPhash } from "./phash";
 import { getInstallScanStatus } from "./installer";
-import { getCachedWebsiteVideoLocalPath } from "./webVideo";
+import { getCachedWebsiteVideoLocalPath, isStashProxyUri } from "./webVideo";
 
 export type PhashScanState = "idle" | "running" | "done" | "aborted" | "error";
 
@@ -137,6 +137,10 @@ async function sleep(ms: number): Promise<void> {
 }
 
 async function resolvePhashVideoPath(videoUri: string): Promise<string | null> {
+  if (isStashProxyUri(videoUri)) {
+    return null;
+  }
+
   const localVideoPath = fromLocalMediaUri(videoUri);
   if (localVideoPath) {
     return localVideoPath;

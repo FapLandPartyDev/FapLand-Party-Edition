@@ -601,24 +601,22 @@ function parseYtDlpResolvedUrl(output: string): string | null {
 async function inspectWebsiteVideoInfo(url: string): Promise<YtDlpInfoJson> {
   const normalizedUrl = normalizeHttpUrl(url);
   const binary = await resolveYtDlpBinary();
-  const { stdout } = await runCommand(binary.ytDlpPath, [
-    "--dump-single-json",
-    "--no-playlist",
-    "--no-warnings",
-    normalizedUrl,
-  ]);
+  const { stdout } = await runCommand(
+    binary.ytDlpPath,
+    ["--dump-single-json", "--no-playlist", "--no-warnings", normalizedUrl],
+    { timeoutMs: 600_000 }
+  );
   return parseYtDlpInfo(stdout.toString("utf8"));
 }
 
 async function resolveWebsiteVideoDirectUrl(url: string): Promise<string | null> {
   const normalizedUrl = normalizeHttpUrl(url);
   const binary = await resolveYtDlpBinary();
-  const { stdout } = await runCommand(binary.ytDlpPath, [
-    "--get-url",
-    "--no-playlist",
-    "--no-warnings",
-    normalizedUrl,
-  ]);
+  const { stdout } = await runCommand(
+    binary.ytDlpPath,
+    ["--get-url", "--no-playlist", "--no-warnings", normalizedUrl],
+    { timeoutMs: 600_000 }
+  );
   return parseYtDlpResolvedUrl(stdout.toString("utf8"));
 }
 

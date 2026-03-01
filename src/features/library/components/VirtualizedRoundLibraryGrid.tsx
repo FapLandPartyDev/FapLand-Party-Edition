@@ -158,7 +158,7 @@ export function VirtualizedRoundLibraryGrid({
         {shelves.map((shelf) => (
           <div
             key={shelf.key}
-            className={shelf.kind === "group-header" ? "relative z-10" : undefined}
+            className={shelf.kind === "group-header" ? "relative z-10 focus-within:z-[60] hover:z-20" : undefined}
           >
             {shelfRenderer(shelf)}
           </div>
@@ -182,7 +182,7 @@ export function VirtualizedRoundLibraryGrid({
             key={shelf.key}
             ref={virtualizer.measureElement}
             data-index={item.index}
-            className={`absolute left-0 top-0 w-full pb-5 ${shelf.kind === "group-header" ? "z-10" : ""}`}
+            className={`absolute left-0 top-0 w-full pb-5 ${shelf.kind === "group-header" ? "z-10 focus-within:z-[60] hover:z-20" : ""}`}
             style={{ transform: `translateY(${item.start}px)` }}
             onErrorCapture={handleShelfMediaStateChange}
             onLoadCapture={handleShelfMediaStateChange}

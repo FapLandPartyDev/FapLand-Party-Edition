@@ -11,15 +11,15 @@ export async function probeVideoDurationMs(ffprobePath: string, videoPath: strin
         videoPath,
     ];
 
-    const { stdout } = await runCommand(ffprobePath, args);
+    const { stdout } = await runCommand(ffprobePath, args, { timeoutMs: 600_000 });
     const payload = JSON.parse(stdout.toString("utf8")) as { format?: { duration?: string | number } };
     const rawDuration = payload.format?.duration;
     const durationSeconds =
         typeof rawDuration === "number"
             ? rawDuration
             : typeof rawDuration === "string"
-              ? Number(rawDuration)
-              : Number.NaN;
+                ? Number(rawDuration)
+                : Number.NaN;
 
     if (!Number.isFinite(durationSeconds) || durationSeconds < 0) {
         throw new Error(`Invalid duration returned by ffprobe for ${videoPath}.`);

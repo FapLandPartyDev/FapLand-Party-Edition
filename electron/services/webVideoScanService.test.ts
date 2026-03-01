@@ -10,15 +10,19 @@ const {
   getWebsiteVideoTargetUrlMock,
   generateRoundPreviewImageDataUriMock,
   startPhashScanManualMock,
-} = vi.hoisted(() => ({
-  getDbMock: vi.fn(),
-  getInstallScanStatusMock: vi.fn(),
-  ensureWebsiteVideoCachedMock: vi.fn(),
-  getCachedWebsiteVideoMetadataMock: vi.fn(),
-  getWebsiteVideoTargetUrlMock: vi.fn(),
-  generateRoundPreviewImageDataUriMock: vi.fn(),
-  startPhashScanManualMock: vi.fn(),
-}));
+  isStashProxyUriMock,
+} = vi.hoisted(() => {
+  return {
+    getDbMock: vi.fn(),
+    getInstallScanStatusMock: vi.fn(),
+    ensureWebsiteVideoCachedMock: vi.fn(),
+    getCachedWebsiteVideoMetadataMock: vi.fn(),
+    getWebsiteVideoTargetUrlMock: vi.fn(),
+    generateRoundPreviewImageDataUriMock: vi.fn(),
+    startPhashScanManualMock: vi.fn(),
+    isStashProxyUriMock: vi.fn(),
+  };
+});
 
 vi.mock("./db", () => ({
   getDb: getDbMock,
@@ -32,6 +36,7 @@ vi.mock("./webVideo", () => ({
   ensureWebsiteVideoCached: ensureWebsiteVideoCachedMock,
   getCachedWebsiteVideoMetadata: getCachedWebsiteVideoMetadataMock,
   getWebsiteVideoTargetUrl: getWebsiteVideoTargetUrlMock,
+  isStashProxyUri: isStashProxyUriMock,
 }));
 
 vi.mock("./roundPreview", () => ({
@@ -95,6 +100,34 @@ describe("webVideoScanService", () => {
       }
       return null;
     });
+    isStashProxyUriMock.mockReturnValue(false);
+  });
+
+  it("ignores stash proxy URIs even if not marked in installSourceKey", async () => {
+    getDbMock.mockReturnValue(buildDbMock([
+      {
+        resourceId: "res-stash",
+        roundId: "round-stash",
+        roundName: "Stash Round",
+        videoUri: "app://external/stash?target=http://localhost:9999/stream",
+      },
+      {
+        resourceId: "res-1",
+        roundId: "round-1",
+        roundName: "Round One",
+        videoUri: "https://page.example/watch/1",
+      },
+    ]));
+    isStashProxyUriMock.mockImplementation((uri: string) => uri.includes("/stash"));
+
+    const service = await import("./webVideoScanService");
+    const result = await service.startWebsiteVideoScanManual();
+
+    expect(isStashProxyUriMock).toHaveBeenCalledWith("app://external/stash?target=http://localhost:9999/stream");
+    expect(ensureWebsiteVideoCachedMock).toHaveBeenCalledTimes(1);
+    expect(ensureWebsiteVideoCachedMock).toHaveBeenCalledWith("https://page.example/watch/1");
+    expect(result.totalCount).toBe(1); // The stash one was filtered out in findUncachedWebsiteVideos
+    expect(result.completedCount).toBe(1);
   });
 
   it("downloads only distinct uncached website URLs", async () => {
@@ -205,7 +238,7 @@ describe("webVideoScanService", () => {
       },
     ]));
 
-    let releaseFirst: (() => void) | null = null;
+    let releaseFirst: any = null;
     ensureWebsiteVideoCachedMock.mockImplementation((url: string) => {
       if (url === "https://page.example/watch/1") {
         return new Promise<void>((resolve) => {

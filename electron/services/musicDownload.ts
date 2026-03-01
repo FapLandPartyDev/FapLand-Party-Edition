@@ -7,6 +7,7 @@ import { app } from "electron";
 import { runCommand } from "./phash/extract";
 import { getStore } from "./store";
 import { resolveYtDlpBinary } from "./webVideo/binaries";
+import { resolvePhashBinaries } from "./phash/binaries";
 
 const MUSIC_CACHE_ROOT_PATH_KEY = "music.cacheRootPath";
 const MUSIC_CACHE_FOLDER = "music-cache";
@@ -30,6 +31,28 @@ const YT_DLP_PROGRESS_REGEX =
   /\[download\]\s+(\d+(?:\.\d+)?)%\s+of\s+(~?\d+(?:\.\d+)?[KkMmGgTt]?i?B)(?:\s+at\s+(\d+(?:\.\d+)?[KkMmGgTt]?i?B\/s))?(?:\s+ETA\s+(\d{2}:\d{2}(?::\d{2})?))?/;
 
 const downloadProgressByUrl = new Map<string, MusicDownloadProgress>();
+
+async function getBinaryEnv(): Promise<Record<string, string>> {
+  const binaries = await resolvePhashBinaries();
+  const paths = new Set<string>();
+
+  if (binaries.ffmpegPath && binaries.ffmpegPath !== "ffmpeg") {
+    paths.add(path.dirname(binaries.ffmpegPath));
+  }
+  if (binaries.ffprobePath && binaries.ffprobePath !== "ffprobe") {
+    paths.add(path.dirname(binaries.ffprobePath));
+  }
+
+  if (paths.size === 0) {
+    return {};
+  }
+
+  const existingPath = process.env.PATH ?? "";
+  const separator = os.platform() === "win32" ? ";" : ":";
+  const newPath = [...paths, existingPath].filter(Boolean).join(separator);
+
+  return { PATH: newPath };
+}
 
 function parseFileSizeToBytes(raw: string): number | null {
   const match = /^~?(\d+(?:\.\d+)?)\s*([KkMmGgTt])?i?B$/i.exec(raw.trim());
@@ -122,12 +145,12 @@ type YtDlpPlaylistInfo = {
 
 async function inspectAudioInfo(url: string): Promise<YtDlpMusicInfo> {
   const binary = await resolveYtDlpBinary();
-  const { stdout } = await runCommand(binary.ytDlpPath, [
-    "--dump-single-json",
-    "--no-playlist",
-    "--no-warnings",
-    url,
-  ]);
+  const env = await getBinaryEnv();
+  const { stdout } = await runCommand(
+    binary.ytDlpPath,
+    ["--dump-single-json", "--no-playlist", "--no-warnings", url],
+    { env }
+  );
   return JSON.parse(stdout.toString("utf8")) as YtDlpMusicInfo;
 }
 
@@ -165,12 +188,12 @@ async function extractPlaylistEntries(
   url: string
 ): Promise<{ playlistTitle: string; entries: { url: string; title: string }[] }> {
   const binary = await resolveYtDlpBinary();
-  const { stdout } = await runCommand(binary.ytDlpPath, [
-    "--flat-playlist",
-    "--dump-single-json",
-    "--no-warnings",
-    url,
-  ]);
+  const env = await getBinaryEnv();
+  const { stdout } = await runCommand(
+    binary.ytDlpPath,
+    ["--flat-playlist", "--dump-single-json", "--no-warnings", url],
+    { env }
+  );
 
   const info = JSON.parse(stdout.toString("utf8")) as YtDlpPlaylistInfo;
   const playlistTitle =
@@ -276,6 +299,7 @@ export async function downloadMusicFromUrl(url: string): Promise<MusicDownloadRe
   console.info(`[music] Download started: ${trimmedUrl}`);
 
   const binary = await resolveYtDlpBinary();
+  const env = await getBinaryEnv();
   const outputTemplate = path.join(paths.cacheDir, "audio.%(ext)s");
 
   try {
@@ -295,6 +319,7 @@ export async function downloadMusicFromUrl(url: string): Promise<MusicDownloadRe
         trimmedUrl,
       ],
       {
+        env,
         onLine: (line) => {
           const parsed = parseYtDlpProgressLine(line, trimmedUrl);
           if (!parsed) return;

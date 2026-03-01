@@ -9,6 +9,7 @@ import {
   ensureWebsiteVideoCached,
   getCachedWebsiteVideoMetadata,
   getWebsiteVideoTargetUrl,
+  isStashProxyUri,
 } from "./webVideo";
 
 export type WebsiteVideoScanState = "idle" | "running" | "done" | "aborted" | "error";
@@ -140,14 +141,17 @@ async function findUncachedWebsiteVideos(): Promise<PendingWebsiteVideo[]> {
   const deduped = new Map<string, PendingWebsiteVideo>();
 
   for (const row of rows as WebsiteVideoCandidateRow[]) {
-    if (row.installSourceKey?.startsWith("stash:")) continue;
+    if (row.installSourceKey?.startsWith("stash:") || isStashProxyUri(row.videoUri)) continue;
 
     const normalizedTargetUrl = getWebsiteVideoTargetUrl(row.videoUri);
     if (!normalizedTargetUrl) continue;
     if (deduped.has(normalizedTargetUrl)) continue;
 
     const cachedMetadata = await getCachedWebsiteVideoMetadata(normalizedTargetUrl);
-    if (cachedMetadata) continue;
+    if (cachedMetadata) {
+      console.log(`Skipping ${row.videoUri} - already cached`);
+      continue;
+    }
 
     deduped.set(normalizedTargetUrl, {
       resourceId: row.resourceId,
