@@ -46,6 +46,9 @@ export type MultiplayerLobbyPlayer = {
   userId: string;
   machineIdHash: string;
   displayName: string;
+  profileLevel?: number;
+  titleId?: string;
+  titleText?: string;
   role: MultiplayerPlayerRole;
   state: MultiplayerPlayerState;
   joinedAt: string;

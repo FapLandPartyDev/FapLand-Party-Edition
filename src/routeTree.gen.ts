@@ -13,6 +13,7 @@ import { Route as SingleResultRouteImport } from './routes/single-result'
 import { Route as SinglePlayerSetupRouteImport } from './routes/single-player-setup'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RoundsRouteImport } from './routes/rounds'
+import { Route as ProgressionRouteImport } from './routes/progression'
 import { Route as PlaylistWorkshopRouteImport } from './routes/playlist-workshop'
 import { Route as MultiplayerResultRouteImport } from './routes/multiplayer-result'
 import { Route as MultiplayerMatchRouteImport } from './routes/multiplayer-match'
@@ -46,6 +47,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const RoundsRoute = RoundsRouteImport.update({
   id: '/rounds',
   path: '/rounds',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProgressionRoute = ProgressionRouteImport.update({
+  id: '/progression',
+  path: '/progression',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlaylistWorkshopRoute = PlaylistWorkshopRouteImport.update({
@@ -134,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/multiplayer-match': typeof MultiplayerMatchRoute
   '/multiplayer-result': typeof MultiplayerResultRoute
   '/playlist-workshop': typeof PlaylistWorkshopRoute
+  '/progression': typeof ProgressionRoute
   '/rounds': typeof RoundsRoute
   '/settings': typeof SettingsRoute
   '/single-player-setup': typeof SinglePlayerSetupRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByTo {
   '/multiplayer-match': typeof MultiplayerMatchRoute
   '/multiplayer-result': typeof MultiplayerResultRoute
   '/playlist-workshop': typeof PlaylistWorkshopRoute
+  '/progression': typeof ProgressionRoute
   '/rounds': typeof RoundsRoute
   '/settings': typeof SettingsRoute
   '/single-player-setup': typeof SinglePlayerSetupRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/multiplayer-match': typeof MultiplayerMatchRoute
   '/multiplayer-result': typeof MultiplayerResultRoute
   '/playlist-workshop': typeof PlaylistWorkshopRoute
+  '/progression': typeof ProgressionRoute
   '/rounds': typeof RoundsRoute
   '/settings': typeof SettingsRoute
   '/single-player-setup': typeof SinglePlayerSetupRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/multiplayer-match'
     | '/multiplayer-result'
     | '/playlist-workshop'
+    | '/progression'
     | '/rounds'
     | '/settings'
     | '/single-player-setup'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/multiplayer-match'
     | '/multiplayer-result'
     | '/playlist-workshop'
+    | '/progression'
     | '/rounds'
     | '/settings'
     | '/single-player-setup'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/multiplayer-match'
     | '/multiplayer-result'
     | '/playlist-workshop'
+    | '/progression'
     | '/rounds'
     | '/settings'
     | '/single-player-setup'
@@ -258,6 +270,7 @@ export interface RootRouteChildren {
   MultiplayerMatchRoute: typeof MultiplayerMatchRoute
   MultiplayerResultRoute: typeof MultiplayerResultRoute
   PlaylistWorkshopRoute: typeof PlaylistWorkshopRoute
+  ProgressionRoute: typeof ProgressionRoute
   RoundsRoute: typeof RoundsRoute
   SettingsRoute: typeof SettingsRoute
   SinglePlayerSetupRoute: typeof SinglePlayerSetupRoute
@@ -292,6 +305,13 @@ declare module '@tanstack/react-router' {
       path: '/rounds'
       fullPath: '/rounds'
       preLoaderRoute: typeof RoundsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/progression': {
+      id: '/progression'
+      path: '/progression'
+      fullPath: '/progression'
+      preLoaderRoute: typeof ProgressionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/playlist-workshop': {
@@ -410,6 +430,7 @@ const rootRouteChildren: RootRouteChildren = {
   MultiplayerMatchRoute: MultiplayerMatchRoute,
   MultiplayerResultRoute: MultiplayerResultRoute,
   PlaylistWorkshopRoute: PlaylistWorkshopRoute,
+  ProgressionRoute: ProgressionRoute,
   RoundsRoute: RoundsRoute,
   SettingsRoute: SettingsRoute,
   SinglePlayerSetupRoute: SinglePlayerSetupRoute,

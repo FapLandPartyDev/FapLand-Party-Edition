@@ -59,6 +59,15 @@ declare global {
       };
       debug?: {
         recordVideoEvent: (payload: Record<string, unknown>) => Promise<void>;
+        recordTCodeSerialEvent?: (payload: Record<string, unknown>) => Promise<void>;
+      };
+      serial?: {
+        getSelectedPortMetadata: () => Promise<{
+          portName: string;
+          displayName: string | null;
+          vendorId: string | null;
+          productId: string | null;
+        } | null>;
       };
       updates: {
         subscribe: (

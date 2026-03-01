@@ -63,6 +63,9 @@ function mapLobbyPlayer(row: Record<string, unknown>): MultiplayerLobbyPlayer {
     userId: String(row.user_id),
     machineIdHash: String(row.machine_id_hash),
     displayName: String(row.display_name),
+    profileLevel: Math.max(1, Number(row.profile_level ?? 1)),
+    titleId: String(row.title_id ?? "fresh-face"),
+    titleText: String(row.title_text ?? "Fresh Meat"),
     role: String(row.role) as MultiplayerLobbyPlayer["role"],
     state: String(row.state) as MultiplayerLobbyPlayer["state"],
     joinedAt: String(row.joined_at),
@@ -324,6 +327,27 @@ export async function createLobby(
     playerId: String(payload.player_id),
     status: String(payload.status) as MultiplayerCreateLobbyResult["status"],
   };
+}
+
+export async function updatePlayerCosmetics(
+  input: {
+    lobbyId: string;
+    playerId: string;
+    profileLevel: number;
+    titleId: string;
+    titleText: string;
+  },
+  profile?: MultiplayerServerProfile
+): Promise<void> {
+  const { client } = await withClient(profile);
+  const { error } = await client.rpc("mp_update_player_cosmetics", {
+    p_lobby_id: input.lobbyId,
+    p_player_id: input.playerId,
+    p_profile_level: input.profileLevel,
+    p_title_id: input.titleId,
+    p_title_text: input.titleText,
+  });
+  assertNoSupabaseError(error, "Failed to update player cosmetics.");
 }
 
 export async function joinLobby(

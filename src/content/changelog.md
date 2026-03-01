@@ -1,5 +1,35 @@
 # What's New
 
+## v0.6.00-beta
+
+### Added
+
+- **Player progression & skill tree** — runs now award XP toward a persistent player level, unlocking a new Progression & Skill Tree route from the main menu. Eight skill branches (Control, Dicecraft, Economy, Fortune, Defense, Endurance, Scoring, and Starter Arsenal) each offer multi-rank perks that modify starting pauses, dice limits, money, perk-offer chance, danger probabilities, scoring, and starter inventory. Levels also unlock equippable titles, with respec tokens earned at milestones and a skill-deactivation system that grants up to +100% XP when you run with skills turned off.
+- **Connect multiple haptics devices at once** — a new multi-device (group) provider lets you connect several TheHandy, Intiface, or TCode devices simultaneously, each with its own connection config, funscript offset, and stroke range. Devices are managed as named slots and the runtime fans script commands out to every connected target.
+- **Installed Rounds library rework** — the installed rounds page has been visually rebuilt around the active app theme. Decorative cyan/violet accents, focus rings, selection bars, progress bars, sticky toolbars, and the round inspector now resolve through theme variables (with SFW-safe heading text), so the library matches your selected menu theme instead of hard-coded colors.
+- **Playlist level requirements** — playlists can now declare a required player level (configurable in the Map Editor's Graph Settings panel). Locked playlists show their level badge and a reach-level hint on the single-player setup screen, and an experimental "Ignore Playlist Level Requirements" toggle (Settings → Experimental) lets you bypass the gate for testing, though bypassed runs do not award XP.
+- **Multiplayer level & title cosmetics** — your equipped title and player level now appear next to your name in the lobby, in-match player lists, and on the results screen. A new Supabase RPC (`mp_update_player_cosmetics`) keeps your cosmetics in sync with other players, and join/leave/finish notifications include the title.
+- **XP award on run results** — the single-player and multiplayer result screens now surface the XP earned for the run, the skill-deactivation bonus breakdown, the resulting level, and any skill points gained from level-ups.
+- **Native TCode serial port picker** — when multiple serial ports are available, a native dialog now lists each port with its display name, vendor, and product IDs so you can choose the right TCode device. The previously auto-selected first port is no longer silently picked.
+
+### Changed
+
+- Upgraded the Buttplug/Intiface client library from v4 to v5, including the move from `Vibrate.speed` to `Vibrate.percent` for vibration commands, and raised the minimum supported Intiface Central major version to 3 with a download link surfaced in-app.
+- Manual round pauses now use the progression-configured pause duration instead of the fixed 15-second window, and the in-game overlay reports the active pause length.
+- TCode serial teardown now wraps reader/writer cancellation and the read loop in 5-second timeouts so a hung driver can no longer block disconnection; Linux connection errors include dialout/uucp group and "port in use" guidance, and serial lifecycle events are recorded to the debug log.
+- TCode connection verification now reports a failure if the test command cannot be sent or if the serial port cannot be cleanly closed after the probe, instead of silently treating a half-open port as connected.
+- Refactored the Map Editor and Playlist Workshop playlist pickers into a single shared `PlaylistPicker` component (`src/features/playlist-picker/`), replacing the legacy `PlaylistPickerView` with consistent theming, search, sort, and management actions across both surfaces.
+- Playlist schema bumped to version 3 to persist `requiredLevel`; legacy graph configs continue to be normalized on import.
+- Game saves now persist the run's progression block reason (level bypass, map-editor test) and the disabled-skill rank count so XP awards stay consistent across resumes.
+- Existing installs automatically repair the new `progressionXp`, `equippedTitleId`, `respecTokens` columns on `GameProfile` and create the `ProgressionSkillRank` and `ProgressionAward` tables if missing, including the skill `enabled` column added in a follow-up migration.
+
+### Fixed
+
+- TCode serial disconnect no longer hangs when the underlying WebSerial reader fails to cancel; teardown always completes within a bounded timeout.
+- TCode verification no longer reports success when the serial port could not be closed after the probe, preventing stale "connected" state on the next connect attempt.
+
+---
+
 ## v0.5.23-beta
 
 ### Added

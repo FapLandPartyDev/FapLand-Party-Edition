@@ -763,6 +763,7 @@ function MultiplayerMatchRoute() {
     const finalPayload = {
       completionReason: localState.completionReason,
       finalScore: player.score,
+      completedRounds: Math.max(0, Math.floor(localState.endlessRoundsCompleted)),
       completedAtIso: new Date().toISOString(),
     };
 
@@ -1258,6 +1259,10 @@ function MultiplayerMatchRoute() {
                   const finalPayload = {
                     completionReason: "gave_up",
                     finalScore,
+                    completedRounds: Math.max(
+                      0,
+                      Math.floor(localState.endlessRoundsCompleted)
+                    ),
                     completedAtIso: new Date().toISOString(),
                   };
 
@@ -1542,6 +1547,9 @@ function MultiplayerMatchRoute() {
                         className="rounded border border-zinc-800 bg-zinc-900/65 p-2"
                       >
                         <div className="font-semibold text-zinc-100">{player.displayName}</div>
+                        <div className="text-[10px] text-violet-200">
+                          Lv. {player.profileLevel ?? 1} · {player.titleText ?? "Fresh Meat"}
+                        </div>
                         <div className="mt-1 text-zinc-300">
                           <Trans>
                             {player.state} | Pos {progress?.positionIndex ?? 0} | ${" "}
@@ -1623,6 +1631,9 @@ function MultiplayerMatchRoute() {
                       <div className="flex items-center justify-between gap-2">
                         <div>
                           <div className="font-semibold text-zinc-100">{player.displayName}</div>
+                          <div className="text-[10px] text-violet-200">
+                            Lv. {player.profileLevel ?? 1} · {player.titleText ?? "Fresh Meat"}
+                          </div>
                           <div className="text-zinc-400">
                             <Trans>
                               {player.state} | Pos {progress?.positionIndex ?? 0} | Score{" "}

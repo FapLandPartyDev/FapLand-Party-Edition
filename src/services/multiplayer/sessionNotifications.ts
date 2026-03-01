@@ -47,37 +47,43 @@ function isLeavingPlayerState(state: MultiplayerPlayerState): boolean {
   return LEAVING_PLAYER_STATES.has(state);
 }
 
+function getPlayerLabel(player: MultiplayerLobbyPlayer): string {
+  return player.titleText ? `${player.displayName} · ${player.titleText}` : player.displayName;
+}
+
 function formatJoinMessage(player: MultiplayerLobbyPlayer, rejoined: boolean): string {
+  const label = getPlayerLabel(player);
   return rejoined
-    ? `${player.displayName} rejoined the session 🔌`
-    : `${player.displayName} joined the session ✨`;
+    ? `${label} rejoined the session 🔌`
+    : `${label} joined the session ✨`;
 }
 
 function formatLeaveMessage(player: MultiplayerLobbyPlayer): string {
+  const label = getPlayerLabel(player);
   const completionReason = toCompletionReason(player);
   if (
     player.state === "came" ||
     completionReason === "self_reported_cum" ||
     completionReason === "cum_instruction_failed"
   ) {
-    return `${player.displayName} came 💦`;
+    return `${label} came 💦`;
   }
   if (player.state === "finished" || completionReason === "finished") {
-    return `${player.displayName} finished the run 🏁`;
+    return `${label} finished the run 🏁`;
   }
   if (player.state === "forfeited" && completionReason === "gave_up") {
-    return `${player.displayName} gave up 🏳️`;
+    return `${label} gave up 🏳️`;
   }
   if (player.state === "forfeited") {
-    return `${player.displayName} forfeited the session ⏱️`;
+    return `${label} forfeited the session ⏱️`;
   }
   if (player.state === "kicked") {
-    return `${player.displayName} was kicked 👢`;
+    return `${label} was kicked 👢`;
   }
   if (player.state === "disconnected") {
-    return `${player.displayName} disconnected 📡`;
+    return `${label} disconnected 📡`;
   }
-  return `${player.displayName} left the session 🚪`;
+  return `${label} left the session 🚪`;
 }
 
 function buildNotificationId(
@@ -132,7 +138,7 @@ export function getMultiplayerSessionNotifications(
     if (nextPlayers.some((player) => player.id === previousPlayer.id)) continue;
     notifications.push({
       id: buildNotificationId(previousPlayer.id, previousPlayer.state, "missing"),
-      message: `${previousPlayer.displayName} left the session 🚪`,
+      message: `${getPlayerLabel(previousPlayer)} left the session 🚪`,
     });
   }
 

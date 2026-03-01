@@ -229,6 +229,83 @@ async function repairAssistedSchema(
   }
 }
 
+async function repairProgressionSchema(
+  dbInstance: ReturnType<typeof drizzle<typeof schema>>
+): Promise<void> {
+  const profileColumns: Array<{ name: string; definition: string }> = [
+    { name: "progressionXp", definition: `integer DEFAULT 0 NOT NULL` },
+    { name: "equippedTitleId", definition: `text DEFAULT 'fresh-face' NOT NULL` },
+    { name: "respecTokens", definition: `integer DEFAULT 0 NOT NULL` },
+  ];
+  for (const column of profileColumns) {
+    if (await hasColumn(dbInstance, "GameProfile", column.name)) continue;
+    await dbInstance.$client.execute(
+      `ALTER TABLE "GameProfile" ADD COLUMN "${column.name}" ${column.definition}`
+    );
+  }
+
+  if (!(await hasTable(dbInstance, "ProgressionSkillRank"))) {
+    await dbInstance.$client.execute(`
+      CREATE TABLE "ProgressionSkillRank" (
+        "id" text PRIMARY KEY NOT NULL,
+        "profileId" text NOT NULL,
+        "skillId" text NOT NULL,
+        "rank" integer DEFAULT 1 NOT NULL,
+        "createdAt" integer NOT NULL,
+        "updatedAt" integer NOT NULL,
+        FOREIGN KEY ("profileId") REFERENCES "GameProfile"("id") ON UPDATE cascade ON DELETE cascade
+      )
+    `);
+  }
+  if (
+    !(await hasIndex(
+      dbInstance,
+      "ProgressionSkillRank",
+      "ProgressionSkillRank_profileId_skillId_unique"
+    ))
+  ) {
+    await dbInstance.$client.execute(
+      `CREATE UNIQUE INDEX "ProgressionSkillRank_profileId_skillId_unique" ON "ProgressionSkillRank" ("profileId","skillId")`
+    );
+  }
+  if (!(await hasColumn(dbInstance, "ProgressionSkillRank", "enabled"))) {
+    await dbInstance.$client.execute(
+      `ALTER TABLE "ProgressionSkillRank" ADD COLUMN "enabled" integer DEFAULT 1 NOT NULL`
+    );
+  }
+
+  if (!(await hasTable(dbInstance, "ProgressionAward"))) {
+    await dbInstance.$client.execute(`
+      CREATE TABLE "ProgressionAward" (
+        "id" text PRIMARY KEY NOT NULL,
+        "profileId" text NOT NULL,
+        "sourceKind" text NOT NULL,
+        "sourceId" text NOT NULL,
+        "outcome" text NOT NULL,
+        "completedRounds" integer DEFAULT 0 NOT NULL,
+        "xpAwarded" integer DEFAULT 0 NOT NULL,
+        "blockReason" text,
+        "createdAt" integer NOT NULL,
+        FOREIGN KEY ("profileId") REFERENCES "GameProfile"("id") ON UPDATE cascade ON DELETE cascade
+      )
+    `);
+  }
+  if (
+    !(await hasIndex(dbInstance, "ProgressionAward", "ProgressionAward_sourceKind_sourceId_unique"))
+  ) {
+    await dbInstance.$client.execute(
+      `CREATE UNIQUE INDEX "ProgressionAward_sourceKind_sourceId_unique" ON "ProgressionAward" ("sourceKind","sourceId")`
+    );
+  }
+  if (
+    !(await hasIndex(dbInstance, "ProgressionAward", "ProgressionAward_profileId_createdAt_idx"))
+  ) {
+    await dbInstance.$client.execute(
+      `CREATE INDEX "ProgressionAward_profileId_createdAt_idx" ON "ProgressionAward" ("profileId","createdAt")`
+    );
+  }
+}
+
 export async function repairSinglePlayerRunSaveSchema(
   dbInstance: ReturnType<typeof drizzle<typeof schema>>
 ): Promise<void> {
@@ -476,6 +553,7 @@ export async function ensureAppDatabaseReady(): Promise<void> {
       await repairLegacyPlaylistSchema(dbInstance);
       await repairCheatModeSchema(dbInstance);
       await repairAssistedSchema(dbInstance);
+      await repairProgressionSchema(dbInstance);
       await repairSinglePlayerRunSaveSchema(dbInstance);
       await repairInstalledLibrarySchema(dbInstance);
     })();

@@ -258,6 +258,7 @@ const ZPlayerState = z.object({
     .object({
       pauseCharges: z.number().int(),
       skipCharges: z.number().int(),
+      pauseDurationMs: z.number().int().min(1000).optional(),
     })
     .optional(),
   shieldRoundsRemaining: z.number().int().optional(),
@@ -466,6 +467,8 @@ export const ZSinglePlayerRunSaveSnapshot = z.object({
   gameState: ZPersistedGameState,
   sessionStartedAtMs: z.number().int().nonnegative(),
   savedAtMs: z.number().int().nonnegative(),
+  progressionBlockReason: z.enum(["level_bypass", "map_editor_test"]).nullable().optional(),
+  disabledSkillRanks: z.number().int().nonnegative().optional().default(0),
 });
 
 export type PersistedGameState = z.infer<typeof ZPersistedGameState>;

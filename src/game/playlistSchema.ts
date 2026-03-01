@@ -1,7 +1,7 @@
 import * as z from "zod";
 import { ZAutomationLibrary } from "./automation/schema";
 
-export const CURRENT_PLAYLIST_VERSION = 2;
+export const CURRENT_PLAYLIST_VERSION = 3;
 export const PLAYLIST_FILE_FORMAT = "f-land.playlist";
 export const PLAYLIST_FILE_VERSION = 2;
 export const ZPlaylistSaveMode = z.enum(["none", "checkpoint", "everywhere"]);
@@ -697,7 +697,7 @@ function normalizeLegacyPlaylistConfigInput(input: unknown): unknown {
     playlistVersion:
       playlistVersion < CURRENT_PLAYLIST_VERSION ? CURRENT_PLAYLIST_VERSION : playlistVersion,
     boardConfig:
-      explicitPlaylistVersion !== null && explicitPlaylistVersion < CURRENT_PLAYLIST_VERSION
+      explicitPlaylistVersion !== null && explicitPlaylistVersion < 2
         ? normalizeLegacyGraphBoardConfig(input.boardConfig)
         : input.boardConfig,
   };
@@ -721,6 +721,7 @@ export const ZPlaylistMusic = z
 const ZPlaylistConfigCurrent = z
   .object({
     playlistVersion: z.number().int().min(1).default(CURRENT_PLAYLIST_VERSION),
+    requiredLevel: z.number().int().min(1).max(1_000_000).optional(),
     boardConfig: ZBoardConfig,
     music: ZPlaylistMusic.optional(),
     saveMode: ZPlaylistSaveMode.default("none"),

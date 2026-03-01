@@ -23,7 +23,7 @@ type ButtplugModule = {
       percent: (position: number) => unknown;
     };
     Vibrate?: {
-      speed: (intensity: number) => unknown;
+      percent: (intensity: number) => unknown;
     };
   };
   OutputType?: {
@@ -478,10 +478,10 @@ async function runVibrationCommand(
 
   if (
     supportsVibrate &&
-    module.DeviceOutput?.Vibrate?.speed &&
+    module.DeviceOutput?.Vibrate?.percent &&
     typeof device.runOutput === "function"
   ) {
-    await device.runOutput(module.DeviceOutput.Vibrate.speed(clampedIntensity));
+    await device.runOutput(module.DeviceOutput.Vibrate.percent(clampedIntensity));
     return;
   }
   if (typeof device.vibrate === "function") {

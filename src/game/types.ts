@@ -448,6 +448,7 @@ export type PlayerState = {
   roundControl?: {
     pauseCharges: number;
     skipCharges: number;
+    pauseDurationMs?: number;
   };
   shieldRoundsRemaining?: number;
   pendingRollMultiplier?: number | null;

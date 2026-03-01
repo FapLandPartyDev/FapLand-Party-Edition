@@ -95,7 +95,7 @@ function InstallImportOverlayInner({
               {total > 0 && (
                 <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-zinc-800/50">
                   <div
-                    className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500 ease-out"
+                    className="round-library-progress h-full transition-all duration-500 ease-out"
                     style={{ width: `${Math.min(100, progressPercent)}%` }}
                   />
                 </div>

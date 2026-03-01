@@ -23,6 +23,11 @@ const SingleResultSearchSchema = z.object({
   cheatMode: z.coerce.boolean().optional(),
   assisted: z.coerce.boolean().optional(),
   assistedSaveMode: z.enum(["checkpoint", "everywhere"]).optional(),
+  xpAwarded: z.coerce.number().int().min(0).optional(),
+  skillDeactivationBonusXp: z.coerce.number().int().min(0).optional(),
+  skillDeactivationBonusPercent: z.coerce.number().int().min(0).max(100).optional(),
+  level: z.coerce.number().int().min(1).optional(),
+  levelsGained: z.coerce.number().int().min(0).optional(),
 });
 
 export const Route = createFileRoute("/single-result")({
@@ -228,6 +233,26 @@ export function SingleResultRoute() {
                 {marker.icon} {marker.label}
               </div>
             ))}
+          </div>
+        )}
+
+        {typeof search.xpAwarded === "number" && (
+          <div className="mt-4 mx-auto rounded-2xl border border-violet-300/35 bg-violet-500/10 px-6 py-4 text-center text-violet-100">
+            <p className="font-mono text-sm uppercase tracking-[0.2em]">
+              +{search.xpAwarded} XP · Level {search.level ?? 1}
+            </p>
+            {(search.skillDeactivationBonusXp ?? 0) > 0 && (
+              <p className="mt-1 text-sm text-violet-200">
+                Skill challenge +{search.skillDeactivationBonusXp} XP (+
+                {search.skillDeactivationBonusPercent ?? 0}%)
+              </p>
+            )}
+            {(search.levelsGained ?? 0) > 0 && (
+              <p className="mt-1 text-sm text-violet-200">
+                Level up! +{search.levelsGained} skill point
+                {(search.levelsGained ?? 0) === 1 ? "" : "s"}
+              </p>
+            )}
           </div>
         )}
 

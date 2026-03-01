@@ -78,6 +78,21 @@ function makeRound(
 }
 
 describe("playlistSchema", () => {
+  it("supports solo level requirements and treats legacy configs as level one", () => {
+    const legacy = ZPlaylistConfig.parse(
+      buildConfig({
+        mode: "linear",
+        totalIndices: 1,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+      })
+    );
+    expect(legacy.requiredLevel ?? 1).toBe(1);
+    const locked = ZPlaylistConfig.parse({ ...legacy, requiredLevel: 42 });
+    expect(locked.requiredLevel).toBe(42);
+  });
   it("defaults playlistVersion to current version", () => {
     const parsed = ZPlaylistConfig.parse(
       buildConfig({

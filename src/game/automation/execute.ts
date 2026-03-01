@@ -82,6 +82,7 @@ function applyImmediateAction(
         state: withCurrentPlayer(state, (player) => ({
           ...player,
           roundControl: {
+            ...player.roundControl,
             pauseCharges: Math.max(0, (player.roundControl?.pauseCharges ?? 0) + action.amount),
             skipCharges: Math.max(0, player.roundControl?.skipCharges ?? 0),
           },
@@ -92,6 +93,7 @@ function applyImmediateAction(
         state: withCurrentPlayer(state, (player) => ({
           ...player,
           roundControl: {
+            ...player.roundControl,
             pauseCharges: Math.max(0, player.roundControl?.pauseCharges ?? 0),
             skipCharges: Math.max(0, (player.roundControl?.skipCharges ?? 0) + action.amount),
           },

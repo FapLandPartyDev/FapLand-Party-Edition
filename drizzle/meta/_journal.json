@@ -71,6 +71,20 @@
       "when": 1778687507540,
       "tag": "0009_easy_living_lightning",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784973600000,
+      "tag": "0010_progression_system",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784977200000,
+      "tag": "0011_skill_activation",
+      "breakpoints": true
     }
   ]
 }

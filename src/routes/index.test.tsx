@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   listMatchCache: vi.fn(async () => []),
   getCumLoadCount: vi.fn(async () => 0),
   countInstalled: vi.fn(async () => 0),
+  getProgressionProfile: vi.fn(async () => ({ level: 1, totalXp: 0 })),
   appUpdate: {
     state: {
       status: "idle",
@@ -141,6 +142,11 @@ vi.mock("../services/trpc", () => ({
         query: vi.fn(async () => true),
       },
     },
+    progression: {
+      getProfile: {
+        query: mocks.getProgressionProfile,
+      },
+    },
   },
 }));
 
@@ -171,6 +177,7 @@ describe("Home route update menu", () => {
     mocks.listMatchCache.mockResolvedValue([]);
     mocks.getCumLoadCount.mockResolvedValue(0);
     mocks.countInstalled.mockResolvedValue(0);
+    mocks.getProgressionProfile.mockResolvedValue({ level: 1, totalXp: 0 });
     mocks.appUpdate.state = {
       status: "idle",
       currentVersion: "0.1.2",
@@ -271,6 +278,23 @@ describe("Home route update menu", () => {
     await waitFor(() => {
       expect(mocks.findBackgroundVideos).toHaveBeenCalledWith(6);
       expect(mocks.countInstalled).toHaveBeenCalled();
+      expect(mocks.getProgressionProfile).toHaveBeenCalled();
+    });
+  });
+
+  it("shows animated XP progress below the best score", async () => {
+    mocks.getProgressionProfile.mockResolvedValue({ level: 2, totalXp: 150 });
+
+    const Component = (Route as unknown as { component: () => ReactElement }).component;
+    render(<Component />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Level 2")).toBeDefined();
+      expect(screen.getByText("50 / 127 XP")).toBeDefined();
+      expect(screen.getByRole("progressbar", { name: "Level 2 progress" })).toBeDefined();
+      expect(
+        screen.getByRole("button", { name: "Progression & Skill Tree" }).textContent
+      ).toBe("Progression & Skill Tree");
     });
   });
 

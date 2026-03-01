@@ -814,6 +814,9 @@ function MultiplayerLobbyRoute() {
                             )}
                             {player.displayName}
                           </div>
+                          <div className="mt-1 text-xs text-violet-200">
+                            Lv. {player.profileLevel ?? 1} · {player.titleText ?? "Fresh Meat"}
+                          </div>
                           <div className="mt-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
                             <span className={isHostPlayer ? "text-amber-400" : ""}>
                               {player.role === "host" ? t`Host` : t`Player`}

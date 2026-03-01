@@ -5001,6 +5001,10 @@ export const GameScene = memo(function GameScene({
           roundControl: {
             pauseCharges: Math.max(0, currentPlayer?.roundControl?.pauseCharges ?? 0),
             skipCharges: Math.max(0, currentPlayer?.roundControl?.skipCharges ?? 0),
+            pauseDurationMs: Math.max(
+              1000,
+              currentPlayer?.roundControl?.pauseDurationMs ?? 15_000
+            ),
             onUsePause: () => {
               if (!currentPlayer) return;
               handleUseRoundControl({ playerId: currentPlayer.id, control: "pause" });

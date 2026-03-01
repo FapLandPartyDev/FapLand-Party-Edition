@@ -21,6 +21,7 @@ import {
 } from "../services/multiplayer";
 import { MultiplayerUpdateGuard } from "../components/multiplayer/MultiplayerUpdateGuard";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { progression } from "../services/progression";
 
 const MultiplayerResultSearchSchema = z.object({
   lobbyId: z.string().min(1),
@@ -32,6 +33,8 @@ function toResultJson(rows: MultiplayerStandingRow[]) {
     player_id: row.playerId,
     user_id: row.userId,
     display_name: row.displayName,
+    profile_level: row.profileLevel ?? 1,
+    title_text: row.titleText ?? "Fresh Meat",
     state: row.state,
     final_score: row.finalScore,
     finish_at: row.finishAt,
@@ -104,6 +107,12 @@ function MultiplayerResultRoute() {
   const [finalizedAtIso, setFinalizedAtIso] = useState<string | null>(finishedAtIso);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [progressionSummary, setProgressionSummary] = useState<{
+    xp: number;
+    level: number;
+    levelsGained: number;
+  } | null>(null);
+  const progressionAwardStartedRef = useRef(false);
 
   const persistRows = useCallback(
     async (nextRows: MultiplayerStandingRow[], finalFlag: boolean, finishedAt: string | null) => {
@@ -187,6 +196,41 @@ function MultiplayerResultRoute() {
     () => rows.find((row) => row.playerId === ownPlayerId) ?? null,
     [ownPlayerId, rows]
   );
+  useEffect(() => {
+    if (!ownRow || progressionAwardStartedRef.current) return;
+    progressionAwardStartedRef.current = true;
+    const payload =
+      ownRow.finalPayloadJson && typeof ownRow.finalPayloadJson === "object"
+        ? (ownRow.finalPayloadJson as Record<string, unknown>)
+        : {};
+    const rawCompletedRounds = Number(payload.completedRounds ?? 0);
+    const completedRounds = Number.isFinite(rawCompletedRounds)
+      ? Math.max(0, Math.floor(rawCompletedRounds))
+      : 0;
+    const successful =
+      ownRow.state === "finished" ||
+      payload.completionReason === "finished" ||
+      payload.completionReason === "cum_point" ||
+      payload.completionReason === "player_ended_endless";
+    void progression
+      .awardRun({
+        sourceKind: "multiplayer",
+        sourceId: `${search.lobbyId}:${ownRow.playerId}`,
+        outcome: successful ? "success" : "failure",
+        completedRounds,
+        blockReason: null,
+      })
+      .then((result) => {
+        setProgressionSummary({
+          xp: result.award?.xpAwarded ?? 0,
+          level: result.profile.level,
+          levelsGained: result.levelsGained,
+        });
+      })
+      .catch((awardError) => {
+        console.warn("Failed to award multiplayer progression.", awardError);
+      });
+  }, [ownRow, search.lobbyId]);
   const activePlayers = useMemo(
     () =>
       snapshot?.players.filter(
@@ -276,11 +320,29 @@ function MultiplayerResultRoute() {
               </p>
               <div className="mt-1 flex flex-wrap items-end gap-3">
                 <p className="text-5xl font-black text-fuchsia-100">#{ownRow.place}</p>
-                <p className="pb-1 text-lg font-semibold text-zinc-100">{ownRow.displayName}</p>
+                <div className="pb-1">
+                  <p className="text-lg font-semibold text-zinc-100">{ownRow.displayName}</p>
+                  <p className="text-xs text-violet-200">
+                    Lv. {ownRow.profileLevel ?? 1} · {ownRow.titleText ?? "Fresh Meat"}
+                  </p>
+                </div>
                 <p className="pb-1 text-sm text-zinc-300">
                   <Trans>Score</Trans> {ownRow.finalScore}
                 </p>
               </div>
+            </section>
+          )}
+          {progressionSummary && (
+            <section className="rounded-2xl border border-violet-300/35 bg-violet-500/10 p-4 text-center text-violet-100">
+              <p className="font-mono uppercase tracking-[0.2em]">
+                +{progressionSummary.xp} XP · Level {progressionSummary.level}
+              </p>
+              {progressionSummary.levelsGained > 0 && (
+                <p className="mt-1 text-sm">
+                  Level up! +{progressionSummary.levelsGained} skill point
+                  {progressionSummary.levelsGained === 1 ? "" : "s"}
+                </p>
+              )}
             </section>
           )}
 
@@ -311,6 +373,9 @@ function MultiplayerResultRoute() {
                         </span>
                         <h2 className="text-lg font-bold text-zinc-100">{row.displayName}</h2>
                       </div>
+                      <p className="mt-1 text-xs text-violet-200">
+                        Lv. {row.profileLevel ?? 1} · {row.titleText ?? "Fresh Meat"}
+                      </p>
                       <p className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase tracking-[0.14em] text-zinc-400">
                         <Trans>state</Trans> {row.state}
                       </p>

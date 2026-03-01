@@ -80,7 +80,7 @@ import {
 } from "../utils/audio";
 import { getRoundDurationSec } from "../utils/duration";
 import { groupRoundsByHero } from "../utils/heroGrouping";
-import { PlaylistPickerView } from "../features/map-editor/components/PlaylistPickerView";
+import { PlaylistPicker } from "../features/playlist-picker/PlaylistPicker";
 import { EditorToolbar } from "../features/map-editor/components/EditorToolbar";
 import { TileSidebar, type RoundListItem } from "../features/map-editor/components/TileSidebar";
 import { NodeInspectorPanel } from "../features/map-editor/components/NodeInspectorPanel";
@@ -226,6 +226,7 @@ const toEditorConfigFromPlaylist = (playlist: StoredPlaylist): EditorGraphConfig
     dice: { ...playlist.config.dice },
     disableDiceAnimation: playlist.config.disableDiceAnimation ?? false,
     saveMode: playlist.config.saveMode ?? "none",
+    requiredLevel: playlist.config.requiredLevel ?? 1,
     music: {
       tracks: playlist.config.music?.tracks.map((track) => ({ ...track })) ?? [],
       loop: playlist.config.music?.loop ?? true,
@@ -326,6 +327,7 @@ const makeStartingConfig = (): EditorGraphConfig => ({
   },
   disableDiceAnimation: false,
   saveMode: "none",
+  requiredLevel: 1,
   style: {},
   music: {
     tracks: [],
@@ -339,6 +341,7 @@ const createPlaylistConfigFromEditorConfig = (editorConfig: EditorGraphConfig): 
     playlistVersion: CURRENT_PLAYLIST_VERSION,
     boardConfig: toGraphBoardConfig(editorConfig),
     saveMode: editorConfig.saveMode,
+    requiredLevel: Math.max(1, Math.floor(editorConfig.requiredLevel ?? 1)),
     roundStartDelayMs: 20000,
     disableDiceAnimation: editorConfig.disableDiceAnimation,
     perkSelection: {
@@ -1701,6 +1704,16 @@ function MapEditorPage() {
     [updateGraphConfig]
   );
 
+  const setRequiredLevel = useCallback(
+    (value: number) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        requiredLevel: Math.max(1, Math.min(1_000_000, Math.floor(value))),
+      }));
+    },
+    [updateGraphConfig]
+  );
+
   const setMapBackground = useCallback(
     (background: EditorGraphConfig["style"]["background"] | undefined) => {
       updateGraphConfig((previous) => ({
@@ -2725,6 +2738,7 @@ function MapEditorPage() {
       dice: { ...configRef.current.dice },
       disableDiceAnimation: configRef.current.disableDiceAnimation,
       saveMode: configRef.current.saveMode,
+      requiredLevel: Math.max(1, Math.floor(configRef.current.requiredLevel ?? 1)),
       music:
         configRef.current.music.tracks.length > 0
           ? {
@@ -3405,13 +3419,14 @@ function MapEditorPage() {
   if (!selectedPlaylist) {
     return (
       <>
-        <PlaylistPickerView
-          playlistList={playlistList}
+        <PlaylistPicker
+          context="map-editor"
+          playlists={playlistList}
           activePlaylistId={activePlaylistId}
+          pendingActionPlaylistId={managePlaylistPendingId}
+          notice={saveNotice ? { message: saveNotice } : null}
           newPlaylistName={newPlaylistName}
-          createPlaylistPending={createPlaylistPending}
-          managePlaylistPendingId={managePlaylistPendingId}
-          saveNotice={saveNotice}
+          createPending={createPlaylistPending}
           onNewPlaylistNameChange={setNewPlaylistName}
           onCreatePlaylist={() => {
             void handleCreatePlaylist();
@@ -3801,6 +3816,7 @@ function MapEditorPage() {
                       dice={config.dice}
                       disableDiceAnimation={config.disableDiceAnimation}
                       saveMode={config.saveMode}
+                      requiredLevel={config.requiredLevel ?? 1}
                       style={config.style}
                       perkOptions={perkOptions}
                       antiPerkOptions={antiPerkOptions}
@@ -3819,6 +3835,7 @@ function MapEditorPage() {
                       onSetDiceLimit={setDiceLimit}
                       onSetDisableDiceAnimation={setDisableDiceAnimation}
                       onSetSaveMode={setSaveMode}
+                      onSetRequiredLevel={setRequiredLevel}
                       onSetStartingMoney={setStartingMoney}
                       onSetCumRoundBonusScore={setCumRoundBonusScore}
                       onChooseMapBackground={chooseMapBackground}

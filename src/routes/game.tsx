@@ -45,6 +45,8 @@ import {
   DEFAULT_CHEAT_MODE_ENABLED,
   normalizeCheatModeEnabled,
 } from "../constants/experimentalFeatures";
+import { buildProgressionModifiers } from "../game/progression";
+import { progression } from "../services/progression";
 import { DEFAULT_INTERMEDIARY_LOADING_PROMPT } from "../constants/booruSettings";
 import { useHandy } from "../contexts/HandyContext";
 import { formatDurationLabel, getRoundDurationSec } from "../utils/duration";
@@ -107,6 +109,7 @@ const GameSearchSchema = z.object({
   playlistId: z.string().min(1).optional(),
   launchNonce: z.coerce.number().int().nonnegative().optional(),
   resume: z.coerce.boolean().optional(),
+  levelBypass: z.coerce.boolean().optional(),
 });
 
 const getInitialHighscore = async (): Promise<{
@@ -325,6 +328,7 @@ export const Route = createFileRoute("/game")({
     playlistId: search.playlistId ?? null,
     launchNonce: search.launchNonce ?? null,
     resume: search.resume ?? false,
+    levelBypass: search.levelBypass ?? false,
   }),
   loader: async ({ deps }) => {
     const [
@@ -342,6 +346,7 @@ export const Route = createFileRoute("/game")({
       initialApplyPerkDirectly,
       moaningAvailable,
       activePlaylist,
+      progressionProfile,
     ] = await Promise.all([
       getInstalledRounds(),
       getInitialHighscore(),
@@ -357,6 +362,7 @@ export const Route = createFileRoute("/game")({
       getApplyPerkDirectly(),
       getMoaningAvailability(),
       deps.playlistId ? playlists.getById(deps.playlistId) : playlists.getActive(),
+      progression.getProfile(),
     ]);
 
     if (!activePlaylist) {
@@ -408,6 +414,7 @@ export const Route = createFileRoute("/game")({
       initialApplyPerkDirectly,
       moaningAvailable,
       activePlaylist,
+      progressionProfile,
       playedByPool,
       savedSnapshot,
       resumeRequested: deps.resume,
@@ -435,6 +442,7 @@ function GameRoute() {
     initialApplyPerkDirectly,
     moaningAvailable,
     activePlaylist,
+    progressionProfile,
     playedByPool,
     savedSnapshot,
     resumeRequested,
@@ -451,6 +459,13 @@ function GameRoute() {
   const sessionStartedAtMsRef = useRef(savedSnapshot?.sessionStartedAtMs ?? Date.now());
   const mapEditorTestPlaylistIdRef = useRef<string | null>(getMapEditorTestPlaylistId());
   const isMapEditorTestRun = mapEditorTestPlaylistIdRef.current !== null;
+  const [progressionAwardSourceId] = useState(() => crypto.randomUUID());
+  const runProgressionBlockReason =
+    savedSnapshot?.progressionBlockReason ??
+    (search.levelBypass ? "level_bypass" : isMapEditorTestRun ? "map_editor_test" : null);
+  const [runDisabledSkillRanks] = useState(
+    () => savedSnapshot?.disabledSkillRanks ?? progressionProfile.disabledSkillRanks
+  );
   const [applyPerkDirectly, setApplyPerkDirectly] = useState(initialApplyPerkDirectly);
   const [boardReady, setBoardReady] = useState(false);
   const [launchProgress, setLaunchProgress] = useState(initialLaunchProgress);
@@ -527,8 +542,22 @@ function GameRoute() {
               perkPool: config.perkPool,
             },
           }
-        : createInitialGameState(config, { initialHighscore, playedRoundIdsByPool: playedByPool }),
-    [config, initialHighscore, playedByPool, savedSnapshot]
+        : createInitialGameState(config, {
+            initialHighscore,
+            playedRoundIdsByPool: playedByPool,
+            progressionModifiers: buildProgressionModifiers(
+              progressionProfile.skillRanks,
+              new Set(progressionProfile.disabledSkillIds)
+            ),
+          }),
+    [
+      config,
+      initialHighscore,
+      playedByPool,
+      progressionProfile.disabledSkillIds,
+      progressionProfile.skillRanks,
+      savedSnapshot,
+    ]
   );
 
   const launchBoardSummary = useMemo(
@@ -637,6 +666,8 @@ function GameRoute() {
         gameState: state,
         sessionStartedAtMs: sessionStartedAtMsRef.current,
         savedAtMs: Date.now(),
+        progressionBlockReason: runProgressionBlockReason,
+        disabledSkillRanks: runDisabledSkillRanks,
       });
       await db.singlePlayerSaves.upsert({
         playlistId: activePlaylist.id,
@@ -654,6 +685,8 @@ function GameRoute() {
       activePlaylist.name,
       canPersistSinglePlayerSave,
       currentPlaylistSaveMode,
+      runProgressionBlockReason,
+      runDisabledSkillRanks,
     ]
   );
 
@@ -773,23 +806,62 @@ function GameRoute() {
           console.warn("Failed to persist single-player run history", error);
         });
 
+      const completionReason = nextState.completionReason ?? "finished";
+      const successfulCompletion =
+        completionReason === "finished" ||
+        completionReason === "cum_point" ||
+        completionReason === "player_ended_endless";
+      const blockReason = effectiveCheatMode ? "cheat_mode" : runProgressionBlockReason;
+      void progression
+        .awardRun({
+          sourceKind: "single_player",
+          sourceId: progressionAwardSourceId,
+          outcome: successfulCompletion ? "success" : "failure",
+          completedRounds: Math.max(0, Math.floor(nextState.endlessRoundsCompleted)),
+          blockReason,
+          disabledSkillRanks: runDisabledSkillRanks,
+        })
+        .then((progressionResult) =>
+          navigate({
+            to: "/single-result",
+            search: {
+              score,
+              highscore: highscoreAfter,
+              survivedDurationSec,
+              reason: completionReason,
+              cheatMode: effectiveCheatMode,
+              assisted: effectiveAssisted,
+              assistedSaveMode: effectiveAssistedSaveMode ?? undefined,
+              xpAwarded: progressionResult.award?.xpAwarded ?? 0,
+              skillDeactivationBonusXp: progressionResult.breakdown?.skillDeactivationBonusXp ?? 0,
+              skillDeactivationBonusPercent:
+                progressionResult.breakdown?.skillDeactivationBonusPercent ?? 0,
+              level: progressionResult.profile.level,
+              levelsGained: progressionResult.levelsGained,
+            },
+            replace: true,
+          })
+        )
+        .catch((error) => {
+          console.warn("Failed to award run progression", error);
+          return navigate({
+            to: "/single-result",
+            search: {
+              score,
+              highscore: highscoreAfter,
+              survivedDurationSec,
+              reason: completionReason,
+              cheatMode: effectiveCheatMode,
+              assisted: effectiveAssisted,
+              assistedSaveMode: effectiveAssistedSaveMode ?? undefined,
+            },
+            replace: true,
+          });
+        });
+
       if (isMapEditorTestRun) {
         clearMapEditorTestSession();
       }
-
-      void navigate({
-        to: "/single-result",
-        search: {
-          score,
-          highscore: highscoreAfter,
-          survivedDurationSec,
-          reason: nextState.completionReason ?? "finished",
-          cheatMode: effectiveCheatMode,
-          assisted: effectiveAssisted,
-          assistedSaveMode: effectiveAssistedSaveMode ?? undefined,
-        },
-        replace: true,
-      });
     },
     [
       activePlaylist.config.saveMode,
@@ -805,6 +877,9 @@ function GameRoute() {
       navigate,
       currentPlaylistSaveMode,
       persistRunSnapshot,
+      progressionAwardSourceId,
+      runProgressionBlockReason,
+      runDisabledSkillRanks,
       showSaveNotification,
     ]
   );

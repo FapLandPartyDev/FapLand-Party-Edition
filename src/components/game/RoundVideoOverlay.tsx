@@ -89,6 +89,7 @@ export type RoundVideoOverlayProps = {
   roundControl?: {
     pauseCharges: number;
     skipCharges: number;
+    pauseDurationMs?: number;
     onUsePause: () => void;
     onUseSkip: () => void;
   };
@@ -3344,13 +3345,14 @@ export function RoundVideoOverlay({
     allowPauseRef.current = true;
     video.pause();
     void pauseHandyIfNeeded();
-    setStatus(t`Manual pause active (15s).`);
+    const pauseDurationMs = Math.max(1000, roundControl.pauseDurationMs ?? MANUAL_PAUSE_DURATION_MS);
+    setStatus(t`Manual pause active (${Math.round(pauseDurationMs / 1000)}s).`);
 
     manualPauseTimerRef.current = window.setTimeout(() => {
       manualPauseTimerRef.current = null;
       setStatus(t`Manual pause ended.`);
       tryPlayVideo();
-    }, MANUAL_PAUSE_DURATION_MS);
+    }, pauseDurationMs);
   }, [
     canUseRoundControls,
     clearManualPauseTimer,

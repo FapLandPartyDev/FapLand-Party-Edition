@@ -130,6 +130,7 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
 
   async verifyConnection(config): Promise<HapticsConnectionResult> {
     const bridge = new TCodeTransportRenderer();
+    let verificationResult: HapticsConnectionResult;
     try {
       const tcodeConfig = requireTCodeConfig(config);
       const result = await bridge.connect({
@@ -139,31 +140,54 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
         websocketUrl: tcodeConfig.websocketUrl,
       });
       if (!result.success) {
-        return {
+        verificationResult = {
           success: false,
           provider: "tcode",
           message: result.error ?? "Failed to connect to TCode device.",
         };
+      } else {
+        const sent = bridge.send(
+          formatTCodeAxisCommand(tcodeConfig.axis, 50, tcodeConfig.precision)
+        );
+        verificationResult = sent
+          ? {
+              success: true,
+              provider: "tcode",
+              deviceType: "TCode",
+              deviceName:
+                tcodeConfig.transport === "serial"
+                  ? tcodeConfig.serialPath
+                  : tcodeConfig.websocketHost || tcodeConfig.websocketUrl,
+            }
+          : {
+              success: false,
+              provider: "tcode",
+              message: "Connected to the TCode device but failed to send a command.",
+            };
       }
-      await bridge.send(formatTCodeAxisCommand(tcodeConfig.axis, 50, tcodeConfig.precision));
-      return {
-        success: true,
-        provider: "tcode",
-        deviceType: "TCode",
-        deviceName:
-          tcodeConfig.transport === "serial"
-            ? tcodeConfig.serialPath
-            : tcodeConfig.websocketHost || tcodeConfig.websocketUrl,
-      };
     } catch (error) {
-      return {
+      verificationResult = {
         success: false,
         provider: "tcode",
         message: error instanceof Error ? error.message : "Failed to connect to TCode device.",
       };
-    } finally {
-      await bridge.disconnect().catch(() => undefined);
     }
+
+    try {
+      await bridge.disconnect();
+    } catch (error) {
+      if (verificationResult.success) {
+        return {
+          success: false,
+          provider: "tcode",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to close the TCode serial port after testing it.",
+        };
+      }
+    }
+    return verificationResult;
   },
 
   async createSession(config): Promise<TCodeHapticsSession> {

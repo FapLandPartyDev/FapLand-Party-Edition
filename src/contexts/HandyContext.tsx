@@ -1034,7 +1034,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setTCodeSerialPortsLoading(true);
     try {
       const { tcodeTransportRenderer } = await import("../services/haptics/tcodeTransportRenderer");
-      const ports = await tcodeTransportRenderer.listPorts();
+      const ports = await tcodeTransportRenderer.listPorts({ requestPort: true });
       setTCodeSerialPorts(ports ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to list TCode serial ports.");

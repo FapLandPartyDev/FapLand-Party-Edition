@@ -22,6 +22,7 @@ interface GraphSettingsPanelProps {
   dice: EditorGraphConfig["dice"];
   disableDiceAnimation: boolean;
   saveMode: EditorGraphConfig["saveMode"];
+  requiredLevel: number;
   style: EditorGraphConfig["style"];
   perkOptions: ReadonlyArray<PerkDefinition>;
   antiPerkOptions: ReadonlyArray<PerkDefinition>;
@@ -39,6 +40,7 @@ interface GraphSettingsPanelProps {
   onSetDiceLimit: (key: keyof EditorGraphConfig["dice"], value: number) => void;
   onSetDisableDiceAnimation: (value: boolean) => void;
   onSetSaveMode: (value: EditorGraphConfig["saveMode"]) => void;
+  onSetRequiredLevel: (value: number) => void;
   onSetStartingMoney: (value: number) => void;
   onSetCumRoundBonusScore: (value: number) => void;
   onChooseMapBackground: () => void;
@@ -214,6 +216,7 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
     dice,
     disableDiceAnimation,
     saveMode,
+    requiredLevel,
     style,
     perkOptions,
     antiPerkOptions,
@@ -228,6 +231,7 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
     onSetDiceLimit,
     onSetDisableDiceAnimation,
     onSetSaveMode,
+    onSetRequiredLevel,
     onSetStartingMoney,
     onSetCumRoundBonusScore,
     onChooseMapBackground,
@@ -878,6 +882,23 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
               </button>
             ))}
           </div>
+          <label className="mt-4 block">
+            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-300">
+              <Trans>Required Player Level</Trans>
+            </span>
+            <input
+              type="number"
+              min={1}
+              max={1_000_000}
+              value={requiredLevel}
+              onChange={(event) => onSetRequiredLevel(Number(event.target.value) || 1)}
+              className="w-full rounded-xl border border-white/15 bg-black/35 px-3 py-2 text-zinc-100"
+            />
+            <span className="mt-2 block text-xs text-zinc-400">
+              <Trans>Solo play only; multiplayer ignores this requirement.</Trans>
+            </span>
+          </label>
+
           {saveMode !== "none" && (
             <p className="rounded-lg border border-amber-300/25 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
               {saveMode === "checkpoint" ? "🚩" : "💾"}

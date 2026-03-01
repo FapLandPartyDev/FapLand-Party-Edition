@@ -8,6 +8,8 @@ export type MultiplayerStandingRow = {
   playerId: string;
   userId: string;
   displayName: string;
+  profileLevel?: number;
+  titleText?: string;
   state: MultiplayerPlayerState | string;
   finalScore: number;
   finishAt: string | null;
@@ -62,6 +64,8 @@ export function buildTemporaryStandings(
       playerId: player.id,
       userId: player.userId,
       displayName: player.displayName,
+      profileLevel: player.profileLevel,
+      titleText: player.titleText,
       state: player.state,
       finalScore: toSafeScore(progress?.score ?? player.finalScore ?? 0),
       finishAt: player.finishAt,
@@ -94,6 +98,8 @@ export function parseStandingsJson(resultsJson: unknown): MultiplayerStandingRow
         playerId,
         userId,
         displayName,
+        profileLevel: Math.max(1, toSafeScore(raw.profile_level ?? 1)),
+        titleText: toSafeString(raw.title_text, "Fresh Meat"),
         state: toSafeString(raw.state, "finished"),
         finalScore: toSafeScore(raw.final_score),
         finishAt,

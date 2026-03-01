@@ -8,8 +8,12 @@ import { openGlobalHandyOverlay } from "../components/globalHandyOverlayControls
 import { openGlobalMusicOverlay } from "../components/globalMusicOverlayControls";
 import { useControllerSurface } from "../controller";
 import {
+  CHEAT_MODE_ENABLED_EVENT,
+  CHEAT_MODE_ENABLED_KEY,
+  DEFAULT_CHEAT_MODE_ENABLED,
   MULTIPLAYER_MINIMUM_ROUNDS,
   MULTIPLAYER_SKIP_ROUNDS_CHECK_KEY,
+  normalizeCheatModeEnabled,
 } from "../constants/experimentalFeatures";
 import {
   DEFAULT_MENU_THEME_ID,
@@ -24,6 +28,7 @@ import { useAppUpdate } from "../hooks/useAppUpdate";
 import { useIdleScreenPerformance } from "../hooks/useIdleScreenPerformance";
 import { useSfwMode } from "../hooks/useSfwMode";
 import { useMenuNavigation, type MenuOption } from "../hooks/useMenuNavigation";
+import { getLevelProgress } from "../game/progression";
 import { getAssistedTooltip, getSaveModeEmoji } from "../game/saveMode";
 import { db } from "../services/db";
 import { parseStandingsJson } from "../services/multiplayer/results";
@@ -51,6 +56,10 @@ type HomeData = {
   cumLoadCount: number;
   installedRoundCount: number;
   skipRoundsCheck: boolean;
+  currentLevel: number;
+  currentLevelXp: number;
+  xpToNextLevel: number;
+  progressionCheated: boolean;
 };
 
 const DEFAULT_HOME_DATA: HomeData = {
@@ -64,6 +73,10 @@ const DEFAULT_HOME_DATA: HomeData = {
   cumLoadCount: 0,
   installedRoundCount: 0,
   skipRoundsCheck: false,
+  currentLevel: 1,
+  currentLevelXp: 0,
+  xpToNextLevel: 100,
+  progressionCheated: false,
 };
 
 let pendingHomeDataLoad: Promise<HomeData> | null = null;
@@ -128,17 +141,43 @@ const loadHomeData = async (): Promise<HomeData> => {
       db.singlePlayerHistory.getCumLoadCount().catch(() => 0),
       db.round.countInstalled().catch(() => 0),
       trpc.store.get.query({ key: MULTIPLAYER_SKIP_ROUNDS_CHECK_KEY }),
+      trpc.progression.getProfile
+        .query({ mode: "effective" })
+        .then((profile) => ({
+          ...getLevelProgress(profile.totalXp),
+          isCheated: profile.isCheated,
+        }))
+        .catch(() => ({ ...getLevelProgress(0), isCheated: false })),
     ])
-      .then(([videos, overallHighscore, cumLoadCount, installedRoundCount, rawSkipRoundsCheck]) => {
-        const skipRoundsCheck =
-          rawSkipRoundsCheck === true || rawSkipRoundsCheck === "true"
-            ? true
-            : rawSkipRoundsCheck === false || rawSkipRoundsCheck === "false"
-              ? false
-              : false;
+      .then(
+        ([
+          videos,
+          overallHighscore,
+          cumLoadCount,
+          installedRoundCount,
+          rawSkipRoundsCheck,
+          levelProgress,
+        ]) => {
+          const skipRoundsCheck =
+            rawSkipRoundsCheck === true || rawSkipRoundsCheck === "true"
+              ? true
+              : rawSkipRoundsCheck === false || rawSkipRoundsCheck === "false"
+                ? false
+                : false;
 
-        return { videos, overallHighscore, cumLoadCount, installedRoundCount, skipRoundsCheck };
-      })
+          return {
+            videos,
+            overallHighscore,
+            cumLoadCount,
+            installedRoundCount,
+            skipRoundsCheck,
+            currentLevel: levelProgress.level,
+            currentLevelXp: levelProgress.currentLevelXp,
+            xpToNextLevel: levelProgress.xpToNextLevel,
+            progressionCheated: levelProgress.isCheated,
+          };
+        }
+      )
       .finally(() => {
         pendingHomeDataLoad = null;
       });
@@ -150,22 +189,27 @@ const loadHomeData = async (): Promise<HomeData> => {
 const Home = () => {
   useIdleScreenPerformance("home", { reduceEffects: false });
   const [homeData, setHomeData] = useState<HomeData>(DEFAULT_HOME_DATA);
-  const [mainMenuThemeId, setMainMenuThemeId] =
-    useState<MainMenuThemeId>(DEFAULT_MENU_THEME_ID);
+  const [mainMenuThemeId, setMainMenuThemeId] = useState<MainMenuThemeId>(DEFAULT_MENU_THEME_ID);
+  const [cheatModeEnabled, setCheatModeEnabled] = useState(DEFAULT_CHEAT_MODE_ENABLED);
   const navigate = useNavigate();
   const { t } = useLingui();
-  const {
-    connected,
-    isConnecting,
-    error,
-    connectionKey,
-  } = useHandy();
+  const { connected, isConnecting, error, connectionKey } = useHandy();
   const appUpdate = useAppUpdate();
   const sfwModeEnabled = useSfwMode();
   const scopeRef = useRef<HTMLDivElement | null>(null);
   const [compactSystemOpen, setCompactSystemOpen] = useState(false);
 
-  const { videos, overallHighscore, cumLoadCount, installedRoundCount, skipRoundsCheck } = homeData;
+  const {
+    videos,
+    overallHighscore,
+    cumLoadCount,
+    installedRoundCount,
+    skipRoundsCheck,
+    currentLevel,
+    currentLevelXp,
+    xpToNextLevel,
+    progressionCheated,
+  } = homeData;
   const mainMenuTheme = useMemo(() => getMainMenuTheme(mainMenuThemeId), [mainMenuThemeId]);
 
   useEffect(() => {
@@ -210,6 +254,31 @@ const Home = () => {
     return () => {
       cancelled = true;
       window.removeEventListener(MENU_THEME_CHANGED_EVENT, handleThemeChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void trpc.store.get
+      .query({ key: CHEAT_MODE_ENABLED_KEY })
+      .then((value) => {
+        if (cancelled) return;
+        setCheatModeEnabled(normalizeCheatModeEnabled(value));
+      })
+      .catch((loadError) => {
+        console.error("Failed to read cheat mode setting", loadError);
+      });
+
+    const handleCheatModeChange = (event: Event) => {
+      setCheatModeEnabled(normalizeCheatModeEnabled((event as CustomEvent<unknown>).detail));
+    };
+
+    window.addEventListener(CHEAT_MODE_ENABLED_EVENT, handleCheatModeChange);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(CHEAT_MODE_ENABLED_EVENT, handleCheatModeChange);
     };
   }, []);
 
@@ -282,6 +351,11 @@ const Home = () => {
             action: () => navigate({ to: "/map-editor" }),
           },
         ],
+      },
+      {
+        id: "progression",
+        label: t`Progression & Skill Tree`,
+        action: () => navigate({ to: "/progression" }),
       },
       {
         id: "highscores",
@@ -429,6 +503,10 @@ const Home = () => {
         assistedSaveMode={overallHighscore.localAssistedSaveMode}
         cumLoadCount={cumLoadCount}
         hideCumLoadCount={sfwModeEnabled}
+        level={currentLevel}
+        currentLevelXp={currentLevelXp}
+        xpToNextLevel={xpToNextLevel}
+        progressionCheated={progressionCheated}
       />
 
       <main className="parallax-ui z-10 flex flex-col items-center w-full max-w-lg px-6 text-center">
@@ -449,9 +527,7 @@ const Home = () => {
               className="text-[0.65rem] sm:text-xs font-[family-name:var(--font-jetbrains-mono)] tracking-[0.6em] uppercase mb-3 animate-entrance"
               style={{ animationDelay: "0.1s", color: "var(--main-menu-eyebrow)" }}
             >
-              {sfwModeEnabled
-                ? t`Safe Experience`
-                : t`Party Edition`}
+              {sfwModeEnabled ? t`Safe Experience` : t`Party Edition`}
             </p>
 
             {/* Main title with animated shimmer gradient */}
@@ -481,6 +557,18 @@ const Home = () => {
             />
           </div>
         </div>
+
+        {cheatModeEnabled && (
+          <div
+            className="mb-6 w-full animate-entrance rounded-xl border border-amber-400/40 bg-amber-500/15 px-4 py-2.5 text-center"
+            style={{ animationDelay: "0.4s", animationDuration: "0.4s" }}
+            data-testid="cheat-mode-warning"
+          >
+            <p className="text-xs font-semibold text-amber-100">
+              <Trans>Cheat mode is active — level progression is paused.</Trans>
+            </p>
+          </div>
+        )}
 
         {/* ── Menu Options ── */}
         <div className="relative w-full">
@@ -528,14 +616,20 @@ const Home = () => {
           }}
         >
           <div className="mb-2 flex items-center gap-2">
-            <div className="h-px flex-1" style={{ background: "var(--main-menu-system-divider)" }} />
+            <div
+              className="h-px flex-1"
+              style={{ background: "var(--main-menu-system-divider)" }}
+            />
             <p
               className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.18em] font-semibold"
               style={{ color: "var(--main-menu-system-label)" }}
             >
               <Trans>System</Trans>
             </p>
-            <div className="h-px flex-1" style={{ background: "var(--main-menu-system-divider)" }} />
+            <div
+              className="h-px flex-1"
+              style={{ background: "var(--main-menu-system-divider)" }}
+            />
           </div>
 
           <div className="space-y-1.5">
@@ -848,6 +942,10 @@ function HighscoreDisplay({
   assistedSaveMode,
   cumLoadCount,
   hideCumLoadCount,
+  level,
+  currentLevelXp,
+  xpToNextLevel,
+  progressionCheated,
 }: {
   score: number;
   cheatMode?: boolean;
@@ -855,6 +953,10 @@ function HighscoreDisplay({
   assistedSaveMode?: "checkpoint" | "everywhere" | null;
   cumLoadCount: number;
   hideCumLoadCount?: boolean;
+  level: number;
+  currentLevelXp: number;
+  xpToNextLevel: number;
+  progressionCheated?: boolean;
 }) {
   const { t } = useLingui();
   const [displayScore, setDisplayScore] = useState(0);
@@ -881,7 +983,7 @@ function HighscoreDisplay({
     window.requestAnimationFrame(step);
   }, [score]);
 
-  if (score === 0) return null;
+  const levelProgressPercent = Math.min(100, (currentLevelXp / xpToNextLevel) * 100);
 
   return (
     <div
@@ -927,6 +1029,29 @@ function HighscoreDisplay({
             )}
           </p>
         )}
+        <div className="mt-2 w-48">
+          <div className="mb-1 flex items-center justify-between font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.12em]">
+            <span className="font-semibold text-violet-200">
+              <Trans>Level {level}</Trans>
+              {progressionCheated ? " 🎭 CHEATED" : ""}
+            </span>
+            <span className="tabular-nums text-zinc-500">
+              {currentLevelXp.toLocaleString()} / {xpToNextLevel.toLocaleString()} XP
+            </span>
+          </div>
+          <div
+            className="main-menu-level-track"
+            role="progressbar"
+            aria-label={t`Level ${level} progress`}
+            aria-valuemin={0}
+            aria-valuemax={xpToNextLevel}
+            aria-valuenow={currentLevelXp}
+          >
+            <div className="main-menu-level-fill" style={{ width: `${levelProgressPercent}%` }}>
+              <span className="main-menu-level-spark" />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

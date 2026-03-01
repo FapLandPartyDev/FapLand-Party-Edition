@@ -7,6 +7,10 @@ const mocks = vi.hoisted(() => ({
     highscore: 500,
     survivedDurationSec: 372,
     reason: "finished" as const,
+    xpAwarded: undefined as number | undefined,
+    skillDeactivationBonusXp: undefined as number | undefined,
+    skillDeactivationBonusPercent: undefined as number | undefined,
+    level: undefined as number | undefined,
   },
   navigate: vi.fn(),
 }));
@@ -28,6 +32,10 @@ describe("SingleResultRoute", () => {
       highscore: 500,
       survivedDurationSec: 372,
       reason: "finished",
+      xpAwarded: undefined,
+      skillDeactivationBonusXp: undefined,
+      skillDeactivationBonusPercent: undefined,
+      level: undefined,
     };
   });
 
@@ -37,5 +45,17 @@ describe("SingleResultRoute", () => {
     expect(screen.getByText("Survived")).toBeTruthy();
     expect(screen.getByText("6:12")).toBeTruthy();
     expect(screen.getByText("TIME")).toBeTruthy();
+  });
+
+  it("shows the skill challenge XP bonus", () => {
+    mocks.search.xpAwarded = 181;
+    mocks.search.skillDeactivationBonusXp = 23;
+    mocks.search.skillDeactivationBonusPercent = 15;
+    mocks.search.level = 2;
+
+    render(<SingleResultRoute />);
+
+    expect(screen.getByText("+181 XP · Level 2")).toBeTruthy();
+    expect(screen.getByText("Skill challenge +23 XP (+15%)")).toBeTruthy();
   });
 });

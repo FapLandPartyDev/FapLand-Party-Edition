@@ -31,6 +31,9 @@ const config: HapticsConnectionConfig = {
 describe("tcodeAdapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    transportMocks.connect.mockResolvedValue({ success: true });
+    transportMocks.send.mockReturnValue(true);
+    transportMocks.disconnect.mockResolvedValue(undefined);
   });
 
   it("formats v0.3 and v0.2 axis commands", () => {
@@ -87,5 +90,23 @@ describe("tcodeAdapter", () => {
     await tcodeAdapter.stopPlayback(config, session);
 
     expect(transportMocks.send).toHaveBeenCalledWith("DSTOP\nL05000\n");
+  });
+
+  it("fails verification when the test command cannot be sent", async () => {
+    transportMocks.send.mockReturnValue(false);
+
+    await expect(tcodeAdapter.verifyConnection(config)).resolves.toMatchObject({
+      success: false,
+      message: "Connected to the TCode device but failed to send a command.",
+    });
+  });
+
+  it("fails verification when the tested serial port cannot be closed", async () => {
+    transportMocks.disconnect.mockRejectedValue(new Error("Timed out closing serial port."));
+
+    await expect(tcodeAdapter.verifyConnection(config)).resolves.toMatchObject({
+      success: false,
+      message: "Timed out closing serial port.",
+    });
   });
 });

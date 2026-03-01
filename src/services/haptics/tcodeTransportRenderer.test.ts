@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 type MockSerialPort = Record<string, unknown> & {
   open: ReturnType<typeof vi.fn>;
   close: ReturnType<typeof vi.fn>;
+  forget: ReturnType<typeof vi.fn>;
   writer: {
     write: ReturnType<typeof vi.fn>;
     releaseLock: ReturnType<typeof vi.fn>;
@@ -77,6 +78,7 @@ function createMockSerialPort(
       }
       open = false;
     }),
+    forget: vi.fn(async () => {}),
     readable: readable as unknown as ReadableStream<Uint8Array>,
     writable: writable as unknown as WritableStream<Uint8Array>,
     getInfo: vi.fn(() => ({ usbVendorId: 0x2341, usbProductId: options.productId ?? 0x0043 })),
@@ -129,11 +131,13 @@ function mockWebSocket() {
 
 describe("tcodeTransportRenderer", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.resetModules();
     vi.clearAllMocks();
     storedPorts.length = 0;
     delete (globalThis as Record<string, unknown>).navigator;
     delete (globalThis as Record<string, unknown>).WebSocket;
+    delete (globalThis.window as unknown as Record<string, unknown>).electronAPI;
   });
 
   it("lists serial ports via Web Serial API", async () => {
@@ -150,6 +154,39 @@ describe("tcodeTransportRenderer", () => {
     const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
     const ports = await tcodeTransportRenderer.listPorts();
     expect(ports).toEqual([{ path: "USB 2341:0043", manufacturer: null }]);
+    expect(serial.requestPort).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses Electron metadata to display the selected Linux device path", async () => {
+    const serial = mockNavigatorSerial({ granted: false });
+    Object.defineProperty(globalThis.window, "electronAPI", {
+      value: {
+        serial: {
+          getSelectedPortMetadata: vi.fn(async () => ({
+            portName: "/dev/ttyUSB0",
+            displayName: "TCodeESP32",
+            vendorId: "9025",
+            productId: "67",
+          })),
+        },
+      },
+      configurable: true,
+    });
+    const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
+
+    const ports = await tcodeTransportRenderer.listPorts({ requestPort: true });
+
+    expect(ports).toEqual([{ path: "/dev/ttyUSB0", manufacturer: "TCodeESP32" }]);
+    expect(serial.requestPort).toHaveBeenCalledTimes(1);
+  });
+
+  it("forgets existing grants before explicitly choosing another port", async () => {
+    const serial = mockNavigatorSerial();
+    const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
+
+    await tcodeTransportRenderer.listPorts({ requestPort: true });
+
+    expect(serial.port.forget).toHaveBeenCalledTimes(1);
     expect(serial.requestPort).toHaveBeenCalledTimes(1);
   });
 
@@ -227,6 +264,47 @@ describe("tcodeTransportRenderer", () => {
     expect(serial.port.open).toHaveBeenCalledTimes(2);
 
     await tcodeTransportRenderer.disconnect();
+  });
+
+  it("returns an error instead of hanging when opening a serial port stalls", async () => {
+    vi.useFakeTimers();
+    const serial = mockNavigatorSerial();
+    serial.port.open.mockImplementation(() => new Promise<void>(() => {}));
+    const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
+    await tcodeTransportRenderer.listPorts();
+
+    const connection = tcodeTransportRenderer.connect({
+      transport: "serial",
+      serialPath: "USB 2341:0043",
+      baudRate: 115200,
+    });
+    await vi.advanceTimersByTimeAsync(5000);
+
+    await expect(connection).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("Timed out opening USB 2341:0043"),
+    });
+  });
+
+  it("returns an error instead of hanging when closing a serial port stalls", async () => {
+    vi.useFakeTimers();
+    const serial = mockNavigatorSerial();
+    const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
+    await tcodeTransportRenderer.listPorts();
+    await tcodeTransportRenderer.connect({
+      transport: "serial",
+      serialPath: "USB 2341:0043",
+      baudRate: 115200,
+    });
+    serial.port.close.mockImplementation(() => new Promise<void>(() => {}));
+
+    const disconnection = tcodeTransportRenderer.disconnect();
+    const expectation = expect(disconnection).rejects.toThrow(
+      "Timed out closing the TCode serial port"
+    );
+    await vi.advanceTimersByTimeAsync(5000);
+
+    await expectation;
   });
 
   it("auto-detects the first usable serial port", async () => {

@@ -9,7 +9,10 @@ import {
 } from "./intifaceAdapter";
 import type { HapticsConnectionConfig } from "./types";
 
-const runOutput = vi.fn(async () => undefined);
+const runOutput = vi.fn(async (_output: unknown) => {
+  void _output;
+  return undefined;
+});
 const stop = vi.fn(async () => undefined);
 const disconnect = vi.fn(async () => undefined);
 const startScanning = vi.fn(async () => undefined);
@@ -38,7 +41,7 @@ function createModule(devices: unknown[], serverName = "Intiface Server") {
         }),
       },
       Vibrate: {
-        speed: (intensity: number) => ({
+        percent: (intensity: number) => ({
           type: "vibrate",
           intensity,
         }),
@@ -392,6 +395,78 @@ describe("intifaceAdapter", () => {
 
     expect(stop).toHaveBeenCalledTimes(3);
     expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Buttplug protocol compatibility", () => {
+  it("serializes hardware position output values as protocol-v4 scalars", async () => {
+    const { ButtplugClientDevice, DeviceOutput } = (await import("buttplug")) as unknown as {
+      ButtplugClientDevice: {
+        fromMsg: (
+          info: {
+            DeviceIndex: number;
+            DeviceName: string;
+            DeviceFeatures: Record<
+              number,
+              {
+                FeatureIndex: number;
+                FeatureDescriptor: string;
+                Output: Record<string, { Value: number[]; Duration?: number[] }>;
+                Input: Record<string, never>;
+              }
+            >;
+          },
+          send: (message: unknown) => Promise<unknown>
+        ) => {
+          runOutput: (command: unknown) => Promise<void>;
+        };
+      };
+      DeviceOutput: {
+        PositionWithDuration: {
+          percent: (position: number, durationMs: number) => unknown;
+        };
+      };
+    };
+    let sentMessage: unknown;
+    const device = ButtplugClientDevice.fromMsg(
+      {
+        DeviceIndex: 0,
+        DeviceName: "The Handy",
+        DeviceFeatures: {
+          0: {
+            FeatureIndex: 0,
+            FeatureDescriptor: "Position",
+            Output: {
+              HwPositionWithDuration: {
+                Value: [0, 100],
+                Duration: [0, 5000],
+              },
+            },
+            Input: {},
+          },
+        },
+      },
+      async (message) => {
+        sentMessage = message;
+        return { Ok: { Id: 1 } };
+      }
+    );
+
+    await device.runOutput(DeviceOutput.PositionWithDuration.percent(0.5, 146));
+
+    expect(sentMessage).toEqual({
+      OutputCmd: {
+        Id: 1,
+        DeviceIndex: 0,
+        FeatureIndex: 0,
+        Command: {
+          HwPositionWithDuration: {
+            Value: 50,
+            Duration: 146,
+          },
+        },
+      },
+    });
   });
 });
 

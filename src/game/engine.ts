@@ -22,6 +22,7 @@ import type {
   PlayerStats,
   RuntimeGraphEdge,
 } from "./types";
+import type { ProgressionModifiers } from "./progression";
 
 function clamp(value: number, min?: number, max?: number): number {
   let result = value;
@@ -121,10 +122,15 @@ function applyNumericDelta(
   return normalizeDice(nextStats);
 }
 
-function getRoundControl(player: PlayerState): { pauseCharges: number; skipCharges: number } {
+function getRoundControl(player: PlayerState): {
+  pauseCharges: number;
+  skipCharges: number;
+  pauseDurationMs: number;
+} {
   return {
     pauseCharges: Math.max(0, player.roundControl?.pauseCharges ?? 0),
     skipCharges: Math.max(0, player.roundControl?.skipCharges ?? 0),
+    pauseDurationMs: Math.max(1000, player.roundControl?.pauseDurationMs ?? 15_000),
   };
 }
 
@@ -1551,14 +1557,112 @@ export function resolvePathChoiceTimeout(
 
 export function createInitialGameState(
   config: GameConfig,
-  options?: { initialHighscore?: number; playedRoundIdsByPool?: Record<string, string[]> }
+  options?: {
+    initialHighscore?: number;
+    playedRoundIdsByPool?: Record<string, string[]>;
+    progressionModifiers?: ProgressionModifiers;
+  }
 ): GameState {
   const initialHighscore = Math.max(0, options?.initialHighscore ?? 0);
+  const progression = options?.progressionModifiers;
+  const diceMin = clamp(config.dice.min + (progression?.diceMin ?? 0), 1, 20);
+  const diceMax = clamp(
+    Math.max(diceMin, config.dice.max + (progression?.diceMax ?? 0)),
+    diceMin,
+    20
+  );
   const startNodeId = config.runtimeGraph.startNodeId;
   const startIndex = config.runtimeGraph.nodeIndexById[startNodeId] ?? 0;
+  const initialIntermediaryProbability = clamp(
+    config.probabilityScaling.initialIntermediaryProbability +
+      (progression?.initialIntermediaryProbability ?? 0),
+    0,
+    1
+  );
+  const initialAntiPerkProbability = clamp(
+    config.probabilityScaling.initialAntiPerkProbability +
+      (progression?.initialAntiPerkProbability ?? 0),
+    0,
+    1
+  );
+  const starterInventory = (progression?.starterPerkIds ?? [])
+    .map((perkId, index): InventoryItem | null => {
+      const resolvedPerkId =
+        perkId === "__random__"
+          ? config.perkPool.enabledPerkIds[
+              Math.floor(Math.random() * config.perkPool.enabledPerkIds.length)
+            ]
+          : perkId;
+      if (!resolvedPerkId) return null;
+      const perk = getPerkById(resolvedPerkId);
+      if (!perk) return null;
+      return {
+        itemId: `progression-${perkId}-${index}`,
+        perkId: resolvedPerkId,
+        kind: perk.kind,
+        name: perk.name,
+        cost: perk.cost,
+        acquiredTurn: 0,
+      };
+    })
+    .filter((entry): entry is InventoryItem => entry !== null);
 
   return {
-    config,
+    config: {
+      ...config,
+      perkSelection: {
+        ...config.perkSelection,
+        optionsPerPick: clamp(
+          config.perkSelection.optionsPerPick + (progression?.optionsPerPick ?? 0),
+          1,
+          10
+        ),
+        triggerChancePerCompletedRound: clamp(
+          config.perkSelection.triggerChancePerCompletedRound +
+            (progression?.perkTriggerChance ?? 0),
+          0,
+          1
+        ),
+      },
+      probabilityScaling: {
+        ...config.probabilityScaling,
+        initialIntermediaryProbability,
+        intermediaryIncreasePerRound: clamp(
+          config.probabilityScaling.intermediaryIncreasePerRound +
+            (progression?.intermediaryIncreasePerRound ?? 0),
+          0,
+          1
+        ),
+        initialAntiPerkProbability,
+        antiPerkIncreasePerRound: clamp(
+          config.probabilityScaling.antiPerkIncreasePerRound +
+            (progression?.antiPerkIncreasePerRound ?? 0),
+          0,
+          1
+        ),
+      },
+      economy: {
+        ...config.economy,
+        startingMoney: Math.max(
+          0,
+          config.economy.startingMoney + (progression?.startingMoney ?? 0)
+        ),
+        moneyPerCompletedRound: Math.max(
+          0,
+          config.economy.moneyPerCompletedRound +
+            (progression?.moneyPerCompletedRound ?? 0)
+        ),
+        startingScore: Math.max(
+          0,
+          config.economy.startingScore + (progression?.startingScore ?? 0)
+        ),
+        scorePerCompletedRound: Math.max(
+          0,
+          config.economy.scorePerCompletedRound +
+            (progression?.scorePerCompletedRound ?? 0)
+        ),
+      },
+    },
     players: [
       {
         id: "p1",
@@ -1566,26 +1670,38 @@ export function createInitialGameState(
         currentNodeId: startNodeId,
         position: startIndex,
         stats: {
-          diceMin: config.dice.min,
-          diceMax: config.dice.max,
-          roundPauseMs: coerceFiniteNumber(config.roundStartDelayMs, 20_000),
+          diceMin,
+          diceMax,
+          roundPauseMs:
+            coerceFiniteNumber(config.roundStartDelayMs, 20_000) +
+            (progression?.pauseDurationMs ?? 0),
           perkFrequency: 0,
           perkLuck: 0,
         },
-        money: config.economy.startingMoney,
-        score: config.economy.startingScore,
+        money: Math.max(0, config.economy.startingMoney + (progression?.startingMoney ?? 0)),
+        score: Math.max(0, config.economy.startingScore + (progression?.startingScore ?? 0)),
         perks: [],
         antiPerks: [],
-        inventory: [],
+        inventory: starterInventory,
         activePerkEffects: [],
         roundControl: {
-          pauseCharges: 0,
-          skipCharges: 0,
+          pauseCharges: Math.max(0, Math.floor(progression?.startingPauseCharges ?? 0)),
+          skipCharges: Math.max(0, Math.floor(progression?.startingSkipCharges ?? 0)),
+          pauseDurationMs: Math.max(
+            1000,
+            15_000 + Math.floor(progression?.pauseDurationMs ?? 0)
+          ),
         },
-        shieldRoundsRemaining: 0,
-        pendingRollMultiplier: null,
+        shieldRoundsRemaining: Math.max(0, Math.floor(progression?.shieldRounds ?? 0)),
+        pendingRollMultiplier:
+          progression?.pendingRollMultiplier && progression.pendingRollMultiplier > 1
+            ? progression.pendingRollMultiplier
+            : null,
         pendingRollCeiling: null,
-        pendingIntensityCap: null,
+        pendingIntensityCap:
+          progression?.pendingIntensityCap && progression.pendingIntensityCap < 0
+            ? clamp(1 + progression.pendingIntensityCap, 0.5, 1)
+            : null,
       },
     ],
     currentPlayerIndex: 0,
@@ -1595,12 +1711,12 @@ export function createInitialGameState(
     nextCumRoundIndex: 0,
     highscore: initialHighscore,
     intermediaryProbability: clamp(
-      config.probabilityScaling.initialIntermediaryProbability,
+      initialIntermediaryProbability,
       0,
       config.probabilityScaling.maxIntermediaryProbability
     ),
     antiPerkProbability: clamp(
-      config.probabilityScaling.initialAntiPerkProbability,
+      initialAntiPerkProbability,
       0,
       config.probabilityScaling.maxAntiPerkProbability
     ),

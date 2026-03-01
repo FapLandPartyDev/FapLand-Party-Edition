@@ -281,7 +281,7 @@ function getCanvasNodePositions() {
 }
 
 async function enterEditor() {
-  fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Open" }));
   await screen.findByPlaceholderText("Search tiles");
 }
 
@@ -583,7 +583,8 @@ describe("MapEditorRoute", () => {
   it("creates advanced playlists with all perks and anti-perks enabled", async () => {
     render(<Component />);
 
-    fireEvent.change(screen.getByLabelText("Playlist name"), {
+    fireEvent.click(screen.getByRole("button", { name: /New Playlist/ }));
+    fireEvent.change(await screen.findByLabelText("Playlist name"), {
       target: { value: "Fresh Advanced Playlist" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Create Playlist" }));
@@ -608,7 +609,8 @@ describe("MapEditorRoute", () => {
   it("copies an advanced playlist from the picker and opens the duplicate", async () => {
     render(<Component />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Copy" }));
 
     await waitFor(() => {
       expect(mocks.playlists.duplicate).toHaveBeenCalledWith("playlist-1");
@@ -619,10 +621,11 @@ describe("MapEditorRoute", () => {
   it("deletes an advanced playlist from the picker after confirmation", async () => {
     render(<Component />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
     expect(screen.getByText("Delete Playlist?")).toBeDefined();
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[1]!);
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
       expect(mocks.playlists.remove).toHaveBeenCalledWith("playlist-1");

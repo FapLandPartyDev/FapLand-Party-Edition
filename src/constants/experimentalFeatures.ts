@@ -61,6 +61,16 @@ export function normalizePlaylistCacheOngoingRestrictionDisabled(value: unknown)
   return typeof value === "boolean" ? value : DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED;
 }
 
+export const IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_KEY =
+  "experimental.ignorePlaylistLevelRequirements";
+export const IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_EVENT =
+  "fland:experimental-ignore-playlist-level-requirements";
+export const DEFAULT_IGNORE_PLAYLIST_LEVEL_REQUIREMENTS = false;
+
+export function normalizeIgnorePlaylistLevelRequirements(value: unknown): boolean {
+  return typeof value === "boolean" ? value : DEFAULT_IGNORE_PLAYLIST_LEVEL_REQUIREMENTS;
+}
+
 export const DEVICE_ANIMATION_TEST_ENABLED_KEY = "experimental.deviceAnimationTestEnabled";
 export const DEFAULT_DEVICE_ANIMATION_TEST_ENABLED = false;
 

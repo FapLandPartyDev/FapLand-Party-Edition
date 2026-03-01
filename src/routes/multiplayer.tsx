@@ -34,6 +34,7 @@ import {
   signUpWithMultiplayerEmail,
   startDiscordMultiplayerLink,
   subscribeToMultiplayerAuthRefresh,
+  updatePlayerCosmetics,
   type MultiplayerAuthRequirement,
   type MultiplayerAuthStatus,
   type MultiplayerLobbyJoinPreview,
@@ -43,6 +44,7 @@ import {
 import { playlists } from "../services/playlists";
 import { playHoverSound, playSelectSound } from "../utils/audio";
 import { MultiplayerUpdateGuard } from "../components/multiplayer/MultiplayerUpdateGuard";
+import { progression } from "../services/progression";
 
 const MultiplayerSearchSchema = z.object({
   inviteCode: z.string().optional(),
@@ -521,6 +523,19 @@ function MultiplayerRoute() {
         },
         selectedServer
       );
+      const progressionProfile = await progression.getProfile("genuine");
+      await updatePlayerCosmetics(
+        {
+          lobbyId: created.lobbyId,
+          playerId: created.playerId,
+          profileLevel: progressionProfile.level,
+          titleId: progressionProfile.equippedTitle.id,
+          titleText: progressionProfile.equippedTitle.name,
+        },
+        selectedServer
+      ).catch((cosmeticError) => {
+        console.warn("Multiplayer server does not support progression cosmetics.", cosmeticError);
+      });
 
       await navigate({
         to: "/multiplayer-lobby",
@@ -580,6 +595,19 @@ function MultiplayerRoute() {
           },
           selectedServer
         );
+        const progressionProfile = await progression.getProfile("genuine");
+        await updatePlayerCosmetics(
+          {
+            lobbyId: joined.lobbyId,
+            playerId: joined.playerId,
+            profileLevel: progressionProfile.level,
+            titleId: progressionProfile.equippedTitle.id,
+            titleText: progressionProfile.equippedTitle.name,
+          },
+          selectedServer
+        ).catch((cosmeticError) => {
+          console.warn("Multiplayer server does not support progression cosmetics.", cosmeticError);
+        });
 
         await navigate({
           to: "/multiplayer-lobby",

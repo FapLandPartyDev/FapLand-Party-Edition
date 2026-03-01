@@ -131,6 +131,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
   debug: {
     recordVideoEvent: (payload: Record<string, unknown>) =>
       ipcRenderer.invoke("debug:video-event", payload) as Promise<void>,
+    recordTCodeSerialEvent: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke("debug:tcode-serial-event", payload) as Promise<void>,
+  },
+  serial: {
+    getSelectedPortMetadata: () =>
+      ipcRenderer.invoke("serial:get-selected-port-metadata") as Promise<{
+        portName: string;
+        displayName: string | null;
+        vendorId: string | null;
+        productId: string | null;
+      } | null>,
   },
   updates: {
     subscribe: (callback: (state: AppUpdateState) => void) => {

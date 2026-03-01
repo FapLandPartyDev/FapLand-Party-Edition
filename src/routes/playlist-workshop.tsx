@@ -2,7 +2,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { observeElementRect, useVirtualizer } from "@tanstack/react-virtual";
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as z from "zod";
 import {
   DndContext,
@@ -28,6 +28,7 @@ import { MenuButton } from "../components/MenuButton";
 import { PlaylistExportOverlay } from "../components/PlaylistExportOverlay";
 import { PlaylistResolutionModal } from "../components/PlaylistResolutionModal";
 import { RoundVideoOverlay } from "../components/game/RoundVideoOverlay";
+import { PlaylistPicker } from "../features/playlist-picker/PlaylistPicker";
 import {
   CURRENT_PLAYLIST_VERSION,
   ZPlaylistConfig,
@@ -67,6 +68,7 @@ import { DEFAULT_INTERMEDIARY_LOADING_PROMPT } from "../constants/booruSettings"
 import { i18n } from "../i18n";
 
 type EditableLinearSetup = {
+  requiredLevel?: number;
   roundCount: number;
   safePointsEnabled: boolean;
   safePointIndices: number[];
@@ -591,6 +593,7 @@ function toEditableSetup(
 
   if (config.boardConfig.mode !== "linear") {
     return {
+      requiredLevel: config.requiredLevel ?? 1,
       roundCount: 100,
       safePointsEnabled: true,
       safePointIndices: [...DEFAULT_SAFE_PRESET],
@@ -642,6 +645,7 @@ function toEditableSetup(
     .filter((id): id is string => Boolean(id));
 
   return ensureLinearSetupCapacity({
+    requiredLevel: config.requiredLevel ?? 1,
     roundCount: board.totalIndices,
     safePointsEnabled: board.safePointIndices.length > 0,
     safePointIndices: [...board.safePointIndices],
@@ -737,14 +741,6 @@ function getUnknownAuthorLabel(): string {
   return i18n._({
     id: "playlist-workshop.fallback.unknown-author",
     message: "Unknown Author",
-  });
-}
-
-function getPlaylistCountLabel(count: number): string {
-  return i18n._({
-    id: "playlist-workshop.overview.playlist-count",
-    message: "{count, plural, one {# Playlist} other {# Playlists}}",
-    values: { count },
   });
 }
 
@@ -915,9 +911,7 @@ function PlaylistWorkshopPage() {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
-  const [playlistMenuOpen, setPlaylistMenuOpen] = useState(false);
-  const [manageMenuOpen, setManageMenuOpen] = useState(false);
-  const [transferMenuOpen, setTransferMenuOpen] = useState(false);
+  const [pickerTargetPlaylist, setPickerTargetPlaylist] = useState<StoredPlaylist | null>(null);
   const [roundOrderConfirmAction, setRoundOrderConfirmAction] =
     useState<RoundOrderConfirmAction | null>(null);
   const [normalRoundSearch, setNormalRoundSearch] = useState("");
@@ -937,9 +931,6 @@ function PlaylistWorkshopPage() {
   );
   const [importedPlaylistReview, setImportedPlaylistReview] =
     useState<ImportedPlaylistReview | null>(null);
-  const playlistMenuRef = useRef<HTMLDivElement | null>(null);
-  const manageMenuRef = useRef<HTMLDivElement | null>(null);
-  const transferMenuRef = useRef<HTMLDivElement | null>(null);
   const graphRedirectPlaylistIdRef = useRef<string | null>(null);
 
   const activePlaylist = useMemo(
@@ -1065,23 +1056,6 @@ function PlaylistWorkshopPage() {
     const timer = setTimeout(() => setImportNotice(null), 3000);
     return () => clearTimeout(timer);
   }, [importNotice]);
-
-  useEffect(() => {
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (playlistMenuRef.current && !playlistMenuRef.current.contains(target)) {
-        setPlaylistMenuOpen(false);
-      }
-      if (manageMenuRef.current && !manageMenuRef.current.contains(target)) {
-        setManageMenuOpen(false);
-      }
-      if (transferMenuRef.current && !transferMenuRef.current.contains(target)) {
-        setTransferMenuOpen(false);
-      }
-    };
-    window.addEventListener("mousedown", onPointerDown);
-    return () => window.removeEventListener("mousedown", onPointerDown);
-  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -1516,50 +1490,83 @@ function PlaylistWorkshopPage() {
   const activeSection =
     workshopSections.find((section) => section.id === activeSectionId) ?? workshopSections[0];
 
-  if (playlistList.length === 0) {
+  if (!activePlaylist) {
     return (
-      <div className="relative min-h-screen overflow-hidden">
-        <AnimatedBackground quality="minimal" />
-
-        <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8">
-          <div className="w-full max-w-2xl rounded-3xl border border-violet-300/25 bg-zinc-950/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[0.65rem] uppercase tracking-[0.32em] text-violet-200/70">
-              <Trans>Creation & Workshop</Trans>
-            </p>
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-              <Trans>Playlist Workshop</Trans>
-            </h1>
-            <p className="mt-3 text-sm text-zinc-300 sm:text-base">
-              <Trans>No playlist exists yet. Create one here when you want to start editing.</Trans>
-            </p>
-
-            {importNotice && (
-              <div className="mt-4 rounded-xl border border-violet-300/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-100">
-                {importNotice.message}
-              </div>
-            )}
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <MenuButton
-                label={t`Create Playlist`}
-                primary
-                onHover={playHoverSound}
-                onClick={() => {
-                  playSelectSound();
-                  setNewPlaylistDialogOpen(true);
-                }}
-              />
-              <MenuButton
-                label={t`Back`}
-                onHover={playHoverSound}
-                onClick={() => {
-                  playSelectSound();
-                  goBack();
-                }}
-              />
-            </div>
-          </div>
-        </div>
+      <div className="relative h-screen overflow-hidden">
+        <PlaylistPicker
+          context="workshop"
+          playlists={playlistList}
+          activePlaylistId={loaderActivePlaylist?.id ?? ""}
+          notice={
+            importNotice
+              ? { message: importNotice.message, tone: importNotice.tone }
+              : null
+          }
+          onRequestCreate={() => {
+            playSelectSound();
+            setNewPlaylistDialogOpen(true);
+          }}
+          onImportPlaylists={() => {
+            void handleImportPlaylist();
+          }}
+          onOpenPlaylist={(playlist) => {
+            playSelectSound();
+            if (playlist.config.boardConfig.mode === "graph") {
+              void (async () => {
+                try {
+                  await playlists.setActive(playlist.id);
+                  setMapEditorTestSession(playlist.id);
+                  await navigate({ to: "/map-editor" });
+                } catch (error) {
+                  console.error("Failed to open graph playlist in map editor", error);
+                  showImportNotice(
+                    error instanceof Error
+                      ? error.message
+                      : t`Failed to open advanced map editor.`,
+                    "error"
+                  );
+                }
+              })();
+              return;
+            }
+            void (async () => {
+              await playlists.setActive(playlist.id);
+              await refreshPlaylists();
+            })();
+            setActivePlaylistId(playlist.id);
+          }}
+          onDuplicatePlaylist={(playlist) => {
+            void (async () => {
+              playSelectSound();
+              try {
+                await playlists.duplicate(playlist.id);
+                await refreshPlaylists();
+                showImportNotice(t`Playlist duplicated.`);
+              } catch (error) {
+                console.error("Failed to duplicate playlist", error);
+                showImportNotice(
+                  error instanceof Error ? error.message : t`Failed to duplicate playlist.`,
+                  "error"
+                );
+              }
+            })();
+          }}
+          onRenamePlaylist={(playlist) => {
+            playSelectSound();
+            setPickerTargetPlaylist(playlist);
+            setRenameDialogOpen(true);
+          }}
+          onDeletePlaylist={(playlist) => {
+            playSelectSound();
+            setPickerTargetPlaylist(playlist);
+            setDeleteDialogOpen(true);
+          }}
+          canManage={(playlist) => playlist.config.boardConfig.mode !== "graph"}
+          onNavigateBack={() => {
+            playSelectSound();
+            goBack();
+          }}
+        />
 
         {newPlaylistDialogOpen && (
           <NewPlaylistDialog
@@ -1582,153 +1589,122 @@ function PlaylistWorkshopPage() {
             onEmptyName={() => showImportNotice(t`Playlist name cannot be empty.`, "error")}
           />
         )}
-      </div>
-    );
-  }
 
-  if (!activePlaylist) {
-    return (
-      <div className="relative h-screen overflow-hidden">
-        <AnimatedBackground quality="minimal" />
-
-        <div className="relative z-10 h-full overflow-y-auto px-4 py-8 sm:px-8">
-          <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-            <header className="rounded-3xl border border-violet-300/25 bg-zinc-950/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-              <p className="font-[family-name:var(--font-jetbrains-mono)] text-[0.65rem] uppercase tracking-[0.32em] text-violet-200/70">
-                <Trans>Creation & Workshop</Trans>
-              </p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-                <Trans>Playlist Workshop</Trans>
-              </h1>
-              <p className="mt-3 text-sm text-zinc-300 sm:text-base">
-                <Trans>Choose a playlist to edit, or create one from here.</Trans>
-              </p>
-              {importNotice && (
-                <div className="mt-4 rounded-xl border border-violet-300/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-100">
-                  {importNotice.message}
-                </div>
-              )}
-
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <MenuButton
-                  label={t`Create Playlist`}
-                  primary
-                  onHover={playHoverSound}
-                  onClick={() => {
-                    playSelectSound();
-                    setNewPlaylistDialogOpen(true);
-                  }}
-                />
-                <MenuButton
-                  label={t`Back`}
-                  onHover={playHoverSound}
-                  onClick={() => {
-                    playSelectSound();
-                    goBack();
-                  }}
-                />
-              </div>
-            </header>
-
-            <section className="rounded-3xl border border-violet-300/20 bg-zinc-950/70 p-5 shadow-2xl backdrop-blur-xl sm:p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="font-[family-name:var(--font-jetbrains-mono)] text-[0.65rem] uppercase tracking-[0.28em] text-violet-200/70">
-                    <Trans>Select Playlist</Trans>
-                  </p>
-                  <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
-                    <Trans>Open A Playlist</Trans>
-                  </h2>
-                </div>
-                <span className="rounded-full border border-violet-300/35 bg-violet-500/10 px-3 py-1 text-xs uppercase tracking-[0.14em] text-violet-100">
-                  <Trans>{getPlaylistCountLabel(playlistList.length)}</Trans>
-                </span>
-              </div>
-
-              <div className="mt-5 grid gap-3">
-                {playlistList.map((playlist) => {
-                  const isStoredActive = playlist.id === loaderActivePlaylist?.id;
-                  const rawMode = playlist.config.boardConfig.mode;
-                  const isGraph = rawMode === "graph";
-                  const boardMode = isGraph
-                    ? t`Graph`
-                    : rawMode === "endless"
-                      ? t`Endless`
-                      : t`Linear`;
-                  const cardClassName = isGraph
-                    ? "flex w-full items-center justify-between gap-4 rounded-2xl border border-amber-400/40 bg-gradient-to-br from-amber-500/15 to-slate-950/70 px-4 py-4 text-left transition-all duration-200 hover:border-amber-300/65 hover:bg-amber-500/20"
-                    : "flex w-full items-center justify-between gap-4 rounded-2xl border border-violet-300/25 bg-gradient-to-br from-violet-500/12 to-slate-950/70 px-4 py-4 text-left transition-all duration-200 hover:border-violet-200/60 hover:bg-violet-500/18";
-                  const openBadgeClassName = isGraph
-                    ? "shrink-0 rounded-xl border border-amber-400/50 bg-amber-500/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-amber-100"
-                    : "shrink-0 rounded-xl border border-violet-300/45 bg-violet-500/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-violet-100";
-                  return (
-                    <button
-                      key={playlist.id}
-                      type="button"
-                      onMouseEnter={playHoverSound}
-                      onClick={() => {
-                        playSelectSound();
-                        if (isGraph) {
-                          void (async () => {
-                            try {
-                              await playlists.setActive(playlist.id);
-                              setMapEditorTestSession(playlist.id);
-                              await navigate({ to: "/map-editor" });
-                            } catch (error) {
-                              console.error("Failed to open graph playlist in map editor", error);
-                            }
-                          })();
-                        } else {
-                          setActivePlaylistId(playlist.id);
-                        }
-                      }}
-                      className={cardClassName}
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-lg font-semibold text-white">
-                          {playlist.name}
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-zinc-400">
-                          <span>
-                            <Trans>{boardMode} Playlist</Trans>
-                          </span>
-                          {isStoredActive && (
-                            <span>
-                              <Trans>Active</Trans>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <span className={openBadgeClassName}>
-                        <Trans>Open</Trans>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          </main>
-        </div>
-
-        {newPlaylistDialogOpen && (
-          <NewPlaylistDialog
-            onClose={() => setNewPlaylistDialogOpen(false)}
-            onSubmit={async ({ name, mode }) => {
+        {renameDialogOpen && pickerTargetPlaylist && (
+          <RenamePlaylistDialog
+            initialName={pickerTargetPlaylist.name}
+            onClose={() => {
+              setRenameDialogOpen(false);
+              setPickerTargetPlaylist(null);
+            }}
+            onSubmit={async (nextName) => {
               try {
-                const config = buildNewPlaylistConfig(mode);
-                const created = await playlists.create({ name, config });
-                await playlists.setActive(created.id);
+                await playlists.update({
+                  playlistId: pickerTargetPlaylist.id,
+                  name: nextName,
+                });
                 await refreshPlaylists();
-                setActivePlaylistId(created.id);
-                setNewPlaylistDialogOpen(false);
-                showImportNotice(t`Playlist created.`);
+                setRenameDialogOpen(false);
+                setPickerTargetPlaylist(null);
+                showImportNotice(t`Playlist renamed.`);
               } catch (error) {
-                console.error("Failed to create playlist", error);
-                showImportNotice(t`Failed to create playlist.`, "error");
+                console.error("Failed to rename playlist", error);
+                showImportNotice(t`Failed to rename playlist.`, "error");
                 throw error;
               }
             }}
             onEmptyName={() => showImportNotice(t`Playlist name cannot be empty.`, "error")}
+          />
+        )}
+
+        {deleteDialogOpen && pickerTargetPlaylist && (
+          <ConfirmDialog
+            isOpen
+            title={t`Delete Playlist`}
+            message={t`Delete "${pickerTargetPlaylist.name}"? This cannot be undone.`}
+            confirmLabel={t`Delete`}
+            variant="danger"
+            isPending={deletePending}
+            onConfirm={() => {
+              void (async () => {
+                setDeletePending(true);
+                try {
+                  await playlists.remove(pickerTargetPlaylist.id);
+                  await refreshPlaylists();
+                  setDeleteDialogOpen(false);
+                  setPickerTargetPlaylist(null);
+                  showImportNotice(t`Playlist deleted.`);
+                } catch (error) {
+                  console.error("Failed to delete playlist", error);
+                  showImportNotice(t`Failed to delete playlist.`, "error");
+                } finally {
+                  setDeletePending(false);
+                }
+              })();
+            }}
+            onCancel={() => {
+              setDeleteDialogOpen(false);
+              setPickerTargetPlaylist(null);
+            }}
+          />
+        )}
+
+        {resolutionModalState && (
+          <PlaylistResolutionModal
+            open
+            title={resolutionModalState.title}
+            installedRounds={installedRounds}
+            analysis={resolutionModalState.analysis}
+            primaryActionLabel={t`Import with Selected Resolutions`}
+            secondaryActionLabel={
+              resolutionModalState.context === "import" ? t`Continue Unresolved` : undefined
+            }
+            onClose={() => setResolutionModalState(null)}
+            onPrimaryAction={(overrides) => {
+              void (async () => {
+                if (resolutionModalState.context !== "import") return;
+                const imported = await playlists.importFromFile({
+                  filePath: resolutionModalState.filePath,
+                  manualMappingByRefKey: toManualMappingRecord(overrides),
+                });
+                await playlists.setActive(imported.playlist.id);
+                await refreshPlaylists();
+                setActivePlaylistId(imported.playlist.id);
+                setImportedPlaylistReview(
+                  resolutionModalState.analysis.issues.length > 0
+                    ? {
+                        playlistId: imported.playlist.id,
+                        analysis: resolutionModalState.analysis,
+                      }
+                    : null
+                );
+                showImportNotice(
+                  resolutionModalState.analysis.counts.missing > 0
+                    ? getImportedUnresolvedSummary(resolutionModalState.analysis.counts.missing)
+                    : t`Playlist imported.`,
+                  resolutionModalState.analysis.counts.missing > 0 ? "info" : "success"
+                );
+                setResolutionModalState(null);
+              })();
+            }}
+            onSecondaryAction={(overrides) => {
+              void (async () => {
+                if (resolutionModalState.context !== "import") return;
+                const imported = await playlists.importFromFile({
+                  filePath: resolutionModalState.filePath,
+                  manualMappingByRefKey: toManualMappingRecord(overrides),
+                });
+                await playlists.setActive(imported.playlist.id);
+                await refreshPlaylists();
+                setActivePlaylistId(imported.playlist.id);
+                setImportedPlaylistReview({
+                  playlistId: imported.playlist.id,
+                  analysis: resolutionModalState.analysis,
+                });
+                showImportNotice(t`Playlist imported with unresolved refs preserved.`, "info");
+                setResolutionModalState(null);
+              })();
+            }}
           />
         )}
       </div>
@@ -1774,16 +1750,6 @@ function PlaylistWorkshopPage() {
     }
   };
 
-  const openManageMenu = () => {
-    setManageMenuOpen((prev) => !prev);
-    setTransferMenuOpen(false);
-  };
-
-  const openTransferMenu = () => {
-    setTransferMenuOpen((prev) => !prev);
-    setManageMenuOpen(false);
-  };
-
   const handleCreatePlaylist = async () => {
     playSelectSound();
     setNewPlaylistDialogOpen(true);
@@ -1821,6 +1787,7 @@ function PlaylistWorkshopPage() {
     const nextConfig = ZPlaylistConfig.parse({
       ...activePlaylist.config,
       playlistVersion: activePlaylist.config.playlistVersion ?? CURRENT_PLAYLIST_VERSION,
+      requiredLevel: Math.max(1, Math.floor(normalizedSetup.requiredLevel ?? 1)),
       boardConfig: linearBoardConfig,
       saveMode: normalizedSetup.saveMode,
       roundStartDelayMs: Math.max(
@@ -1892,7 +1859,6 @@ function PlaylistWorkshopPage() {
 
   const handleExportFplay = async () => {
     playSelectSound();
-    setTransferMenuOpen(false);
     if (savePending) return;
 
     setSavePending(true);
@@ -2411,111 +2377,54 @@ function PlaylistWorkshopPage() {
               {/* ── Playlist section ── */}
               {activeSectionId === "playlist" && (
                 <>
-                  <div
-                    className={`playlist-theme-card relative rounded-[1.75rem] border p-6 backdrop-blur-2xl shadow-2xl ${playlistMenuOpen || manageMenuOpen || transferMenuOpen ? "z-20" : "z-0"}`}
-                  >
+                  <div className="playlist-theme-card relative rounded-[1.75rem] border p-6 backdrop-blur-2xl shadow-2xl z-0">
                     <div className="space-y-4">
-                      <div ref={playlistMenuRef} className="relative">
-                        <button
-                          type="button"
-                          onMouseEnter={playHoverSound}
-                          onClick={() => {
-                            playSelectSound();
-                            setPlaylistMenuOpen((prev) => !prev);
-                            setManageMenuOpen(false);
-                            setTransferMenuOpen(false);
-                          }}
-                          className="playlist-theme-select w-full rounded-2xl border px-4 py-3 text-left text-zinc-100"
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="playlist-theme-select-label text-[10px] uppercase tracking-[0.2em]">
+                            <Trans>Active Playlist</Trans>
+                          </div>
+                          <div className="mt-2 truncate text-lg font-semibold text-zinc-100">
+                            {abbreviateNsfwText(activePlaylist.name, sfwMode)}
+                          </div>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] ${
+                            isLinearEditable
+                              ? "border-cyan-400/45 bg-cyan-500/12 text-cyan-100"
+                              : "border-amber-400/50 bg-amber-500/15 text-amber-100"
+                          }`}
                         >
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <div className="playlist-theme-select-label text-[10px] uppercase tracking-[0.2em]">
-                                <Trans>Active Playlist</Trans>
-                              </div>
-                              <div className="mt-2 truncate text-lg font-semibold">
-                                {activePlaylist.name}
-                              </div>
-                            </div>
-                            <span
-                              className={`playlist-theme-select-arrow mt-5 text-xs transition-transform ${playlistMenuOpen ? "rotate-180" : ""}`}
-                            >
-                              ▼
-                            </span>
-                          </div>
-                        </button>
-                        {playlistMenuOpen && (
-                          <div className="playlist-theme-menu absolute left-0 right-0 top-[calc(100%+8px)] z-[120] max-h-80 overflow-y-auto rounded-xl border bg-zinc-950/95 p-2 backdrop-blur-xl">
-                            {playlistList.map((playlist) => {
-                              const selected = playlist.id === activePlaylist.id;
-                              return (
-                                <button
-                                  key={playlist.id}
-                                  type="button"
-                                  onMouseEnter={playHoverSound}
-                                  onClick={() => {
-                                    playSelectSound();
-                                    void (async () => {
-                                      await playlists.setActive(playlist.id);
-                                      await refreshPlaylists();
-                                      setActivePlaylistId(playlist.id);
-                                      setPlaylistMenuOpen(false);
-                                    })();
-                                  }}
-                                  className={`mb-1 w-full rounded-lg border px-3 py-2 text-left text-sm last:mb-0 ${
-                                    selected
-                                      ? "border-emerald-300/60 bg-emerald-500/20 text-emerald-100"
-                                      : "playlist-theme-menu-item border-zinc-700 bg-black/40 text-zinc-200"
-                                  }`}
-                                >
-                                  <div className="truncate font-semibold">{playlist.name}</div>
-                                  <div className="text-[10px] uppercase tracking-[0.15em] text-zinc-400">
-                                    {selected ? <Trans>Selected</Trans> : <Trans>Select</Trans>}
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
+                          {isLinearEditable ? <Trans>Linear</Trans> : <Trans>Graph</Trans>}
+                        </span>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.12em] text-zinc-300">
                         <span className="playlist-theme-pill rounded-full border px-3 py-1">
                           <Trans>Playlist Version {activePlaylist.config.playlistVersion}</Trans>
                         </span>
-                        <span
-                          className={`rounded-full border px-3 py-1 ${
-                            isLinearEditable
-                              ? "border-emerald-300/35 bg-emerald-500/10 text-emerald-100"
-                              : "border-rose-300/35 bg-rose-500/10 text-rose-100"
-                          }`}
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onMouseEnter={playHoverSound}
+                          onClick={() => {
+                            playSelectSound();
+                            setActivePlaylistId("");
+                          }}
+                          className="rounded-xl border border-violet-300/55 bg-violet-500/15 px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold uppercase tracking-[0.16em] text-violet-100 transition-colors hover:bg-violet-500/25"
                         >
-                          {isLinearEditable ? (
-                            <Trans>Linear Board</Trans>
-                          ) : (
-                            <Trans>Graph Board</Trans>
-                          )}
-                        </span>
-                        <ActionMenu
-                          ref={manageMenuRef}
-                          label={t`Manage`}
-                          open={manageMenuOpen}
-                          onToggle={openManageMenu}
-                          items={[
-                            { label: t`New Playlist`, onClick: handleCreatePlaylist },
-                            { label: t`Duplicate`, onClick: handleDuplicatePlaylist },
-                            { label: t`Rename`, onClick: handleRenamePlaylist },
-                            { label: t`Delete`, onClick: handleDeletePlaylist, tone: "danger" },
-                          ]}
-                        />
-                        <ActionMenu
-                          ref={transferMenuRef}
-                          label={t`Transfer`}
-                          open={transferMenuOpen}
-                          onToggle={openTransferMenu}
-                          items={[
-                            { label: t`Import`, onClick: handleImportPlaylist },
-                            { label: t`Export .fplay`, onClick: handleExportFplay },
-                          ]}
+                          <Trans>Change Playlist</Trans>
+                        </button>
+                        <ManageActionButton label={t`New`} onClick={handleCreatePlaylist} />
+                        <ManageActionButton label={t`Import`} onClick={handleImportPlaylist} />
+                        <ManageActionButton label={t`Duplicate`} onClick={handleDuplicatePlaylist} />
+                        <ManageActionButton label={t`Rename`} onClick={handleRenamePlaylist} />
+                        <ManageActionButton
+                          label={t`Delete`}
+                          onClick={handleDeletePlaylist}
+                          tone="danger"
                         />
                       </div>
                     </div>
@@ -2668,6 +2577,10 @@ function PlaylistWorkshopPage() {
                         disabled={!isLinearEditable}
                       />
                     </div>
+                    <ManageActionButton
+                      label={t`Export .fplay`}
+                      onClick={handleExportFplay}
+                    />
                   </div>
 
                   {importNotice && (
@@ -2782,6 +2695,38 @@ function PlaylistWorkshopPage() {
                       className="w-full rounded-xl border border-purple-300/30 bg-black/45 px-4 py-3 text-sm text-zinc-100 outline-none disabled:opacity-50 focus:border-purple-300/75 focus:ring-2 focus:ring-purple-400/30"
                       placeholder={t`25, 50, 75`}
                     />
+                  </div>
+
+                  <div className="mt-4">
+                    <label
+                      htmlFor="playlist-workshop-required-level"
+                      className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-300"
+                    >
+                      <Trans>Required Player Level</Trans>
+                    </label>
+                    <input
+                      id="playlist-workshop-required-level"
+                      type="number"
+                      min={1}
+                      max={1_000_000}
+                      value={setup.requiredLevel ?? 1}
+                      disabled={!isLinearEditable}
+                      onChange={(event) =>
+                        setSetup((previous) => ({
+                          ...previous,
+                          requiredLevel: Math.max(
+                            1,
+                            Math.min(1_000_000, Math.floor(Number(event.target.value) || 1))
+                          ),
+                        }))
+                      }
+                      className="w-full rounded-xl border border-purple-300/30 bg-black/45 px-4 py-3 text-sm text-zinc-100 outline-none disabled:opacity-50 focus:border-purple-300/75"
+                    />
+                    <p className="mt-2 text-xs text-zinc-400">
+                      <Trans>
+                        Applies to solo play only. Multiplayer sessions ignore this requirement.
+                      </Trans>
+                    </p>
                   </div>
 
                   <div className="mt-4">
@@ -5116,58 +5061,33 @@ function NewPlaylistDialog({
   );
 }
 
-const ActionMenu = forwardRef<
-  HTMLDivElement,
-  {
-    label: string;
-    open: boolean;
-    onToggle: () => void;
-    items: Array<{
-      label: string;
-      onClick: () => void | Promise<void>;
-      tone?: "default" | "danger";
-    }>;
-  }
->(({ label, open, onToggle, items }, ref) => (
-  <div ref={ref} className="relative">
+function ManageActionButton({
+  label,
+  onClick,
+  tone = "default",
+}: {
+  label: string;
+  onClick: () => void | Promise<void>;
+  tone?: "default" | "danger";
+}) {
+  return (
     <button
       type="button"
       onMouseEnter={playHoverSound}
       onClick={() => {
         playSelectSound();
-        onToggle();
+        void onClick();
       }}
-      className="playlist-theme-action flex w-full items-center justify-between rounded-xl border px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em]"
+      className={`rounded-xl border px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs font-semibold uppercase tracking-[0.16em] transition-colors ${
+        tone === "danger"
+          ? "border-rose-400/45 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20"
+          : "border-white/12 bg-white/5 text-zinc-200 hover:bg-white/10"
+      }`}
     >
-      <span>{label}</span>
-      <span className={`text-[10px] transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
+      {label}
     </button>
-    {open && (
-      <div className="playlist-theme-menu absolute right-0 top-[calc(100%+8px)] z-[120] min-w-full rounded-xl border bg-zinc-950/95 p-2 backdrop-blur-xl">
-        {items.map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            onMouseEnter={playHoverSound}
-            onClick={() => {
-              void item.onClick();
-              onToggle();
-            }}
-            className={`mb-1 w-full rounded-lg border px-3 py-2 text-left text-sm last:mb-0 ${
-              item.tone === "danger"
-                ? "border-rose-300/45 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20"
-                : "playlist-theme-menu-item border-zinc-700 bg-black/40 text-zinc-200"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-    )}
-  </div>
-));
-
-ActionMenu.displayName = "ActionMenu";
+  );
+}
 
 function NumberInput({
   label,

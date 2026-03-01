@@ -133,7 +133,7 @@ export const RoundCard = memo(function RoundCard({
         type="button"
         aria-label={selectionMode ? t`Select ${displayName}` : t`Inspect ${displayName}`}
         onClick={toggleOrInspect}
-        className="absolute inset-0 z-10 rounded-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70"
+        className="round-library-card-focus absolute inset-0 z-10 rounded-[18px] focus-visible:outline-none"
       />
 
       <div className="round-poster-media relative aspect-video overflow-hidden rounded-t-[17px] bg-[#101218]">
@@ -210,7 +210,10 @@ export const RoundCard = memo(function RoundCard({
         </div>
         {downloadProgress && (
           <div className="absolute inset-x-0 bottom-0 z-30 h-0.5 bg-black/50">
-            <div className="h-full bg-cyan-300" style={{ width: `${downloadProgress.percent}%` }} />
+            <div
+              className="round-library-progress h-full"
+              style={{ width: `${downloadProgress.percent}%` }}
+            />
           </div>
         )}
       </div>

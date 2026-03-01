@@ -26,6 +26,10 @@ export type TCodeAutoDetectSerialResult = {
   error?: string;
 };
 
+export type TCodeListSerialPortsOptions = {
+  requestPort?: boolean;
+};
+
 type WebSerialPortInfo = {
   usbVendorId?: number;
   usbProductId?: number;
@@ -37,6 +41,7 @@ type WebSerialPort = {
   getInfo: () => WebSerialPortInfo;
   open: (options: { baudRate: number }) => Promise<void>;
   close: () => Promise<void>;
+  forget?: () => Promise<void>;
 };
 
 type WebSerial = {
@@ -54,6 +59,7 @@ type PortEntry = {
 };
 
 const TCODE_WEBSOCKET_CONNECT_TIMEOUT_MS = 5000;
+const TCODE_SERIAL_OPERATION_TIMEOUT_MS = 5000;
 const TCODE_SERIAL_AUTO_DETECT_COMMAND = "L05000\n";
 
 // Shared because port discovery is system-wide; connection state is per-instance.
@@ -65,6 +71,36 @@ function getPortLabel(port: WebSerialPort, index: number): string {
     return `USB ${info.usbVendorId.toString(16).padStart(4, "0")}:${info.usbProductId.toString(16).padStart(4, "0")}`;
   }
   return `Serial ${index + 1}`;
+}
+
+function recordSerialEvent(payload: Record<string, unknown>): void {
+  void globalThis.window?.electronAPI?.debug?.recordTCodeSerialEvent?.(payload).catch(() => undefined);
+}
+
+function isLinuxRenderer(): boolean {
+  return /Linux/i.test(globalThis.navigator?.userAgent ?? "");
+}
+
+function serialErrorMessage(error: unknown, fallback: string): string {
+  const message = error instanceof Error ? error.message : fallback;
+  if (!isLinuxRenderer()) return message;
+  return `${message} Check that your user can access the device (often via the dialout or uucp group) and that no other application is using it.`;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = globalThis.setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise.then(
+      (value) => {
+        globalThis.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        globalThis.clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
 }
 
 export class TCodeTransportRenderer {
@@ -131,12 +167,17 @@ export class TCodeTransportRenderer {
 
   private async disconnectNow(): Promise<void> {
     this.readLoopActive = false;
+    let disconnectError: Error | null = null;
     const reader = this.serialReader;
     if (reader) {
       try {
-        await reader.cancel();
+        await withTimeout(
+          reader.cancel(),
+          TCODE_SERIAL_OPERATION_TIMEOUT_MS,
+          "Timed out stopping the TCode serial reader."
+        );
       } catch {
-        // already cancelled or disconnected
+        // Continue teardown even if the driver does not finish cancelling the reader.
       }
     }
     if (this.serialWriter) {
@@ -148,17 +189,33 @@ export class TCodeTransportRenderer {
       this.serialWriter = null;
     }
     if (this.readLoopPromise) {
-      await this.readLoopPromise.catch(() => undefined);
+      await withTimeout(
+        this.readLoopPromise.catch(() => undefined),
+        TCODE_SERIAL_OPERATION_TIMEOUT_MS,
+        "Timed out waiting for the TCode serial reader to stop."
+      ).catch(() => undefined);
       this.readLoopPromise = null;
     }
     if (this.activeSerialPort) {
       const port = this.activeSerialPort;
       try {
-        await port.close();
+        await withTimeout(
+          port.close(),
+          TCODE_SERIAL_OPERATION_TIMEOUT_MS,
+          "Timed out closing the TCode serial port."
+        );
         this.activeSerialPort = null;
-      } catch {
+        recordSerialEvent({ stage: "close", success: true });
+      } catch (error) {
         this.activeSerialPort = port;
-        throw new Error("Failed to close TCode serial port.");
+        disconnectError = new Error(
+          serialErrorMessage(error, "Failed to close the TCode serial port.")
+        );
+        recordSerialEvent({
+          stage: "close",
+          success: false,
+          error: disconnectError.message,
+        });
       }
     }
     if (this.ws) {
@@ -169,6 +226,7 @@ export class TCodeTransportRenderer {
       }
       this.ws = null;
     }
+    if (disconnectError) throw disconnectError;
   }
 
   private async connectSerial(input: TCodeConnectInput): Promise<TCodeConnectResult> {
@@ -179,20 +237,51 @@ export class TCodeTransportRenderer {
     const entry = sharedSerialPorts.get(path);
     if (!entry) return { success: false, error: "Select a TCode serial port." };
     const baudRate = input.baudRate ?? 115200;
+    let openPromise: Promise<void> | null = null;
+    recordSerialEvent({ stage: "open", portName: path, baudRate });
     try {
-      await entry.port.open({ baudRate });
+      openPromise = entry.port.open({ baudRate });
+      await withTimeout(
+        openPromise,
+        TCODE_SERIAL_OPERATION_TIMEOUT_MS,
+        `Timed out opening ${path}.`
+      );
       this.activeSerialPort = entry.port;
       if (!entry.port.writable) {
         throw new Error("TCode serial port is not writable.");
       }
       this.serialWriter = entry.port.writable.getWriter();
       this.startReadLoop(entry.port);
+      recordSerialEvent({ stage: "open", portName: path, baudRate, success: true });
       return { success: true };
     } catch (error) {
+      // Web Serial cannot abort an in-progress open. If it resolves after our
+      // timeout, close it so the device is not left locked in the background.
+      if (openPromise) {
+        void openPromise
+          .then(async () => {
+            if (this.activeSerialPort !== entry.port) {
+              await withTimeout(
+                entry.port.close(),
+                TCODE_SERIAL_OPERATION_TIMEOUT_MS,
+                "Timed out closing a late-opened TCode serial port."
+              ).catch(() => undefined);
+            }
+          })
+          .catch(() => undefined);
+      }
       await this.disconnectNow().catch(() => undefined);
+      const message = serialErrorMessage(error, "Failed to connect to TCode serial port.");
+      recordSerialEvent({
+        stage: "open",
+        portName: path,
+        baudRate,
+        success: false,
+        error: message,
+      });
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to connect to TCode serial port.",
+        error: message,
       };
     }
   }
@@ -271,24 +360,69 @@ export class TCodeTransportRenderer {
   }
 }
 
-export async function listTCodeSerialPorts(): Promise<TCodeSerialPortInfo[]> {
+export async function listTCodeSerialPorts(
+  options: TCodeListSerialPortsOptions = {}
+): Promise<TCodeSerialPortInfo[]> {
   const serial = (globalThis.navigator as NavigatorWithSerial | undefined)?.serial;
   if (!serial) return [];
-  const ports = await serial.getPorts();
+  let ports = await serial.getPorts();
+  let selectedPort: WebSerialPort | null = null;
   try {
-    if (ports.length === 0) {
-      const selectedPort = await serial.requestPort();
-      if (!ports.includes(selectedPort)) ports.push(selectedPort);
+    if (options.requestPort) {
+      await Promise.all(ports.map((port) => port.forget?.().catch(() => undefined)));
+      selectedPort = await serial.requestPort();
+      ports = [selectedPort];
+    } else if (ports.length === 0) {
+      selectedPort = await serial.requestPort();
+      ports = [selectedPort];
     }
-  } catch {
+  } catch (error) {
+    recordSerialEvent({
+      stage: "selection",
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    if (options.requestPort) ports = [];
     // User cancelled or no port selected
   }
+
+  const selectedMetadata = await globalThis.window?.electronAPI?.serial
+    ?.getSelectedPortMetadata()
+    .catch(() => null);
   const result: TCodeSerialPortInfo[] = [];
+  sharedSerialPorts.clear();
   for (const port of ports) {
-    const label = getPortLabel(port, result.length);
+    const useSelectedMetadata =
+      selectedMetadata != null &&
+      (port === selectedPort ||
+        ports.length === 1 ||
+        (ports.length > 1 &&
+          Number(selectedMetadata.vendorId) === (port.getInfo().usbVendorId ?? NaN) &&
+          Number(selectedMetadata.productId) === (port.getInfo().usbProductId ?? NaN)));
+    const baseLabel = useSelectedMetadata
+      ? selectedMetadata.portName
+      : getPortLabel(port, result.length);
+    let label = baseLabel;
+    let duplicateIndex = 2;
+    while (sharedSerialPorts.has(label)) {
+      label = `${baseLabel} (${duplicateIndex})`;
+      duplicateIndex += 1;
+    }
     sharedSerialPorts.set(label, { port, label });
-    result.push({ path: label, manufacturer: null });
+    result.push({
+      path: label,
+      manufacturer: useSelectedMetadata ? selectedMetadata.displayName : null,
+    });
   }
+  recordSerialEvent({
+    stage: "enumeration",
+    success: true,
+    portCount: result.length,
+    ports: result.map((port) => ({
+      portName: port.path,
+      displayName: port.manufacturer,
+    })),
+  });
   return result;
 }
 
@@ -321,7 +455,7 @@ export async function autoDetectTCodeSerialPort(
 const defaultTransport = new TCodeTransportRenderer();
 
 export const tcodeTransportRenderer = {
-  listPorts: () => listTCodeSerialPorts(),
+  listPorts: (options?: TCodeListSerialPortsOptions) => listTCodeSerialPorts(options),
   autoDetectSerialPort: (input?: TCodeAutoDetectSerialInput) => autoDetectTCodeSerialPort(input),
   connect: (input: TCodeConnectInput) => defaultTransport.connect(input),
   send: (command: string) => defaultTransport.send(command),

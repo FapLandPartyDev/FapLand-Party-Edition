@@ -8,8 +8,11 @@ import { PlaylistMapPreview } from "../components/PlaylistMapPreview";
 import { PlaylistLaunchTransition } from "../components/game/PlaylistLaunchTransition";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import {
+  DEFAULT_IGNORE_PLAYLIST_LEVEL_REQUIREMENTS,
   DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED,
+  IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_KEY,
   PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED_KEY,
+  normalizeIgnorePlaylistLevelRequirements,
   normalizePlaylistCacheOngoingRestrictionDisabled,
 } from "../constants/experimentalFeatures";
 import { useControllerSurface } from "../controller";
@@ -29,6 +32,7 @@ import { playlists, type StoredPlaylist } from "../services/playlists";
 import { trpc } from "../services/trpc";
 import { formatDurationLabel, getRoundDurationSec } from "../utils/duration";
 import { playHoverSound, playSelectSound, playPlaylistLaunchSound } from "../utils/audio";
+import { progression } from "../services/progression";
 
 const withActivePlaylist = (
   playlistsToShow: StoredPlaylist[],
@@ -90,11 +94,14 @@ type LaunchState = { kind: "idle" } | { kind: "animating"; startedAt: number };
 export const Route = createFileRoute("/single-player-setup")({
   validateSearch: (search) => SinglePlayerSetupSearchSchema.parse(search),
   loader: async () => {
-    const [availablePlaylists, installedRounds, savedRuns] = await Promise.all([
-      playlists.list(),
-      getInstalledRoundCatalogCached(),
-      db.singlePlayerSaves.list(),
-    ]);
+    const [availablePlaylists, installedRounds, savedRuns, progressionProfile, rawLevelBypass] =
+      await Promise.all([
+        playlists.list(),
+        getInstalledRoundCatalogCached(),
+        db.singlePlayerSaves.list(),
+        progression.getProfile(),
+        trpc.store.get.query({ key: IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_KEY }),
+      ]);
 
     const hasEndless = availablePlaylists.some((p) => p.config.boardConfig.mode === "endless");
     if (!hasEndless) {
@@ -109,6 +116,8 @@ export const Route = createFileRoute("/single-player-setup")({
       activePlaylist,
       installedRounds,
       savedRuns,
+      progressionProfile,
+      ignoreLevelRequirements: normalizeIgnorePlaylistLevelRequirements(rawLevelBypass),
     };
   },
   component: SinglePlayerSetupPage,
@@ -119,12 +128,20 @@ function SinglePlayerSetupPage() {
   const navigate = useNavigate();
   const router = useRouter();
   const search = SinglePlayerSetupSearchSchema.parse(Route.useSearch());
-  const { availablePlaylists, activePlaylist, installedRounds, savedRuns } =
-    Route.useLoaderData() as {
+  const {
+    availablePlaylists,
+    activePlaylist,
+    installedRounds,
+    savedRuns,
+    progressionProfile,
+    ignoreLevelRequirements: initialIgnoreLevelRequirements,
+  } = Route.useLoaderData() as {
       availablePlaylists: StoredPlaylist[];
       activePlaylist: StoredPlaylist | null;
       installedRounds: InstalledRoundCatalogEntry[];
       savedRuns: Awaited<ReturnType<typeof db.singlePlayerSaves.list>>;
+      progressionProfile: Awaited<ReturnType<typeof progression.getProfile>>;
+      ignoreLevelRequirements: boolean;
     };
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(
     activePlaylist?.id ?? availablePlaylists[0]?.id ?? null
@@ -136,6 +153,9 @@ function SinglePlayerSetupPage() {
   const [freshStartConfirmOpen, setFreshStartConfirmOpen] = useState(false);
   const [playlistCacheOngoingRestrictionDisabled, setPlaylistCacheOngoingRestrictionDisabled] =
     useState(DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED);
+  const [ignoreLevelRequirements, setIgnoreLevelRequirements] = useState(
+    initialIgnoreLevelRequirements ?? DEFAULT_IGNORE_PLAYLIST_LEVEL_REQUIREMENTS
+  );
   const [installedRoundCardAssetsById, setInstalledRoundCardAssetsById] = useState<
     Map<string, InstalledRoundCardAssets>
   >(new Map());
@@ -224,8 +244,13 @@ function SinglePlayerSetupPage() {
     ? (savedRunByPlaylistId.get(selectedPlaylist.id) ?? null)
     : null;
   const hasResumeRun = Boolean(selectedSavedRun);
+  const currentProgressionLevel = progressionProfile?.level ?? 1;
+  const selectedRequiredLevel = selectedPlaylist?.config.requiredLevel ?? 1;
+  const selectedPlaylistLevelLocked = currentProgressionLevel < selectedRequiredLevel;
+  const levelRequirementBypassed = selectedPlaylistLevelLocked && ignoreLevelRequirements;
   const canStartSelectedPlaylist =
-    !selectedPlaylistCacheSummary.hasPending || playlistCacheOngoingRestrictionDisabled;
+    (!selectedPlaylistCacheSummary.hasPending || playlistCacheOngoingRestrictionDisabled) &&
+    (!selectedPlaylistLevelLocked || ignoreLevelRequirements);
 
   useEffect(() => {
     let mounted = true;
@@ -242,6 +267,22 @@ function SinglePlayerSetupPage() {
         console.error("Failed to load playlist cache ongoing restriction setting", error);
       });
 
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    void trpc.store.get
+      .query({ key: IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_KEY })
+      .then((stored) => {
+        if (!mounted) return;
+        setIgnoreLevelRequirements(normalizeIgnorePlaylistLevelRequirements(stored));
+      })
+      .catch((error) => {
+        console.error("Failed to load playlist level bypass setting", error);
+      });
     return () => {
       mounted = false;
     };
@@ -302,6 +343,7 @@ function SinglePlayerSetupPage() {
       playlistId: selectedPlaylist.id,
       launchNonce: Date.now(),
       ...(resume ? { resume: true } : {}),
+      ...(levelRequirementBypassed ? { levelBypass: true } : {}),
     };
 
     playPlaylistLaunchSound();
@@ -657,6 +699,17 @@ function SinglePlayerSetupPage() {
                     <span className="rounded-full border border-zinc-700/70 bg-black/30 px-3 py-1.5">
                       v{selectedPlaylist.config.playlistVersion}
                     </span>
+                    {selectedRequiredLevel > 1 && (
+                      <span
+                        className={`rounded-full border px-3 py-1.5 ${
+                          selectedPlaylistLevelLocked
+                            ? "border-rose-300/45 bg-rose-500/12 text-rose-100"
+                            : "border-violet-300/45 bg-violet-500/12 text-violet-100"
+                        }`}
+                      >
+                        Level {selectedRequiredLevel}
+                      </span>
+                    )}
                     {selectedPlaylistCacheSummary.hasPending && (
                       <span className="rounded-full border border-amber-300/45 bg-amber-500/12 px-3 py-1.5 text-amber-100">
                         <Trans>Caching ongoing</Trans>
@@ -685,6 +738,20 @@ function SinglePlayerSetupPage() {
                           {selectedPlaylistCacheSummary.pendingRoundCount === 1 ? "" : "s"} are
                           still caching in the background. Playback unlocks automatically when
                           caching finishes.
+                        </Trans>
+                      )}
+                    </p>
+                  )}
+                  {selectedPlaylistLevelLocked && (
+                    <p className="mt-3 text-sm text-rose-100/90">
+                      {ignoreLevelRequirements ? (
+                        <Trans>
+                          Experimental level bypass is active. This run will not award XP.
+                        </Trans>
+                      ) : (
+                        <Trans>
+                          Reach level {selectedRequiredLevel} to play this playlist. Your current
+                          level is {currentProgressionLevel}.
                         </Trans>
                       )}
                     </p>
@@ -718,7 +785,9 @@ function SinglePlayerSetupPage() {
                       </div>
                       <MenuButton
                         label={
-                          selectedPlaylistCacheSummary.hasPending &&
+                          selectedPlaylistLevelLocked && !ignoreLevelRequirements
+                            ? t`Level ${selectedRequiredLevel} Required`
+                            : selectedPlaylistCacheSummary.hasPending &&
                           !playlistCacheOngoingRestrictionDisabled
                             ? t`Caching Ongoing`
                             : selectedPlaylistCacheSummary.hasPending &&
@@ -739,7 +808,11 @@ function SinglePlayerSetupPage() {
                                   : t`Start Selected Playlist`
                         }
                         subLabel={
-                          selectedPlaylistCacheSummary.hasPending &&
+                          selectedPlaylistLevelLocked && !ignoreLevelRequirements
+                            ? t`Your current level is ${currentProgressionLevel}`
+                            : levelRequirementBypassed
+                              ? t`Experimental bypass active · no XP will be awarded`
+                              : selectedPlaylistCacheSummary.hasPending &&
                           !playlistCacheOngoingRestrictionDisabled
                             ? t`Wait until the required web rounds finish caching`
                             : selectedPlaylistCacheSummary.hasPending &&
@@ -750,13 +823,21 @@ function SinglePlayerSetupPage() {
                                 : t`Fastest path into a round`
                         }
                         badge={
-                          selectedPlaylistCacheSummary.hasPending
+                          selectedPlaylistLevelLocked
+                            ? levelRequirementBypassed
+                              ? t`No XP`
+                              : t`Locked`
+                            : selectedPlaylistCacheSummary.hasPending
                             ? playlistCacheOngoingRestrictionDisabled
                               ? t`Warning`
                               : t`Blocked`
                             : undefined
                         }
-                        statusTone={selectedPlaylistCacheSummary.hasPending ? "warning" : "default"}
+                        statusTone={
+                          selectedPlaylistLevelLocked || selectedPlaylistCacheSummary.hasPending
+                            ? "warning"
+                            : "default"
+                        }
                         primary
                         disabled={!canStartSelectedPlaylist}
                         onHover={playHoverSound}

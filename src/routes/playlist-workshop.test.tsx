@@ -412,7 +412,7 @@ async function openLinearPlaylistAndSection(
 ) {
   render(<Component />);
 
-  fireEvent.click(screen.getByRole("button", { name: new RegExp(`${playlistName}.*open`, "i") }));
+  fireEvent.click(screen.getByRole("button", { name: new RegExp(playlistName, "i") }));
 
   clickSidebarSection(sectionName);
 
@@ -585,8 +585,8 @@ describe("PlaylistWorkshopRoute", () => {
 
     render(<Component />);
 
-    expect(screen.getByText("Open A Playlist")).toBeDefined();
-    expect(screen.getByRole("button", { name: /linear playlist.*open/i })).toBeDefined();
+    expect(screen.getByText("Select Playlist")).toBeDefined();
+    expect(screen.getByRole("button", { name: /linear playlist/i })).toBeDefined();
     expect(screen.queryByRole("button", { name: /endless run/i })).toBeNull();
   });
 
@@ -599,7 +599,7 @@ describe("PlaylistWorkshopRoute", () => {
 
     render(<Component />);
 
-    expect(screen.getByText(/no playlist exists yet\./i)).toBeDefined();
+    expect(screen.getByText(/no playlists yet/i)).toBeDefined();
     expect(screen.getByRole("button", { name: "Create Playlist" })).toBeDefined();
     expect(screen.queryByRole("button", { name: "Import .fplay" })).toBeNull();
   });
@@ -625,7 +625,7 @@ describe("PlaylistWorkshopRoute", () => {
     render(<Component />);
 
     expect(screen.getByText("Select Playlist")).toBeDefined();
-    expect(screen.getByText("Open A Playlist")).toBeDefined();
+    expect(screen.getByText("Select Playlist")).toBeDefined();
     expect(screen.getByRole("button", { name: /graph playlist/i })).toBeDefined();
 
     await waitFor(() => {
@@ -645,9 +645,9 @@ describe("PlaylistWorkshopRoute", () => {
 
     render(<Component />);
 
-    expect(screen.getByText("Open A Playlist")).toBeDefined();
+    expect(screen.getByText("Select Playlist")).toBeDefined();
 
-    fireEvent.click(screen.getByRole("button", { name: /linear playlist.*open/i }));
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
 
     await waitFor(() => {
       expect(screen.getByText("Select, create, and manage playlists.")).toBeDefined();
@@ -666,7 +666,7 @@ describe("PlaylistWorkshopRoute", () => {
 
     render(<Component />);
 
-    fireEvent.click(screen.getByRole("button", { name: /linear playlist.*open/i }));
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
     fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));
 
     const startingMoneyInput = await screen.findByDisplayValue("275");
@@ -697,7 +697,7 @@ describe("PlaylistWorkshopRoute", () => {
 
     render(<Component />);
 
-    fireEvent.click(screen.getByRole("button", { name: /linear playlist.*open/i }));
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
     fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));
     fireEvent.click(screen.getByRole("button", { name: /disable dice animation toggle/i }));
     fireEvent.click(screen.getByRole("button", { name: "💾 Save" }));
@@ -724,7 +724,7 @@ describe("PlaylistWorkshopRoute", () => {
 
     render(<Component />);
 
-    fireEvent.click(screen.getByRole("button", { name: /linear playlist.*open/i }));
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
     fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));
     fireEvent.click(
       screen.getByRole("button", {
@@ -770,7 +770,6 @@ describe("PlaylistWorkshopRoute", () => {
     const startingMoneyInput = await screen.findByDisplayValue("120");
     fireEvent.change(startingMoneyInput, { target: { value: "410" } });
     clickSidebarSection("Playlist");
-    fireEvent.click(screen.getByRole("button", { name: /transfer/i }));
     fireEvent.click(screen.getByRole("button", { name: "Export .fplay" }));
 
     await waitFor(() => {
@@ -807,7 +806,6 @@ describe("PlaylistWorkshopRoute", () => {
     await openLinearPlaylistAndSection("Linear Playlist", "Session");
 
     clickSidebarSection("Playlist");
-    fireEvent.click(screen.getByRole("button", { name: /transfer/i }));
     fireEvent.click(screen.getByRole("button", { name: "Export .fplay" }));
 
     expect(await screen.findAllByText("Disk is full.")).not.toHaveLength(0);
@@ -867,13 +865,13 @@ describe("PlaylistWorkshopRoute", () => {
 
     render(<Component />);
 
-    fireEvent.click(screen.getByRole("button", { name: /alpha playlist.*open/i }));
-    fireEvent.click(screen.getByRole("button", { name: /active playlist.*alpha playlist/i }));
-    fireEvent.click(screen.getByRole("button", { name: /beta playlist.*select/i }));
+    fireEvent.click(screen.getByRole("button", { name: /alpha playlist/i }));
+    fireEvent.click(screen.getByRole("button", { name: /change playlist/i }));
+    fireEvent.click(screen.getByRole("button", { name: /beta playlist/i }));
 
     await waitFor(() => {
       expect(mocks.playlists.setActive).toHaveBeenCalledWith("beta-playlist");
-      expect(screen.getByRole("button", { name: /active playlist.*beta playlist/i })).toBeDefined();
+      expect(screen.getByText("Beta Playlist")).toBeDefined();
     });
   });
 
@@ -1194,7 +1192,7 @@ describe("PlaylistWorkshopRoute", () => {
 
     render(<Component />);
 
-    fireEvent.click(screen.getByRole("button", { name: /linear playlist.*open/i }));
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
     clickSidebarSection("Rounds");
 
     await waitForRoundsReady();
@@ -1261,7 +1259,7 @@ describe("PlaylistWorkshopRoute", () => {
 
     render(<Component />);
 
-    fireEvent.click(screen.getByRole("button", { name: /linear playlist.*open/i }));
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
     clickSidebarSection("Rounds");
 
     await waitForRoundsReady();

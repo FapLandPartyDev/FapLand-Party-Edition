@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 
@@ -139,6 +139,9 @@ export const gameProfile = sqliteTable("GameProfile", {
   highscoreAssistedSaveMode: text("highscoreAssistedSaveMode", {
     enum: ["checkpoint", "everywhere"],
   }),
+  progressionXp: integer("progressionXp").notNull().default(0),
+  equippedTitleId: text("equippedTitleId").notNull().default("fresh-face"),
+  respecTokens: integer("respecTokens").notNull().default(0),
   createdAt: integer("createdAt", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -146,6 +149,64 @@ export const gameProfile = sqliteTable("GameProfile", {
     .notNull()
     .$defaultFn(() => new Date()),
 });
+
+export const progressionSkillRank = sqliteTable(
+  "ProgressionSkillRank",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    profileId: text("profileId")
+      .notNull()
+      .references(() => gameProfile.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    skillId: text("skillId").notNull(),
+    rank: integer("rank").notNull().default(1),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    createdAt: integer("createdAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updatedAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    profileSkillUnique: uniqueIndex("ProgressionSkillRank_profileId_skillId_unique").on(
+      table.profileId,
+      table.skillId
+    ),
+  })
+);
+
+export const progressionAward = sqliteTable(
+  "ProgressionAward",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    profileId: text("profileId")
+      .notNull()
+      .references(() => gameProfile.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    sourceKind: text("sourceKind", { enum: ["single_player", "multiplayer"] }).notNull(),
+    sourceId: text("sourceId").notNull(),
+    outcome: text("outcome", { enum: ["success", "failure"] }).notNull(),
+    completedRounds: integer("completedRounds").notNull().default(0),
+    xpAwarded: integer("xpAwarded").notNull().default(0),
+    blockReason: text("blockReason"),
+    createdAt: integer("createdAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    sourceUnique: uniqueIndex("ProgressionAward_sourceKind_sourceId_unique").on(
+      table.sourceKind,
+      table.sourceId
+    ),
+    profileCreatedAtIdx: index("ProgressionAward_profileId_createdAt_idx").on(
+      table.profileId,
+      table.createdAt
+    ),
+  })
+);
 
 export const multiplayerMatchCache = sqliteTable("MultiplayerMatchCache", {
   lobbyId: text("lobbyId").primaryKey(),

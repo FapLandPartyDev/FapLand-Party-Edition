@@ -1704,10 +1704,10 @@ export function InstalledRoundsPage({
     : "";
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="round-library-page relative min-h-screen overflow-hidden">
       <AnimatedBackground quality="minimal" />
 
-      <div className="relative z-10 flex h-screen min-w-0 flex-col overflow-hidden bg-[#07080b]/92">
+      <div className="round-library-shell relative z-10 flex h-screen min-w-0 flex-col overflow-hidden">
         <header className="round-library-topbar shrink-0 border-b border-white/[0.07] bg-[#090a0e]/96 px-4 py-3 sm:px-6">
           <div className="mx-auto flex max-w-[1800px] items-center gap-3">
             <button
@@ -1724,7 +1724,7 @@ export function InstalledRoundsPage({
             </button>
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-3">
-                <h1 className="truncate text-xl font-black tracking-[-0.03em] text-white sm:text-2xl">
+                <h1 className="app-theme-heading truncate text-xl font-black tracking-[-0.03em] sm:text-2xl">
                   <Trans>Installed Rounds</Trans>
                 </h1>
                 <span className="hidden font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.18em] text-zinc-500 sm:inline">
@@ -2246,9 +2246,9 @@ function RoundInspector({
   return (
     <aside
       aria-label={t`Round details`}
-      className="round-library-inspector fixed inset-x-0 bottom-0 z-[80] max-h-[82vh] overflow-y-auto border-t border-white/10 bg-[#0b0d12] shadow-2xl lg:static lg:z-20 lg:h-full lg:max-h-none lg:w-[370px] lg:shrink-0 lg:border-l lg:border-t-0"
+      className="round-library-inspector fixed inset-x-0 bottom-0 z-[80] max-h-[82vh] overflow-y-auto border-t border-white/10 shadow-2xl lg:static lg:z-20 lg:h-full lg:max-h-none lg:w-[370px] lg:shrink-0 lg:border-l lg:border-t-0"
     >
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] bg-[#0b0d12]/96 px-4 py-3">
+      <div className="round-library-inspector-header sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
         <span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.18em] text-zinc-500">
           <Trans>Round details</Trans>
         </span>
@@ -2566,7 +2566,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
 
   return (
     <div className="relative space-y-4">
-      <div className="sticky top-0 z-40 -mx-2 flex flex-wrap items-center gap-2 border-b border-white/[0.06] bg-[#07080b]/95 px-2 py-3 backdrop-blur-md">
+      <div className="round-library-sticky-toolbar sticky top-0 z-40 -mx-2 flex flex-wrap items-center gap-2 border-b border-white/[0.06] px-2 py-3 backdrop-blur-md">
         <div className="relative min-w-[15rem] flex-1">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600">
             ⌕
@@ -2651,7 +2651,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
       </div>
 
       {selectionMode && (
-        <div className="sticky top-[4.15rem] z-30 flex flex-wrap items-center gap-2 rounded-xl border border-cyan-300/20 bg-[#10151a]/96 px-3 py-2 shadow-xl">
+        <div className="round-library-selection-bar sticky top-[4.15rem] z-30 flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 shadow-xl">
           <span className="mr-auto text-sm font-semibold text-cyan-100">
             {t`${selectedRoundIds.size} rounds, ${selectedHeroIds.size} heroes selected`}
           </span>
@@ -3189,7 +3189,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
           role="status"
           aria-label={t`Refreshing library`}
           data-testid="library-refresh-hairline"
-          className="pointer-events-none absolute inset-x-0 top-0 h-0.5 animate-pulse bg-gradient-to-r from-fuchsia-500/0 via-fuchsia-400/80 to-cyan-400/0"
+          className="round-library-themed-rule pointer-events-none absolute inset-x-0 top-0 h-0.5 animate-pulse"
         >
           <span className="sr-only">
             <Trans>Refreshing library</Trans>

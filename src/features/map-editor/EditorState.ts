@@ -196,6 +196,7 @@ export interface EditorGraphConfig {
   dice: PlaylistConfig["dice"];
   disableDiceAnimation: boolean;
   saveMode: PlaylistConfig["saveMode"];
+  requiredLevel?: number;
   style: EditorGraphStyle;
   music: {
     tracks: PlaylistMusicTrack[];

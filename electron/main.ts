@@ -93,6 +93,12 @@ let performanceSnapshotTimer: ReturnType<typeof setInterval> | null = null;
 let normalStartupPromise: Promise<void> | null = null;
 let startupRecoveryActive = false;
 let gpuCrashHandlerRegistered = false;
+let selectedSerialPortMetadata: {
+  portName: string;
+  displayName: string | null;
+  vendorId: string | null;
+  productId: string | null;
+} | null = null;
 const WINDOW_ZOOM_STEP = 0.5;
 
 function getWindowZoomPercent(win: BrowserWindow): number {
@@ -786,10 +792,15 @@ function configureSerialDeviceAccess(): void {
       callback(String(permission) === "serial" && isAllowedSerialOrigin(details.requestingUrl));
     }
   );
+}
 
-  session.defaultSession.setDevicePermissionHandler((details) => {
-    return details.deviceType === "serial" && isAllowedSerialOrigin(details.origin);
-  });
+function getSerialPortDisplayLabel(port: Electron.SerialPort): string {
+  const portName = port.portName.trim();
+  const displayName = port.displayName?.trim();
+  if (displayName && portName && displayName !== portName) {
+    return `${displayName} (${portName})`;
+  }
+  return displayName || portName || "Unnamed serial port";
 }
 
 async function createWindow(): Promise<BrowserWindow> {
@@ -837,7 +848,58 @@ async function createWindow(): Promise<BrowserWindow> {
 
   mainWindow.webContents.on("select-serial-port", (event, portList, _webContents, callback) => {
     event.preventDefault();
-    callback(portList[0]?.portId ?? "");
+    void (async () => {
+      debugLog.debug("tcode-serial", "Serial port selection requested", {
+        portCount: portList.length,
+        ports: portList.map((port) => ({
+          portName: port.portName,
+          displayName: port.displayName ?? null,
+          vendorId: port.vendorId ?? null,
+          productId: port.productId ?? null,
+        })),
+      });
+
+      if (portList.length === 0) {
+        selectedSerialPortMetadata = null;
+        callback("");
+        return;
+      }
+
+      const cancelId = portList.length;
+      const result = await dialog.showMessageBox(mainWindow, {
+        type: "question",
+        title: "Choose TCode Serial Port",
+        message: "Choose the serial port connected to your TCode device.",
+        detail:
+          process.platform === "linux"
+            ? "USB serial devices usually appear as /dev/ttyUSB* or /dev/ttyACM*."
+            : undefined,
+        buttons: [...portList.map(getSerialPortDisplayLabel), "Cancel"],
+        cancelId,
+        defaultId: 0,
+        noLink: true,
+      });
+      const selectedPort = portList[result.response];
+      if (!selectedPort) {
+        selectedSerialPortMetadata = null;
+        debugLog.debug("tcode-serial", "Serial port selection cancelled");
+        callback("");
+        return;
+      }
+
+      selectedSerialPortMetadata = {
+        portName: selectedPort.portName,
+        displayName: selectedPort.displayName ?? null,
+        vendorId: selectedPort.vendorId ?? null,
+        productId: selectedPort.productId ?? null,
+      };
+      debugLog.info("tcode-serial", "Serial port selected", selectedSerialPortMetadata);
+      callback(selectedPort.portId);
+    })().catch((error) => {
+      selectedSerialPortMetadata = null;
+      debugLog.error("tcode-serial", "Failed to select serial port", error);
+      callback("");
+    });
   });
 
   // Forward renderer console logs to terminal during development
@@ -1089,6 +1151,12 @@ function registerWindowControlsIpc() {
   ipcMain.handle("debug:video-event", (_event, payload: unknown) => {
     debugLog.debug("video", "Renderer video event", payload);
   });
+
+  ipcMain.handle("debug:tcode-serial-event", (_event, payload: unknown) => {
+    debugLog.debug("tcode-serial", "Renderer serial event", payload);
+  });
+
+  ipcMain.handle("serial:get-selected-port-metadata", () => selectedSerialPortMetadata);
 }
 
 function registerDialogIpc() {

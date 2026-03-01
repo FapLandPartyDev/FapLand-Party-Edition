@@ -148,6 +148,10 @@ import {
   PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED_KEY,
   DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED,
   normalizePlaylistCacheOngoingRestrictionDisabled,
+  IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_EVENT,
+  IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_KEY,
+  DEFAULT_IGNORE_PLAYLIST_LEVEL_REQUIREMENTS,
+  normalizeIgnorePlaylistLevelRequirements,
   STARTUP_SAFE_MODE_SHORTCUT_ENABLED_KEY,
   DEFAULT_STARTUP_SAFE_MODE_SHORTCUT_ENABLED,
   normalizeStartupSafeModeShortcutEnabled,
@@ -239,6 +243,7 @@ import {
   normalizeGraphicsBoolean,
 } from "../constants/graphicsSettings";
 import { CONVERTER_SHORTCUTS } from "../features/converter/shortcuts";
+import { progression } from "../services/progression";
 import { formatStoragePathDisplay, isStoragePathResettable } from "../utils/storagePath";
 
 const PORTABLE_DEFAULTS: ReadonlyMap<string, string> = new Map([
@@ -801,6 +806,9 @@ export function SettingsPage() {
   );
   const [playlistCacheOngoingRestrictionDisabled, setPlaylistCacheOngoingRestrictionDisabled] =
     useState(DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED);
+  const [ignorePlaylistLevelRequirements, setIgnorePlaylistLevelRequirements] = useState(
+    DEFAULT_IGNORE_PLAYLIST_LEVEL_REQUIREMENTS
+  );
   const [startupSafeModeShortcutEnabled, setStartupSafeModeShortcutEnabled] = useState(
     DEFAULT_STARTUP_SAFE_MODE_SHORTCUT_ENABLED
   );
@@ -985,6 +993,7 @@ export function SettingsPage() {
         INSTALL_WEB_FUNSCRIPT_URL_ENABLED_KEY,
         SYSTEM_LANGUAGE_ENABLED_KEY,
         PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED_KEY,
+        IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_KEY,
         STARTUP_SAFE_MODE_SHORTCUT_ENABLED_KEY,
         WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY,
         EROSCRIPTS_CACHE_ROOT_PATH_KEY,
@@ -1051,6 +1060,8 @@ export function SettingsPage() {
         const rawSystemLanguageEnabled = storeValues[SYSTEM_LANGUAGE_ENABLED_KEY];
         const rawPlaylistCacheOngoingRestrictionDisabled =
           storeValues[PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED_KEY];
+        const rawIgnorePlaylistLevelRequirements =
+          storeValues[IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_KEY];
         const rawStartupSafeModeShortcutEnabled =
           storeValues[STARTUP_SAFE_MODE_SHORTCUT_ENABLED_KEY];
         const rawDeviceAnimationTestEnabled = storeValues[DEVICE_ANIMATION_TEST_ENABLED_KEY];
@@ -1138,6 +1149,9 @@ export function SettingsPage() {
           normalizePlaylistCacheOngoingRestrictionDisabled(
             rawPlaylistCacheOngoingRestrictionDisabled
           )
+        );
+        setIgnorePlaylistLevelRequirements(
+          normalizeIgnorePlaylistLevelRequirements(rawIgnorePlaylistLevelRequirements)
         );
         setBackgroundPhashScanningEnabled(
           normalizeBackgroundPhashScanningEnabled(rawBackgroundPhashScanningEnabled)
@@ -1461,7 +1475,7 @@ export function SettingsPage() {
               if (next) {
                 setIsCheatModeConfirmDialogOpen(true);
               } else {
-                await trpc.store.set.mutate({ key: CHEAT_MODE_ENABLED_KEY, value: false });
+                await progression.setCheatModeEnabled(false);
                 setCheatModeEnabled(false);
                 window.dispatchEvent(
                   new CustomEvent<boolean>(CHEAT_MODE_ENABLED_EVENT, { detail: false })
@@ -1906,7 +1920,7 @@ export function SettingsPage() {
             id: "always-recovery-mode",
             type: "toggle",
             label: t`Always Start in Recovery Mode`,
-            description: t`Boot directly into recovery mode on every app launch. Use this when normal startup keeps failing. &ldquo;Start Normally&rdquo; in recovery still opens the app once; a full restart returns to recovery until disabled.`,
+            description: t`Boot directly into recovery mode on every app launch. Use this when normal startup keeps failing. “Start Normally” in recovery still opens the app once; a full restart returns to recovery until disabled.`,
             value: alwaysRecoveryMode,
             onChange: async (next: boolean) => {
               await trpc.store.set.mutate({ key: ALWAYS_RECOVERY_MODE_KEY, value: next });
@@ -2205,6 +2219,25 @@ export function SettingsPage() {
             },
           },
           {
+            id: "ignore-playlist-level-requirements",
+            type: "toggle",
+            label: t`Ignore Playlist Level Requirements`,
+            description: t`Allows locked solo playlists to start for testing. Runs started through this bypass do not award XP.`,
+            value: ignorePlaylistLevelRequirements,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_KEY,
+                value: next,
+              });
+              setIgnorePlaylistLevelRequirements(next);
+              window.dispatchEvent(
+                new CustomEvent<boolean>(IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_EVENT, {
+                  detail: next,
+                })
+              );
+            },
+          },
+          {
             id: "install-web-funscript-url-enabled",
             type: "toggle",
             label: t`Show Web Install Funscript URL`,
@@ -2292,6 +2325,7 @@ export function SettingsPage() {
       installWebFunscriptUrlEnabled,
       systemLanguageEnabled,
       playlistCacheOngoingRestrictionDisabled,
+      ignorePlaylistLevelRequirements,
       videoHashFfmpegSourcePreference,
       ytDlpBinaryPreference,
       backgroundPhashScanningEnabled,
@@ -3084,7 +3118,7 @@ export function SettingsPage() {
         }}
         onConfirm={async () => {
           playSelectSound();
-          await trpc.store.set.mutate({ key: CHEAT_MODE_ENABLED_KEY, value: true });
+          await progression.setCheatModeEnabled(true);
           setCheatModeEnabled(true);
           window.dispatchEvent(
             new CustomEvent<boolean>(CHEAT_MODE_ENABLED_EVENT, { detail: true })
@@ -6189,7 +6223,7 @@ function CheatModeConfirmDialog({
         <p className="mt-2 text-sm text-zinc-400">
           <Trans>
             This will enable developer menu features in singleplayer sessions, giving you access to
-            debug controls and shortcuts.
+            debug controls, shortcuts, and a hidden temporary progression profile.
           </Trans>
         </p>
 
@@ -6202,7 +6236,15 @@ function CheatModeConfirmDialog({
               <Trans>Any highscore you achieve will be permanently marked with 🎭</Trans>
             </li>
             <li>
+              <Trans>Your level will not progress while cheat mode is active</Trans>
+            </li>
+            <li>
               <Trans>Cheat mode has no effect in multiplayer</Trans>
+            </li>
+            <li>
+              <Trans>
+                Temporary progression is clearly marked and removed when Cheat Mode is disabled
+              </Trans>
             </li>
             <li>
               <Trans>The mark on your highscores cannot be removed later</Trans>

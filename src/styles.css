@@ -589,6 +589,220 @@ body {
   color: var(--main-menu-primary-text);
 }
 
+/* The installed-rounds page has historically used cyan and violet utility
+   classes for decorative accents. Keep those accents local to the page and
+   resolve them through the selected app theme instead. */
+.round-library-page {
+  --round-library-accent: var(--main-menu-system-accent);
+  --round-library-border: color-mix(
+    in srgb,
+    var(--main-menu-primary-border-active) 46%,
+    transparent
+  );
+  --round-library-glow: color-mix(in srgb, var(--main-menu-primary-glow) 28%, transparent);
+  --round-library-surface-raised: color-mix(
+    in srgb,
+    var(--main-menu-primary-glow) 10%,
+    rgb(11, 13, 18)
+  );
+  background: var(--main-menu-bg);
+}
+
+.round-library-shell {
+  background:
+    radial-gradient(
+      circle at 82% -10%,
+      color-mix(in srgb, var(--main-menu-system-accent) 9%, transparent),
+      transparent 34%
+    ),
+    color-mix(in srgb, var(--main-menu-primary-glow) 4%, rgba(7, 8, 11, 0.96));
+}
+
+.round-library-page .round-library-topbar,
+.round-library-sticky-toolbar {
+  border-color: color-mix(
+    in srgb,
+    var(--main-menu-primary-border-active) 18%,
+    rgba(255, 255, 255, 0.05)
+  );
+  background: color-mix(in srgb, var(--main-menu-primary-glow) 7%, rgba(9, 10, 14, 0.97));
+}
+
+.round-library-selection-bar {
+  border-color: var(--round-library-border);
+  background: color-mix(in srgb, var(--main-menu-primary-glow) 13%, rgba(12, 15, 20, 0.97));
+  box-shadow:
+    0 14px 38px rgba(0, 0, 0, 0.34),
+    0 0 24px var(--round-library-glow);
+}
+
+.round-library-page .round-library-primary-action {
+  border-color: var(--round-library-border);
+  background: color-mix(in srgb, var(--main-menu-primary-glow) 22%, rgba(13, 17, 23, 0.92));
+  color: var(--main-menu-primary-text);
+}
+
+.round-library-page .round-library-primary-action:hover,
+.round-library-page .round-library-toolbar-button:hover,
+.round-library-page .round-library-toolbar-button.is-active {
+  border-color: color-mix(in srgb, var(--main-menu-primary-border-active) 62%, transparent);
+  background: color-mix(in srgb, var(--main-menu-primary-glow) 20%, rgba(24, 24, 27, 0.45));
+  color: var(--main-menu-primary-text);
+}
+
+.round-library-page .round-library-native-select,
+.round-library-page .round-library-command-menu {
+  border-color: color-mix(
+    in srgb,
+    var(--main-menu-primary-border-active) 24%,
+    rgba(255, 255, 255, 0.06)
+  );
+  background: var(--round-library-surface-raised);
+}
+
+.round-library-page .round-library-command-item:hover {
+  background: color-mix(in srgb, var(--main-menu-primary-glow) 13%, rgba(255, 255, 255, 0.03));
+}
+
+.round-library-page .round-poster-card {
+  background: var(--round-library-surface-raised);
+}
+
+.round-library-page .round-poster-card:hover,
+.round-library-page .round-poster-card.is-inspected {
+  border-color: var(--round-library-border);
+  background: color-mix(in srgb, var(--main-menu-primary-glow) 13%, rgb(13, 15, 20));
+}
+
+.round-library-page .round-poster-card.is-selected {
+  border-color: color-mix(in srgb, var(--main-menu-primary-border-active) 82%, transparent);
+  box-shadow: 0 0 24px var(--round-library-glow);
+}
+
+.round-library-card-focus:focus-visible {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--main-menu-focus-ring) 88%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--main-menu-focus-ring) 34%, transparent);
+}
+
+.round-library-page .round-poster-check.is-selected,
+.round-library-page .round-shelf-select.is-selected {
+  border-color: var(--round-library-accent);
+  background: color-mix(in srgb, var(--main-menu-primary-glow) 70%, rgb(8, 10, 14));
+}
+
+.round-library-progress {
+  background: var(--round-library-accent);
+  box-shadow: 0 0 10px var(--main-menu-primary-glow);
+}
+
+.round-library-themed-rule {
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--main-menu-system-accent) 82%, transparent),
+    transparent
+  );
+}
+
+.round-library-page .round-library-inspector,
+.round-library-page .round-library-inspector-header {
+  background: var(--round-library-surface-raised);
+}
+
+.round-library-page .round-library-inspector {
+  border-color: color-mix(
+    in srgb,
+    var(--main-menu-primary-border-active) 24%,
+    rgba(255, 255, 255, 0.06)
+  );
+}
+
+.round-library-page .round-library-inspector-header {
+  background: color-mix(in srgb, var(--main-menu-primary-glow) 8%, rgba(11, 13, 18, 0.97));
+}
+
+.round-library-page [class*="text-cyan-"],
+.round-library-page [class*="text-violet-"],
+.round-library-page [class*="text-purple-"],
+.round-library-page [class*="text-indigo-"],
+.round-library-page [class*="text-fuchsia-"],
+.round-library-page [class*="text-sky-"] {
+  color: var(--main-menu-primary-text) !important;
+}
+
+.round-library-page [class*="border-cyan-"],
+.round-library-page [class*="border-violet-"],
+.round-library-page [class*="border-purple-"],
+.round-library-page [class*="border-indigo-"],
+.round-library-page [class*="border-fuchsia-"],
+.round-library-page [class*="border-sky-"] {
+  border-color: var(--round-library-border) !important;
+}
+
+.round-library-page [class*="bg-cyan-"],
+.round-library-page [class*="bg-violet-"],
+.round-library-page [class*="bg-purple-"],
+.round-library-page [class*="bg-indigo-"],
+.round-library-page [class*="bg-fuchsia-"],
+.round-library-page [class*="bg-sky-"] {
+  background-color: color-mix(
+    in srgb,
+    var(--main-menu-primary-glow) 24%,
+    rgba(24, 24, 27, 0.32)
+  ) !important;
+}
+
+.round-library-page [class*="hover:border-cyan-"]:hover,
+.round-library-page [class*="hover:border-violet-"]:hover,
+.round-library-page [class*="hover:border-purple-"]:hover,
+.round-library-page [class*="hover:border-indigo-"]:hover,
+.round-library-page [class*="hover:border-fuchsia-"]:hover,
+.round-library-page [class*="hover:border-sky-"]:hover,
+.round-library-page [class*="focus:border-cyan-"]:focus,
+.round-library-page [class*="focus:border-violet-"]:focus,
+.round-library-page [class*="focus:border-purple-"]:focus,
+.round-library-page [class*="focus:border-indigo-"]:focus,
+.round-library-page [class*="focus:border-fuchsia-"]:focus,
+.round-library-page [class*="focus:border-sky-"]:focus {
+  border-color: color-mix(
+    in srgb,
+    var(--main-menu-primary-border-active) 72%,
+    transparent
+  ) !important;
+}
+
+.round-library-page [class*="hover:bg-cyan-"]:hover,
+.round-library-page [class*="hover:bg-violet-"]:hover,
+.round-library-page [class*="hover:bg-purple-"]:hover,
+.round-library-page [class*="hover:bg-indigo-"]:hover,
+.round-library-page [class*="hover:bg-fuchsia-"]:hover,
+.round-library-page [class*="hover:bg-sky-"]:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--main-menu-primary-glow) 34%,
+    rgba(39, 39, 42, 0.38)
+  ) !important;
+}
+
+.round-library-page [class*="focus:ring-cyan-"]:focus,
+.round-library-page [class*="focus:ring-violet-"]:focus,
+.round-library-page [class*="focus:ring-purple-"]:focus,
+.round-library-page [class*="focus:ring-indigo-"]:focus,
+.round-library-page [class*="focus:ring-fuchsia-"]:focus,
+.round-library-page [class*="focus:ring-sky-"]:focus {
+  --tw-ring-color: color-mix(in srgb, var(--main-menu-focus-ring) 46%, transparent) !important;
+}
+
+.round-library-page [class*="accent-cyan-"],
+.round-library-page [class*="accent-violet-"],
+.round-library-page [class*="accent-purple-"],
+.round-library-page [class*="accent-indigo-"],
+.round-library-page [class*="accent-fuchsia-"],
+.round-library-page [class*="accent-sky-"] {
+  accent-color: var(--round-library-accent) !important;
+}
+
 /* ─── Themed playlist workshop ─────────────────────────────────── */
 
 .playlist-theme-card {
@@ -997,6 +1211,91 @@ body.perf-reduced-effects .converter-panel-glass {
 
   100% {
     background-position: -200% 0;
+  }
+}
+
+.main-menu-level-track {
+  height: 0.45rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--main-menu-system-accent) 35%, transparent);
+  border-radius: 9999px;
+  background:
+    linear-gradient(90deg, rgba(9, 9, 14, 0.86), rgba(24, 24, 34, 0.72));
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.85),
+    0 0 12px color-mix(in srgb, var(--main-menu-system-accent) 10%, transparent);
+}
+
+.main-menu-level-fill {
+  position: relative;
+  height: 100%;
+  min-width: 2px;
+  overflow: hidden;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--main-menu-system-accent) 75%, #7c3aed),
+    color-mix(in srgb, var(--main-menu-system-accent) 90%, #e879f9),
+    #f0abfc
+  );
+  box-shadow:
+    0 0 8px color-mix(in srgb, var(--main-menu-system-accent) 70%, transparent),
+    0 0 18px color-mix(in srgb, var(--main-menu-system-accent) 35%, transparent);
+  transition: width 1.1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.main-menu-level-fill::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(
+    110deg,
+    transparent 15%,
+    rgba(255, 255, 255, 0.7) 45%,
+    transparent 72%
+  );
+  transform: translateX(-140%);
+  animation: main-menu-level-shimmer 2.4s ease-in-out infinite;
+}
+
+.main-menu-level-spark {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  z-index: 1;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: white;
+  box-shadow:
+    0 0 4px white,
+    0 0 9px #e879f9;
+  transform: translateY(-50%);
+  animation: main-menu-level-spark 1.5s ease-in-out infinite;
+}
+
+@keyframes main-menu-level-shimmer {
+  0%,
+  35% {
+    transform: translateX(-140%);
+  }
+
+  75%,
+  100% {
+    transform: translateX(140%);
+  }
+}
+
+@keyframes main-menu-level-spark {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: translateY(-50%) scale(0.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.4);
   }
 }
 
