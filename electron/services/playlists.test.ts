@@ -168,8 +168,8 @@ describe("playlist import analysis and finalize", () => {
     expect(result.metadata.name).toBe("Imported Playlist");
     expect(result.resolution.counts).toEqual({
       exact: 1,
-      suggested: 1,
-      missing: 1,
+      suggested: 2,
+      missing: 0,
     });
     expect(result.resolution.exactMapping["linear.normalRoundOrder.0"]).toBe("round-exact");
     expect(result.resolution.suggestedMapping["linear.normalRoundOrder.1"]).toBe("round-suggested");

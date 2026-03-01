@@ -108,16 +108,16 @@ type WorkshopInstalledRound = InstalledRound | InstalledRoundCatalogEntry;
 type RoundsPanePhase = "idle" | "loading-data" | "preparing-ui" | "ready";
 type ResolutionModalState =
   | {
-    context: "import";
-    title: string;
-    filePath: string;
-    analysis: PlaylistResolutionAnalysis;
-  }
+      context: "import";
+      title: string;
+      filePath: string;
+      analysis: PlaylistResolutionAnalysis;
+    }
   | {
-    context: "playlist";
-    title: string;
-    analysis: PlaylistResolutionAnalysis;
-  };
+      context: "playlist";
+      title: string;
+      analysis: PlaylistResolutionAnalysis;
+    };
 type ImportedPlaylistReview = {
   playlistId: string;
   analysis: PlaylistResolutionAnalysis;
@@ -606,9 +606,9 @@ function toLinearBoardConfig(
     totalIndices: Math.max(1, Math.min(500, Math.floor(setup.roundCount))),
     safePointIndices: setup.safePointsEnabled
       ? filterIndicesWithinTotal(
-        parseSafePointsInput(formatSafePointsInput(setup.safePointIndices)),
-        setup.roundCount
-      )
+          parseSafePointsInput(formatSafePointsInput(setup.safePointIndices)),
+          setup.roundCount
+        )
       : [],
     safePointRestMsByIndex: {},
     normalRoundRefsByIndex: {},
@@ -711,8 +711,12 @@ function PlaylistWorkshopRoundsSkeleton({ subTab = "library" }: { subTab?: "libr
     <div>
       {/* Skeleton for Tab Bar */}
       <div className="mb-4 flex gap-1.5 rounded-[1.25rem] bg-black/40 p-1.5 border border-white/5 backdrop-blur-md">
-        <div className={`h-10 w-1/2 animate-pulse rounded-xl ${subTab === "library" ? "bg-white/10" : "bg-white/5"}`} />
-        <div className={`h-10 w-1/2 animate-pulse rounded-xl ${subTab === "queue" ? "bg-white/10" : "bg-white/5"}`} />
+        <div
+          className={`h-10 w-1/2 animate-pulse rounded-xl ${subTab === "library" ? "bg-white/10" : "bg-white/5"}`}
+        />
+        <div
+          className={`h-10 w-1/2 animate-pulse rounded-xl ${subTab === "queue" ? "bg-white/10" : "bg-white/5"}`}
+        />
       </div>
 
       {subTab === "library" ? (
@@ -844,7 +848,7 @@ function PlaylistWorkshopPage() {
   );
 
   const [installedRounds, setInstalledRounds] = useState<WorkshopInstalledRound[]>([]);
-  const [isInstalledRoundsLoading, setIsInstalledRoundsLoading] = useState(false);
+  const [, setIsInstalledRoundsLoading] = useState(false);
   const [roundsPanePhase, setRoundsPanePhase] = useState<RoundsPanePhase>("idle");
   const hasLoadedInstalledRoundsRef = useRef(false);
   const installedRoundsRequestRef = useRef<Promise<void> | null>(null);
@@ -1083,8 +1087,8 @@ function PlaylistWorkshopPage() {
       query.length === 0
         ? availableNormalRounds
         : availableNormalRounds.filter((round) =>
-          `${round.name} ${round.author ?? ""}`.toLowerCase().includes(query)
-        );
+            `${round.name} ${round.author ?? ""}`.toLowerCase().includes(query)
+          );
     const durationFiltered = filtered.filter((round) =>
       matchesDurationFilter(getRoundDurationSec(round), normalRoundDurationFilter)
     );
@@ -1127,10 +1131,10 @@ function PlaylistWorkshopPage() {
           rect.height > 0
             ? rect
             : {
-              ...rect,
-              width: rect.width > 0 ? rect.width : 1,
-              height: AVAILABLE_ROUNDS_INITIAL_RECT_HEIGHT_PX,
-            }
+                ...rect,
+                width: rect.width > 0 ? rect.width : 1,
+                height: AVAILABLE_ROUNDS_INITIAL_RECT_HEIGHT_PX,
+              }
         );
       }),
     overscan: 8,
@@ -1148,15 +1152,15 @@ function PlaylistWorkshopPage() {
     () =>
       activePreviewRound
         ? {
-          fieldId: "playlist-workshop-preview-field",
-          nodeId: "playlist-workshop-preview-node",
-          roundId: activePreviewRound.id,
-          roundName: activePreviewRound.name,
-          selectionKind: "fixed",
-          poolId: null,
-          phaseKind: "normal",
-          campaignIndex: 1,
-        }
+            fieldId: "playlist-workshop-preview-field",
+            nodeId: "playlist-workshop-preview-node",
+            roundId: activePreviewRound.id,
+            roundName: activePreviewRound.name,
+            selectionKind: "fixed",
+            poolId: null,
+            phaseKind: "normal",
+            campaignIndex: 1,
+          }
         : null,
     [activePreviewRound]
   );
@@ -1586,12 +1590,113 @@ function PlaylistWorkshopPage() {
     setDeleteDialogOpen(true);
   };
 
+  const persistActivePlaylistBeforeTransfer = async (): Promise<StoredPlaylist | null> => {
+    if (!activePlaylist) return null;
+    if (!isLinearEditable) return activePlaylist;
+
+    const normalizedSetup = ensureLinearSetupCapacity({
+      ...setup,
+      safePointIndices: parseSafePointsInput(safePointsInput),
+    });
+    setSetup(normalizedSetup);
+    setSafePointsInput(formatSafePointsInput(normalizedSetup.safePointIndices));
+
+    const linearBoardConfig = toLinearBoardConfig(normalizedSetup, installedRounds);
+    const nextConfig = ZPlaylistConfig.parse({
+      ...activePlaylist.config,
+      playlistVersion: activePlaylist.config.playlistVersion ?? CURRENT_PLAYLIST_VERSION,
+      boardConfig: linearBoardConfig,
+      saveMode: normalizedSetup.saveMode,
+      roundStartDelayMs: Math.max(
+        1000,
+        Math.min(300000, Math.round(normalizedSetup.roundStartDelaySec * 1000))
+      ),
+      disableDiceAnimation: normalizedSetup.disableDiceAnimation,
+      dice: {
+        min: Math.max(1, Math.min(20, Math.floor(normalizedSetup.diceMin))),
+        max: Math.max(1, Math.min(20, Math.floor(normalizedSetup.diceMax))),
+      },
+      perkSelection: {
+        optionsPerPick: activePlaylist.config.perkSelection.optionsPerPick,
+        triggerChancePerCompletedRound: Math.max(
+          0,
+          Math.min(1, normalizedSetup.perkTriggerChancePerRound)
+        ),
+      },
+      perkPool: {
+        enabledPerkIds: [...normalizedSetup.enabledPerkIds],
+        enabledAntiPerkIds: [...normalizedSetup.enabledAntiPerkIds],
+      },
+      probabilityScaling: {
+        initialIntermediaryProbability: Math.max(
+          0,
+          Math.min(1, normalizedSetup.probabilities.intermediary.initial)
+        ),
+        initialAntiPerkProbability: Math.max(
+          0,
+          Math.min(1, normalizedSetup.probabilities.antiPerk.initial)
+        ),
+        intermediaryIncreasePerRound: Math.max(
+          0,
+          Math.min(1, normalizedSetup.probabilities.intermediary.increasePerRound)
+        ),
+        antiPerkIncreasePerRound: Math.max(
+          0,
+          Math.min(1, normalizedSetup.probabilities.antiPerk.increasePerRound)
+        ),
+        maxIntermediaryProbability: Math.max(
+          0,
+          Math.min(1, normalizedSetup.probabilities.intermediary.max)
+        ),
+        maxAntiPerkProbability: Math.max(
+          0,
+          Math.min(1, normalizedSetup.probabilities.antiPerk.max)
+        ),
+      },
+      economy: {
+        ...activePlaylist.config.economy,
+        startingMoney: Math.max(0, Math.floor(normalizedSetup.startingMoney)),
+        scorePerCumRoundSuccess: Math.max(0, Math.floor(normalizedSetup.scorePerCumRoundSuccess)),
+      },
+    });
+
+    const updated = await playlists.update({
+      playlistId: activePlaylist.id,
+      config: nextConfig,
+    });
+    if (importedPlaylistReview?.playlistId === activePlaylist.id) {
+      setImportedPlaylistReview(null);
+    }
+    await refreshPlaylists();
+    return updated;
+  };
+
   const handleExportFplay = async () => {
     playSelectSound();
-    const filePath = await window.electronAPI.dialog.selectPlaylistExportPath(activePlaylist.name);
-    if (!filePath) return;
-    await playlists.exportToFile(activePlaylist.id, filePath);
-    showImportNotice(t`Playlist exported.`);
+    setTransferMenuOpen(false);
+    if (savePending) return;
+
+    setSavePending(true);
+    try {
+      const filePath = await window.electronAPI.dialog.selectPlaylistExportPath(
+        activePlaylist.name
+      );
+      if (!filePath) return;
+
+      const playlistToExport = await persistActivePlaylistBeforeTransfer();
+      if (!playlistToExport) return;
+
+      await playlists.exportToFile(playlistToExport.id, filePath);
+      showImportNotice(t`Playlist exported.`);
+    } catch (error) {
+      console.error("Failed to export playlist", error);
+      showImportNotice(
+        error instanceof Error ? error.message : t`Failed to export playlist.`,
+        "error"
+      );
+    } finally {
+      setSavePending(false);
+    }
   };
 
   const handleExportPack = async () => {
@@ -1620,22 +1725,42 @@ function PlaylistWorkshopPage() {
     includeMedia: boolean;
     asFpack: boolean;
   }): Promise<boolean> => {
+    if (savePending) return false;
     const directoryPath = await window.electronAPI.dialog.selectPlaylistExportDirectory(
       activePlaylist.name
     );
     if (!directoryPath) return false;
+
+    setSavePending(true);
+    let playlistToExport: StoredPlaylist | null = null;
+    try {
+      playlistToExport = await persistActivePlaylistBeforeTransfer();
+    } catch (error) {
+      console.error("Failed to prepare playlist pack export", error);
+      showImportNotice(
+        error instanceof Error ? error.message : t`Failed to export playlist pack.`,
+        "error"
+      );
+      setSavePending(false);
+      return false;
+    }
+    if (!playlistToExport) {
+      setSavePending(false);
+      return false;
+    }
+
     setShowExportOverlay(true);
     void (async () => {
       try {
         const result = await playlists.exportPackage({
-          playlistId: activePlaylist.id,
+          playlistId: playlistToExport.id,
           directoryPath,
           compressionMode: input.compressionMode,
           compressionStrength: input.compressionStrength,
           includeMedia: input.includeMedia,
           asFpack: input.asFpack,
         });
-        showImportNotice(t`Playlist pack exported to ${result.exportDir}.`);
+        showImportNotice(t`Playlist pack exported to ${result.fpackPath ?? result.exportDir}.`);
       } catch (error) {
         console.error("Failed to export playlist pack", error);
         showImportNotice(
@@ -1643,6 +1768,8 @@ function PlaylistWorkshopPage() {
           "error"
         );
         setShowExportOverlay(false);
+      } finally {
+        setSavePending(false);
       }
     })();
     return true;
@@ -1652,81 +1779,8 @@ function PlaylistWorkshopPage() {
     if (!isLinearEditable || savePending) return false;
     setSavePending(true);
     try {
-      const normalizedSetup = ensureLinearSetupCapacity({
-        ...setup,
-        safePointIndices: parseSafePointsInput(safePointsInput),
-      });
-      setSetup(normalizedSetup);
-      setSafePointsInput(formatSafePointsInput(normalizedSetup.safePointIndices));
-
-      const linearBoardConfig = toLinearBoardConfig(normalizedSetup, installedRounds);
-
-      const nextConfig = ZPlaylistConfig.parse({
-        ...activePlaylist.config,
-        playlistVersion: activePlaylist.config.playlistVersion ?? CURRENT_PLAYLIST_VERSION,
-        boardConfig: linearBoardConfig,
-        saveMode: normalizedSetup.saveMode,
-        roundStartDelayMs: Math.max(
-          1000,
-          Math.min(300000, Math.round(normalizedSetup.roundStartDelaySec * 1000))
-        ),
-        disableDiceAnimation: normalizedSetup.disableDiceAnimation,
-        dice: {
-          min: Math.max(1, Math.min(20, Math.floor(normalizedSetup.diceMin))),
-          max: Math.max(1, Math.min(20, Math.floor(normalizedSetup.diceMax))),
-        },
-        perkSelection: {
-          optionsPerPick: activePlaylist.config.perkSelection.optionsPerPick,
-          triggerChancePerCompletedRound: Math.max(
-            0,
-            Math.min(1, normalizedSetup.perkTriggerChancePerRound)
-          ),
-        },
-        perkPool: {
-          enabledPerkIds: [...normalizedSetup.enabledPerkIds],
-          enabledAntiPerkIds: [...normalizedSetup.enabledAntiPerkIds],
-        },
-        probabilityScaling: {
-          initialIntermediaryProbability: Math.max(
-            0,
-            Math.min(1, normalizedSetup.probabilities.intermediary.initial)
-          ),
-          initialAntiPerkProbability: Math.max(
-            0,
-            Math.min(1, normalizedSetup.probabilities.antiPerk.initial)
-          ),
-          intermediaryIncreasePerRound: Math.max(
-            0,
-            Math.min(1, normalizedSetup.probabilities.intermediary.increasePerRound)
-          ),
-          antiPerkIncreasePerRound: Math.max(
-            0,
-            Math.min(1, normalizedSetup.probabilities.antiPerk.increasePerRound)
-          ),
-          maxIntermediaryProbability: Math.max(
-            0,
-            Math.min(1, normalizedSetup.probabilities.intermediary.max)
-          ),
-          maxAntiPerkProbability: Math.max(
-            0,
-            Math.min(1, normalizedSetup.probabilities.antiPerk.max)
-          ),
-        },
-        economy: {
-          ...activePlaylist.config.economy,
-          startingMoney: Math.max(0, Math.floor(normalizedSetup.startingMoney)),
-          scorePerCumRoundSuccess: Math.max(0, Math.floor(normalizedSetup.scorePerCumRoundSuccess)),
-        },
-      });
-
-      await playlists.update({
-        playlistId: activePlaylist.id,
-        config: nextConfig,
-      });
-      if (importedPlaylistReview?.playlistId === activePlaylist.id) {
-        setImportedPlaylistReview(null);
-      }
-      await refreshPlaylists();
+      const saved = await persistActivePlaylistBeforeTransfer();
+      if (!saved) return false;
       showImportNotice(t`Playlist saved.`);
       return true;
     } catch (error) {
@@ -1828,8 +1882,8 @@ function PlaylistWorkshopPage() {
       const sourceRounds =
         selectedRoundIds.length > 0
           ? selectedRoundIds
-            .map((roundId) => normalRounds.find((round) => round.id === roundId))
-            .filter((round): round is WorkshopInstalledRound => Boolean(round))
+              .map((roundId) => normalRounds.find((round) => round.id === roundId))
+              .filter((round): round is WorkshopInstalledRound => Boolean(round))
           : normalRounds;
 
       if (sourceRounds.length === 0) return prev;
@@ -1889,9 +1943,7 @@ function PlaylistWorkshopPage() {
   };
 
   const roundOrderConfirmTitle =
-    roundOrderConfirmAction === "clear"
-      ? t`Clear selected rounds?`
-      : t`Reorder selected rounds?`;
+    roundOrderConfirmAction === "clear" ? t`Clear selected rounds?` : t`Reorder selected rounds?`;
   const roundOrderConfirmLabel =
     roundOrderConfirmAction === "difficulty"
       ? t`Sort by Difficulty`
@@ -2094,10 +2146,11 @@ function PlaylistWorkshopPage() {
                                       setPlaylistMenuOpen(false);
                                     })();
                                   }}
-                                  className={`mb-1 w-full rounded-lg border px-3 py-2 text-left text-sm last:mb-0 ${selected
-                                    ? "border-emerald-300/60 bg-emerald-500/20 text-emerald-100"
-                                    : "border-zinc-700 bg-black/40 text-zinc-200 hover:border-violet-300/60 hover:bg-violet-500/20"
-                                    }`}
+                                  className={`mb-1 w-full rounded-lg border px-3 py-2 text-left text-sm last:mb-0 ${
+                                    selected
+                                      ? "border-emerald-300/60 bg-emerald-500/20 text-emerald-100"
+                                      : "border-zinc-700 bg-black/40 text-zinc-200 hover:border-violet-300/60 hover:bg-violet-500/20"
+                                  }`}
                                 >
                                   <div className="truncate font-semibold">{playlist.name}</div>
                                   <div className="text-[10px] uppercase tracking-[0.15em] text-zinc-400">
@@ -2115,10 +2168,11 @@ function PlaylistWorkshopPage() {
                           <Trans>Playlist Version {activePlaylist.config.playlistVersion}</Trans>
                         </span>
                         <span
-                          className={`rounded-full border px-3 py-1 ${isLinearEditable
-                            ? "border-emerald-300/35 bg-emerald-500/10 text-emerald-100"
-                            : "border-rose-300/35 bg-rose-500/10 text-rose-100"
-                            }`}
+                          className={`rounded-full border px-3 py-1 ${
+                            isLinearEditable
+                              ? "border-emerald-300/35 bg-emerald-500/10 text-emerald-100"
+                              : "border-rose-300/35 bg-rose-500/10 text-rose-100"
+                          }`}
                         >
                           {isLinearEditable ? (
                             <Trans>Linear Board</Trans>
@@ -2201,8 +2255,19 @@ function PlaylistWorkshopPage() {
                           <div className="max-w-2xl">
                             <div className="flex items-center gap-2.5">
                               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-400 to-blue-500 text-white shadow-[0_0_12px_rgba(34,211,238,0.4)]">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-3 w-3"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={3}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M5 13l4 4L19 7"
+                                  />
                                 </svg>
                               </span>
                               <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] text-cyan-200 drop-shadow-sm">
@@ -2214,7 +2279,9 @@ function PlaylistWorkshopPage() {
                             </h4>
                             <p className="mt-1.5 text-sm leading-relaxed text-zinc-300">
                               <Trans>
-                                Ready to share? Bundle this playlist along with all its associated media into a highly compressed, easily shareable format. Perfect for distribution.
+                                Ready to share? Bundle this playlist along with all its associated
+                                media into a highly compressed, easily shareable format. Perfect for
+                                distribution.
                               </Trans>
                             </p>
                           </div>
@@ -2230,8 +2297,19 @@ function PlaylistWorkshopPage() {
                               }}
                               className="relative inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/20 bg-gradient-to-r from-cyan-600 to-emerald-600 px-6 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-[11px] sm:text-xs font-bold uppercase tracking-[0.15em] text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:from-cyan-500 hover:to-emerald-500 hover:shadow-[0_0_25px_rgba(52,211,238,0.35)]"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                                />
                               </svg>
                               <Trans>Export Pack</Trans>
                             </button>
@@ -2339,10 +2417,11 @@ function PlaylistWorkshopPage() {
                             })
                           );
                         }}
-                        className={`w-full rounded-xl border px-4 py-3 text-sm font-semibold ${setup.safePointsEnabled
-                          ? "border-emerald-300/55 bg-emerald-500/20 text-emerald-100"
-                          : "border-zinc-600 bg-zinc-800 text-zinc-300"
-                          }`}
+                        className={`w-full rounded-xl border px-4 py-3 text-sm font-semibold ${
+                          setup.safePointsEnabled
+                            ? "border-emerald-300/55 bg-emerald-500/20 text-emerald-100"
+                            : "border-zinc-600 bg-zinc-800 text-zinc-300"
+                        }`}
                       >
                         {setup.safePointsEnabled ? <Trans>Enabled</Trans> : <Trans>Disabled</Trans>}
                       </button>
@@ -2409,10 +2488,11 @@ function PlaylistWorkshopPage() {
                             playSelectSound();
                             setSetup((prev) => ({ ...prev, saveMode: option.value }));
                           }}
-                          className={`rounded-xl border px-4 py-3 text-sm font-semibold ${setup.saveMode === option.value
-                            ? "border-cyan-300/60 bg-cyan-500/20 text-cyan-100"
-                            : "border-zinc-600 bg-zinc-800 text-zinc-300"
-                            }`}
+                          className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
+                            setup.saveMode === option.value
+                              ? "border-cyan-300/60 bg-cyan-500/20 text-cyan-100"
+                              : "border-zinc-600 bg-zinc-800 text-zinc-300"
+                          }`}
                         >
                           {option.label}
                         </button>
@@ -2447,14 +2527,17 @@ function PlaylistWorkshopPage() {
                             setRoundsSubTab("library");
                           }}
                           onMouseEnter={playHoverSound}
-                          className={`relative flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-300 ${roundsSubTab === "library"
-                            ? "bg-violet-500/15 text-violet-200 border border-white/10 shadow-lg shadow-violet-500/5"
-                            : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
-                            }`}
+                          className={`relative flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-300 ${
+                            roundsSubTab === "library"
+                              ? "bg-violet-500/15 text-violet-200 border border-white/10 shadow-lg shadow-violet-500/5"
+                              : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
+                          }`}
                         >
                           <span className="relative z-10 flex items-center gap-2">
                             <Trans>📚 Library</Trans>
-                            <span className={`flex h-5 items-center justify-center rounded-full px-2 text-[10px] tabular-nums transition-colors ${roundsSubTab === "library" ? "bg-violet-900/40 text-violet-300" : "bg-black/30 text-zinc-500"}`}>
+                            <span
+                              className={`flex h-5 items-center justify-center rounded-full px-2 text-[10px] tabular-nums transition-colors ${roundsSubTab === "library" ? "bg-violet-900/40 text-violet-300" : "bg-black/30 text-zinc-500"}`}
+                            >
                               {availableNormalRounds.length}
                             </span>
                           </span>
@@ -2466,14 +2549,17 @@ function PlaylistWorkshopPage() {
                             setRoundsSubTab("queue");
                           }}
                           onMouseEnter={playHoverSound}
-                          className={`relative flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-300 ${roundsSubTab === "queue"
-                            ? "bg-emerald-500/15 text-emerald-200 border border-white/10 shadow-lg shadow-emerald-500/5"
-                            : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
-                            }`}
+                          className={`relative flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-300 ${
+                            roundsSubTab === "queue"
+                              ? "bg-emerald-500/15 text-emerald-200 border border-white/10 shadow-lg shadow-emerald-500/5"
+                              : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
+                          }`}
                         >
                           <span className="relative z-10 flex items-center gap-2">
                             <Trans>🎯 Queue</Trans>
-                            <span className={`flex h-5 items-center justify-center rounded-full px-2 text-[10px] tabular-nums transition-colors ${roundsSubTab === "queue" ? "bg-emerald-900/40 text-emerald-300" : "bg-black/30 text-zinc-500"}`}>
+                            <span
+                              className={`flex h-5 items-center justify-center rounded-full px-2 text-[10px] tabular-nums transition-colors ${roundsSubTab === "queue" ? "bg-emerald-900/40 text-emerald-300" : "bg-black/30 text-zinc-500"}`}
+                            >
                               {setup.normalRoundOrder.length}
                             </span>
                           </span>
@@ -2482,8 +2568,9 @@ function PlaylistWorkshopPage() {
 
                       {/* Selected Rounds Tab Panel */}
                       <section
-                        className={`flex max-h-[75vh] min-h-0 flex-col ${roundsSubTab !== "queue" ? "hidden" : ""
-                          }`}
+                        className={`flex max-h-[75vh] min-h-0 flex-col ${
+                          roundsSubTab !== "queue" ? "hidden" : ""
+                        }`}
                       >
                         {/* Header */}
                         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
@@ -2610,8 +2697,9 @@ function PlaylistWorkshopPage() {
 
                       {/* Available Rounds Tab Panel */}
                       <section
-                        className={`relative flex max-h-[75vh] min-h-0 flex-col ${roundsSubTab !== "library" ? "hidden" : ""
-                          }`}
+                        className={`relative flex max-h-[75vh] min-h-0 flex-col ${
+                          roundsSubTab !== "library" ? "hidden" : ""
+                        }`}
                       >
                         {/* Header */}
                         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
@@ -2920,10 +3008,11 @@ function PlaylistWorkshopPage() {
                           return (
                             <div
                               key={round.id}
-                              className={`rounded-2xl border px-3 py-3 ${selected
-                                ? "border-emerald-300/60 bg-emerald-500/12 text-emerald-100"
-                                : "border-zinc-600 bg-black/35 text-zinc-200"
-                                }`}
+                              className={`rounded-2xl border px-3 py-3 ${
+                                selected
+                                  ? "border-emerald-300/60 bg-emerald-500/12 text-emerald-100"
+                                  : "border-zinc-600 bg-black/35 text-zinc-200"
+                              }`}
                             >
                               <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
                                 <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start">
@@ -2958,10 +3047,11 @@ function PlaylistWorkshopPage() {
                                     playSelectSound();
                                     toggleCumRound(round.id);
                                   }}
-                                  className={`rounded-md border px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] ${selected
-                                    ? "border-emerald-300/60 bg-emerald-500/20 text-emerald-100"
-                                    : "border-zinc-600 bg-zinc-800 text-zinc-300"
-                                    }`}
+                                  className={`rounded-md border px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] ${
+                                    selected
+                                      ? "border-emerald-300/60 bg-emerald-500/20 text-emerald-100"
+                                      : "border-zinc-600 bg-zinc-800 text-zinc-300"
+                                  }`}
                                 >
                                   {selected ? <Trans>Enabled</Trans> : <Trans>Disabled</Trans>}
                                 </button>
@@ -3056,10 +3146,11 @@ function PlaylistWorkshopPage() {
                                 playSelectSound();
                                 togglePerk(perk.id);
                               }}
-                              className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-all ${selected
-                                ? `${rarityMeta.tailwind.setupSelected} ring-2 ring-emerald-300/65 shadow-[0_0_20px_rgba(16,185,129,0.25)]`
-                                : `${rarityMeta.tailwind.setupIdle} border-dashed opacity-70`
-                                }`}
+                              className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-all ${
+                                selected
+                                  ? `${rarityMeta.tailwind.setupSelected} ring-2 ring-emerald-300/65 shadow-[0_0_20px_rgba(16,185,129,0.25)]`
+                                  : `${rarityMeta.tailwind.setupIdle} border-dashed opacity-70`
+                              }`}
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <span className="flex items-center gap-2">
@@ -3079,10 +3170,11 @@ function PlaylistWorkshopPage() {
                                 </span>
                                 <span className="flex items-center gap-1.5">
                                   <span
-                                    className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${selected
-                                      ? "border-emerald-300/65 bg-emerald-500/25 text-emerald-50"
-                                      : "border-zinc-600 bg-zinc-800/85 text-zinc-300"
-                                      }`}
+                                    className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+                                      selected
+                                        ? "border-emerald-300/65 bg-emerald-500/25 text-emerald-50"
+                                        : "border-zinc-600 bg-zinc-800/85 text-zinc-300"
+                                    }`}
                                   >
                                     {selected ? <Trans>Active</Trans> : <Trans>Inactive</Trans>}
                                   </span>
@@ -3158,10 +3250,11 @@ function PlaylistWorkshopPage() {
                                 playSelectSound();
                                 toggleAntiPerk(perk.id);
                               }}
-                              className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-all ${selected
-                                ? `${rarityMeta.tailwind.setupSelected} ring-2 ring-rose-300/65 shadow-[0_0_20px_rgba(251,113,133,0.25)]`
-                                : `${rarityMeta.tailwind.setupIdle} border-dashed opacity-70`
-                                }`}
+                              className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-all ${
+                                selected
+                                  ? `${rarityMeta.tailwind.setupSelected} ring-2 ring-rose-300/65 shadow-[0_0_20px_rgba(251,113,133,0.25)]`
+                                  : `${rarityMeta.tailwind.setupIdle} border-dashed opacity-70`
+                              }`}
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <span className="flex items-center gap-2">
@@ -3181,10 +3274,11 @@ function PlaylistWorkshopPage() {
                                 </span>
                                 <span className="flex items-center gap-1.5">
                                   <span
-                                    className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${selected
-                                      ? "border-rose-300/65 bg-rose-500/25 text-rose-50"
-                                      : "border-zinc-600 bg-zinc-800/85 text-zinc-300"
-                                      }`}
+                                    className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+                                      selected
+                                        ? "border-rose-300/65 bg-rose-500/25 text-rose-50"
+                                        : "border-zinc-600 bg-zinc-800/85 text-zinc-300"
+                                    }`}
                                   >
                                     {selected ? <Trans>Active</Trans> : <Trans>Inactive</Trans>}
                                   </span>
@@ -3298,7 +3392,11 @@ function PlaylistWorkshopPage() {
                               : "border-white/10 bg-black/30 text-white/70 hover:border-white/20 hover:text-white"
                           }`}
                         >
-                          {setup.disableDiceAnimation ? <Trans>Enabled</Trans> : <Trans>Disabled</Trans>}
+                          {setup.disableDiceAnimation ? (
+                            <Trans>Enabled</Trans>
+                          ) : (
+                            <Trans>Disabled</Trans>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -3602,9 +3700,9 @@ function PlaylistWorkshopPage() {
                 setImportedPlaylistReview(
                   resolutionModalState.analysis.issues.length > 0
                     ? {
-                      playlistId: imported.playlist.id,
-                      analysis: resolutionModalState.analysis,
-                    }
+                        playlistId: imported.playlist.id,
+                        analysis: resolutionModalState.analysis,
+                      }
                     : null
                 );
                 showImportNotice(
@@ -3709,12 +3807,13 @@ function PlaylistWorkshopPage() {
       {importNotice && (
         <div className="fixed bottom-6 left-1/2 z-[200] -translate-x-1/2 animate-entrance">
           <div
-            className={`rounded-xl border px-5 py-3 text-sm font-semibold shadow-2xl backdrop-blur-xl ${importNotice.tone === "error"
-              ? "border-rose-300/40 bg-rose-950/85 text-rose-100 shadow-rose-500/20"
-              : importNotice.tone === "info"
-                ? "border-cyan-300/40 bg-cyan-950/85 text-cyan-100 shadow-cyan-500/20"
-                : "border-emerald-300/40 bg-emerald-950/85 text-emerald-100 shadow-emerald-500/20"
-              }`}
+            className={`rounded-xl border px-5 py-3 text-sm font-semibold shadow-2xl backdrop-blur-xl ${
+              importNotice.tone === "error"
+                ? "border-rose-300/40 bg-rose-950/85 text-rose-100 shadow-rose-500/20"
+                : importNotice.tone === "info"
+                  ? "border-cyan-300/40 bg-cyan-950/85 text-cyan-100 shadow-cyan-500/20"
+                  : "border-emerald-300/40 bg-emerald-950/85 text-emerald-100 shadow-emerald-500/20"
+            }`}
           >
             {importNotice.message}
           </div>
@@ -3979,7 +4078,7 @@ function WorkshopRoundPreview({
               if (!video) return;
               const { startSec } = resolvePreviewWindow(video);
               video.currentTime = startSec;
-              void video.play().catch(() => { });
+              void video.play().catch(() => {});
             }}
             onTimeUpdate={() => {
               if (!isPreviewActive) return;
@@ -3993,7 +4092,7 @@ function WorkshopRoundPreview({
               if (endSec !== null && video.currentTime >= endSec - 0.04) {
                 video.currentTime = startSec;
                 if (video.paused) {
-                  void video.play().catch(() => { });
+                  void video.play().catch(() => {});
                 }
               }
             }}
@@ -4003,7 +4102,7 @@ function WorkshopRoundPreview({
               if (!video) return;
               const { startSec } = resolvePreviewWindow(video);
               video.currentTime = startSec;
-              void video.play().catch(() => { });
+              void video.play().catch(() => {});
             }}
           />
         </SfwGuard>
@@ -4045,12 +4144,13 @@ function HeaderAction({
       onClick={() => {
         void onClick();
       }}
-      className={`rounded-xl border px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] ${disabled
-        ? "cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500"
-        : emphasis === "primary"
-          ? "border-emerald-300/45 bg-emerald-500/20 text-emerald-100 hover:border-emerald-200/80 hover:bg-emerald-500/35"
-          : "border-violet-300/45 bg-violet-500/20 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/35"
-        }`}
+      className={`rounded-xl border px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] ${
+        disabled
+          ? "cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500"
+          : emphasis === "primary"
+            ? "border-emerald-300/45 bg-emerald-500/20 text-emerald-100 hover:border-emerald-200/80 hover:bg-emerald-500/35"
+            : "border-violet-300/45 bg-violet-500/20 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/35"
+      }`}
     >
       {label}
     </button>
@@ -4182,10 +4282,11 @@ function NewPlaylistDialog({
           <button
             type="button"
             onClick={() => setMode("fully-random")}
-            className={`rounded-xl border px-4 py-3 text-left text-sm ${mode === "fully-random"
-              ? "border-emerald-300/60 bg-emerald-500/20 text-emerald-100"
-              : "border-zinc-600 bg-black/35 text-zinc-200"
-              }`}
+            className={`rounded-xl border px-4 py-3 text-left text-sm ${
+              mode === "fully-random"
+                ? "border-emerald-300/60 bg-emerald-500/20 text-emerald-100"
+                : "border-zinc-600 bg-black/35 text-zinc-200"
+            }`}
           >
             <div className="font-semibold">
               <Trans>Fully Random</Trans>
@@ -4197,10 +4298,11 @@ function NewPlaylistDialog({
           <button
             type="button"
             onClick={() => setMode("progressive-random")}
-            className={`rounded-xl border px-4 py-3 text-left text-sm ${mode === "progressive-random"
-              ? "border-violet-300/60 bg-violet-500/20 text-violet-100"
-              : "border-zinc-600 bg-black/35 text-zinc-200"
-              }`}
+            className={`rounded-xl border px-4 py-3 text-left text-sm ${
+              mode === "progressive-random"
+                ? "border-violet-300/60 bg-violet-500/20 text-violet-100"
+                : "border-zinc-600 bg-black/35 text-zinc-200"
+            }`}
           >
             <div className="font-semibold">
               <Trans>Progressive Random</Trans>
@@ -4291,10 +4393,11 @@ const ActionMenu = forwardRef<
               void item.onClick();
               onToggle();
             }}
-            className={`mb-1 w-full rounded-lg border px-3 py-2 text-left text-sm last:mb-0 ${item.tone === "danger"
-              ? "border-rose-300/45 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20"
-              : "border-zinc-700 bg-black/40 text-zinc-200 hover:border-violet-300/60 hover:bg-violet-500/20"
-              }`}
+            className={`mb-1 w-full rounded-lg border px-3 py-2 text-left text-sm last:mb-0 ${
+              item.tone === "danger"
+                ? "border-rose-300/45 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20"
+                : "border-zinc-700 bg-black/40 text-zinc-200 hover:border-violet-300/60 hover:bg-violet-500/20"
+            }`}
           >
             {item.label}
           </button>
@@ -4334,8 +4437,9 @@ function NumberInput({
         <span className="mb-2 block text-xs leading-5 text-zinc-400">{description}</span>
       ) : null}
       <div
-        className={`flex items-center rounded-xl border bg-black/45 p-1 ${disabled ? "border-zinc-700 opacity-50" : "border-purple-300/30"
-          }`}
+        className={`flex items-center rounded-xl border bg-black/45 p-1 ${
+          disabled ? "border-zinc-700 opacity-50" : "border-purple-300/30"
+        }`}
       >
         <button
           type="button"

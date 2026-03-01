@@ -514,7 +514,7 @@ describe("ConverterPage", () => {
       fireEvent.click(screen.getByRole("button", { name: /Standalone Source/ }));
 
       await waitFor(() => {
-        expect(screen.getByTestId("segment-list-local-cut-ready")).toHaveTextContent("yes");
+        expect(screen.getByTestId("segment-list-local-cut-ready").textContent).toContain("yes");
       });
     });
 

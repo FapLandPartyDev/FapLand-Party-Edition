@@ -7,6 +7,9 @@ import {
 import { trpc } from "../../services/trpc";
 
 export type PlaybackResource = Pick<Resource, "videoUri" | "funscriptUri"> & {
+  id?: string | null;
+  roundId?: string | null;
+  funscriptOffsetMs?: number | null;
   startTime?: number | null;
   endTime?: number | null;
   cutRanges?: RoundCutRange[] | null;

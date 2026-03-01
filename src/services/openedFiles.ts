@@ -128,10 +128,13 @@ export async function importOpenedFile(filePath: string): Promise<OpenedFileImpo
   }
 
   if (kind === "playlist") {
-    // For playlists, we also want a confirmation. We can reuse the same modal structure 
-    // by creating a pseudo-analysis or extending the modal to support generic titles.
-    // For now, satisfy the requirement by at least confirming.
-    const analysis = await db.install.inspectSidecarFile(filePath);
+    const fileName = filePath.split(/[/\\]/).pop() ?? filePath;
+    const analysis = {
+      filePath,
+      contentName: fileName.replace(/\.fplay$/iu, ""),
+      entries: [],
+      unknownEntries: [],
+    };
     const confirmation = await confirmInstallSidecar(analysis);
     if (confirmation.action === "cancel") {
       return { kind: "cancelled", filePath };

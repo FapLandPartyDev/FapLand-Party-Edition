@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  backgroundVideoEnabledQuery: vi.fn(async () => true),
+  backgroundVideoEnabledQuery: vi.fn<() => Promise<boolean | undefined>>(async () => true),
   useSfwMode: vi.fn(() => false),
   getVideoSrc: vi.fn((src: string) => src),
   ensurePlayableVideo: vi.fn(async () => null),

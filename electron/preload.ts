@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { exposeElectronTRPC } from "trpc-electron/main";
 import type { AppUpdateState } from "./services/updater";
 import type { EroScriptsLoginStatus } from "./services/eroscripts";
@@ -102,6 +102,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   appOpen: {
     consumePendingFiles: () =>
       ipcRenderer.invoke("app-open:consumePendingFiles") as Promise<string[]>,
+    openDroppedFiles: (files: FileList | File[]) => {
+      const filePaths = Array.from(files)
+        .map((file) => webUtils.getPathForFile(file))
+        .filter((filePath) => filePath.trim().length > 0);
+      return ipcRenderer.invoke("app-open:openDroppedFiles", filePaths) as Promise<void>;
+    },
     subscribe: (callback: (filePaths: string[]) => void) => {
       const listener = (_event: unknown, filePaths: string[]) => {
         callback(filePaths);

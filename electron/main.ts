@@ -1253,6 +1253,12 @@ function registerAppOpenIpc() {
   ipcMain.handle("app-open:consumePendingFiles", () => {
     return pendingOpenedFiles.splice(0, pendingOpenedFiles.length);
   });
+  ipcMain.handle("app-open:openDroppedFiles", (_event, rawFilePaths) => {
+    const filePaths = Array.isArray(rawFilePaths)
+      ? rawFilePaths.filter((filePath): filePath is string => typeof filePath === "string")
+      : [];
+    queueOpenedFiles(filePaths);
+  });
   ipcMain.handle("app-open:renderer-ready", () => {
     appOpenRendererReady = true;
     flushPendingOpenedFiles();

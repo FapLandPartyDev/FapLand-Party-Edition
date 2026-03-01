@@ -57,6 +57,13 @@
       "when": 1777593600000,
       "tag": "0007_round_hero_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778457600000,
+      "tag": "0008_resource_funscript_offset",
+      "breakpoints": true
     }
   ]
 }

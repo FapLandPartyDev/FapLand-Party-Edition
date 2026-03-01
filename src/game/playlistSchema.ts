@@ -514,6 +514,97 @@ export const ZGraphBoardConfig = z
 
 export const ZBoardConfig = z.union([ZLinearBoardConfig, ZGraphBoardConfig]);
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeLegacyGraphBoardConfig(input: Record<string, unknown>): Record<string, unknown> {
+  if (input.mode !== "graph") return input;
+  if (!Array.isArray(input.nodes)) return input;
+
+  const nodes = input.nodes.filter(isRecord).map((node) => ({ ...node }));
+  const edges = Array.isArray(input.edges)
+    ? input.edges.filter(isRecord).map((edge) => ({ ...edge }))
+    : [];
+  const nodeIds = new Set(
+    nodes.map((node) => (typeof node.id === "string" ? node.id : "")).filter(Boolean)
+  );
+  const outgoingCountByNodeId = new Map<string, number>();
+
+  for (const edge of edges) {
+    if (typeof edge.fromNodeId !== "string") continue;
+    outgoingCountByNodeId.set(
+      edge.fromNodeId,
+      (outgoingCountByNodeId.get(edge.fromNodeId) ?? 0) + 1
+    );
+  }
+
+  let endNodeId = nodes.find((node) => node.kind === "end" && typeof node.id === "string")?.id as
+    | string
+    | undefined;
+
+  if (!endNodeId) {
+    endNodeId = "end";
+    let suffix = 2;
+    while (nodeIds.has(endNodeId)) {
+      endNodeId = `end-${suffix}`;
+      suffix += 1;
+    }
+    nodes.push({ id: endNodeId, name: "End", kind: "end" });
+    nodeIds.add(endNodeId);
+  }
+
+  const edgeIds = new Set(
+    edges.map((edge) => (typeof edge.id === "string" ? edge.id : "")).filter(Boolean)
+  );
+  const createEdgeId = (fromNodeId: string) => {
+    let edgeId = `edge-${fromNodeId}-${endNodeId}`;
+    let suffix = 2;
+    while (edgeIds.has(edgeId)) {
+      edgeId = `edge-${fromNodeId}-${endNodeId}-${suffix}`;
+      suffix += 1;
+    }
+    edgeIds.add(edgeId);
+    return edgeId;
+  };
+
+  for (const node of nodes) {
+    if (typeof node.id !== "string" || node.kind === "end") continue;
+    if ((outgoingCountByNodeId.get(node.id) ?? 0) > 0) continue;
+    edges.push({
+      id: createEdgeId(node.id),
+      fromNodeId: node.id,
+      toNodeId: endNodeId,
+      gateCost: 0,
+      weight: 1,
+    });
+    outgoingCountByNodeId.set(node.id, 1);
+  }
+
+  return {
+    ...input,
+    nodes,
+    edges,
+  };
+}
+
+function normalizeLegacyPlaylistConfigInput(input: unknown): unknown {
+  if (!isRecord(input)) return input;
+  if (!isRecord(input.boardConfig)) return input;
+
+  const playlistVersion =
+    typeof input.playlistVersion === "number" && Number.isFinite(input.playlistVersion)
+      ? input.playlistVersion
+      : CURRENT_PLAYLIST_VERSION;
+
+  return {
+    ...input,
+    playlistVersion:
+      playlistVersion < CURRENT_PLAYLIST_VERSION ? CURRENT_PLAYLIST_VERSION : playlistVersion,
+    boardConfig: normalizeLegacyGraphBoardConfig(input.boardConfig),
+  };
+}
+
 export const ZPlaylistMusicTrack = z
   .object({
     id: z.string().trim().min(1),
@@ -529,7 +620,7 @@ export const ZPlaylistMusic = z
   })
   .strict();
 
-export const ZPlaylistConfig = z
+const ZPlaylistConfigCurrent = z
   .object({
     playlistVersion: z.number().int().min(1).default(CURRENT_PLAYLIST_VERSION),
     boardConfig: ZBoardConfig,
@@ -597,10 +688,15 @@ export const ZPlaylistConfig = z
     }
   });
 
+export const ZPlaylistConfig = z.preprocess(
+  normalizeLegacyPlaylistConfigInput,
+  ZPlaylistConfigCurrent
+);
+
 export const ZPlaylistEnvelopeV1 = z
   .object({
     format: z.literal(PLAYLIST_FILE_FORMAT),
-    version: z.literal(PLAYLIST_FILE_VERSION),
+    version: z.union([z.literal(1), z.literal(PLAYLIST_FILE_VERSION)]),
     metadata: z
       .object({
         name: z.string().trim().min(1),

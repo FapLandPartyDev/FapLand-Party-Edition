@@ -19,6 +19,7 @@ function makeSetup(
     enabledAntiPerkIds: [],
     perkTriggerChancePerRound: 0,
     roundStartDelaySec: 0,
+    disableDiceAnimation: false,
     startingMoney: 120,
     probabilities: {
       intermediary: { initial: 0, increasePerRound: 0, max: 0 },
@@ -41,12 +42,25 @@ function makeRound(
     heroId: null,
     name,
     author: "Author",
+    description: null,
+    bpm: null,
     type: "Normal",
     difficulty,
+    phash: null,
     previewImage: null,
     startTime: 0,
     endTime: 180000,
+    cutRangesJson: null,
+    tagsJson: "[]",
+    installSourceKey: null,
+    libraryLabel: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    hero: null,
+    tags: [],
     resources: [],
+    excludeFromRandom: false,
+    isDisabled: false,
   };
 }
 

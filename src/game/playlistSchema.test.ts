@@ -13,6 +13,9 @@ import type { InstalledRound } from "../services/db";
 function buildConfig(boardConfig: unknown): Record<string, unknown> {
   return {
     boardConfig,
+    saveMode: "none",
+    roundStartDelayMs: 0,
+    disableDiceAnimation: false,
     perkSelection: {
       optionsPerPick: 3,
       triggerChancePerCompletedRound: 0.35,
@@ -58,15 +61,19 @@ function makeRound(
     startTime: null,
     endTime: null,
     cutRangesJson: null,
+    tagsJson: "[]",
     installSourceKey: null,
+    libraryLabel: null,
     previewImage: null,
     type,
     heroId: null,
     createdAt: now,
     updatedAt: now,
     hero: null,
+    tags: [],
     resources: [],
     excludeFromRandom: false,
+    isDisabled: false,
   };
 }
 
@@ -165,7 +172,13 @@ describe("playlistSchema", () => {
         startNodeId: "start",
         nodes: [
           { id: "start", name: "Start", kind: "start" },
-          { id: "round-1", name: "Round 1", kind: "round", roundRef: { name: "Round 1" }, hiddenFromMap: true },
+          {
+            id: "round-1",
+            name: "Round 1",
+            kind: "round",
+            roundRef: { name: "Round 1" },
+            hiddenFromMap: true,
+          },
           { id: "end", name: "End", kind: "end" },
         ],
         edges: [
@@ -321,6 +334,34 @@ describe("playlistSchema", () => {
 
     expect(envelope.config.playlistVersion).toBe(CURRENT_PLAYLIST_VERSION);
     expect(envelope.config.boardConfig.mode).toBe("linear");
+  });
+
+  it("upgrades v1 graph playlists with implicit terminal nodes", () => {
+    const parsed = ZPlaylistConfig.parse({
+      ...buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          {
+            id: "round-1",
+            name: "Round 1",
+            kind: "round",
+            roundRef: { idHint: "round-1", name: "Round 1", type: "Normal" },
+          },
+        ],
+        edges: [{ id: "edge-start-round-1", fromNodeId: "start", toNodeId: "round-1" }],
+        randomRoundPools: [],
+        pathChoiceTimeoutMs: 6000,
+      }),
+      playlistVersion: 1,
+    });
+
+    expect(parsed.playlistVersion).toBe(CURRENT_PLAYLIST_VERSION);
+    expect(parsed.boardConfig.mode).toBe("graph");
+    if (parsed.boardConfig.mode !== "graph") throw new Error("Expected graph board");
+    expect(parsed.boardConfig.nodes.some((node) => node.kind === "end")).toBe(true);
+    expect(parsed.boardConfig.edges.some((edge) => edge.fromNodeId === "round-1")).toBe(true);
   });
 
   it("builds linear playlists with an explicit terminal end node", () => {

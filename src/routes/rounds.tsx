@@ -94,6 +94,10 @@ import {
   INSTALL_WEB_FUNSCRIPT_URL_ENABLED_KEY,
   normalizeInstallWebFunscriptUrlEnabled,
 } from "../constants/experimentalFeatures";
+import {
+  THEHANDY_OFFSET_MAX_MS,
+  THEHANDY_OFFSET_MIN_MS,
+} from "../constants/theHandy";
 
 type GroupMode = "hero" | "playlist";
 type EroScriptsDialogContext = "library" | "website-round" | "edit-round";
@@ -112,6 +116,7 @@ type RoundEditDraft = {
   type: EditableRoundType;
   resourceId: string | null;
   funscriptUri: string | null;
+  funscriptOffsetMs: string;
   excludeFromRandom: boolean;
 };
 type HeroEditDraft = {
@@ -425,30 +430,6 @@ function LoadingPillSkeleton() {
   );
 }
 
-function RoundsLibraryMetricsSkeleton() {
-  return (
-    <section className="relative z-40 animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-3">
-          <div className="h-6 w-48 animate-pulse rounded bg-violet-200/20" />
-          <div className="h-4 w-80 max-w-full animate-pulse rounded bg-zinc-300/10" />
-        </div>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {Array.from({ length: 4 }, (_, index) => (
-          <div
-            key={`metric-skeleton:${index}`}
-            className="rounded-2xl border border-zinc-700/60 bg-black/25 p-4"
-          >
-            <div className="h-3 w-20 animate-pulse rounded bg-zinc-300/10" />
-            <div className="mt-3 h-8 w-12 animate-pulse rounded bg-violet-300/15" />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function RoundsLibraryFiltersSkeleton() {
   return (
     <section
@@ -601,6 +582,7 @@ function toLegacyPlaylistConfig(orderedSlots: LegacyImportedSlot[]): PlaylistCon
       normalRoundOrder: [],
       cumRoundRefs: [],
     },
+    saveMode: "none",
     perkSelection: {
       optionsPerPick: 3,
       triggerChancePerCompletedRound: 0.51,
@@ -618,6 +600,7 @@ function toLegacyPlaylistConfig(orderedSlots: LegacyImportedSlot[]): PlaylistCon
       maxAntiPerkProbability: 0.75,
     },
     roundStartDelayMs: 20000,
+    disableDiceAnimation: false,
     dice: { min: 1, max: 6 },
     economy: {
       startingMoney: 120,
@@ -703,6 +686,8 @@ function toRoundEditDraft(
     type: round.type ?? "Normal",
     resourceId: primaryResource?.id ?? null,
     funscriptUri,
+    funscriptOffsetMs:
+      primaryResource?.funscriptOffsetMs == null ? "" : `${primaryResource.funscriptOffsetMs}`,
     excludeFromRandom: round.excludeFromRandom ?? false,
   };
 }
@@ -731,6 +716,14 @@ function parseOptionalInteger(value: string): number | null {
   const parsed = Number(trimmed);
   if (!Number.isFinite(parsed)) return Number.NaN;
   return Math.max(0, Math.round(parsed));
+}
+
+function parseOptionalSignedInteger(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) return Number.NaN;
+  return parsed;
 }
 
 function parseOptionalFloat(value: string): number | null {
@@ -847,10 +840,8 @@ export function InstalledRoundsPage() {
   const [deleteRoundDialog, setDeleteRoundDialog] = useState<DeleteRoundDialogState | null>(null);
   const [deleteHeroDialog, setDeleteHeroDialog] = useState<DeleteHeroDialogState | null>(null);
   const [showDisabledRounds, setShowDisabledRounds] = useState(false);
-  const [roundsResource, setRoundsResource] = useState<
-    AsyncResource<InstalledRoundCatalogEntry[]>
-  >(() =>
-    createAsyncResource<InstalledRoundCatalogEntry[]>([])
+  const [roundsResource, setRoundsResource] = useState<AsyncResource<InstalledRoundCatalogEntry[]>>(
+    () => createAsyncResource<InstalledRoundCatalogEntry[]>([])
   );
   const [playlistsResource, setPlaylistsResource] = useState<AsyncResource<StoredPlaylist[]>>(() =>
     createAsyncResource<StoredPlaylist[]>([])
@@ -958,7 +949,7 @@ export function InstalledRoundsPage() {
 
   useEffect(() => {
     let mounted = true;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
+    let timeout: number | null = null;
 
     const scheduleNext = (delayMs: number) => {
       if (!mounted) return;
@@ -1565,7 +1556,7 @@ export function InstalledRoundsPage() {
     let mounted = true;
     let previousState: string | null = null;
     let hadActiveProgress = false;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
+    let timeout: number | null = null;
 
     const scheduleNext = (delayMs: number) => {
       if (!mounted) return;
@@ -1671,7 +1662,16 @@ export function InstalledRoundsPage() {
         libraryFilter,
         sortMode,
       }),
-    [actorFilter, deferredQuery, indexedRounds, libraryFilter, scriptFilter, sortMode, tagFilter, typeFilter]
+    [
+      actorFilter,
+      deferredQuery,
+      indexedRounds,
+      libraryFilter,
+      scriptFilter,
+      sortMode,
+      tagFilter,
+      typeFilter,
+    ]
   );
   const playlistGroupingData = useMemo(
     () =>
@@ -1820,14 +1820,7 @@ export function InstalledRoundsPage() {
           );
         });
     },
-    [
-      cardAssetsByRoundId,
-      handleSelectSfx,
-      loadPreviewSettings,
-      showDisabledRounds,
-      showToast,
-      t,
-    ]
+    [cardAssetsByRoundId, handleSelectSfx, loadPreviewSettings, showDisabledRounds, showToast, t]
   );
   const handleEditRound = useCallback(
     (round: RoundLibraryEntry) => {
@@ -2449,8 +2442,19 @@ export function InstalledRoundsPage() {
     const difficulty = parseOptionalInteger(editingRound.difficulty);
     const startTime = parseOptionalInteger(editingRound.startTime);
     const endTime = parseOptionalInteger(editingRound.endTime);
-    if ([bpm, difficulty, startTime, endTime].some((value) => Number.isNaN(value))) {
+    const funscriptOffsetMs = parseOptionalSignedInteger(editingRound.funscriptOffsetMs);
+    if ([bpm, difficulty, startTime, endTime, funscriptOffsetMs].some((value) => Number.isNaN(value))) {
       showToast(t`Round fields must use valid numeric values.`, "error");
+      return;
+    }
+    if (
+      funscriptOffsetMs !== null &&
+      (funscriptOffsetMs < THEHANDY_OFFSET_MIN_MS || funscriptOffsetMs > THEHANDY_OFFSET_MAX_MS)
+    ) {
+      showToast(
+        t`Funscript offset must be between ${THEHANDY_OFFSET_MIN_MS}ms and ${THEHANDY_OFFSET_MAX_MS}ms.`,
+        "error"
+      );
       return;
     }
 
@@ -2467,6 +2471,7 @@ export function InstalledRoundsPage() {
         startTime,
         endTime,
         funscriptUri: editingRound.resourceId ? editingRound.funscriptUri : undefined,
+        funscriptOffsetMs: editingRound.resourceId ? funscriptOffsetMs : undefined,
         type: editingRound.type,
         excludeFromRandom: editingRound.excludeFromRandom,
         libraryLabel: editingRound.libraryLabel,
@@ -3186,7 +3191,10 @@ export function InstalledRoundsPage() {
                           value={actorFilter}
                           options={[
                             { value: "all", label: t`All` },
-                            ...metadataOptions.authorNames.map((value) => ({ value, label: value })),
+                            ...metadataOptions.authorNames.map((value) => ({
+                              value,
+                              label: value,
+                            })),
                           ]}
                           onChange={(value) => {
                             startTransition(() => {
@@ -3202,7 +3210,10 @@ export function InstalledRoundsPage() {
                           value={libraryFilter}
                           options={[
                             { value: "all", label: t`All` },
-                            ...metadataOptions.libraryLabels.map((value) => ({ value, label: value })),
+                            ...metadataOptions.libraryLabels.map((value) => ({
+                              value,
+                              label: value,
+                            })),
                           ]}
                           onChange={(value) => {
                             startTransition(() => {
@@ -3900,6 +3911,25 @@ export function InstalledRoundsPage() {
                     </span>
                   )}
                 </div>
+                <div>
+                  <label className="mb-1 block text-xs uppercase tracking-[0.18em] text-zinc-500">
+                    <Trans>Funscript Offset (ms)</Trans>
+                  </label>
+                  <input
+                    value={editingRound.funscriptOffsetMs}
+                    disabled={isSavingEdit || !editingRound.resourceId}
+                    inputMode="numeric"
+                    placeholder="0"
+                    onChange={(event) =>
+                      setEditingRound((previous) =>
+                        previous
+                          ? { ...previous, funscriptOffsetMs: event.target.value }
+                          : previous
+                      )
+                    }
+                    className="w-full rounded-xl border border-violet-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-200/70 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -4498,7 +4528,7 @@ const RoundCard = memo(function RoundCard({
   const [hasActivatedPreview, setHasActivatedPreview] = useState(false);
   const [isPreviewActive, setIsPreviewActive] = useState(false);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
-  const previewHoverTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const previewHoverTimeoutRef = useRef<number | null>(null);
   const firstResource = round.resources[0];
   const previewUri = cardAssets?.previewVideoUri;
   const previewImage = cardAssets?.previewImage ?? null;
@@ -5320,8 +5350,8 @@ function EditDialog({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-3xl border border-violet-300/30 bg-zinc-950/95 p-5 shadow-[0_0_40px_rgba(139,92,246,0.28)]">
-        <div className="mb-4 flex items-center justify-between gap-4">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-3xl border border-violet-300/30 bg-zinc-950/95 p-5 shadow-[0_0_40px_rgba(139,92,246,0.28)]">
+        <div className="mb-4 flex flex-shrink-0 items-center justify-between gap-4">
           <h2 className="text-xl font-extrabold tracking-tight text-zinc-100">{title}</h2>
           <button
             type="button"
@@ -5332,8 +5362,8 @@ function EditDialog({
             <Trans>Close</Trans>
           </button>
         </div>
-        {children}
-        <div className="mt-4 flex justify-end gap-3">
+        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        <div className="mt-4 flex flex-shrink-0 justify-end gap-3">
           {onDestructiveAction && destructiveActionLabel && (
             <button
               type="button"
@@ -6143,7 +6173,7 @@ function RoundActionButton({
   onHover: () => void;
   disabled?: boolean;
   description?: string;
-  tone?: "violet" | "emerald" | "cyan" | "sky";
+  tone?: "violet" | "emerald" | "cyan" | "sky" | "rose";
 }) {
   const activeToneClass =
     tone === "emerald"
@@ -6152,7 +6182,9 @@ function RoundActionButton({
         ? "border-cyan-300/55 bg-cyan-500/18 text-cyan-100 hover:border-cyan-200/80 hover:bg-cyan-500/30"
         : tone === "sky"
           ? "border-sky-300/55 bg-sky-500/18 text-sky-100 hover:border-sky-200/80 hover:bg-sky-500/30"
-          : "border-violet-300/55 bg-violet-500/18 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/30";
+          : tone === "rose"
+            ? "border-rose-300/55 bg-rose-500/18 text-rose-100 hover:border-rose-200/80 hover:bg-rose-500/30"
+            : "border-violet-300/55 bg-violet-500/18 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/30";
 
   return (
     <button

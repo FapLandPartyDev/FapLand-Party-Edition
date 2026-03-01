@@ -146,10 +146,18 @@ export const db = {
       startTime?: number | null;
       endTime?: number | null;
       funscriptUri?: string | null;
+      funscriptOffsetMs?: number | null;
       type: "Normal" | "Interjection" | "Cum";
       excludeFromRandom?: boolean;
       libraryLabel?: string | null;
     }) => withInstalledRoundCacheInvalidation(() => trpc.db.updateRound.mutate(input)),
+    updateResourceFunscriptOffset: (input: { resourceId: string; roundId?: string; offsetMs: number }) =>
+      withInstalledRoundCacheInvalidation(() =>
+        trpc.db.updateResourceFunscriptOffset.mutate({
+          resourceId: input.resourceId,
+          offsetMs: input.offsetMs,
+        })
+      ),
     createWebsiteRound: (input: { name: string; videoUri: string; funscriptUri?: string | null }) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.createWebsiteRound.mutate(input)),
     createMediaRound: (input: {

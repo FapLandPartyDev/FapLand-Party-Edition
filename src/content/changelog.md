@@ -1,5 +1,32 @@
 # What's New
 
+## v0.3.1-beta
+
+### Added
+
+- Each installed round resource can now store a **per-resource funscript offset** (in ms) so TheHandy sync adjusts automatically per round instead of relying on a single global offset.
+- The global Handy overlay and in-game overlay now show a **Save Offset to Round** button during playback when a funscript is active, letting you persist the current offset directly to the round resource (keyboard shortcut `Ctrl+Shift+S`).
+- **Drag-and-drop file import** — dropping `.fplay` playlist files, funscripts, or videos onto the app window now opens them through the existing file-handler pipeline.
+- Playlist export can now produce a bundled **.fpack** archive alongside the existing directory export.
+- Legacy graph playlists that contain disconnected nodes now auto-repair by connecting dangling nodes to an end node during import, so older files open without validation errors.
+
+### Changed
+
+- During round playback, TheHandy offset now starts from the round's stored `funscriptOffsetMs` if set, falling back to the global offset otherwise; adjusting the offset from the overlay edits the per-round override in real time.
+- Exporting or saving a linear playlist from the Workshop now auto-persists unsaved changes first, so the exported file always reflects the current editor state.
+- The playlist file parser now accepts version-1 envelopes in addition to the current format, improving backward compatibility with older `.fplay` files.
+- Map previews no longer render text annotations, reducing visual noise in small thumbnails.
+- Various formatting and lint cleanups across settings, rounds, converter, and workshop modules.
+- The build obfuscation plugin no longer uses a type-unsafe `as const` assertion for string array encoding options.
+
+### Fixed
+
+- Existing installs now auto-repair missing `funscriptOffsetMs` database columns after upgrades.
+- Schema-repair detection now also checks for the `funscriptOffsetMs` column alongside the previously tracked columns.
+- Timer interval references in polling effects now use the correct `number` type for browser `setTimeout` return values instead of `ReturnType<typeof setTimeout>`.
+
+---
+
 ## v0.3.0-beta
 
 ### Added

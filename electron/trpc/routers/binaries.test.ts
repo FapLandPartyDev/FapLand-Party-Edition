@@ -24,6 +24,13 @@ vi.mock("../../services/webVideo/binaries", () => ({
 }));
 
 import { binariesRouter } from "./binaries";
+import type { Context } from "../trpc";
+
+const testContext: Context = {
+  event: {
+    sender: {},
+  } as Context["event"],
+};
 
 describe("binariesRouter", () => {
   beforeEach(() => {
@@ -44,7 +51,7 @@ describe("binariesRouter", () => {
       version: "2026.04.01",
     });
 
-    const caller = binariesRouter.createCaller({});
+    const caller = binariesRouter.createCaller(testContext);
     const result = await caller.getResolvedVersions();
 
     expect(mocks.resetPhashBinariesCache).toHaveBeenCalledTimes(1);
@@ -84,7 +91,7 @@ describe("binariesRouter", () => {
       version: "2026.04.01",
     });
 
-    const caller = binariesRouter.createCaller({});
+    const caller = binariesRouter.createCaller(testContext);
     const result = await caller.getResolvedVersions();
 
     expect(result.ffmpeg).toMatchObject({
@@ -117,7 +124,7 @@ describe("binariesRouter", () => {
     });
     mocks.resolveYtDlpBinary.mockRejectedValue(new Error("yt-dlp unavailable"));
 
-    const caller = binariesRouter.createCaller({});
+    const caller = binariesRouter.createCaller(testContext);
     const result = await caller.getResolvedVersions();
 
     expect(result.ffmpeg).toMatchObject({

@@ -287,12 +287,15 @@ describe("repairInstalledLibrarySchema", () => {
     expect(execute).toHaveBeenCalledWith(
       expect.stringContaining('ALTER TABLE "Round" ADD COLUMN "libraryLabel" text')
     );
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Resource" ADD COLUMN "funscriptOffsetMs" integer')
+    );
   });
 
   it("does nothing when installed library columns already exist", async () => {
     execute.mockImplementation(async (sql: string) => {
       if (sql.includes('PRAGMA table_info("Resource")')) {
-        return { rows: [{ name: "id" }, { name: "durationMs" }] };
+        return { rows: [{ name: "id" }, { name: "durationMs" }, { name: "funscriptOffsetMs" }] };
       }
       if (sql.includes('PRAGMA table_info("Round")')) {
         return {
@@ -330,6 +333,9 @@ describe("repairInstalledLibrarySchema", () => {
     );
     expect(execute).not.toHaveBeenCalledWith(
       expect.stringContaining('ALTER TABLE "Round" ADD COLUMN "libraryLabel"')
+    );
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Resource" ADD COLUMN "funscriptOffsetMs"')
     );
   });
 });

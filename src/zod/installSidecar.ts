@@ -42,6 +42,7 @@ export const ZInstallResource = z
   .object({
     videoUri: ZInstallUri,
     funscriptUri: ZInstallUri.nullish(),
+    funscriptOffsetMs: z.number().int().min(-2000).max(2000).nullish(),
   })
   .strict();
 

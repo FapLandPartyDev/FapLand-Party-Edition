@@ -54,8 +54,12 @@ const {
   generateVideoPhashForNormalizedRangeMock: vi.fn(),
   getNormalizedVideoHashRangeMock: vi.fn(),
   toVideoHashRangeCacheKeyMock: vi.fn((input: string) => input),
-  generateRoundPreviewImageDataUriMock: vi.fn(async () => null),
-  calculateFunscriptDifficultyFromUriMock: vi.fn(async () => null),
+  generateRoundPreviewImageDataUriMock: vi.fn<
+    (input: { videoUri: string }) => Promise<string | null>
+  >(async () => null),
+  calculateFunscriptDifficultyFromUriMock: vi.fn<(funscriptUri: string) => Promise<number | null>>(
+    async () => null
+  ),
 }));
 
 vi.mock("./dialogPathApproval", () => ({

@@ -74,6 +74,7 @@ export function isSupportedVideoFileExtension(extension: string): boolean {
 type PreparedResource = {
   videoUri: string;
   funscriptUri: string | null;
+  funscriptOffsetMs: number | null;
   phash: string | null;
   durationMs: number | null;
 };
@@ -157,6 +158,7 @@ type SimilarPhashCandidate = {
   roundId?: string | null;
   videoUri: string;
   funscriptUri?: string | null;
+  funscriptOffsetMs?: number | null;
   durationMs?: number | null;
   phash: string;
 };
@@ -1149,6 +1151,7 @@ async function prepareRoundResources(
   const resources: Array<{
     videoUri: string;
     funscriptUri: string | null;
+    funscriptOffsetMs: number | null;
     localVideoPath: string | null;
   }> = [];
 
@@ -1174,6 +1177,7 @@ async function prepareRoundResources(
       resources.push({
         videoUri,
         funscriptUri,
+        funscriptOffsetMs: resource.funscriptOffsetMs ?? null,
         localVideoPath: fromLocalMediaUri(videoUri),
       });
     }
@@ -1195,6 +1199,7 @@ async function prepareRoundResources(
     resources.push({
       videoUri: toLocalMediaUri(localVideoPath),
       funscriptUri: localFunscriptExists ? toLocalMediaUri(funscriptPath) : null,
+      funscriptOffsetMs: null,
       localVideoPath,
     });
   }
@@ -1227,6 +1232,7 @@ async function prepareRoundResources(
         return {
           videoUri: resource.videoUri,
           funscriptUri: resource.funscriptUri,
+          funscriptOffsetMs: resource.funscriptOffsetMs,
           phash: resolvedPhash,
           durationMs: mediaOptions.deferDuration
             ? null
@@ -1263,13 +1269,13 @@ async function ensureHeroWithMissingMetadata(
   if (!existing) {
     const [created] = await tx
       .insert(hero)
-        .values({
-          name: heroInput.name,
-          author: normalizedAuthor,
-          description: normalizedDescription,
-          tagsJson: JSON.stringify(normalizedTags),
-          phash: normalizedPhash,
-        })
+      .values({
+        name: heroInput.name,
+        author: normalizedAuthor,
+        description: normalizedDescription,
+        tagsJson: JSON.stringify(normalizedTags),
+        phash: normalizedPhash,
+      })
       .returning({ id: hero.id });
     context.heroByName.set(heroInput.name, {
       id: created.id,
@@ -1353,6 +1359,7 @@ function rememberCanonicalResource(
       roundId: null,
       videoUri,
       funscriptUri,
+      funscriptOffsetMs: null,
       durationMs,
       phash: normalizedForSimilarity,
     });
@@ -1361,7 +1368,9 @@ function rememberCanonicalResource(
 
 function normalizeTags(input: string[] | null | undefined): string[] {
   if (!input) return [];
-  return [...new Set(input.map((entry) => normalizeText(entry)?.toLowerCase()).filter(Boolean))] as string[];
+  return [
+    ...new Set(input.map((entry) => normalizeText(entry)?.toLowerCase()).filter(Boolean)),
+  ] as string[];
 }
 
 function resolveLibraryLabelFromSidecarPath(
@@ -1382,6 +1391,7 @@ async function upsertRoundWithResources(
     heroId: string | null;
     resources: PreparedResource[];
     previewImage?: string | null;
+    libraryLabel?: string | null;
   }
 ): Promise<{ updated: boolean; roundId: string }> {
   throwIfAbortRequested();
@@ -1408,7 +1418,7 @@ async function upsertRoundWithResources(
       : {}),
     heroId: params.heroId,
     installSourceKey: params.installSourceKey,
-    libraryLabel: params.libraryLabel,
+    libraryLabel: params.libraryLabel ?? null,
     previewImage,
   };
 
@@ -1458,6 +1468,7 @@ async function upsertRoundWithResources(
     dedupedResources.push({
       videoUri: canonicalVideoUri,
       funscriptUri: res.funscriptUri,
+      funscriptOffsetMs: res.funscriptOffsetMs,
       phash: res.phash,
       durationMs: res.durationMs,
     });
@@ -1471,6 +1482,7 @@ async function upsertRoundWithResources(
         roundId,
         videoUri: r.videoUri,
         funscriptUri: r.funscriptUri,
+        funscriptOffsetMs: r.funscriptOffsetMs,
         phash: r.phash,
         durationMs: r.durationMs,
       }))
@@ -1831,6 +1843,7 @@ async function persistPreparedEntry(
         heroId,
         resources: payload.resources,
         previewImage: payload.previewImage,
+        libraryLabel: payload.libraryLabel,
       });
       roundIds.push(upserted.roundId);
 
@@ -1881,6 +1894,7 @@ function toSidecarRoundDataFromExistingRound(row: ReconciliationRoundRow): Sidec
     cutRanges: parseRoundCutRangesJson(row.cutRangesJson, row.startTime, row.endTime),
     type: row.type,
     excludeFromRandom: row.excludeFromRandom,
+    tags: [],
     resources: [],
   };
 }
@@ -1935,6 +1949,7 @@ async function buildPreparedResourcesFromInstalledRound(
   return sourceResources.map((entry) => ({
     videoUri: entry.videoUri,
     funscriptUri: entry.funscriptUri,
+    funscriptOffsetMs: entry.funscriptOffsetMs,
     phash: entry.phash,
     durationMs: entry.durationMs,
   }));
@@ -1972,6 +1987,7 @@ async function attachResourcesToTemplateRound(
     heroId: roundRow.heroId,
     resources,
     previewImage,
+    libraryLabel: null,
   });
 }
 
@@ -1991,6 +2007,7 @@ async function tryResolveTemplateRoundFromFilesystem(
     {
       videoUri: toLocalMediaUri(localVideoPath),
       funscriptUri: localFunscriptExists ? toLocalMediaUri(funscriptPath) : null,
+      funscriptOffsetMs: null,
       phash: roundRow.phash,
       durationMs: await resolveLocalVideoDurationMs(context, localVideoPath),
     },
@@ -2019,6 +2036,7 @@ function tryResolveTemplateRoundFromInstalledRounds(
     {
       videoUri: similarMatch.item.videoUri,
       funscriptUri: similarMatch.item.funscriptUri ?? null,
+      funscriptOffsetMs: similarMatch.item.funscriptOffsetMs ?? null,
       phash: normalizedPhash,
       durationMs: similarMatch.item.durationMs ?? null,
     },
@@ -2057,6 +2075,7 @@ async function findHeroRounds(
       .map((resourceEntry) => ({
         videoUri: resourceEntry.videoUri,
         funscriptUri: resourceEntry.funscriptUri,
+        funscriptOffsetMs: resourceEntry.funscriptOffsetMs,
         phash: resourceEntry.phash,
         durationMs: resourceEntry.durationMs,
       })),

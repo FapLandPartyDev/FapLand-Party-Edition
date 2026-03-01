@@ -47,6 +47,7 @@ type HandyContextType = {
     setSyncStatus: (next: { synced: boolean; error?: string | null }) => void;
     adjustOffset: (deltaMs: number) => Promise<number>;
     resetOffset: () => Promise<void>;
+    setResourceOffsetOverride: (offsetMs: number | null) => void;
     refreshStroke: () => Promise<void>;
     setStrokePercent: (percent: number) => Promise<void>;
     setStrokeBounds: (minPercent: number, maxPercent: number) => Promise<void>;
@@ -95,7 +96,8 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [connectionKey, setConnectionKey] = useState("");
     const [appApiKeyOverride, setAppApiKeyOverride] = useState("");
     const [localIp, setLocalIp] = useState("");
-    const [offsetMs, setOffsetMs] = useState(0);
+    const [globalOffsetMs, setGlobalOffsetMs] = useState(0);
+    const [resourceOffsetOverrideMs, setResourceOffsetOverrideMs] = useState<number | null>(null);
     const [strokeState, setStrokeState] = useState<HandyStrokeState>(DEFAULT_STROKE_STATE);
     const [strokeLoading, setStrokeLoading] = useState(false);
     const [strokeError, setStrokeError] = useState<string | null>(null);
@@ -109,6 +111,7 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const appApiKey = resolveHandyAppApiKey(appApiKeyOverride);
     const isUsingDefaultAppApiKey = normalizeHandyAppApiKeyOverride(appApiKeyOverride).length === 0;
     const strokePercent = getHandyStrokePercent(strokeState);
+    const offsetMs = resourceOffsetOverrideMs ?? globalOffsetMs;
 
     const refreshStroke = useCallback(async (
         authOverride?: { connectionKey?: string; appApiKey?: string }
@@ -143,7 +146,7 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (savedKey) setConnectionKey(savedKey);
             if (savedOverride) setAppApiKeyOverride(savedOverride);
             if (savedIp) setLocalIp(savedIp);
-            setOffsetMs(savedOffsetMs);
+            setGlobalOffsetMs(savedOffsetMs);
 
             if (!savedKey) return;
 
@@ -183,7 +186,7 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const persistOffset = useCallback(async (nextOffsetMs: number): Promise<number> => {
         const normalized = normalizeHandyOffsetMs(nextOffsetMs);
-        setOffsetMs(normalized);
+        setGlobalOffsetMs(normalized);
 
         try {
             await trpc.store.set.mutate({ key: THEHANDY_OFFSET_MS_STORE_KEY, value: normalized });
@@ -327,12 +330,26 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, []);
 
     const adjustOffset = useCallback(async (deltaMs: number): Promise<number> => {
-        return persistOffset(offsetMs + deltaMs);
-    }, [offsetMs, persistOffset]);
+        const nextOffsetMs = offsetMs + deltaMs;
+        if (resourceOffsetOverrideMs !== null) {
+            const normalized = normalizeHandyOffsetMs(nextOffsetMs);
+            setResourceOffsetOverrideMs(normalized);
+            return normalized;
+        }
+        return persistOffset(nextOffsetMs);
+    }, [offsetMs, persistOffset, resourceOffsetOverrideMs]);
 
     const resetOffset = useCallback(async () => {
+        if (resourceOffsetOverrideMs !== null) {
+            setResourceOffsetOverrideMs(0);
+            return;
+        }
         await persistOffset(0);
-    }, [persistOffset]);
+    }, [persistOffset, resourceOffsetOverrideMs]);
+
+    const setResourceOffsetOverride = useCallback((nextOffsetMs: number | null) => {
+        setResourceOffsetOverrideMs(nextOffsetMs == null ? null : normalizeHandyOffsetMs(nextOffsetMs));
+    }, []);
 
     const setStrokeBounds = useCallback(async (minPercent: number, maxPercent: number): Promise<void> => {
         const trimmedKey = connectionKey.trim();
@@ -405,6 +422,7 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSyncStatus,
         adjustOffset,
         resetOffset,
+        setResourceOffsetOverride,
         refreshStroke,
         setStrokePercent,
         setStrokeBounds,
@@ -416,6 +434,7 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isUsingDefaultAppApiKey,
         localIp,
         offsetMs,
+        resourceOffsetOverrideMs,
         strokeState,
         strokePercent,
         strokeLoading,
@@ -434,6 +453,7 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSyncStatus,
         adjustOffset,
         resetOffset,
+        setResourceOffsetOverride,
         refreshStroke,
         setStrokePercent,
         setStrokeBounds,

@@ -222,7 +222,8 @@ vi.mock("../services/trpc", () => ({
         query: vi.fn(async ({ keys }: { keys: string[] }) => {
           const values: Record<string, unknown> = {};
           for (const key of keys) {
-            if (key === "game.intermediary.loadingPrompt") values[key] = "animated gif webm score:>300";
+            if (key === "game.intermediary.loadingPrompt")
+              values[key] = "animated gif webm score:>300";
             else if (key === "game.intermediary.loadingDurationSec") values[key] = 5;
             else if (key === "game.intermediary.returnPauseSec") values[key] = 4;
             else if (key === "videoHash.ffmpegSourcePreference") values[key] = "auto";
@@ -231,7 +232,8 @@ vi.mock("../services/trpc", () => ({
             else if (key === "experimental.controllerSupportEnabled") values[key] = false;
             else if (key === "experimental.installWebFunscriptUrlEnabled") values[key] = false;
             else if (key === "experimental.systemLanguageEnabled") values[key] = false;
-            else if (key === "experimental.playlistCacheOngoingRestrictionDisabled") values[key] = false;
+            else if (key === "experimental.playlistCacheOngoingRestrictionDisabled")
+              values[key] = false;
             else if (key === "round.video.progressBarAlwaysVisible") values[key] = false;
             else values[key] = null;
           }
@@ -706,7 +708,9 @@ describe("Settings music section", () => {
     expect(screen.getByText("Ctrl/Cmd+R")).toBeDefined();
     expect(screen.getAllByText("Ctrl/Cmd+S").length).toBeGreaterThan(0);
     expect(screen.getByText("Open or close the global music overlay.")).toBeDefined();
-    expect(screen.getByText("Reconnect TheHandy using the saved connection settings.")).toBeDefined();
+    expect(
+      screen.getByText("Reconnect TheHandy using the saved connection settings.")
+    ).toBeDefined();
     expect(screen.getByText("Save converted rounds to the current hero.")).toBeDefined();
   });
 
@@ -721,7 +725,9 @@ describe("Settings music section", () => {
       (helpButton.compareDocumentPosition(changelogButton) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
     ).toBe(true);
     expect(
-      (changelogButton.compareDocumentPosition(creditsButton) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+      (changelogButton.compareDocumentPosition(creditsButton) &
+        Node.DOCUMENT_POSITION_FOLLOWING) !==
+        0
     ).toBe(true);
 
     fireEvent.click(changelogButton);
@@ -752,12 +758,12 @@ describe("Settings music section", () => {
   });
 
   it("hides debug shortcuts in production builds", () => {
-    expect(getVisibleShortcutGroups(testI18n, true).some((group) => group.id === "game-debug")).toBe(
-      false
-    );
-    expect(getVisibleShortcutGroups(testI18n, false).some((group) => group.id === "game-debug")).toBe(
-      true
-    );
+    expect(
+      getVisibleShortcutGroups(testI18n, true).some((group) => group.id === "game-debug")
+    ).toBe(false);
+    expect(
+      getVisibleShortcutGroups(testI18n, false).some((group) => group.id === "game-debug")
+    ).toBe(true);
   });
 
   it("shows live program versions in Advanced and refreshes after source changes", async () => {
@@ -766,9 +772,9 @@ describe("Settings music section", () => {
     fireEvent.click(screen.getByRole("button", { name: "🔧 Advanced" }));
 
     await screen.findByText("Program Versions");
-    expect(screen.getByText("/bundle/ffmpeg")).toBeInTheDocument();
-    expect(screen.getByText("/bundle/ffprobe")).toBeInTheDocument();
-    expect(screen.getByText("/bundle/yt-dlp")).toBeInTheDocument();
+    expect(screen.getByText("/bundle/ffmpeg")).toBeDefined();
+    expect(screen.getByText("/bundle/ffprobe")).toBeDefined();
+    expect(screen.getByText("/bundle/yt-dlp")).toBeDefined();
     expect(vi.mocked(trpc.binaries.getResolvedVersions.query)).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
@@ -832,7 +838,7 @@ describe("Settings music section", () => {
     fireEvent.click(screen.getByRole("button", { name: "🔧 Advanced" }));
 
     await screen.findAllByText("Unavailable");
-    expect(screen.getByText("ffmpeg missing")).toBeInTheDocument();
-    expect(screen.getByText("/bundle/yt-dlp")).toBeInTheDocument();
+    expect(screen.getByText("ffmpeg missing")).toBeDefined();
+    expect(screen.getByText("/bundle/yt-dlp")).toBeDefined();
   });
 });

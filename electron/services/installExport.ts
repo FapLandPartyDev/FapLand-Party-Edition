@@ -23,6 +23,7 @@ export type ExportInstalledDatabaseResult = {
 type SidecarResource = {
   videoUri: string;
   funscriptUri: string | null | undefined;
+  funscriptOffsetMs?: number | null;
 };
 
 type SidecarRound = {
@@ -80,6 +81,7 @@ function toRoundSidecar(round: SidecarRound, includeResourceUris: boolean) {
       ? round.resources.map((resource) => ({
         videoUri: resource.videoUri,
         funscriptUri: resource.funscriptUri ?? undefined,
+        funscriptOffsetMs: resource.funscriptOffsetMs ?? undefined,
       }))
       : [],
   });

@@ -53,7 +53,7 @@ vi.mock("pixi.js", () => {
     interactiveChildren = true;
     eventMode = "auto";
     cursor = "";
-    children: unknown[] = [];
+    children: PixiDisplayObject[] = [];
     text = "";
     style: Record<string, unknown> = {};
     eventHandlers: Record<string, Array<() => void>> = {};
@@ -104,12 +104,12 @@ vi.mock("pixi.js", () => {
       return proxy;
     }
 
-    addChild(...children: unknown[]) {
+    addChild(...children: PixiDisplayObject[]) {
       this.children.push(...children);
       return children[0] ?? null;
     }
 
-    removeChild(...children: unknown[]) {
+    removeChild(...children: PixiDisplayObject[]) {
       this.children = this.children.filter((child) => !children.includes(child));
       return children[0] ?? null;
     }

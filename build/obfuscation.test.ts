@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { OutputChunk } from "vite";
+import type { OutputChunk } from "rollup";
 import { shouldObfuscateChunk } from "./obfuscation";
 
 function createChunk(fileName: string, moduleIds: string[]): OutputChunk {
@@ -19,13 +19,18 @@ function createChunk(fileName: string, moduleIds: string[]): OutputChunk {
     isImplicitEntry: false,
     map: null,
     moduleIds,
-    modules: Object.fromEntries(moduleIds.map((moduleId) => [moduleId, {
-      code: null,
-      originalLength: 0,
-      removedExports: [],
-      renderedExports: [],
-      renderedLength: 0,
-    }])),
+    modules: Object.fromEntries(
+      moduleIds.map((moduleId) => [
+        moduleId,
+        {
+          code: null,
+          originalLength: 0,
+          removedExports: [],
+          renderedExports: [],
+          renderedLength: 0,
+        },
+      ])
+    ),
     preliminaryFileName: fileName,
     referencedFiles: [],
     sourcemapFileName: null,

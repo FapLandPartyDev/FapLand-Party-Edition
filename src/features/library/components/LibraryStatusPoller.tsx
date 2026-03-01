@@ -114,7 +114,7 @@ export const LibraryStatusPoller: React.FC<LibraryStatusPollerProps> = memo(
 
     useEffect(() => {
       let mounted = true;
-      let timeout: ReturnType<typeof setTimeout> | null = null;
+      let timeout: number | null = null;
 
       const scheduleNext = (delayMs: number) => {
         if (!mounted) return;

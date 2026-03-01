@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "composite": true,
@@ -8,5 +10,5 @@
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "build/**/*.ts"]
 }

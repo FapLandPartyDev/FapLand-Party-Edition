@@ -68,6 +68,7 @@ describe("converter shortcut hints", () => {
         markInMs={1_000}
         markOutMs={3_000}
         hasSelectedSegment
+        previewSkipsCuts={false}
         getVideoSrc={() => undefined}
         onLoadedMetadata={() => {}}
         onTimeUpdate={() => {}}
@@ -79,6 +80,7 @@ describe("converter shortcut hints", () => {
         onMoveSelectedStartToPlayhead={() => {}}
         onMoveSelectedEndToPlayhead={() => {}}
         onRandomJump={() => {}}
+        onPreviewSkipsCutsChange={() => {}}
       />
     );
 
@@ -95,11 +97,17 @@ describe("converter shortcut hints", () => {
         selectedSegmentId={null}
         selectedSegment={null}
         heroName="Hero"
+        currentTimeMs={0}
         allowOverlappingSegments={false}
+        segmentCutMarks={{}}
         onSelectSegment={() => {}}
         onRemoveSegment={() => {}}
         onAllowOverlappingSegmentsChange={() => {}}
         onAddCutFromMarks={() => {}}
+        onSetSegmentCutMarkIn={() => {}}
+        onSetSegmentCutMarkOut={() => {}}
+        onClearSegmentCutMarks={() => {}}
+        onAddCutToSegmentFromLocalMarks={() => {}}
         onRemoveCut={() => {}}
         onSeekToMs={() => {}}
         onMergeSegmentWithNext={() => {}}

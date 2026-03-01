@@ -20,6 +20,7 @@ import { parseOptionalRoundCutRangesJson } from "../../src/utils/roundCuts";
 import { getDb } from "./db";
 import { playlist as playlistTable } from "./db/schema";
 import { assertApprovedDialogPath } from "./dialogPathApproval";
+import { createFpackFromDirectory } from "./fpack";
 import { fetchStashMediaWithAuth } from "./integrations/stashClient";
 import { stashProvider } from "./integrations/providers/stashProvider";
 import { listExternalSources, normalizeBaseUrl } from "./integrations/store";
@@ -106,6 +107,7 @@ export type PlaylistExportPackageStatus = {
 export type ExportPackageResult = {
   exportDir: string;
   playlistFilePath: string;
+  fpackPath?: string;
   sidecarFiles: number;
   videoFiles: number;
   funscriptFiles: number;
@@ -2077,6 +2079,23 @@ export function requestPlaylistExportPackageAbort(): PlaylistExportPackageStatus
   return cloneStatus(exportStatus);
 }
 
+async function packPlaylistResultAsFpack(
+  result: ExportPackageResult,
+  asFpack: boolean
+): Promise<ExportPackageResult> {
+  if (!asFpack) return result;
+
+  const fpackFileName = `${path.basename(result.exportDir)}.fpack`;
+  const fpackPath = path.join(path.dirname(result.exportDir), fpackFileName);
+  exportStatus = {
+    ...exportStatus,
+    lastMessage: "Packing .fpack file...",
+  };
+  await createFpackFromDirectory(result.exportDir, fpackPath);
+  await fs.rm(result.exportDir, { recursive: true, force: true });
+  return { ...result, exportDir: path.dirname(result.exportDir), fpackPath };
+}
+
 export async function exportPlaylistPackage(
   input: ExportPackageInput
 ): Promise<ExportPackageResult> {
@@ -2158,11 +2177,12 @@ export async function exportPlaylistPackage(
         compression: null,
       };
     }
-    return runExportPlaylistPackage({
+    const result = await runExportPlaylistPackage({
       ...input,
       compressionMode: prepared.effectiveCompressionMode,
       compressionStrength: prepared.compressionStrength,
     });
+    return packPlaylistResultAsFpack(result, input.asFpack ?? false);
   })();
 
   try {
@@ -2172,9 +2192,11 @@ export async function exportPlaylistPackage(
       state: "done",
       phase: "done",
       finishedAt: new Date().toISOString(),
-      lastMessage: result.compression.enabled
-        ? `Export finished. ${result.compression.reencodedVideos} videos reencoded, ${result.sidecarFiles} sidecars written.`
-        : `Export finished. ${result.sidecarFiles} sidecars, ${result.videoFiles} videos, ${result.funscriptFiles} funscripts.`,
+      lastMessage: result.fpackPath
+        ? `Export finished. .fpack created at ${result.fpackPath}.`
+        : result.compression.enabled
+          ? `Export finished. ${result.compression.reencodedVideos} videos reencoded, ${result.sidecarFiles} sidecars written.`
+          : `Export finished. ${result.sidecarFiles} sidecars, ${result.videoFiles} videos, ${result.funscriptFiles} funscripts.`,
     };
     return result;
   } catch (caughtError) {

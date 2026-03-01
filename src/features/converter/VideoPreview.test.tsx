@@ -5,8 +5,7 @@ import { VideoPreview } from "./VideoPreview";
 
 vi.mock("@lingui/react/macro", () => ({
   useLingui: () => ({
-    t: (value: TemplateStringsArray | string) =>
-      Array.isArray(value) ? value[0] : value,
+    t: (value: TemplateStringsArray | string) => (Array.isArray(value) ? value[0] : value),
   }),
 }));
 
@@ -59,7 +58,8 @@ describe("VideoPreview", () => {
     );
 
     const checkbox = screen.getByLabelText("Skip cuts in preview");
-    expect(checkbox).toBeChecked();
+    expect(checkbox).toBeInstanceOf(HTMLInputElement);
+    expect((checkbox as HTMLInputElement).checked).toBe(true);
 
     fireEvent.click(checkbox);
 

@@ -105,16 +105,6 @@ function buildCacheFilePath(url: string): { cacheKey: string; cacheDir: string; 
   return { cacheKey, cacheDir, filePath: path.join(cacheDir, "audio.mp3") };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function _fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function isNonEmptyFile(filePath: string): Promise<boolean> {
   try {
     const stat = await fs.stat(filePath);

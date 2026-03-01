@@ -149,11 +149,11 @@ interface WebsiteVideoScanStatusPollerProps {
 export const WebsiteVideoScanStatusPoller: React.FC<WebsiteVideoScanStatusPollerProps> = memo(
   ({ visible = true }) => {
     const [scanStatus, setScanStatus] = useState<WebsiteVideoScanStatus | null>(null);
-    const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const hideTimeoutRef = useRef<number | null>(null);
 
     useEffect(() => {
       let mounted = true;
-      let timeout: ReturnType<typeof setTimeout> | null = null;
+      let timeout: number | null = null;
 
       const scheduleNext = (delayMs: number) => {
         if (!mounted) return;
@@ -180,7 +180,7 @@ export const WebsiteVideoScanStatusPoller: React.FC<WebsiteVideoScanStatusPoller
           }
 
           if (status.state === "done" || status.state === "aborted" || status.state === "error") {
-            hideTimeoutRef.current = setTimeout(() => {
+            hideTimeoutRef.current = window.setTimeout(() => {
               if (mounted) {
                 setScanStatus(null);
               }

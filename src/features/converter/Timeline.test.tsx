@@ -31,7 +31,7 @@ describe("Timeline", () => {
         onTimelinePointerDown={vi.fn()}
         onSelectSegment={vi.fn()}
         onZoomChange={onZoomChange}
-      />,
+      />
     );
 
     const input = screen.getByLabelText("Timeline zoom");
@@ -72,7 +72,7 @@ describe("Timeline", () => {
         onTimelinePointerDown={vi.fn()}
         onSelectSegment={vi.fn()}
         onZoomChange={vi.fn()}
-      />,
+      />
     );
 
     expect(screen.getByLabelText("Cut range")).toBeDefined();
@@ -121,13 +121,14 @@ describe("Timeline", () => {
         onTimelinePointerDown={vi.fn()}
         onSelectSegment={vi.fn()}
         onZoomChange={vi.fn()}
-      />,
+      />
     );
 
     const cut = screen.getByLabelText("Cut range");
     expect(cut.getAttribute("data-cut-segment-id")).toBe("segment-1");
     expect(cut.getAttribute("data-cut-lane")).toBe("0");
-    expect(cut).toHaveStyle({ top: "56px", height: "32px" });
+    expect(cut.style.top).toBe("56px");
+    expect(cut.style.height).toBe("32px");
   });
 
   it("renders overlapping segments on separate lanes", () => {
@@ -173,14 +174,14 @@ describe("Timeline", () => {
         onTimelinePointerDown={vi.fn()}
         onSelectSegment={vi.fn()}
         onZoomChange={vi.fn()}
-      />,
+      />
     );
 
     expect(screen.getByTitle("Normal • 00:01.00-00:05.00").getAttribute("data-segment-lane")).toBe(
-      "0",
+      "0"
     );
     expect(
-      screen.getByTitle("Interjection • 00:02.00-00:04.00").getAttribute("data-segment-lane"),
+      screen.getByTitle("Interjection • 00:02.00-00:04.00").getAttribute("data-segment-lane")
     ).toBe("1");
   });
 
@@ -227,14 +228,14 @@ describe("Timeline", () => {
         onTimelinePointerDown={vi.fn()}
         onSelectSegment={vi.fn()}
         onZoomChange={vi.fn()}
-      />,
+      />
     );
 
     expect(screen.getByTitle("Normal • 00:01.00-00:02.00").getAttribute("data-segment-lane")).toBe(
-      "0",
+      "0"
     );
     expect(screen.getByTitle("Cum • 00:02.00-00:04.00").getAttribute("data-segment-lane")).toBe(
-      "0",
+      "0"
     );
   });
 });

@@ -1,6 +1,11 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ActiveRound, PlayerState, RoadPalette } from "../../game/types";
+import type {
+  ActiveRound,
+  CompletedRoundSummary,
+  PlayerState,
+  RoadPalette,
+} from "../../game/types";
 import type { InstalledRound } from "../../services/db";
 import { extractBeatbarMotionEvents, getAntiPerkSequenceDefinition } from "./antiPerkSequences";
 import * as handyRuntime from "../../services/thehandy/runtime";
@@ -11,8 +16,8 @@ const mocks = vi.hoisted(() => ({
   playableVideo: {
     getVideoSrc: vi.fn((uri: string) => uri),
     ensurePlayableVideo: vi.fn(async (uri: string) => uri),
-    handleVideoError: vi.fn(),
-    isLocalVideoUriForFallback: vi.fn(() => true),
+    handleVideoError: vi.fn<(uri: string) => Promise<null>>(async () => null),
+    isLocalVideoUriForFallback: vi.fn<(uri: string) => boolean>(() => true),
   },
   handy: {
     connectionKey: "",
@@ -21,8 +26,11 @@ const mocks = vi.hoisted(() => ({
     connected: false,
     manuallyStopped: false,
     setSyncStatus: vi.fn(),
-    toggleManualStop: vi.fn(async () => "unavailable" as const),
+    toggleManualStop: vi.fn<() => Promise<"unavailable" | "stopped">>(async () => "unavailable"),
     reconnect: vi.fn(async () => true),
+    setResourceOffsetOverride: vi.fn(),
+    adjustOffset: vi.fn(async (deltaMs: number) => deltaMs),
+    resetOffset: vi.fn(async () => undefined),
   },
   playback: {
     getFunscriptPositionAtMs: vi.fn<
@@ -38,6 +46,13 @@ const mocks = vi.hoisted(() => ({
   isGameDevelopmentMode: vi.fn(() => false),
   playAntiPerkBeatSound: vi.fn(),
   sfwMode: false,
+  db: {
+    updateResourceFunscriptOffset: vi.fn(async () => ({
+      resourceId: "resource-1",
+      funscriptOffsetMs: 0,
+    })),
+  },
+  showToast: vi.fn(),
 }));
 
 vi.mock("../../services/booru", () => ({
@@ -66,6 +81,18 @@ vi.mock("../../hooks/usePlayableVideoFallback", () => ({
 
 vi.mock("../../contexts/HandyContext", () => ({
   useHandy: () => mocks.handy,
+}));
+
+vi.mock("../../services/db", () => ({
+  db: {
+    round: {
+      updateResourceFunscriptOffset: mocks.db.updateResourceFunscriptOffset,
+    },
+  },
+}));
+
+vi.mock("../ui/ToastHost", () => ({
+  useToast: () => ({ showToast: mocks.showToast }),
 }));
 
 vi.mock("../globalHandyOverlayControls", () => ({
@@ -139,11 +166,14 @@ function createInstalledRound(
   overrides?: Partial<InstalledRound> & {
     videoUri?: string;
     durationMs?: number;
+    funscriptOffsetMs?: number | null;
   }
 ): InstalledRound {
   const defaultResource = {
+    id: overrides?.resources?.[0]?.id ?? "resource-1",
     videoUri: overrides?.videoUri ?? "/video.mp4",
     funscriptUri,
+    funscriptOffsetMs: overrides?.funscriptOffsetMs ?? null,
     durationMs: overrides?.durationMs,
   };
   return {
@@ -270,7 +300,7 @@ function renderOverlay({
   onCompleteBoardSequence?: ((perkId: "milker" | "jackhammer") => void) | undefined;
   intermediaryLoadingDurationSec?: number;
   intermediaryReturnPauseSec?: number;
-  onFinishRound?: ReturnType<typeof vi.fn>;
+  onFinishRound?: (summary?: CompletedRoundSummary) => void;
   roadPalette?: RoadPalette;
 } = {}) {
   return render(
@@ -316,6 +346,17 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.toggleManualStop.mockResolvedValue("unavailable");
     mocks.handy.reconnect.mockReset();
     mocks.handy.reconnect.mockResolvedValue(true);
+    mocks.handy.setResourceOffsetOverride.mockReset();
+    mocks.handy.adjustOffset.mockReset();
+    mocks.handy.adjustOffset.mockImplementation(async (deltaMs: number) => deltaMs);
+    mocks.handy.resetOffset.mockReset();
+    mocks.handy.resetOffset.mockImplementation(async () => undefined);
+    mocks.db.updateResourceFunscriptOffset.mockReset();
+    mocks.db.updateResourceFunscriptOffset.mockResolvedValue({
+      resourceId: "resource-1",
+      funscriptOffsetMs: 0,
+    });
+    mocks.showToast.mockReset();
     mocks.playback.getFunscriptPositionAtMs.mockReset();
     mocks.playback.getFunscriptPositionAtMs.mockReturnValue(null);
     mocks.playback.loadFunscriptTimeline.mockReset();
@@ -1516,23 +1557,7 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.connectionKey = "conn-key";
     mocks.handy.appApiKey = "app-key";
     mocks.handy.connected = true;
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue({
-      mode: "appId",
-      clientToken: null,
-      expiresAtMs: Date.now() + 60_000,
-      serverTimeOffsetMs: 0,
-      serverTimeOffsetMeasuredAtMs: 0,
-      loadedScriptId: null,
-      activeScriptId: null,
-      lastSyncAtMs: 0,
-      lastPlaybackRate: 1,
-      maxBufferPoints: 4000,
-      streamedPoints: null,
-      nextStreamPointIndex: 0,
-      tailPointStreamIndex: 0,
-      uploadedUntilMs: 0,
-      hspModeActive: false,
-    });
+    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
 
     renderOverlay({ activeRound: null, idleBoardSequence: "no-rest" });
 
@@ -1571,23 +1596,7 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.connectionKey = "conn-key";
     mocks.handy.appApiKey = "app-key";
     mocks.handy.connected = false;
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue({
-      mode: "appId",
-      clientToken: null,
-      expiresAtMs: Date.now() + 60_000,
-      serverTimeOffsetMs: 0,
-      serverTimeOffsetMeasuredAtMs: 0,
-      loadedScriptId: null,
-      activeScriptId: null,
-      lastSyncAtMs: 0,
-      lastPlaybackRate: 1,
-      maxBufferPoints: 4000,
-      streamedPoints: null,
-      nextStreamPointIndex: 0,
-      tailPointStreamIndex: 0,
-      uploadedUntilMs: 0,
-      hspModeActive: false,
-    });
+    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
 
     const view = renderOverlay({ activeRound: null, boardSequence: "jackhammer" });
     expect(vi.mocked(handyRuntime.sendHspSync)).not.toHaveBeenCalled();
@@ -1694,39 +1703,26 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.connectionKey = "conn-key";
     mocks.handy.appApiKey = "app-key";
     mocks.handy.connected = true;
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue({
-      mode: "appId",
-      clientToken: null,
-      expiresAtMs: Date.now() + 60_000,
-      serverTimeOffsetMs: 0,
-      serverTimeOffsetMeasuredAtMs: 0,
-      loadedScriptId: null,
-      activeScriptId: null,
-      lastSyncAtMs: 0,
-      lastPlaybackRate: 1,
-      maxBufferPoints: 4000,
-      streamedPoints: null,
-      nextStreamPointIndex: 0,
-      tailPointStreamIndex: 0,
-      uploadedUntilMs: 0,
-      hspModeActive: false,
-    });
+    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
 
     renderOverlay({
       currentPlayer: {
         id: "p1",
         name: "Player 1",
-        colorHex: "#fff",
+        currentNodeId: "field-1",
         position: 0,
         score: 0,
-        coins: 0,
+        money: 0,
         perks: [],
         antiPerks: ["jackhammer"],
-        shieldRounds: 0,
         inventory: [],
-        pendingRoundControl: null,
+        activePerkEffects: [],
+        roundControl: {
+          pauseCharges: 0,
+          skipCharges: 0,
+        },
+        shieldRoundsRemaining: 0,
         pendingIntensityCap: null,
-        hasCame: false,
         stats: {
           diceMin: 1,
           diceMax: 6,
@@ -1756,23 +1752,7 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.connected = true;
     mocks.handy.setSyncStatus.mockClear();
 
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue({
-      mode: "appId",
-      clientToken: null,
-      expiresAtMs: Date.now() + 60_000,
-      serverTimeOffsetMs: 0,
-      serverTimeOffsetMeasuredAtMs: 0,
-      loadedScriptId: null,
-      activeScriptId: null,
-      lastSyncAtMs: 0,
-      lastPlaybackRate: 1,
-      maxBufferPoints: 4000,
-      streamedPoints: null,
-      nextStreamPointIndex: 0,
-      tailPointStreamIndex: 0,
-      uploadedUntilMs: 0,
-      hspModeActive: false,
-    });
+    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
 
     renderOverlay({ activeRound: null, boardSequence: "jackhammer" });
 
@@ -1909,4 +1889,133 @@ describe("RoundVideoOverlay", () => {
     expect(firstComplete).not.toHaveBeenCalled();
     expect(secondComplete).not.toHaveBeenCalled();
   }, 10_000);
+
+  it("sets resource offset override when the active round has a saved funscript offset", async () => {
+    const installedRound = createInstalledRound("round-1", "/test.funscript", {
+      funscriptOffsetMs: 150,
+    });
+
+    renderOverlay({
+      activeRound: createActiveRound("round-1"),
+      installedRounds: [installedRound],
+    });
+
+    await waitFor(() => {
+      expect(mocks.handy.setResourceOffsetOverride).toHaveBeenCalledWith(150);
+    });
+  });
+
+  it("clears resource offset override when the active round has no saved offset", async () => {
+    const installedRound = createInstalledRound("round-1", "/test.funscript");
+
+    renderOverlay({
+      activeRound: createActiveRound("round-1"),
+      installedRounds: [installedRound],
+    });
+
+    await waitFor(() => {
+      expect(mocks.handy.setResourceOffsetOverride).toHaveBeenCalledWith(null);
+    });
+  });
+
+  it("saves offset to round via the save button and shows a success toast", async () => {
+    mocks.handy.offsetMs = 75;
+    const installedRound = createInstalledRound("round-1", "/test.funscript", {
+      funscriptOffsetMs: null,
+    });
+
+    renderOverlay({
+      activeRound: createActiveRound("round-1"),
+      installedRounds: [installedRound],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Save Offset to Round")).not.toBeNull();
+    });
+
+    fireEvent.click(screen.getByText("Save Offset to Round"));
+
+    await waitFor(() => {
+      expect(mocks.db.updateResourceFunscriptOffset).toHaveBeenCalledWith(
+        expect.objectContaining({ offsetMs: 75 })
+      );
+    });
+
+    expect(mocks.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("Offset saved"),
+      "success"
+    );
+  });
+
+  it("saves offset via Ctrl+Shift+S and shows a success toast", async () => {
+    mocks.handy.offsetMs = 120;
+    const installedRound = createInstalledRound("round-1", "/test.funscript");
+
+    renderOverlay({
+      activeRound: createActiveRound("round-1"),
+      installedRounds: [installedRound],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("round-playback-timer")).not.toBeNull();
+    });
+
+    fireEvent.keyDown(window, {
+      key: "S",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+
+    await waitFor(() => {
+      expect(mocks.db.updateResourceFunscriptOffset).toHaveBeenCalledWith(
+        expect.objectContaining({ offsetMs: 120 })
+      );
+    });
+
+    expect(mocks.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("Offset saved"),
+      "success"
+    );
+  });
+
+  it("does not save offset via Ctrl+Shift+S outside an active round", async () => {
+    mocks.handy.offsetMs = 50;
+
+    renderOverlay({
+      activeRound: null,
+    });
+
+    fireEvent.keyDown(window, {
+      key: "S",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+
+    expect(mocks.db.updateResourceFunscriptOffset).not.toHaveBeenCalled();
+    expect(mocks.showToast).not.toHaveBeenCalled();
+  });
+
+  it("ignores Ctrl+Shift+S when typing in an input element", async () => {
+    mocks.handy.offsetMs = 50;
+    const installedRound = createInstalledRound("round-1", "/test.funscript");
+
+    renderOverlay({
+      activeRound: createActiveRound("round-1"),
+      installedRounds: [installedRound],
+    });
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    fireEvent.keyDown(input, {
+      key: "S",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+
+    expect(mocks.db.updateResourceFunscriptOffset).not.toHaveBeenCalled();
+
+    input.remove();
+  });
 });

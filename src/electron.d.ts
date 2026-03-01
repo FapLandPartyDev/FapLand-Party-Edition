@@ -62,6 +62,7 @@ declare global {
       };
       appOpen: {
         consumePendingFiles: () => Promise<string[]>;
+        openDroppedFiles?: (files: FileList | File[]) => Promise<void>;
         subscribe: (callback: (filePaths: string[]) => void) => UpdateUnsubscribe;
       };
       auth?: {

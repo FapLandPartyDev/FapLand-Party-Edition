@@ -22,10 +22,12 @@ export function getInstalledRoundWebsiteVideoCacheStatus(
   let hasCachedResource = false;
 
   for (const resource of round.resources) {
-    if (resource.websiteVideoCacheStatus === "pending") {
+    const websiteVideoCacheStatus =
+      "websiteVideoCacheStatus" in resource ? resource.websiteVideoCacheStatus : undefined;
+    if (websiteVideoCacheStatus === "pending") {
       return "pending";
     }
-    if (resource.websiteVideoCacheStatus === "cached") {
+    if (websiteVideoCacheStatus === "cached") {
       hasCachedResource = true;
     }
   }

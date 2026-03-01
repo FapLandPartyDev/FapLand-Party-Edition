@@ -10,6 +10,7 @@ export const resource = sqliteTable(
       .$defaultFn(() => createId()),
     videoUri: text("videoUri").notNull(),
     funscriptUri: text("funscriptUri"),
+    funscriptOffsetMs: integer("funscriptOffsetMs"),
     phash: text("phash"),
     durationMs: integer("durationMs"),
     disabled: integer("disabled", { mode: "boolean" }).notNull().default(false),

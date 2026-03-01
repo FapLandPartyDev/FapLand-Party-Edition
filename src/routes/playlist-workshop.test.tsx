@@ -145,6 +145,9 @@ const mocks = vi.hoisted(() => ({
     update: vi.fn(),
     analyzeImportFile: vi.fn(),
     importFromFile: vi.fn(),
+    exportToFile: vi.fn(),
+    exportPackage: vi.fn(),
+    analyzeExportPackage: vi.fn(),
     getExportPackageStatus: vi.fn(),
     abortExportPackage: vi.fn(),
   },
@@ -183,7 +186,30 @@ vi.mock("../components/MenuButton", () => ({
 }));
 
 vi.mock("../components/PlaylistPackExportDialog", () => ({
-  PlaylistPackExportDialog: () => null,
+  PlaylistPackExportDialog: ({
+    onSubmit,
+  }: {
+    onSubmit: (input: {
+      compressionMode: "copy" | "av1";
+      compressionStrength: number;
+      includeMedia: boolean;
+      asFpack: boolean;
+    }) => Promise<boolean>;
+  }) => (
+    <button
+      type="button"
+      onClick={() => {
+        void onSubmit({
+          compressionMode: "copy",
+          compressionStrength: 80,
+          includeMedia: true,
+          asFpack: true,
+        });
+      }}
+    >
+      Mock Export Pack Submit
+    </button>
+  ),
 }));
 
 vi.mock("../components/PlaylistExportOverlay", () => ({
@@ -346,7 +372,7 @@ function getSectionByHeading(heading: string): HTMLElement {
   return section as HTMLElement;
 }
 
-function clickSidebarSection(sectionName: "Rounds" | "Session") {
+function clickSidebarSection(sectionName: "Playlist" | "Rounds" | "Session" | "Timing & Probabilities") {
   const sectionButton = screen
     .getAllByRole("button")
     .find((button) => button.textContent?.includes(sectionName));
@@ -379,6 +405,30 @@ async function openLinearPlaylistAndSection(
 
 beforeEach(() => {
   animationFrameQueue = [];
+  window.electronAPI = {
+    file: {
+      convertFileSrc: vi.fn((filePath: string) => `app://media/${encodeURIComponent(filePath)}`),
+    },
+    dialog: {
+      selectFolders: vi.fn(),
+      selectInstallImportFile: vi.fn(),
+      selectPlaylistImportFile: vi.fn(),
+      selectPlaylistExportPath: vi.fn(),
+      selectPlaylistExportDirectory: vi.fn(),
+      selectWebsiteVideoCacheDirectory: vi.fn(),
+      selectEroScriptsCacheDirectory: vi.fn(),
+      selectMusicCacheDirectory: vi.fn(),
+      selectMoaningCacheDirectory: vi.fn(),
+      selectConverterVideoFile: vi.fn(),
+      selectMapBackgroundFile: vi.fn(),
+      selectMusicFiles: vi.fn(),
+      selectMoaningFiles: vi.fn(),
+      addMusicFromUrl: vi.fn(),
+      addMusicPlaylistFromUrl: vi.fn(),
+      addMoaningFromUrl: vi.fn(),
+      addMoaningPlaylistFromUrl: vi.fn(),
+    },
+  } as unknown as typeof window.electronAPI;
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
     animationFrameQueue.push(callback);
     return animationFrameQueue.length;
@@ -421,6 +471,64 @@ beforeEach(() => {
       exactMapping: {},
       suggestedMapping: {},
       appliedMapping: {},
+    },
+  });
+  mocks.playlists.exportToFile.mockResolvedValue(undefined);
+  mocks.playlists.exportPackage.mockResolvedValue({
+    exportDir: "/tmp/Linear Playlist",
+    playlistFilePath: "/tmp/Linear Playlist/Linear Playlist.fplay",
+    fpackPath: "/tmp/Linear Playlist.fpack",
+    sidecarFiles: 0,
+    videoFiles: 0,
+    funscriptFiles: 0,
+    musicFiles: 0,
+    referencedRounds: 0,
+    compression: {
+      enabled: false,
+      encoderName: null,
+      encoderKind: null,
+      strength: 80,
+      reencodedVideos: 0,
+      alreadyAv1Copied: 0,
+      actualVideoBytes: 0,
+    },
+  });
+  mocks.playlists.analyzeExportPackage.mockResolvedValue({
+    videoTotals: {
+      uniqueVideos: 0,
+      localVideos: 0,
+      remoteVideos: 0,
+      alreadyAv1Videos: 0,
+      estimatedReencodeVideos: 0,
+    },
+    compression: {
+      supported: false,
+      defaultMode: "copy",
+      encoderName: null,
+      encoderKind: null,
+      warning: null,
+      strength: 80,
+      estimate: {
+        sourceVideoBytes: 0,
+        expectedVideoBytes: 0,
+        savingsBytes: 0,
+        estimatedCompressionSeconds: 0,
+        approximate: false,
+      },
+    },
+    settings: {
+      outputContainer: "mp4",
+      audioCodec: "aac",
+      audioBitrateKbps: 128,
+      lowPriority: true,
+      parallelJobs: 1,
+    },
+    estimate: {
+      sourceVideoBytes: 0,
+      expectedVideoBytes: 0,
+      savingsBytes: 0,
+      estimatedCompressionSeconds: 0,
+      approximate: false,
     },
   });
   mocks.playlists.getExportPackageStatus.mockResolvedValue({ state: "idle" });
@@ -557,6 +665,109 @@ describe("PlaylistWorkshopRoute", () => {
       config: ReturnType<typeof makeLinearPlaylist>["config"];
     };
     expect(updateCall.config.disableDiceAnimation).toBe(true);
+  });
+
+  it("exports .fplay after persisting dirty linear playlist changes", async () => {
+    vi.mocked(window.electronAPI.dialog.selectPlaylistExportPath).mockResolvedValue(
+      "/tmp/TEST.fplay"
+    );
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist", 120);
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    await openLinearPlaylistAndSection("Linear Playlist", "Session");
+    fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));
+
+    const startingMoneyInput = await screen.findByDisplayValue("120");
+    fireEvent.change(startingMoneyInput, { target: { value: "410" } });
+    clickSidebarSection("Playlist");
+    fireEvent.click(screen.getByRole("button", { name: /transfer/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Export .fplay" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+      expect(mocks.playlists.exportToFile).toHaveBeenCalledWith(
+        "linear-playlist",
+        "/tmp/TEST.fplay"
+      );
+    });
+
+    const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: ReturnType<typeof makeLinearPlaylist>["config"];
+    };
+    expect(updateCall.config.economy.startingMoney).toBe(410);
+    expect(mocks.playlists.update.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.playlists.exportToFile.mock.invocationCallOrder[0]!
+    );
+  });
+
+  it("shows a notice when .fplay export fails", async () => {
+    vi.mocked(window.electronAPI.dialog.selectPlaylistExportPath).mockResolvedValue(
+      "/tmp/TEST.fplay"
+    );
+    mocks.playlists.exportToFile.mockRejectedValueOnce(new Error("Disk is full."));
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    await openLinearPlaylistAndSection("Linear Playlist", "Session");
+
+    clickSidebarSection("Playlist");
+    fireEvent.click(screen.getByRole("button", { name: /transfer/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Export .fplay" }));
+
+    expect(await screen.findAllByText("Disk is full.")).not.toHaveLength(0);
+  });
+
+  it("exports playlist packs after persisting dirty linear playlist changes", async () => {
+    vi.mocked(window.electronAPI.dialog.selectPlaylistExportDirectory).mockResolvedValue("/tmp");
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist", 120);
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    await openLinearPlaylistAndSection("Linear Playlist", "Session");
+    fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));
+
+    const startingMoneyInput = await screen.findByDisplayValue("120");
+    fireEvent.change(startingMoneyInput, { target: { value: "410" } });
+    clickSidebarSection("Playlist");
+    fireEvent.click(screen.getByRole("button", { name: "Export Pack" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Mock Export Pack Submit" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+      expect(mocks.playlists.exportPackage).toHaveBeenCalledWith({
+        playlistId: "linear-playlist",
+        directoryPath: "/tmp",
+        compressionMode: "copy",
+        compressionStrength: 80,
+        includeMedia: true,
+        asFpack: true,
+      });
+    });
+
+    const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: ReturnType<typeof makeLinearPlaylist>["config"];
+    };
+    expect(updateCall.config.economy.startingMoney).toBe(410);
+    expect(mocks.playlists.update.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.playlists.exportPackage.mock.invocationCallOrder[0]!
+    );
   });
 
   it("switches the editable playlist when selecting from the active playlist menu", async () => {

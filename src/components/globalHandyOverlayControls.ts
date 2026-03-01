@@ -1,22 +1,24 @@
 type OverlayOpenListener = () => void;
 
-const listeners = new Set<OverlayOpenListener>();
+const openListeners = new Set<OverlayOpenListener>();
 let pendingOpen = false;
 
+let saveOffsetCallback: (() => void) | null = null;
+
 export function openGlobalHandyOverlay() {
-  if (listeners.size === 0) {
+  if (openListeners.size === 0) {
     pendingOpen = true;
     return;
   }
 
   pendingOpen = false;
-  for (const listener of listeners) {
+  for (const listener of openListeners) {
     listener();
   }
 }
 
 export function subscribeToGlobalHandyOverlayOpen(listener: OverlayOpenListener) {
-  listeners.add(listener);
+  openListeners.add(listener);
 
   if (pendingOpen) {
     pendingOpen = false;
@@ -24,6 +26,14 @@ export function subscribeToGlobalHandyOverlayOpen(listener: OverlayOpenListener)
   }
 
   return () => {
-    listeners.delete(listener);
+    openListeners.delete(listener);
   };
+}
+
+export function registerSaveOffsetToRound(callback: (() => void) | null) {
+  saveOffsetCallback = callback;
+}
+
+export function getSaveOffsetToRoundCallback(): (() => void) | null {
+  return saveOffsetCallback;
 }

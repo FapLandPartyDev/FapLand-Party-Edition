@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { db, type InstallScanStatus, type VideoDownloadProgress, type WebsiteVideoScanStatus } from "../../services/db";
+import {
+  db,
+  type InstallScanStatus,
+  type VideoDownloadProgress,
+  type WebsiteVideoScanStatus,
+} from "../../services/db";
 import { buildAggregateDownloadProgress, buildDownloadProgressByUri } from "./workspaceSelectors";
 
 type RoundsActivityState = {
@@ -36,7 +41,7 @@ export function useRoundsActivity({
 
   useEffect(() => {
     let mounted = true;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
+    let timeout: number | null = null;
 
     const loop = async () => {
       if (!mounted) return;
@@ -49,7 +54,12 @@ export function useRoundsActivity({
         const scanRunning = state.scanStatus?.state === "running";
         const cacheRunning =
           state.websiteVideoScanStatus?.state === "running" || state.downloadProgresses.length > 0;
-        const delay = hidden && !scanRunning && !cacheRunning ? 10_000 : cacheRunning || scanRunning ? 2_000 : 6_000;
+        const delay =
+          hidden && !scanRunning && !cacheRunning
+            ? 10_000
+            : cacheRunning || scanRunning
+              ? 2_000
+              : 6_000;
         timeout = window.setTimeout(loop, delay);
       }
     };
@@ -61,7 +71,12 @@ export function useRoundsActivity({
         clearTimeout(timeout);
       }
     };
-  }, [poll, state.downloadProgresses.length, state.scanStatus?.state, state.websiteVideoScanStatus?.state]);
+  }, [
+    poll,
+    state.downloadProgresses.length,
+    state.scanStatus?.state,
+    state.websiteVideoScanStatus?.state,
+  ]);
 
   const downloadProgressByUri = useMemo(
     () => buildDownloadProgressByUri(state.downloadProgresses),

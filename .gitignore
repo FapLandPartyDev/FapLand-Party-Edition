@@ -65,3 +65,4 @@ VideoInfo.json
 /tsconfig.node.tsbuildinfo
 /build/vendor/ffmpeg/linux-x64/ffmpeg
 /build/vendor/ffmpeg/linux-x64/ffprobe
+/.opencode/

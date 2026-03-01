@@ -18,7 +18,22 @@ const {
   transcodeVideoToAv1Mock,
 } = vi.hoisted(() => ({
   getDbMock: vi.fn(),
-  listExternalSourcesMock: vi.fn(() => []),
+  listExternalSourcesMock: vi.fn<
+    () => Array<{
+      id: string;
+      kind: string;
+      name: string;
+      enabled: boolean;
+      baseUrl: string;
+      authMode: string;
+      apiKey: string | null;
+      username: string | null;
+      password: string | null;
+      tagSelections: string[];
+      createdAt: string;
+      updatedAt: string;
+    }>
+  >(() => []),
   fetchStashMediaWithAuthMock: vi.fn(),
   normalizeBaseUrlMock: vi.fn((input: string) => input.replace(/\/+$/, "")),
   resolvePhashBinariesMock: vi.fn(),
@@ -85,11 +100,26 @@ type TestRound = {
   }>;
 };
 
+function createDeferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+  reject: (reason?: unknown) => void;
+} {
+  let resolveDeferred: (value: T | PromiseLike<T>) => void = () => {};
+  let rejectDeferred: (reason?: unknown) => void = () => {};
+  const promise = new Promise<T>((resolve, reject) => {
+    resolveDeferred = resolve;
+    rejectDeferred = reject;
+  });
+  return { promise, resolve: resolveDeferred, reject: rejectDeferred };
+}
+
 function buildLinearConfig(
   roundRefs: Array<{ idHint?: string; name: string; type?: "Normal" | "Cum" }>
 ) {
   return {
     playlistVersion: 1,
+    saveMode: "none" as const,
     boardConfig: {
       mode: "linear" as const,
       totalIndices: 10,
@@ -111,6 +141,8 @@ function buildLinearConfig(
           type: "Cum" as const,
         })),
     },
+    roundStartDelayMs: 0,
+    disableDiceAnimation: false,
     perkSelection: {
       optionsPerPick: 3,
       triggerChancePerCompletedRound: 0.35,
@@ -210,6 +242,7 @@ describe("exportPlaylistPackage", () => {
   let analyzePlaylistExportPackage: typeof import("./playlistExportPackage").analyzePlaylistExportPackage;
   let getPlaylistExportPackageStatus: typeof import("./playlistExportPackage").getPlaylistExportPackageStatus;
   let requestPlaylistExportPackageAbort: typeof import("./playlistExportPackage").requestPlaylistExportPackageAbort;
+  let readFpackSidecarEntries: typeof import("./fpack").readFpackSidecarEntries;
 
   beforeEach(async () => {
     rootDir = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-playlist-pack-"));
@@ -266,6 +299,7 @@ describe("exportPlaylistPackage", () => {
       getPlaylistExportPackageStatus,
       requestPlaylistExportPackageAbort,
     } = await import("./playlistExportPackage"));
+    ({ readFpackSidecarEntries } = await import("./fpack"));
   });
 
   afterEach(async () => {
@@ -370,6 +404,8 @@ describe("exportPlaylistPackage", () => {
     expect(result.funscriptFiles).toBe(1);
     expect(result.sidecarFiles).toBe(1);
     expect(result.referencedRounds).toBe(1);
+    expect(result.fpackPath).toBeUndefined();
+    await expect(fs.stat(result.playlistFilePath)).resolves.toBeDefined();
 
     const fileNames = await fs.readdir(result.exportDir);
     expect(fileNames.some((entry) => entry.endsWith(".fplay"))).toBe(true);
@@ -409,6 +445,130 @@ describe("exportPlaylistPackage", () => {
     );
     expect(await fs.readFile(copiedVideo, "utf8")).toBe("video-data");
     expect(await fs.readFile(copiedScript, "utf8")).toContain('"actions"');
+  });
+
+  it("packs playlist exports into a .fpack archive when requested", async () => {
+    const videoPath = path.join(rootDir, "local-video.mp4");
+    await fs.writeFile(videoPath, "video-data");
+
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Round One",
+        author: "Tester",
+        description: "Standalone",
+        bpm: 120,
+        difficulty: 2,
+        phash: "round-hash",
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri: toLocalMediaUri(videoPath), funscriptUri: null }],
+      },
+    ];
+    installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Round One" }]));
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    const result = await exportPlaylistPackage({
+      playlistId: "playlist-1",
+      directoryPath: rootDir,
+      compressionMode: "copy",
+      asFpack: true,
+    });
+
+    expect(result.fpackPath).toBe(path.join(rootDir, "My Playlist.fpack"));
+    await expect(fs.stat(result.fpackPath!)).resolves.toBeDefined();
+    await expect(fs.stat(path.join(rootDir, "My Playlist"))).rejects.toThrow();
+
+    const entries = await readFpackSidecarEntries(result.fpackPath!);
+    expect(entries.some((entry) => entry.ext === ".fplay")).toBe(true);
+    expect(entries.some((entry) => entry.ext === ".round")).toBe(true);
+  });
+
+  it("exports legacy v1 graph playlists after invisible schema upgrade", async () => {
+    const videoPath = path.join(rootDir, "local-video.mp4");
+    await fs.writeFile(videoPath, "video-data");
+
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Round One",
+        author: "Tester",
+        description: "Standalone",
+        bpm: 120,
+        difficulty: 2,
+        phash: "round-hash",
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri: toLocalMediaUri(videoPath), funscriptUri: null }],
+      },
+    ];
+    installDbMocks(rounds, {
+      playlistVersion: 1,
+      boardConfig: {
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          {
+            id: "round-1",
+            name: "Round One",
+            kind: "round",
+            roundRef: { idHint: "round-1", name: "Round One", type: "Normal" },
+          },
+        ],
+        edges: [{ id: "edge-start-round-1", fromNodeId: "start", toNodeId: "round-1" }],
+        randomRoundPools: [],
+        pathChoiceTimeoutMs: 6000,
+      },
+      perkSelection: {
+        optionsPerPick: 3,
+        triggerChancePerCompletedRound: 0.35,
+      },
+      perkPool: {
+        enabledPerkIds: [],
+        enabledAntiPerkIds: [],
+      },
+      probabilityScaling: {
+        initialIntermediaryProbability: 0,
+        initialAntiPerkProbability: 0,
+        intermediaryIncreasePerRound: 0.02,
+        antiPerkIncreasePerRound: 0.015,
+        maxIntermediaryProbability: 1,
+        maxAntiPerkProbability: 0.75,
+      },
+      economy: {
+        startingMoney: 120,
+        moneyPerCompletedRound: 50,
+        startingScore: 0,
+        scorePerCompletedRound: 100,
+        scorePerIntermediary: 30,
+        scorePerActiveAntiPerk: 25,
+      },
+    });
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    const result = await exportPlaylistPackage({
+      playlistId: "playlist-1",
+      directoryPath: rootDir,
+      compressionMode: "copy",
+    });
+
+    const exportedPlaylist = JSON.parse(await fs.readFile(result.playlistFilePath, "utf8")) as {
+      config: { playlistVersion: number; boardConfig: { nodes: Array<{ kind: string }> } };
+    };
+    expect(exportedPlaylist.config.playlistVersion).toBe(2);
+    expect(exportedPlaylist.config.boardConfig.nodes.some((node) => node.kind === "end")).toBe(
+      true
+    );
+    expect(result.referencedRounds).toBe(1);
   });
 
   it("exports random exclusion only for excluded standalone round sidecars", async () => {
@@ -498,7 +658,10 @@ describe("exportPlaylistPackage", () => {
         resources: [{ videoUri: toLocalMediaUri(videoPath), funscriptUri: null }],
       },
     ];
-    installDbMocks(rounds, buildGraphConfigWithBackground(toLocalMediaUri(backgroundPath), "image"));
+    installDbMocks(
+      rounds,
+      buildGraphConfigWithBackground(toLocalMediaUri(backgroundPath), "image")
+    );
 
     approveDialogPath("playlistExportDirectory", rootDir);
     const result = await exportPlaylistPackage({
@@ -516,9 +679,9 @@ describe("exportPlaylistPackage", () => {
     ) as { config: { boardConfig: { style?: { background?: { uri?: string } } } } };
     const backgroundUri = parsed.config.boardConfig.style?.background?.uri;
     expect(backgroundUri?.startsWith("./")).toBe(true);
-    expect(await fs.readFile(path.join(result.exportDir, backgroundUri!.replace("./", "")), "utf8")).toBe(
-      "gif-data"
-    );
+    expect(
+      await fs.readFile(path.join(result.exportDir, backgroundUri!.replace("./", "")), "utf8")
+    ).toBe("gif-data");
   });
 
   it("leaves graph background URIs untouched when package media is excluded", async () => {
@@ -643,7 +806,7 @@ describe("exportPlaylistPackage", () => {
       kind: "hardware",
     });
 
-    const transcodeRelease = Promise.withResolvers<void>();
+    const transcodeRelease = createDeferred<void>();
     const videoPath = path.join(rootDir, "local-video.mp4");
     await fs.writeFile(videoPath, "video-data");
 
@@ -716,7 +879,7 @@ describe("exportPlaylistPackage", () => {
         ).toBeGreaterThan(0);
       });
     } finally {
-      transcodeRelease.resolve();
+      transcodeRelease.resolve(undefined);
     }
 
     await expect(exportPromise).resolves.toMatchObject({
@@ -1090,7 +1253,7 @@ describe("exportPlaylistPackage", () => {
   });
 
   it("reports progress and allows aborting an in-flight export", async () => {
-    const fetchStarted = Promise.withResolvers<void>();
+    const fetchStarted = createDeferred<void>();
     const rounds: TestRound[] = [
       {
         id: "round-1",
@@ -1127,7 +1290,7 @@ describe("exportPlaylistPackage", () => {
         );
       }
       return new Promise<Response>((_resolve, reject) => {
-        fetchStarted.resolve();
+        fetchStarted.resolve(undefined);
         const signal = init?.signal;
         if (signal?.aborted) {
           reject(new DOMException("Aborted", "AbortError"));

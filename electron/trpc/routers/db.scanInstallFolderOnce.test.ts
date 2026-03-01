@@ -89,7 +89,9 @@ describe("dbRouter scanInstallFolderOnce", () => {
 
     expect(inspectInstallFolderMock).toHaveBeenCalledWith("/tmp/legacy-pack");
     expect(result.kind).toBe("legacy");
-    expect(result.legacySlots[1]?.sourceLabel).toBe("10");
+    if (result.kind === "legacy") {
+      expect(result.legacySlots[1]?.sourceLabel).toBe("10");
+    }
   });
 
   it("imports reviewed legacy folder selections", async () => {

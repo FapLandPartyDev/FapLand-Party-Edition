@@ -11,6 +11,7 @@ import { I18nProvider } from "./i18n";
 import { getRouter } from "./router";
 import { refreshStartupBooruMediaCache } from "./services/booru";
 import { handleMultiplayerAuthCallback } from "./services/multiplayer";
+import { registerGlobalOpenedFileDropHandler } from "./services/openedFileDrop";
 import { getOpenedFileKind, importOpenedFile } from "./services/openedFiles";
 import { initializeSfxVolume } from "./utils/audio";
 import {
@@ -98,6 +99,7 @@ function registerOpenedFileHandler() {
 }
 
 registerOpenedFileHandler();
+registerGlobalOpenedFileDropHandler({ showToast: showGlobalToast });
 
 function registerMultiplayerAuthCallbackHandler() {
   if (typeof window === "undefined" || !window.electronAPI?.auth) {

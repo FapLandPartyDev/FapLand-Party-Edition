@@ -202,6 +202,13 @@ describe("importOpenedFile", () => {
   it("routes playlists through the playlist importer and activates them", async () => {
     const result = await importOpenedFile("/tmp/example.fplay");
 
+    expect(mocks.db.install.inspectSidecarFile).not.toHaveBeenCalled();
+    expect(mocks.confirmInstallSidecar).toHaveBeenCalledWith({
+      filePath: "/tmp/example.fplay",
+      contentName: "example",
+      entries: [],
+      unknownEntries: [],
+    });
     expect(mocks.playlists.importFromFile).toHaveBeenCalledWith({ filePath: "/tmp/example.fplay" });
     expect(mocks.playlists.setActive).toHaveBeenCalledWith("playlist-1");
     expect(result.kind).toBe("playlist");

@@ -192,7 +192,12 @@ describe("handy stroke helpers", () => {
   });
 
   it("throws a meaningful error when stroke settings are unavailable", async () => {
-    handyIndexMocks.getStroke.mockResolvedValueOnce({});
+    const unavailableStrokePayload: unknown = { result: {} };
+    handyIndexMocks.getStroke.mockResolvedValueOnce(
+      unavailableStrokePayload as {
+        result: { min: number; max: number; min_absolute: number; max_absolute: number };
+      }
+    );
 
     await expect(
       getHandyStroke({

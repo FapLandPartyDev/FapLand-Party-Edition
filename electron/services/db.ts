@@ -318,6 +318,17 @@ export async function repairInstalledLibrarySchema(
     await dbInstance.$client.execute(`ALTER TABLE "Resource" ADD COLUMN "durationMs" integer`);
   }
 
+  const resourceFunscriptOffsetMsExists = await hasColumn(
+    dbInstance,
+    "Resource",
+    "funscriptOffsetMs"
+  );
+  if (!resourceFunscriptOffsetMsExists) {
+    await dbInstance.$client.execute(
+      `ALTER TABLE "Resource" ADD COLUMN "funscriptOffsetMs" integer`
+    );
+  }
+
   const roundCutRangesJsonExists = await hasColumn(dbInstance, "Round", "cutRangesJson");
   if (!roundCutRangesJsonExists) {
     await dbInstance.$client.execute(`ALTER TABLE "Round" ADD COLUMN "cutRangesJson" text`);

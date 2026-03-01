@@ -42,6 +42,7 @@ type TestRound = {
   resources: Array<{
     videoUri: string;
     funscriptUri: string | null;
+    funscriptOffsetMs?: number | null;
   }>;
   createdAt: Date;
 };
@@ -61,7 +62,7 @@ function buildTestRounds(): TestRound[] {
       type: "Normal",
       heroId: null,
       hero: null,
-      resources: [{ videoUri: "https://cdn.example.com/solo.mp4", funscriptUri: "https://cdn.example.com/solo.funscript" }],
+      resources: [{ videoUri: "https://cdn.example.com/solo.mp4", funscriptUri: "https://cdn.example.com/solo.funscript", funscriptOffsetMs: 150 }],
       createdAt: new Date("2026-03-05T12:00:00.000Z"),
     },
     {
@@ -173,13 +174,27 @@ describe("exportInstalledDatabase", () => {
     expect(heroFile).toBeTruthy();
 
     const parsedRound = JSON.parse(await fs.readFile(path.join(result.exportDir, roundFile!), "utf8")) as {
-      resources: Array<{ videoUri: string; funscriptUri?: string }>;
+      resources: Array<{ videoUri: string; funscriptUri?: string; funscriptOffsetMs?: number }>;
     };
     const parsedHero = JSON.parse(await fs.readFile(path.join(result.exportDir, heroFile!), "utf8")) as {
       rounds: Array<{ resources: Array<{ videoUri: string; funscriptUri?: string }> }>;
     };
 
     expect(parsedRound.resources[0]?.videoUri).toBe("https://cdn.example.com/solo.mp4");
+    expect(parsedRound.resources[0]?.funscriptOffsetMs).toBe(150);
     expect(parsedHero.rounds[0]?.resources[0]?.videoUri).toContain("hero");
+  });
+
+  it("includes funscriptOffsetMs in exported resource metadata", async () => {
+    const { exportInstalledDatabase } = await import("./installExport");
+    const result = await exportInstalledDatabase({ includeResourceUris: true });
+
+    const fileNames = await fs.readdir(result.exportDir);
+    const roundFile = fileNames.find((name) => name.endsWith(".round"));
+    const parsedRound = JSON.parse(await fs.readFile(path.join(result.exportDir, roundFile!), "utf8")) as {
+      resources: Array<{ funscriptOffsetMs?: number }>;
+    };
+
+    expect(parsedRound.resources[0]?.funscriptOffsetMs).toBe(150);
   });
 });

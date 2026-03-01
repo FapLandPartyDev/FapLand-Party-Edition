@@ -81,6 +81,10 @@ import {
   playlist,
 } from "../../services/db/schema";
 import { ZSinglePlayerRunSaveSnapshot } from "../../../src/game/saveSchema";
+import {
+  THEHANDY_OFFSET_MAX_MS,
+  THEHANDY_OFFSET_MIN_MS,
+} from "../../../src/constants/theHandy";
 
 const ZNullableText = z.string().optional().nullable();
 const ZRoundType = z.enum(["Normal", "Interjection", "Cum"]);
@@ -101,7 +105,9 @@ function parseTagsJson(value: string | null | undefined): string[] {
   if (!value) return [];
   try {
     const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? normalizeTags(parsed.filter((entry): entry is string => typeof entry === "string")) : [];
+    return Array.isArray(parsed)
+      ? normalizeTags(parsed.filter((entry): entry is string => typeof entry === "string"))
+      : [];
   } catch {
     return [];
   }
@@ -109,14 +115,12 @@ function parseTagsJson(value: string | null | undefined): string[] {
 
 function isMissingInstalledLibraryColumnError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
-  return /no such column: .*(durationMs|cutRangesJson|excludeFromRandom|tagsJson|libraryLabel)/i.test(
+  return /no such column: .*(durationMs|funscriptOffsetMs|cutRangesJson|excludeFromRandom|tagsJson|libraryLabel)/i.test(
     error.message
   );
 }
 
-async function withInstalledLibrarySchemaRepair<T>(
-  operation: () => Promise<T>
-): Promise<T> {
+async function withInstalledLibrarySchemaRepair<T>(operation: () => Promise<T>): Promise<T> {
   try {
     return await operation();
   } catch (error) {
@@ -138,6 +142,23 @@ function normalizeHttpUrl(input: string): string {
     throw new Error("Website URLs must be valid public http(s) URLs.");
   }
   return parsed.toString();
+}
+
+function normalizeFunscriptOffsetMs(value: number | null | undefined): number | null {
+  if (value == null) return null;
+  if (!Number.isFinite(value) || !Number.isInteger(value)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Funscript offset must be a finite integer.",
+    });
+  }
+  if (value < THEHANDY_OFFSET_MIN_MS || value > THEHANDY_OFFSET_MAX_MS) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Funscript offset must be between ${THEHANDY_OFFSET_MIN_MS}ms and ${THEHANDY_OFFSET_MAX_MS}ms.`,
+    });
+  }
+  return value;
 }
 
 function toWebsiteRoundInstallSourceKey(input: {
@@ -265,6 +286,7 @@ type CatalogRoundResource = {
   phash: string | null;
   durationMs: number | null;
   funscriptUri: string | null;
+  funscriptOffsetMs: number | null;
 };
 
 type InstalledRoundCardAssetEntry = {
@@ -333,6 +355,7 @@ function toInstalledRoundCatalogEntry(entry: {
     disabled: boolean;
     phash: string | null;
     durationMs: number | null;
+    funscriptOffsetMs: number | null;
     hasFunscript: boolean;
   }>;
 } {
@@ -366,6 +389,7 @@ function toInstalledRoundCatalogEntry(entry: {
       disabled: resourceEntry.disabled,
       phash: resourceEntry.phash,
       durationMs: resourceEntry.durationMs,
+      funscriptOffsetMs: resourceEntry.funscriptOffsetMs,
       hasFunscript: Boolean(resourceEntry.funscriptUri),
     })),
   };
@@ -866,6 +890,7 @@ export const dbRouter = router({
         startTime: z.number().int().min(0).optional().nullable(),
         endTime: z.number().int().min(0).optional().nullable(),
         funscriptUri: z.string().trim().min(1).optional().nullable(),
+        funscriptOffsetMs: z.number().int().optional().nullable(),
         type: ZRoundType,
         excludeFromRandom: z.boolean().optional(),
         libraryLabel: ZNullableText,
@@ -917,6 +942,24 @@ export const dbRouter = router({
           .where(eq(resource.id, primaryResource.id));
       }
 
+      if (input.funscriptOffsetMs !== undefined) {
+        const primaryResource = existing.resources[0];
+        if (!primaryResource) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "This round has no attached resource to update.",
+          });
+        }
+
+        await db
+          .update(resource)
+          .set({
+            funscriptOffsetMs: normalizeFunscriptOffsetMs(input.funscriptOffsetMs),
+            updatedAt: new Date(),
+          })
+          .where(eq(resource.id, primaryResource.id));
+      }
+
       const needsNewPreview =
         startTime !== (existing?.startTime ?? null) || endTime !== (existing?.endTime ?? null);
 
@@ -962,6 +1005,35 @@ export const dbRouter = router({
     .input(z.object({ funscriptUri: z.string() }))
     .query(async ({ input }) => {
       return calculateFunscriptDifficultyFromUri(input.funscriptUri);
+    }),
+
+  updateResourceFunscriptOffset: publicProcedure
+    .input(
+      z.object({
+        resourceId: z.string().min(1),
+        offsetMs: z.number().int(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const funscriptOffsetMs = normalizeFunscriptOffsetMs(input.offsetMs);
+      const existing = await db.query.resource.findFirst({
+        where: eq(resource.id, input.resourceId),
+        columns: { id: true },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Resource not found.",
+        });
+      }
+
+      await db
+        .update(resource)
+        .set({ funscriptOffsetMs, updatedAt: new Date() })
+        .where(eq(resource.id, input.resourceId));
+
+      return { resourceId: input.resourceId, funscriptOffsetMs };
     }),
 
   deleteRound: publicProcedure
@@ -1080,6 +1152,7 @@ export const dbRouter = router({
             .values({
               videoUri: normalizedVideoUri,
               funscriptUri: normalizedFunscriptUri,
+              funscriptOffsetMs: null,
               phash: null,
               durationMs: null,
               disabled: false,
@@ -1167,6 +1240,7 @@ export const dbRouter = router({
             .values({
               videoUri: normalizedVideoUri,
               funscriptUri: normalizedFunscriptUri,
+              funscriptOffsetMs: null,
               phash: null,
               durationMs: null,
               disabled: false,
@@ -1560,6 +1634,7 @@ export const dbRouter = router({
 
       return {
         ...nextEntry,
+        isDisabled: disabledRoundIds.has(nextEntry.id),
         tags: parseTagsJson(nextEntry.tagsJson),
         hero: nextEntry.hero
           ? {
@@ -1706,6 +1781,7 @@ export const dbRouter = router({
             disabled: resourceEntry.disabled,
             phash: resourceEntry.phash,
             durationMs: resourceEntry.durationMs,
+            funscriptOffsetMs: resourceEntry.funscriptOffsetMs,
             ...resolveResourceUrisForRequest({
               videoUri: resourceEntry.videoUri,
               funscriptUri: resourceEntry.funscriptUri,

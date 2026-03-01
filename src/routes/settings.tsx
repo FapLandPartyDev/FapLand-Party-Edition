@@ -1,6 +1,6 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { I18n } from "@lingui/core";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import ReactMarkdown from "react-markdown";
 import changelogMarkdown from "../content/changelog.md?raw";
@@ -2866,7 +2866,7 @@ function PhashScanCard() {
 
   useEffect(() => {
     let mounted = true;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
+    let timeout: number | null = null;
 
     const scheduleNext = (delayMs: number) => {
       if (!mounted) return;
@@ -3058,7 +3058,7 @@ function WebsiteVideoCacheScanCard() {
 
   useEffect(() => {
     let mounted = true;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
+    let timeout: number | null = null;
 
     const scheduleNext = (delayMs: number) => {
       if (!mounted) return;
@@ -5879,7 +5879,11 @@ function ProgramVersionsCard({
 
         {entries.map((entry) => {
           const sourceLabel =
-            entry.source === "bundled" ? t`Bundled` : entry.source === "system" ? t`System` : t`Unavailable`;
+            entry.source === "bundled"
+              ? t`Bundled`
+              : entry.source === "system"
+                ? t`System`
+                : t`Unavailable`;
           const preferenceLabel =
             entry.preference === "bundled"
               ? t`Bundled Only`

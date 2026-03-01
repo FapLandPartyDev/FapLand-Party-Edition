@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
   })),
   stopHandyPlayback: vi.fn(async () => undefined),
   getHandyStroke: vi.fn(async () => ({ min: 0, max: 1, minAbsolute: 0, maxAbsolute: 200 })),
-  updateHandyStroke: vi.fn(async (auth: unknown, input: { min: number; max: number }) => ({
+  updateHandyStroke: vi.fn(async (_auth: unknown, input: { min: number; max: number }) => ({
     min: input.min,
     max: input.max,
     minAbsolute: null,
@@ -71,6 +71,7 @@ function Consumer() {
       <div data-testid="stroke-min">{String(handy.strokeMin)}</div>
       <div data-testid="stroke-max">{String(handy.strokeMax)}</div>
       <div data-testid="stroke-error">{handy.strokeError ?? ""}</div>
+      <div data-testid="offset-ms">{String(handy.offsetMs)}</div>
       <button
         type="button"
         onClick={() => {
@@ -110,6 +111,38 @@ function Consumer() {
         }}
       >
         disconnect
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void handy.adjustOffset(25);
+        }}
+      >
+        adjust-offset
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void handy.resetOffset();
+        }}
+      >
+        reset-offset
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          handy.setResourceOffsetOverride(100);
+        }}
+      >
+        set-resource-override
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          handy.setResourceOffsetOverride(null);
+        }}
+      >
+        clear-resource-override
       </button>
     </div>
   );
@@ -287,7 +320,9 @@ describe("HandyContext", () => {
   });
 
   it("rolls stroke state back if updating the device fails", async () => {
-    mocks.updateHandyStroke.mockRejectedValueOnce(new Error("Failed to update TheHandy stroke settings."));
+    mocks.updateHandyStroke.mockRejectedValueOnce(
+      new Error("Failed to update TheHandy stroke settings.")
+    );
 
     render(
       <HandyProvider>
@@ -330,6 +365,114 @@ describe("HandyContext", () => {
       expect(screen.getByTestId("connected").textContent).toBe("false");
       expect(screen.getByTestId("stroke-percent").textContent).toBe("100");
       expect(screen.getByTestId("stroke-error").textContent).toBe("");
+    });
+  });
+
+  it("uses the resource offset override instead of the global offset", async () => {
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "adjust-offset" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("offset-ms").textContent).toBe("25");
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "set-resource-override" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("offset-ms").textContent).toBe("100");
+    });
+  });
+
+  it("adjusts the resource override instead of the global offset when override is active", async () => {
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "set-resource-override" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("offset-ms").textContent).toBe("100");
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "adjust-offset" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("offset-ms").textContent).toBe("125");
+    });
+
+    expect(mocks.setMutate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ key: expect.stringContaining("theHandyOffset") })
+    );
+  });
+
+  it("resets the resource override to zero while override is active", async () => {
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "set-resource-override" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("offset-ms").textContent).toBe("100");
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "reset-offset" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("offset-ms").textContent).toBe("0");
+    });
+  });
+
+  it("returns to the global offset after clearing the resource override", async () => {
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "adjust-offset" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("offset-ms").textContent).toBe("25");
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "set-resource-override" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("offset-ms").textContent).toBe("100");
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "clear-resource-override" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("offset-ms").textContent).toBe("25");
     });
   });
 });

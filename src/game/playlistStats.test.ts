@@ -6,6 +6,7 @@ import { describePlaylistBoard, getMultiplayerRequiredRounds } from "./playlistS
 describe("playlistStats", () => {
   const baseConfig = {
     playlistVersion: 1,
+    saveMode: "none",
     roundStartDelayMs: 0,
     disableDiceAnimation: false,
     perkSelection: { optionsPerPick: 3, triggerChancePerCompletedRound: 0.35 },

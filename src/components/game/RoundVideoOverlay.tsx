@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useControllerSurface, useControllerSubscription } from "../../controller";
 import type {
   ActiveRound,
@@ -8,7 +8,8 @@ import type {
   RoadPalette,
   PlayerState,
 } from "../../game/types";
-import type { InstalledRound } from "../../services/db";
+import { db, type InstalledRound } from "../../services/db";
+import { useToast } from "../ui/ToastHost";
 import ControllerHints from "./ControllerHints";
 import {
   getCachedBooruMedia,
@@ -66,7 +67,7 @@ import { isGameDevelopmentMode } from "../../utils/devFeatures";
 import { useSfwMode } from "../../hooks/useSfwMode";
 import { abbreviateNsfwText } from "../../utils/sfwText";
 import { SfwOneTimeOverridePrompt } from "../SfwGuard";
-import { openGlobalHandyOverlay } from "../globalHandyOverlayControls";
+import { openGlobalHandyOverlay, registerSaveOffsetToRound } from "../globalHandyOverlayControls";
 import { normalizeRoadPalette } from "../../features/map-editor/EditorState";
 import {
   extractBeatbarMotionEvents,
@@ -426,7 +427,9 @@ export function RoundVideoOverlay({
     manuallyStopped: handyManuallyStopped,
     setSyncStatus,
     toggleManualStop,
+    setResourceOffsetOverride,
   } = useHandy();
+  const { showToast } = useToast();
   const isDevelopmentMode = isGameDevelopmentMode();
   const sfwMode = useSfwMode();
   const canUseDebugRoundControls = isDevelopmentMode || allowDebugRoundControls;
@@ -616,8 +619,11 @@ export function RoundVideoOverlay({
     const resource = resolvedRound?.resources[0];
     if (!resource) return null;
     return {
+      id: resource.id,
+      roundId: resolvedRound.id,
       videoUri: resource.videoUri,
       funscriptUri: resource.funscriptUri,
+      funscriptOffsetMs: resource.funscriptOffsetMs,
       startTime: resolvedRound?.startTime,
       endTime: resolvedRound?.endTime,
       cutRanges: parseRoundCutRangesJson(
@@ -655,8 +661,11 @@ export function RoundVideoOverlay({
         const resource = round.resources[0];
         if (!resource) return null;
         return {
+          id: resource.id,
+          roundId: round.id,
           videoUri: resource.videoUri,
           funscriptUri: resource.funscriptUri,
+          funscriptOffsetMs: resource.funscriptOffsetMs,
           startTime: round.startTime,
           endTime: round.endTime,
           cutRanges: parseRoundCutRangesJson(
@@ -730,6 +739,52 @@ export function RoundVideoOverlay({
     if (segment.kind === "intermediary") return segment.trigger.resource;
     return resolvedMainResource;
   }, [resolvedMainResource, segment]);
+
+  useEffect(() => {
+    if (!activeSegmentResource) {
+      setResourceOffsetOverride(null);
+      return;
+    }
+    setResourceOffsetOverride(activeSegmentResource.funscriptOffsetMs ?? null);
+  }, [
+    activeSegmentResource?.funscriptOffsetMs,
+    activeSegmentResource?.id,
+    activeSegmentResource?.videoUri,
+    setResourceOffsetOverride,
+  ]);
+
+  useEffect(() => {
+    return () => setResourceOffsetOverride(null);
+  }, [setResourceOffsetOverride]);
+
+  const handleSaveOffsetToRound = useCallback(() => {
+    const resourceId = activeSegmentResource?.id;
+    if (!resourceId || !activeRound) return;
+
+    void db.round
+      .updateResourceFunscriptOffset({
+        resourceId,
+        roundId: activeSegmentResource.roundId ?? activeRound.roundId,
+        offsetMs,
+      })
+      .then(() => {
+        setResourceOffsetOverride(offsetMs);
+        showToast(t`Offset saved to round.`, "success");
+      })
+      .catch((error) => {
+        console.error("Failed to save funscript offset", error);
+        showToast(error instanceof Error ? error.message : t`Failed to save offset to round.`, "error");
+      });
+  }, [activeRound, activeSegmentResource, offsetMs, setResourceOffsetOverride, showToast, t]);
+
+  const canSaveOffsetToRound = Boolean(
+    activeRound && activeSegmentResource?.id && activeSegmentResource.funscriptUri
+  );
+
+  useEffect(() => {
+    registerSaveOffsetToRound(canSaveOffsetToRound ? handleSaveOffsetToRound : null);
+    return () => registerSaveOffsetToRound(null);
+  }, [canSaveOffsetToRound, handleSaveOffsetToRound]);
 
   const isIntermediaryScreenActive = loadingCountdown !== null;
   const resolvedMainVideoSrc = resolvedMainResource
@@ -3014,6 +3069,14 @@ export function RoundVideoOverlay({
       if (event.repeat) return;
 
       const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === "s") {
+        if (canSaveOffsetToRound) {
+          event.preventDefault();
+          handleSaveOffsetToRound();
+        }
+        return;
+      }
+
       if (key === "r") {
         event.preventDefault();
         void resyncHandyTiming();
@@ -3044,8 +3107,10 @@ export function RoundVideoOverlay({
     };
   }, [
     activeRound,
+    canSaveOffsetToRound,
     endIntermediaryAndResume,
     finishWithSummary,
+    handleSaveOffsetToRound,
     canUseDebugRoundControls,
     resyncHandyTiming,
     triggerTestIntermediary,
@@ -4314,6 +4379,15 @@ export function RoundVideoOverlay({
 
           {showHandySyncCard ? (
             <>
+              {canSaveOffsetToRound && (
+                <button
+                  type="button"
+                  className={`absolute bottom-14 right-4 z-40 rounded-md border border-cyan-300/35 bg-cyan-500/15 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100 backdrop-blur transition hover:border-cyan-200/70 hover:bg-cyan-500/25 ${isUiVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}
+                  onClick={handleSaveOffsetToRound}
+                >
+                  <Trans>Save Offset to Round</Trans>
+                </button>
+              )}
               <div
                 className={`pointer-events-none absolute bottom-3 right-4 z-40 flex flex-col items-end gap-2 transition-opacity duration-250 ${isUiVisible ? "opacity-100" : "opacity-0"}`}
                 data-testid="thehandy-sync-card"

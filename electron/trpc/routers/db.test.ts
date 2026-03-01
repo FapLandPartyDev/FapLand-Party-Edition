@@ -47,21 +47,27 @@ const { clearFpackExtractionCacheMock, getFpackExtractionRootMock } = vi.hoisted
 }));
 
 const { getWebsiteVideoCacheStateMock } = vi.hoisted(() => ({
-  getWebsiteVideoCacheStateMock: vi.fn(async () => "not_applicable"),
+  getWebsiteVideoCacheStateMock: vi.fn<
+    (uri: string) => Promise<"not_applicable" | "cached" | "pending">
+  >(async () => "not_applicable"),
 }));
 
 const { calculateFunscriptDifficultyFromUriMock } = vi.hoisted(() => ({
-  calculateFunscriptDifficultyFromUriMock: vi.fn(async () => null),
+  calculateFunscriptDifficultyFromUriMock: vi.fn<(funscriptUri: string) => Promise<number | null>>(
+    async () => null
+  ),
 }));
 
 const { createResourceUriResolverMock, getDisabledRoundIdSetMock, resolveResourceUrisMock } =
   vi.hoisted(() => {
-    const resolveResourceUrisMock = vi.fn(
-      (input: { videoUri: string; funscriptUri: string | null }) => input
-    );
+    type ResourceUriInput = { videoUri: string; funscriptUri: string | null };
+    type ResourceUriResolver = (input: ResourceUriInput) => ResourceUriInput;
+    const resolveResourceUrisMock = vi.fn<ResourceUriResolver>((input) => input);
 
     return {
-      createResourceUriResolverMock: vi.fn(() => resolveResourceUrisMock),
+      createResourceUriResolverMock: vi.fn<() => ResourceUriResolver>(
+        () => resolveResourceUrisMock
+      ),
       getDisabledRoundIdSetMock: vi.fn(() => new Set<string>()),
       resolveResourceUrisMock,
     };
@@ -361,6 +367,7 @@ type ResourceRow = {
   roundId: string;
   videoUri: string;
   funscriptUri: string | null;
+  funscriptOffsetMs?: number | null;
   phash: string | null;
   durationMs: number | null;
   disabled: boolean;
@@ -681,10 +688,10 @@ describe("dbRouter local highscore and multiplayer cache", () => {
             const values = extractSqlParams(input.where).filter(
               (value): value is string => typeof value === "string"
             );
-            const [roundId] = values;
+            const [firstValue] = values;
             return (
               [...resourcesByIdRef.values()].find(
-                (entry) => entry.roundId === roundId && !entry.disabled
+                (entry) => entry.id === firstValue || (entry.roundId === firstValue && !entry.disabled)
               ) ?? null
             );
           }),
@@ -790,12 +797,17 @@ describe("dbRouter local highscore and multiplayer cache", () => {
                 const existing = singleRunSaves.get(input.playlistId);
                 const now = new Date("2026-03-06T00:00:00.000Z");
                 const next: SinglePlayerRunSaveRow = existing
-                  ? { ...existing, ...input, ...set, updatedAt: (set.updatedAt as Date) ?? now }
+                  ? {
+                      ...existing,
+                      ...input,
+                      ...set,
+                      updatedAt: (set.updatedAt as Date | undefined) ?? now,
+                    }
                   : {
                       id: `save-${singleRunSaves.size + 1}`,
                       createdAt: now,
-                      updatedAt: now,
                       ...input,
+                      updatedAt: input.updatedAt ?? now,
                     };
                 singleRunSaves.set(next.playlistId, next);
                 return [next];
@@ -935,6 +947,20 @@ describe("dbRouter local highscore and multiplayer cache", () => {
                 }
               }
 
+              if (getTableName(table) === "Resource") {
+                const existing =
+                  typeof id === "string"
+                    ? resourcesByIdRef.get(id)
+                    : (resourcesByIdRef.values().next().value ?? null);
+                if (existing) {
+                  resourcesByIdRef.set(existing.id, {
+                    ...existing,
+                    ...data,
+                    updatedAt: new Date("2026-03-06T00:00:00.000Z"),
+                  } as ResourceRow);
+                }
+              }
+
               return resolve([]);
             },
             returning: async () => {
@@ -962,6 +988,21 @@ describe("dbRouter local highscore and multiplayer cache", () => {
                 if (!existing) throw new Error("Round not found");
                 const next = { ...existing, ...data };
                 roundsByIdRef.set(existing.id, next);
+                return [next];
+              }
+
+              if (getTableName(table) === "Resource") {
+                const existing =
+                  typeof id === "string"
+                    ? resourcesByIdRef.get(id)
+                    : (resourcesByIdRef.values().next().value ?? null);
+                if (!existing) throw new Error("Resource not found");
+                const next = {
+                  ...existing,
+                  ...data,
+                  updatedAt: new Date("2026-03-06T00:00:00.000Z"),
+                };
+                resourcesByIdRef.set(existing.id, next as ResourceRow);
                 return [next];
               }
 
@@ -1927,5 +1968,92 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     expect(result).toHaveLength(2);
     expect(result.some((uri) => uri.includes("pending"))).toBe(false);
     expect(result[0]).toContain("cached");
+  });
+
+  it("persists funscript offset via updateResourceFunscriptOffset", async () => {
+    const caller = createRendererCaller();
+
+    const result = await caller.updateResourceFunscriptOffset({
+      resourceId: "resource-1",
+      offsetMs: 150,
+    });
+
+    expect(result).toEqual({ resourceId: "resource-1", funscriptOffsetMs: 150 });
+    expect(resourcesByIdRef.get("resource-1")?.funscriptOffsetMs).toBe(150);
+  });
+
+  it("rejects non-finite funscript offset in updateResourceFunscriptOffset", async () => {
+    const caller = createRendererCaller();
+
+    await expect(
+      caller.updateResourceFunscriptOffset({
+        resourceId: "resource-1",
+        offsetMs: Infinity,
+      })
+    ).rejects.toThrow("finite integer");
+  });
+
+  it("rejects out-of-range funscript offset in updateResourceFunscriptOffset", async () => {
+    const caller = createRendererCaller();
+
+    await expect(
+      caller.updateResourceFunscriptOffset({
+        resourceId: "resource-1",
+        offsetMs: 5000,
+      })
+    ).rejects.toThrow("between");
+  });
+
+  it("rejects unknown resource in updateResourceFunscriptOffset", async () => {
+    const caller = createRendererCaller();
+
+    await expect(
+      caller.updateResourceFunscriptOffset({
+        resourceId: "resource-nonexistent",
+        offsetMs: 100,
+      })
+    ).rejects.toThrow("Resource not found");
+  });
+
+  it("updates funscriptOffsetMs on the primary resource via updateRound", async () => {
+    const caller = createRendererCaller();
+
+    await caller.updateRound({
+      id: "round-1",
+      name: "Round One",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: null,
+      endTime: null,
+      funscriptOffsetMs: -50,
+      type: "Normal",
+    });
+
+    expect(resourcesByIdRef.get("resource-1")?.funscriptOffsetMs).toBe(-50);
+  });
+
+  it("clears funscriptOffsetMs on the primary resource when null is passed", async () => {
+    const caller = createRendererCaller();
+    resourcesByIdRef.set("resource-1", {
+      ...resourcesByIdRef.get("resource-1")!,
+      funscriptOffsetMs: 200,
+    });
+
+    await caller.updateRound({
+      id: "round-1",
+      name: "Round One",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: null,
+      endTime: null,
+      funscriptOffsetMs: null,
+      type: "Normal",
+    });
+
+    expect(resourcesByIdRef.get("resource-1")?.funscriptOffsetMs).toBeNull();
   });
 });

@@ -1,5 +1,11 @@
 import JavaScriptObfuscator from "javascript-obfuscator";
-import type { OutputChunk, Plugin } from "vite";
+import type { ObfuscatorOptions } from "javascript-obfuscator";
+import type { OutputChunk } from "rollup";
+import type { Plugin } from "vite";
+
+const BASE64_STRING_ARRAY_ENCODING: NonNullable<ObfuscatorOptions["stringArrayEncoding"]> = [
+  "base64",
+];
 
 const PRELOAD_RESERVED_NAMES = [
   "electronAPI",
@@ -100,7 +106,7 @@ function getTargetOptions(target: BuildTarget) {
       shuffleStringArray: true,
       splitStrings: true,
       splitStringsChunkLength: 8,
-      stringArrayEncoding: ["base64"] as const,
+      stringArrayEncoding: [...BASE64_STRING_ARRAY_ENCODING],
       stringArrayThreshold: 0.75,
     };
   }
@@ -113,7 +119,7 @@ function getTargetOptions(target: BuildTarget) {
       rotateStringArray: true,
       shuffleStringArray: true,
       splitStrings: false,
-      stringArrayEncoding: ["base64"] as const,
+      stringArrayEncoding: [...BASE64_STRING_ARRAY_ENCODING],
       stringArrayThreshold: 0.35,
     };
   }
@@ -124,7 +130,7 @@ function getTargetOptions(target: BuildTarget) {
     rotateStringArray: true,
     shuffleStringArray: true,
     splitStrings: false,
-    stringArrayEncoding: ["base64"] as const,
+    stringArrayEncoding: [...BASE64_STRING_ARRAY_ENCODING],
     stringArrayThreshold: 0.2,
   };
 }

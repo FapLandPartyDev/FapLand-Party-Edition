@@ -117,7 +117,7 @@ describe("webVideo", () => {
   });
 
   it("deduplicates concurrent downloads for the same URL", async () => {
-    let releaseDownload: (() => void) | null = null;
+    let releaseDownload: () => void = () => {};
     const gate = new Promise<void>((resolve) => {
       releaseDownload = resolve;
     });
@@ -159,7 +159,7 @@ describe("webVideo", () => {
       ).toHaveLength(1);
     });
 
-    releaseDownload?.();
+    releaseDownload();
     const [a, b] = await Promise.all([first, second]);
     expect(a.finalFilePath).toBe(b.finalFilePath);
   });
@@ -167,8 +167,8 @@ describe("webVideo", () => {
   it("allows different URLs to download in parallel", async () => {
     let activeDownloads = 0;
     let peakDownloads = 0;
-    let releaseA: (() => void) | null = null;
-    let releaseB: (() => void) | null = null;
+    let releaseA: () => void = () => {};
+    let releaseB: () => void = () => {};
     const gateA = new Promise<void>((resolve) => {
       releaseA = resolve;
     });
@@ -219,8 +219,8 @@ describe("webVideo", () => {
       expect(peakDownloads).toBe(2);
     });
 
-    releaseA?.();
-    releaseB?.();
+    releaseA();
+    releaseB();
     await Promise.all([first, second]);
   });
 
@@ -455,7 +455,7 @@ describe("webVideo", () => {
   });
 
   it("does not recreate a removed cache after an in-flight download completes", async () => {
-    let releaseDownload: (() => void) | null = null;
+    let releaseDownload: () => void = () => {};
     const gate = new Promise<void>((resolve) => {
       releaseDownload = resolve;
     });
@@ -497,7 +497,7 @@ describe("webVideo", () => {
     });
 
     await removeCachedWebsiteVideo("https://example.com/watch?v=1");
-    releaseDownload?.();
+    releaseDownload();
 
     await expect(pending).rejects.toThrow("removed before caching completed");
     expect(await getCachedWebsiteVideoLocalPath("https://example.com/watch?v=1")).toBeNull();
@@ -815,9 +815,8 @@ describe("webVideo", () => {
           );
         }
         if (url === "https://pixeldrain.com/api/file/demo?download") {
-          return new Response(Readable.toWeb(Readable.from([Buffer.from("video", "utf8")])), {
-            status: 200,
-          });
+          const body = new Blob([Buffer.from("video", "utf8")]).stream();
+          return new Response(body, { status: 200 });
         }
         throw new Error(`Unexpected fetch: ${url}`);
       })
@@ -934,9 +933,8 @@ describe("webVideo", () => {
           );
         }
         if (url === "https://store.gofile.io/download/web/demo/demo.mp4") {
-          return new Response(Readable.toWeb(Readable.from([Buffer.from("video", "utf8")])), {
-            status: 200,
-          });
+          const body = new Blob([Buffer.from("video", "utf8")]).stream();
+          return new Response(body, { status: 200 });
         }
         throw new Error(`Unexpected fetch: ${url}`);
       })

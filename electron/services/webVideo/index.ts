@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { pipeline } from "node:stream/promises";
 import vm from "node:vm";
 import { File as MegaFile } from "megajs";
@@ -313,7 +314,7 @@ async function downloadResponseBodyToFile(response: Response, filePath: string):
     throw new Error("Remote hoster response did not include a body.");
   }
   await pipeline(
-    Readable.fromWeb(response.body as globalThis.ReadableStream<Uint8Array>),
+    Readable.fromWeb(response.body as unknown as NodeReadableStream<Uint8Array>),
     createWriteStream(filePath)
   );
 }
@@ -466,7 +467,8 @@ async function getGofileWebsiteTokenGenerator(): Promise<(token: string) => stri
       if (typeof (context as { generateWT?: unknown }).generateWT !== "function") {
         throw new Error("Failed to initialize the Gofile website token generator.");
       }
-      return (context as { generateWT: (token: string) => string }).generateWT;
+      const tokenContext = context as typeof context & { generateWT: (token: string) => string };
+      return tokenContext.generateWT;
     })().catch((error) => {
       gofileGenerateWebsiteTokenPromise = null;
       throw error;

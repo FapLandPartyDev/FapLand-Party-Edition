@@ -68,7 +68,7 @@ const mocks = vi.hoisted(() => ({
     importFromFile: vi.fn(),
     setActive: vi.fn(),
   },
-  roundVideoOverlay: vi.fn(() => null),
+  roundVideoOverlay: vi.fn<(props: Record<string, unknown>) => null>(() => null),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -213,6 +213,7 @@ function makeRound({
   durationMs,
   template = false,
   funscriptUri = null,
+  funscriptOffsetMs = null,
   installSourceKey = null,
   previewImage = null,
   websiteVideoCacheStatus = "not_applicable",
@@ -227,6 +228,7 @@ function makeRound({
   durationMs?: number | null;
   template?: boolean;
   funscriptUri?: string | null;
+  funscriptOffsetMs?: number | null;
   installSourceKey?: string | null;
   previewImage?: string | null;
   websiteVideoCacheStatus?: "not_applicable" | "cached" | "pending";
@@ -263,6 +265,7 @@ function makeRound({
             roundId: id,
             videoUri,
             funscriptUri,
+            funscriptOffsetMs,
             phash: null,
             disabled: false,
             durationMs: durationMs ?? null,
@@ -291,6 +294,7 @@ function makePlaylist(id: string, name: string, roundIds: string[]): StoredPlayl
     updatedAt: new Date("2026-03-03T00:00:00.000Z"),
     config: {
       playlistVersion: 1,
+      saveMode: "none",
       boardConfig: {
         mode: "linear",
         totalIndices: roundIds.length,
@@ -353,7 +357,7 @@ beforeEach(() => {
       selectMusicCacheDirectory: vi.fn(),
       selectMoaningCacheDirectory: vi.fn(),
       selectConverterVideoFile: vi.fn(),
-        selectMapBackgroundFile: vi.fn(),
+      selectMapBackgroundFile: vi.fn(),
       selectMusicFiles: vi.fn(),
       selectMoaningFiles: vi.fn(),
       addMusicFromUrl: vi.fn(),
@@ -407,9 +411,7 @@ beforeEach(() => {
     return mocks.loaderData.rounds.find((candidate) => candidate.id === roundId) ?? null;
   });
   mocks.db.round.findInstalledCardAssets.mockImplementation(async (roundIds: string[]) =>
-    mocks.loaderData.rounds
-      .filter((round) => roundIds.includes(round.id))
-      .map(toCardAssets)
+    mocks.loaderData.rounds.filter((round) => roundIds.includes(round.id)).map(toCardAssets)
   );
   mocks.db.round.getMediaResources.mockImplementation(async (roundId: string) => {
     const round = mocks.loaderData.rounds.find((candidate) => candidate.id === roundId);
@@ -2302,6 +2304,85 @@ describe("InstalledRoundsPage hero grouping", () => {
         roundId: "template-1",
         installedRoundId: "installed-1",
       });
+    });
+  });
+
+  it("displays the saved funscript offset in the edit round dialog", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "solo",
+        name: "Solo Round",
+        createdAt: "2026-03-03T11:00:00.000Z",
+        funscriptUri: "app://media/test.funscript",
+        funscriptOffsetMs: 150,
+      }),
+    ];
+
+    await renderInstalledRoundsPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Round" }));
+    await waitFor(() => {
+      expect(mocks.db.round.getMediaResources).toHaveBeenCalledWith("solo", false);
+    });
+
+    const offsetInput = await screen.findByDisplayValue("150");
+    expect(offsetInput).not.toBeNull();
+  });
+
+  it("sends funscriptOffsetMs when saving an edited offset from the round dialog", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "solo",
+        name: "Solo Round",
+        createdAt: "2026-03-03T11:00:00.000Z",
+        funscriptUri: "app://media/test.funscript",
+      }),
+    ];
+
+    await renderInstalledRoundsPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Round" }));
+    await screen.findByDisplayValue("Solo Round");
+
+    const offsetInput = screen.getByPlaceholderText("0");
+    fireEvent.change(offsetInput, { target: { value: "-50" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Round" }));
+
+    await waitFor(() => {
+      expect(mocks.db.round.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "solo",
+          funscriptOffsetMs: -50,
+        })
+      );
+    });
+  });
+
+  it("saves null funscriptOffsetMs when the offset field is empty", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "solo",
+        name: "Solo Round",
+        createdAt: "2026-03-03T11:00:00.000Z",
+        funscriptUri: "app://media/test.funscript",
+        funscriptOffsetMs: 100,
+      }),
+    ];
+
+    await renderInstalledRoundsPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Round" }));
+    const offsetInput = await screen.findByDisplayValue("100");
+    fireEvent.change(offsetInput, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Round" }));
+
+    await waitFor(() => {
+      expect(mocks.db.round.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "solo",
+          funscriptOffsetMs: null,
+        })
+      );
     });
   });
 });

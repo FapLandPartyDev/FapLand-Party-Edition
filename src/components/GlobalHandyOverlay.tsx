@@ -9,7 +9,7 @@ import {
   THEHANDY_OFFSET_STEP_MS,
 } from "../constants/theHandy";
 import { useHandy } from "../contexts/HandyContext";
-import { subscribeToGlobalHandyOverlayOpen } from "./globalHandyOverlayControls";
+import { subscribeToGlobalHandyOverlayOpen, getSaveOffsetToRoundCallback } from "./globalHandyOverlayControls";
 import { HandyStrokeRangeControl } from "./HandyStrokeRangeControl";
 import { playHoverSound, playSelectSound } from "../utils/audio";
 import { formatHandyStrokeBoundPercent } from "../services/theHandyConfig";
@@ -59,6 +59,7 @@ export function GlobalHandyOverlay() {
   } = useHandy();
   const [open, setOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [hasSaveOffsetToRound, setHasSaveOffsetToRound] = useState(false);
   const [strokeMinSliderValue, setStrokeMinSliderValue] = useState(
     formatHandyStrokeBoundPercent(strokeMin)
   );
@@ -91,6 +92,21 @@ export function GlobalHandyOverlay() {
     playSelectSound();
     void resetOffset();
   }, [resetOffset]);
+
+  const handleSaveOffsetToRound = useCallback(() => {
+    const callback = getSaveOffsetToRoundCallback();
+    if (!callback) return;
+    playSelectSound();
+    callback();
+    setActionMessage(t`Offset saved to round.`);
+  }, [t]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHasSaveOffsetToRound(getSaveOffsetToRoundCallback() !== null);
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
 
   const commitStrokeSlider = useCallback(
     (nextMinPercent: number, nextMaxPercent: number) => {
@@ -406,6 +422,17 @@ export function GlobalHandyOverlay() {
                       +25ms
                     </button>
                   </div>
+
+                  {hasSaveOffsetToRound && (
+                    <button
+                      type="button"
+                      className="mt-3 w-full rounded-lg border border-emerald-300/30 bg-emerald-400/12 py-2 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-400/20"
+                      onClick={handleSaveOffsetToRound}
+                      onMouseEnter={() => playHoverSound()}
+                    >
+                      <Trans>Save Offset to Round</Trans>
+                    </button>
+                  )}
                 </div>
 
                 <div
