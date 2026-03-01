@@ -129,6 +129,29 @@ describe("playlistSchema", () => {
     expect(badEdgeRef.success).toBe(false);
   });
 
+  it("allows random round nodes without random pools", () => {
+    const parsed = ZPlaylistConfig.safeParse(
+      buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          { id: "random-1", name: "Random", kind: "randomRound" },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [
+          { id: "edge-a", fromNodeId: "start", toNodeId: "random-1" },
+          { id: "edge-b", fromNodeId: "random-1", toNodeId: "end" },
+        ],
+        randomRoundPools: [],
+        cumRoundRefs: [],
+        pathChoiceTimeoutMs: 6000,
+      }),
+    );
+
+    expect(parsed.success).toBe(true);
+  });
+
   it("requires graph end nodes and forbids non-end dead ends", () => {
     const missingEnd = ZPlaylistConfig.safeParse(
       buildConfig({

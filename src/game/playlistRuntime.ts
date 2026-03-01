@@ -29,6 +29,18 @@ function randomIndex(length: number, randomValue: () => number): number {
   return Math.floor(clamp(randomValue(), 0, 0.999999) * length);
 }
 
+function buildRandomInstalledRoundPool(
+  installedRounds: ReadonlyArray<InstalledRound>
+): RuntimeGraphRandomPool {
+  return {
+    id: "__installed-rounds__",
+    candidates: installedRounds.map((round) => ({
+      roundId: round.id,
+      weight: 1,
+    })),
+  };
+}
+
 export function toPortableRoundRef(round: InstalledRound): PortableRoundRef {
   return toPortableRoundRefFromRound(round);
 }
@@ -268,6 +280,7 @@ function buildGraphConfig(config: GraphBoardConfig, installedRounds: ReadonlyArr
       })
       .filter((entry): entry is { roundId: string; weight: number } => Boolean(entry)),
   }));
+  randomPools.push(buildRandomInstalledRoundPool(installedRounds));
 
   const cumRoundIds = config.cumRoundRefs
     .map((ref) => resolvePortableRoundRef(ref, installedRounds)?.id)

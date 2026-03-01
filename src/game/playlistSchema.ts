@@ -129,7 +129,6 @@ export const ZGraphBoardConfig = z
   .superRefine((value, context) => {
     const nodeIds = new Set<string>();
     const edgeIds = new Set<string>();
-    const poolIds = new Set<string>();
     const outgoingCountByNodeId = new Map<string, number>();
 
     for (const node of value.nodes) {
@@ -146,14 +145,6 @@ export const ZGraphBoardConfig = z
         context.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Round node ${node.id} must define roundRef`,
-          path: ["nodes"],
-        });
-      }
-
-      if (node.kind === "randomRound" && !node.randomPoolId) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Random round node ${node.id} must define randomPoolId`,
           path: ["nodes"],
         });
       }
@@ -259,6 +250,7 @@ export const ZGraphBoardConfig = z
       outgoingCountByNodeId.set(edge.fromNodeId, (outgoingCountByNodeId.get(edge.fromNodeId) ?? 0) + 1);
     }
 
+    const poolIds = new Set<string>();
     for (const pool of value.randomRoundPools) {
       if (poolIds.has(pool.id)) {
         context.addIssue({
@@ -271,14 +263,6 @@ export const ZGraphBoardConfig = z
     }
 
     for (const node of value.nodes) {
-      if (node.kind === "randomRound" && node.randomPoolId && !poolIds.has(node.randomPoolId)) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Node ${node.id} references unknown random pool ${node.randomPoolId}`,
-          path: ["nodes"],
-        });
-      }
-
       const outgoingCount = outgoingCountByNodeId.get(node.id) ?? 0;
       if (node.kind === "end" && outgoingCount > 0) {
         context.addIssue({

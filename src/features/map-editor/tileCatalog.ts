@@ -111,7 +111,7 @@ const FALLBACK_TILES: TileCatalogTile[] = [
     kind: "randomRound",
     visualId: "random-round",
     label: "Random Round",
-    description: "Selects from a random pool.",
+    description: "Plays a random installed round.",
     category: "core",
     color: "#eab308",
     defaultName: "Random Round",

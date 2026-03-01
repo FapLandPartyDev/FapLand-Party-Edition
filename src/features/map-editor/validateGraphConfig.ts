@@ -41,7 +41,6 @@ export function validateGraphConfig(
   const nodeIds = new Set<string>();
   const nodeKindCounts = new Map<EditorNodeKind, number>();
   const edgeIds = new Set<string>();
-  const randomPoolIds = new Set(config.randomRoundPools.map((pool) => pool.id).filter((id) => id.length > 0));
   const installedRoundRefs = installedRounds.map((round) => round.id);
   const installedRoundRefSet = new Set(installedRoundRefs);
   const outgoingCountByNodeId = new Map<string, number>();
@@ -93,14 +92,6 @@ export function validateGraphConfig(
 
     if (node.kind !== "round" && typeof node.skippable === "boolean") {
       addError(`Only round nodes may define skippable`, `nodes.${node.id}.skippable`, node.id);
-    }
-
-    if (node.kind === "randomRound") {
-      if (!node.randomPoolId || node.randomPoolId.trim().length === 0) {
-        addError(`Random-round node "${node.id}" requires randomPoolId`, `nodes.${node.id}`);
-      } else if (!randomPoolIds.has(node.randomPoolId)) {
-        addError(`Random-round node "${node.id}" references unknown pool "${node.randomPoolId}"`, `nodes.${node.id}.randomPoolId`, node.id);
-      }
     }
 
     if (node.kind === "end" && node.roundRef) {

@@ -728,31 +728,45 @@ function getValidOutgoingEdges(
     .filter((edge) => playerMoney >= edge.gateCost);
 }
 
-function resolveRandomRoundForPool(
-  state: GameState,
-  poolId: string
-): { roundId: string | null; nextState: GameState } {
-  const pool = state.config.runtimeGraph.randomRoundPoolsById[poolId];
-  if (!pool || pool.candidates.length === 0) return { roundId: null, nextState: state };
+function getRandomRoundHistoryKey(nodeId: string): string {
+  return `__random-node__:${nodeId}`;
+}
 
-  const playedSet = new Set(state.playedRoundIdsByPool[poolId] ?? []);
-  const unplayed = pool.candidates.filter((candidate) => !playedSet.has(candidate.roundId));
-  const source = unplayed.length > 0 ? unplayed : pool.candidates;
+function resolveRandomInstalledRound(
+  state: GameState,
+  installedRounds: ReadonlyArray<InstalledRound>,
+  nodeId: string
+): { roundId: string | null; nextState: GameState; historyKey: string } {
+  const historyKey = getRandomRoundHistoryKey(nodeId);
+  const pool = state.config.runtimeGraph.randomRoundPoolsById["__installed-rounds__"];
+  const candidates = pool?.candidates ?? installedRounds.map((round) => ({
+    roundId: round.id,
+    weight: 1,
+  }));
+
+  if (candidates.length === 0) {
+    return { roundId: null, nextState: state, historyKey };
+  }
+
+  const playedSet = new Set(state.playedRoundIdsByPool[historyKey] ?? []);
+  const unplayed = candidates.filter((candidate) => !playedSet.has(candidate.roundId));
+  const source = unplayed.length > 0 ? unplayed : candidates;
   const pickedRoundId = pickWeightedRoundId(source);
 
-  if (!pickedRoundId) return { roundId: null, nextState: state };
+  if (!pickedRoundId) {
+    return { roundId: null, nextState: state, historyKey };
+  }
 
-  const knownPlayed = state.playedRoundIdsByPool[poolId] ?? [];
-  const nextPlayedByPool = {
-    ...state.playedRoundIdsByPool,
-    [poolId]: knownPlayed.includes(pickedRoundId) ? knownPlayed : [...knownPlayed, pickedRoundId],
-  };
-
+  const knownPlayed = state.playedRoundIdsByPool[historyKey] ?? [];
   return {
     roundId: pickedRoundId,
+    historyKey,
     nextState: {
       ...state,
-      playedRoundIdsByPool: nextPlayedByPool,
+      playedRoundIdsByPool: {
+        ...state.playedRoundIdsByPool,
+        [historyKey]: knownPlayed.includes(pickedRoundId) ? knownPlayed : [...knownPlayed, pickedRoundId],
+      },
     },
   };
 }
@@ -935,13 +949,13 @@ function resolveFinalNodeLanding(
     return queueRoundFromNode(state, installedRounds, nodeId, field.fixedRoundId, "fixed", null);
   }
 
-  if (field.kind === "randomRound" && field.randomPoolId) {
-    const resolved = resolveRandomRoundForPool(state, field.randomPoolId);
+  if (field.kind === "randomRound") {
+    const resolved = resolveRandomInstalledRound(state, installedRounds, nodeId);
     if (!resolved.roundId) {
       return {
         ...resolved.nextState,
         log: [
-          `Random pool ${field.randomPoolId} has no playable rounds.`,
+          `Random round node ${field.name} has no installed rounds to play.`,
           ...resolved.nextState.log,
         ].slice(0, 40),
       };
@@ -953,7 +967,7 @@ function resolveFinalNodeLanding(
       nodeId,
       resolved.roundId,
       "random",
-      field.randomPoolId
+      resolved.historyKey
     );
   }
 

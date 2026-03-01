@@ -103,8 +103,7 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                 visualId:
                   kind === "perk" ? (selectedNode.visualId ?? perkOptions[0]?.id) : undefined,
                 giftGuaranteedPerk: kind === "perk" ? selectedNode.giftGuaranteedPerk : undefined,
-                randomPoolId:
-                  kind === "randomRound" ? (selectedNode.randomPoolId ?? "pool-1") : undefined,
+                randomPoolId: undefined,
               });
             }}
           />
@@ -316,6 +315,12 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
               placeholder="Uses normal rest when empty"
             />
           </label>
+        )}
+
+        {selectedNode.kind === "randomRound" && (
+          <div className="rounded-lg border border-amber-400/20 bg-amber-500/8 p-2.5 text-xs text-amber-100">
+            This node plays a random installed round. It does not need a random pool.
+          </div>
         )}
 
         {/* ── Perk-specific fields ─────────────────── */}

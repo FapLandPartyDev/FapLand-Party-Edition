@@ -355,33 +355,31 @@ describe("graph engine runtime", () => {
     expect(skipped.players[0]?.currentNodeId).toBe("after");
   });
 
-  it("prefers unplayed random pool rounds and falls back to full pool when exhausted", () => {
+  it("prefers unplayed installed rounds for random nodes and falls back when exhausted", () => {
     const config = makeGraphConfig({
       board: [
         { id: "start", name: "Start", kind: "start" },
-        { id: "rng", name: "Random", kind: "randomRound", randomPoolId: "pool-a" },
+        { id: "rng", name: "Random", kind: "randomRound" },
       ],
       edges: [{ id: "e1", fromNodeId: "start", toNodeId: "rng", gateCost: 0, weight: 1 }],
-      randomPoolsById: {
-        "pool-a": {
-          id: "pool-a",
-          candidates: [
-            { roundId: "round-1", weight: 1 },
-            { roundId: "round-2", weight: 1 },
-          ],
-        },
-      },
     });
     const rounds = [makeRound("round-1"), makeRound("round-2")];
+    config.runtimeGraph.randomRoundPoolsById["__installed-rounds__"] = {
+      id: "__installed-rounds__",
+      candidates: [
+        { roundId: "round-1", weight: 1 },
+        { roundId: "round-2", weight: 1 },
+      ],
+    };
 
     const withHistory = createInitialGameState(config, {
-      playedRoundIdsByPool: { "pool-a": ["round-1"] },
+      playedRoundIdsByPool: { "__random-node__:rng": ["round-1"] },
     });
     const first = rollTurn(withHistory, rounds, 1);
     expect(first.queuedRound?.roundId).toBe("round-2");
 
     const exhausted = createInitialGameState(config, {
-      playedRoundIdsByPool: { "pool-a": ["round-1", "round-2"] },
+      playedRoundIdsByPool: { "__random-node__:rng": ["round-1", "round-2"] },
     });
     vi.spyOn(Math, "random").mockReturnValue(0);
     const second = rollTurn(exhausted, rounds, 1);
