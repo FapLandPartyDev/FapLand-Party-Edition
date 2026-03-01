@@ -30,15 +30,22 @@ export type AvailableGpu = {
   name: string;
 };
 
+let cachedAvailableGpus: AvailableGpu[] | null = null;
+
 async function listAvailableGpus(): Promise<AvailableGpu[]> {
+  if (cachedAvailableGpus !== null) {
+    return cachedAvailableGpus;
+  }
   try {
     const graphics = await si.graphics();
-    return graphics.controllers.map((controller, index) => ({
+    cachedAvailableGpus = graphics.controllers.map((controller, index) => ({
       index,
       name: [controller.vendor, controller.model].filter(Boolean).join(" ") || `GPU ${index}`,
     }));
+    return cachedAvailableGpus;
   } catch {
-    return [];
+    cachedAvailableGpus = [];
+    return cachedAvailableGpus;
   }
 }
 

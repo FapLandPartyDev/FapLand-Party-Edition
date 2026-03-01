@@ -458,6 +458,8 @@ export async function getDebugState(): Promise<{
   };
 }
 
+let cachedGraphics: Awaited<ReturnType<typeof si.graphics>> | null = null;
+
 export async function collectDebugDiagnostics(): Promise<DebugDiagnostics> {
   const collectionErrors: string[] = [];
   const store = getStore();
@@ -478,10 +480,15 @@ export async function collectDebugDiagnostics(): Promise<DebugDiagnostics> {
       collectionErrors.push(`os: ${error instanceof Error ? error.message : error}`);
       return null;
     }),
-    si.graphics().catch((error) => {
-      collectionErrors.push(`graphics: ${error instanceof Error ? error.message : error}`);
-      return null;
-    }),
+    (async () => {
+      if (cachedGraphics) return cachedGraphics;
+      const g = await si.graphics().catch((error) => {
+        collectionErrors.push(`graphics: ${error instanceof Error ? error.message : error}`);
+        return null;
+      });
+      if (g) cachedGraphics = g;
+      return g;
+    })(),
   ]);
 
   const diagnostics: DebugDiagnostics = {
