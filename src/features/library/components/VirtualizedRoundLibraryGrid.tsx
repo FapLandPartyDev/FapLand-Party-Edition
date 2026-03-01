@@ -70,6 +70,7 @@ export function VirtualizedRoundLibraryGrid({
 }: VirtualizedRoundLibraryGridProps) {
   const [columns, setColumns] = useState(1);
   const [containerWidth, setContainerWidth] = useState(0);
+  const [scrollMargin, setScrollMargin] = useState(0);
   const layoutContainerRef = useRef<HTMLDivElement | null>(null);
   const measureFrameRef = useRef<number | null>(null);
   const lastVisibleRoundIdsRef = useRef<string>("");
@@ -81,11 +82,9 @@ export function VirtualizedRoundLibraryGrid({
     }
 
     const updateLayout = () => {
+      const layoutContainer = layoutContainerRef.current;
       const width =
-        layoutContainerRef.current?.clientWidth ||
-        scrollContainer.clientWidth ||
-        window.innerWidth ||
-        0;
+        layoutContainer?.clientWidth || scrollContainer.clientWidth || window.innerWidth || 0;
       const nextColumns = Math.max(
         1,
         Math.min(
@@ -95,6 +94,13 @@ export function VirtualizedRoundLibraryGrid({
       );
       setContainerWidth(width);
       setColumns(nextColumns);
+      if (layoutContainer) {
+        const nextScrollMargin =
+          layoutContainer.getBoundingClientRect().top -
+          scrollContainer.getBoundingClientRect().top +
+          scrollContainer.scrollTop;
+        setScrollMargin(nextScrollMargin);
+      }
     };
 
     updateLayout();
@@ -160,6 +166,7 @@ export function VirtualizedRoundLibraryGrid({
         ? GROUP_HEADER_ESTIMATE_PX + SHELF_GAP_PX
         : estimateCardRowHeightPx(columns, containerWidth);
     },
+    scrollMargin,
     overscan: 4,
     measureElement: (element) => element.getBoundingClientRect().height,
     useAnimationFrameWithResizeObserver: true,
@@ -296,7 +303,7 @@ export function VirtualizedRoundLibraryGrid({
             ref={virtualizer.measureElement}
             data-index={item.index}
             className={`absolute left-0 top-0 w-full pb-5 ${shelf.kind === "group-header" ? "z-10 focus-within:z-[60] hover:z-20" : ""}`}
-            style={{ transform: `translateY(${item.start}px)` }}
+            style={{ transform: `translateY(${item.start - scrollMargin}px)` }}
           >
             {shelfRenderer(shelf)}
           </div>

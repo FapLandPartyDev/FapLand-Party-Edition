@@ -71,20 +71,28 @@ const graphicsCompatibilityKeys = new Set([
   GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY,
 ]);
 
-export function createStartupGraphicsStore(): Store<Record<string, unknown>> {
+let cachedGraphicsStore: Store<Record<string, unknown>> | null = null;
+
+export function getStartupGraphicsStore(): Store<Record<string, unknown>> {
+  if (cachedGraphicsStore) return cachedGraphicsStore;
   try {
-    return new Store<Record<string, unknown>>({ name: "graphics-startup" });
+    cachedGraphicsStore = new Store<Record<string, unknown>>({ name: "graphics-startup" });
   } catch (error) {
     console.warn("Falling back to cwd graphics startup store", error);
-    return new Store<Record<string, unknown>>({
+    cachedGraphicsStore = new Store<Record<string, unknown>>({
       cwd: process.cwd(),
       name: "graphics-startup",
     });
   }
+  return cachedGraphicsStore;
+}
+
+export function createStartupGraphicsStore(): Store<Record<string, unknown>> {
+  return getStartupGraphicsStore();
 }
 
 export function readGraphicsCompatibilitySettings(
-  store: StoreLike = createStartupGraphicsStore()
+  store: StoreLike = getStartupGraphicsStore()
 ): GraphicsCompatibilitySettings {
   return {
     safeModeEnabled:
@@ -126,19 +134,24 @@ export function readGraphicsCompatibilitySettings(
 export function persistGraphicsCompatibilityStartupSetting(
   key: string,
   value: unknown,
-  store: StoreLike = createStartupGraphicsStore()
+  store?: StoreLike
 ): boolean {
-  if (!store.set) {
+  if (!graphicsCompatibilityKeys.has(key) && key !== FFMPEG_GPU_PREFERENCE_KEY) {
+    return false;
+  }
+
+  const resolvedStore = store ?? getStartupGraphicsStore();
+  if (!resolvedStore.set) {
     return false;
   }
 
   if (graphicsCompatibilityKeys.has(key)) {
-    store.set(key, normalizeGraphicsBoolean(value));
+    resolvedStore.set(key, normalizeGraphicsBoolean(value));
     return true;
   }
 
   if (key === FFMPEG_GPU_PREFERENCE_KEY) {
-    store.set(key, normalizeFfmpegGpuPreference(value));
+    resolvedStore.set(key, normalizeFfmpegGpuPreference(value));
     return true;
   }
 

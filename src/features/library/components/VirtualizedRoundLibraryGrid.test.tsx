@@ -185,6 +185,62 @@ describe("VirtualizedRoundLibraryGrid", () => {
     });
   });
 
+  it("accounts for its offset inside the scroll container", async () => {
+    const container = document.createElement("div");
+    Object.defineProperty(container, "clientWidth", { configurable: true, value: 1280 });
+    Object.defineProperty(container, "clientHeight", { configurable: true, value: 900 });
+    Object.defineProperty(container, "scrollTop", { configurable: true, value: 200 });
+    vi.spyOn(container, "getBoundingClientRect").mockReturnValue({
+      top: 100,
+    } as DOMRect);
+
+    let latestOptions: Record<string, unknown> | null = null;
+    useVirtualizerMock.mockImplementation((options: Record<string, unknown>) => {
+      latestOptions = options;
+      const scrollMargin = Number(options.scrollMargin ?? 0);
+      return {
+        measure: vi.fn(),
+        measureElement: vi.fn(),
+        getTotalSize: () => 1200,
+        getVirtualItems: () => [{ index: 0, start: scrollMargin }],
+      };
+    });
+
+    const rows = Array.from({ length: 12 }, (_, index) => ({
+      kind: "hero-group" as const,
+      groupKey: `hero:${index}`,
+      heroName: `Hero ${index}`,
+      rounds: [makeRound(`round-${index}`)],
+    }));
+
+    const { container: rendered } = render(
+      <VirtualizedRoundLibraryGrid
+        rows={rows}
+        expandedGroupKeys={new Set()}
+        scrollContainer={container}
+        renderCard={(item) => <div key={item.key}>{item.key}</div>}
+        renderGroupHeader={(shelf) => <div>{shelf.key}</div>}
+      />
+    );
+
+    const layoutContainer = rendered.firstElementChild as HTMLDivElement;
+    vi.spyOn(layoutContainer, "getBoundingClientRect").mockReturnValue({
+      top: 650,
+    } as DOMRect);
+
+    const ResizeObserverMock = globalThis.ResizeObserver as unknown as {
+      instances: Array<{ trigger: () => void }>;
+    };
+    ResizeObserverMock.instances[0]?.trigger();
+
+    await waitFor(() => {
+      expect(latestOptions?.scrollMargin).toBe(750);
+      expect((layoutContainer.firstElementChild as HTMLElement).style.transform).toBe(
+        "translateY(0px)"
+      );
+    });
+  });
+
   it("remeasures a virtualized shelf when media finishes loading", async () => {
     const measure = vi.fn();
     const measureElement = vi.fn();

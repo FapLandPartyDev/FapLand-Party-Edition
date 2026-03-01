@@ -1,12 +1,32 @@
 import Store from "electron-store";
-import crypto from "crypto";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { app } from "electron";
 
 const STORE_ENCRYPTION_SALT = "f-land-store-encryption-v1-pepper";
+const DEFAULT_STORE_FILE_NAME = "config.json";
+const FALLBACK_STORE_FILE_NAME = "f-land.json";
+const STORE_KEY_FILE_NAME = "store-key.json";
+
+type StoreMode =
+  | "plaintext"
+  | "plaintext-migration"
+  | "preinit-placeholder"
+  | "legacy-encrypted";
+
+type StoreFactoryOptions = {
+  mode: StoreMode;
+  encryptionKey?: string;
+};
 
 let store: Store | null = null;
-let encryptionKeyPromise: Promise<string> | null = null;
-let storeFactory: (encryptionKey: string) => Store = createElectronStore;
-let encryptionKeyDeriver: () => Promise<string> = deriveHardwareEncryptionKey;
+let storeInitialized = false;
+let preInitializationOriginalBytes: Buffer | null = null;
+let storeFactory: (options: StoreFactoryOptions) => Store = createElectronStore;
+let hardwareKeyDeriver: () => Promise<string> = deriveHardwareEncryptionKey;
+let settingsPathResolver: () => string = resolveSettingsPathFromEnvironment;
+let keyFilePathResolver: () => string = resolveKeyFilePathFromEnvironment;
 
 function hashStoreKey(seed: string): string {
   return crypto
@@ -17,6 +37,10 @@ function hashStoreKey(seed: string): string {
 
 function getSynchronousFallbackEncryptionKey(): string {
   return hashStoreKey("synchronous-fallback-key");
+}
+
+function getHardwareFallbackEncryptionKey(): string {
+  return hashStoreKey("fallback-key");
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -49,44 +73,233 @@ async function deriveHardwareEncryptionKey(): Promise<string> {
     ].join("::");
     return hashStoreKey(seed);
   } catch {
-    return hashStoreKey("fallback-key");
+    return getHardwareFallbackEncryptionKey();
   }
 }
 
-async function deriveEncryptionKey(): Promise<string> {
-  if (!encryptionKeyPromise) {
-    encryptionKeyPromise = encryptionKeyDeriver();
-  }
-  return encryptionKeyPromise;
-}
-
-function createElectronStore(encryptionKey: string): Store {
+function resolveSettingsPathFromEnvironment(): string {
   try {
-    return new Store({ encryptionKey });
+    return path.join(app.getPath("userData"), DEFAULT_STORE_FILE_NAME);
   } catch {
-    return new Store({ cwd: process.cwd(), name: "f-land", encryptionKey });
+    return path.join(process.cwd(), FALLBACK_STORE_FILE_NAME);
   }
 }
 
-function createStore(encryptionKey: string): Store {
-  return storeFactory(encryptionKey);
+function resolveKeyFilePathFromEnvironment(): string {
+  return path.join(path.dirname(settingsPathResolver()), STORE_KEY_FILE_NAME);
+}
+
+function getStoreLocation(): { cwd: string; name: string } {
+  const settingsPath = settingsPathResolver();
+  return {
+    cwd: path.dirname(settingsPath),
+    name: path.basename(settingsPath, path.extname(settingsPath)),
+  };
+}
+
+function createElectronStore(options: StoreFactoryOptions): Store {
+  const location = getStoreLocation();
+
+  if (options.mode === "legacy-encrypted") {
+    return new Store({
+      ...location,
+      encryptionKey: options.encryptionKey,
+      clearInvalidConfig: false,
+    });
+  }
+
+  if (options.mode === "plaintext-migration") {
+    let allowLegacyBytes = true;
+    const migrationStore = new Store({
+      ...location,
+      clearInvalidConfig: false,
+      deserialize: (value) => {
+        if (allowLegacyBytes) return {};
+        return JSON.parse(value) as Record<string, unknown>;
+      },
+    });
+    allowLegacyBytes = false;
+    return migrationStore;
+  }
+
+  if (options.mode === "preinit-placeholder") {
+    return new Store({
+      ...location,
+      clearInvalidConfig: false,
+      deserialize: () => ({}),
+    });
+  }
+
+  return new Store({
+    ...location,
+    clearInvalidConfig: false,
+  });
+}
+
+function createStore(options: StoreFactoryOptions): Store {
+  return storeFactory(options);
+}
+
+function readCachedEncryptionKey(): string | null {
+  try {
+    const content = JSON.parse(fs.readFileSync(keyFilePathResolver(), "utf8")) as {
+      key?: unknown;
+    };
+    return typeof content.key === "string" && content.key.length > 0 ? content.key : null;
+  } catch {
+    return null;
+  }
+}
+
+function isSettingsSnapshot(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readPlaintextSnapshot(settingsPath: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(settingsPath, "utf8")) as unknown;
+    if (!isSettingsSnapshot(parsed)) {
+      throw new Error("Settings JSON must contain an object.");
+    }
+    return parsed;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
+    return null;
+  }
+}
+
+function readStoreSnapshot(candidate: Store): Record<string, unknown> {
+  const snapshot = candidate.store as unknown;
+  if (!isSettingsSnapshot(snapshot)) {
+    throw new Error("Settings store did not contain an object.");
+  }
+  return snapshot;
+}
+
+async function getLegacyEncryptionKeys(): Promise<string[]> {
+  const candidates: Array<string | null> = [
+    readCachedEncryptionKey(),
+    getSynchronousFallbackEncryptionKey(),
+  ];
+
+  try {
+    candidates.push(await hardwareKeyDeriver());
+  } catch (error) {
+    console.warn("Failed to derive the legacy hardware settings key.", error);
+  }
+
+  candidates.push(getHardwareFallbackEncryptionKey());
+  return [...new Set(candidates.filter((candidate): candidate is string => Boolean(candidate)))];
+}
+
+async function readLegacySnapshot(): Promise<Record<string, unknown> | null> {
+  for (const encryptionKey of await getLegacyEncryptionKeys()) {
+    try {
+      const legacyStore = createStore({
+        mode: "legacy-encrypted",
+        encryptionKey,
+      });
+      return readStoreSnapshot(legacyStore);
+    } catch {
+      // Try the next historical key without changing the original file.
+    }
+  }
+  return null;
+}
+
+function snapshotsMatch(
+  expected: Record<string, unknown>,
+  actual: Record<string, unknown>
+): boolean {
+  return JSON.stringify(actual) === JSON.stringify(expected);
+}
+
+function restoreOriginalSettings(settingsPath: string, originalBytes: Buffer): void {
+  const restorePath = `${settingsPath}.${process.pid}.${Date.now()}.restore`;
+  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+  fs.writeFileSync(restorePath, originalBytes);
+  fs.renameSync(restorePath, settingsPath);
+}
+
+function migrateSnapshotToPlaintext(
+  settingsPath: string,
+  originalBytes: Buffer,
+  snapshot: Record<string, unknown>
+): Store {
+  try {
+    const plaintextStore = createStore({ mode: "plaintext-migration" });
+    plaintextStore.store = snapshot;
+    const verifiedSnapshot = readStoreSnapshot(plaintextStore);
+    if (!snapshotsMatch(snapshot, verifiedSnapshot)) {
+      throw new Error("Plaintext settings verification failed.");
+    }
+    return plaintextStore;
+  } catch (error) {
+    restoreOriginalSettings(settingsPath, originalBytes);
+    throw error;
+  }
+}
+
+function removeLegacyKeyFile(): void {
+  try {
+    fs.rmSync(keyFilePathResolver(), { force: true });
+  } catch (error) {
+    console.warn("Failed to remove the obsolete settings key file.", error);
+  }
 }
 
 export async function initStore(): Promise<void> {
-  if (store) return;
-  const key = await deriveEncryptionKey();
-  store = createStore(key);
+  if (storeInitialized) return;
+
+  const settingsPath = settingsPathResolver();
+  if (preInitializationOriginalBytes) {
+    restoreOriginalSettings(settingsPath, preInitializationOriginalBytes);
+    preInitializationOriginalBytes = null;
+    store = null;
+  }
+  const plaintextSnapshot = readPlaintextSnapshot(settingsPath);
+
+  if (plaintextSnapshot) {
+    const plaintextStore = createStore({ mode: "plaintext" });
+    const verifiedSnapshot = readStoreSnapshot(plaintextStore);
+    if (!snapshotsMatch(plaintextSnapshot, verifiedSnapshot)) {
+      throw new Error("Plaintext settings verification failed.");
+    }
+    store = plaintextStore;
+    storeInitialized = true;
+    removeLegacyKeyFile();
+    return;
+  }
+
+  const originalBytes = fs.readFileSync(settingsPath);
+  const legacySnapshot = await readLegacySnapshot();
+  if (!legacySnapshot) {
+    throw new Error(
+      "The settings file is not valid plaintext JSON and could not be decrypted with any known legacy key. The original file was left unchanged."
+    );
+  }
+
+  store = migrateSnapshotToPlaintext(settingsPath, originalBytes, legacySnapshot);
+  storeInitialized = true;
+  removeLegacyKeyFile();
+  console.warn("Migrated legacy encrypted settings to plaintext.");
 }
 
 export function getStore(): Store {
   if (!store) {
-    store = createStore(getSynchronousFallbackEncryptionKey());
+    try {
+      store = createStore({ mode: "plaintext" });
+    } catch (error) {
+      if (storeInitialized) throw error;
+      preInitializationOriginalBytes = fs.readFileSync(settingsPathResolver());
+      store = createStore({ mode: "preinit-placeholder" });
+    }
   }
   return store;
 }
 
 export function resolveSettingsStorePath(): string {
-  return getStore().path;
+  return store?.path ?? settingsPathResolver();
 }
 
 export function safeStoreGet(key: string, fallback?: unknown): unknown {
@@ -119,16 +332,26 @@ export function safeStoreSet(key: string, value: unknown): boolean {
 
 export function __resetStoreForTests(): void {
   store = null;
-  encryptionKeyPromise = null;
+  storeInitialized = false;
+  preInitializationOriginalBytes = null;
   storeFactory = createElectronStore;
-  encryptionKeyDeriver = deriveHardwareEncryptionKey;
+  hardwareKeyDeriver = deriveHardwareEncryptionKey;
+  settingsPathResolver = resolveSettingsPathFromEnvironment;
+  keyFilePathResolver = resolveKeyFilePathFromEnvironment;
 }
 
-export function __setStoreFactoryForTests(factory: (encryptionKey: string) => Store): void {
+export function __setStoreFactoryForTests(
+  factory: (options: StoreFactoryOptions) => Store
+): void {
   storeFactory = factory;
 }
 
 export function __setHardwareKeyDeriverForTests(deriver: () => Promise<string>): void {
-  encryptionKeyDeriver = deriver;
-  encryptionKeyPromise = null;
+  hardwareKeyDeriver = deriver;
+}
+
+export function __setStorePathsForTests(settingsPath: string, keyFilePath?: string): void {
+  settingsPathResolver = () => settingsPath;
+  keyFilePathResolver = () =>
+    keyFilePath ?? path.join(path.dirname(settingsPath), STORE_KEY_FILE_NAME);
 }

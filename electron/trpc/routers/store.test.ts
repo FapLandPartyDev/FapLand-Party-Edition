@@ -81,7 +81,7 @@ describe("storeRouter", () => {
     expect(writableStore.data["app.locale"]).toBe("de");
   });
 
-  it("mirrors GPU startup settings after writing the encrypted main store", async () => {
+  it("mirrors GPU startup settings after writing the main settings store", async () => {
     const writableStore = new FakeStore();
     __setStoreFactoryForTests(() => asStore(writableStore));
     mocks.persistGraphicsCompatibilityStartupSetting.mockReturnValue(true);
