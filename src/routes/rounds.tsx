@@ -99,7 +99,7 @@ import {
 import { THEHANDY_OFFSET_MAX_MS, THEHANDY_OFFSET_MIN_MS } from "../constants/theHandy";
 
 type GroupMode = "hero" | "playlist";
-type EroScriptsDialogContext = "library" | "website-round" | "edit-round";
+type EroScriptsDialogContext = "library" | "website-round" | "edit-round" | "edit-hero";
 type EditableRoundType = "Normal" | "Interjection" | "Cum";
 type RoundEditDraft = {
   id: string;
@@ -125,6 +125,8 @@ type HeroEditDraft = {
   author: string;
   description: string;
   tagsText: string;
+  funscriptUri: string | null;
+  funscriptDirty: boolean;
 };
 type DeleteRoundDialogState = {
   id: string;
@@ -705,14 +707,21 @@ function toRoundEditDraft(
   };
 }
 
-function toHeroEditDraft(round: RoundLibraryEntry): HeroEditDraft | null {
+function toHeroEditDraft(
+  round: RoundLibraryEntry,
+  mediaResources?: InstalledRoundMediaResources | null
+): HeroEditDraft | null {
   if (!round.heroId || !round.hero) return null;
+  const primaryResource = mediaResources?.resources[0] ?? round.resources[0] ?? null;
+  const { funscriptUri } = getResourceFunscriptState(primaryResource ?? undefined);
   return {
     id: round.heroId,
     name: round.hero.name ?? "",
     author: round.hero.author ?? "",
     description: round.hero.description ?? "",
     tagsText: (round.hero.tags ?? []).join(", "),
+    funscriptUri,
+    funscriptDirty: false,
   };
 }
 
@@ -2313,6 +2322,9 @@ export function InstalledRoundsPage() {
     if (eroscriptsDialogContext === "edit-round") {
       return editingRound?.name ?? queryInput;
     }
+    if (eroscriptsDialogContext === "edit-hero") {
+      return editingHero?.name ?? queryInput;
+    }
     if (eroscriptsDialogContext === "website-round") {
       return websiteRoundName.trim() || websiteRoundVideoUrl.trim() || queryInput;
     }
@@ -2325,6 +2337,16 @@ export function InstalledRoundsPage() {
         previous ? { ...previous, funscriptUri: result.funscriptUri } : previous
       );
       showToast(t`Funscript attached. Save the round to keep it.`, "success");
+      return;
+    }
+
+    if (eroscriptsDialogContext === "edit-hero") {
+      setEditingHero((previous) =>
+        previous
+          ? { ...previous, funscriptUri: result.funscriptUri, funscriptDirty: true }
+          : previous
+      );
+      showToast(t`Funscript attached. Save the hero to apply it to all attached rounds.`, "success");
       return;
     }
 
@@ -2520,13 +2542,31 @@ export function InstalledRoundsPage() {
 
     setIsSavingEdit(true);
     try {
+      const heroDraft = editingHero;
       await db.hero.update({
-        id: editingHero.id,
-        name: editingHero.name,
-        author: editingHero.author,
-        description: editingHero.description,
-        tags: parseTagsInput(editingHero.tagsText),
+        id: heroDraft.id,
+        name: heroDraft.name,
+        author: heroDraft.author,
+        description: heroDraft.description,
+        tags: parseTagsInput(heroDraft.tagsText),
       });
+      if (heroDraft.funscriptDirty) {
+        const result = await db.hero.updateFunscript({
+          heroId: heroDraft.id,
+          funscriptUri: heroDraft.funscriptUri,
+        });
+        const updatedLabel =
+          result.updatedResources === 1
+            ? t`Updated funscript for 1 hero round.`
+            : t`Updated funscript for ${result.updatedResources} hero rounds.`;
+        const skippedLabel =
+          result.skippedRounds > 0
+            ? result.skippedRounds === 1
+              ? ` ${t`Skipped 1 round without resources.`}`
+              : ` ${t`Skipped ${result.skippedRounds} rounds without resources.`}`
+            : "";
+        showToast(`${updatedLabel}${skippedLabel}`, "success");
+      }
       setEditingHero(null);
       await refreshInstalledRounds();
     } catch (error) {
@@ -2534,6 +2574,26 @@ export function InstalledRoundsPage() {
       showToast(error instanceof Error ? error.message : t`Failed to update hero.`, "error");
     } finally {
       setIsSavingEdit(false);
+    }
+  };
+
+  const editHeroEntry = async (round: RoundLibraryEntry) => {
+    const draft = toHeroEditDraft(round);
+    if (!draft) return;
+    handleSelectSfx();
+    setEditingHero(draft);
+
+    try {
+      const mediaResources = await db.round.getMediaResources(round.id, true);
+      const updatedDraft = toHeroEditDraft(round, mediaResources);
+      if (!updatedDraft) return;
+      setEditingHero((current) =>
+        current?.id === updatedDraft.id && !current.funscriptDirty
+          ? { ...current, funscriptUri: updatedDraft.funscriptUri }
+          : current
+      );
+    } catch (error) {
+      console.warn("Failed to load hero funscript resource details", error);
     }
   };
 
@@ -3758,10 +3818,9 @@ export function InstalledRoundsPage() {
                                         openHeroGroupRoundConversion(row);
                                       }}
                                       onEditHero={() => {
-                                        const draft = toHeroEditDraft(row.rounds[0]);
-                                        if (!draft) return;
-                                        handleSelectSfx();
-                                        setEditingHero(draft);
+                                        const firstRound = row.rounds[0];
+                                        if (!firstRound) return;
+                                        void editHeroEntry(firstRound);
                                       }}
                                       onDeleteHero={() => {
                                         const draft = toHeroEditDraft(row.rounds[0]);
@@ -4029,11 +4088,17 @@ export function InstalledRoundsPage() {
         open={eroscriptsDialogContext !== null}
         initialQuery={getEroScriptsInitialQuery()}
         currentFunscriptUri={
-          eroscriptsDialogContext === "edit-round" ? editingRound?.funscriptUri : null
+          eroscriptsDialogContext === "edit-round"
+            ? editingRound?.funscriptUri
+            : eroscriptsDialogContext === "edit-hero"
+              ? editingHero?.funscriptUri
+              : null
         }
         onClose={() => setEroScriptsDialogContext(null)}
         onAttachFunscript={
-          eroscriptsDialogContext === "edit-round" || eroscriptsDialogContext === "website-round"
+          eroscriptsDialogContext === "edit-round" ||
+          eroscriptsDialogContext === "edit-hero" ||
+          eroscriptsDialogContext === "website-round"
             ? attachEroScriptsFunscript
             : undefined
         }
@@ -4528,6 +4593,72 @@ export function InstalledRoundsPage() {
                 className="min-h-28 w-full rounded-xl border border-violet-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-200/70"
               />
             </ModalField>
+            <div>
+              <span className="mb-2 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-300">
+                <Trans>Funscript</Trans>
+              </span>
+              <div className="space-y-3 rounded-xl border border-violet-300/30 bg-black/45 p-3">
+                <div className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-200">
+                  {editingHero.funscriptUri ? (
+                    <span className="break-all">{editingHero.funscriptUri}</span>
+                  ) : (
+                    <span className="text-zinc-500">
+                      <Trans>No funscript attached</Trans>
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={isSavingEdit}
+                    onClick={() => {
+                      void window.electronAPI.dialog
+                        .selectConverterFunscriptFile()
+                        .then((filePath) => {
+                          if (!filePath) return;
+                          setEditingHero((previous) =>
+                            previous
+                              ? {
+                                  ...previous,
+                                  funscriptUri: window.electronAPI.file.convertFileSrc(filePath),
+                                  funscriptDirty: true,
+                                }
+                              : previous
+                          );
+                        });
+                    }}
+                    className="rounded-xl border border-cyan-300/35 bg-cyan-500/12 px-3 py-2 text-xs uppercase tracking-[0.18em] text-cyan-100 transition-all duration-200 hover:border-cyan-200/75 hover:bg-cyan-500/24 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {editingHero.funscriptUri ? t`Replace Funscript` : t`Attach Funscript`}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSavingEdit || !editingHero.funscriptUri}
+                    onClick={() =>
+                      setEditingHero((previous) =>
+                        previous
+                          ? { ...previous, funscriptUri: null, funscriptDirty: true }
+                          : previous
+                      )
+                    }
+                    className="rounded-xl border border-orange-300/35 bg-orange-500/12 px-3 py-2 text-xs uppercase tracking-[0.18em] text-orange-100 transition-all duration-200 hover:border-orange-200/75 hover:bg-orange-500/24 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Trans>Detach Funscript</Trans>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSavingEdit}
+                    onClick={() => {
+                      handleSelectSfx();
+                      setEroScriptsDialogContext("edit-hero");
+                    }}
+                    className="rounded-xl border border-emerald-300/35 bg-emerald-500/12 px-3 py-2 text-xs uppercase tracking-[0.18em] text-emerald-100 transition-all duration-200 hover:border-emerald-200/75 hover:bg-emerald-500/24 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Trans>Search EroScripts</Trans>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </EditDialog>
       )}

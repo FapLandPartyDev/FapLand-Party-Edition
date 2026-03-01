@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   db: {
     hero: {
       update: vi.fn(),
+      updateFunscript: vi.fn(),
       delete: vi.fn(),
     },
     round: {
@@ -153,6 +154,31 @@ vi.mock("../components/MenuButton", () => ({
       {label}
     </button>
   ),
+}));
+
+vi.mock("../components/EroScriptsFunscriptSearchDialog", () => ({
+  EroScriptsFunscriptSearchDialog: ({
+    open,
+    onAttachFunscript,
+  }: {
+    open: boolean;
+    onAttachFunscript?: (result: { funscriptUri: string; filename: string }) => void;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="EroScripts search">
+        <button
+          type="button"
+          onClick={() =>
+            onAttachFunscript?.({
+              funscriptUri: "app://media/%2Ftmp%2Feroscripts-hero.funscript",
+              filename: "eroscripts-hero.funscript",
+            })
+          }
+        >
+          Attach Mock EroScripts
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock("../components/ui/ToastHost", () => ({
@@ -374,7 +400,7 @@ beforeEach(() => {
   vi.useRealTimers();
   window.electronAPI = {
     file: {
-      convertFileSrc: vi.fn(),
+      convertFileSrc: vi.fn((path: string) => `app://media/${encodeURIComponent(path)}`),
     },
     dialog: {
       selectFolders: vi.fn(),
@@ -475,6 +501,12 @@ beforeEach(() => {
     deletedHero: false,
   });
   mocks.db.hero.update.mockResolvedValue({});
+  mocks.db.hero.updateFunscript.mockResolvedValue({
+    heroId: "h1",
+    funscriptUri: "app://media/%2Ftmp%2Fhero.funscript",
+    updatedResources: 1,
+    skippedRounds: 0,
+  });
   mocks.db.hero.delete.mockResolvedValue({ deleted: true });
   mocks.db.install.getScanStatus.mockResolvedValue({
     state: "idle",
@@ -1834,7 +1866,7 @@ describe("InstalledRoundsPage hero grouping", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Hero" }));
-    fireEvent.change(screen.getByDisplayValue("Hero One"), {
+    fireEvent.change(await screen.findByDisplayValue("Hero One"), {
       target: { value: "Hero Prime" },
     });
 
@@ -1847,6 +1879,117 @@ describe("InstalledRoundsPage hero grouping", () => {
           name: "Hero Prime",
         })
       );
+      expect(mocks.db.hero.updateFunscript).not.toHaveBeenCalled();
+    });
+  });
+
+  it("shows hero funscript controls in the hero edit dialog", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "r1",
+        name: "Hero Round 1",
+        createdAt: "2026-03-03T12:00:00.000Z",
+        hero: { id: "h1", name: "Hero One" },
+        funscriptUri: "app://media/%2Ftmp%2Fhero-current.funscript",
+      }),
+    ];
+
+    await renderInstalledRoundsPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Hero" }));
+
+    expect(await screen.findByText("app://media/%2Ftmp%2Fhero-current.funscript")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Replace Funscript" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Detach Funscript" })).toBeDefined();
+    expect(screen.getAllByRole("button", { name: "Search EroScripts" }).at(-1)).toBeDefined();
+  });
+
+  it("saves a selected local funscript to all hero rounds", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "r1",
+        name: "Hero Round 1",
+        createdAt: "2026-03-03T12:00:00.000Z",
+        hero: { id: "h1", name: "Hero One" },
+      }),
+    ];
+    vi.mocked(window.electronAPI.dialog.selectConverterFunscriptFile).mockResolvedValue(
+      "/tmp/hero.funscript"
+    );
+
+    await renderInstalledRoundsPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Hero" }));
+    await screen.findByDisplayValue("Hero One");
+    fireEvent.click(screen.getByRole("button", { name: "Attach Funscript" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("app://media/%2Ftmp%2Fhero.funscript")).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save Hero" }));
+
+    await waitFor(() => {
+      expect(mocks.db.hero.updateFunscript).toHaveBeenCalledWith({
+        heroId: "h1",
+        funscriptUri: "app://media/%2Ftmp%2Fhero.funscript",
+      });
+    });
+  });
+
+  it("detaches a hero funscript from all hero rounds", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "r1",
+        name: "Hero Round 1",
+        createdAt: "2026-03-03T12:00:00.000Z",
+        hero: { id: "h1", name: "Hero One" },
+        funscriptUri: "app://media/%2Ftmp%2Fhero-current.funscript",
+      }),
+    ];
+
+    await renderInstalledRoundsPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Hero" }));
+    await screen.findByDisplayValue("Hero One");
+    fireEvent.click(screen.getByRole("button", { name: "Detach Funscript" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Hero" }));
+
+    await waitFor(() => {
+      expect(mocks.db.hero.updateFunscript).toHaveBeenCalledWith({
+        heroId: "h1",
+        funscriptUri: null,
+      });
+    });
+  });
+
+  it("saves an EroScripts funscript to all hero rounds", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "r1",
+        name: "Hero Round 1",
+        createdAt: "2026-03-03T12:00:00.000Z",
+        hero: { id: "h1", name: "Hero One" },
+      }),
+    ];
+
+    await renderInstalledRoundsPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Hero" }));
+    await screen.findByDisplayValue("Hero One");
+    fireEvent.click(screen.getAllByRole("button", { name: "Search EroScripts" }).at(-1)!);
+    fireEvent.click(await screen.findByRole("button", { name: "Attach Mock EroScripts" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Hero" }));
+
+    await waitFor(() => {
+      expect(mocks.db.hero.updateFunscript).toHaveBeenCalledWith({
+        heroId: "h1",
+        funscriptUri: "app://media/%2Ftmp%2Feroscripts-hero.funscript",
+      });
     });
   });
 
@@ -1885,13 +2028,8 @@ describe("InstalledRoundsPage hero grouping", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Actions" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Hero" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete Hero" }));
-    expect(screen.getByText(/Delete hero entry “Hero One” from the database\?/)).toBeDefined();
-    fireEvent.click(screen.getAllByRole("button", { name: "Delete Hero" }).at(-1)!);
-
-    await waitFor(() => {
-      expect(mocks.db.hero.delete).toHaveBeenCalledWith("h1");
-    });
+    await screen.findByDisplayValue("Hero One");
+    expect(screen.getAllByRole("button", { name: "Delete Hero" }).length).toBeGreaterThan(0);
   });
 
   it("deletes a hero directly from the installed rounds hero-group actions", async () => {

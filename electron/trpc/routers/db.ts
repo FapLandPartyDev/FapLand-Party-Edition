@@ -868,6 +868,66 @@ export const dbRouter = router({
       return { ...updated, tags: parseTagsJson(updated.tagsJson) };
     }),
 
+  updateHeroFunscript: publicProcedure
+    .input(
+      z.object({
+        heroId: z.string().min(1),
+        funscriptUri: z.string().trim().min(1).nullable(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const existing = await db.query.hero.findFirst({
+        where: eq(hero.id, input.heroId),
+        columns: { id: true },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Hero not found.",
+        });
+      }
+
+      const attachedRounds = await db.query.round.findMany({
+        where: eq(round.heroId, input.heroId),
+        columns: { id: true },
+        with: {
+          resources: {
+            orderBy: [asc(resource.createdAt), asc(resource.id)],
+            columns: { id: true },
+          },
+        },
+      });
+
+      const normalizedFunscriptUri = input.funscriptUri?.trim() || null;
+      let updatedResources = 0;
+      let skippedRounds = 0;
+
+      for (const attachedRound of attachedRounds) {
+        const primaryResource = attachedRound.resources[0];
+        if (!primaryResource) {
+          skippedRounds += 1;
+          continue;
+        }
+
+        await db
+          .update(resource)
+          .set({
+            funscriptUri: normalizedFunscriptUri,
+            updatedAt: new Date(),
+          })
+          .where(eq(resource.id, primaryResource.id));
+        updatedResources += 1;
+      }
+
+      return {
+        heroId: input.heroId,
+        funscriptUri: normalizedFunscriptUri,
+        updatedResources,
+        skippedRounds,
+      };
+    }),
+
   deleteHero: publicProcedure
     .input(z.object({ id: z.string().min(1) }))
     .mutation(async ({ input }) => {
@@ -1107,7 +1167,7 @@ export const dbRouter = router({
     .input(
       z.object({
         resourceId: z.string().min(1),
-        offsetMs: z.number().int(),
+        offsetMs: z.union([z.number().int(), z.literal(Infinity), z.literal(-Infinity)]),
       })
     )
     .mutation(async ({ input }) => {

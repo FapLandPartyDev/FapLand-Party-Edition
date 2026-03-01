@@ -117,6 +117,8 @@ export const db = {
       description?: string | null;
       tags?: string[];
     }) => withInstalledRoundCacheInvalidation(() => trpc.db.updateHero.mutate(input)),
+    updateFunscript: (input: { heroId: string; funscriptUri: string | null }) =>
+      withInstalledRoundCacheInvalidation(() => trpc.db.updateHeroFunscript.mutate(input)),
     delete: (id: string) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.deleteHero.mutate({ id })),
   },

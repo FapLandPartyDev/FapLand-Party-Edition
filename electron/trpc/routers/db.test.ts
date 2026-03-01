@@ -615,12 +615,19 @@ describe("dbRouter local highscore and multiplayer cache", () => {
         },
         hero: {
           findFirst: vi.fn(async (input: { where: unknown }) => {
-            const [value] = extractSqlParams(input.where);
-            if (typeof value === "string") {
+            const values = extractSqlParams(input.where).filter(
+              (value): value is string => typeof value === "string"
+            );
+            if (values.length > 0) {
               return (
-                heroesByIdRef.get(value) ??
-                [...heroesByIdRef.values()].find((entry) => entry.name === value) ??
-                null
+                values
+                  .map(
+                    (value) =>
+                      heroesByIdRef.get(value) ??
+                      [...heroesByIdRef.values()].find((entry) => entry.name === value) ??
+                      null
+                  )
+                  .find((entry): entry is HeroRow => entry !== null) ?? null
               );
             }
             return heroesByIdRef.values().next().value ?? null;
@@ -666,9 +673,11 @@ describe("dbRouter local highscore and multiplayer cache", () => {
               const baseRows =
                 ids.length === 0
                   ? [...roundsByIdRef.values()]
-                  : ids
-                      .map((id) => roundsByIdRef.get(id))
-                      .filter((entry): entry is RoundRow => entry !== undefined);
+                  : ids.some((id) => roundsByIdRef.has(id))
+                    ? ids
+                        .map((id) => roundsByIdRef.get(id))
+                        .filter((entry): entry is RoundRow => entry !== undefined)
+                    : [...roundsByIdRef.values()].filter((entry) => ids.includes(entry.heroId ?? ""));
 
               if (!input.with?.resources) {
                 return baseRows;
@@ -678,6 +687,11 @@ describe("dbRouter local highscore and multiplayer cache", () => {
                 ...entry,
                 resources: [...resourcesByIdRef.values()]
                   .filter((resourceEntry) => resourceEntry.roundId === entry.id)
+                  .sort((a, b) => {
+                    const createdDelta = a.createdAt.getTime() - b.createdAt.getTime();
+                    if (createdDelta !== 0) return createdDelta;
+                    return a.id.localeCompare(b.id);
+                  })
                   .map((resourceEntry) => ({ ...resourceEntry })),
               }));
             }
@@ -923,12 +937,14 @@ describe("dbRouter local highscore and multiplayer cache", () => {
         set: (data: Record<string, unknown>) => ({
           where: (whereClause: unknown) => ({
             then: async (resolve: (value: unknown) => unknown) => {
-              const [id] = extractSqlParams(whereClause);
+              const values = extractSqlParams(whereClause).filter(
+                (value): value is string => typeof value === "string"
+              );
               if (getTableName(table) === "Hero") {
-                const existing =
-                  typeof id === "string"
-                    ? heroesByIdRef.get(id)
-                    : (heroesByIdRef.values().next().value ?? null);
+                const heroId = values.find((value) => heroesByIdRef.has(value));
+                const existing = heroId
+                  ? heroesByIdRef.get(heroId)
+                  : (heroesByIdRef.values().next().value ?? null);
                 if (existing) {
                   heroesByIdRef.set(existing.id, {
                     ...existing,
@@ -939,20 +955,20 @@ describe("dbRouter local highscore and multiplayer cache", () => {
               }
 
               if (getTableName(table) === "Round") {
-                const existing =
-                  typeof id === "string"
-                    ? roundsByIdRef.get(id)
-                    : (roundsByIdRef.values().next().value ?? null);
+                const roundId = values.find((value) => roundsByIdRef.has(value));
+                const existing = roundId
+                  ? roundsByIdRef.get(roundId)
+                  : (roundsByIdRef.values().next().value ?? null);
                 if (existing) {
                   roundsByIdRef.set(existing.id, { ...existing, ...data });
                 }
               }
 
               if (getTableName(table) === "Resource") {
-                const existing =
-                  typeof id === "string"
-                    ? resourcesByIdRef.get(id)
-                    : (resourcesByIdRef.values().next().value ?? null);
+                const resourceId = values.find((value) => resourcesByIdRef.has(value));
+                const existing = resourceId
+                  ? resourcesByIdRef.get(resourceId)
+                  : (resourcesByIdRef.values().next().value ?? null);
                 if (existing) {
                   resourcesByIdRef.set(existing.id, {
                     ...existing,
@@ -965,12 +981,14 @@ describe("dbRouter local highscore and multiplayer cache", () => {
               return resolve([]);
             },
             returning: async () => {
-              const [id] = extractSqlParams(whereClause);
+              const values = extractSqlParams(whereClause).filter(
+                (value): value is string => typeof value === "string"
+              );
               if (getTableName(table) === "Hero") {
-                const existing =
-                  typeof id === "string"
-                    ? heroesByIdRef.get(id)
-                    : (heroesByIdRef.values().next().value ?? null);
+                const heroId = values.find((value) => heroesByIdRef.has(value));
+                const existing = heroId
+                  ? heroesByIdRef.get(heroId)
+                  : (heroesByIdRef.values().next().value ?? null);
                 if (!existing) throw new Error("Hero not found");
                 const next = {
                   ...existing,
@@ -982,10 +1000,10 @@ describe("dbRouter local highscore and multiplayer cache", () => {
               }
 
               if (getTableName(table) === "Round") {
-                const existing =
-                  typeof id === "string"
-                    ? roundsByIdRef.get(id)
-                    : (roundsByIdRef.values().next().value ?? null);
+                const roundId = values.find((value) => roundsByIdRef.has(value));
+                const existing = roundId
+                  ? roundsByIdRef.get(roundId)
+                  : (roundsByIdRef.values().next().value ?? null);
                 if (!existing) throw new Error("Round not found");
                 const next = { ...existing, ...data };
                 roundsByIdRef.set(existing.id, next);
@@ -993,10 +1011,10 @@ describe("dbRouter local highscore and multiplayer cache", () => {
               }
 
               if (getTableName(table) === "Resource") {
-                const existing =
-                  typeof id === "string"
-                    ? resourcesByIdRef.get(id)
-                    : (resourcesByIdRef.values().next().value ?? null);
+                const resourceId = values.find((value) => resourcesByIdRef.has(value));
+                const existing = resourceId
+                  ? resourcesByIdRef.get(resourceId)
+                  : (resourcesByIdRef.values().next().value ?? null);
                 if (!existing) throw new Error("Resource not found");
                 const next = {
                   ...existing,
@@ -1376,6 +1394,263 @@ describe("dbRouter local highscore and multiplayer cache", () => {
       author: "New Author",
       description: "Updated hero",
     });
+  });
+
+  it("updates hero funscript primary resources for all attached hero rounds", async () => {
+    const caller = createRendererCaller();
+
+    roundsByIdRef.set("hero-round-1", {
+      id: "hero-round-1",
+      name: "Hero Round 1",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+    roundsByIdRef.set("hero-round-2", {
+      id: "hero-round-2",
+      name: "Hero Round 2",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 1000,
+      endTime: 2000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+    resourcesByIdRef.set("resource-late", {
+      id: "resource-late",
+      roundId: "hero-round-1",
+      videoUri: "file:///tmp/late.mp4",
+      funscriptUri: "file:///tmp/old-late.funscript",
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:02.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:02.000Z"),
+    });
+    resourcesByIdRef.set("resource-primary", {
+      id: "resource-primary",
+      roundId: "hero-round-1",
+      videoUri: "file:///tmp/primary.mp4",
+      funscriptUri: "file:///tmp/old-primary.funscript",
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+    resourcesByIdRef.set("resource-second", {
+      id: "resource-second",
+      roundId: "hero-round-2",
+      videoUri: "file:///tmp/second.mp4",
+      funscriptUri: null,
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+
+    await expect(
+      caller.updateHeroFunscript({
+        heroId: "hero-1",
+        funscriptUri: "file:///tmp/new.funscript",
+      })
+    ).resolves.toMatchObject({
+      heroId: "hero-1",
+      funscriptUri: "file:///tmp/new.funscript",
+      updatedResources: 2,
+      skippedRounds: 0,
+    });
+
+    expect(resourcesByIdRef.get("resource-primary")?.funscriptUri).toBe(
+      "file:///tmp/new.funscript"
+    );
+    expect(resourcesByIdRef.get("resource-second")?.funscriptUri).toBe(
+      "file:///tmp/new.funscript"
+    );
+    expect(resourcesByIdRef.get("resource-late")?.funscriptUri).toBe(
+      "file:///tmp/old-late.funscript"
+    );
+  });
+
+  it("detaches hero funscripts with null", async () => {
+    const caller = createRendererCaller();
+
+    roundsByIdRef.set("hero-round-1", {
+      id: "hero-round-1",
+      name: "Hero Round 1",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+    resourcesByIdRef.set("resource-hero-1", {
+      id: "resource-hero-1",
+      roundId: "hero-round-1",
+      videoUri: "file:///tmp/hero.mp4",
+      funscriptUri: "file:///tmp/old.funscript",
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+
+    await expect(
+      caller.updateHeroFunscript({ heroId: "hero-1", funscriptUri: null })
+    ).resolves.toMatchObject({
+      updatedResources: 1,
+      skippedRounds: 0,
+      funscriptUri: null,
+    });
+
+    expect(resourcesByIdRef.get("resource-hero-1")?.funscriptUri).toBeNull();
+  });
+
+  it("skips hero rounds without resources when updating hero funscript", async () => {
+    const caller = createRendererCaller();
+
+    roundsByIdRef.set("hero-round-with-resource", {
+      id: "hero-round-with-resource",
+      name: "Hero Round With Resource",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+    roundsByIdRef.set("hero-round-template", {
+      id: "hero-round-template",
+      name: "Hero Round Template",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 1000,
+      endTime: 2000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+    resourcesByIdRef.set("resource-with-resource", {
+      id: "resource-with-resource",
+      roundId: "hero-round-with-resource",
+      videoUri: "file:///tmp/hero.mp4",
+      funscriptUri: null,
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+
+    await expect(
+      caller.updateHeroFunscript({
+        heroId: "hero-1",
+        funscriptUri: "file:///tmp/new.funscript",
+      })
+    ).resolves.toMatchObject({
+      updatedResources: 1,
+      skippedRounds: 1,
+    });
+  });
+
+  it("rejects hero funscript updates for a missing hero", async () => {
+    const caller = createRendererCaller();
+
+    await expect(
+      caller.updateHeroFunscript({
+        heroId: "missing-hero",
+        funscriptUri: "file:///tmp/new.funscript",
+      })
+    ).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      message: "Hero not found.",
+    });
+  });
+
+  it("does not update rounds for other heroes when updating hero funscript", async () => {
+    const caller = createRendererCaller();
+
+    heroesByIdRef.set("hero-2", {
+      id: "hero-2",
+      name: "Hero Two",
+      author: null,
+      description: null,
+      createdAt: new Date("2026-03-05T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-05T00:00:00.000Z"),
+    });
+    roundsByIdRef.set("hero-round-1", {
+      id: "hero-round-1",
+      name: "Hero Round 1",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+    roundsByIdRef.set("other-hero-round", {
+      id: "other-hero-round",
+      name: "Other Hero Round",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: "hero-2",
+    });
+    resourcesByIdRef.set("resource-hero-1", {
+      id: "resource-hero-1",
+      roundId: "hero-round-1",
+      videoUri: "file:///tmp/hero-1.mp4",
+      funscriptUri: null,
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+    resourcesByIdRef.set("resource-hero-2", {
+      id: "resource-hero-2",
+      roundId: "other-hero-round",
+      videoUri: "file:///tmp/hero-2.mp4",
+      funscriptUri: "file:///tmp/other.funscript",
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+
+    await caller.updateHeroFunscript({
+      heroId: "hero-1",
+      funscriptUri: "file:///tmp/new.funscript",
+    });
+
+    expect(resourcesByIdRef.get("resource-hero-1")?.funscriptUri).toBe(
+      "file:///tmp/new.funscript"
+    );
+    expect(resourcesByIdRef.get("resource-hero-2")?.funscriptUri).toBe(
+      "file:///tmp/other.funscript"
+    );
   });
 
   it("deletes a hero entry and all attached rounds", async () => {

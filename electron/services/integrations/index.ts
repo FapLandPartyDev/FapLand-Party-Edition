@@ -1,4 +1,5 @@
 import { getDb } from "../db";
+import { getStore } from "../store";
 import { eq, inArray, and } from "drizzle-orm";
 import { resource, round } from "../db/schema";
 import { fromLocalMediaUri, toLocalMediaUri } from "../localMedia";
@@ -49,6 +50,11 @@ import {
   toNormalizedPhash,
 } from "./stashClient";
 import { stashProvider } from "./providers/stashProvider";
+import {
+  STASH_REATTACH_FUNSCRIPTS_ENABLED_KEY,
+  type StashReattachFunscriptsMode,
+  normalizeStashReattachFunscriptsMode,
+} from "../../../src/constants/funscriptSettings";
 import type {
   ExternalProvider,
   ExternalSource,
@@ -72,7 +78,15 @@ type CachedRound = {
   phash: string | null;
   previewImage: string | null;
   installSourceKey: string | null;
-  resourcesByVideoUri: Map<string, { id: string; disabled: boolean; durationMs: number | null }>;
+  resourcesByVideoUri: Map<
+    string,
+    {
+      id: string;
+      disabled: boolean;
+      durationMs: number | null;
+      funscriptUri: string | null;
+    }
+  >;
 };
 
 type SyncMutableContext = {
@@ -83,6 +97,7 @@ type SyncMutableContext = {
   roundPhashCandidates: Array<{ phash: string; roundId: string }>;
   roundIdByInstallSourceKey: Map<string, string>;
   previewByVideoUri: Map<string, string | null>;
+  reattachFunscriptsMode: StashReattachFunscriptsMode;
   status: IntegrationSyncStatus;
 };
 
@@ -239,25 +254,41 @@ async function resolvePreviewImageForVideo(
 
 async function appendResourceIfMissing(
   context: SyncMutableContext,
+  source: ExternalSource,
   cachedRound: CachedRound,
   item: NormalizedSceneImportItem
 ): Promise<number> {
   const existing = cachedRound.resourcesByVideoUri.get(item.videoUri);
   if (existing) {
+    const existingUpdateData: Partial<typeof resource.$inferInsert> = {};
     if (existing.durationMs === null && item.durationMs !== null) {
-      await context.db
-        .update(resource)
-        .set({ durationMs: item.durationMs })
-        .where(eq(resource.id, existing.id));
+      existingUpdateData.durationMs = item.durationMs;
       existing.durationMs = item.durationMs;
     }
     if (existing.disabled) {
-      await context.db
-        .update(resource)
-        .set({ disabled: false })
-        .where(eq(resource.id, existing.id));
+      existingUpdateData.disabled = false;
       existing.disabled = false;
     }
+
+    const nextFunscriptUri = normalizeNullableText(item.funscriptUri);
+    if (context.reattachFunscriptsMode !== "off" && nextFunscriptUri) {
+      const existingFunscriptUri = normalizeNullableText(existing.funscriptUri);
+      const provider = getProviderForKind(source);
+      const shouldAttachFunscript =
+        context.reattachFunscriptsMode === "always" ||
+        !existingFunscriptUri ||
+        provider.canHandleUri(existingFunscriptUri, source);
+
+      if (shouldAttachFunscript && existingFunscriptUri !== nextFunscriptUri) {
+        existingUpdateData.funscriptUri = nextFunscriptUri;
+        existing.funscriptUri = nextFunscriptUri;
+      }
+    }
+
+    if (Object.keys(existingUpdateData).length > 0) {
+      await context.db.update(resource).set(existingUpdateData).where(eq(resource.id, existing.id));
+    }
+
     return 0;
   }
 
@@ -277,6 +308,7 @@ async function appendResourceIfMissing(
     id: created.id,
     disabled: false,
     durationMs: created.durationMs,
+    funscriptUri: created.funscriptUri,
   });
 
   const phash = toNormalizedPhash(item.phash);
@@ -357,6 +389,7 @@ async function createManagedRound(
           id: createdResource.id,
           disabled: createdResource.disabled,
           durationMs: createdResource.durationMs,
+          funscriptUri: createdResource.funscriptUri,
         },
       ],
     ]),
@@ -396,7 +429,7 @@ async function ingestScene(
       await context.db.update(round).set(updateData).where(eq(round.id, existingRound.id));
     }
 
-    const resourcesAdded = await appendResourceIfMissing(context, existingRound, item);
+    const resourcesAdded = await appendResourceIfMissing(context, source, existingRound, item);
 
     return {
       created: 0,
@@ -443,7 +476,7 @@ async function ingestScene(
           await context.db.update(round).set(updateData).where(eq(round.id, matchedRound.id));
         }
 
-        const resourcesAdded = await appendResourceIfMissing(context, matchedRound, item);
+        const resourcesAdded = await appendResourceIfMissing(context, source, matchedRound, item);
 
         return {
           created: 0,
@@ -491,6 +524,7 @@ async function buildSyncContext(status: IntegrationSyncStatus): Promise<SyncMuta
           columns: {
             id: true,
             videoUri: true,
+            funscriptUri: true,
             phash: true,
             durationMs: true,
             disabled: true,
@@ -524,7 +558,12 @@ async function buildSyncContext(status: IntegrationSyncStatus): Promise<SyncMuta
       resourcesByVideoUri: new Map(
         row.resources.map((res) => [
           res.videoUri,
-          { id: res.id, disabled: res.disabled, durationMs: res.durationMs },
+          {
+            id: res.id,
+            disabled: res.disabled,
+            durationMs: res.durationMs,
+            funscriptUri: res.funscriptUri,
+          },
         ])
       ),
     };
@@ -574,6 +613,9 @@ async function buildSyncContext(status: IntegrationSyncStatus): Promise<SyncMuta
     roundPhashCandidates,
     roundIdByInstallSourceKey,
     previewByVideoUri: new Map<string, string | null>(),
+    reattachFunscriptsMode: normalizeStashReattachFunscriptsMode(
+      getStore().get(STASH_REATTACH_FUNSCRIPTS_ENABLED_KEY)
+    ),
     status,
   };
 }

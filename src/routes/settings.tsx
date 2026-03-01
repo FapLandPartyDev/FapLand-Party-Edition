@@ -89,7 +89,11 @@ import {
 import {
   AUTOFIX_BROKEN_FUNSCRIPTS_KEY,
   DEFAULT_AUTOFIX_BROKEN_FUNSCRIPTS,
+  DEFAULT_STASH_REATTACH_FUNSCRIPTS_MODE,
+  STASH_REATTACH_FUNSCRIPTS_ENABLED_KEY,
+  type StashReattachFunscriptsMode,
   normalizeAutofixBrokenFunscripts,
+  normalizeStashReattachFunscriptsMode,
 } from "../constants/funscriptSettings";
 import {
   ANTI_PERK_BEATBAR_ENABLED_KEY,
@@ -729,6 +733,8 @@ export function SettingsPage() {
   const [autofixBrokenFunscripts, setAutofixBrokenFunscripts] = useState(
     DEFAULT_AUTOFIX_BROKEN_FUNSCRIPTS
   );
+  const [stashReattachFunscriptsMode, setStashReattachFunscriptsMode] =
+    useState<StashReattachFunscriptsMode>(DEFAULT_STASH_REATTACH_FUNSCRIPTS_MODE);
   const [roundProgressBarAlwaysVisible, setRoundProgressBarAlwaysVisible] = useState(
     DEFAULT_ROUND_PROGRESS_BAR_ALWAYS_VISIBLE
   );
@@ -890,6 +896,7 @@ export function SettingsPage() {
         BACKGROUND_VIDEO_ENABLED_KEY,
         MENU_THEME_KEY,
         AUTOFIX_BROKEN_FUNSCRIPTS_KEY,
+        STASH_REATTACH_FUNSCRIPTS_ENABLED_KEY,
         ROUND_PROGRESS_BAR_ALWAYS_VISIBLE_KEY,
         ANTI_PERK_BEATBAR_ENABLED_KEY,
         HAPTICS_DISCONNECTED_STATUS_VISIBLE_KEY,
@@ -936,6 +943,8 @@ export function SettingsPage() {
         const rawBackgroundVideoEnabled = storeValues[BACKGROUND_VIDEO_ENABLED_KEY];
         const rawMainMenuTheme = storeValues[MENU_THEME_KEY];
         const rawAutofixBrokenFunscripts = storeValues[AUTOFIX_BROKEN_FUNSCRIPTS_KEY];
+        const rawStashReattachFunscriptsEnabled =
+          storeValues[STASH_REATTACH_FUNSCRIPTS_ENABLED_KEY];
         const rawRoundProgressBarAlwaysVisible = storeValues[ROUND_PROGRESS_BAR_ALWAYS_VISIBLE_KEY];
         const rawAntiPerkBeatbarEnabled = storeValues[ANTI_PERK_BEATBAR_ENABLED_KEY];
         const rawHapticsDisconnectedStatusVisible =
@@ -997,6 +1006,9 @@ export function SettingsPage() {
         );
         setMainMenuThemeId(normalizeMainMenuThemeId(rawMainMenuTheme));
         setAutofixBrokenFunscripts(normalizeAutofixBrokenFunscripts(rawAutofixBrokenFunscripts));
+        setStashReattachFunscriptsMode(
+          normalizeStashReattachFunscriptsMode(rawStashReattachFunscriptsEnabled)
+        );
         setRoundProgressBarAlwaysVisible(
           normalizeRoundProgressBarAlwaysVisible(rawRoundProgressBarAlwaysVisible)
         );
@@ -1386,7 +1398,28 @@ export function SettingsPage() {
         icon: "📂",
         title: t`Sources & Library`,
         description: t`External source integrations, Stash sync, and local library folders.`,
-        settings: [],
+        settings: [
+          {
+            id: "stash-reattach-funscripts",
+            type: "select",
+            label: t`Reattach Funscripts in Stash Rounds`,
+            description: t`Controls when Stash sync refreshes funscript attachments from the source when the scene has one.`,
+            value: stashReattachFunscriptsMode,
+            options: [
+              { value: "off", label: t`Do Not Reattach` },
+              { value: "stashOnly", label: t`Missing or Stash-Origin Only` },
+              { value: "always", label: t`Always Override` },
+            ],
+            onChange: async (next: string) => {
+              const value = normalizeStashReattachFunscriptsMode(next);
+              await trpc.store.set.mutate({
+                key: STASH_REATTACH_FUNSCRIPTS_ENABLED_KEY,
+                value,
+              });
+              setStashReattachFunscriptsMode(value);
+            },
+          },
+        ],
       },
       {
         id: "security-privacy",
@@ -1633,7 +1666,7 @@ export function SettingsPage() {
                   try {
                     await clearBooruMediaCache();
                     showToast(t`Booru cache cleared.`, "success");
-                  } catch (error) {
+                  } catch {
                     showToast(t`Failed to clear booru cache.`, "error");
                   }
                 },
@@ -1872,6 +1905,7 @@ export function SettingsPage() {
       hapticsDisconnectedStatusVisible,
       applyPerkDirectly,
       autofixBrokenFunscripts,
+      stashReattachFunscriptsMode,
       intermediaryLoadingDurationSec,
       intermediaryLoadingPrompt,
       intermediaryReturnPauseSec,
@@ -2360,6 +2394,7 @@ export function SettingsPage() {
             >
               {activeSection && activeSection.id === "sources" ? (
                 <>
+                  <SettingsSectionCard section={activeSection} loading={isInitialLoading} />
                   <EroScriptsSettingsCard
                     status={eroscriptsLoginStatus}
                     message={eroscriptsAuthMessage}
@@ -6771,6 +6806,7 @@ function DebugSettingsCard({
         { title: t`Hardware`, value: diagnostics.hardware },
         { title: t`Database`, value: diagnostics.database },
         { title: t`Background Jobs`, value: diagnostics.runtime },
+        ...(allSettings ? [{ title: t`Settings`, value: allSettings }] : []),
       ]
     : [];
 

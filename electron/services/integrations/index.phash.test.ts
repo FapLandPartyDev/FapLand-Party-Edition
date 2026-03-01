@@ -6,6 +6,7 @@ import type { ExternalSource } from "./types";
 type CachedResourceRow = {
   id: string;
   videoUri: string;
+  funscriptUri: string | null;
   phash: string | null;
   durationMs: number | null;
   disabled: boolean;
@@ -32,8 +33,10 @@ const {
   sourcePrefixForManagedRoundsMock,
   toStashInstallSourceKeyMock,
   syncSourceMock,
+  stashCanHandleUriMock,
   normalizeBaseUrlMock,
   fetchStashMediaWithAuthMock,
+  getStoreMock,
 } = vi.hoisted(() => ({
   getDbMock: vi.fn(),
   listExternalSourcesMock: vi.fn(),
@@ -44,12 +47,18 @@ const {
   sourcePrefixForManagedRoundsMock: vi.fn(),
   toStashInstallSourceKeyMock: vi.fn(),
   syncSourceMock: vi.fn(),
+  stashCanHandleUriMock: vi.fn(),
   normalizeBaseUrlMock: vi.fn(),
   fetchStashMediaWithAuthMock: vi.fn(),
+  getStoreMock: vi.fn(),
 }));
 
 vi.mock("../db", () => ({
   getDb: getDbMock,
+}));
+
+vi.mock("../store", () => ({
+  getStore: getStoreMock,
 }));
 
 vi.mock("../roundPreview", () => ({
@@ -59,7 +68,7 @@ vi.mock("../roundPreview", () => ({
 vi.mock("./providers/stashProvider", () => ({
   stashProvider: {
     kind: "stash",
-    canHandleUri: vi.fn(() => true),
+    canHandleUri: stashCanHandleUriMock,
     resolvePlayableUri: vi.fn((uri: string) => uri),
     syncSource: syncSourceMock,
   },
@@ -116,8 +125,9 @@ function createDbMock(initialRounds: CachedRoundRow[]) {
   let nextResourceId = 200;
   const rounds = initialRounds.map((entry) => ({
     ...entry,
-    resources: [...entry.resources],
+    resources: entry.resources.map((res) => ({ ...res, funscriptUri: res.funscriptUri ?? null })),
   }));
+  const updatePayloads: Array<Record<string, unknown>> = [];
 
   const db = {
     query: {
@@ -138,6 +148,7 @@ function createDbMock(initialRounds: CachedRoundRow[]) {
               resources: entry.resources.map((res) => ({
                 id: res.id,
                 videoUri: res.videoUri,
+                funscriptUri: res.funscriptUri ?? null,
                 phash: res.phash,
                 durationMs: res.durationMs,
                 disabled: res.disabled,
@@ -171,6 +182,7 @@ function createDbMock(initialRounds: CachedRoundRow[]) {
             const created = {
               id: `res-${nextResourceId++}`,
               videoUri: payload.videoUri,
+              funscriptUri: payload.funscriptUri,
               phash: payload.phash,
               durationMs: payload.durationMs,
               disabled: payload.disabled,
@@ -212,10 +224,14 @@ function createDbMock(initialRounds: CachedRoundRow[]) {
       }),
     })),
     update: vi.fn(() => ({
-      set: vi.fn(() => ({
-        where: vi.fn(async () => []),
-      })),
+      set: vi.fn((payload: Record<string, unknown>) => {
+        updatePayloads.push(payload);
+        return {
+          where: vi.fn(async () => []),
+        };
+      }),
     })),
+    updatePayloads,
   };
 
   return db;
@@ -277,6 +293,10 @@ describe("integration phash linking", () => {
     });
     setDisabledRoundIdsMock.mockImplementation((ids: Iterable<string>) => [...ids]);
     normalizeBaseUrlMock.mockImplementation((input: string) => input.replace(/\/+$/, ""));
+    getStoreMock.mockReturnValue({ get: vi.fn(() => undefined) });
+    stashCanHandleUriMock.mockImplementation((uri: string, input: ExternalSource) =>
+      uri.startsWith(input.baseUrl)
+    );
     sourcePrefixForManagedRoundsMock.mockImplementation(
       (input: ExternalSource) => `stash:${input.baseUrl.replace(/\/+$/, "")}:scene:`
     );
@@ -307,6 +327,7 @@ describe("integration phash linking", () => {
             {
               id: "res-1",
               videoUri: "https://stash.example/old.mp4",
+              funscriptUri: null,
               phash: null,
               durationMs: null,
               disabled: false,
@@ -358,6 +379,7 @@ describe("integration phash linking", () => {
             {
               id: "res-1",
               videoUri: "https://stash.example/old.mp4",
+              funscriptUri: null,
               phash: null,
               durationMs: null,
               disabled: false,
@@ -440,6 +462,7 @@ describe("integration phash linking", () => {
             {
               id: "res-1",
               videoUri: "https://stash.example/existing.mp4",
+              funscriptUri: null,
               phash: "abc",
               durationMs: null,
               disabled: false,
@@ -475,5 +498,310 @@ describe("integration phash linking", () => {
     expect(result.stats.failed).toBe(0);
     expect(result.stats.disabledRounds).toBe(1);
     expect(setDisabledRoundIdsMock).toHaveBeenLastCalledWith(new Set(["round-managed"]));
+  });
+
+  it("leaves existing resources unchanged when stash funscript reattach is disabled", async () => {
+    const db = createDbMock([
+      {
+        id: "round-managed",
+        name: "Managed",
+        author: "Author",
+        description: null,
+        phash: "abc",
+        previewImage: "preview",
+        installSourceKey: "stash:https://stash.example:scene:scene-reattach",
+        resources: [
+          {
+            id: "res-1",
+            videoUri: "https://stash.example/existing.mp4",
+            funscriptUri: null,
+            phash: "abc",
+            durationMs: 1000,
+            disabled: false,
+          },
+        ],
+      },
+    ]);
+    getDbMock.mockReturnValue(db);
+
+    syncSourceMock.mockImplementationOnce(async (_source, context) => {
+      context.onSceneSeen();
+      await context.ingestScene({
+        sceneId: "scene-reattach",
+        installSourceKey: "ignored-by-wrapper",
+        roundTypeFallback: "Normal",
+        name: "Managed",
+        author: "Author",
+        description: null,
+        phash: "abc",
+        previewImageUri: null,
+        videoUri: "https://stash.example/existing.mp4",
+        funscriptUri: "https://stash.example/scene/1/funscript",
+        durationMs: 1000,
+      });
+    });
+
+    const { syncExternalSources } = await import("./index");
+    const result = await syncExternalSources("manual");
+
+    expect(result.stats.failed).toBe(0);
+    expect(db.updatePayloads).not.toContainEqual(
+      expect.objectContaining({ funscriptUri: expect.any(String) })
+    );
+  });
+
+  it("fills a missing funscript when stash funscript reattach is enabled", async () => {
+    getStoreMock.mockReturnValue({ get: vi.fn(() => true) });
+    const db = createDbMock([
+      {
+        id: "round-managed",
+        name: "Managed",
+        author: "Author",
+        description: null,
+        phash: "abc",
+        previewImage: "preview",
+        installSourceKey: "stash:https://stash.example:scene:scene-reattach",
+        resources: [
+          {
+            id: "res-1",
+            videoUri: "https://stash.example/existing.mp4",
+            funscriptUri: null,
+            phash: "abc",
+            durationMs: 1000,
+            disabled: false,
+          },
+        ],
+      },
+    ]);
+    getDbMock.mockReturnValue(db);
+
+    syncSourceMock.mockImplementationOnce(async (_source, context) => {
+      context.onSceneSeen();
+      await context.ingestScene({
+        sceneId: "scene-reattach",
+        installSourceKey: "ignored-by-wrapper",
+        roundTypeFallback: "Normal",
+        name: "Managed",
+        author: "Author",
+        description: null,
+        phash: "abc",
+        previewImageUri: null,
+        videoUri: "https://stash.example/existing.mp4",
+        funscriptUri: "https://stash.example/scene/1/funscript",
+        durationMs: 1000,
+      });
+    });
+
+    const { syncExternalSources } = await import("./index");
+    const result = await syncExternalSources("manual");
+
+    expect(result.stats.failed).toBe(0);
+    expect(db.updatePayloads).toContainEqual({
+      funscriptUri: "https://stash.example/scene/1/funscript",
+    });
+  });
+
+  it("replaces an existing stash-origin funscript when reattach is enabled", async () => {
+    getStoreMock.mockReturnValue({ get: vi.fn(() => true) });
+    const db = createDbMock([
+      {
+        id: "round-managed",
+        name: "Managed",
+        author: "Author",
+        description: null,
+        phash: "abc",
+        previewImage: "preview",
+        installSourceKey: "stash:https://stash.example:scene:scene-reattach",
+        resources: [
+          {
+            id: "res-1",
+            videoUri: "https://stash.example/existing.mp4",
+            funscriptUri: "https://stash.example/scene/1/old.funscript",
+            phash: "abc",
+            durationMs: 1000,
+            disabled: false,
+          },
+        ],
+      },
+    ]);
+    getDbMock.mockReturnValue(db);
+
+    syncSourceMock.mockImplementationOnce(async (_source, context) => {
+      context.onSceneSeen();
+      await context.ingestScene({
+        sceneId: "scene-reattach",
+        installSourceKey: "ignored-by-wrapper",
+        roundTypeFallback: "Normal",
+        name: "Managed",
+        author: "Author",
+        description: null,
+        phash: "abc",
+        previewImageUri: null,
+        videoUri: "https://stash.example/existing.mp4",
+        funscriptUri: "https://stash.example/scene/1/funscript",
+        durationMs: 1000,
+      });
+    });
+
+    const { syncExternalSources } = await import("./index");
+    const result = await syncExternalSources("manual");
+
+    expect(result.stats.failed).toBe(0);
+    expect(db.updatePayloads).toContainEqual({
+      funscriptUri: "https://stash.example/scene/1/funscript",
+    });
+  });
+
+  it("preserves a manual funscript when reattach is enabled", async () => {
+    getStoreMock.mockReturnValue({ get: vi.fn(() => true) });
+    const db = createDbMock([
+      {
+        id: "round-managed",
+        name: "Managed",
+        author: "Author",
+        description: null,
+        phash: "abc",
+        previewImage: "preview",
+        installSourceKey: "stash:https://stash.example:scene:scene-reattach",
+        resources: [
+          {
+            id: "res-1",
+            videoUri: "https://stash.example/existing.mp4",
+            funscriptUri: "file:///tmp/manual.funscript",
+            phash: "abc",
+            durationMs: 1000,
+            disabled: false,
+          },
+        ],
+      },
+    ]);
+    getDbMock.mockReturnValue(db);
+
+    syncSourceMock.mockImplementationOnce(async (_source, context) => {
+      context.onSceneSeen();
+      await context.ingestScene({
+        sceneId: "scene-reattach",
+        installSourceKey: "ignored-by-wrapper",
+        roundTypeFallback: "Normal",
+        name: "Managed",
+        author: "Author",
+        description: null,
+        phash: "abc",
+        previewImageUri: null,
+        videoUri: "https://stash.example/existing.mp4",
+        funscriptUri: "https://stash.example/scene/1/funscript",
+        durationMs: 1000,
+      });
+    });
+
+    const { syncExternalSources } = await import("./index");
+    const result = await syncExternalSources("manual");
+
+    expect(result.stats.failed).toBe(0);
+    expect(db.updatePayloads).not.toContainEqual(
+      expect.objectContaining({ funscriptUri: expect.any(String) })
+    );
+  });
+
+  it("replaces a manual funscript when reattach mode is always override", async () => {
+    getStoreMock.mockReturnValue({ get: vi.fn(() => "always") });
+    const db = createDbMock([
+      {
+        id: "round-managed",
+        name: "Managed",
+        author: "Author",
+        description: null,
+        phash: "abc",
+        previewImage: "preview",
+        installSourceKey: "stash:https://stash.example:scene:scene-reattach",
+        resources: [
+          {
+            id: "res-1",
+            videoUri: "https://stash.example/existing.mp4",
+            funscriptUri: "file:///tmp/manual.funscript",
+            phash: "abc",
+            durationMs: 1000,
+            disabled: false,
+          },
+        ],
+      },
+    ]);
+    getDbMock.mockReturnValue(db);
+
+    syncSourceMock.mockImplementationOnce(async (_source, context) => {
+      context.onSceneSeen();
+      await context.ingestScene({
+        sceneId: "scene-reattach",
+        installSourceKey: "ignored-by-wrapper",
+        roundTypeFallback: "Normal",
+        name: "Managed",
+        author: "Author",
+        description: null,
+        phash: "abc",
+        previewImageUri: null,
+        videoUri: "https://stash.example/existing.mp4",
+        funscriptUri: "https://stash.example/scene/1/funscript",
+        durationMs: 1000,
+      });
+    });
+
+    const { syncExternalSources } = await import("./index");
+    const result = await syncExternalSources("manual");
+
+    expect(result.stats.failed).toBe(0);
+    expect(db.updatePayloads).toContainEqual({
+      funscriptUri: "https://stash.example/scene/1/funscript",
+    });
+  });
+
+  it("does not clear an existing funscript when the source has none", async () => {
+    getStoreMock.mockReturnValue({ get: vi.fn(() => true) });
+    const db = createDbMock([
+      {
+        id: "round-managed",
+        name: "Managed",
+        author: "Author",
+        description: null,
+        phash: "abc",
+        previewImage: "preview",
+        installSourceKey: "stash:https://stash.example:scene:scene-reattach",
+        resources: [
+          {
+            id: "res-1",
+            videoUri: "https://stash.example/existing.mp4",
+            funscriptUri: "https://stash.example/scene/1/old.funscript",
+            phash: "abc",
+            durationMs: 1000,
+            disabled: false,
+          },
+        ],
+      },
+    ]);
+    getDbMock.mockReturnValue(db);
+
+    syncSourceMock.mockImplementationOnce(async (_source, context) => {
+      context.onSceneSeen();
+      await context.ingestScene({
+        sceneId: "scene-reattach",
+        installSourceKey: "ignored-by-wrapper",
+        roundTypeFallback: "Normal",
+        name: "Managed",
+        author: "Author",
+        description: null,
+        phash: "abc",
+        previewImageUri: null,
+        videoUri: "https://stash.example/existing.mp4",
+        funscriptUri: null,
+        durationMs: 1000,
+      });
+    });
+
+    const { syncExternalSources } = await import("./index");
+    const result = await syncExternalSources("manual");
+
+    expect(result.stats.failed).toBe(0);
+    expect(db.updatePayloads).not.toContainEqual(
+      expect.objectContaining({ funscriptUri: expect.anything() })
+    );
   });
 });
