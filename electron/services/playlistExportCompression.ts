@@ -3,6 +3,7 @@ import os from "node:os";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { runCommand } from "./phash/extract";
+import { getFfmpegGpuEnv } from "./ffmpegEnv";
 
 export type PlaylistExportCompressionMode = "copy" | "av1";
 export type PlaylistExportCompressionEncoderKind = "hardware" | "software";
@@ -479,10 +480,14 @@ export async function transcodeVideoToAv1(input: {
     outputPath: input.outputPath,
   });
 
+  const gpuEnv = getFfmpegGpuEnv();
+  const ffmpegEnv = gpuEnv ? { ...process.env, ...gpuEnv } : undefined;
+
   await new Promise<void>((resolve, reject) => {
     const child = spawn(input.ffmpegPath, args, {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
+      env: ffmpegEnv,
     });
 
     setLowPriority(child);

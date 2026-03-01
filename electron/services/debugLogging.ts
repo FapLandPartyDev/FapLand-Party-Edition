@@ -34,6 +34,7 @@ import { getDb, resolveDatabaseUrl } from "./db";
 import { getStore } from "./store";
 import { isPortableMode, normalizeUserDataSuffix } from "./portable";
 import { getRendererPerformanceState } from "./rendererPerformance";
+import { getGpuDiagnosticsSnapshot } from "./gpuDiagnostics";
 import { getPhashScanStatus } from "./phashScanService";
 import { getWebsiteVideoScanStatus } from "./webVideoScanService";
 import { getInstallScanStatus } from "./installer";
@@ -562,6 +563,7 @@ export async function collectDebugDiagnostics(): Promise<DebugDiagnostics> {
   diagnostics.runtime = sanitizeForPublicDebug({
     logLevel: activeLogLevel,
     rendererPerformanceState: getRendererPerformanceState(),
+    gpuDiagnostics: getGpuDiagnosticsSnapshot(),
     appMetrics: app.getAppMetrics().map((metric, index) => ({
       process: metric.type,
       label: `${metric.type}-${index + 1}`,

@@ -4,6 +4,7 @@ import { ControllerProvider } from "../../controller";
 import { createInitialGameState } from "../../game/engine";
 import type { GameConfig, GameState } from "../../game/types";
 import { GameScene } from "./GameScene";
+import { buildPixiLayoutKey } from "./gameSceneLayoutKey";
 
 type PixiDisplayObject = {
   cursor?: string;
@@ -148,6 +149,24 @@ vi.mock("pixi.js", () => {
   class Graphics extends DisplayObject {}
   class Container extends DisplayObject {}
   class Text extends DisplayObject {}
+  class TrackedContainer extends Container {
+    constructor() {
+      super();
+      pixiDisplayObjects.push(this);
+    }
+  }
+  class TrackedGraphics extends Graphics {
+    constructor() {
+      super();
+      pixiDisplayObjects.push(this);
+    }
+  }
+  class TrackedText extends Text {
+    constructor() {
+      super();
+      pixiDisplayObjects.push(this);
+    }
+  }
   class Rectangle {
     constructor(
       public x: number,
@@ -162,20 +181,13 @@ vi.mock("pixi.js", () => {
 
   pixiDisplayObjects.length = 0;
   pointerTapHandlers.length = 0;
-  const trackClass = <TBase extends new (...args: any[]) => DisplayObject>(Base: TBase) =>
-    class extends Base {
-      constructor(...args: any[]) {
-        super(...args);
-        pixiDisplayObjects.push(this);
-      }
-    };
 
   return {
     Application,
-    Container: trackClass(Container),
-    Graphics: trackClass(Graphics),
+    Container: TrackedContainer,
+    Graphics: TrackedGraphics,
     Rectangle,
-    Text: trackClass(Text),
+    Text: TrackedText,
     TextStyle,
   };
 });
@@ -610,5 +622,44 @@ describe("GameScene keyboard perk selection", () => {
     const inventoryProps = inventoryDockButtonProps.at(-1);
     expect(inventoryProps).toBeDefined();
     expect(inventoryProps?.position).toBe("video-view");
+  });
+
+  it("changes the Pixi layout key when Endless extends the board", () => {
+    const state = createInitialGameState({
+      ...makeConfig(),
+      endlessGeneration: {
+        roundCounter: 2,
+        initialBatchSize: 2,
+        extendBatchSize: 4,
+        safePointEveryN: 5,
+        perkNodeEveryN: 3,
+      },
+    });
+    const extended: GameState = {
+      ...state,
+      config: {
+        ...state.config,
+        board: [...state.config.board, { id: "endless-3", name: "Round 3", kind: "randomRound" }],
+        runtimeGraph: {
+          ...state.config.runtimeGraph,
+          edges: [
+            ...state.config.runtimeGraph.edges,
+            {
+              id: "edge-path-1-endless-3",
+              fromNodeId: "path-1",
+              toNodeId: "endless-3",
+              gateCost: 0,
+              weight: 1,
+            },
+          ],
+        },
+        endlessGeneration: {
+          ...state.config.endlessGeneration!,
+          roundCounter: 3,
+        },
+      },
+    };
+
+    expect(buildPixiLayoutKey(extended)).not.toBe(buildPixiLayoutKey(state));
   });
 });

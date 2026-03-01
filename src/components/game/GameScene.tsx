@@ -58,6 +58,7 @@ import { getPerkIconGlyph } from "./PerkIcon";
 import { InventoryDockButton } from "./InventoryDockButton";
 import { PerkInventoryPanel } from "./PerkInventoryPanel";
 import { buildTileDurationLabelByFieldId } from "./tileDurationLabels";
+import { buildPixiLayoutKey } from "./gameSceneLayoutKey";
 import { getNodeScale, parseHexColorToNumber } from "../../features/map-editor/nodeVisuals";
 import { normalizeRoadPalette } from "../../features/map-editor/EditorState";
 import { resolveEffectiveRestPauseMs } from "../../game/restPause";
@@ -2528,6 +2529,8 @@ export const GameScene = memo(function GameScene({
     });
   }, [state.activeRound]);
 
+  const pixiLayoutKey = buildPixiLayoutKey(state);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -4700,7 +4703,7 @@ export const GameScene = memo(function GameScene({
       destroyApp();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pixiLayoutKey]);
 
   const activePathChoiceOption =
     state.pendingPathChoice?.options.find((option) => option.edgeId === highlightedPathEdgeId) ??
@@ -4774,7 +4777,9 @@ export const GameScene = memo(function GameScene({
           queuedRound={state.queuedRound}
           remaining={animPhase.remaining}
           duration={animPhase.duration}
-          roadPalette={state.queuedRound?.roundTransitionPalette ?? state.config.mapStyle?.roadPalette}
+          roadPalette={
+            state.queuedRound?.roundTransitionPalette ?? state.config.mapStyle?.roadPalette
+          }
         />
       )}
       <RoundVideoOverlay
@@ -5104,11 +5109,16 @@ export const GameScene = memo(function GameScene({
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-400/50 bg-indigo-900/50 text-lg font-bold text-indigo-100 hover:bg-indigo-800/70 disabled:opacity-40"
                   disabled={mapZoomMultiplier <= MAP_ZOOM_MIN}
                   onClick={() => {
-                    const next = Math.max(MAP_ZOOM_MIN, Math.round((mapZoomMultiplier - MAP_ZOOM_STEP) * 10) / 10);
+                    const next = Math.max(
+                      MAP_ZOOM_MIN,
+                      Math.round((mapZoomMultiplier - MAP_ZOOM_STEP) * 10) / 10
+                    );
                     setMapZoomMultiplier(next);
-                    void trpc.store.set.mutate({ key: MAP_ZOOM_STORE_KEY, value: next }).catch((err) => {
-                      console.warn("Failed to persist map zoom", err);
-                    });
+                    void trpc.store.set
+                      .mutate({ key: MAP_ZOOM_STORE_KEY, value: next })
+                      .catch((err) => {
+                        console.warn("Failed to persist map zoom", err);
+                      });
                   }}
                   aria-label={t`Zoom out`}
                 >
@@ -5125,11 +5135,16 @@ export const GameScene = memo(function GameScene({
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-400/50 bg-indigo-900/50 text-lg font-bold text-indigo-100 hover:bg-indigo-800/70 disabled:opacity-40"
                   disabled={mapZoomMultiplier >= MAP_ZOOM_MAX}
                   onClick={() => {
-                    const next = Math.min(MAP_ZOOM_MAX, Math.round((mapZoomMultiplier + MAP_ZOOM_STEP) * 10) / 10);
+                    const next = Math.min(
+                      MAP_ZOOM_MAX,
+                      Math.round((mapZoomMultiplier + MAP_ZOOM_STEP) * 10) / 10
+                    );
                     setMapZoomMultiplier(next);
-                    void trpc.store.set.mutate({ key: MAP_ZOOM_STORE_KEY, value: next }).catch((err) => {
-                      console.warn("Failed to persist map zoom", err);
-                    });
+                    void trpc.store.set
+                      .mutate({ key: MAP_ZOOM_STORE_KEY, value: next })
+                      .catch((err) => {
+                        console.warn("Failed to persist map zoom", err);
+                      });
                   }}
                   aria-label={t`Zoom in`}
                 >
@@ -5142,9 +5157,11 @@ export const GameScene = memo(function GameScene({
                     className="rounded-lg border border-zinc-500/60 bg-zinc-800/50 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-700/60"
                     onClick={() => {
                       setMapZoomMultiplier(MAP_ZOOM_DEFAULT);
-                      void trpc.store.set.mutate({ key: MAP_ZOOM_STORE_KEY, value: MAP_ZOOM_DEFAULT }).catch((err) => {
-                        console.warn("Failed to persist map zoom", err);
-                      });
+                      void trpc.store.set
+                        .mutate({ key: MAP_ZOOM_STORE_KEY, value: MAP_ZOOM_DEFAULT })
+                        .catch((err) => {
+                          console.warn("Failed to persist map zoom", err);
+                        });
                     }}
                   >
                     {t`Reset`}

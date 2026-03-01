@@ -109,6 +109,17 @@
   --main-menu-system-text-muted: rgba(199, 210, 254, 0.6);
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+  background: #050508;
+}
+
+body {
+  margin: 0;
+}
+
 /* ─── App theme scope ───────────────────────────────────────────── */
 
 .app-theme-scope {

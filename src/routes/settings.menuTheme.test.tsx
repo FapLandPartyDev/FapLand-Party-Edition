@@ -175,6 +175,9 @@ vi.mock("../services/trpc", () => ({
       getAllSettings: {
         query: vi.fn(async () => ({})),
       },
+      getAvailableGpus: {
+        query: vi.fn(async () => []),
+      },
     },
   },
 }));
@@ -204,6 +207,10 @@ describe("Settings main menu theme", () => {
       },
       eroscripts: {
         subscribeToLoginStatus: vi.fn(() => () => {}),
+      },
+      gpuRecovery: {
+        consumeRecoveryHint: vi.fn(async () => false),
+        subscribe: vi.fn(() => () => {}),
       },
     } as typeof window.electronAPI;
   });

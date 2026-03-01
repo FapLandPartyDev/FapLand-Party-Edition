@@ -23,6 +23,7 @@ import {
   getInstalledRoundCardAssetsCached,
   getInstalledRoundCatalogCached,
 } from "../services/installedRoundsCache";
+import { setMapEditorTestSession } from "../features/map-editor/testSession";
 import { playlists, type StoredPlaylist } from "../services/playlists";
 import { trpc } from "../services/trpc";
 import { formatDurationLabel, getRoundDurationSec } from "../utils/duration";
@@ -354,7 +355,12 @@ function SinglePlayerSetupPage() {
     setNotice(null);
     try {
       await activateSelectedPlaylist();
-      await navigate({ to: "/playlist-workshop", search: { open: "active" } });
+      if (selectedPlaylist?.config.boardConfig.mode === "graph") {
+        setMapEditorTestSession(selectedPlaylist.id);
+        await navigate({ to: "/map-editor" });
+      } else {
+        await navigate({ to: "/playlist-workshop", search: { open: "active" } });
+      }
     } catch (error) {
       console.error("Failed to open playlist workshop", error);
       setNotice(t`Failed to open playlist workshop.`);

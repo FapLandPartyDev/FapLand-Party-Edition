@@ -336,6 +336,10 @@ beforeEach(() => {
     eroscripts: {
       subscribeToLoginStatus: vi.fn(() => () => {}),
     },
+    gpuRecovery: {
+      consumeRecoveryHint: vi.fn(async () => false),
+      subscribe: vi.fn(() => () => {}),
+    },
   };
   const playlist = makePlaylist("playlist-1", "Test Playlist");
   mocks.loaderData = {

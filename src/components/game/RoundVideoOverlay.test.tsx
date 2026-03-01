@@ -53,6 +53,7 @@ const mocks = vi.hoisted(() => ({
     })),
   },
   showToast: vi.fn(),
+  recordVideoEvent: vi.fn(async () => undefined),
 }));
 
 vi.mock("../../services/booru", () => ({
@@ -369,6 +370,7 @@ describe("RoundVideoOverlay", () => {
       funscriptOffsetMs: 0,
     });
     mocks.showToast.mockReset();
+    mocks.recordVideoEvent.mockReset();
     mocks.playback.getFunscriptPositionAtMs.mockReset();
     mocks.playback.getFunscriptPositionAtMs.mockReturnValue(null);
     mocks.playback.loadFunscriptTimeline.mockReset();
@@ -392,6 +394,7 @@ describe("RoundVideoOverlay", () => {
 
   afterEach(() => {
     cleanup();
+    delete (window as { electronAPI?: unknown }).electronAPI;
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -756,6 +759,41 @@ describe("RoundVideoOverlay", () => {
 
     expect(screen.getByTestId("round-overlay-top-shade").className).toContain("opacity-0");
     expect(screen.getByTestId("round-overlay-bottom-shade").className).toContain("opacity-0");
+  });
+
+  it("keeps an opaque dark video fallback behind gameplay video", async () => {
+    const { container } = renderOverlay();
+
+    await screen.findByTestId("round-playback-timer");
+    const videoStage = container.querySelector("video")?.parentElement;
+    expect(videoStage?.className).toContain("bg-[#060410]");
+  });
+
+  it("records stalled video diagnostics only after the stall persists", async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: { debug: { recordVideoEvent: mocks.recordVideoEvent } },
+    });
+    const { container } = renderOverlay();
+    const video = container.querySelector("video");
+    expect(video).not.toBeNull();
+
+    fireEvent.stalled(video as HTMLVideoElement);
+    act(() => {
+      vi.advanceTimersByTime(1999);
+    });
+    expect(mocks.recordVideoEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event: "stalled" })
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(mocks.recordVideoEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "stalled", role: "main" })
+    );
   });
 
   it("auto-finishes gameplay when main media is missing for 10 seconds", async () => {

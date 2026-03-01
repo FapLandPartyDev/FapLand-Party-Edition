@@ -57,6 +57,9 @@ declare global {
           idleSensitive: boolean;
         }) => Promise<void>;
       };
+      debug?: {
+        recordVideoEvent: (payload: Record<string, unknown>) => Promise<void>;
+      };
       updates: {
         subscribe: (
           callback: (state: import("../electron/services/updater").AppUpdateState) => void
@@ -77,6 +80,10 @@ declare global {
             status: import("../electron/services/eroscripts").EroScriptsLoginStatus
           ) => void
         ) => UpdateUnsubscribe;
+      };
+      gpuRecovery: {
+        consumeRecoveryHint: () => Promise<boolean>;
+        subscribe: (callback: (pending: boolean) => void) => UpdateUnsubscribe;
       };
     };
   }

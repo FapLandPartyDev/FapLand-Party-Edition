@@ -3,6 +3,7 @@ import os from "node:os";
 import type { NormalizedVideoHashRange } from "./types";
 import { SPRITE_COLUMNS, SPRITE_ROWS, SPRITE_SCREENSHOT_WIDTH, SPRITE_FRAME_COUNT } from "./sample";
 import { debugLog } from "../debugLogging";
+import { getFfmpegGpuEnv } from "../ffmpegEnv";
 
 type CommandResult = {
   stdout: Buffer;
@@ -23,10 +24,12 @@ export async function runCommand(
     const cmdStr = `${command} ${args.join(" ")}`;
     debugLog.debug("ffmpeg-command", "Executing command", { command, args });
 
+    const gpuEnv = getFfmpegGpuEnv();
+    const baseEnv = gpuEnv ? { ...process.env, ...gpuEnv } : process.env;
     const child = spawn(command, args, {
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
-      env: options?.env ? { ...process.env, ...options.env } : process.env,
+      env: options?.env ? { ...baseEnv, ...options.env } : baseEnv,
     });
 
     let timeoutTimer: ReturnType<typeof setTimeout> | null = null;

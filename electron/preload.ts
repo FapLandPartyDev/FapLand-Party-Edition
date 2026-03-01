@@ -125,6 +125,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     updateState: (state: { route: string; visible: boolean; idleSensitive: boolean }) =>
       ipcRenderer.invoke("performance:updateState", state) as Promise<void>,
   },
+  debug: {
+    recordVideoEvent: (payload: Record<string, unknown>) =>
+      ipcRenderer.invoke("debug:video-event", payload) as Promise<void>,
+  },
   updates: {
     subscribe: (callback: (state: AppUpdateState) => void) => {
       const listener = (_event: unknown, state: AppUpdateState) => {
@@ -177,6 +181,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.on("eroscripts:login-status", listener);
       return () => {
         ipcRenderer.off("eroscripts:login-status", listener);
+      };
+    },
+  },
+  gpuRecovery: {
+    consumeRecoveryHint: () =>
+      ipcRenderer.invoke("gpu:consumeRecoveryHint") as Promise<boolean>,
+    subscribe: (callback: (pending: boolean) => void) => {
+      const listener = (_event: unknown, pending: boolean) => {
+        callback(pending);
+      };
+      ipcRenderer.on("gpu:recovery-hint", listener);
+      return () => {
+        ipcRenderer.off("gpu:recovery-hint", listener);
       };
     },
   },

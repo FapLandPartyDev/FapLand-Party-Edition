@@ -42,6 +42,15 @@ import {
   setRendererPerformanceState,
 } from "./services/rendererPerformance";
 import {
+  applyGraphicsCompatibilityFlags,
+  readGraphicsCompatibilitySettings,
+} from "./services/graphicsCompatibility";
+import { applyElectronGpuEnv } from "./services/ffmpegEnv";
+import {
+  getGpuDiagnosticsSnapshot,
+  refreshGpuDiagnosticsSnapshot,
+} from "./services/gpuDiagnostics";
+import {
   startContinuousDatabaseBackup,
   stopContinuousDatabaseBackup,
 } from "./services/databaseBackup";
@@ -51,10 +60,12 @@ import {
   downloadPlaylistFromUrl,
   isSupportedMusicUrl,
 } from "./services/musicDownload";
+import { GRAPHICS_GPU_CRASH_HINT_PENDING_KEY } from "../src/constants/graphicsSettings";
 
 const OPENABLE_FILE_EXTENSIONS = new Set([".hero", ".round", ".fplay", ".fpack"]);
 const pendingOpenedFiles: string[] = [];
 const pendingAuthCallbacks: string[] = [];
+let pendingGpuRecoveryHint = false;
 let appOpenRendererReady = false;
 let mainWindowRef: BrowserWindow | null = null;
 let rendererDevToolsWindowRef: BrowserWindow | null = null;
@@ -167,6 +178,22 @@ const remoteDebuggingPort = env.remoteDebuggingPort ?? (isDevelopmentToolsEnable
 const PACKAGED_RENDERER_ENTRY_URL = "app://renderer/index.html";
 const REACT_DEVTOOLS_EXTENSION_ID = "fmkadmapgofadopljbjfkapdkoienihi";
 
+function getRendererRouteFromWindow(win: BrowserWindow | null): string {
+  if (!win || win.isDestroyed()) return "unknown";
+  const url = win.webContents.getURL();
+  const hashPath = url.match(/#([^?]*)/)?.[1];
+  if (hashPath) return hashPath.startsWith("/") ? hashPath : `/${hashPath}`;
+  try {
+    return new URL(url).pathname || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+function isGameRendererRoute(route: string): boolean {
+  return route === "/game" || route === "/multiplayer-match";
+}
+
 type DevToolsTarget = {
   type?: string;
   title?: string;
@@ -181,14 +208,17 @@ if (remoteDebuggingPort !== null) {
   app.commandLine.appendSwitch("remote-debugging-port", String(remoteDebuggingPort));
 }
 
-// GPU rendering flags — GPU-agnostic and beneficial for all vendors.
+// GPU rendering flags — GPU-agnostic by default, but configurable because some
+// NVIDIA/Chromium driver paths can fail in the compositor or video surface.
 // Note: VA-API hardware video decode flags (VaapiVideoDecodeLinuxGL/VaapiVideoDecoder) are
 // Intel/AMD-only on Linux and are intentionally omitted; they cause issues on Nvidia.
 // For Nvidia on Linux, hardware video decode inside Chromium is not supported.
 // The decode throughput improvement comes from the FFmpeg NVDEC path in mediaResponse.ts.
-app.commandLine.appendSwitch("enable-gpu-rasterization");
-app.commandLine.appendSwitch("enable-zero-copy");
-app.commandLine.appendSwitch("ignore-gpu-blocklist");
+const graphicsCompatibilityFlags = applyGraphicsCompatibilityFlags();
+
+// Apply DRI_PRIME to the process environment so Electron's Chromium GPU
+// sub-process inherits the same GPU selection as FFmpeg.
+applyElectronGpuEnv();
 
 function getReactDevToolsUserDataRoots(): string[] {
   const home = app.getPath("home");
@@ -1019,6 +1049,9 @@ function registerWindowControlsIpc() {
     debugLog.error("renderer", "Renderer error", payload);
   });
 
+  ipcMain.handle("debug:video-event", (_event, payload: unknown) => {
+    debugLog.debug("video", "Renderer video event", payload);
+  });
 }
 
 function registerDialogIpc() {
@@ -1423,7 +1456,24 @@ function registerAppOpenIpc() {
   ipcMain.handle("app-open:renderer-ready", () => {
     appOpenRendererReady = true;
     flushPendingOpenedFiles();
+    flushPendingGpuRecoveryHint();
   });
+}
+
+function registerGpuRecoveryIpc() {
+  ipcMain.handle("gpu:consumeRecoveryHint", () => {
+    const result = pendingGpuRecoveryHint;
+    pendingGpuRecoveryHint = false;
+    return result;
+  });
+}
+
+function flushPendingGpuRecoveryHint(): void {
+  if (!appOpenRendererReady || !mainWindowRef || mainWindowRef.isDestroyed()) return;
+  if (!pendingGpuRecoveryHint) return;
+
+  pendingGpuRecoveryHint = false;
+  mainWindowRef.webContents.send("gpu:recovery-hint", true);
 }
 
 function registerAuthCallbackIpc() {
@@ -1444,7 +1494,36 @@ app
     app.setAsDefaultProtocolClient("fland");
     await initStore();
     initializeDebugLogging();
-    debugLog.info("startup", "Store initialized");
+    pendingGpuRecoveryHint = getStore().get(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY) === true;
+    if (pendingGpuRecoveryHint) {
+      getStore().set(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY, false);
+      debugLog.warn("startup", "GPU crash recovery hint detected from previous session");
+    }
+    debugLog.info("startup", "Store initialized", {
+      graphicsCompatibility: readGraphicsCompatibilitySettings(),
+      graphicsCompatibilityFlags,
+      gpuRecoveryHintPending: pendingGpuRecoveryHint,
+    });
+    app.on("gpu-info-update", () => {
+      void refreshGpuDiagnosticsSnapshot()
+        .then((snapshot) => {
+          debugLog.info("gpu", "GPU diagnostics updated", snapshot);
+        })
+        .catch((error) => {
+          debugLog.warn("gpu", "Failed to update GPU diagnostics", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+    });
+    void refreshGpuDiagnosticsSnapshot()
+      .then((snapshot) => {
+        debugLog.info("gpu", "Initial GPU diagnostics captured", snapshot);
+      })
+      .catch((error) => {
+        debugLog.warn("gpu", "Failed to capture initial GPU diagnostics", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     initializePortableStorageDefaults(getStore());
     await ensureAppDatabaseReady();
     debugLog.info("startup", "Database ready");
@@ -1454,6 +1533,7 @@ app
     registerDialogIpc();
     registerAppOpenIpc();
     registerAuthCallbackIpc();
+    registerGpuRecoveryIpc();
     broadcastUpdateState();
     broadcastEroScriptsLoginStatus();
     Menu.setApplicationMenu(null);
@@ -1482,10 +1562,23 @@ app
 
     app.on("child-process-gone", (_event, details) => {
       if (details.type === "GPU") {
-        console.error("[GpuProcessGone]", details, getRendererPerformanceState());
-        debugLog.error("gpu", "GPU process gone", {
+        const rendererRoute = getRendererRouteFromWindow(mainWindowRef);
+        const payload = {
           details,
           renderer: getRendererPerformanceState(),
+          rendererRoute,
+          gpuDiagnostics: getGpuDiagnosticsSnapshot(),
+        };
+        if (isGameRendererRoute(rendererRoute)) {
+          try {
+            getStore().set(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY, true);
+          } catch {
+            // Best-effort support hint only.
+          }
+        }
+        console.error("[GpuProcessGone]", payload);
+        debugLog.error("gpu", "GPU process gone", {
+          ...payload,
         });
       }
     });

@@ -45,7 +45,7 @@ import {
   type PlaylistExportVideoProbe,
 } from "./playlistExportCompression";
 import { resolvePhashBinaries } from "./phash/binaries";
-import { getCachedWebsiteVideoLocalPath } from "./webVideo";
+import { getCachedWebsiteVideoLocalPath, isStashProxyUri, parseStashProxyUri } from "./webVideo";
 
 type ExportPackageInput = {
   playlistId: string;
@@ -797,18 +797,35 @@ async function withTransferAbort<T>(
 
 type ExternalSourceRecord = ReturnType<typeof listExternalSources>[number];
 
+function getStashProxySourceId(uri: string): string | null {
+  if (!isStashProxyUri(uri)) return null;
+  try {
+    const sourceId = new URL(uri).searchParams.get("sourceId")?.trim() ?? "";
+    return sourceId.length > 0 ? sourceId : null;
+  } catch {
+    return null;
+  }
+}
+
+function getStashFetchUri(uri: string): string {
+  return parseStashProxyUri(uri)?.targetUrl ?? uri;
+}
+
 function findStashSourceForRemoteResource(
   uri: string,
   installSourceKey: string | null
 ): ExternalSourceRecord | null {
+  const stashProxySourceId = getStashProxySourceId(uri);
+  const stashFetchUri = getStashFetchUri(uri);
   const enabledSources = listExternalSources().filter((source) => source.enabled);
   for (const source of enabledSources) {
     if (source.kind !== "stash") continue;
+    const shouldUseByUri = stashProvider.canHandleUri(stashFetchUri, source);
+    const shouldUseByProxySourceId = stashProxySourceId === source.id && shouldUseByUri;
     const shouldUseByInstallSource = installSourceKey?.startsWith(
       `stash:${normalizeBaseUrl(source.baseUrl)}:scene:`
     );
-    const shouldUseByUri = stashProvider.canHandleUri(uri, source);
-    if (!shouldUseByInstallSource && !shouldUseByUri) continue;
+    if (!shouldUseByProxySourceId && !shouldUseByInstallSource && !shouldUseByUri) continue;
     return source;
   }
   return null;
@@ -821,7 +838,7 @@ async function resolveRemoteResponse(
 ): Promise<Response> {
   const source = findStashSourceForRemoteResource(uri, installSourceKey);
   if (source) {
-    return fetchStashMediaWithAuth(source as ExternalSourceRecord, uri, request);
+    return fetchStashMediaWithAuth(source as ExternalSourceRecord, getStashFetchUri(uri), request);
   }
   return fetch(uri, {
     method: request.method,

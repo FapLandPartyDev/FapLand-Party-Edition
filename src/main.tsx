@@ -45,6 +45,28 @@ if (!rootElement) {
 void refreshStartupBooruMediaCache();
 void initializeSfxVolume();
 
+function handleGpuRecoveryHint() {
+  if (!window.electronAPI?.gpuRecovery) return;
+
+  const onRecoveryHint = (pending: boolean) => {
+    if (pending) {
+      showGlobalToast(
+        "Graphics instability detected. Try Graphics Safe Mode from Settings.",
+        "info"
+      );
+    }
+  };
+
+  void window.electronAPI.gpuRecovery
+    .consumeRecoveryHint()
+    .then(onRecoveryHint)
+    .catch(() => {});
+
+  window.electronAPI.gpuRecovery.subscribe(onRecoveryHint);
+}
+
+handleGpuRecoveryHint();
+
 function registerOpenedFileHandler() {
   if (typeof window === "undefined" || !window.electronAPI?.appOpen) {
     return;

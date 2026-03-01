@@ -264,6 +264,9 @@ vi.mock("../services/trpc", () => ({
       getAllSettings: {
         query: vi.fn(async () => ({})),
       },
+      getAvailableGpus: {
+        query: vi.fn(async () => []),
+      },
     },
   },
 }));
@@ -367,6 +370,10 @@ describe("Settings website video caching", () => {
       },
       eroscripts: {
         subscribeToLoginStatus: vi.fn(() => () => {}),
+      },
+      gpuRecovery: {
+        consumeRecoveryHint: vi.fn(async () => false),
+        subscribe: vi.fn(() => () => {}),
       },
     };
   });

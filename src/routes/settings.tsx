@@ -196,7 +196,34 @@ import {
   DEBUG_LOG_LEVEL_KEY,
   normalizeDebugLogLevel,
   type DebugLogLevel,
+  FFMPEG_GPU_PREFERENCE_KEY,
+  DEFAULT_FFMPEG_GPU_PREFERENCE,
+  normalizeFfmpegGpuPreference,
+  type FfmpegGpuPreference,
 } from "../constants/debugSettings";
+import {
+  DEFAULT_GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED,
+  DEFAULT_GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED,
+  DEFAULT_GRAPHICS_DISABLE_GPU_BLOCKLIST_OVERRIDE_ENABLED,
+  DEFAULT_GRAPHICS_DISABLE_GPU_COMPOSITING_ENABLED,
+  DEFAULT_GRAPHICS_DISABLE_GPU_RASTERIZATION_ENABLED,
+  DEFAULT_GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED,
+  DEFAULT_GRAPHICS_DISABLE_WEBGL2_ENABLED,
+  DEFAULT_GRAPHICS_DISABLE_ZERO_COPY_ENABLED,
+  DEFAULT_GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED,
+  DEFAULT_GRAPHICS_SAFE_MODE_ENABLED,
+  GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED_KEY,
+  GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED_KEY,
+  GRAPHICS_DISABLE_GPU_BLOCKLIST_OVERRIDE_ENABLED_KEY,
+  GRAPHICS_DISABLE_GPU_COMPOSITING_ENABLED_KEY,
+  GRAPHICS_DISABLE_GPU_RASTERIZATION_ENABLED_KEY,
+  GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED_KEY,
+  GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY,
+  GRAPHICS_DISABLE_ZERO_COPY_ENABLED_KEY,
+  GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY,
+  GRAPHICS_SAFE_MODE_ENABLED_KEY,
+  normalizeGraphicsBoolean,
+} from "../constants/graphicsSettings";
 import { CONVERTER_SHORTCUTS } from "../features/converter/shortcuts";
 import { formatStoragePathDisplay, isStoragePathResettable } from "../utils/storagePath";
 
@@ -728,8 +755,7 @@ export function SettingsPage() {
   const [backgroundVideoEnabled, setBackgroundVideoEnabled] = useState(
     DEFAULT_BACKGROUND_VIDEO_ENABLED
   );
-  const [mainMenuThemeId, setMainMenuThemeId] =
-    useState<MainMenuThemeId>(DEFAULT_MENU_THEME_ID);
+  const [mainMenuThemeId, setMainMenuThemeId] = useState<MainMenuThemeId>(DEFAULT_MENU_THEME_ID);
   const [autofixBrokenFunscripts, setAutofixBrokenFunscripts] = useState(
     DEFAULT_AUTOFIX_BROKEN_FUNSCRIPTS
   );
@@ -803,6 +829,43 @@ export function SettingsPage() {
   const [isRefreshingBinaryDiagnostics, setIsRefreshingBinaryDiagnostics] = useState(false);
   const [debugLogLevel, setDebugLogLevel] = useState<DebugLogLevel>("off");
   const [debugLogMaxFileSizeMb, setDebugLogMaxFileSizeMb] = useState(200);
+  const [ffmpegGpuPreference, setFfmpegGpuPreference] = useState<FfmpegGpuPreference>(
+    DEFAULT_FFMPEG_GPU_PREFERENCE
+  );
+  const [availableGpus, setAvailableGpus] = useState<Array<{ index: number; name: string }>>([])
+  const [graphicsSafeModeEnabled, setGraphicsSafeModeEnabled] = useState(
+    DEFAULT_GRAPHICS_SAFE_MODE_ENABLED
+  );
+  const [graphicsDisableZeroCopyEnabled, setGraphicsDisableZeroCopyEnabled] = useState(
+    DEFAULT_GRAPHICS_DISABLE_ZERO_COPY_ENABLED
+  );
+  const [
+    graphicsDisableGpuBlocklistOverrideEnabled,
+    setGraphicsDisableGpuBlocklistOverrideEnabled,
+  ] = useState(DEFAULT_GRAPHICS_DISABLE_GPU_BLOCKLIST_OVERRIDE_ENABLED);
+  const [graphicsDisableGpuRasterizationEnabled, setGraphicsDisableGpuRasterizationEnabled] =
+    useState(DEFAULT_GRAPHICS_DISABLE_GPU_RASTERIZATION_ENABLED);
+  const [graphicsDisableGpuCompositingEnabled, setGraphicsDisableGpuCompositingEnabled] = useState(
+    DEFAULT_GRAPHICS_DISABLE_GPU_COMPOSITING_ENABLED
+  );
+  const [
+    graphicsDisableAcceleratedVideoDecodeEnabled,
+    setGraphicsDisableAcceleratedVideoDecodeEnabled,
+  ] = useState(DEFAULT_GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED);
+  const [
+    graphicsDisableGpuShaderDiskCacheEnabled,
+    setGraphicsDisableGpuShaderDiskCacheEnabled,
+  ] = useState(DEFAULT_GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED);
+  const [
+    graphicsDisableAcceleratedVideoEncodeEnabled,
+    setGraphicsDisableAcceleratedVideoEncodeEnabled,
+  ] = useState(DEFAULT_GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED);
+  const [graphicsForceAngleOpenGLEnabled, setGraphicsForceAngleOpenGLEnabled] = useState(
+    DEFAULT_GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED
+  );
+  const [graphicsDisableWebgl2Enabled, setGraphicsDisableWebgl2Enabled] = useState(
+    DEFAULT_GRAPHICS_DISABLE_WEBGL2_ENABLED
+  );
   const [debugState, setDebugState] = useState<DebugState | null>(null);
   const [debugDiagnostics, setDebugDiagnostics] = useState<DebugDiagnostics | null>(null);
   const [debugAllSettings, setDebugAllSettings] = useState<Record<string, unknown> | null>(null);
@@ -865,16 +928,18 @@ export function SettingsPage() {
   const refreshDebugInfo = useCallback(async () => {
     setIsRefreshingDebug(true);
     try {
-      const [nextState, nextDiagnostics, nextAllSettings] = await Promise.all([
+      const [nextState, nextDiagnostics, nextAllSettings, nextGpus] = await Promise.all([
         trpc.debug.getState.query(),
         trpc.debug.getDiagnostics.query(),
         trpc.debug.getAllSettings.query(),
+        trpc.debug.getAvailableGpus.query(),
       ]);
       setDebugState(nextState);
       setDebugLogLevel(normalizeDebugLogLevel(nextState.logLevel));
       setDebugLogMaxFileSizeMb(nextState.maxFileSizeMb);
       setDebugDiagnostics(nextDiagnostics);
       setDebugAllSettings(nextAllSettings);
+      setAvailableGpus(nextGpus);
     } catch (error) {
       console.error("Failed to load debug diagnostics", error);
       setDebugMessage(error instanceof Error ? error.message : t`Failed to load debug info.`);
@@ -923,6 +988,17 @@ export function SettingsPage() {
         FPACK_EXTRACTION_PATH_KEY,
         DEVICE_ANIMATION_TEST_ENABLED_KEY,
         DEBUG_LOG_LEVEL_KEY,
+        FFMPEG_GPU_PREFERENCE_KEY,
+        GRAPHICS_SAFE_MODE_ENABLED_KEY,
+        GRAPHICS_DISABLE_ZERO_COPY_ENABLED_KEY,
+        GRAPHICS_DISABLE_GPU_BLOCKLIST_OVERRIDE_ENABLED_KEY,
+        GRAPHICS_DISABLE_GPU_RASTERIZATION_ENABLED_KEY,
+        GRAPHICS_DISABLE_GPU_COMPOSITING_ENABLED_KEY,
+        GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED_KEY,
+        GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED_KEY,
+        GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED_KEY,
+        GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY,
+        GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY,
       ];
 
       try {
@@ -977,6 +1053,26 @@ export function SettingsPage() {
         const rawMusicCacheRootPath = storeValues[MUSIC_CACHE_ROOT_PATH_KEY];
         const rawFpackExtractionPath = storeValues[FPACK_EXTRACTION_PATH_KEY];
         const rawDebugLogLevel = storeValues[DEBUG_LOG_LEVEL_KEY];
+        const rawFfmpegGpuPreference = storeValues[FFMPEG_GPU_PREFERENCE_KEY];
+        const rawGraphicsSafeModeEnabled = storeValues[GRAPHICS_SAFE_MODE_ENABLED_KEY];
+        const rawGraphicsDisableZeroCopyEnabled =
+          storeValues[GRAPHICS_DISABLE_ZERO_COPY_ENABLED_KEY];
+        const rawGraphicsDisableGpuBlocklistOverrideEnabled =
+          storeValues[GRAPHICS_DISABLE_GPU_BLOCKLIST_OVERRIDE_ENABLED_KEY];
+        const rawGraphicsDisableGpuRasterizationEnabled =
+          storeValues[GRAPHICS_DISABLE_GPU_RASTERIZATION_ENABLED_KEY];
+        const rawGraphicsDisableGpuCompositingEnabled =
+          storeValues[GRAPHICS_DISABLE_GPU_COMPOSITING_ENABLED_KEY];
+        const rawGraphicsDisableAcceleratedVideoDecodeEnabled =
+          storeValues[GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED_KEY];
+        const rawGraphicsDisableGpuShaderDiskCacheEnabled =
+          storeValues[GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED_KEY];
+        const rawGraphicsDisableAcceleratedVideoEncodeEnabled =
+          storeValues[GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED_KEY];
+        const rawGraphicsForceAngleOpenGLEnabled =
+          storeValues[GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY];
+        const rawGraphicsDisableWebgl2Enabled =
+          storeValues[GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY];
 
         setIsFullscreen(fullscreen);
         const nextPrompt =
@@ -1082,6 +1178,35 @@ export function SettingsPage() {
             : null
         );
         setDebugLogLevel(normalizeDebugLogLevel(rawDebugLogLevel));
+        setFfmpegGpuPreference(normalizeFfmpegGpuPreference(rawFfmpegGpuPreference));
+        setGraphicsSafeModeEnabled(normalizeGraphicsBoolean(rawGraphicsSafeModeEnabled));
+        setGraphicsDisableZeroCopyEnabled(
+          normalizeGraphicsBoolean(rawGraphicsDisableZeroCopyEnabled)
+        );
+        setGraphicsDisableGpuBlocklistOverrideEnabled(
+          normalizeGraphicsBoolean(rawGraphicsDisableGpuBlocklistOverrideEnabled)
+        );
+        setGraphicsDisableGpuRasterizationEnabled(
+          normalizeGraphicsBoolean(rawGraphicsDisableGpuRasterizationEnabled)
+        );
+        setGraphicsDisableGpuCompositingEnabled(
+          normalizeGraphicsBoolean(rawGraphicsDisableGpuCompositingEnabled)
+        );
+        setGraphicsDisableAcceleratedVideoDecodeEnabled(
+          normalizeGraphicsBoolean(rawGraphicsDisableAcceleratedVideoDecodeEnabled)
+        );
+        setGraphicsDisableGpuShaderDiskCacheEnabled(
+          normalizeGraphicsBoolean(rawGraphicsDisableGpuShaderDiskCacheEnabled)
+        );
+        setGraphicsDisableAcceleratedVideoEncodeEnabled(
+          normalizeGraphicsBoolean(rawGraphicsDisableAcceleratedVideoEncodeEnabled)
+        );
+        setGraphicsForceAngleOpenGLEnabled(
+          normalizeGraphicsBoolean(rawGraphicsForceAngleOpenGLEnabled)
+        );
+        setGraphicsDisableWebgl2Enabled(
+          normalizeGraphicsBoolean(rawGraphicsDisableWebgl2Enabled)
+        );
         setApplyPerkDirectly(
           rawApplyPerkDirectly === true || rawApplyPerkDirectly === "true"
             ? true
@@ -1766,6 +1891,197 @@ export function SettingsPage() {
               await refreshDebugInfo();
             },
           },
+          {
+            id: "ffmpeg-gpu-preference",
+            type: "select",
+            label: t`GPU Preference (FFmpeg & Electron)`,
+            description: t`Choose which GPU is used by FFmpeg and Electron's renderer. "Default" lets the OS decide. On Linux, selects the GPU via DRI_PRIME for both FFmpeg transcoding and Electron's Chromium GPU process. On Windows/macOS, selects the Electron rendering GPU via the --gpu-device-index switch (FFmpeg codec selection is unaffected). Requires an app restart to apply.`,
+            value: ffmpegGpuPreference,
+            options: [
+              { value: "default" as FfmpegGpuPreference, label: t`Default (OS decides)` },
+              ...availableGpus.map((gpu) => ({
+                value: `gpu:${gpu.index}` as FfmpegGpuPreference,
+                label: `GPU ${gpu.index}: ${gpu.name}`,
+              })),
+            ],
+            onChange: async (next: string) => {
+              const pref = normalizeFfmpegGpuPreference(next);
+              await trpc.store.set.mutate({ key: FFMPEG_GPU_PREFERENCE_KEY, value: pref });
+              setFfmpegGpuPreference(pref);
+            },
+          },
+          {
+            id: "graphics-disable-zero-copy",
+            type: "toggle",
+            label: t`Disable Zero-Copy Rendering`,
+            description: t`Compatibility option for NVIDIA/Chromium video or compositor flicker. Requires an app restart.`,
+            value: graphicsDisableZeroCopyEnabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: GRAPHICS_DISABLE_ZERO_COPY_ENABLED_KEY,
+                value: next,
+              });
+              setGraphicsDisableZeroCopyEnabled(next);
+              setDebugMessage(t`Graphics setting saved. Restart the app to apply it.`);
+              await refreshDebugInfo();
+            },
+          },
+          {
+            id: "graphics-use-gpu-blocklist",
+            type: "toggle",
+            label: t`Use Chromium GPU Blocklist`,
+            description: t`Stops forcing Chromium to ignore its GPU blocklist. Try this for GPU-specific rendering issues. Requires an app restart.`,
+            value: graphicsDisableGpuBlocklistOverrideEnabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: GRAPHICS_DISABLE_GPU_BLOCKLIST_OVERRIDE_ENABLED_KEY,
+                value: next,
+              });
+              setGraphicsDisableGpuBlocklistOverrideEnabled(next);
+              setDebugMessage(t`Graphics setting saved. Restart the app to apply it.`);
+              await refreshDebugInfo();
+            },
+          },
+          {
+            id: "graphics-safe-mode",
+            type: "toggle",
+            label: t`Graphics Safe Mode`,
+            description: t`Disables hardware acceleration on next launch. Use only when GPU rendering or video surfaces are unstable. Requires an app restart.`,
+            value: graphicsSafeModeEnabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({ key: GRAPHICS_SAFE_MODE_ENABLED_KEY, value: next });
+              setGraphicsSafeModeEnabled(next);
+              setDebugMessage(t`Graphics setting saved. Restart the app to apply it.`);
+              await refreshDebugInfo();
+            },
+          },
+          {
+            id: "graphics-disable-gpu-rasterization",
+            type: "toggle",
+            label: t`Disable GPU Rasterization`,
+            description: t`Forces software rasterization instead of using the GPU. Can fix visual artifacts or crashes on some GPU drivers. Requires an app restart.`,
+            value: graphicsDisableGpuRasterizationEnabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: GRAPHICS_DISABLE_GPU_RASTERIZATION_ENABLED_KEY,
+                value: next,
+              });
+              setGraphicsDisableGpuRasterizationEnabled(next);
+              setDebugMessage(t`Graphics setting saved. Restart the app to apply it.`);
+              await refreshDebugInfo();
+            },
+          },
+          {
+            id: "graphics-disable-gpu-compositing",
+            type: "toggle",
+            label: t`Disable GPU Compositing`,
+            description: t`Prevents the GPU from compositing render layers. Can fix flickering or blank screens on some hardware. Requires an app restart.`,
+            value: graphicsDisableGpuCompositingEnabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: GRAPHICS_DISABLE_GPU_COMPOSITING_ENABLED_KEY,
+                value: next,
+              });
+              setGraphicsDisableGpuCompositingEnabled(next);
+              setDebugMessage(t`Graphics setting saved. Restart the app to apply it.`);
+              await refreshDebugInfo();
+            },
+          },
+          {
+            id: "graphics-disable-accelerated-video-decode",
+            type: "toggle",
+            label: t`Disable Accelerated Video Decode`,
+            description: t`Forces software video decoding instead of GPU-accelerated decode. Can fix video playback issues or crashes. Requires an app restart.`,
+            value: graphicsDisableAcceleratedVideoDecodeEnabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED_KEY,
+                value: next,
+              });
+              setGraphicsDisableAcceleratedVideoDecodeEnabled(next);
+              setDebugMessage(t`Graphics setting saved. Restart the app to apply it.`);
+              await refreshDebugInfo();
+            },
+          },
+          {
+            id: "graphics-disable-gpu-shader-disk-cache",
+            type: "toggle",
+            label: t`Disable GPU Shader Disk Cache`,
+            description: t`Prevents Chromium from caching compiled GPU shaders on disk. Can fix GPU process crashes caused by corrupted shader caches after NVIDIA driver updates. Requires an app restart.`,
+            value: graphicsDisableGpuShaderDiskCacheEnabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED_KEY,
+                value: next,
+              });
+              setGraphicsDisableGpuShaderDiskCacheEnabled(next);
+              setDebugMessage(t`Graphics setting saved. Restart the app to apply it.`);
+              await refreshDebugInfo();
+            },
+          },
+          {
+            id: "graphics-disable-accelerated-video-encode",
+            type: "toggle",
+            label: t`Disable Accelerated Video Encode`,
+            description: t`Forces software video encoding instead of GPU-accelerated encode (NVENC). Can fix crashes when the GPU is under heavy concurrent load from WebGL rendering. Requires an app restart.`,
+            value: graphicsDisableAcceleratedVideoEncodeEnabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED_KEY,
+                value: next,
+              });
+              setGraphicsDisableAcceleratedVideoEncodeEnabled(next);
+              setDebugMessage(t`Graphics setting saved. Restart the app to apply it.`);
+              await refreshDebugInfo();
+            },
+          },
+          {
+            id: "graphics-force-angle-opengl",
+            type: "toggle",
+            label: t`Force OpenGL ANGLE Backend`,
+            description: t`Forces Chromium's ANGLE layer to use OpenGL instead of the default backend (Vulkan on Linux). Can fix GPU process crashes on NVIDIA drivers with broken Vulkan support. Requires an app restart.`,
+            value: graphicsForceAngleOpenGLEnabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY,
+                value: next,
+              });
+              setGraphicsForceAngleOpenGLEnabled(next);
+              setDebugMessage(t`Graphics setting saved. Restart the app to apply it.`);
+              await refreshDebugInfo();
+            },
+          },
+          {
+            id: "graphics-disable-webgl2",
+            type: "toggle",
+            label: t`Disable WebGL 2`,
+            description: t`Forces fallback to WebGL 1. Some NVIDIA driver versions have broken WebGL 2 implementations that cause context loss and renderer crashes. Requires an app restart.`,
+            value: graphicsDisableWebgl2Enabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY,
+                value: next,
+              });
+              setGraphicsDisableWebgl2Enabled(next);
+              setDebugMessage(t`Graphics setting saved. Restart the app to apply it.`);
+              await refreshDebugInfo();
+            },
+          },
+          {
+            id: "graphics-restart-app",
+            type: "actions",
+            label: t`Restart App`,
+            description: t`Graphics compatibility settings require a restart to take effect. Click below to restart the app now.`,
+            actions: [
+              {
+                id: "restart-app",
+                label: t`Restart App`,
+                onClick: async () => {
+                  await trpc.debug.relaunchApp.mutate();
+                },
+              },
+            ],
+          },
         ],
       },
       {
@@ -1937,6 +2253,18 @@ export function SettingsPage() {
       refreshBinaryDiagnostics,
       debugLogLevel,
       debugLogMaxFileSizeMb,
+      ffmpegGpuPreference,
+      availableGpus,
+      graphicsSafeModeEnabled,
+      graphicsDisableZeroCopyEnabled,
+      graphicsDisableGpuBlocklistOverrideEnabled,
+      graphicsDisableGpuRasterizationEnabled,
+      graphicsDisableGpuCompositingEnabled,
+      graphicsDisableAcceleratedVideoDecodeEnabled,
+      graphicsDisableGpuShaderDiskCacheEnabled,
+      graphicsDisableAcceleratedVideoEncodeEnabled,
+      graphicsForceAngleOpenGLEnabled,
+      graphicsDisableWebgl2Enabled,
       refreshDebugInfo,
     ]
   );
@@ -2911,8 +3239,8 @@ function FpackExtractionLocationCard({
         </h2>
         <p className="mt-1 text-sm text-zinc-300">
           <Trans>
-            Store extracted .fpack contents in a custom folder, or leave this unset to use the default
-            app data location.
+            Store extracted .fpack contents in a custom folder, or leave this unset to use the
+            default app data location.
           </Trans>
         </p>
       </div>
@@ -6821,9 +7149,36 @@ function DebugSettingsCard({
       </div>
 
       <div className="space-y-3">
-        {section.settings.map((setting) => (
-          <SettingRow key={setting.id} setting={setting} disabled={loading} />
-        ))}
+        {section.settings
+          .filter((s) => !s.id.startsWith("graphics-") && s.id !== "ffmpeg-gpu-preference")
+          .map((setting) => (
+            <SettingRow key={setting.id} setting={setting} disabled={loading} />
+          ))}
+
+        <details className="group rounded-2xl border border-violet-300/25 bg-black/35 p-4 transition-colors duration-200 hover:border-violet-300/45">
+          <summary className="flex cursor-pointer items-center justify-between text-sm font-semibold text-zinc-100 hover:text-violet-100">
+            <span>
+              <Trans>Graphics Compatibility</Trans>
+            </span>
+            <span className="text-xs text-zinc-400 group-open:rotate-180 transition-transform">
+              ▾
+            </span>
+          </summary>
+          <div className="mt-2 rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+            <Trans>
+              Changing these settings can degrade performance. It is recommended to leave them off
+              and only enable them when necessary to fix specific issues. Changes require an app
+              restart.
+            </Trans>
+          </div>
+          <div className="mt-3 space-y-3">
+            {section.settings
+              .filter((s) => s.id.startsWith("graphics-") || s.id === "ffmpeg-gpu-preference")
+              .map((setting) => (
+                <SettingRow key={setting.id} setting={setting} disabled={loading} />
+              ))}
+          </div>
+        </details>
 
         <div
           className="rounded-2xl border border-violet-300/25 bg-black/35 p-4 transition-colors duration-200 hover:border-violet-300/45"

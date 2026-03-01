@@ -6389,14 +6389,7 @@ function InstalledDatabaseExportDialog({
                           onChange((current) => ({
                             ...current,
                             includeMedia: next,
-                            asFpack:
-                              !next && !current.asFpack
-                                ? true
-                                : !next && current.asFpack
-                                  ? true
-                                  : next && current.asFpack
-                                    ? false
-                                    : current.asFpack,
+                            asFpack: !next && !current.asFpack ? true : current.asFpack,
                             compressionMode: next ? current.compressionMode : "copy",
                             error: null,
                           }));

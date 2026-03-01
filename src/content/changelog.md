@@ -1,5 +1,29 @@
 # What's New
 
+## v0.5.07-beta
+
+### Added
+
+- **Graphics compatibility settings** — a new collapsible "Graphics Compatibility" panel in Settings under Debug with granular toggles for GPU safe mode, zero-copy rendering, GPU blocklist override, GPU rasterization, GPU compositing, accelerated video decode/encode, GPU shader disk cache, ANGLE OpenGL backend, and WebGL 2; all settings require an app restart and include an in-page restart button.
+- **GPU preference selector (FFmpeg & Electron)** — choose which GPU FFmpeg and Electron's renderer use via a new dropdown in the Graphics Compatibility panel; on Linux this sets DRI_PRIME for both processes, on Windows/macOS it uses Chromium's --gpu-device-index switch.
+- **GPU crash recovery hint** — when the GPU process crashes during an active game session, a recovery flag is persisted and shown as a toast on next startup suggesting Graphics Safe Mode from Settings.
+- **GPU diagnostics** — the main process now captures GPU feature status, GPU info, hardware acceleration state, and graphics compatibility settings into a structured diagnostics snapshot that is logged on startup and refreshed on GPU info updates.
+- **Video playback diagnostics** — round video elements (main and intermediary) now record structured diagnostic events (error, emptied, loadstart, waiting, stalled, canplay, loadeddata) to the debug log with debounced waiting/stalled events for noise reduction.
+- **App relaunch action** — a new "Restart App" button in the Debug section relaunches the app via `app.relaunch()`.
+- **Available GPU listing in debug** — the debug router now exposes an `getAvailableGpus` endpoint that lists detected GPUs (vendor + model) via systeminformation.
+- **Collapsible difficulty sections in the Playlist Workshop** — the difficulty sections panel can now be collapsed and expanded, with a section count badge and a toggle arrow.
+- **Graph playlists open in Map Editor** — selecting a graph playlist from the Playlist Workshop picker or the single-player setup screen now opens it directly in the Map Editor instead of the Workshop.
+- **Stash proxy URI support for exports** — library and playlist export packages now correctly resolve Stash proxy URIs by extracting the source ID and target URL for proper authentication during export.
+
+### Changed
+
+- FFmpeg child processes (media transcoding, phash extraction, AV1 compression) now inherit the GPU preference environment variables so FFmpeg uses the user-selected GPU.
+- The PixiJS game scene now reinitializes when the board layout key changes (board length, edge count, endless generation counter, text annotations) instead of only on mount.
+- Global styles now set `min-height: 100%` and a dark background on `html`, `body`, and `#root` to prevent white flashes during route transitions.
+- Simplified the export dialog's include-media toggle logic for the fpack format state.
+
+---
+
 ## v0.5.0-beta
 
 ### Added

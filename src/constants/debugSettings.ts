@@ -24,3 +24,22 @@ export function normalizeDebugLogMaxFileSizeMb(value: unknown): number {
     Math.min(MAX_DEBUG_LOG_MAX_FILE_SIZE_MB, Math.floor(parsed))
   );
 }
+
+export const FFMPEG_GPU_PREFERENCE_KEY = "debug.ffmpegGpuPreference";
+
+// "default" lets the OS decide. "gpu:<index>" maps to DRI_PRIME=<index> on Linux.
+export type FfmpegGpuPreference = "default" | `gpu:${number}`;
+export const DEFAULT_FFMPEG_GPU_PREFERENCE: FfmpegGpuPreference = "default";
+
+export function normalizeFfmpegGpuPreference(value: unknown): FfmpegGpuPreference {
+  if (typeof value !== "string") return DEFAULT_FFMPEG_GPU_PREFERENCE;
+  if (value === "default") return "default";
+  if (/^gpu:\d+$/.test(value)) return value as FfmpegGpuPreference;
+  return DEFAULT_FFMPEG_GPU_PREFERENCE;
+}
+
+export function parseFfmpegGpuIndex(pref: FfmpegGpuPreference): number | null {
+  if (pref === "default") return null;
+  const index = parseInt(pref.slice(4), 10);
+  return Number.isFinite(index) ? index : null;
+}

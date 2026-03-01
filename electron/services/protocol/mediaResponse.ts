@@ -9,6 +9,7 @@ import {
 } from "../../../src/constants/videoFormats";
 import { resolvePhashBinaries } from "../phash/binaries";
 import { debugLog } from "../debugLogging";
+import { getFfmpegGpuEnv, resolveGpuIndex } from "../ffmpegEnv";
 
 function resolveMediaContentType(filePath: string): string {
   const extension = path.extname(filePath).toLowerCase();
@@ -83,7 +84,11 @@ export async function createMediaResponse(
       ffmpegPath,
     });
 
-    const tryNvdecArgs = (useNvdec: boolean): string[] => {
+    type TranscodeStrategy = "cuda" | "qsv" | "software";
+    const strategies: TranscodeStrategy[] = ["cuda", "qsv", "software"];
+    let currentStrategyIndex = 0;
+
+    const buildArgs = (strategy: TranscodeStrategy): string[] => {
       const args: string[] = ["-hide_banner", "-loglevel", "warning", "-nostdin"];
 
       if (seekTimeSec || startAtMs) {
@@ -93,23 +98,34 @@ export async function createMediaResponse(
         }
       }
 
-      if (useNvdec) {
+      const gpuIndex = resolveGpuIndex();
+
+      if (strategy === "cuda") {
         args.push("-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-c:v", "hevc_cuvid");
+      } else if (strategy === "qsv") {
+        if (gpuIndex !== null && process.platform === "win32") {
+          args.push("-qsv_device", String(gpuIndex));
+        }
+        args.push("-hwaccel", "qsv", "-hwaccel_output_format", "qsv");
       }
 
       args.push("-i", filePath);
 
-      if (useNvdec) {
+      if (strategy === "cuda") {
         args.push(
           "-c:v", "h264_nvenc",
           "-preset", "p1",          // fastest NVENC preset
-          "-tune", "ull",           // ultra low latency — disables B-frame look-ahead
-          "-zerolatency", "1",      // no reorder buffer; first frame out immediately
+          "-tune", "ull",           // ultra low latency
+          "-zerolatency", "1",
           "-pix_fmt", "yuv420p"     // Chromium requires 8-bit 4:2:0
         );
-      }
-
-      if (!useNvdec) {
+      } else if (strategy === "qsv") {
+        args.push(
+          "-c:v", "h264_qsv",
+          "-preset", "veryfast",
+          "-pix_fmt", "nv12"        // Standard pixel format for QSV output, Chromium supports it via GPU process.
+        );
+      } else {
         args.push(
           "-c:v", "libx264",
           "-preset", "ultrafast",
@@ -126,13 +142,15 @@ export async function createMediaResponse(
       return args;
     };
 
-    const initialArgs = tryNvdecArgs(true);
-    debugLog.debug("media-transcode", "Spawning initial FFmpeg process (NVDEC attempt)", {
+    const initialArgs = buildArgs(strategies[currentStrategyIndex]!);
+    debugLog.debug("media-transcode", `Spawning initial FFmpeg process (${strategies[currentStrategyIndex]} attempt)`, {
       args: initialArgs,
     });
 
-    let ffmpeg = spawn(ffmpegPath, initialArgs);
-    let useNvdecAttempt = true;
+    const gpuEnv = getFfmpegGpuEnv();
+    const ffmpegEnv = gpuEnv ? { ...process.env, ...gpuEnv } : undefined;
+
+    let ffmpeg = spawn(ffmpegPath, initialArgs, { env: ffmpegEnv });
     const spawnTime = Date.now();
     let totalBytesSent = 0;
 
@@ -173,7 +191,7 @@ export async function createMediaResponse(
             debugLog.info("media-transcode", "FFmpeg first stdout chunk received", {
               elapsedMs: elapsed,
               chunkLength: chunk.length,
-              useNvdecAttempt,
+              strategy: strategies[currentStrategyIndex],
             });
           }
           totalBytesSent += chunk.length;
@@ -184,7 +202,7 @@ export async function createMediaResponse(
           const text = chunk.toString("utf8").trim();
           if (text) {
             debugLog.warn("media-transcode-ffmpeg", `FFmpeg stderr: ${text}`, {
-              useNvdecAttempt,
+              strategy: strategies[currentStrategyIndex],
               filePath,
             });
           }
@@ -194,7 +212,7 @@ export async function createMediaResponse(
           debugLog.debug("media-transcode", "FFmpeg stdout stream end reached", {
             totalBytesSent,
             elapsedMs: Date.now() - spawnTime,
-            useNvdecAttempt,
+            strategy: strategies[currentStrategyIndex],
           });
           settleClose();
         };
@@ -205,7 +223,7 @@ export async function createMediaResponse(
             stack: error.stack,
             totalBytesSent,
             elapsedMs: Date.now() - spawnTime,
-            useNvdecAttempt,
+            strategy: strategies[currentStrategyIndex],
           });
           settleError(error);
         };
@@ -218,7 +236,7 @@ export async function createMediaResponse(
               signal,
               totalBytesSent,
               elapsedMs: Date.now() - spawnTime,
-              useNvdecAttempt,
+              strategy: strategies[currentStrategyIndex],
             });
             settled = true;
             cleanup();
@@ -230,25 +248,29 @@ export async function createMediaResponse(
               signal,
               totalBytesSent,
               elapsedMs: Date.now() - spawnTime,
-              useNvdecAttempt,
+              strategy: strategies[currentStrategyIndex],
             });
             settleClose();
             return;
           }
 
-          if (useNvdecAttempt && !receivedAnyData) {
-            debugLog.warn("media-transcode", "NVDEC attempt failed before any data was produced. Retrying with software decode", {
+          if (currentStrategyIndex < strategies.length - 1 && !receivedAnyData) {
+            const failedStrategy = strategies[currentStrategyIndex];
+            currentStrategyIndex++;
+            const nextStrategy = strategies[currentStrategyIndex]!;
+            
+            debugLog.warn("media-transcode", `${failedStrategy} attempt failed before any data was produced. Retrying with ${nextStrategy}`, {
               code,
               signal,
               elapsedMs: Date.now() - spawnTime,
             });
             cleanup();
-            useNvdecAttempt = false;
-            const fallbackArgs = tryNvdecArgs(false);
-            debugLog.info("media-transcode", "Spawning fallback FFmpeg process (Software decode)", {
+            
+            const fallbackArgs = buildArgs(nextStrategy);
+            debugLog.info("media-transcode", `Spawning fallback FFmpeg process (${nextStrategy} decode)`, {
               args: fallbackArgs,
             });
-            ffmpeg = spawn(ffmpegPath, fallbackArgs);
+            ffmpeg = spawn(ffmpegPath, fallbackArgs, { env: ffmpegEnv });
             ffmpeg.stdout.on("data", handleData);
             ffmpeg.stdout.on("end", handleEnd);
             ffmpeg.stderr.on("data", handleStderr);
@@ -263,9 +285,10 @@ export async function createMediaResponse(
             };
             return;
           }
+          
           const exitErrorMsg = `FFmpeg live transcode exited unexpectedly (code=${code ?? "null"}, signal=${signal ?? "null"}).`;
           debugLog.error("media-transcode", exitErrorMsg, {
-            useNvdecAttempt,
+            strategy: strategies[currentStrategyIndex],
             totalBytesSent,
             elapsedMs: Date.now() - spawnTime,
           });
@@ -285,7 +308,7 @@ export async function createMediaResponse(
         debugLog.info("media-transcode", "ReadableStream cancelled by client. Killing FFmpeg process", {
           totalBytesSent,
           elapsedMs: Date.now() - spawnTime,
-          useNvdecAttempt,
+          strategy: strategies[currentStrategyIndex],
         });
         cleanup();
         ffmpeg.kill("SIGKILL");

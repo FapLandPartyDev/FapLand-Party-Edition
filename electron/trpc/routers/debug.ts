@@ -1,6 +1,7 @@
-import { clipboard, dialog, shell } from "electron";
+import { app, clipboard, dialog, shell } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
+import si from "systeminformation";
 import * as z from "zod";
 import {
   clearDebugLogFile,
@@ -24,8 +25,27 @@ import { publicProcedure, router } from "../trpc";
 
 const ZDebugLogLevel = z.enum(DEBUG_LOG_LEVELS);
 
+export type AvailableGpu = {
+  index: number;
+  name: string;
+};
+
+async function listAvailableGpus(): Promise<AvailableGpu[]> {
+  try {
+    const graphics = await si.graphics();
+    return graphics.controllers.map((controller, index) => ({
+      index,
+      name: [controller.vendor, controller.model].filter(Boolean).join(" ") || `GPU ${index}`,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export const debugRouter = router({
   getState: publicProcedure.query(() => getDebugState()),
+
+  getAvailableGpus: publicProcedure.query(() => listAvailableGpus()),
 
   setLogLevel: publicProcedure.input(z.object({ level: ZDebugLogLevel })).mutation(({ input }) => {
     setDebugLogLevel(normalizeDebugLogLevel(input.level) as DebugLogLevel);
@@ -78,5 +98,11 @@ export const debugRouter = router({
 
   clearLogFile: publicProcedure.mutation(async () => {
     await clearDebugLogFile();
+  }),
+
+  relaunchApp: publicProcedure.mutation(() => {
+    debugLog.info("debug", "App relaunch requested");
+    app.relaunch();
+    app.quit();
   }),
 });

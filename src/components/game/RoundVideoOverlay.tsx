@@ -395,6 +395,7 @@ export function RoundVideoOverlay({
 
   const countdownTimerRef = useRef<number | null>(null);
   const loadingRotateTimerRef = useRef<number | null>(null);
+  const videoDiagnosticTimersRef = useRef<Record<string, number | null>>({});
   const loadingFetchTokenRef = useRef(0);
   const loadingMediaCacheRef = useRef(new Map<string, LoadingMediaItem[]>());
   const uiHideTimerRef = useRef<number | null>(null);
@@ -481,6 +482,58 @@ export function RoundVideoOverlay({
   const [playlistIndex, setPlaylistIndex] = useState(0);
   const [awaitingPlaybackUnmute, setAwaitingPlaybackUnmute] = useState(false);
   const { getVideoSrc, ensurePlayableVideo, handleVideoError } = usePlayableVideoFallback();
+
+  const recordVideoDiagnosticEvent = useCallback(
+    (eventName: string, params: { role: "main" | "intermediary"; src?: string | null }) => {
+      void window.electronAPI.debug?.recordVideoEvent({
+        event: eventName,
+        role: params.role,
+        route: window.location.pathname,
+        activeRoundId: activeRound?.roundId ?? null,
+        activeFieldId: activeRound?.fieldId ?? null,
+        phaseKind: activeRound?.phaseKind ?? null,
+        segmentKind: segment.kind,
+        loading: loadingCountdown !== null,
+        srcScheme: params.src ? params.src.split(":", 1)[0] : null,
+        atIso: new Date().toISOString(),
+      });
+    },
+    [
+      activeRound?.fieldId,
+      activeRound?.phaseKind,
+      activeRound?.roundId,
+      loadingCountdown,
+      segment.kind,
+    ]
+  );
+
+  const recordDelayedVideoDiagnosticEvent = useCallback(
+    (eventName: string, params: { role: "main" | "intermediary"; src?: string | null }) => {
+      const key = `${params.role}:${eventName}`;
+      if (
+        videoDiagnosticTimersRef.current[key] !== null &&
+        videoDiagnosticTimersRef.current[key] !== undefined
+      ) {
+        window.clearTimeout(videoDiagnosticTimersRef.current[key]!);
+      }
+      videoDiagnosticTimersRef.current[key] = window.setTimeout(() => {
+        videoDiagnosticTimersRef.current[key] = null;
+        recordVideoDiagnosticEvent(eventName, params);
+      }, 2000);
+    },
+    [recordVideoDiagnosticEvent]
+  );
+
+  const clearDelayedVideoDiagnosticEvent = useCallback((role: "main" | "intermediary") => {
+    for (const eventName of ["waiting", "stalled"]) {
+      const key = `${role}:${eventName}`;
+      const timer = videoDiagnosticTimersRef.current[key];
+      if (timer !== null && timer !== undefined) {
+        window.clearTimeout(timer);
+        videoDiagnosticTimersRef.current[key] = null;
+      }
+    }
+  }, []);
 
   const applyHandyOffsetMs = useCallback(
     (baseTimeMs: number) => Math.max(0, Math.floor(baseTimeMs + offsetMs)),
@@ -3304,6 +3357,12 @@ export function RoundVideoOverlay({
     const mainVideo = mainVideoRef.current;
     const intermediaryVideo = intermediaryVideoRef.current;
     return () => {
+      for (const timer of Object.values(videoDiagnosticTimersRef.current)) {
+        if (timer !== null && timer !== undefined) {
+          window.clearTimeout(timer);
+        }
+      }
+      videoDiagnosticTimersRef.current = {};
       teardownVideoElement(mainVideo);
       teardownVideoElement(intermediaryVideo);
     };
@@ -3923,28 +3982,50 @@ export function RoundVideoOverlay({
               src={resolvedMainVideoSrc}
               onContextMenu={(event) => event.preventDefault()}
               onError={() => {
+                recordVideoDiagnosticEvent("error", {
+                  role: "main",
+                  src: mainVideoRef.current?.currentSrc ?? resolvedMainVideoSrc,
+                });
                 void handlePlayableVideoError(
                   resolvedMainResource.videoUri,
                   mainVideoRef.current?.currentSrc
                 );
               }}
               onEmptied={() => {
+                recordVideoDiagnosticEvent("emptied", {
+                  role: "main",
+                  src: mainVideoRef.current?.currentSrc ?? resolvedMainVideoSrc,
+                });
                 foregroundMainVideo.handlePause();
               }}
               onLoadStart={() => {
+                recordVideoDiagnosticEvent("loadstart", {
+                  role: "main",
+                  src: resolvedMainVideoSrc,
+                });
                 if (segment.kind !== "main") return;
                 if (isResolvedMainVideoRemote) setIsRemoteVideoLoading(true);
               }}
               onWaiting={() => {
+                recordDelayedVideoDiagnosticEvent("waiting", {
+                  role: "main",
+                  src: mainVideoRef.current?.currentSrc ?? resolvedMainVideoSrc,
+                });
                 if (segment.kind !== "main") return;
                 if (isResolvedMainVideoRemote) setIsRemoteVideoLoading(true);
               }}
               onStalled={() => {
+                recordDelayedVideoDiagnosticEvent("stalled", {
+                  role: "main",
+                  src: mainVideoRef.current?.currentSrc ?? resolvedMainVideoSrc,
+                });
                 if (segment.kind !== "main") return;
                 if (isResolvedMainVideoRemote) setIsRemoteVideoLoading(true);
               }}
               onCanPlay={() => {
                 if (segment.kind !== "main") return;
+                clearDelayedVideoDiagnosticEvent("main");
+                recordVideoDiagnosticEvent("canplay", { role: "main", src: resolvedMainVideoSrc });
                 setFailedVideoUri(null);
                 if (isResolvedMainVideoRemote) setIsRemoteVideoLoading(false);
                 const video = mainVideoRef.current;
@@ -4002,11 +4083,17 @@ export function RoundVideoOverlay({
               }}
               onPlaying={() => {
                 if (segment.kind !== "main") return;
+                clearDelayedVideoDiagnosticEvent("main");
                 foregroundMainVideo.handlePlay();
                 if (isResolvedMainVideoRemote) setIsRemoteVideoLoading(false);
               }}
               onLoadedData={() => {
                 if (segment.kind !== "main") return;
+                clearDelayedVideoDiagnosticEvent("main");
+                recordVideoDiagnosticEvent("loadeddata", {
+                  role: "main",
+                  src: resolvedMainVideoSrc,
+                });
                 setFailedVideoUri(null);
                 if (isResolvedMainVideoRemote) setIsRemoteVideoLoading(false);
               }}
@@ -4044,24 +4131,49 @@ export function RoundVideoOverlay({
               src={resolvedIntermediaryVideoSrc}
               onContextMenu={(event) => event.preventDefault()}
               onError={() => {
+                recordVideoDiagnosticEvent("error", {
+                  role: "intermediary",
+                  src: intermediaryVideoRef.current?.currentSrc ?? resolvedIntermediaryVideoSrc,
+                });
                 void handlePlayableVideoError(
                   segment.trigger.resource.videoUri,
                   intermediaryVideoRef.current?.currentSrc
                 );
               }}
               onEmptied={() => {
+                recordVideoDiagnosticEvent("emptied", {
+                  role: "intermediary",
+                  src: intermediaryVideoRef.current?.currentSrc ?? resolvedIntermediaryVideoSrc,
+                });
                 foregroundIntermediaryVideo.handlePause();
               }}
               onLoadStart={() => {
+                recordVideoDiagnosticEvent("loadstart", {
+                  role: "intermediary",
+                  src: resolvedIntermediaryVideoSrc,
+                });
                 if (isResolvedIntermediaryVideoRemote) setIsRemoteVideoLoading(true);
               }}
               onWaiting={() => {
+                recordDelayedVideoDiagnosticEvent("waiting", {
+                  role: "intermediary",
+                  src: intermediaryVideoRef.current?.currentSrc ?? resolvedIntermediaryVideoSrc,
+                });
                 if (isResolvedIntermediaryVideoRemote) setIsRemoteVideoLoading(true);
               }}
               onStalled={() => {
+                recordDelayedVideoDiagnosticEvent("stalled", {
+                  role: "intermediary",
+                  src: intermediaryVideoRef.current?.currentSrc ?? resolvedIntermediaryVideoSrc,
+                });
                 if (isResolvedIntermediaryVideoRemote) setIsRemoteVideoLoading(true);
               }}
               onCanPlay={() => {
+                clearDelayedVideoDiagnosticEvent("intermediary");
+                recordVideoDiagnosticEvent("canplay", {
+                  role: "intermediary",
+                  src: resolvedIntermediaryVideoSrc,
+                });
                 setFailedVideoUri(null);
                 if (isResolvedIntermediaryVideoRemote) setIsRemoteVideoLoading(false);
                 const video = intermediaryVideoRef.current;
@@ -4102,10 +4214,16 @@ export function RoundVideoOverlay({
                 tryPlayVideo();
               }}
               onPlaying={() => {
+                clearDelayedVideoDiagnosticEvent("intermediary");
                 foregroundIntermediaryVideo.handlePlay();
                 if (isResolvedIntermediaryVideoRemote) setIsRemoteVideoLoading(false);
               }}
               onLoadedData={() => {
+                clearDelayedVideoDiagnosticEvent("intermediary");
+                recordVideoDiagnosticEvent("loadeddata", {
+                  role: "intermediary",
+                  src: resolvedIntermediaryVideoSrc,
+                });
                 setFailedVideoUri(null);
                 if (isResolvedIntermediaryVideoRemote) setIsRemoteVideoLoading(false);
               }}

@@ -213,7 +213,6 @@ export function PlaylistPackExportDialog({
                         const next = e.target.checked;
                         setIncludeMedia(next);
                         if (!next && asFpack === false) setAsFpack(true);
-                        else if (next && asFpack === true) setAsFpack(false);
                       }}
                     />
                     <div>

@@ -1266,6 +1266,72 @@ describe("exportPlaylistPackage", () => {
     );
   });
 
+  it("packages Stash proxy videos through the authenticated Stash source", async () => {
+    const targetUrl = "https://stash.example.com/scene/123/stream";
+    const proxyUri = `app://external/stash?sourceId=stash-1&purpose=video&target=${encodeURIComponent(targetUrl)}`;
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Stash Proxy Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: "stash-proxy-round",
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: "stash:https://stash.example.com:scene:123",
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: proxyUri,
+            funscriptUri: null,
+          },
+        ],
+      },
+    ];
+    installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Stash Proxy Round" }]));
+    listExternalSourcesMock.mockReturnValue([
+      {
+        id: "stash-1",
+        kind: "stash",
+        name: "Main Stash",
+        enabled: true,
+        baseUrl: "https://stash.example.com",
+        authMode: "none",
+        apiKey: null,
+        username: null,
+        password: null,
+        tagSelections: [],
+        createdAt: "2026-03-18T00:00:00.000Z",
+        updatedAt: "2026-03-18T00:00:00.000Z",
+      },
+    ]);
+    fetchStashMediaWithAuthMock.mockImplementation(
+      async () => new Response("stash-video", { status: 200 })
+    );
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    const result = await exportPlaylistPackage({
+      playlistId: "playlist-1",
+      directoryPath: rootDir,
+      compressionMode: "copy",
+      includeMedia: true,
+      asFpack: true,
+    });
+
+    expect(fetchStashMediaWithAuthMock).toHaveBeenCalled();
+    expect(fetchStashMediaWithAuthMock.mock.calls.some((call) => call[1] === targetUrl)).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.fpackPath).toBe(path.join(rootDir, "My Playlist.fpack"));
+
+    const entries = await readFpackSidecarEntries(result.fpackPath!);
+    const roundEntry = entries.find((entry) => entry.ext === ".round");
+    expect(roundEntry?.resources[0]?.videoUri).toBe("Stash Proxy Round.mp4");
+  });
+
   it("downloads generic remote resources with plain fetch", async () => {
     const rounds: TestRound[] = [
       {

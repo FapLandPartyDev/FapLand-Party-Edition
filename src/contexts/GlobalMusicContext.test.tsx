@@ -192,6 +192,10 @@ describe("GlobalMusicContext", () => {
       eroscripts: {
         subscribeToLoginStatus: vi.fn(() => () => {}),
       },
+      gpuRecovery: {
+        consumeRecoveryHint: vi.fn(async () => false),
+        subscribe: vi.fn(() => () => {}),
+      },
     };
     mocks.setMutate.mockResolvedValue(undefined);
     mocks.overrideActionsStable.mockClear();

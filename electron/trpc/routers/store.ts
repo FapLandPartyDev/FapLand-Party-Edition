@@ -2,6 +2,7 @@ import * as z from "zod";
 import { router, publicProcedure } from "../trpc";
 import { getStore } from "../../services/store";
 import { getPortableStorageDefault } from "../../services/storagePaths";
+import { persistGraphicsCompatibilityStartupSetting } from "../../services/graphicsCompatibility";
 
 export const storeRouter = router({
   get: publicProcedure.input(z.object({ key: z.string() })).query(({ input }) => {
@@ -39,5 +40,6 @@ export const storeRouter = router({
         return input.value;
       })();
       store.set(input.key, resolvedValue);
+      persistGraphicsCompatibilityStartupSetting(input.key, resolvedValue);
     }),
 });

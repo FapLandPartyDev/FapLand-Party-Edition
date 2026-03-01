@@ -946,6 +946,7 @@ function PlaylistWorkshopPage() {
   );
   const [activeSectionId, setActiveSectionId] = useState<WorkshopSectionId>("playlist");
   const [roundsSubTab, setRoundsSubTab] = useState<"library" | "queue">("library");
+  const [difficultySectionsExpanded, setDifficultySectionsExpanded] = useState(true);
   const availableRoundsScrollRef = useRef<HTMLDivElement | null>(null);
   const [availableRoundsScrollElement, setAvailableRoundsScrollElement] =
     useState<HTMLDivElement | null>(null);
@@ -1498,10 +1499,10 @@ function PlaylistWorkshopPage() {
 
   if (!activePlaylist) {
     return (
-      <div className="relative min-h-screen overflow-hidden">
+      <div className="relative h-screen overflow-hidden">
         <AnimatedBackground quality="minimal" />
 
-        <div className="relative z-10 min-h-screen px-4 py-8 sm:px-8">
+        <div className="relative z-10 h-full overflow-y-auto px-4 py-8 sm:px-8">
           <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
             <header className="rounded-3xl border border-violet-300/25 bg-zinc-950/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
               <p className="font-[family-name:var(--font-jetbrains-mono)] text-[0.65rem] uppercase tracking-[0.32em] text-violet-200/70">
@@ -1567,7 +1568,19 @@ function PlaylistWorkshopPage() {
                       onMouseEnter={playHoverSound}
                       onClick={() => {
                         playSelectSound();
-                        setActivePlaylistId(playlist.id);
+                        if (playlist.config.boardConfig.mode === "graph") {
+                          void (async () => {
+                            try {
+                              await playlists.setActive(playlist.id);
+                              setMapEditorTestSession(playlist.id);
+                              await navigate({ to: "/map-editor" });
+                            } catch (error) {
+                              console.error("Failed to open graph playlist in map editor", error);
+                            }
+                          })();
+                        } else {
+                          setActivePlaylistId(playlist.id);
+                        }
                       }}
                       className="flex w-full items-center justify-between gap-4 rounded-2xl border border-violet-300/25 bg-gradient-to-br from-violet-500/12 to-slate-950/70 px-4 py-4 text-left transition-all duration-200 hover:border-violet-200/60 hover:bg-violet-500/18"
                     >
@@ -2823,14 +2836,26 @@ function PlaylistWorkshopPage() {
 
                         <div className="mt-3 shrink-0 rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                              <h4 className="text-sm font-bold text-cyan-50">
-                                <Trans>Difficulty Sections</Trans>
-                              </h4>
-                              <p className="mt-0.5 text-xs text-cyan-50/60">
-                                <Trans>Rebuild the queue from index ranges and difficulty bands.</Trans>
-                              </p>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setDifficultySectionsExpanded((v) => !v)}
+                              className="flex items-center gap-1.5 text-left"
+                            >
+                              <span className={`text-[10px] text-cyan-300/70 transition-transform ${difficultySectionsExpanded ? "rotate-90" : ""}`}>▶</span>
+                              <div>
+                                <h4 className="text-sm font-bold text-cyan-50">
+                                  <Trans>Difficulty Sections</Trans>
+                                  {setup.difficultySections.length > 0 && (
+                                    <span className="ml-1.5 rounded-full bg-cyan-400/20 px-1.5 py-0.5 text-[10px] font-medium text-cyan-200">
+                                      {setup.difficultySections.length}
+                                    </span>
+                                  )}
+                                </h4>
+                                <p className="mt-0.5 text-xs text-cyan-50/60">
+                                  <Trans>Rebuild the queue from index ranges and difficulty bands.</Trans>
+                                </p>
+                              </div>
+                            </button>
                             <div className="flex flex-wrap gap-1.5">
                               <button
                                 type="button"
@@ -2852,75 +2877,79 @@ function PlaylistWorkshopPage() {
                               </button>
                             </div>
                           </div>
-                          <label className="mt-3 flex items-center gap-2 text-xs text-cyan-50/75">
-                            <input
-                              type="checkbox"
-                              checked={difficultySectionsUseCurrentFilters}
-                              onChange={(event) =>
-                                setDifficultySectionsUseCurrentFilters(event.target.checked)
-                              }
-                              className="h-4 w-4 rounded border-cyan-300/40 bg-black/45 text-cyan-400 focus:ring-cyan-400/60"
-                            />
-                            <Trans>Use current search and duration filters</Trans>
-                          </label>
-                          {setup.difficultySections.length > 0 && (
-                            <div className="mt-3 grid gap-2">
-                              {setup.difficultySections.map((section, sectionIndex) => (
-                                <div
-                                  key={`difficulty-section:${sectionIndex}`}
-                                  className="grid gap-2 rounded-lg border border-white/10 bg-black/30 p-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto]"
-                                >
-                                  {(
-                                    [
-                                      ["startIndex", t`Start`],
-                                      ["endIndex", t`End`],
-                                      ["minDifficulty", t`Min D`],
-                                      ["maxDifficulty", t`Max D`],
-                                    ] as const
-                                  ).map(([field, label]) => (
-                                    <label key={field} className="text-[10px] uppercase tracking-[0.16em] text-cyan-50/60">
-                                      {label}
-                                      <input
-                                        type="number"
-                                        min={field.includes("Difficulty") ? 1 : 1}
-                                        max={field.includes("Difficulty") ? 5 : setup.roundCount}
-                                        value={section[field]}
+                          {difficultySectionsExpanded && (
+                            <>
+                              <label className="mt-3 flex items-center gap-2 text-xs text-cyan-50/75">
+                                <input
+                                  type="checkbox"
+                                  checked={difficultySectionsUseCurrentFilters}
+                                  onChange={(event) =>
+                                    setDifficultySectionsUseCurrentFilters(event.target.checked)
+                                  }
+                                  className="h-4 w-4 rounded border-cyan-300/40 bg-black/45 text-cyan-400 focus:ring-cyan-400/60"
+                                />
+                                <Trans>Use current search and duration filters</Trans>
+                              </label>
+                              {setup.difficultySections.length > 0 && (
+                                <div className="mt-3 grid gap-2">
+                                  {setup.difficultySections.map((section, sectionIndex) => (
+                                    <div
+                                      key={`difficulty-section:${sectionIndex}`}
+                                      className="grid gap-2 rounded-lg border border-white/10 bg-black/30 p-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto]"
+                                    >
+                                      {(
+                                        [
+                                          ["startIndex", t`Start`],
+                                          ["endIndex", t`End`],
+                                          ["minDifficulty", t`Min D`],
+                                          ["maxDifficulty", t`Max D`],
+                                        ] as const
+                                      ).map(([field, label]) => (
+                                        <label key={field} className="text-[10px] uppercase tracking-[0.16em] text-cyan-50/60">
+                                          {label}
+                                          <input
+                                            type="number"
+                                            min={field.includes("Difficulty") ? 1 : 1}
+                                            max={field.includes("Difficulty") ? 5 : setup.roundCount}
+                                            value={section[field]}
+                                            disabled={!isLinearEditable}
+                                            onChange={(event) =>
+                                              updateDifficultySection(sectionIndex, {
+                                                [field]: Number(event.target.value),
+                                              })
+                                            }
+                                            className="mt-1 w-full rounded-md border border-cyan-300/25 bg-black/45 px-2 py-1 text-sm text-zinc-100 outline-none focus:border-cyan-200/70 disabled:cursor-not-allowed disabled:opacity-50"
+                                          />
+                                        </label>
+                                      ))}
+                                      <button
+                                        type="button"
                                         disabled={!isLinearEditable}
-                                        onChange={(event) =>
-                                          updateDifficultySection(sectionIndex, {
-                                            [field]: Number(event.target.value),
-                                          })
-                                        }
-                                        className="mt-1 w-full rounded-md border border-cyan-300/25 bg-black/45 px-2 py-1 text-sm text-zinc-100 outline-none focus:border-cyan-200/70 disabled:cursor-not-allowed disabled:opacity-50"
-                                      />
-                                    </label>
+                                        onMouseEnter={playHoverSound}
+                                        onClick={() => deleteDifficultySection(sectionIndex)}
+                                        className="rounded-md border border-rose-300/40 bg-rose-500/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        <Trans>Delete</Trans>
+                                      </button>
+                                    </div>
                                   ))}
-                                  <button
-                                    type="button"
-                                    disabled={!isLinearEditable}
-                                    onMouseEnter={playHoverSound}
-                                    onClick={() => deleteDifficultySection(sectionIndex)}
-                                    className="rounded-md border border-rose-300/40 bg-rose-500/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    <Trans>Delete</Trans>
-                                  </button>
                                 </div>
-                              ))}
-                            </div>
+                              )}
+                              <button
+                                type="button"
+                                disabled={
+                                  !isLinearEditable ||
+                                  setup.difficultySections.length === 0 ||
+                                  difficultySectionSourceRounds.length === 0
+                                }
+                                onMouseEnter={playHoverSound}
+                                onClick={rebuildQueueFromDifficultySections}
+                                className="mt-3 rounded-lg border border-violet-300/40 bg-violet-500/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-violet-100 hover:bg-violet-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <Trans>Rebuild Queue From Sections</Trans>
+                              </button>
+                            </>
                           )}
-                          <button
-                            type="button"
-                            disabled={
-                              !isLinearEditable ||
-                              setup.difficultySections.length === 0 ||
-                              difficultySectionSourceRounds.length === 0
-                            }
-                            onMouseEnter={playHoverSound}
-                            onClick={rebuildQueueFromDifficultySections}
-                            className="mt-3 rounded-lg border border-violet-300/40 bg-violet-500/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-violet-100 hover:bg-violet-500/30 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <Trans>Rebuild Queue From Sections</Trans>
-                          </button>
                         </div>
 
                         {/* Sortable round list */}

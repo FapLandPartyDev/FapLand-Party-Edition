@@ -118,6 +118,10 @@ describe("GlobalMusicOverlay", () => {
       eroscripts: {
         subscribeToLoginStatus: vi.fn(() => () => {}),
       },
+      gpuRecovery: {
+        consumeRecoveryHint: vi.fn(async () => false),
+        subscribe: vi.fn(() => () => {}),
+      },
     };
   });
 

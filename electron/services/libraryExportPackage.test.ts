@@ -343,6 +343,64 @@ describe("libraryExportPackage", () => {
     ).toBeUndefined();
   });
 
+  it("copies Stash proxy media when media is included", async () => {
+    const targetUrl = "https://stash.example.com/scene/123/stream";
+    const proxyUri = `app://external/stash?sourceId=stash-1&purpose=video&target=${encodeURIComponent(targetUrl)}`;
+    installDbMocks([
+      {
+        id: "round-1",
+        name: "Stash Proxy Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: "stash:https://stash.example.com:scene:123",
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri: proxyUri, funscriptUri: null }],
+      },
+    ]);
+    listExternalSourcesMock.mockReturnValue([
+      {
+        id: "stash-1",
+        kind: "stash",
+        name: "Main Stash",
+        enabled: true,
+        baseUrl: "https://stash.example.com",
+        authMode: "none",
+        apiKey: null,
+        username: null,
+        password: null,
+        tagSelections: [],
+        createdAt: "2026-03-18T00:00:00.000Z",
+        updatedAt: "2026-03-18T00:00:00.000Z",
+      },
+    ]);
+    fetchStashMediaWithAuthMock.mockImplementation(
+      async () => new Response("stash-video", { status: 200 })
+    );
+
+    const result = await exportLibraryPackage({
+      directoryPath: rootDir,
+      includeMedia: true,
+      compressionMode: "copy",
+    });
+
+    expect(fetchStashMediaWithAuthMock).toHaveBeenCalled();
+    expect(fetchStashMediaWithAuthMock.mock.calls.some((call) => call[1] === targetUrl)).toBe(true);
+    const fileNamesAfter = await fs.readdir(result.exportDir);
+    expect(fileNamesAfter.filter((entry) => entry.endsWith(".mp4"))).toHaveLength(1);
+
+    const parsedRound = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Stash Proxy Round.round"), "utf8")
+    ) as { resources: Array<{ videoUri: string }> };
+    expect(parsedRound.resources[0]?.videoUri).toBe("./Stash Proxy Round.mp4");
+  });
+
   it("aborts an in-flight export and reports aborted status", async () => {
     const fetchMock = vi.fn((_: string, init?: RequestInit) => {
       return new Promise<Response>((_resolve, reject) => {

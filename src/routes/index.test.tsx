@@ -235,6 +235,10 @@ describe("Home route update menu", () => {
       eroscripts: {
         subscribeToLoginStatus: vi.fn(() => () => {}),
       },
+      gpuRecovery: {
+        consumeRecoveryHint: vi.fn(async () => false),
+        subscribe: vi.fn(() => () => {}),
+      },
     };
   });
 
