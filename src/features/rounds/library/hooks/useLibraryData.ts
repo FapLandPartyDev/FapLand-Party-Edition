@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/services/db";
 import { playlists } from "@/services/playlists";
 import { trpc } from "@/services/trpc";
@@ -41,6 +41,7 @@ export function useInstalledRoundsCatalog(includeDisabled: boolean, includeTempl
     queryKey: [...ROUNDS_CATALOG_QUERY_KEY, { includeDisabled, includeTemplates }],
     queryFn: () => db.round.findInstalledCatalog(includeDisabled, includeTemplates),
     staleTime: 15_000,
+    placeholderData: keepPreviousData,
   });
 }
 

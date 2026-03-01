@@ -100,7 +100,7 @@ export function StartupGate() {
     }} />;
   }
 
-  return <StartupSplash message="Starting\u2026" />;
+  return <StartupSplash message="Starting" />;
 }
 
 function StartupSplash({ message }: { message: string }) {
@@ -173,7 +173,7 @@ function StartupSplash({ message }: { message: string }) {
             animationDelay: "0.1s",
           }}
         >
-          {"\u2726 \u00a0 Party Edition \u00a0 \u2726"}
+          {"Party Edition"}
         </p>
 
         <h1

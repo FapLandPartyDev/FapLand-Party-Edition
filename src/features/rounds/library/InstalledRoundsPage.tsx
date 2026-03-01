@@ -1965,26 +1965,6 @@ export function InstalledRoundsPage({
                   scanStatus={scanStatus}
                 />
               )}
-
-              <div className="mx-auto mt-6 grid w-full max-w-md grid-cols-1 gap-2 pb-6">
-                <MenuButton
-                  label={scanRunning ? t`Scanning...` : t`Scan Now`}
-                  primary
-                  onClick={() => {
-                    handleSelectSfx();
-                    void scanNow();
-                  }}
-                  onHover={handleHoverSfx}
-                />
-                <MenuButton
-                  label={t`Back to Main Menu`}
-                  onHover={handleHoverSfx}
-                  onClick={() => {
-                    handleSelectSfx();
-                    goBack();
-                  }}
-                />
-              </div>
             </div>
           </div>
         </div>
@@ -2633,11 +2613,13 @@ function LibrarySectionContent(props: LibrarySectionProps) {
           </div>
 
           <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-7">
-            <label className="lg:col-span-2">
+            <div className="lg:col-span-2">
               <span className="mb-2 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.25em] text-zinc-300">
                 <Trans>Search</Trans>
               </span>
               <input
+                id="round-library-search"
+                aria-label={t`Search installed rounds`}
                 value={queryInput}
                 onChange={(event) => {
                   const nextValue = event.target.value;
@@ -2649,7 +2631,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                 placeholder={t`Search title, hero, author`}
                 className="w-full rounded-xl border border-purple-300/30 bg-black/45 px-4 py-3 text-sm text-zinc-100 outline-none transition-all duration-200 focus:border-purple-300/75 focus:ring-2 focus:ring-purple-400/30"
               />
-            </label>
+            </div>
 
             <GameDropdown
               label={t`Type`}
@@ -2838,7 +2820,19 @@ function LibrarySectionContent(props: LibrarySectionProps) {
       )}
 
       {/* Grid */}
-      {!isInitialLibraryLoading && !hasInitialLibraryError && !isLibraryRefreshing && (
+      {isLibraryRefreshing && (
+        <div
+          role="status"
+          aria-label={t`Refreshing library`}
+          data-testid="library-refresh-hairline"
+          className="pointer-events-none absolute inset-x-0 top-0 h-0.5 animate-pulse bg-gradient-to-r from-fuchsia-500/0 via-fuchsia-400/80 to-cyan-400/0"
+        >
+          <span className="sr-only">
+            <Trans>Refreshing library</Trans>
+          </span>
+        </div>
+      )}
+      {!isInitialLibraryLoading && !hasInitialLibraryError && (
         <section className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl app-theme-shell-border">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>

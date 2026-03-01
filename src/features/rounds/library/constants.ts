@@ -14,8 +14,6 @@ export const INSTALL_SCAN_MESSAGE_POLL_INTERVAL_MS = 4000;
 export const EXPORT_STATUS_POLL_INTERVAL_MS = 1500;
 export const WEB_VIDEO_CACHE_POLL_INTERVAL_MS = 2000;
 
-export const VIRTUALIZATION_CARD_MIN_ROWS = 18;
-export const MASONRY_COLUMNS = 2;
 export const CARD_MIN_WIDTH_PX = 320;
 
 export const ROUNDS_LIBRARY_QUERY_KEY = ["rounds", "library"] as const;

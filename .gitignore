@@ -21,6 +21,8 @@ build/vendor/yt-dlp/
 release/
 
 # Misc
+/.vagrant/
+/.vagrant-win/
 count.txt
 todos.json
 f-land.json
@@ -68,3 +70,4 @@ VideoInfo.json
 /.opencode/
 /UserLogs/
 /settings-backups/
+/.omo/

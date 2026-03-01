@@ -222,6 +222,14 @@ if (remoteDebuggingPort !== null) {
 // The decode throughput improvement comes from the FFmpeg NVDEC path in mediaResponse.ts.
 const graphicsCompatibilityFlags = applyGraphicsCompatibilityFlags();
 
+// Register before app.ready so diagnostics can wait for the one event after
+// which Electron documents GPU information as usable. Keep this one-shot:
+// querying GPU details from a recurring gpu-info-update handler can create an
+// expensive feedback loop on Windows display drivers.
+const initialGpuInfoReady = new Promise<void>((resolve) => {
+  app.once("gpu-info-update", () => resolve());
+});
+
 // Apply DRI_PRIME to the process environment so Electron's Chromium GPU
 // sub-process inherits the same GPU selection as FFmpeg.
 applyElectronGpuEnv();
@@ -1537,18 +1545,8 @@ function runNormalStartupOnce(): Promise<void> {
       graphicsCompatibilityFlags,
       gpuRecoveryHintPending: pendingGpuRecoveryHint,
     });
-    app.on("gpu-info-update", () => {
-      void refreshGpuDiagnosticsSnapshot()
-        .then((snapshot) => {
-          debugLog.info("gpu", "GPU diagnostics updated", snapshot);
-        })
-        .catch((error) => {
-          debugLog.warn("gpu", "Failed to update GPU diagnostics", {
-            error: error instanceof Error ? error.message : String(error),
-          });
-        });
-    });
-    void refreshGpuDiagnosticsSnapshot()
+    void initialGpuInfoReady
+      .then(() => refreshGpuDiagnosticsSnapshot())
       .then((snapshot) => {
         debugLog.info("gpu", "Initial GPU diagnostics captured", snapshot);
       })

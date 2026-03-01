@@ -3,6 +3,7 @@ import { readGraphicsCompatibilitySettings } from "./graphicsCompatibility";
 
 export type GpuDiagnosticsSnapshot = {
   collectedAtIso: string;
+  infoType: "basic" | "complete";
   featureStatus: unknown;
   gpuInfo: unknown;
   hardwareAccelerationEnabled: boolean | null;
@@ -20,9 +21,12 @@ export function getGpuDiagnosticsSnapshot(): GpuDiagnosticsSnapshot | null {
   return latestGpuDiagnosticsSnapshot;
 }
 
-export async function refreshGpuDiagnosticsSnapshot(): Promise<GpuDiagnosticsSnapshot> {
+export async function refreshGpuDiagnosticsSnapshot(
+  infoType: "basic" | "complete" = "basic"
+): Promise<GpuDiagnosticsSnapshot> {
   const base = {
     collectedAtIso: new Date().toISOString(),
+    infoType,
     hardwareAccelerationEnabled:
       typeof app.isHardwareAccelerationEnabled === "function"
         ? app.isHardwareAccelerationEnabled()
@@ -39,7 +43,7 @@ export async function refreshGpuDiagnosticsSnapshot(): Promise<GpuDiagnosticsSna
       Promise.resolve(
         typeof app.getGPUFeatureStatus === "function" ? app.getGPUFeatureStatus() : null
       ),
-      typeof app.getGPUInfo === "function" ? app.getGPUInfo("complete") : Promise.resolve(null),
+      typeof app.getGPUInfo === "function" ? app.getGPUInfo(infoType) : Promise.resolve(null),
     ]);
     latestGpuDiagnosticsSnapshot = {
       ...base,

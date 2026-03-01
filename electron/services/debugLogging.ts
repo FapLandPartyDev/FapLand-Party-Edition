@@ -33,7 +33,7 @@ import { getDb, resolveDatabaseUrl } from "./db";
 import { getStore } from "./store";
 import { isPortableMode, normalizeUserDataSuffix } from "./portable";
 import { getRendererPerformanceState } from "./rendererPerformance";
-import { getGpuDiagnosticsSnapshot } from "./gpuDiagnostics";
+import { getGpuDiagnosticsSnapshot, refreshGpuDiagnosticsSnapshot } from "./gpuDiagnostics";
 import { getPhashScanStatus } from "./phashScanService";
 import { getWebsiteVideoScanStatus } from "./webVideoScanService";
 import { getInstallScanStatus } from "./installer";
@@ -47,12 +47,7 @@ import {
   resetYtDlpBinaryCache,
   resolveYtDlpBinary,
 } from "./webVideo/binaries";
-import {
-  getCpuInfo,
-  getGraphicsInfo,
-  getMemInfo,
-  getOsInfo,
-} from "./systemInfoCache";
+import { getCpuInfo, getGraphicsInfo, getMemInfo, getOsInfo } from "./systemInfoCache";
 
 export type DebugLogEntry = {
   ts: string;
@@ -569,10 +564,14 @@ export async function collectDebugDiagnostics(): Promise<DebugDiagnostics> {
 
   diagnostics.database = sanitizeForPublicDebug(await getDatabaseDiagnostics(collectionErrors));
 
+  const completeGpuDiagnostics = await refreshGpuDiagnosticsSnapshot("complete").catch(() =>
+    getGpuDiagnosticsSnapshot()
+  );
+
   diagnostics.runtime = sanitizeForPublicDebug({
     logLevel: activeLogLevel,
     rendererPerformanceState: getRendererPerformanceState(),
-    gpuDiagnostics: getGpuDiagnosticsSnapshot(),
+    gpuDiagnostics: completeGpuDiagnostics,
     appMetrics: app.getAppMetrics().map((metric, index) => ({
       process: metric.type,
       label: `${metric.type}-${index + 1}`,

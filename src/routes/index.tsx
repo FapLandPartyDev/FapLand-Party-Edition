@@ -450,8 +450,8 @@ const Home = () => {
               style={{ animationDelay: "0.1s", color: "var(--main-menu-eyebrow)" }}
             >
               {sfwModeEnabled
-                ? t`✦ \u00a0 Safe Experience \u00a0 ✦`
-                : t`✦ \u00a0 Party Edition \u00a0 ✦`}
+                ? t`Safe Experience`
+                : t`Party Edition`}
             </p>
 
             {/* Main title with animated shimmer gradient */}
@@ -548,7 +548,7 @@ const Home = () => {
             >
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="text-[8px]" style={{ color: "var(--main-menu-system-accent)" }}>
-                  ◆
+                  ::
                 </span>
                 <p
                   className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.14em] font-medium"

@@ -26,6 +26,10 @@
           nodejs_24
           ffmpeg
           pkg-config
+          qemu
+          vagrant
+          nfs-utils
+          freerdp
 
           # Electron (NixOS-patched binary — avoids dynamic linker mismatch)
           electron
@@ -74,6 +78,26 @@
           export NIXOS_OZONE_WL=1
           export GDK_BACKEND=wayland,x11
           export XDG_DATA_DIRS="${gtk3}/share/gsettings-schemas/${gtk3.name}:$XDG_DATA_DIRS"
+
+          # Vagrant/libvirt Windows test VMs. The vagrant-libvirt plugin is
+          # installed per-user because this nixpkgs revision does not expose it
+          # as a top-level package.
+          export VAGRANT_DEFAULT_PROVIDER="libvirt"
+          export VAGRANT_HOME="''${VAGRANT_HOME:-$HOME/.vagrant.d}"
+          export FLAND_WINDOWS_BOX="''${FLAND_WINDOWS_BOX:-jborean93/WindowsServer2022}"
+          export FLAND_VAGRANT_SYNC_TYPE="''${FLAND_VAGRANT_SYNC_TYPE:-rsync}"
+          export FLAND_VAGRANT_NFS_VERSION="''${FLAND_VAGRANT_NFS_VERSION:-4}"
+          export FLAND_WIN_PROJECT_DIR="''${FLAND_WIN_PROJECT_DIR:-C:/f-land}"
+          export FLAND_WIN_NODE_VERSION="''${FLAND_WIN_NODE_VERSION:-24.11.1}"
+
+          if ! command -v vagrant >/dev/null 2>&1; then
+            echo "warning: vagrant is not available in this dev shell"
+          fi
+
+          if ! vagrant plugin list 2>/dev/null | grep -q '^vagrant-libvirt '; then
+            echo "warning: vagrant-libvirt plugin is not installed in VAGRANT_HOME=$VAGRANT_HOME"
+            echo "         run: vagrant plugin install vagrant-libvirt"
+          fi
         '';
       };
     });

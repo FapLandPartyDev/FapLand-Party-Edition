@@ -68,6 +68,7 @@ const MAX_TRACKED_ERRORS = 20;
 const INSTALL_SCAN_POLL_INTERVAL_MS = 500;
 const MAX_INSTALL_SCAN_WAIT_MS = 300000;
 const CONTINUOUS_SCAN_INTERVAL_MS = 5 * 60 * 1000;
+const INITIAL_CONTINUOUS_SCAN_DELAY_MS = 60_000;
 const WEBSITE_VIDEO_SCAN_CONCURRENCY = 3;
 
 let scanStatus: WebsiteVideoScanStatus = {
@@ -86,6 +87,7 @@ let scanStatus: WebsiteVideoScanStatus = {
 let activeScanPromise: Promise<void> | null = null;
 let abortRequested = false;
 let continuousScanTimer: ReturnType<typeof setInterval> | null = null;
+let initialContinuousScanTimer: ReturnType<typeof setTimeout> | null = null;
 const activeItemsByUrl = new Map<string, PendingWebsiteVideo>();
 let rerunRequested = false;
 
@@ -444,6 +446,18 @@ export function startContinuousWebsiteVideoScan(): void {
     return;
   }
 
+  if (!initialContinuousScanTimer) {
+    initialContinuousScanTimer = setTimeout(() => {
+      initialContinuousScanTimer = null;
+      if (activeScanPromise || shouldDeferBackgroundWork()) return;
+
+      void startWebsiteVideoScan().catch((error) => {
+        console.error("Initial continuous website video scan error:", error);
+        debugLog.error("websiteVideoScan", "Initial continuous website video scan error", error);
+      });
+    }, INITIAL_CONTINUOUS_SCAN_DELAY_MS);
+  }
+
   continuousScanTimer = setInterval(async () => {
     if (activeScanPromise || shouldDeferBackgroundWork()) {
       return;
@@ -456,16 +470,13 @@ export function startContinuousWebsiteVideoScan(): void {
       debugLog.error("websiteVideoScan", "Continuous website video scan error", error);
     }
   }, CONTINUOUS_SCAN_INTERVAL_MS);
-
-  if (!shouldDeferBackgroundWork()) {
-    void startWebsiteVideoScan().catch((error) => {
-      console.error("Initial continuous website video scan error:", error);
-      debugLog.error("websiteVideoScan", "Initial continuous website video scan error", error);
-    });
-  }
 }
 
 export function stopContinuousWebsiteVideoScan(): void {
+  if (initialContinuousScanTimer) {
+    clearTimeout(initialContinuousScanTimer);
+    initialContinuousScanTimer = null;
+  }
   if (continuousScanTimer) {
     clearInterval(continuousScanTimer);
     continuousScanTimer = null;

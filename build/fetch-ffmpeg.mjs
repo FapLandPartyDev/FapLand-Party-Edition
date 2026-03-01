@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
+import os from "os";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
@@ -214,13 +215,29 @@ async function downloadFile(url, outputFile, expectedSha256) {
 }
 
 async function extractArchive(archivePath, archiveType, destinationDir) {
+  const isWindows = os.platform() === 'win32';
+
   if (archiveType === "zip") {
-    await runCommand("unzip", ["-qq", archivePath, "-d", destinationDir]);
+    if (isWindows) {
+      // Uses native PowerShell to expand the zip archive cleanly
+      await runCommand("powershell", [
+        "-NoProfile",
+        "-Command",
+        `Expand-Archive -Path '${archivePath}' -DestinationPath '${destinationDir}' -Force`
+      ]);
+    } else {
+      await runCommand("unzip", ["-qq", archivePath, "-d", destinationDir]);
+    }
     return;
   }
 
   if (archiveType === "tar.xz") {
-    await runCommand("tar", ["-xJf", archivePath, "-C", destinationDir]);
+    if (isWindows) {
+      // Windows 10/11 includes a native bsdtar executable out of the box
+      await runCommand("tar.exe", ["-xJf", archivePath, "-C", destinationDir]);
+    } else {
+      await runCommand("tar", ["-xJf", archivePath, "-C", destinationDir]);
+    }
     return;
   }
 

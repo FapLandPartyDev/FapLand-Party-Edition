@@ -49,6 +49,7 @@ function isElectronMainExternalDependency(id: string): boolean {
 function generateLicensesPlugin() {
   return {
     name: "generate-licenses",
+    apply: "build" as const,
     buildStart() {
       execFileSync(process.execPath, ["./build/generate-licenses.mjs"], {
         cwd: process.cwd(),

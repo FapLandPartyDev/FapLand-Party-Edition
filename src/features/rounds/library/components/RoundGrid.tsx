@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { RoundRenderRow } from "@/routes/roundRows";
 import type { RoundLibraryEntry } from "@/routes/roundRows";
@@ -140,17 +148,15 @@ export function RoundGrid({
   const [scrollMargin, setScrollMargin] = useState(0);
   const lastVisibleKeyRef = useRef<string>("");
 
-  // Compute the offset between the scroll container's content origin and the
-  // grid's content origin. This is recomputed on every scroll tick (cheap, via
-  // rAF throttle) AND on resize — the original implementation only updated on
-  // resize, which is why items vanished when the layout above the grid shifted
-  // (filter bar collapse, dialog open/close). Updating on scroll fixes that.
-  useEffect(() => {
+  // The margin is a layout value, not a scroll value: the scrollTop term cancels
+  // the movement visible in getBoundingClientRect(). Recomputing it on every
+  // scroll frame made the virtual rows chase the scrollbar by one render and
+  // caused cards to jump or briefly disappear. Observe the grid's layout chain
+  // instead, so filter/toolbars resizing above it still updates the margin.
+  useLayoutEffect(() => {
     if (!scrollContainer) return;
-    let rafId: number | null = null;
 
     const measure = () => {
-      rafId = null;
       const layoutContainer = layoutContainerRef.current;
       if (!layoutContainer) return;
       const next =
@@ -160,26 +166,22 @@ export function RoundGrid({
       setScrollMargin((prev) => (Math.abs(prev - next) < 1 ? prev : next));
     };
 
-    const schedule = () => {
-      if (rafId !== null) return;
-      rafId = window.requestAnimationFrame(measure);
-    };
-
     measure();
-    scrollContainer.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", schedule);
+    window.addEventListener("resize", measure);
 
     let observer: ResizeObserver | null = null;
     if (typeof ResizeObserver !== "undefined") {
-      observer = new ResizeObserver(schedule);
-      observer.observe(scrollContainer);
-      if (layoutContainerRef.current) observer.observe(layoutContainerRef.current);
+      observer = new ResizeObserver(measure);
+      let element: HTMLElement | null = layoutContainerRef.current;
+      while (element) {
+        observer.observe(element);
+        if (element === scrollContainer) break;
+        element = element.parentElement;
+      }
     }
 
     return () => {
-      if (rafId !== null) window.cancelAnimationFrame(rafId);
-      scrollContainer.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", schedule);
+      window.removeEventListener("resize", measure);
       observer?.disconnect();
     };
   }, [scrollContainer]);
@@ -233,8 +235,7 @@ export function RoundGrid({
         ? GROUP_HEADER_ESTIMATE_PX + SHELF_GAP_PX
         : estimateCardRowHeight(columns, containerWidth);
     },
-    // scrollMargin is recomputed on every scroll tick (see effect above) so that
-    // layout shifts above the grid no longer cause items to vanish.
+    // Updated only when layout changes; ordinary scrolling must not change it.
     scrollMargin,
     overscan: 6,
     measureElement: (element) => element.getBoundingClientRect().height,

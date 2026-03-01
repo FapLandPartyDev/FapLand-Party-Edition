@@ -487,4 +487,30 @@ describe("webVideoScanService", () => {
     expect(service.getWebsiteVideoScanStatus().state).toBe("done");
     expect(ensureWebsiteVideoCachedMock).toHaveBeenCalledTimes(2);
   });
+
+  it("delays the initial continuous scan so startup stays responsive", async () => {
+    vi.useFakeTimers();
+    getDbMock.mockReturnValue(
+      buildDbMock([
+        {
+          resourceId: "res-1",
+          roundId: "round-1",
+          roundName: "Round 1",
+          videoUri: "https://page.example/watch/1",
+        },
+      ])
+    );
+
+    const service = await import("./webVideoScanService");
+    service.startContinuousWebsiteVideoScan();
+
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(ensureWebsiteVideoCachedMock).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.waitFor(() => {
+      expect(ensureWebsiteVideoCachedMock).toHaveBeenCalledWith("https://page.example/watch/1");
+    });
+    service.stopContinuousWebsiteVideoScan();
+  });
 });
