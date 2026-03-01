@@ -760,6 +760,7 @@ export function SettingsPage() {
     useState(false);
   const [isUpdatingEroScriptsCacheRootPath, setIsUpdatingEroScriptsCacheRootPath] = useState(false);
   const [isSavingEroScriptsAuth, setIsSavingEroScriptsAuth] = useState(false);
+  const [isLoadingEroScriptsAuth, setIsLoadingEroScriptsAuth] = useState(true);
   const [isUpdatingMusicCacheRootPath, setIsUpdatingMusicCacheRootPath] = useState(false);
   const [isUpdatingFpackExtractionPath, setIsUpdatingFpackExtractionPath] = useState(false);
   const [openingPathTarget, setOpeningPathTarget] = useState<
@@ -967,6 +968,7 @@ export function SettingsPage() {
             : null
         );
         setEroScriptsLoginStatus(rawEroScriptsLoginStatus);
+        setIsLoadingEroScriptsAuth(false);
         setMusicCacheRootPath(
           typeof rawMusicCacheRootPath === "string" && rawMusicCacheRootPath.trim().length > 0
             ? rawMusicCacheRootPath.trim()
@@ -991,6 +993,7 @@ export function SettingsPage() {
         console.error("Failed to read settings state", error);
       } finally {
         setIsInitialLoading(false);
+        setIsLoadingEroScriptsAuth(false);
       }
     };
 
