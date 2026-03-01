@@ -64,7 +64,7 @@ async function deriveHardwareEncryptionKey(): Promise<string> {
     const si = await import("systeminformation");
     const [cpu, baseboard, bios] = await withTimeout(
       Promise.all([si.cpu(), si.baseboard(), si.bios()]),
-      3000
+      2000
     );
     const seed = [
       `${cpu.brand}|${cpu.model}|${cpu.cores}`,
@@ -176,24 +176,12 @@ function readStoreSnapshot(candidate: Store): Record<string, unknown> {
   return snapshot;
 }
 
-async function getLegacyEncryptionKeys(): Promise<string[]> {
-  const candidates: Array<string | null> = [
-    readCachedEncryptionKey(),
-    getSynchronousFallbackEncryptionKey(),
-  ];
-
-  try {
-    candidates.push(await hardwareKeyDeriver());
-  } catch (error) {
-    console.warn("Failed to derive the legacy hardware settings key.", error);
-  }
-
-  candidates.push(getHardwareFallbackEncryptionKey());
-  return [...new Set(candidates.filter((candidate): candidate is string => Boolean(candidate)))];
-}
-
 async function readLegacySnapshot(): Promise<Record<string, unknown> | null> {
-  for (const encryptionKey of await getLegacyEncryptionKeys()) {
+  const tried = new Set<string>();
+
+  const tryKey = (encryptionKey: string | null): Record<string, unknown> | null => {
+    if (!encryptionKey || tried.has(encryptionKey)) return null;
+    tried.add(encryptionKey);
     try {
       const legacyStore = createStore({
         mode: "legacy-encrypted",
@@ -202,9 +190,24 @@ async function readLegacySnapshot(): Promise<Record<string, unknown> | null> {
       return readStoreSnapshot(legacyStore);
     } catch {
       // Try the next historical key without changing the original file.
+      return null;
     }
+  };
+
+  let snapshot = tryKey(readCachedEncryptionKey());
+  if (snapshot) return snapshot;
+
+  snapshot = tryKey(getSynchronousFallbackEncryptionKey());
+  if (snapshot) return snapshot;
+
+  try {
+    snapshot = tryKey(await hardwareKeyDeriver());
+    if (snapshot) return snapshot;
+  } catch (error) {
+    console.warn("Failed to derive the legacy hardware settings key.", error);
   }
-  return null;
+
+  return tryKey(getHardwareFallbackEncryptionKey());
 }
 
 function snapshotsMatch(

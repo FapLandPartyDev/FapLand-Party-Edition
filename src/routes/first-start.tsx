@@ -552,7 +552,7 @@ function getStepDetails(id: string): string[] {
         i18n._({
           id: "first-start.step.handy.detail.1",
           message:
-            "You can connect a Handy device using its connection key, or use Intiface to connect any Buttplug-compatible linear/position device.",
+            "You can connect a Handy device using its connection key, or use Intiface to connect any Buttplug-compatible linear/position or vibration device.",
         }),
         i18n._({
           id: "first-start.step.handy.detail.2",
@@ -2605,7 +2605,7 @@ function FirstStartPage() {
                           <p className="mt-2 text-xs text-zinc-400">
                             <Trans>
                               Start Intiface Central, start its server, then connect to a
-                              linear/position-capable device.
+                              linear/position- or vibration-capable device.
                             </Trans>
                           </p>
                           {intifaceDeviceName && handyConnected && (

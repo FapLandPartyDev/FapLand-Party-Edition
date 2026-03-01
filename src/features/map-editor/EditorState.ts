@@ -897,3 +897,58 @@ export const toGraphBoardConfig = (input: EditorGraphConfig): GraphBoardConfig =
     ...(style.background || style.roadPalette ? { style } : {}),
   };
 };
+
+export interface HeroChainNodeInput {
+  roundRef: PortableRoundRef;
+  name: string;
+}
+
+export const createHeroNodeChain = (
+  config: EditorGraphConfig,
+  nodes: ReadonlyArray<HeroChainNodeInput>,
+  worldX: number,
+  worldY: number,
+): EditorGraphConfig => {
+  if (nodes.length === 0) return config;
+
+  const existingIds = new Set(config.nodes.map((n) => n.id));
+
+  const newEditorNodes: EditorNode[] = [];
+  const newEdges: EditorEdge[] = [];
+
+  for (let i = 0; i < nodes.length; i++) {
+    const nodeId = createEditorId("round");
+    if (existingIds.has(nodeId)) continue;
+
+    newEditorNodes.push({
+      id: nodeId,
+      name: nodes[i].name,
+      kind: "round",
+      roundRef: { ...nodes[i].roundRef },
+      roundPlaylistRefs: [{ ...nodes[i].roundRef }],
+      styleHint: {
+        x: worldX + i * DEFAULT_LAYOUT_SPACING_X,
+        y: worldY,
+        width: DEFAULT_NODE_WIDTH,
+        height: DEFAULT_NODE_HEIGHT,
+        size: DEFAULT_NODE_SCALE,
+      },
+    });
+  }
+
+  for (let i = 0; i < newEditorNodes.length - 1; i++) {
+    newEdges.push({
+      id: createEditorId("edge"),
+      fromNodeId: newEditorNodes[i].id,
+      toNodeId: newEditorNodes[i + 1].id,
+      gateCost: 0,
+      weight: 1,
+    });
+  }
+
+  return {
+    ...config,
+    nodes: [...config.nodes, ...newEditorNodes],
+    edges: [...config.edges, ...newEdges],
+  };
+};

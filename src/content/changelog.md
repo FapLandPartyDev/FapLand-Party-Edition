@@ -1,9 +1,37 @@
 # What's New
 
+## v0.5.15-beta
+
+### Added
+
+- **Intiface funscript support for vibration-only toys** — vibrators and other vibration-capable Buttplug devices now work with funscripts. The adapter translates funscript stroke speed into vibration intensity, and a new Vibration Sensitivity slider in Settings -> Hardware & Sync lets you tune the mapping.
+- **Installed rounds library rebuild** — the installed rounds page has been split into dedicated library components, dialogs, hooks, overlays, and helpers. The UI behavior stays familiar, but the screen is now easier to maintain and extend.
+- **Hero shortcuts in Playlist Workshop** — the normal-round picker now groups installed hero rounds in a collapsible Heroes section, with one-click add for every missing round from a hero.
+- **Hero chain placement in Map Editor** — Map Editor can now place a whole hero as a connected round-node chain from the tile sidebar.
+- **Map Editor quick-add workflow** — nodes now expose a connection handle for creating connected nodes quickly; dropping on another node creates an edge, and dropping on empty canvas places a connected node.
+- **Map Editor authoring helpers** — added snap-to-grid placement, alignment guides while dragging, node duplication, keyboard nudging, double-click rename, context menus, fit-to-content view logic, and minimap support.
+
+### Changed
+
+- Round Converter auto-detection now trims leading and trailing idle funscript space, uses cadence-aware padding around real motion, and searches pause-gap/min-round settings from actual action gaps for more accurate target segment counts.
+- The Round Converter's quick-detect action now uses a 60-second minimum round length again.
+- Anti-perk beatbar timing now keys off low-point beat markers instead of every motion event, making Milker and Jackhammer prompts easier to read.
+- Settings now lazily refresh binary diagnostics only when Advanced is opened, and debug diagnostics only when Debug is opened.
+- Debug diagnostics and available GPU listing now use a shared cached system-info service.
+- Hardware-derived machine IDs and legacy settings decryption now tolerate slow or unavailable system-information probes instead of blocking indefinitely.
+
+### Fixed
+
+- EroScripts login status checks now time out after 5 seconds and report timeout failures clearly.
+- Legacy encrypted settings import now tries historical encryption keys one at a time and keeps falling back when a key cannot decrypt the file.
+
+---
+
 ## v0.5.07-beta
 
 ### Added
 
+- **Intiface funscript support for vibration-only toys** — vibrators and other vibration-capable Buttplug devices now work with funscripts. The adapter translates funscript stroke speed into vibration intensity (holds go silent, fast strokes hit hard), and a new Vibration Sensitivity slider in Settings → Hardware & Sync lets you tune the mapping. Linear/position devices remain preferred when both are connected.
 - **Graphics compatibility settings** — a new collapsible "Graphics Compatibility" panel in Settings under Debug with granular toggles for GPU safe mode, zero-copy rendering, GPU blocklist override, GPU rasterization, GPU compositing, accelerated video decode/encode, GPU shader disk cache, ANGLE OpenGL backend, and WebGL 2; all settings require an app restart and include an in-page restart button.
 - **GPU preference selector (FFmpeg & Electron)** — choose which GPU FFmpeg and Electron's renderer use via a new dropdown in the Graphics Compatibility panel; on Linux this sets DRI_PRIME for both processes, on Windows/macOS it uses Chromium's --gpu-device-index switch.
 - **GPU crash recovery hint** — when the GPU process crashes during an active game session, a recovery flag is persisted and shown as a toast on next startup suggesting Graphics Safe Mode from Settings.

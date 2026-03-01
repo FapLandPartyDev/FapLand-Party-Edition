@@ -39,6 +39,7 @@ export type HapticsConnectionConfig =
       deviceName: string | null;
       deviceIndex: number | null;
       stroke: HapticsStrokeState;
+      vibrationSensitivity: number;
     }
   | {
       provider: "tcode";

@@ -73,6 +73,8 @@ const mocks = vi.hoisted(() => {
       intifaceWebsocketUrl: "ws://127.0.0.1:12345",
       intifaceDeviceName: null as string | null,
       intifaceDeviceIndex: null as number | null,
+      intifaceVibrationSensitivity: 1,
+      setIntifaceVibrationSensitivity: vi.fn(async () => {}),
       offsetMs: 0,
       strokeMin: 0,
       strokeMax: 1,
@@ -774,13 +776,15 @@ describe("Settings music section", () => {
 
   it("shows Intiface connection errors in hardware settings", async () => {
     mocks.handy.provider = "intiface";
-    mocks.handy.error = "Intiface connected, but no linear/position-capable device was found.";
+    mocks.handy.error = "Intiface connected, but no position- or vibration-capable device was found.";
     render(<SettingsPage />);
 
     fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);
 
     expect(
-      screen.getByText("Intiface connected, but no linear/position-capable device was found.")
+      screen.getByText(
+        "Intiface connected, but no position- or vibration-capable device was found."
+      )
     ).toBeDefined();
   });
 

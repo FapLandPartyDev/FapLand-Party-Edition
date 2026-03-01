@@ -18,9 +18,10 @@ import {
   type PlaylistResolutionAnalysis,
 } from "../game/playlistResolution";
 import { resolvePortableRoundRef, toPortableRoundRef } from "../game/playlistRuntime";
-import { EditorCanvas } from "../features/map-editor/EditorCanvas";
+import { EditorCanvas, type QuickAddTileOption } from "../features/map-editor/EditorCanvas";
 import {
   createEditorId,
+  createHeroNodeChain,
   EMPTY_EDITOR_SELECTION,
   convertEditorGraphToLinearBoardConfig,
   layoutLinearGraphFromPlaylist,
@@ -36,6 +37,7 @@ import {
   type EditorSelectionState,
   type EditorTextAnnotation,
   type GraphToLinearConversionResult,
+  type HeroChainNodeInput,
   type MapEditorTool,
   type MapRoundBulkAction,
   type ViewportState,
@@ -47,6 +49,7 @@ import {
   isTextInputElement,
   resolveStartNodeId,
 } from "../features/map-editor/editorInteractions";
+import { cloneNodeWithOffset, snapPointToGrid } from "../features/map-editor/editorGeometry";
 import {
   loadTileCatalog,
   type TileCatalog,
@@ -75,6 +78,7 @@ import {
   playSelectSound,
 } from "../utils/audio";
 import { getRoundDurationSec } from "../utils/duration";
+import { groupRoundsByHero } from "../utils/heroGrouping";
 import { PlaylistPickerView } from "../features/map-editor/components/PlaylistPickerView";
 import { EditorToolbar } from "../features/map-editor/components/EditorToolbar";
 import { TileSidebar } from "../features/map-editor/components/TileSidebar";
@@ -413,6 +417,53 @@ const sortMapRoundsByDifficulty = (
     })
     .map(({ round }) => round);
 
+const createNodeFromTile = ({
+  kind,
+  x,
+  y,
+  existingNodes,
+  tileDefinition,
+  defaultPerkId,
+}: {
+  kind: EditorNode["kind"];
+  x: number;
+  y: number;
+  existingNodes: ReadonlyArray<EditorNode>;
+  tileDefinition?: (TileCatalogTile & { kind: EditorNode["kind"] }) | undefined;
+  defaultPerkId?: string | undefined;
+}): EditorNode => {
+  const width = Math.max(160, Number(tileDefinition?.width ?? 190));
+  const height = Math.max(58, Number(tileDefinition?.height ?? 84));
+  const baseName = tileDefinition?.defaultName ?? tileDefinition?.label ?? toTitleCase(kind);
+  const kindCount = existingNodes.filter((node) => node.kind === kind).length + 1;
+  const nextNode: EditorNode = {
+    id: createEditorId(kind),
+    name: kindCount === 1 ? baseName : `${baseName} ${kindCount}`,
+    kind,
+    styleHint: {
+      x,
+      y,
+      width,
+      height,
+      color: tileDefinition?.color,
+      icon: tileDefinition?.icon,
+      size: tileDefinition?.size,
+    },
+  };
+
+  if (kind === "round") {
+    nextNode.roundRef = { name: `Round ${kindCount}` };
+  }
+  if (kind === "perk") {
+    nextNode.visualId = defaultPerkId;
+  }
+  if (kind === "catapult") {
+    nextNode.catapultForward = 2;
+  }
+
+  return nextNode;
+};
+
 const shuffleMapRounds = (
   rounds: ReadonlyArray<MapEditorInstalledRound>
 ): MapEditorInstalledRound[] => {
@@ -543,6 +594,7 @@ function MapEditorPage() {
   const [connectFromNodeId, setConnectFromNodeId] = useState<string | null>(null);
   const [tool, setTool] = useState<MapEditorTool>("select");
   const [showGrid, setShowGrid] = useState(true);
+  const [snapToGrid, setSnapToGrid] = useState(true);
   const [alignmentStrategy, setAlignmentStrategy] =
     useState<GraphAlignmentStrategy>("layeredHorizontal");
   const [viewport, setViewport] = useState<ViewportState>(DEFAULT_EDITOR_VIEWPORT);
@@ -553,6 +605,10 @@ function MapEditorPage() {
   const [tileSearch, setTileSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<TileCatalogCategory["id"] | "all">("all");
   const [activePlacementKind, setActivePlacementKind] = useState<EditorNode["kind"]>("path");
+  const [heroPlacementData, setHeroPlacementData] = useState<{
+    heroName: string;
+    chainNodes: HeroChainNodeInput[];
+  } | null>(null);
 
   const [recentlyPlacedNodeIds, setRecentlyPlacedNodeIds] = useState<string[]>([]);
   const [recentlyTouchedEdgeIds, setRecentlyTouchedEdgeIds] = useState<string[]>([]);
@@ -840,6 +896,7 @@ function MapEditorPage() {
     () => installedRounds.filter((round) => round.type === "Cum"),
     [installedRounds]
   );
+  const heroGroups = useMemo(() => groupRoundsByHero(normalRounds), [normalRounds]);
   const selectedCumRoundIds = useMemo(
     () =>
       config.cumRoundRefs.map(
@@ -949,6 +1006,20 @@ function MapEditorPage() {
     return map;
   }, [tileCatalog.tiles]);
 
+  const quickAddTileOptions = useMemo<QuickAddTileOption[]>(
+    () =>
+      tileCatalog.tiles
+        .filter((tile) => tile.kind !== "start")
+        .map((tile) => ({
+          kind: tile.kind,
+          label: tile.label,
+          icon: tile.icon,
+          color: tile.color,
+          description: tile.description,
+        })),
+    [tileCatalog.tiles]
+  );
+
   const filteredTiles = useMemo(() => {
     const query = tileSearch.trim().toLowerCase();
     return tileCatalog.tiles.filter((tile) => {
@@ -993,7 +1064,30 @@ function MapEditorPage() {
     playSelectSound();
     setActivePlacementKind(tile.kind);
     setTool("place");
+    setHeroPlacementData(null);
   }, []);
+
+  const armHero = useCallback(
+    (heroGroupItem: { heroId: string }) => {
+      const heroGroup = heroGroups.find((g) => g.heroId === heroGroupItem.heroId);
+      if (!heroGroup) return;
+      playSelectSound();
+      const chainNodes: HeroChainNodeInput[] = heroGroup.rounds.map((round) => ({
+        roundRef: {
+          ...(round.id ? { idHint: round.id } : {}),
+          name: round.name,
+          ...(round.author ? { author: round.author } : {}),
+          ...(round.type ? { type: round.type } : {}),
+          ...(round.installSourceKey ? { installSourceKeyHint: round.installSourceKey } : {}),
+          ...(round.phash ? { phash: round.phash } : {}),
+        },
+        name: round.name,
+      }));
+      setHeroPlacementData({ heroName: heroGroup.heroName, chainNodes });
+      setTool("place");
+    },
+    [heroGroups]
+  );
 
   const patchNode = useCallback(
     (nodeId: string, patch: Partial<EditorNode>) => {
@@ -1974,13 +2068,17 @@ function MapEditorPage() {
           if (!selectedNodeIds.has(node.id)) return node;
           const baseX = Number(node.styleHint?.x ?? 0);
           const baseY = Number(node.styleHint?.y ?? 0);
+          const nextPoint = snapToGrid
+            ? snapPointToGrid({ x: baseX + deltaWorldX, y: baseY + deltaWorldY })
+            : { x: baseX + deltaWorldX, y: baseY + deltaWorldY };
+          if (nextPoint.x === baseX && nextPoint.y === baseY) return node;
           moved = true;
           return {
             ...node,
             styleHint: {
               ...node.styleHint,
-              x: baseX + deltaWorldX,
-              y: baseY + deltaWorldY,
+              x: nextPoint.x,
+              y: nextPoint.y,
             },
           };
         });
@@ -1996,7 +2094,7 @@ function MapEditorPage() {
         dragSessionRef.current.moved = true;
       }
     },
-    [updateGraphConfig]
+    [snapToGrid, updateGraphConfig]
   );
 
   const moveTextAnnotation = useCallback(
@@ -2039,31 +2137,17 @@ function MapEditorPage() {
       const changed = updateGraphConfig((previous) => {
         const width = Math.max(160, Number(tileDefinition?.width ?? 190));
         const height = Math.max(58, Number(tileDefinition?.height ?? 84));
-        const baseName = tileDefinition?.defaultName ?? tileDefinition?.label ?? toTitleCase(kind);
-        const kindCount = previous.nodes.filter((node) => node.kind === kind).length + 1;
-        const nextNode: EditorNode = {
-          id: createEditorId(kind),
-          name: kindCount === 1 ? baseName : `${baseName} ${kindCount}`,
+        const topLeft = snapToGrid
+          ? snapPointToGrid({ x: worldX - width / 2, y: worldY - height / 2 })
+          : { x: worldX - width / 2, y: worldY - height / 2 };
+        const nextNode = createNodeFromTile({
           kind,
-          styleHint: {
-            x: worldX - width / 2,
-            y: worldY - height / 2,
-            width,
-            height,
-            color: tileDefinition?.color,
-            icon: tileDefinition?.icon,
-            size: tileDefinition?.size,
-          },
-        };
-        if (kind === "round") {
-          nextNode.roundRef = { name: `Round ${kindCount}` };
-        }
-        if (kind === "perk") {
-          nextNode.visualId = perkOptions[0]?.id;
-        }
-        if (kind === "catapult") {
-          nextNode.catapultForward = 2;
-        }
+          x: topLeft.x,
+          y: topLeft.y,
+          existingNodes: previous.nodes,
+          tileDefinition,
+          defaultPerkId: perkOptions[0]?.id,
+        });
         createdNodeId = nextNode.id;
         const nextNodes = [...previous.nodes, nextNode];
         return {
@@ -2087,7 +2171,176 @@ function MapEditorPage() {
         selectedTextAnnotationId: null,
       });
     },
-    [commitSelection, flashPlacedNode, perkOptions, tilesByKind, updateGraphConfig]
+    [commitSelection, flashPlacedNode, perkOptions, snapToGrid, tilesByKind, updateGraphConfig]
+  );
+
+  const quickAddConnectedNode = useCallback(
+    (sourceNodeId: string, kind: EditorNode["kind"], worldX: number, worldY: number) => {
+      const tileDefinition = tilesByKind.get(kind);
+      let createdNodeId: string | null = null;
+      let createdEdgeId: string | null = null;
+
+      const changed = updateGraphConfig((previous) => {
+        const sourceNode = previous.nodes.find((node) => node.id === sourceNodeId);
+        if (!sourceNode || sourceNode.kind === "end") return previous;
+
+        const width = Math.max(160, Number(tileDefinition?.width ?? 190));
+        const height = Math.max(58, Number(tileDefinition?.height ?? 84));
+        const topLeft = snapToGrid
+          ? snapPointToGrid({ x: worldX - width / 2, y: worldY - height / 2 })
+          : { x: worldX - width / 2, y: worldY - height / 2 };
+        const nextNode = createNodeFromTile({
+          kind,
+          x: topLeft.x,
+          y: topLeft.y,
+          existingNodes: previous.nodes,
+          tileDefinition,
+          defaultPerkId: perkOptions[0]?.id,
+        });
+        const nextEdge: EditorEdge = {
+          id: createEditorId("edge"),
+          fromNodeId: sourceNodeId,
+          toNodeId: nextNode.id,
+          gateCost: 0,
+          weight: 1,
+        };
+
+        createdNodeId = nextNode.id;
+        createdEdgeId = nextEdge.id;
+        const nextNodes = [...previous.nodes, nextNode];
+        return {
+          ...previous,
+          startNodeId: resolveStartNodeId(previous.startNodeId, nextNodes),
+          nodes: nextNodes,
+          edges: [...previous.edges, nextEdge],
+        };
+      });
+
+      if (!changed || !createdNodeId || !createdEdgeId) {
+        playMapInvalidActionSound();
+        return;
+      }
+
+      playMapPlaceNodeSound();
+      playMapConnectNodesSound();
+      flashPlacedNode(createdNodeId);
+      flashTouchedEdge(createdEdgeId);
+      commitSelection({
+        selectedNodeIds: [createdNodeId],
+        primaryNodeId: createdNodeId,
+        selectedEdgeId: null,
+        selectedTextAnnotationId: null,
+      });
+      setTool("select");
+    },
+    [
+      commitSelection,
+      flashPlacedNode,
+      flashTouchedEdge,
+      perkOptions,
+      snapToGrid,
+      tilesByKind,
+      updateGraphConfig,
+    ]
+  );
+
+  const duplicateNode = useCallback(
+    (nodeId: string, worldX: number, worldY: number) => {
+      let createdNodeId: string | null = null;
+      const changed = updateGraphConfig((previous) => {
+        const sourceNode = previous.nodes.find((node) => node.id === nodeId);
+        if (!sourceNode) return previous;
+        const cloned = cloneNodeWithOffset(sourceNode, 24, 24, createEditorId);
+        const width = Number(cloned.styleHint?.width ?? 190);
+        const height = Number(cloned.styleHint?.height ?? 84);
+        const topLeft = snapToGrid
+          ? snapPointToGrid({ x: worldX - width / 2, y: worldY - height / 2 })
+          : { x: worldX - width / 2, y: worldY - height / 2 };
+        const nextNode: EditorNode = {
+          ...cloned,
+          styleHint: {
+            ...cloned.styleHint,
+            x: topLeft.x,
+            y: topLeft.y,
+          },
+        };
+        createdNodeId = nextNode.id;
+        const nextNodes = [...previous.nodes, nextNode];
+        return {
+          ...previous,
+          startNodeId: resolveStartNodeId(previous.startNodeId, nextNodes),
+          nodes: nextNodes,
+        };
+      });
+
+      if (!changed || !createdNodeId) {
+        playMapInvalidActionSound();
+        return;
+      }
+
+      playMapPlaceNodeSound();
+      flashPlacedNode(createdNodeId);
+      commitSelection({
+        selectedNodeIds: [createdNodeId],
+        primaryNodeId: createdNodeId,
+        selectedEdgeId: null,
+        selectedTextAnnotationId: null,
+      });
+    },
+    [commitSelection, flashPlacedNode, snapToGrid, updateGraphConfig]
+  );
+
+  const nudgeSelection = useCallback(
+    (deltaWorldX: number, deltaWorldY: number) => {
+      dragSessionRef.current.moved = false;
+      moveNodes(selection.selectedNodeIds, deltaWorldX, deltaWorldY);
+      if (dragSessionRef.current.moved) {
+        undoManagerRef.current.push(configRef.current);
+        syncHistoryState();
+        dragSessionRef.current.moved = false;
+      }
+    },
+    [moveNodes, selection.selectedNodeIds, syncHistoryState]
+  );
+
+  const placeHeroChainAtWorld = useCallback(
+    (worldX: number, worldY: number) => {
+      const data = heroPlacementData;
+      if (!data || data.chainNodes.length === 0) return;
+
+      let firstNodeId: string | null = null;
+      let allNodeIds: string[] = [];
+
+      const changed = updateGraphConfig((previous) => {
+        const next = createHeroNodeChain(previous, data.chainNodes, worldX, worldY);
+        const newNodes = next.nodes.slice(previous.nodes.length);
+        allNodeIds = newNodes.map((n) => n.id);
+        if (allNodeIds.length > 0) firstNodeId = allNodeIds[0];
+        return {
+          ...next,
+          startNodeId: resolveStartNodeId(previous.startNodeId, next.nodes),
+        };
+      });
+
+      if (!changed || !firstNodeId) {
+        playMapInvalidActionSound();
+        return;
+      }
+
+      playMapPlaceNodeSound();
+      for (const nodeId of allNodeIds) {
+        flashPlacedNode(nodeId);
+      }
+      commitSelection({
+        selectedNodeIds: [firstNodeId],
+        primaryNodeId: firstNodeId,
+        selectedEdgeId: null,
+        selectedTextAnnotationId: null,
+      });
+      setHeroPlacementData(null);
+      setTool("select");
+    },
+    [commitSelection, flashPlacedNode, heroPlacementData, updateGraphConfig]
   );
 
   const placeTextAtWorld = useCallback(
@@ -2937,6 +3190,11 @@ function MapEditorPage() {
     setShowGrid((previous) => !previous);
   }, []);
 
+  const handleToggleSnapToGrid = useCallback(() => {
+    playSelectSound();
+    setSnapToGrid((previous) => !previous);
+  }, []);
+
   const handleSetConnectFromNode = useCallback((nodeId: string) => {
     setConnectFromNodeId(nodeId);
   }, []);
@@ -3161,9 +3419,12 @@ function MapEditorPage() {
               tileSearch={tileSearch}
               filteredTiles={filteredTiles}
               activePlacementKind={activePlacementKind}
+              heroGroups={heroGroups}
+              isHeroPlacementActive={heroPlacementData !== null}
               onCategoryChange={setActiveCategory}
               onSearchChange={setTileSearch}
               onArmTile={armTile}
+              onArmHero={armHero}
             />
           </div>
 
@@ -3175,6 +3436,7 @@ function MapEditorPage() {
                 alignmentStrategy={alignmentStrategy}
                 canRealign={config.nodes.length >= 2}
                 showGrid={showGrid}
+                snapToGrid={snapToGrid}
                 isDirty={isEditorDirty}
                 savePending={savePending || importPending}
                 testMapPending={testMapPending}
@@ -3186,6 +3448,7 @@ function MapEditorPage() {
                 onRealignGraph={handleRealignGraph}
                 onRequestRoundBulkAction={requestRoundBulkAction}
                 onToggleGrid={handleToggleGrid}
+                onToggleSnapToGrid={handleToggleSnapToGrid}
                 onResetView={resetView}
                 onDelete={deleteSelection}
                 onUndo={handleUndo}
@@ -3235,9 +3498,11 @@ function MapEditorPage() {
                 activePlacementKind={activePlacementKind}
                 viewport={viewport}
                 showGrid={showGrid}
+                snapToGrid={snapToGrid}
                 spacePanActive={spacePanActive}
                 recentlyPlacedNodeIds={recentlyPlacedNodeIds}
                 recentlyTouchedEdgeIds={recentlyTouchedEdgeIds}
+                quickAddTileOptions={quickAddTileOptions}
                 onViewportChange={setViewport}
                 onSelectionChange={commitSelection}
                 onSetConnectFrom={setConnectFromNodeId}
@@ -3247,7 +3512,12 @@ function MapEditorPage() {
                 onDeleteEdgeBetween={deleteEdgeBetween}
                 onDeleteSelection={deleteSelection}
                 onPlaceNodeAtWorld={placeNodeAtWorld}
+                onPlaceHeroChainAtWorld={placeHeroChainAtWorld}
+                isHeroPlacementActive={heroPlacementData !== null}
                 onPlaceTextAtWorld={placeTextAtWorld}
+                onQuickAddConnectedNode={quickAddConnectedNode}
+                onDuplicateNode={duplicateNode}
+                onNudgeSelection={nudgeSelection}
                 onBeginNodeDrag={() => {
                   dragSessionRef.current.active = true;
                   dragSessionRef.current.moved = false;

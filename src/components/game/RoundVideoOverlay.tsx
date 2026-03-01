@@ -76,12 +76,10 @@ import { SfwOneTimeOverridePrompt } from "../SfwGuard";
 import { openGlobalHandyOverlay, registerSaveOffsetToRound } from "../globalHandyOverlayControls";
 import { normalizeRoadPalette } from "../../features/map-editor/EditorState";
 import {
-  extractBeatbarMotionEvents,
   getAntiPerkSequenceDefinition,
   type AntiPerkSequenceDefinition,
   type AntiPerkSequenceId,
-  type BeatbarMotionEvent,
-  type BeatHit,
+  type BeatbarBeat,
 } from "./antiPerkSequences";
 
 export type RoundVideoOverlayProps = {
@@ -154,8 +152,7 @@ type ActiveAntiPerkSequenceUi = {
   durationMs: number;
   startedAtMs: number;
   actions: FunscriptAction[];
-  beatHits: BeatHit[];
-  beatbarEvents: BeatbarMotionEvent[];
+  beatbarBeats: BeatbarBeat[];
 };
 
 const INITIAL_UI_SHOW_MS = 5000;
@@ -352,6 +349,7 @@ export function RoundVideoOverlay({
     intifaceWebsocketUrl,
     intifaceDeviceName,
     intifaceDeviceIndex,
+    intifaceVibrationSensitivity,
     tcodeTransport,
     tcodeSerialPath,
     tcodeBaudRate,
@@ -459,6 +457,7 @@ export function RoundVideoOverlay({
     useState<CompletedRoundSummary | null>(null);
   const [activeAntiPerkSequence, setActiveAntiPerkSequence] =
     useState<ActiveAntiPerkSequenceUi | null>(null);
+  const activeAntiPerkSequenceRef = useRef<ActiveAntiPerkSequenceUi | null>(null);
   const [antiPerkBeatElapsedMs, setAntiPerkBeatElapsedMs] = useState(0);
   const [antiPerkAlert, setAntiPerkAlert] = useState<{ text: string; startTime: number } | null>(
     null
@@ -859,6 +858,7 @@ export function RoundVideoOverlay({
           minAbsolute: null,
           maxAbsolute: null,
         },
+        vibrationSensitivity: intifaceVibrationSensitivity,
       };
     }
     if (hapticsProvider === "tcode") {
@@ -1025,6 +1025,7 @@ export function RoundVideoOverlay({
       window.cancelAnimationFrame(antiPerkBeatAnimationFrameRef.current);
       antiPerkBeatAnimationFrameRef.current = null;
     }
+    activeAntiPerkSequenceRef.current = null;
     setActiveAntiPerkSequence(null);
     setAntiPerkBeatElapsedMs(0);
   }, []);
@@ -1189,7 +1190,7 @@ export function RoundVideoOverlay({
       const definition = getAntiPerkSequenceDefinition(sequenceId);
       const durationMs = definition.durationSec * 1000;
       const actions = definition.createActions(durationMs);
-      const beatHits = definition.extractBeatHits(actions);
+      const beatbarBeats = definition.createBeatbarBeats(actions);
       const startedAtMs = performance.now();
       return {
         id: sequenceId,
@@ -1197,8 +1198,7 @@ export function RoundVideoOverlay({
         durationMs,
         startedAtMs,
         actions,
-        beatHits,
-        beatbarEvents: extractBeatbarMotionEvents(actions),
+        beatbarBeats,
       };
     },
     []
@@ -2034,6 +2034,7 @@ export function RoundVideoOverlay({
       clearUiHideTimer();
       clearManualPauseTimer();
       clearGeneratedSequenceTimer();
+      activeGeneratedSequenceRef.current = null;
       clearAntiPerkBeatUi();
     };
   }, [
@@ -2142,6 +2143,7 @@ export function RoundVideoOverlay({
     const sequence = createActiveAntiPerkSequenceUi(boardSequence);
     const durationSec = sequence.definition.durationSec;
 
+    activeAntiPerkSequenceRef.current = sequence;
     setActiveAntiPerkSequence(sequence);
     setLoadingLabel(sequence.definition.label);
     setLoadingCountdown(durationSec);
@@ -2216,6 +2218,9 @@ export function RoundVideoOverlay({
       clearCountdownTimer();
       clearLoadingMediaTimers();
       clearGeneratedSequenceTimer();
+      if (activeGeneratedSequenceRef.current === boardSequence) {
+        activeGeneratedSequenceRef.current = null;
+      }
       clearAntiPerkBeatUi();
       void pauseHandyIfNeeded();
     };
@@ -2490,6 +2495,7 @@ export function RoundVideoOverlay({
       video.pause();
     }
 
+    activeAntiPerkSequenceRef.current = sequence;
     setActiveAntiPerkSequence(sequence);
     startGeneratedSequenceSync({
       sequenceId: sequenceType,
@@ -3425,14 +3431,16 @@ export function RoundVideoOverlay({
     const hasLoadingMedia = loadingMedia.length > 0;
     const activeLoadingMediaIndex = hasLoadingMedia ? loadingMediaIndex % loadingMedia.length : -1;
     const activeLoadingMedia = hasLoadingMedia ? loadingMedia[activeLoadingMediaIndex] : null;
+    const standaloneAntiPerkSequence =
+      activeAntiPerkSequence ?? activeAntiPerkSequenceRef.current;
     const shouldShowManualBeatbar =
       showAntiPerkBeatbar &&
       !handyConnected &&
-      Boolean(activeAntiPerkSequence?.definition.supportsBeatbar) &&
+      Boolean(standaloneAntiPerkSequence?.definition.supportsBeatbar) &&
       loadingCountdown !== null;
     const shouldShowHandyPositionBall =
       handyConnected &&
-      Boolean(activeAntiPerkSequence?.definition.supportsBeatbar) &&
+      Boolean(standaloneAntiPerkSequence?.definition.supportsBeatbar) &&
       loadingCountdown !== null;
     const shouldRenderStandaloneBeatbar = shouldShowManualBeatbar || shouldShowHandyPositionBall;
     return (
@@ -3475,15 +3483,14 @@ export function RoundVideoOverlay({
             }}
           />
         )}
-        {shouldRenderStandaloneBeatbar && activeAntiPerkSequence && (
+        {shouldRenderStandaloneBeatbar && standaloneAntiPerkSequence && (
           <AntiPerkBeatbar
-            actions={activeAntiPerkSequence.actions}
-            beatbarEvents={activeAntiPerkSequence.beatbarEvents}
-            beatHits={activeAntiPerkSequence.beatHits}
+            actions={standaloneAntiPerkSequence.actions}
+            beatbarBeats={standaloneAntiPerkSequence.beatbarBeats}
             elapsedMs={antiPerkBeatElapsedMs}
             showBeatbar={shouldShowManualBeatbar}
             showBall={shouldShowHandyPositionBall}
-            style={activeAntiPerkSequence.definition.beatbarStyle}
+            style={standaloneAntiPerkSequence.definition.beatbarStyle}
           />
         )}
         <div className="absolute bottom-5 left-5 z-10 flex w-[min(20rem,calc(100%-2.5rem))] flex-col items-start gap-4 text-left sm:bottom-6 sm:left-6">
@@ -3586,15 +3593,16 @@ export function RoundVideoOverlay({
   const hasLoadingMedia = loadingMedia.length > 0;
   const activeLoadingMediaIndex = hasLoadingMedia ? loadingMediaIndex % loadingMedia.length : -1;
   const activeLoadingMedia = hasLoadingMedia ? loadingMedia[activeLoadingMediaIndex] : null;
+  const renderAntiPerkSequence = activeAntiPerkSequence ?? activeAntiPerkSequenceRef.current;
   const unsafeMediaUnlocked = !sfwMode || allowUnsafeMediaOnce;
   const shouldShowManualBeatbar =
     showAntiPerkBeatbar &&
     !handyConnected &&
-    Boolean(activeAntiPerkSequence?.definition.supportsBeatbar) &&
+    Boolean(renderAntiPerkSequence?.definition.supportsBeatbar) &&
     loadingCountdown !== null;
   const shouldShowHandyPositionBall =
     handyConnected &&
-    Boolean(activeAntiPerkSequence?.definition.supportsBeatbar) &&
+    Boolean(renderAntiPerkSequence?.definition.supportsBeatbar) &&
     loadingCountdown !== null;
   const shouldRenderAntiPerkBeatbar = shouldShowManualBeatbar || shouldShowHandyPositionBall;
   const shouldShowPlaybackTimer = isUiVisible && loadingCountdown === null;
@@ -4454,15 +4462,14 @@ export function RoundVideoOverlay({
                   }}
                 />
               )}
-              {shouldRenderAntiPerkBeatbar && activeAntiPerkSequence && (
+              {shouldRenderAntiPerkBeatbar && renderAntiPerkSequence && (
                 <AntiPerkBeatbar
-                  actions={activeAntiPerkSequence.actions}
-                  beatbarEvents={activeAntiPerkSequence.beatbarEvents}
-                  beatHits={activeAntiPerkSequence.beatHits}
+                  actions={renderAntiPerkSequence.actions}
+                  beatbarBeats={renderAntiPerkSequence.beatbarBeats}
                   elapsedMs={antiPerkBeatElapsedMs}
                   showBeatbar={shouldShowManualBeatbar}
                   showBall={shouldShowHandyPositionBall}
-                  style={activeAntiPerkSequence.definition.beatbarStyle}
+                  style={renderAntiPerkSequence.definition.beatbarStyle}
                 />
               )}
               <div className="absolute bottom-5 left-5 z-10 flex w-[min(22rem,calc(100%-2.5rem))] flex-col items-start gap-4 text-left sm:bottom-6 sm:left-6">

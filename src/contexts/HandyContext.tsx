@@ -18,6 +18,7 @@ import {
   HAPTICS_TEST_TICK_MS,
 } from "../constants/hapticsTest";
 import {
+  DEFAULT_INTIFACE_VIBRATION_SENSITIVITY,
   DEFAULT_INTIFACE_WEBSOCKET_URL,
   DEFAULT_TCODE_AXIS,
   DEFAULT_TCODE_BAUD_RATE,
@@ -28,6 +29,9 @@ import {
   HAPTICS_PROVIDER_STORE_KEY,
   INTIFACE_DEVICE_INDEX_STORE_KEY,
   INTIFACE_DEVICE_NAME_STORE_KEY,
+  INTIFACE_VIBRATION_SENSITIVITY_MAX,
+  INTIFACE_VIBRATION_SENSITIVITY_MIN,
+  INTIFACE_VIBRATION_SENSITIVITY_STORE_KEY,
   INTIFACE_WEBSOCKET_URL_STORE_KEY,
   TCODE_AXIS_STORE_KEY,
   TCODE_BAUD_RATE_STORE_KEY,
@@ -83,6 +87,8 @@ type HapticsContextType = {
   intifaceWebsocketUrl: string;
   intifaceDeviceName: string | null;
   intifaceDeviceIndex: number | null;
+  intifaceVibrationSensitivity: number;
+  setIntifaceVibrationSensitivity: (value: number) => void;
   tcodeTransport: TCodeTransportKind;
   tcodeSerialPath: string;
   tcodeBaudRate: number;
@@ -156,6 +162,15 @@ function normalizeIntifaceDeviceIndex(value: unknown): number | null {
   return Number.isFinite(parsed) ? Math.floor(parsed) : null;
 }
 
+function normalizeIntifaceVibrationSensitivity(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_INTIFACE_VIBRATION_SENSITIVITY;
+  return Math.max(
+    INTIFACE_VIBRATION_SENSITIVITY_MIN,
+    Math.min(INTIFACE_VIBRATION_SENSITIVITY_MAX, parsed)
+  );
+}
+
 function normalizeNullableString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
@@ -168,6 +183,7 @@ async function loadFromStore(): Promise<{
   intifaceWebsocketUrl: string;
   intifaceDeviceName: string | null;
   intifaceDeviceIndex: number | null;
+  intifaceVibrationSensitivity: number;
   tcodeTransport: TCodeTransportKind;
   tcodeSerialPath: string;
   tcodeBaudRate: number;
@@ -186,6 +202,7 @@ async function loadFromStore(): Promise<{
       intifaceWebsocketUrl,
       intifaceDeviceName,
       intifaceDeviceIndex,
+      intifaceVibrationSensitivity,
       tcodeTransport,
       tcodeSerialPath,
       tcodeBaudRate,
@@ -202,6 +219,7 @@ async function loadFromStore(): Promise<{
       trpc.store.get.query({ key: INTIFACE_WEBSOCKET_URL_STORE_KEY }),
       trpc.store.get.query({ key: INTIFACE_DEVICE_NAME_STORE_KEY }),
       trpc.store.get.query({ key: INTIFACE_DEVICE_INDEX_STORE_KEY }),
+      trpc.store.get.query({ key: INTIFACE_VIBRATION_SENSITIVITY_STORE_KEY }),
       trpc.store.get.query({ key: TCODE_TRANSPORT_STORE_KEY }),
       trpc.store.get.query({ key: TCODE_SERIAL_PATH_STORE_KEY }),
       trpc.store.get.query({ key: TCODE_BAUD_RATE_STORE_KEY }),
@@ -227,6 +245,8 @@ async function loadFromStore(): Promise<{
           : DEFAULT_INTIFACE_WEBSOCKET_URL,
       intifaceDeviceName: normalizeNullableString(intifaceDeviceName),
       intifaceDeviceIndex: normalizeIntifaceDeviceIndex(intifaceDeviceIndex),
+      intifaceVibrationSensitivity:
+        normalizeIntifaceVibrationSensitivity(intifaceVibrationSensitivity),
       tcodeTransport: normalizeTCodeTransport(tcodeTransport),
       tcodeSerialPath: typeof tcodeSerialPath === "string" ? tcodeSerialPath.trim() : "",
       tcodeBaudRate: normalizeTCodeBaudRate(tcodeBaudRate),
@@ -246,6 +266,7 @@ async function loadFromStore(): Promise<{
       intifaceWebsocketUrl: DEFAULT_INTIFACE_WEBSOCKET_URL,
       intifaceDeviceName: null,
       intifaceDeviceIndex: null,
+      intifaceVibrationSensitivity: DEFAULT_INTIFACE_VIBRATION_SENSITIVITY,
       tcodeTransport: DEFAULT_TCODE_TRANSPORT,
       tcodeSerialPath: "",
       tcodeBaudRate: DEFAULT_TCODE_BAUD_RATE,
@@ -284,13 +305,18 @@ async function saveProviderToStore(provider: HapticsProviderId): Promise<void> {
 async function saveIntifaceToStore(
   websocketUrl: string,
   deviceName: string | null,
-  deviceIndex: number | null
+  deviceIndex: number | null,
+  vibrationSensitivity: number
 ): Promise<void> {
   try {
     await Promise.all([
       trpc.store.set.mutate({ key: INTIFACE_WEBSOCKET_URL_STORE_KEY, value: websocketUrl }),
       trpc.store.set.mutate({ key: INTIFACE_DEVICE_NAME_STORE_KEY, value: deviceName }),
       trpc.store.set.mutate({ key: INTIFACE_DEVICE_INDEX_STORE_KEY, value: deviceIndex }),
+      trpc.store.set.mutate({
+        key: INTIFACE_VIBRATION_SENSITIVITY_STORE_KEY,
+        value: normalizeIntifaceVibrationSensitivity(vibrationSensitivity),
+      }),
     ]);
   } catch (err) {
     console.error("Failed to save Intiface settings", err);
@@ -329,6 +355,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [intifaceWebsocketUrl, setIntifaceWebsocketUrl] = useState(DEFAULT_INTIFACE_WEBSOCKET_URL);
   const [intifaceDeviceName, setIntifaceDeviceName] = useState<string | null>(null);
   const [intifaceDeviceIndex, setIntifaceDeviceIndex] = useState<number | null>(null);
+  const [intifaceVibrationSensitivity, setIntifaceVibrationSensitivity] = useState(
+    DEFAULT_INTIFACE_VIBRATION_SENSITIVITY
+  );
   const [tcodeTransport, setTCodeTransport] = useState<TCodeTransportKind>(DEFAULT_TCODE_TRANSPORT);
   const [tcodeSerialPath, setTCodeSerialPath] = useState("");
   const [tcodeBaudRate, setTCodeBaudRate] = useState(DEFAULT_TCODE_BAUD_RATE);
@@ -383,6 +412,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         intifaceWebsocketUrl: string;
         intifaceDeviceName: string | null;
         intifaceDeviceIndex: number | null;
+        intifaceVibrationSensitivity: number;
         tcodeTransport: TCodeTransportKind;
         tcodeSerialPath: string;
         tcodeBaudRate: number;
@@ -401,6 +431,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           deviceName: override?.intifaceDeviceName ?? intifaceDeviceName,
           deviceIndex: override?.intifaceDeviceIndex ?? intifaceDeviceIndex,
           stroke: override?.strokeState ?? strokeState,
+          vibrationSensitivity:
+            override?.intifaceVibrationSensitivity ?? intifaceVibrationSensitivity,
         };
       }
       if (effectiveProvider === "tcode") {
@@ -430,6 +462,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       connectionKey,
       intifaceDeviceIndex,
       intifaceDeviceName,
+      intifaceVibrationSensitivity,
       intifaceWebsocketUrl,
       localIp,
       provider,
@@ -486,6 +519,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         intifaceWebsocketUrl: savedIntifaceUrl,
         intifaceDeviceName: savedIntifaceDeviceName,
         intifaceDeviceIndex: savedIntifaceDeviceIndex,
+        intifaceVibrationSensitivity: savedIntifaceVibrationSensitivity,
         tcodeTransport: savedTCodeTransport,
         tcodeSerialPath: savedTCodeSerialPath,
         tcodeBaudRate: savedTCodeBaudRate,
@@ -503,6 +537,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setIntifaceWebsocketUrl(savedIntifaceUrl);
         setIntifaceDeviceName(savedIntifaceDeviceName);
         setIntifaceDeviceIndex(savedIntifaceDeviceIndex);
+        setIntifaceVibrationSensitivity(savedIntifaceVibrationSensitivity);
         setTCodeTransport(savedTCodeTransport);
         setTCodeSerialPath(savedTCodeSerialPath);
         setTCodeBaudRate(savedTCodeBaudRate);
@@ -543,6 +578,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   deviceName: savedIntifaceDeviceName,
                   deviceIndex: savedIntifaceDeviceIndex,
                   stroke: DEFAULT_STROKE_STATE,
+                  vibrationSensitivity: savedIntifaceVibrationSensitivity,
                 }
               : savedProvider === "tcode"
                 ? {
@@ -712,7 +748,12 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setManuallyStopped(false);
       setIntifaceWebsocketUrl(nextUrl);
       await saveProviderToStore("intiface");
-      await saveIntifaceToStore(nextUrl, intifaceDeviceName, intifaceDeviceIndex);
+      await saveIntifaceToStore(
+        nextUrl,
+        intifaceDeviceName,
+        intifaceDeviceIndex,
+        intifaceVibrationSensitivity
+      );
 
       try {
         const result = await verifyHapticsConnection({
@@ -721,6 +762,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           deviceName: intifaceDeviceName,
           deviceIndex: intifaceDeviceIndex,
           stroke: strokeState,
+          vibrationSensitivity: intifaceVibrationSensitivity,
         });
         if (attemptId !== connectionAttemptIdRef.current) return false;
         if (result.success) {
@@ -729,7 +771,12 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setConnected(true);
           setIntifaceDeviceName(nextDeviceName);
           setIntifaceDeviceIndex(nextDeviceIndex);
-          await saveIntifaceToStore(nextUrl, nextDeviceName, nextDeviceIndex);
+          await saveIntifaceToStore(
+            nextUrl,
+            nextDeviceName,
+            nextDeviceIndex,
+            intifaceVibrationSensitivity
+          );
           return true;
         }
         setError(result.message ?? "Failed to connect to Intiface.");
@@ -747,7 +794,13 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
     },
-    [intifaceDeviceIndex, intifaceDeviceName, intifaceWebsocketUrl, strokeState]
+    [
+      intifaceDeviceIndex,
+      intifaceDeviceName,
+      intifaceVibrationSensitivity,
+      intifaceWebsocketUrl,
+      strokeState,
+    ]
   );
 
   const refreshTCodeSerialPorts = useCallback(async (): Promise<void> => {
@@ -1037,7 +1090,12 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await disconnectHapticsSession(getConnectionConfig(), session).catch(() => undefined);
     }
     await saveToStore(connectionKey, appApiKeyOverride, localIp);
-    await saveIntifaceToStore(intifaceWebsocketUrl, intifaceDeviceName, intifaceDeviceIndex);
+    await saveIntifaceToStore(
+      intifaceWebsocketUrl,
+      intifaceDeviceName,
+      intifaceDeviceIndex,
+      intifaceVibrationSensitivity
+    );
     await saveTCodeToStore({
       transport: tcodeTransport,
       serialPath: tcodeSerialPath,
@@ -1054,6 +1112,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     getConnectionConfig,
     intifaceDeviceIndex,
     intifaceDeviceName,
+    intifaceVibrationSensitivity,
     intifaceWebsocketUrl,
     localIp,
     stopTestDevice,
@@ -1240,6 +1299,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       intifaceWebsocketUrl,
       intifaceDeviceName,
       intifaceDeviceIndex,
+      intifaceVibrationSensitivity,
+      setIntifaceVibrationSensitivity,
       tcodeTransport,
       tcodeSerialPath,
       tcodeBaudRate,
@@ -1297,6 +1358,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       intifaceWebsocketUrl,
       intifaceDeviceName,
       intifaceDeviceIndex,
+      intifaceVibrationSensitivity,
+      setIntifaceVibrationSensitivity,
       tcodeTransport,
       tcodeSerialPath,
       tcodeBaudRate,

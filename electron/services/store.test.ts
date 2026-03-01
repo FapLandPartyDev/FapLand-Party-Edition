@@ -126,6 +126,21 @@ describe("store initialization", () => {
     expect(fs.existsSync(keyFilePath)).toBe(false);
   });
 
+  it("does not invoke the hardware key deriver when a cheaper key decrypts", async () => {
+    const hardwareDeriver = vi.fn(async () => "hardware-derived-key");
+    __setHardwareKeyDeriverForTests(hardwareDeriver);
+    fs.writeFileSync(keyFilePath, JSON.stringify({ key: "cached-key" }), "utf8");
+    await expectMigration("cached-key");
+    expect(hardwareDeriver).not.toHaveBeenCalled();
+  });
+
+  it("does not invoke the hardware key deriver when the synchronous fallback decrypts", async () => {
+    const hardwareDeriver = vi.fn(async () => "hardware-derived-key");
+    __setHardwareKeyDeriverForTests(hardwareDeriver);
+    await expectMigration(synchronousFallbackKey());
+    expect(hardwareDeriver).not.toHaveBeenCalled();
+  });
+
   it("migrates settings encrypted with the hardware-derived key", async () => {
     await expectMigration("hardware-derived-key");
   });

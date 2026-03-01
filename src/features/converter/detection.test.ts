@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildDetectedSegments, findDetectionSettingsForTargetCount } from "./detection";
 
 describe("buildDetectedSegments", () => {
-  it("splits on pause gaps and preserves order", () => {
+  it("splits on pause gaps and trims the final segment to action cadence", () => {
     const segments = buildDetectedSegments({
       actions: [
         { at: 0, pos: 50 },
@@ -17,11 +17,11 @@ describe("buildDetectedSegments", () => {
 
     expect(segments).toEqual([
       { startTimeMs: 0, endTimeMs: 8250, type: "Normal" },
-      { startTimeMs: 8250, endTimeMs: 20000, type: "Normal" },
+      { startTimeMs: 8250, endTimeMs: 19000, type: "Normal" },
     ]);
   });
 
-  it("ignores gaps below threshold", () => {
+  it("ignores gaps below threshold and ends near the last action cadence", () => {
     const segments = buildDetectedSegments({
       actions: [
         { at: 0, pos: 50 },
@@ -33,10 +33,10 @@ describe("buildDetectedSegments", () => {
       minRoundMs: 500,
     });
 
-    expect(segments).toEqual([{ startTimeMs: 0, endTimeMs: 5000, type: "Normal" }]);
+    expect(segments).toEqual([{ startTimeMs: 0, endTimeMs: 4275, type: "Normal" }]);
   });
 
-  it("drops segments shorter than min duration", () => {
+  it("drops segments shorter than min duration after cadence trimming", () => {
     const segments = buildDetectedSegments({
       actions: [
         { at: 0, pos: 50 },
@@ -48,7 +48,7 @@ describe("buildDetectedSegments", () => {
       minRoundMs: 7000,
     });
 
-    expect(segments).toEqual([{ startTimeMs: 6500, endTimeMs: 20000, type: "Normal" }]);
+    expect(segments).toEqual([{ startTimeMs: 6500, endTimeMs: 14500, type: "Normal" }]);
   });
 
   it("supports custom default type", () => {
@@ -60,10 +60,10 @@ describe("buildDetectedSegments", () => {
       defaultType: "Interjection",
     });
 
-    expect(segments).toEqual([{ startTimeMs: 0, endTimeMs: 2000, type: "Interjection" }]);
+    expect(segments).toEqual([{ startTimeMs: 0, endTimeMs: 1500, type: "Interjection" }]);
   });
 
-  it("ignores an idle gap at the absolute start", () => {
+  it("starts near the first real action when a synthetic anchor creates leading idle", () => {
     const segments = buildDetectedSegments({
       actions: [
         { at: 0, pos: 50 },
@@ -76,10 +76,10 @@ describe("buildDetectedSegments", () => {
       minRoundMs: 1000,
     });
 
-    expect(segments).toEqual([{ startTimeMs: 0, endTimeMs: 12000, type: "Normal" }]);
+    expect(segments).toEqual([{ startTimeMs: 2000, endTimeMs: 10600, type: "Normal" }]);
   });
 
-  it("ignores an idle gap at the absolute end", () => {
+  it("ends near the last real action when trailing idle keeps the same position", () => {
     const segments = buildDetectedSegments({
       actions: [
         { at: 1000, pos: 20 },
@@ -91,7 +91,41 @@ describe("buildDetectedSegments", () => {
       minRoundMs: 1000,
     });
 
-    expect(segments).toEqual([{ startTimeMs: 0, endTimeMs: 15000, type: "Normal" }]);
+    expect(segments).toEqual([{ startTimeMs: 0, endTimeMs: 5600, type: "Normal" }]);
+  });
+
+  it("starts the first round near delayed real action with adaptive cadence", () => {
+    const segments = buildDetectedSegments({
+      actions: [
+        { at: 7000, pos: 20 },
+        { at: 7400, pos: 80 },
+        { at: 7800, pos: 25 },
+      ],
+      durationMs: 20_000,
+      pauseGapMs: 3_000,
+      minRoundMs: 500,
+    });
+
+    expect(segments).toEqual([{ startTimeMs: 6000, endTimeMs: 8800, type: "Normal" }]);
+  });
+
+  it("preserves interior pause midpoints while trimming outer idle time", () => {
+    const segments = buildDetectedSegments({
+      actions: [
+        { at: 5000, pos: 20 },
+        { at: 5500, pos: 80 },
+        { at: 9500, pos: 40 },
+        { at: 10000, pos: 90 },
+      ],
+      durationMs: 20_000,
+      pauseGapMs: 3_000,
+      minRoundMs: 500,
+    });
+
+    expect(segments).toEqual([
+      { startTimeMs: 3750, endTimeMs: 7500, type: "Normal" },
+      { startTimeMs: 7500, endTimeMs: 11250, type: "Normal" },
+    ]);
   });
 });
 
@@ -162,7 +196,7 @@ describe("findDetectionSettingsForTargetCount", () => {
 
     expect(result.status).toBe("success");
     if (result.status !== "success") return;
-    expect(result.pauseGapMs).toBeGreaterThan(5000);
+    expect(result.pauseGapMs).toBe(5000);
   });
 
   it("handles a target count of one", () => {
@@ -177,5 +211,30 @@ describe("findDetectionSettingsForTargetCount", () => {
     expect(result.status).toBe("success");
     if (result.status !== "success") return;
     expect(result.segments).toEqual([{ startTimeMs: 0, endTimeMs: 5000, type: "Normal" }]);
+  });
+
+  it("uses real non-grid pause gaps to find an exact target count", () => {
+    const result = findDetectionSettingsForTargetCount({
+      actions: [
+        { at: 1000, pos: 20 },
+        { at: 1400, pos: 70 },
+        { at: 3737, pos: 30 },
+        { at: 4137, pos: 80 },
+      ],
+      durationMs: 8000,
+      targetCount: 2,
+      currentPauseGapMs: 2500,
+      currentMinRoundMs: 500,
+      pauseGapRangeMs: { min: 100, max: 3000 },
+      minRoundRangeMs: { min: 500, max: 4000 },
+    });
+
+    expect(result.status).toBe("success");
+    if (result.status !== "success") return;
+    expect(result.pauseGapMs).toBe(2337);
+    expect(result.segments).toEqual([
+      { startTimeMs: 0, endTimeMs: 2568, type: "Normal" },
+      { startTimeMs: 2568, endTimeMs: 5137, type: "Normal" },
+    ]);
   });
 });

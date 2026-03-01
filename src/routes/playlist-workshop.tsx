@@ -62,6 +62,7 @@ import {
 import { formatDurationLabel, getRoundDurationSec } from "../utils/duration";
 import { playHoverSound, playSelectSound } from "../utils/audio";
 import { abbreviateNsfwText } from "../utils/sfwText";
+import { groupRoundsByHero } from "../utils/heroGrouping";
 import { DEFAULT_INTERMEDIARY_LOADING_PROMPT } from "../constants/booruSettings";
 import { i18n } from "../i18n";
 
@@ -947,6 +948,7 @@ function PlaylistWorkshopPage() {
   const [activeSectionId, setActiveSectionId] = useState<WorkshopSectionId>("playlist");
   const [roundsSubTab, setRoundsSubTab] = useState<"library" | "queue">("library");
   const [difficultySectionsExpanded, setDifficultySectionsExpanded] = useState(true);
+  const [heroSectionExpanded, setHeroSectionExpanded] = useState(true);
   const availableRoundsScrollRef = useRef<HTMLDivElement | null>(null);
   const [availableRoundsScrollElement, setAvailableRoundsScrollElement] =
     useState<HTMLDivElement | null>(null);
@@ -1192,6 +1194,24 @@ function PlaylistWorkshopPage() {
       return compareByName(a, b);
     });
   }, [availableNormalRounds, normalRoundDurationFilter, normalRoundSearch, normalRoundSort]);
+
+  const heroGroups = useMemo(() => {
+    const query = normalRoundSearch.trim().toLowerCase();
+    const filtered = query.length === 0
+      ? availableNormalRounds
+      : availableNormalRounds.filter(
+          (round) =>
+            `${round.name} ${round.author ?? ""} ${round.hero?.name ?? ""}`.toLowerCase().includes(query),
+        );
+    return groupRoundsByHero(filtered);
+  }, [availableNormalRounds, normalRoundSearch]);
+
+  const allHeroRoundIdsAdded = useCallback(
+    (heroGroup: (typeof heroGroups)[number]) => {
+      return heroGroup.rounds.every((round) => selectedNormalSet.has(round.id));
+    },
+    [selectedNormalSet],
+  );
 
   const difficultySectionSourceRounds = useMemo(() => {
     if (!difficultySectionsUseCurrentFilters) return normalRounds;
@@ -1972,6 +1992,21 @@ function PlaylistWorkshopPage() {
     } catch (error) {
       console.error("Failed to load preview round media", error);
     }
+  };
+
+  const addHeroRounds = (roundIds: string[]) => {
+    setSetup((prev) => {
+      const nextOrder = [...prev.normalRoundOrder];
+      for (const roundId of roundIds) {
+        if (!nextOrder.includes(roundId)) {
+          nextOrder.push(roundId);
+        }
+      }
+      return ensureLinearSetupCapacity({
+        ...prev,
+        normalRoundOrder: nextOrder,
+      });
+    });
   };
 
   const addVisibleNormalRounds = () => {
@@ -3049,6 +3084,82 @@ function PlaylistWorkshopPage() {
                             </button>
                           </div>
                         </div>
+
+                        {/* Heroes Section */}
+                        {heroGroups.length > 0 && (
+                          <div className="mt-3 shrink-0 rounded-xl border border-amber-300/20 bg-amber-500/8 overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => setHeroSectionExpanded((v) => !v)}
+                              onMouseEnter={playHoverSound}
+                              className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-amber-500/10"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className={`text-[10px] text-amber-300/70 transition-transform ${heroSectionExpanded ? "rotate-90" : ""}`}>▶</span>
+                                <h4 className="text-sm font-bold text-amber-100">
+                                  <Trans>Heroes</Trans>
+                                  <span className="ml-1.5 rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
+                                    {heroGroups.length}
+                                  </span>
+                                </h4>
+                              </div>
+                              <p className="text-[11px] text-amber-200/60 shrink-0">
+                                <Trans>Add all rounds from a hero at once</Trans>
+                              </p>
+                            </button>
+                            {heroSectionExpanded && (
+                              <div className="max-h-52 overflow-y-auto px-2 pb-2 space-y-1">
+                                {heroGroups.map((group) => {
+                                  const allAdded = allHeroRoundIdsAdded(group);
+                                  const availableCount = group.rounds.filter(
+                                    (r) => !selectedNormalSet.has(r.id),
+                                  ).length;
+
+                                  return (
+                                    <div
+                                      key={group.heroId}
+                                      className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 transition-colors ${
+                                        allAdded
+                                          ? "border-emerald-300/30 bg-emerald-500/8"
+                                          : "border-white/5 bg-black/15 hover:border-amber-300/25 hover:bg-amber-500/10"
+                                      }`}
+                                    >
+                                      <div className="min-w-0 flex-1">
+                                        <div className="truncate text-xs font-semibold text-zinc-100">
+                                          {group.heroName}
+                                        </div>
+                                        <div className="truncate text-[11px] text-zinc-400">
+                                          {group.heroAuthor ?? getUnknownAuthorLabel()}
+                                          <span className="ml-1.5 text-zinc-500">
+                                            · {group.rounds.length} <Trans>rounds</Trans>
+                                          </span>
+                                        </div>
+                                      </div>
+                                      {allAdded ? (
+                                        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.1em] text-emerald-300/70">
+                                          <Trans>All added</Trans>
+                                        </span>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          disabled={!isLinearEditable}
+                                          onMouseEnter={playHoverSound}
+                                          onClick={() => {
+                                            playSelectSound();
+                                            addHeroRounds(group.rounds.map((r) => r.id));
+                                          }}
+                                          className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200 transition-colors hover:border-amber-300/70 hover:bg-amber-500/35 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                          <Trans>+ Add {availableCount}</Trans>
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         {/* Filters */}
                         <div className="mt-3 shrink-0 grid gap-2 sm:grid-cols-[1fr_auto_auto]">

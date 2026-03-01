@@ -187,6 +187,33 @@ describe("eroscripts service", () => {
     expect(results[0]?.topicId).toBe(123);
   });
 
+  it("returns a timeout error when the EroScripts login check aborts", async () => {
+    eroscriptsCookies.push({
+      name: "_forum_session",
+      value: "session-cookie",
+      domain: "discuss.eroscripts.com",
+      path: "/",
+      secure: true,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        const error = new Error("The operation was aborted due to timeout");
+        error.name = "TimeoutError";
+        throw error;
+      })
+    );
+
+    const status = await getEroScriptsLoginStatus();
+
+    expect(status).toMatchObject({
+      loggedIn: false,
+      username: null,
+      cookieCount: 1,
+      error: "EroScripts login check timed out.",
+    });
+  });
+
   it("extracts only supported funscripts and trusted downloader video links", async () => {
     vi.stubGlobal(
       "fetch",

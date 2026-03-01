@@ -11,6 +11,7 @@ import {
   DEFAULT_GRAPHICS_DISABLE_GPU_COMPOSITING_ENABLED,
   DEFAULT_GRAPHICS_DISABLE_GPU_RASTERIZATION_ENABLED,
   DEFAULT_GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED,
+  DEFAULT_GRAPHICS_DISABLE_GPU_VSYNC_ENABLED,
   DEFAULT_GRAPHICS_DISABLE_WEBGL2_ENABLED,
   DEFAULT_GRAPHICS_DISABLE_ZERO_COPY_ENABLED,
   DEFAULT_GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED,
@@ -21,6 +22,7 @@ import {
   GRAPHICS_DISABLE_GPU_COMPOSITING_ENABLED_KEY,
   GRAPHICS_DISABLE_GPU_RASTERIZATION_ENABLED_KEY,
   GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED_KEY,
+  GRAPHICS_DISABLE_GPU_VSYNC_ENABLED_KEY,
   GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY,
   GRAPHICS_DISABLE_ZERO_COPY_ENABLED_KEY,
   GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY,
@@ -37,6 +39,7 @@ export type GraphicsCompatibilitySettings = {
   disableAcceleratedVideoDecodeEnabled: boolean;
   disableGpuShaderDiskCacheEnabled: boolean;
   disableAcceleratedVideoEncodeEnabled: boolean;
+  disableGpuVsyncEnabled: boolean;
   forceAngleOpenGL: boolean;
   disableWebgl2: boolean;
 };
@@ -67,6 +70,7 @@ const graphicsCompatibilityKeys = new Set([
   GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED_KEY,
   GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED_KEY,
   GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED_KEY,
+  GRAPHICS_DISABLE_GPU_VSYNC_ENABLED_KEY,
   GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY,
   GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY,
 ]);
@@ -122,6 +126,9 @@ export function readGraphicsCompatibilitySettings(
       normalizeGraphicsBoolean(
         store.get(GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED_KEY)
       ) || DEFAULT_GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED,
+    disableGpuVsyncEnabled:
+      normalizeGraphicsBoolean(store.get(GRAPHICS_DISABLE_GPU_VSYNC_ENABLED_KEY)) ||
+      DEFAULT_GRAPHICS_DISABLE_GPU_VSYNC_ENABLED,
     forceAngleOpenGL:
       normalizeGraphicsBoolean(store.get(GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY)) ||
       DEFAULT_GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED,
@@ -198,6 +205,10 @@ export function applyGraphicsCompatibilityFlags(
 
   if (settings.disableAcceleratedVideoEncodeEnabled) {
     appendSwitch("disable-accelerated-video-encode");
+  }
+
+  if (settings.disableGpuVsyncEnabled) {
+    appendSwitch("disable-gpu-vsync");
   }
 
   if (settings.forceAngleOpenGL) {

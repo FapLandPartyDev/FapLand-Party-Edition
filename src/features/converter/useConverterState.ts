@@ -1875,7 +1875,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setError(null);
     try {
       const effectivePauseGapMs = commitPauseGapDraft();
-      const effectiveMinRoundMs = 180_000;
+      const effectiveMinRoundMs = 60_000;
       setMinRoundMs(effectiveMinRoundMs);
       setMinRoundDraft(`${effectiveMinRoundMs}`);
 

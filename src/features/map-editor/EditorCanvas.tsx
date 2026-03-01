@@ -1,4 +1,4 @@
-import {
+import React, {
   useCallback,
   useEffect,
   useId,
@@ -6,12 +6,14 @@ import {
   useRef,
   useState,
   type JSX,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
   type WheelEvent,
 } from "react";
 import type {
   EditorGraphConfig,
   EditorNode,
+  EditorNodeKind,
   EditorSelectionState,
   MapEditorTool,
   ViewportState,
@@ -26,6 +28,28 @@ import {
 import { getNodeDisplayColor, getNodeRenderHeight, getNodeRenderWidth } from "./nodeVisuals";
 import { getPerkById } from "../../game/data/perks";
 import { MapBackgroundMedia } from "../../components/MapBackgroundMedia";
+import {
+  computeAlignmentGuides,
+  computeNodeBounds,
+  EDITOR_GRID_SIZE,
+  findSmartPlacementSlot,
+  getNodeCenter,
+  snapPointToGrid,
+} from "./editorGeometry";
+
+export interface QuickAddTileOption {
+  kind: EditorNodeKind;
+  label: string;
+  icon?: string;
+  color?: string;
+  description?: string;
+}
+
+export type ContextMenuTarget =
+  | { kind: "node"; nodeId: string; screenX: number; screenY: number }
+  | { kind: "edge"; edgeId: string; screenX: number; screenY: number }
+  | { kind: "text"; annotationId: string; screenX: number; screenY: number }
+  | { kind: "canvas"; worldX: number; worldY: number; screenX: number; screenY: number };
 
 type Interaction =
   | {
@@ -41,6 +65,7 @@ type Interaction =
       nodeIds: string[];
       lastWorldX: number;
       lastWorldY: number;
+      duplicate: boolean;
     }
   | {
       kind: "textDrag";
@@ -57,7 +82,20 @@ type Interaction =
       additive: boolean;
       baseSelection: EditorSelectionState;
     }
+  | {
+      kind: "handleDrag";
+      sourceNodeId: string;
+      anchorScreenX: number;
+      anchorScreenY: number;
+      lastScreenX: number;
+      lastScreenY: number;
+    }
   | null;
+
+type AlignmentGuides = {
+  x: { value: number; from: number; to: number } | null;
+  y: { value: number; from: number; to: number } | null;
+};
 
 type EditorCanvasProps = {
   config: EditorGraphConfig;
@@ -67,9 +105,12 @@ type EditorCanvasProps = {
   activePlacementKind: EditorNode["kind"] | null;
   viewport: ViewportState;
   showGrid: boolean;
+  snapToGrid?: boolean;
   spacePanActive: boolean;
   recentlyPlacedNodeIds?: string[];
   recentlyTouchedEdgeIds?: string[];
+  quickAddTileOptions?: ReadonlyArray<QuickAddTileOption>;
+  enableMinimap?: boolean;
   onViewportChange: (next: ViewportState) => void;
   onSelectionChange: (next: EditorSelectionState) => void;
   onSetConnectFrom: (nodeId: string | null) => void;
@@ -79,9 +120,21 @@ type EditorCanvasProps = {
   onDeleteEdgeBetween: (fromNodeId: string, toNodeId: string) => void;
   onDeleteSelection: () => void;
   onPlaceNodeAtWorld: (kind: EditorNode["kind"], worldX: number, worldY: number) => void;
+  onPlaceHeroChainAtWorld: (worldX: number, worldY: number) => void;
+  isHeroPlacementActive: boolean;
   onPlaceTextAtWorld: (worldX: number, worldY: number) => void;
   onBeginNodeDrag?: () => void;
   onEndNodeDrag?: () => void;
+  onQuickAddConnectedNode?: (
+    sourceNodeId: string,
+    kind: EditorNode["kind"],
+    worldX: number,
+    worldY: number
+  ) => void;
+  onRenameNode?: (nodeId: string, name: string) => void;
+  onDuplicateNode?: (nodeId: string, worldX: number, worldY: number) => void;
+  onNudgeSelection?: (deltaWorldX: number, deltaWorldY: number) => void;
+  onContextMenu?: (target: ContextMenuTarget) => void;
 };
 
 const WORLD_ZOOM_MIN = 0.35;
@@ -185,9 +238,12 @@ export function EditorCanvas({
   activePlacementKind,
   viewport,
   showGrid,
+  snapToGrid = false,
   spacePanActive,
   recentlyPlacedNodeIds = [],
   recentlyTouchedEdgeIds = [],
+  quickAddTileOptions = [],
+  enableMinimap = true,
   onViewportChange,
   onSelectionChange,
   onSetConnectFrom,
@@ -197,13 +253,34 @@ export function EditorCanvas({
   onDeleteEdgeBetween,
   onDeleteSelection,
   onPlaceNodeAtWorld,
+  onPlaceHeroChainAtWorld,
+  isHeroPlacementActive,
   onPlaceTextAtWorld,
   onBeginNodeDrag,
   onEndNodeDrag,
+  onQuickAddConnectedNode,
+  onRenameNode,
+  onDuplicateNode,
+  onNudgeSelection,
+  onContextMenu,
 }: EditorCanvasProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [interaction, setInteraction] = useState<Interaction>(null);
   const [previewPointer, setPreviewPointer] = useState<{ x: number; y: number } | null>(null);
+  const [quickAdd, setQuickAdd] = useState<{
+    sourceNodeId: string;
+    screenX: number;
+    screenY: number;
+  } | null>(null);
+  const [handleDragPreview, setHandleDragPreview] = useState<{
+    sourceNodeId: string;
+    pointer: { x: number; y: number };
+  } | null>(null);
+  const [renaming, setRenaming] = useState<{ nodeId: string; value: string } | null>(null);
+  const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuides>({
+    x: null,
+    y: null,
+  });
   const arrowMarkerId = `${useId().replace(/:/g, "")}-editor-edge-arrow`;
 
   const placedNodeIds = useMemo(() => new Set(recentlyPlacedNodeIds), [recentlyPlacedNodeIds]);
@@ -212,6 +289,9 @@ export function EditorCanvas({
     () => normalizeRoadPalette(config.style.roadPalette),
     [config.style.roadPalette]
   );
+  const gridSize = EDITOR_GRID_SIZE * viewport.zoom;
+  const gridOffsetX = ((viewport.x % gridSize) + gridSize) % gridSize;
+  const gridOffsetY = ((viewport.y % gridSize) + gridSize) % gridSize;
 
   const nodesById = useMemo(() => {
     const map = new Map<string, EditorNode>();
@@ -278,8 +358,27 @@ export function EditorCanvas({
 
         if (current.kind === "nodeDrag") {
           const world = toLocalWorld(event.clientX, event.clientY);
-          const deltaWorldX = world.x - current.lastWorldX;
-          const deltaWorldY = world.y - current.lastWorldY;
+          let deltaWorldX = world.x - current.lastWorldX;
+          let deltaWorldY = world.y - current.lastWorldY;
+          if (Math.abs(deltaWorldX) === 0 && Math.abs(deltaWorldY) === 0) return current;
+
+          // Compute alignment guides against the primary dragged node.
+          const primaryId = current.nodeIds[0];
+          const primaryNode = primaryId ? nodesById.get(primaryId) : null;
+          if (primaryNode) {
+            const baseCenter = getNodeCenter(primaryNode);
+            const draggedCenter = { x: baseCenter.x + deltaWorldX, y: baseCenter.y + deltaWorldY };
+            const draggedIds = new Set(current.nodeIds);
+            const guides = computeAlignmentGuides(draggedIds, config.nodes, draggedCenter);
+            if (guides.x) {
+              deltaWorldX += guides.x.value - draggedCenter.x;
+            }
+            if (guides.y) {
+              deltaWorldY += guides.y.value - draggedCenter.y;
+            }
+            setAlignmentGuides(guides);
+          }
+
           if (Math.abs(deltaWorldX) > 0 || Math.abs(deltaWorldY) > 0) {
             onMoveNodes(current.nodeIds, deltaWorldX, deltaWorldY);
           }
@@ -313,6 +412,19 @@ export function EditorCanvas({
           };
         }
 
+        if (current.kind === "handleDrag") {
+          const local = toLocal(event.clientX, event.clientY);
+          setHandleDragPreview({
+            sourceNodeId: current.sourceNodeId,
+            pointer: local,
+          });
+          return {
+            ...current,
+            lastScreenX: local.x,
+            lastScreenY: local.y,
+          };
+        }
+
         return current;
       });
 
@@ -321,7 +433,9 @@ export function EditorCanvas({
       }
     },
     [
+      config.nodes,
       connectFromNodeId,
+      nodesById,
       onMoveNodes,
       onMoveTextAnnotation,
       onViewportChange,
@@ -331,38 +445,106 @@ export function EditorCanvas({
     ]
   );
 
-  const handleGlobalMouseUp = useCallback(() => {
-    setInteraction((current) => {
-      if (!current) return null;
+  const handleGlobalMouseUp = useCallback(
+    (event: globalThis.MouseEvent) => {
+      setInteraction((current) => {
+        if (!current) return null;
 
-      if (current.kind === "nodeDrag" || current.kind === "textDrag") {
-        onEndNodeDrag?.();
-      } else if (current.kind === "marquee") {
-        const intersectingNodeIds = getNodesIntersectingScreenRect(config.nodes, viewport, {
-          startX: current.anchorX,
-          startY: current.anchorY,
-          endX: current.currentX,
-          endY: current.currentY,
-        });
+        if (current.kind === "nodeDrag" || current.kind === "textDrag") {
+          onEndNodeDrag?.();
+          setAlignmentGuides({ x: null, y: null });
+        } else if (current.kind === "marquee") {
+          const intersectingNodeIds = getNodesIntersectingScreenRect(config.nodes, viewport, {
+            startX: current.anchorX,
+            startY: current.anchorY,
+            endX: current.currentX,
+            endY: current.currentY,
+          });
 
-        const nextSelection = current.additive
-          ? mergeNodeSelection(
-              current.baseSelection,
-              intersectingNodeIds,
-              intersectingNodeIds[0] ?? null
-            )
-          : replaceNodeSelection(
-              current.baseSelection,
-              intersectingNodeIds,
-              intersectingNodeIds[0] ?? null
-            );
-        onSelectionChange(nextSelection);
-      }
+          const nextSelection = current.additive
+            ? mergeNodeSelection(
+                current.baseSelection,
+                intersectingNodeIds,
+                intersectingNodeIds[0] ?? null
+              )
+            : replaceNodeSelection(
+                current.baseSelection,
+                intersectingNodeIds,
+                intersectingNodeIds[0] ?? null
+              );
+          onSelectionChange(nextSelection);
+        } else if (current.kind === "handleDrag") {
+          // Determine drop target — another node or empty/short click.
+          const target = event.target;
+          let targetNodeId: string | null = null;
+          if (target instanceof Element) {
+            const nodeEl = target.closest("[data-node-id]");
+            if (nodeEl) {
+              targetNodeId = nodeEl.getAttribute("data-node-id");
+            }
+          }
 
-      return null;
-    });
-    setPreviewPointer(null);
-  }, [config.nodes, onEndNodeDrag, onSelectionChange, viewport]);
+          if (targetNodeId && targetNodeId !== current.sourceNodeId) {
+            // Dropped on another node → wire an edge.
+            onCreateEdge(current.sourceNodeId, targetNodeId);
+          } else {
+            // Short click on the handle OR drop on empty canvas → open quick-add.
+            const sourceNode = nodesById.get(current.sourceNodeId);
+            const releaseScreen = toLocal(event.clientX, event.clientY);
+            if (
+              sourceNode?.styleHint &&
+              isFiniteNumber(sourceNode.styleHint.x) &&
+              isFiniteNumber(sourceNode.styleHint.y)
+            ) {
+              const dragDistance = Math.hypot(
+                releaseScreen.x - current.anchorScreenX,
+                releaseScreen.y - current.anchorScreenY
+              );
+              if (dragDistance < 6) {
+                // Short click → anchor menu beside the handle.
+                const width = getNodeRenderWidth(sourceNode);
+                const height = getNodeRenderHeight(sourceNode);
+                const position = toScreenSpace(
+                  { x: sourceNode.styleHint.x ?? 0, y: sourceNode.styleHint.y ?? 0 },
+                  viewport
+                );
+                setQuickAdd({
+                  sourceNodeId: current.sourceNodeId,
+                  screenX: position.x + width * viewport.zoom + 18,
+                  screenY: position.y + (height * viewport.zoom) / 2,
+                });
+              } else {
+                // Dragged to empty canvas → open menu at release, and pre-place a node there.
+                const releaseWorld = toWorldSpace(releaseScreen, viewport);
+                const snapped = snapToGrid ? snapPointToGrid(releaseWorld) : releaseWorld;
+                if (onQuickAddConnectedNode) {
+                  onQuickAddConnectedNode(current.sourceNodeId, "path", snapped.x, snapped.y);
+                } else {
+                  onPlaceNodeAtWorld("path", snapped.x, snapped.y);
+                }
+              }
+            }
+          }
+          setHandleDragPreview(null);
+        }
+
+        return null;
+      });
+      setPreviewPointer(null);
+    },
+    [
+      config.nodes,
+      nodesById,
+      onCreateEdge,
+      onEndNodeDrag,
+      onPlaceNodeAtWorld,
+      onQuickAddConnectedNode,
+      onSelectionChange,
+      snapToGrid,
+      toLocal,
+      viewport,
+    ]
+  );
 
   useEffect(() => {
     if (!interaction) return;
@@ -391,15 +573,29 @@ export function EditorCanvas({
       if (isCanvasNode || isCanvasEdge || isCanvasText) return;
       if (event.button !== 0) return;
 
+      // Dismiss quick-add popover when clicking the canvas.
+      if (quickAdd) {
+        setQuickAdd(null);
+      }
+
+      if (tool === "place" && isHeroPlacementActive) {
+        const world = toLocalWorld(event.clientX, event.clientY);
+        const snapped = snapToGrid ? snapPointToGrid(world) : world;
+        onPlaceHeroChainAtWorld(snapped.x, snapped.y);
+        return;
+      }
+
       if (tool === "place" && activePlacementKind) {
         const world = toLocalWorld(event.clientX, event.clientY);
-        onPlaceNodeAtWorld(activePlacementKind, world.x, world.y);
+        const snapped = snapToGrid ? snapPointToGrid(world) : world;
+        onPlaceNodeAtWorld(activePlacementKind, snapped.x, snapped.y);
         return;
       }
 
       if (tool === "text") {
         const world = toLocalWorld(event.clientX, event.clientY);
-        onPlaceTextAtWorld(world.x, world.y);
+        const snapped = snapToGrid ? snapPointToGrid(world) : world;
+        onPlaceTextAtWorld(snapped.x, snapped.y);
         return;
       }
 
@@ -425,11 +621,15 @@ export function EditorCanvas({
     [
       activePlacementKind,
       addPan,
+      isHeroPlacementActive,
       onPlaceNodeAtWorld,
+      onPlaceHeroChainAtWorld,
       onPlaceTextAtWorld,
       onSelectionChange,
       onSetConnectFrom,
+      quickAdd,
       selection,
+      snapToGrid,
       spacePanActive,
       toLocal,
       toLocalWorld,
@@ -498,12 +698,20 @@ export function EditorCanvas({
       onSelectionChange(replaceNodeSelection(selection, selectedNodeIds, nodeId));
 
       const world = toLocalWorld(event.clientX, event.clientY);
+
+      // Alt+drag duplicates the node at an offset, then begins dragging the clone.
+      if (event.altKey && onDuplicateNode && selectedNodeIds.length === 1) {
+        onDuplicateNode(nodeId, world.x + 24, world.y + 24);
+        return;
+      }
+
       onBeginNodeDrag?.();
       setInteraction({
         kind: "nodeDrag",
         nodeIds: selectedNodeIds,
         lastWorldX: world.x,
         lastWorldY: world.y,
+        duplicate: event.altKey,
       });
       onSetConnectFrom(null);
     },
@@ -512,6 +720,7 @@ export function EditorCanvas({
       onBeginNodeDrag,
       onCreateEdge,
       onDeleteEdgeBetween,
+      onDuplicateNode,
       onSelectionChange,
       onSetConnectFrom,
       selection,
@@ -519,6 +728,182 @@ export function EditorCanvas({
       toLocalWorld,
       tool,
     ]
+  );
+
+  const handleNodeDoubleClick = useCallback(
+    (nodeId: string, event: MouseEvent<SVGGElement>) => {
+      if (tool !== "select") return;
+      if (!onRenameNode) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const node = nodesById.get(nodeId);
+      if (!node) return;
+      setRenaming({ nodeId, value: node.name });
+    },
+    [nodesById, onRenameNode, tool]
+  );
+
+  const handleNodeContextMenu = useCallback(
+    (nodeId: string, event: MouseEvent<SVGGElement>) => {
+      if (!onContextMenu) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const local = toLocal(event.clientX, event.clientY);
+      onSelectionChange(replaceNodeSelection(selection, [nodeId], nodeId));
+      onContextMenu({ kind: "node", nodeId, screenX: local.x, screenY: local.y });
+    },
+    [onContextMenu, onSelectionChange, selection, toLocal]
+  );
+
+  const handleAddHandleMouseDown = useCallback(
+    (nodeId: string, event: MouseEvent<SVGGElement>) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const local = toLocal(event.clientX, event.clientY);
+      onSelectionChange(replaceNodeSelection(selection, [nodeId], nodeId));
+      setInteraction({
+        kind: "handleDrag",
+        sourceNodeId: nodeId,
+        anchorScreenX: local.x,
+        anchorScreenY: local.y,
+        lastScreenX: local.x,
+        lastScreenY: local.y,
+      });
+      setHandleDragPreview({ sourceNodeId: nodeId, pointer: local });
+    },
+    [onSelectionChange, selection, toLocal]
+  );
+
+  const handleQuickAddPick = useCallback(
+    (kind: EditorNodeKind) => {
+      const current = quickAdd;
+      setQuickAdd(null);
+      if (!current) return;
+      if (!onQuickAddConnectedNode) return;
+      const sourceNode = nodesById.get(current.sourceNodeId);
+      if (!sourceNode) return;
+
+      // Compute a smart target slot for the new node.
+      const outgoing = config.edges
+        .filter((edge) => edge.fromNodeId === current.sourceNodeId)
+        .map((edge) => edge.toNodeId);
+      const occupied = new Set(outgoing);
+      const slot = findSmartPlacementSlot({
+        sourceNode,
+        existingNodes: config.nodes,
+        occupiedTargetNodeIds: occupied,
+        snap: snapToGrid,
+      });
+      onQuickAddConnectedNode(current.sourceNodeId, kind, slot.center.x, slot.center.y);
+    },
+    [config.edges, config.nodes, nodesById, onQuickAddConnectedNode, quickAdd, snapToGrid]
+  );
+
+  const handleEdgeContextMenu = useCallback(
+    (edgeId: string, event: MouseEvent<SVGLineElement>) => {
+      if (!onContextMenu) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const local = toLocal(event.clientX, event.clientY);
+      onSelectionChange({
+        selectedNodeIds: [],
+        primaryNodeId: null,
+        selectedEdgeId: edgeId,
+        selectedTextAnnotationId: null,
+      });
+      onContextMenu({ kind: "edge", edgeId, screenX: local.x, screenY: local.y });
+    },
+    [onContextMenu, onSelectionChange, toLocal]
+  );
+
+  const handleCanvasContextMenu = useCallback(
+    (event: MouseEvent<SVGSVGElement | HTMLDivElement>) => {
+      if (!onContextMenu) {
+        event.preventDefault();
+        return;
+      }
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      // Let node/edge/text handlers take precedence.
+      if (
+        target.closest("[data-node-id]") ||
+        target.closest("[data-edge-id]") ||
+        target.closest("[data-text-annotation-id]")
+      ) {
+        return;
+      }
+      event.preventDefault();
+      const local = toLocal(event.clientX, event.clientY);
+      const world = toWorldSpace(local, viewport);
+      onContextMenu({
+        kind: "canvas",
+        worldX: world.x,
+        worldY: world.y,
+        screenX: local.x,
+        screenY: local.y,
+      });
+    },
+    [onContextMenu, toLocal, viewport]
+  );
+
+  const handleRenameCommit = useCallback(() => {
+    setRenaming((current) => {
+      if (current && onRenameNode) {
+        const trimmed = current.value.trim();
+        if (trimmed.length > 0) {
+          onRenameNode(current.nodeId, trimmed);
+        }
+      }
+      return null;
+    });
+  }, [onRenameNode]);
+
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<SVGSVGElement>) => {
+      const key = event.key.toLowerCase();
+      if (key === "x") {
+        event.preventDefault();
+        onDeleteSelection();
+        return;
+      }
+      if (key === "escape") {
+        if (quickAdd) {
+          setQuickAdd(null);
+          event.preventDefault();
+          return;
+        }
+        if (renaming) {
+          setRenaming(null);
+          event.preventDefault();
+          return;
+        }
+      }
+      if (key === "enter" && renaming) {
+        handleRenameCommit();
+        event.preventDefault();
+        return;
+      }
+      // Arrow-key nudging for selected nodes.
+      if (
+        onNudgeSelection &&
+        (event.key === "ArrowUp" ||
+          event.key === "ArrowDown" ||
+          event.key === "ArrowLeft" ||
+          event.key === "ArrowRight")
+      ) {
+        const step = event.shiftKey ? 24 : snapToGrid ? 48 : 4;
+        let dx = 0;
+        let dy = 0;
+        if (event.key === "ArrowUp") dy = -step;
+        else if (event.key === "ArrowDown") dy = step;
+        else if (event.key === "ArrowLeft") dx = -step;
+        else if (event.key === "ArrowRight") dx = step;
+        event.preventDefault();
+        onNudgeSelection(dx, dy);
+      }
+    },
+    [onDeleteSelection, handleRenameCommit, onNudgeSelection, quickAdd, renaming, snapToGrid]
   );
 
   const handleNodeMouseOver = useCallback(
@@ -604,14 +989,9 @@ export function EditorCanvas({
         role="application"
         aria-label="map editor canvas"
         tabIndex={0}
-        onContextMenu={(event) => event.preventDefault()}
+        onContextMenu={handleCanvasContextMenu}
         onMouseDown={handleCanvasMouseDown}
-        onKeyDown={(event) => {
-          if (event.key.toLowerCase() === "x") {
-            event.preventDefault();
-            onDeleteSelection();
-          }
-        }}
+        onKeyDown={handleKeyDown}
         onWheel={handleCanvasWheel}
       >
         <defs>
@@ -629,15 +1009,15 @@ export function EditorCanvas({
           {showGrid && (
             <pattern
               id="editor-grid-pattern"
-              x="0"
-              y="0"
-              width="48"
-              height="48"
+              x={gridOffsetX}
+              y={gridOffsetY}
+              width={gridSize}
+              height={gridSize}
               patternUnits="userSpaceOnUse"
             >
               <rect
-                width="48"
-                height="48"
+                width={gridSize}
+                height={gridSize}
                 fill="none"
                 stroke="rgba(148,163,184,0.15)"
                 strokeWidth="1"
@@ -710,6 +1090,7 @@ export function EditorCanvas({
                 strokeLinecap="round"
                 markerEnd={`url(#${arrowMarkerId})`}
                 onMouseDown={(event) => handleEdgeMouseDown(edge.id, event)}
+                onContextMenu={(event) => handleEdgeContextMenu(edge.id, event)}
               />
               <line
                 x1={edgePoints.x1}
@@ -719,6 +1100,7 @@ export function EditorCanvas({
                 stroke="transparent"
                 strokeWidth={10}
                 onMouseDown={(event) => handleEdgeMouseDown(edge.id, event)}
+                onContextMenu={(event) => handleEdgeContextMenu(edge.id, event)}
               />
               {(edge.label || (edge.gateCost ?? 0) > 0) && (
                 <text
@@ -738,6 +1120,40 @@ export function EditorCanvas({
             </g>
           );
         })}
+
+        {/* ── Smart alignment guides (during node drag) ─────────── */}
+        {alignmentGuides.x && (
+          <line
+            x1={
+              toScreenSpace({ x: alignmentGuides.x.value, y: alignmentGuides.x.from }, viewport).x
+            }
+            y1={
+              toScreenSpace({ x: alignmentGuides.x.value, y: alignmentGuides.x.from }, viewport).y
+            }
+            x2={toScreenSpace({ x: alignmentGuides.x.value, y: alignmentGuides.x.to }, viewport).x}
+            y2={toScreenSpace({ x: alignmentGuides.x.value, y: alignmentGuides.x.to }, viewport).y}
+            stroke="#ec4899"
+            strokeWidth={1}
+            strokeDasharray="4 3"
+            className="pointer-events-none"
+          />
+        )}
+        {alignmentGuides.y && (
+          <line
+            x1={
+              toScreenSpace({ x: alignmentGuides.y.from, y: alignmentGuides.y.value }, viewport).x
+            }
+            y1={
+              toScreenSpace({ x: alignmentGuides.y.from, y: alignmentGuides.y.value }, viewport).y
+            }
+            x2={toScreenSpace({ x: alignmentGuides.y.to, y: alignmentGuides.y.value }, viewport).x}
+            y2={toScreenSpace({ x: alignmentGuides.y.to, y: alignmentGuides.y.value }, viewport).y}
+            stroke="#ec4899"
+            strokeWidth={1}
+            strokeDasharray="4 3"
+            className="pointer-events-none"
+          />
+        )}
 
         {config.nodes.map((node) => {
           if (
@@ -764,15 +1180,28 @@ export function EditorCanvas({
               : perkDef?.kind === "antiPerk"
                 ? "anti-perk"
                 : node.kind;
+          const isRenaming = renaming?.nodeId === node.id;
+          const showHandle =
+            !isRenaming &&
+            (tool === "select" || tool === "connect") &&
+            node.kind !== "end" &&
+            onQuickAddConnectedNode;
+          const isConnectSource = connectFromNodeId === node.id;
 
           return (
             <g
               key={node.id}
               data-node-id={node.id}
-              className={`editor-node-group ${isFresh ? "is-fresh" : ""}`}
+              className={`editor-node-group ${isFresh ? "is-fresh" : ""} ${
+                showHandle ? "has-handle" : ""
+              }`}
               transform={`translate(${position.x}, ${position.y})`}
               onMouseDown={(event) => handleNodeMouseDown(node.id, event)}
-              onMouseOver={(event) => handleNodeMouseOver(node.id, event)}
+              onMouseOver={(event) => {
+                handleNodeMouseOver(node.id, event);
+              }}
+              onDoubleClick={(event) => handleNodeDoubleClick(node.id, event)}
+              onContextMenu={(event) => handleNodeContextMenu(node.id, event)}
               style={{ cursor: tool === "place" ? "copy" : "grab" }}
             >
               <rect
@@ -782,7 +1211,9 @@ export function EditorCanvas({
                 fill="rgba(15,23,42,0.86)"
                 stroke={isSelected ? "#c4b5fd" : color}
                 strokeWidth={isPrimary ? 3.5 : isSelected ? 3 : 2}
-                className={`editor-node-border ${isSelected ? "is-selected" : ""}`}
+                className={`editor-node-border ${isSelected ? "is-selected" : ""} ${
+                  isConnectSource ? "is-connect-source" : ""
+                }`}
               />
               <rect
                 x={isSelected ? 3 : 2}
@@ -793,26 +1224,113 @@ export function EditorCanvas({
                 fill="rgba(8,12,20,0.75)"
                 stroke="none"
               />
-              <text
-                x={rectWidth / 2}
-                y={rectHeight * 0.42}
-                fill="#e2e8f0"
-                textAnchor="middle"
-                fontSize={Math.max(10, Math.min(22, Math.floor(14 * viewport.zoom)))}
-                fontFamily="var(--font-jetbrains-mono)"
-              >
-                {primaryLabel}
-              </text>
-              <text
-                x={rectWidth / 2}
-                y={rectHeight * 0.72}
-                fill={color}
-                textAnchor="middle"
-                fontSize={Math.max(9, Math.min(18, Math.floor(12 * viewport.zoom)))}
-                fontFamily="var(--font-jetbrains-mono)"
-              >
-                {secondaryLabel}
-              </text>
+              {isRenaming ? (
+                <foreignObject
+                  x={4}
+                  y={rectHeight * 0.18}
+                  width={Math.max(60, rectWidth - 8)}
+                  height={rectHeight * 0.5}
+                >
+                  <input
+                    // eslint-disable-next-line jsx-a11y/no-autofocus
+                    autoFocus
+                    value={renaming.value}
+                    onChange={(event) =>
+                      setRenaming((current) =>
+                        current && current.nodeId === node.id
+                          ? { ...current, value: event.target.value }
+                          : current
+                      )
+                    }
+                    onBlur={handleRenameCommit}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleRenameCommit();
+                      } else if (event.key === "Escape") {
+                        event.preventDefault();
+                        setRenaming(null);
+                      }
+                      event.stopPropagation();
+                    }}
+                    className="editor-rename-input w-full rounded-md border border-cyan-400/60 bg-zinc-950/95 px-2 py-1 text-center font-mono text-sm text-cyan-100 outline-none"
+                    style={{
+                      fontSize: Math.max(11, Math.floor(14 * viewport.zoom)),
+                    }}
+                  />
+                </foreignObject>
+              ) : (
+                <>
+                  <text
+                    x={rectWidth / 2}
+                    y={rectHeight * 0.42}
+                    fill="#e2e8f0"
+                    textAnchor="middle"
+                    fontSize={Math.max(10, Math.min(22, Math.floor(14 * viewport.zoom)))}
+                    fontFamily="var(--font-jetbrains-mono)"
+                    className="pointer-events-none"
+                  >
+                    {primaryLabel}
+                  </text>
+                  <text
+                    x={rectWidth / 2}
+                    y={rectHeight * 0.72}
+                    fill={color}
+                    textAnchor="middle"
+                    fontSize={Math.max(9, Math.min(18, Math.floor(12 * viewport.zoom)))}
+                    fontFamily="var(--font-jetbrains-mono)"
+                    className="pointer-events-none"
+                  >
+                    {secondaryLabel}
+                  </text>
+                </>
+              )}
+
+              {/* + handle for quick-add/connect */}
+              {showHandle && (
+                <g
+                  className="editor-node-add-handle"
+                  onMouseDown={(event) => handleAddHandleMouseDown(node.id, event)}
+                >
+                  {/* Larger invisible hit target */}
+                  <circle
+                    cx={rectWidth + 4}
+                    cy={rectHeight / 2}
+                    r={16}
+                    fill="transparent"
+                    className="editor-node-add-handle-hit"
+                  />
+                  <circle
+                    cx={rectWidth + 4}
+                    cy={rectHeight / 2}
+                    r={11}
+                    fill={isSelected ? "#c4b5fd" : color}
+                    stroke="rgba(15,23,42,0.95)"
+                    strokeWidth={2}
+                    className="editor-node-add-handle-circle"
+                  />
+                  {/* + glyph */}
+                  <g
+                    pointerEvents="none"
+                    stroke="rgba(15,23,42,0.95)"
+                    strokeWidth={2.2}
+                    strokeLinecap="round"
+                  >
+                    <line
+                      x1={rectWidth + 4 - 5}
+                      y1={rectHeight / 2}
+                      x2={rectWidth + 4 + 5}
+                      y2={rectHeight / 2}
+                    />
+                    <line
+                      x1={rectWidth + 4}
+                      y1={rectHeight / 2 - 5}
+                      x2={rectWidth + 4}
+                      y2={rectHeight / 2 + 5}
+                    />
+                  </g>
+                </g>
+              )}
             </g>
           );
         })}
@@ -932,7 +1450,299 @@ export function EditorCanvas({
               />
             );
           })()}
+
+        {/* ── Live edge preview while dragging from a + handle ─────────── */}
+        {handleDragPreview &&
+          (() => {
+            const sourceNode = nodesById.get(handleDragPreview.sourceNodeId);
+            if (!sourceNode?.styleHint) return null;
+            const startWidth = getNodeRenderWidth(sourceNode);
+            const startHeight = getNodeRenderHeight(sourceNode);
+            const startPos = toScreenSpace(
+              { x: sourceNode.styleHint.x ?? 0, y: sourceNode.styleHint.y ?? 0 },
+              viewport
+            );
+            const startRect = {
+              x: startPos.x,
+              y: startPos.y,
+              width: startWidth * viewport.zoom,
+              height: startHeight * viewport.zoom,
+            };
+            const fromPoint = getRectConnectionPoint(startRect, handleDragPreview.pointer);
+            return (
+              <g pointerEvents="none">
+                <line
+                  x1={fromPoint.x}
+                  y1={fromPoint.y}
+                  x2={handleDragPreview.pointer.x}
+                  y2={handleDragPreview.pointer.y}
+                  stroke={roadPalette.railA}
+                  strokeWidth={2.5}
+                  strokeDasharray="6 5"
+                  strokeLinecap="round"
+                  markerEnd={`url(#${arrowMarkerId})`}
+                />
+                <circle
+                  cx={handleDragPreview.pointer.x}
+                  cy={handleDragPreview.pointer.y}
+                  r={6}
+                  fill={roadPalette.railA}
+                  fillOpacity={0.4}
+                  stroke={roadPalette.railA}
+                  strokeWidth={1.5}
+                />
+              </g>
+            );
+          })()}
       </svg>
+
+      {/* ── Quick-add radial/popover menu (HTML overlay) ─────────── */}
+      {quickAdd && quickAddTileOptions.length > 0 && (
+        <QuickAddPopover
+          options={quickAddTileOptions}
+          screenX={quickAdd.screenX}
+          screenY={quickAdd.screenY}
+          onPick={handleQuickAddPick}
+          onClose={() => setQuickAdd(null)}
+        />
+      )}
+
+      {/* ── Minimap (corner overview) ─────────── */}
+      {enableMinimap && config.nodes.length >= 4 && (
+        <MiniMap
+          nodes={config.nodes}
+          textAnnotations={config.textAnnotations}
+          viewport={viewport}
+          containerRef={containerRef}
+          onViewportChange={onViewportChange}
+        />
+      )}
     </div>
   );
 }
+
+/* ──────────────────────── Quick-add popover ──────────── */
+
+interface QuickAddPopoverProps {
+  options: ReadonlyArray<QuickAddTileOption>;
+  screenX: number;
+  screenY: number;
+  onPick: (kind: EditorNodeKind) => void;
+  onClose: () => void;
+}
+
+const QuickAddPopover: React.FC<QuickAddPopoverProps> = ({
+  options,
+  screenX,
+  screenY,
+  onPick,
+  onClose,
+}) => {
+  useEffect(() => {
+    const handle = (event: globalThis.MouseEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-quick-add-popover]")) return;
+      onClose();
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("mousedown", handle);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", handle);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  // Clamp position so the popover stays inside the container.
+  const style = {
+    left: screenX,
+    top: screenY,
+  };
+
+  return (
+    <div
+      data-quick-add-popover
+      className="editor-quick-add-popover absolute z-30 flex flex-col gap-1 -translate-y-1/2 rounded-xl border border-cyan-300/30 bg-zinc-950/95 p-1.5 shadow-2xl backdrop-blur-xl"
+      style={style}
+      role="menu"
+      aria-label="Quick add node"
+    >
+      <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+        Add connected node
+      </div>
+      <div className="grid grid-cols-2 gap-1" style={{ maxWidth: 240 }}>
+        {options.map((option) => (
+          <button
+            key={option.kind}
+            type="button"
+            role="menuitem"
+            title={option.description ?? option.label}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onPick(option.kind);
+            }}
+            className="editor-quick-add-item flex items-center gap-2 rounded-lg border border-white/8 bg-white/4 px-2 py-1.5 text-left text-[11px] font-semibold text-zinc-200 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/15 hover:text-cyan-100"
+          >
+            <span
+              className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+              style={{
+                backgroundColor: option.color ? `${option.color}33` : "rgba(148,163,184,0.2)",
+                color: option.color ?? "#94a3b8",
+              }}
+            >
+              {option.icon ?? option.label.slice(0, 1)}
+            </span>
+            <span className="truncate">{option.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/* ──────────────────────── Mini-map ──────────── */
+
+interface MiniMapProps {
+  nodes: ReadonlyArray<EditorNode>;
+  textAnnotations: ReadonlyArray<{ id: string; styleHint: { x: number; y: number } }>;
+  viewport: ViewportState;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  onViewportChange: (next: ViewportState) => void;
+}
+
+const MINIMAP_WIDTH = 168;
+const MINIMAP_HEIGHT = 120;
+const MINIMAP_PADDING = 8;
+
+const MiniMap: React.FC<MiniMapProps> = ({
+  nodes,
+  textAnnotations,
+  viewport,
+  containerRef,
+  onViewportChange,
+}) => {
+  const bounds = useMemo(() => computeNodeBounds(nodes, textAnnotations), [nodes, textAnnotations]);
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const updateSize = () => {
+      const rect = element.getBoundingClientRect();
+      setContainerSize({
+        width: rect.width || 800,
+        height: rect.height || 600,
+      });
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [containerRef]);
+
+  const containerWidth = containerSize.width;
+  const containerHeight = containerSize.height;
+
+  if (!bounds) return null;
+
+  const worldWidth = Math.max(1, bounds.maxX - bounds.minX + 200);
+  const worldHeight = Math.max(1, bounds.maxY - bounds.minY + 200);
+  const boundsMinX = bounds.minX - 100;
+  const boundsMinY = bounds.minY - 100;
+
+  const scaleX = (MINIMAP_WIDTH - MINIMAP_PADDING * 2) / worldWidth;
+  const scaleY = (MINIMAP_HEIGHT - MINIMAP_PADDING * 2) / worldHeight;
+  const scale = Math.min(scaleX, scaleY);
+
+  const offsetX = MINIMAP_PADDING + (MINIMAP_WIDTH - MINIMAP_PADDING * 2 - worldWidth * scale) / 2;
+  const offsetY =
+    MINIMAP_PADDING + (MINIMAP_HEIGHT - MINIMAP_PADDING * 2 - worldHeight * scale) / 2;
+
+  const worldToMini = (worldX: number, worldY: number): { x: number; y: number } => ({
+    x: offsetX + (worldX - boundsMinX) * scale,
+    y: offsetY + (worldY - boundsMinY) * scale,
+  });
+
+  // Visible viewport rectangle in world space.
+  const viewWorldMinX = -viewport.x / viewport.zoom;
+  const viewWorldMinY = -viewport.y / viewport.zoom;
+  const viewWorldMaxX = viewWorldMinX + containerWidth / viewport.zoom;
+  const viewWorldMaxY = viewWorldMinY + containerHeight / viewport.zoom;
+  const viewMiniMin = worldToMini(viewWorldMinX, viewWorldMinY);
+  const viewMiniMax = worldToMini(viewWorldMaxX, viewWorldMaxY);
+
+  const handleMouseDown = (event: React.MouseEvent<SVGSVGElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const recenter = (clientX: number, clientY: number) => {
+      const miniX = clientX - rect.left;
+      const miniY = clientY - rect.top;
+      const worldX = boundsMinX + (miniX - offsetX) / scale;
+      const worldY = boundsMinY + (miniY - offsetY) / scale;
+      onViewportChange({
+        x: containerWidth / 2 - worldX * viewport.zoom,
+        y: containerHeight / 2 - worldY * viewport.zoom,
+        zoom: viewport.zoom,
+      });
+    };
+    recenter(event.clientX, event.clientY);
+    const move = (e: globalThis.MouseEvent) => recenter(e.clientX, e.clientY);
+    const up = () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  };
+
+  return (
+    <div className="editor-minimap pointer-events-auto absolute bottom-3 right-3 z-20 rounded-lg border border-white/10 bg-zinc-950/80 shadow-2xl backdrop-blur-md">
+      <svg
+        width={MINIMAP_WIDTH}
+        height={MINIMAP_HEIGHT}
+        className="block cursor-pointer rounded-lg"
+        onMouseDown={handleMouseDown}
+        role="application"
+        aria-label="map minimap"
+      >
+        <rect width={MINIMAP_WIDTH} height={MINIMAP_HEIGHT} fill="rgba(2,6,23,0.5)" />
+        {nodes.map((node) => {
+          const center = getNodeCenter(node);
+          const mini = worldToMini(center.x, center.y);
+          const color = node.styleHint?.color ?? getNodeDisplayColor(node);
+          return (
+            <rect
+              key={node.id}
+              x={mini.x - 2}
+              y={mini.y - 1}
+              width={4}
+              height={2.5}
+              rx={1}
+              fill={color}
+            />
+          );
+        })}
+        <rect
+          x={viewMiniMin.x}
+          y={viewMiniMin.y}
+          width={Math.max(2, viewMiniMax.x - viewMiniMin.x)}
+          height={Math.max(2, viewMiniMax.y - viewMiniMin.y)}
+          fill="rgba(196,181,253,0.18)"
+          stroke="rgba(196,181,253,0.85)"
+          strokeWidth={1}
+          pointerEvents="none"
+        />
+      </svg>
+    </div>
+  );
+};

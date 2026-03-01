@@ -42,7 +42,11 @@ const baseConfig: EditorGraphConfig = {
     antiPerkIncreasePerRound: 0.015,
     maxIntermediaryProbability: 1,
     maxAntiPerkProbability: 0.75,
+    resetIntermediaryProbabilityAfterTrigger: false,
+    resetAntiPerkProbabilityAfterTrigger: false,
   },
+  resetIntermediaryProbabilityAfterTrigger: false,
+  resetAntiPerkProbabilityAfterTrigger: false,
   economy: { startingMoney: 120, scorePerCumRoundSuccess: 420 },
   dice: { min: 1, max: 6 },
   disableDiceAnimation: false,
@@ -89,6 +93,8 @@ describe("EditorCanvas", () => {
         onDeleteEdgeBetween={vi.fn()}
         onDeleteSelection={vi.fn()}
         onPlaceNodeAtWorld={vi.fn()}
+        onPlaceHeroChainAtWorld={vi.fn()}
+        isHeroPlacementActive={false}
         onPlaceTextAtWorld={vi.fn()}
       />
     );
@@ -131,6 +137,8 @@ describe("EditorCanvas", () => {
         onDeleteEdgeBetween={vi.fn()}
         onDeleteSelection={vi.fn()}
         onPlaceNodeAtWorld={vi.fn()}
+        onPlaceHeroChainAtWorld={vi.fn()}
+        isHeroPlacementActive={false}
         onPlaceTextAtWorld={vi.fn()}
       />
     );
@@ -179,6 +187,8 @@ describe("EditorCanvas", () => {
         onDeleteEdgeBetween={vi.fn()}
         onDeleteSelection={vi.fn()}
         onPlaceNodeAtWorld={vi.fn()}
+        onPlaceHeroChainAtWorld={vi.fn()}
+        isHeroPlacementActive={false}
         onPlaceTextAtWorld={vi.fn()}
       />
     );
@@ -230,6 +240,8 @@ describe("EditorCanvas", () => {
         onDeleteEdgeBetween={vi.fn()}
         onDeleteSelection={vi.fn()}
         onPlaceNodeAtWorld={vi.fn()}
+        onPlaceHeroChainAtWorld={vi.fn()}
+        isHeroPlacementActive={false}
         onPlaceTextAtWorld={vi.fn()}
       />
     );
@@ -280,6 +292,8 @@ describe("EditorCanvas", () => {
         onDeleteEdgeBetween={vi.fn()}
         onDeleteSelection={vi.fn()}
         onPlaceNodeAtWorld={vi.fn()}
+        onPlaceHeroChainAtWorld={vi.fn()}
+        isHeroPlacementActive={false}
         onPlaceTextAtWorld={vi.fn()}
       />
     );
@@ -309,6 +323,8 @@ describe("EditorCanvas", () => {
         onDeleteEdgeBetween={vi.fn()}
         onDeleteSelection={vi.fn()}
         onPlaceNodeAtWorld={vi.fn()}
+        onPlaceHeroChainAtWorld={vi.fn()}
+        isHeroPlacementActive={false}
         onPlaceTextAtWorld={onPlaceTextAtWorld}
       />
     );
@@ -351,6 +367,8 @@ describe("EditorCanvas", () => {
         onDeleteEdgeBetween={vi.fn()}
         onDeleteSelection={vi.fn()}
         onPlaceNodeAtWorld={vi.fn()}
+        onPlaceHeroChainAtWorld={vi.fn()}
+        isHeroPlacementActive={false}
         onPlaceTextAtWorld={vi.fn()}
       />
     );
@@ -366,5 +384,128 @@ describe("EditorCanvas", () => {
       selectedEdgeId: null,
       selectedTextAnnotationId: "text-1",
     });
+  });
+
+  it("opens the quick-add node menu from a node plus handle", () => {
+    const { container, getByRole } = render(
+      <EditorCanvas
+        config={baseConfig}
+        selection={selection}
+        connectFromNodeId={null}
+        tool="select"
+        activePlacementKind={null}
+        viewport={viewport}
+        showGrid={false}
+        snapToGrid={true}
+        spacePanActive={false}
+        quickAddTileOptions={[
+          {
+            kind: "path",
+            label: "Path",
+            color: "#94a3b8",
+          },
+        ]}
+        onViewportChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        onSetConnectFrom={vi.fn()}
+        onMoveNodes={vi.fn()}
+        onMoveTextAnnotation={vi.fn()}
+        onCreateEdge={vi.fn()}
+        onDeleteEdgeBetween={vi.fn()}
+        onDeleteSelection={vi.fn()}
+        onPlaceNodeAtWorld={vi.fn()}
+        onPlaceHeroChainAtWorld={vi.fn()}
+        isHeroPlacementActive={false}
+        onPlaceTextAtWorld={vi.fn()}
+        onQuickAddConnectedNode={vi.fn()}
+      />
+    );
+
+    const handle = container.querySelector(".editor-node-add-handle-circle");
+    expect(handle).not.toBeNull();
+    fireEvent.mouseDown(handle!, { button: 0, clientX: 304, clientY: 140 });
+    fireEvent.mouseUp(window, { button: 0, clientX: 305, clientY: 141 });
+
+    expect(getByRole("menu", { name: "Quick add node" })).not.toBeNull();
+    expect(getByRole("menuitem", { name: /Path/i })).not.toBeNull();
+  });
+
+  it("drags from a node plus handle to add a connected snapped path node", () => {
+    const onQuickAddConnectedNode = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        config={baseConfig}
+        selection={selection}
+        connectFromNodeId={null}
+        tool="select"
+        activePlacementKind={null}
+        viewport={viewport}
+        showGrid={false}
+        snapToGrid={true}
+        spacePanActive={false}
+        quickAddTileOptions={[
+          {
+            kind: "path",
+            label: "Path",
+            color: "#94a3b8",
+          },
+        ]}
+        onViewportChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        onSetConnectFrom={vi.fn()}
+        onMoveNodes={vi.fn()}
+        onMoveTextAnnotation={vi.fn()}
+        onCreateEdge={vi.fn()}
+        onDeleteEdgeBetween={vi.fn()}
+        onDeleteSelection={vi.fn()}
+        onPlaceNodeAtWorld={vi.fn()}
+        onPlaceHeroChainAtWorld={vi.fn()}
+        isHeroPlacementActive={false}
+        onPlaceTextAtWorld={vi.fn()}
+        onQuickAddConnectedNode={onQuickAddConnectedNode}
+      />
+    );
+
+    const handle = container.querySelector(".editor-node-add-handle-circle");
+    expect(handle).not.toBeNull();
+    fireEvent.mouseDown(handle!, { button: 0, clientX: 304, clientY: 140 });
+    fireEvent.mouseMove(window, { clientX: 390, clientY: 230 });
+    fireEvent.mouseUp(window, { button: 0, clientX: 390, clientY: 230 });
+
+    expect(onQuickAddConnectedNode).toHaveBeenCalledWith("start", "path", 384, 240);
+  });
+
+  it("keeps the visible grid aligned to world coordinates while panning and zooming", () => {
+    const { container } = render(
+      <EditorCanvas
+        config={baseConfig}
+        selection={selection}
+        connectFromNodeId={null}
+        tool="select"
+        activePlacementKind={null}
+        viewport={{ x: 13, y: -11, zoom: 1.5 }}
+        showGrid={true}
+        snapToGrid={true}
+        spacePanActive={false}
+        onViewportChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        onSetConnectFrom={vi.fn()}
+        onMoveNodes={vi.fn()}
+        onMoveTextAnnotation={vi.fn()}
+        onCreateEdge={vi.fn()}
+        onDeleteEdgeBetween={vi.fn()}
+        onDeleteSelection={vi.fn()}
+        onPlaceNodeAtWorld={vi.fn()}
+        onPlaceHeroChainAtWorld={vi.fn()}
+        isHeroPlacementActive={false}
+        onPlaceTextAtWorld={vi.fn()}
+      />
+    );
+
+    const pattern = container.querySelector<SVGPatternElement>("#editor-grid-pattern");
+    expect(pattern?.getAttribute("width")).toBe("72");
+    expect(pattern?.getAttribute("height")).toBe("72");
+    expect(pattern?.getAttribute("x")).toBe("13");
+    expect(pattern?.getAttribute("y")).toBe("61");
   });
 });

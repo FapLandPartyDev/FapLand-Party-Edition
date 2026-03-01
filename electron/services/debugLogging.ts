@@ -3,7 +3,6 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import si from "systeminformation";
 import {
   DEBUG_LOG_LEVEL_KEY,
   DEBUG_LOG_MAX_FILE_SIZE_MB_KEY,
@@ -48,6 +47,12 @@ import {
   resetYtDlpBinaryCache,
   resolveYtDlpBinary,
 } from "./webVideo/binaries";
+import {
+  getCpuInfo,
+  getGraphicsInfo,
+  getMemInfo,
+  getOsInfo,
+} from "./systemInfoCache";
 
 export type DebugLogEntry = {
   ts: string;
@@ -458,8 +463,6 @@ export async function getDebugState(): Promise<{
   };
 }
 
-let cachedGraphics: Awaited<ReturnType<typeof si.graphics>> | null = null;
-
 export async function collectDebugDiagnostics(): Promise<DebugDiagnostics> {
   const collectionErrors: string[] = [];
   const store = getStore();
@@ -468,25 +471,24 @@ export async function collectDebugDiagnostics(): Promise<DebugDiagnostics> {
   const databasePath = parseFileDatabasePath(databaseUrl);
 
   const [cpu, mem, osInfo, graphics] = await Promise.all([
-    si.cpu().catch((error) => {
-      collectionErrors.push(`cpu: ${error instanceof Error ? error.message : error}`);
-      return null;
-    }),
-    si.mem().catch((error) => {
-      collectionErrors.push(`memory: ${error instanceof Error ? error.message : error}`);
-      return null;
-    }),
-    si.osInfo().catch((error) => {
-      collectionErrors.push(`os: ${error instanceof Error ? error.message : error}`);
-      return null;
-    }),
     (async () => {
-      if (cachedGraphics) return cachedGraphics;
-      const g = await si.graphics().catch((error) => {
-        collectionErrors.push(`graphics: ${error instanceof Error ? error.message : error}`);
-        return null;
-      });
-      if (g) cachedGraphics = g;
+      const value = await getCpuInfo();
+      if (value === null) collectionErrors.push("cpu: unavailable");
+      return value;
+    })(),
+    (async () => {
+      const value = await getMemInfo();
+      if (value === null) collectionErrors.push("memory: unavailable");
+      return value;
+    })(),
+    (async () => {
+      const value = await getOsInfo();
+      if (value === null) collectionErrors.push("os: unavailable");
+      return value;
+    })(),
+    (async () => {
+      const g = await getGraphicsInfo();
+      if (!g) collectionErrors.push("graphics: unavailable");
       return g;
     })(),
   ]);

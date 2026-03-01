@@ -1,7 +1,6 @@
 import { app, clipboard, dialog, shell } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
-import si from "systeminformation";
 import * as z from "zod";
 import {
   clearDebugLogFile,
@@ -21,33 +20,12 @@ import {
   normalizeDebugLogMaxFileSizeMb,
   type DebugLogLevel,
 } from "../../../src/constants/debugSettings";
+import { listAvailableGpus, type AvailableGpu } from "../../services/systemInfoCache";
 import { publicProcedure, router } from "../trpc";
 
 const ZDebugLogLevel = z.enum(DEBUG_LOG_LEVELS);
 
-export type AvailableGpu = {
-  index: number;
-  name: string;
-};
-
-let cachedAvailableGpus: AvailableGpu[] | null = null;
-
-async function listAvailableGpus(): Promise<AvailableGpu[]> {
-  if (cachedAvailableGpus !== null) {
-    return cachedAvailableGpus;
-  }
-  try {
-    const graphics = await si.graphics();
-    cachedAvailableGpus = graphics.controllers.map((controller, index) => ({
-      index,
-      name: [controller.vendor, controller.model].filter(Boolean).join(" ") || `GPU ${index}`,
-    }));
-    return cachedAvailableGpus;
-  } catch {
-    cachedAvailableGpus = [];
-    return cachedAvailableGpus;
-  }
-}
+export type { AvailableGpu };
 
 export const debugRouter = router({
   getState: publicProcedure.query(() => getDebugState()),

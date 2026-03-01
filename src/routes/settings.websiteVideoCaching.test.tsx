@@ -47,6 +47,8 @@ const mocks = vi.hoisted(() => {
       intifaceWebsocketUrl: "ws://127.0.0.1:12345",
       intifaceDeviceName: null as string | null,
       intifaceDeviceIndex: null as number | null,
+      intifaceVibrationSensitivity: 1,
+      setIntifaceVibrationSensitivity: vi.fn(async () => {}),
       offsetMs: 0,
       strokeMin: 0,
       strokeMax: 1,

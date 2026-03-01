@@ -33,6 +33,12 @@ function createModule(devices: unknown[]) {
           position,
         }),
       },
+      Vibrate: {
+        speed: (intensity: number) => ({
+          type: "vibrate",
+          intensity,
+        }),
+      },
     },
     ButtplugBrowserWebsocketClientConnector: vi.fn(function Connector(
       this: unknown,
@@ -58,6 +64,7 @@ const config: HapticsConnectionConfig = {
   deviceName: null,
   deviceIndex: null,
   stroke: { min: 0.2, max: 0.8, minAbsolute: null, maxAbsolute: null },
+  vibrationSensitivity: 1,
 };
 
 describe("intifaceAdapter", () => {
@@ -111,7 +118,25 @@ describe("intifaceAdapter", () => {
     });
   });
 
-  it("fails clearly when only non-position devices exist", async () => {
+  it("fails clearly when no position- or vibration-capable devices exist", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule([
+        {
+          name: "Sensor Device",
+          hasOutput: (type: unknown) => type === "Battery",
+          runOutput,
+          stop,
+        },
+      ]) as never
+    );
+
+    const result = await intifaceAdapter.verifyConnection(config);
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain("no position- or vibration-capable device");
+  });
+
+  it("connects to a vibration-only device", async () => {
     setIntifaceButtplugModuleForTests(
       createModule([
         {
@@ -125,8 +150,109 @@ describe("intifaceAdapter", () => {
 
     const result = await intifaceAdapter.verifyConnection(config);
 
-    expect(result.success).toBe(false);
-    expect(result.message).toContain("no linear/position-capable device");
+    expect(result).toMatchObject({
+      success: true,
+      provider: "intiface",
+      deviceName: "Vibe Device",
+      deviceIndex: 0,
+    });
+  });
+
+  it("prefers a position device over a vibration device when both are present", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule([
+        {
+          name: "Vibe Device",
+          hasOutput: (type: unknown) => type === "Vibrate",
+          runOutput,
+          stop,
+        },
+        {
+          name: "Linear Device",
+          hasOutput: (type: unknown) => type === "Position",
+          runOutput,
+          stop,
+        },
+      ]) as never
+    );
+
+    const session = await intifaceAdapter.createSession(config);
+
+    expect(session.deviceMode).toBe("position");
+    expect(session.deviceName).toBe("Linear Device");
+  });
+
+  it("translates funscript stroke speed into vibration intensity", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule([
+        {
+          name: "Vibe Device",
+          hasOutput: (type: unknown) => type === "Vibrate",
+          runOutput,
+          stop,
+        },
+      ]) as never
+    );
+    const session = await intifaceAdapter.createSession(config);
+
+    await intifaceAdapter.sendSync(config, session, 500, 1, "script", [
+      { at: 0, pos: 0 },
+      { at: 1000, pos: 100 },
+    ]);
+
+    expect(runOutput).toHaveBeenCalledWith({
+      type: "vibrate",
+      intensity: 0.25,
+    });
+  });
+
+  it("scales vibration intensity by sensitivity", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule([
+        {
+          name: "Vibe Device",
+          hasOutput: (type: unknown) => type === "Vibrate",
+          runOutput,
+          stop,
+        },
+      ]) as never
+    );
+    const sensitiveConfig = { ...config, vibrationSensitivity: 2 };
+    const session = await intifaceAdapter.createSession(sensitiveConfig);
+
+    await intifaceAdapter.sendSync(sensitiveConfig, session, 500, 1, "script", [
+      { at: 0, pos: 0 },
+      { at: 1000, pos: 100 },
+    ]);
+
+    expect(runOutput).toHaveBeenCalledWith({
+      type: "vibrate",
+      intensity: 0.5,
+    });
+  });
+
+  it("emits zero intensity during a held funscript segment", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule([
+        {
+          name: "Vibe Device",
+          hasOutput: (type: unknown) => type === "Vibrate",
+          runOutput,
+          stop,
+        },
+      ]) as never
+    );
+    const session = await intifaceAdapter.createSession(config);
+
+    await intifaceAdapter.sendSync(config, session, 500, 1, "script", [
+      { at: 0, pos: 50 },
+      { at: 1000, pos: 50 },
+    ]);
+
+    expect(runOutput).toHaveBeenCalledWith({
+      type: "vibrate",
+      intensity: 0,
+    });
   });
 
   it("sends interpolated position with short duration", async () => {

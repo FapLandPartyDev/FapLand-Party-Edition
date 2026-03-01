@@ -29,6 +29,9 @@ import {
   DEFAULT_TCODE_BAUD_RATE,
   DEFAULT_TCODE_WEBSOCKET_HOST,
   DEFAULT_TCODE_WEBSOCKET_URL,
+  INTIFACE_VIBRATION_SENSITIVITY_MAX,
+  INTIFACE_VIBRATION_SENSITIVITY_MIN,
+  INTIFACE_VIBRATION_SENSITIVITY_STEP,
 } from "../constants/haptics";
 import {
   normalizeTCodeBaudRate,
@@ -43,9 +46,8 @@ import { DEFAULT_MOANING_VOLUME } from "../constants/moaningSettings";
 import { useHandy } from "../contexts/HandyContext";
 import {
   HAPTICS_TEST_ACTIONS,
-  HAPTICS_TEST_BEATBAR_EVENTS,
+  HAPTICS_TEST_BEATBAR_BEATS,
   HAPTICS_TEST_BEATBAR_STYLE,
-  HAPTICS_TEST_BEAT_HITS,
   HAPTICS_TEST_PERIOD_MS,
 } from "../constants/hapticsTest";
 import { useGlobalMusic } from "../hooks/useGlobalMusic";
@@ -213,6 +215,7 @@ import {
   DEFAULT_GRAPHICS_DISABLE_GPU_COMPOSITING_ENABLED,
   DEFAULT_GRAPHICS_DISABLE_GPU_RASTERIZATION_ENABLED,
   DEFAULT_GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED,
+  DEFAULT_GRAPHICS_DISABLE_GPU_VSYNC_ENABLED,
   DEFAULT_GRAPHICS_DISABLE_WEBGL2_ENABLED,
   DEFAULT_GRAPHICS_DISABLE_ZERO_COPY_ENABLED,
   DEFAULT_GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED,
@@ -223,6 +226,7 @@ import {
   GRAPHICS_DISABLE_GPU_COMPOSITING_ENABLED_KEY,
   GRAPHICS_DISABLE_GPU_RASTERIZATION_ENABLED_KEY,
   GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED_KEY,
+  GRAPHICS_DISABLE_GPU_VSYNC_ENABLED_KEY,
   GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY,
   GRAPHICS_DISABLE_ZERO_COPY_ENABLED_KEY,
   GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY,
@@ -863,6 +867,9 @@ export function SettingsPage() {
     graphicsDisableAcceleratedVideoEncodeEnabled,
     setGraphicsDisableAcceleratedVideoEncodeEnabled,
   ] = useState(DEFAULT_GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED);
+  const [graphicsDisableGpuVsyncEnabled, setGraphicsDisableGpuVsyncEnabled] = useState(
+    DEFAULT_GRAPHICS_DISABLE_GPU_VSYNC_ENABLED
+  );
   const [graphicsForceAngleOpenGLEnabled, setGraphicsForceAngleOpenGLEnabled] = useState(
     DEFAULT_GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED
   );
@@ -992,6 +999,7 @@ export function SettingsPage() {
         GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED_KEY,
         GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED_KEY,
         GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED_KEY,
+        GRAPHICS_DISABLE_GPU_VSYNC_ENABLED_KEY,
         GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY,
         GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY,
       ];
@@ -1064,6 +1072,8 @@ export function SettingsPage() {
           storeValues[GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED_KEY];
         const rawGraphicsDisableAcceleratedVideoEncodeEnabled =
           storeValues[GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED_KEY];
+        const rawGraphicsDisableGpuVsyncEnabled =
+          storeValues[GRAPHICS_DISABLE_GPU_VSYNC_ENABLED_KEY];
         const rawGraphicsForceAngleOpenGLEnabled =
           storeValues[GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY];
         const rawGraphicsDisableWebgl2Enabled = storeValues[GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY];
@@ -1195,6 +1205,9 @@ export function SettingsPage() {
         setGraphicsDisableAcceleratedVideoEncodeEnabled(
           normalizeGraphicsBoolean(rawGraphicsDisableAcceleratedVideoEncodeEnabled)
         );
+        setGraphicsDisableGpuVsyncEnabled(
+          normalizeGraphicsBoolean(rawGraphicsDisableGpuVsyncEnabled)
+        );
         setGraphicsForceAngleOpenGLEnabled(
           normalizeGraphicsBoolean(rawGraphicsForceAngleOpenGLEnabled)
         );
@@ -1223,14 +1236,6 @@ export function SettingsPage() {
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    void refreshBinaryDiagnostics();
-  }, [refreshBinaryDiagnostics]);
-
-  useEffect(() => {
-    void refreshDebugInfo();
-  }, [refreshDebugInfo]);
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.eroscripts.subscribeToLoginStatus((status) => {
@@ -2051,6 +2056,22 @@ export function SettingsPage() {
             },
           },
           {
+            id: "graphics-disable-gpu-vsync",
+            type: "toggle",
+            label: t`Disable GPU VSync`,
+            description: t`Passes Chromium --disable-gpu-vsync on startup. Use for graphics timing diagnostics or vsync-related stalls. Requires an app restart.`,
+            value: graphicsDisableGpuVsyncEnabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: GRAPHICS_DISABLE_GPU_VSYNC_ENABLED_KEY,
+                value: next,
+              });
+              setGraphicsDisableGpuVsyncEnabled(next);
+              setDebugMessage(t`Graphics setting saved. Restart the app to apply it.`);
+              await refreshDebugInfo();
+            },
+          },
+          {
             id: "graphics-force-angle-opengl",
             type: "toggle",
             label: t`Force OpenGL ANGLE Backend`,
@@ -2278,6 +2299,7 @@ export function SettingsPage() {
       graphicsDisableAcceleratedVideoDecodeEnabled,
       graphicsDisableGpuShaderDiskCacheEnabled,
       graphicsDisableAcceleratedVideoEncodeEnabled,
+      graphicsDisableGpuVsyncEnabled,
       graphicsForceAngleOpenGLEnabled,
       graphicsDisableWebgl2Enabled,
       refreshDebugInfo,
@@ -2298,6 +2320,16 @@ export function SettingsPage() {
       setActiveSectionId(sections[0]?.id ?? "general");
     }
   }, [sections, activeSectionId]);
+
+  useEffect(() => {
+    if (activeSectionId !== "advanced") return;
+    void refreshBinaryDiagnostics();
+  }, [activeSectionId, refreshBinaryDiagnostics]);
+
+  useEffect(() => {
+    if (activeSectionId !== "debug") return;
+    void refreshDebugInfo();
+  }, [activeSectionId, refreshDebugInfo]);
 
   const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0];
 
@@ -4111,6 +4143,8 @@ function HardwareSettingsCard({
     intifaceWebsocketUrl,
     intifaceDeviceName,
     intifaceDeviceIndex,
+    intifaceVibrationSensitivity,
+    setIntifaceVibrationSensitivity,
     tcodeTransport,
     tcodeSerialPath,
     tcodeBaudRate,
@@ -4383,7 +4417,7 @@ function HardwareSettingsCard({
                   <p className="ml-1 text-xs text-zinc-400">
                     <Trans>
                       Start Intiface Central, start its server, then connect to a
-                      linear/position-capable device.
+                      linear/position- or vibration-capable device.
                     </Trans>
                   </p>
                   {intifaceDeviceName || intifaceDeviceIndex !== null ? (
@@ -4392,6 +4426,43 @@ function HardwareSettingsCard({
                       {intifaceDeviceIndex !== null ? `#${intifaceDeviceIndex}` : ""}
                     </p>
                   ) : null}
+                  <div className="mt-2">
+                    <label
+                      className="mb-2 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-100/70"
+                      htmlFor="settings-intiface-vibration-sensitivity"
+                    >
+                      <Trans>Vibration Sensitivity</Trans>
+                    </label>
+                    <input
+                      id="settings-intiface-vibration-sensitivity"
+                      type="range"
+                      min={INTIFACE_VIBRATION_SENSITIVITY_MIN}
+                      max={INTIFACE_VIBRATION_SENSITIVITY_MAX}
+                      step={INTIFACE_VIBRATION_SENSITIVITY_STEP}
+                      value={intifaceVibrationSensitivity}
+                      aria-label={t`Intiface vibration sensitivity`}
+                      onChange={(event) => {
+                        const next = Number(event.target.value);
+                        if (!Number.isFinite(next)) return;
+                        setIntifaceVibrationSensitivity(
+                          Math.max(
+                            INTIFACE_VIBRATION_SENSITIVITY_MIN,
+                            Math.min(INTIFACE_VIBRATION_SENSITIVITY_MAX, next)
+                          )
+                        );
+                      }}
+                      className="w-full accent-cyan-500"
+                    />
+                    <p className="ml-1 text-xs text-zinc-400">
+                      <Trans>
+                        Only affects vibration-only toys. Higher values map funscript stroke
+                        speed to stronger vibration.
+                      </Trans>{" "}
+                      <span className="font-[family-name:var(--font-jetbrains-mono)] text-cyan-100">
+                        {intifaceVibrationSensitivity.toFixed(2)}x
+                      </span>
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : provider === "tcode" ? (
@@ -4729,8 +4800,7 @@ function HardwareSettingsCard({
               <div className="relative h-28 rounded-lg border border-fuchsia-300/15 bg-[radial-gradient(circle_at_50%_50%,rgba(244,63,94,0.18),rgba(2,6,23,0.9)_68%)]">
                 <AntiPerkBeatbar
                   actions={HAPTICS_TEST_ACTIONS}
-                  beatbarEvents={HAPTICS_TEST_BEATBAR_EVENTS}
-                  beatHits={HAPTICS_TEST_BEAT_HITS}
+                  beatbarBeats={HAPTICS_TEST_BEATBAR_BEATS}
                   elapsedMs={normalizedTestElapsedMs}
                   showBeatbar={false}
                   showBall

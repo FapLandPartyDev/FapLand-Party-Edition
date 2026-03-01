@@ -6,15 +6,25 @@ import { abbreviateNsfwText } from "../../../utils/sfwText";
 import type { EditorNode } from "../EditorState";
 import type { TileCatalogCategory, TileCatalogTile } from "../tileCatalog";
 
+export interface HeroGroupItem {
+  heroId: string;
+  heroName: string;
+  heroAuthor: string | null;
+  rounds: ReadonlyArray<unknown>;
+}
+
 interface TileSidebarProps {
   categoryTabs: ReadonlyArray<{ id: TileCatalogCategory["id"] | "all"; label: string }>;
   activeCategory: TileCatalogCategory["id"] | "all";
   tileSearch: string;
   filteredTiles: ReadonlyArray<TileCatalogTile & { kind: EditorNode["kind"] }>;
   activePlacementKind: EditorNode["kind"];
+  heroGroups: ReadonlyArray<HeroGroupItem>;
+  isHeroPlacementActive: boolean;
   onCategoryChange: (category: TileCatalogCategory["id"] | "all") => void;
   onSearchChange: (search: string) => void;
   onArmTile: (tile: TileCatalogTile & { kind: EditorNode["kind"] }) => void;
+  onArmHero: (heroGroup: HeroGroupItem) => void;
 }
 
 const KIND_COLOR_MAP: Record<string, string> = {
@@ -35,12 +45,16 @@ export const TileSidebar: React.FC<TileSidebarProps> = React.memo(
     tileSearch,
     filteredTiles,
     activePlacementKind,
+    heroGroups,
+    isHeroPlacementActive,
     onCategoryChange,
     onSearchChange,
     onArmTile,
+    onArmHero,
   }) => {
     const { t } = useLingui();
     const sfwMode = useSfwMode();
+    const [heroesExpanded, setHeroesExpanded] = React.useState(false);
 
     return (
       <aside className="editor-panel flex min-h-0 w-full flex-col rounded-xl border border-white/8 bg-black/30 xl:w-64 xl:flex-shrink-0">
@@ -91,7 +105,7 @@ export const TileSidebar: React.FC<TileSidebarProps> = React.memo(
         {/* ── Tile list ─────────────────── */}
         <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-2">
           {filteredTiles.map((tile, index) => {
-            const isActive = activePlacementKind === tile.kind;
+            const isActive = activePlacementKind === tile.kind && !isHeroPlacementActive;
             const dotColor = KIND_COLOR_MAP[tile.kind] ?? "bg-zinc-500";
             return (
               <button
@@ -132,6 +146,60 @@ export const TileSidebar: React.FC<TileSidebarProps> = React.memo(
             </div>
           )}
         </div>
+
+        {/* ── Heroes section ─────────────────── */}
+        {heroGroups.length > 0 && (
+          <div className="flex-shrink-0 border-t border-white/6">
+            <button
+              type="button"
+              onClick={() => {
+                playSelectSound();
+                setHeroesExpanded((v) => !v);
+              }}
+              onMouseEnter={playHoverSound}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-white/3"
+            >
+              <span className={`text-[10px] text-amber-300/70 transition-transform ${heroesExpanded ? "rotate-90" : ""}`}>▶</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-200/80">
+                <Trans>Heroes</Trans>
+              </span>
+              <span className="ml-auto rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-300/70">
+                {heroGroups.length}
+              </span>
+            </button>
+            {heroesExpanded && (
+              <div className="max-h-48 space-y-0.5 overflow-y-auto px-2 pb-2">
+                {heroGroups.map((group) => (
+                  <button
+                    key={group.heroId}
+                    type="button"
+                    className={`group w-full rounded-lg border px-2.5 py-1.5 text-left text-xs transition-all ${
+                      isHeroPlacementActive
+                        ? "border-cyan-400/50 bg-cyan-500/12 text-cyan-100"
+                        : "border-transparent hover:border-amber-400/30 hover:bg-amber-500/8"
+                    }`}
+                    onMouseEnter={playHoverSound}
+                    onClick={() => onArmHero(group)}
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="truncate font-medium text-zinc-200 group-hover:text-white">
+                        {group.heroName}
+                      </span>
+                      <span className="shrink-0 rounded-full bg-white/6 px-1.5 py-0.5 text-[10px] text-zinc-500">
+                        {group.rounds.length} <Trans>rounds</Trans>
+                      </span>
+                    </div>
+                    {group.heroAuthor && (
+                      <div className="mt-0.5 truncate text-[11px] text-zinc-600">
+                        {group.heroAuthor}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </aside>
     );
   }

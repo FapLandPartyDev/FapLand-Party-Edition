@@ -8,6 +8,7 @@ import type {
 } from "../../game/types";
 import type { InstalledRound } from "../../services/db";
 import { extractBeatbarMotionEvents, getAntiPerkSequenceDefinition } from "./antiPerkSequences";
+import { AntiPerkBeatbar } from "./AntiPerkBeatbar";
 import * as handyRuntime from "../../services/haptics/runtime";
 import * as booru from "../../services/booru";
 
@@ -1607,6 +1608,7 @@ describe("RoundVideoOverlay", () => {
   });
 
   it("renders a beatbar for milker sequences when enabled", async () => {
+    disableAnimationFrameLoop();
     renderOverlay({ activeRound: null, boardSequence: "milker" });
     expect(await screen.findByTestId("anti-perk-beatbar")).not.toBeNull();
   });
@@ -1635,6 +1637,7 @@ describe("RoundVideoOverlay", () => {
   });
 
   it("renders a beatbar for jackhammer sequences when enabled", async () => {
+    disableAnimationFrameLoop();
     renderOverlay({ activeRound: null, boardSequence: "jackhammer" });
     expect(await screen.findByTestId("anti-perk-beatbar")).not.toBeNull();
   });
@@ -1649,7 +1652,54 @@ describe("RoundVideoOverlay", () => {
     expect(sequenceCard.parentElement?.className).not.toContain("left-1/2");
   });
 
-  it("renders multiple preview markers from the generated anti-perk motion", async () => {
+  it("renders one preview marker per visible low-point beat", async () => {
+    render(
+      <AntiPerkBeatbar
+        actions={[
+          { at: 0, pos: 80 },
+          { at: 300, pos: 10 },
+          { at: 600, pos: 90 },
+          { at: 900, pos: 12 },
+          { at: 1200, pos: 82 },
+        ]}
+        beatbarBeats={[
+          { at: 300, lowPos: 10, fromPos: 80, strength: 1 },
+          { at: 900, lowPos: 12, fromPos: 90, strength: 1 },
+        ]}
+        elapsedMs={0}
+        showBeatbar
+        showBall={false}
+        style="jackhammer"
+      />
+    );
+
+    expect(await screen.findAllByTestId("anti-perk-beat-note")).toHaveLength(2);
+    expect(screen.queryByTestId("anti-perk-position-ball")).toBeNull();
+  });
+
+  it("scrolls beatbar notes as elapsed time advances", async () => {
+    const props = {
+      actions: [
+        { at: 0, pos: 80 },
+        { at: 600, pos: 10 },
+        { at: 900, pos: 90 },
+      ],
+      beatbarBeats: [{ at: 600, lowPos: 10, fromPos: 80, strength: 1 }],
+      showBeatbar: true,
+      showBall: false,
+      style: "jackhammer" as const,
+    };
+    const view = render(<AntiPerkBeatbar {...props} elapsedMs={0} />);
+    const note = (await screen.findByTestId("anti-perk-beat-note")) as HTMLElement;
+    const initialLeft = Number.parseFloat(note.style.left);
+
+    view.rerender(<AntiPerkBeatbar {...props} elapsedMs={300} />);
+
+    expect(Number.parseFloat(note.style.left)).toBeLessThan(initialLeft);
+  });
+
+  it("renders multiple preview markers from generated low-point anti-perk beats", async () => {
+    disableAnimationFrameLoop();
     renderOverlay({ activeRound: null, boardSequence: "jackhammer" });
     expect((await screen.findAllByTestId("anti-perk-beat-note")).length).toBeGreaterThan(1);
     expect(screen.queryByTestId("anti-perk-position-ball")).toBeNull();
@@ -1685,6 +1735,7 @@ describe("RoundVideoOverlay", () => {
   });
 
   it("hides the beatbar when the setting is disabled", async () => {
+    disableAnimationFrameLoop();
     renderOverlay({
       activeRound: null,
       boardSequence: "milker",
@@ -1696,12 +1747,14 @@ describe("RoundVideoOverlay", () => {
   });
 
   it("renders the beatbar even when TheHandy is disconnected", async () => {
+    disableAnimationFrameLoop();
     mocks.handy.connected = false;
     renderOverlay({ activeRound: null, boardSequence: "jackhammer" });
     expect(await screen.findByTestId("anti-perk-beatbar")).not.toBeNull();
   });
 
   it("shows only the moving Handy position ball when TheHandy is connected", async () => {
+    disableAnimationFrameLoop();
     mocks.handy.connected = true;
     renderOverlay({ activeRound: null, boardSequence: "jackhammer" });
     expect(await screen.findByTestId("anti-perk-beatbar")).not.toBeNull();

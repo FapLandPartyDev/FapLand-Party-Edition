@@ -1,14 +1,13 @@
 import type { FunscriptAction } from "../../game/media/playback";
 import { getFunscriptPositionAtMs } from "../../game/media/playback";
-import type { BeatbarMotionEvent, BeatbarVisualStyle, BeatHit } from "./antiPerkSequences";
+import type { BeatbarBeat, BeatbarVisualStyle } from "./antiPerkSequences";
 
 const ANTI_PERK_BEATBAR_LEAD_MS = 1_800;
 const ANTI_PERK_BEATBAR_TRAIL_MS = 300;
 
 export function AntiPerkBeatbar({
   actions,
-  beatbarEvents,
-  beatHits,
+  beatbarBeats,
   elapsedMs,
   showBeatbar,
   showBall,
@@ -16,8 +15,7 @@ export function AntiPerkBeatbar({
   className = "pointer-events-none absolute inset-x-0 bottom-[12%] z-[62] mx-auto w-[min(92vw,960px)] px-4",
 }: {
   actions: FunscriptAction[];
-  beatbarEvents: BeatbarMotionEvent[];
-  beatHits: BeatHit[];
+  beatbarBeats: BeatbarBeat[];
   elapsedMs: number;
   showBeatbar: boolean;
   showBall: boolean;
@@ -26,17 +24,17 @@ export function AntiPerkBeatbar({
 }) {
   const noteColor = style === "jackhammer" ? "rgba(251,113,133,0.98)" : "rgba(34,211,238,0.98)";
   const glowColor = style === "jackhammer" ? "rgba(251,113,133,0.52)" : "rgba(34,211,238,0.46)";
-  const activeIndex = beatHits.findIndex((hit) => elapsedMs < hit.at);
+  const activeIndex = beatbarBeats.findIndex((beat) => elapsedMs < beat.at);
   const hitPulse =
-    activeIndex >= 0 && activeIndex < beatHits.length
-      ? Math.max(0, 1 - Math.abs(beatHits[activeIndex]!.at - elapsedMs) / 110)
+    activeIndex >= 0 && activeIndex < beatbarBeats.length
+      ? Math.max(0, 1 - Math.abs(beatbarBeats[activeIndex]!.at - elapsedMs) / 110)
       : 0;
   const currentPosition =
     actions.length > 0 ? (getFunscriptPositionAtMs({ actions }, elapsedMs) ?? 50) : 50;
-  const visibleEvents = beatbarEvents.filter(
-    (event) =>
-      event.at >= elapsedMs - ANTI_PERK_BEATBAR_TRAIL_MS &&
-      event.at <= elapsedMs + ANTI_PERK_BEATBAR_LEAD_MS
+  const visibleBeats = beatbarBeats.filter(
+    (beat) =>
+      beat.at >= elapsedMs - ANTI_PERK_BEATBAR_TRAIL_MS &&
+      beat.at <= elapsedMs + ANTI_PERK_BEATBAR_LEAD_MS
   );
   const positionToPercent = (pos: number) => 88 - pos * 0.76;
 
@@ -52,10 +50,8 @@ export function AntiPerkBeatbar({
           }}
         />
         {showBeatbar &&
-          visibleEvents.map((event) => {
-            if (event.kind === "vibration") return null;
-
-            const relativeMs = event.at - elapsedMs;
+          visibleBeats.map((beat) => {
+            const relativeMs = beat.at - elapsedMs;
             const normalized =
               (relativeMs + ANTI_PERK_BEATBAR_TRAIL_MS) /
               (ANTI_PERK_BEATBAR_LEAD_MS + ANTI_PERK_BEATBAR_TRAIL_MS);
@@ -69,14 +65,14 @@ export function AntiPerkBeatbar({
 
             return (
               <div
-                key={`${event.at}-${event.toPos}-downstroke`}
+                key={`${beat.at}-${beat.lowPos}-low-point`}
                 className="absolute -translate-x-1/2 rounded-full"
                 data-testid="anti-perk-beat-note"
                 style={{
                   left: `${left}%`,
                   top: "12%",
                   bottom: "12%",
-                  width: `${style === "jackhammer" ? 9 : 11 + event.strength * 2}px`,
+                  width: `${style === "jackhammer" ? 9 : 11 + beat.strength * 2}px`,
                   background: `linear-gradient(180deg, rgba(255,255,255,0.88), ${noteColor} 28%, rgba(255,255,255,0.28) 100%)`,
                   boxShadow: `0 0 ${12 + proximity * 16}px ${glowColor}`,
                   opacity: 0.4 + proximity * 0.52,

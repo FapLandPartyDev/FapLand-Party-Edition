@@ -9,6 +9,7 @@ import {
   GRAPHICS_DISABLE_GPU_COMPOSITING_ENABLED_KEY,
   GRAPHICS_DISABLE_GPU_RASTERIZATION_ENABLED_KEY,
   GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED_KEY,
+  GRAPHICS_DISABLE_GPU_VSYNC_ENABLED_KEY,
   GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY,
   GRAPHICS_DISABLE_ZERO_COPY_ENABLED_KEY,
   GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY,
@@ -29,6 +30,7 @@ const defaultSettings = {
   disableAcceleratedVideoDecodeEnabled: false,
   disableGpuShaderDiskCacheEnabled: false,
   disableAcceleratedVideoEncodeEnabled: false,
+  disableGpuVsyncEnabled: false,
   forceAngleOpenGL: false,
   disableWebgl2: false,
 };
@@ -161,12 +163,14 @@ describe("graphicsCompatibility", () => {
     expect(applied.appendedSwitches).not.toContain("disable-accelerated-video-decode");
     expect(applied.appendedSwitches).not.toContain("disable-gpu-shader-disk-cache");
     expect(applied.appendedSwitches).not.toContain("disable-accelerated-video-encode");
+    expect(applied.appendedSwitches).not.toContain("disable-gpu-vsync");
     expect(applied.appendedSwitches).not.toContain("use-angle=gl");
     expect(applied.appendedSwitches).not.toContain("disable-webgl2");
     expect(appendSwitch).not.toHaveBeenCalledWith("disable-gpu-compositing", undefined);
     expect(appendSwitch).not.toHaveBeenCalledWith("disable-accelerated-video-decode", undefined);
     expect(appendSwitch).not.toHaveBeenCalledWith("disable-gpu-shader-disk-cache", undefined);
     expect(appendSwitch).not.toHaveBeenCalledWith("disable-accelerated-video-encode", undefined);
+    expect(appendSwitch).not.toHaveBeenCalledWith("disable-gpu-vsync", undefined);
     expect(appendSwitch).not.toHaveBeenCalledWith("use-angle", "gl");
     expect(appendSwitch).not.toHaveBeenCalledWith("disable-webgl2", undefined);
   });
@@ -181,6 +185,7 @@ describe("graphicsCompatibility", () => {
       [GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED_KEY, false],
       [GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED_KEY, true],
       [GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED_KEY, "true"],
+      [GRAPHICS_DISABLE_GPU_VSYNC_ENABLED_KEY, true],
       [GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY, false],
       [GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY, "true"],
     ]);
@@ -194,6 +199,7 @@ describe("graphicsCompatibility", () => {
       disableAcceleratedVideoDecodeEnabled: false,
       disableGpuShaderDiskCacheEnabled: true,
       disableAcceleratedVideoEncodeEnabled: true,
+      disableGpuVsyncEnabled: true,
       forceAngleOpenGL: false,
       disableWebgl2: true,
     });
@@ -268,6 +274,24 @@ describe("graphicsCompatibility", () => {
 
     expect(applied.appendedSwitches).toContain("disable-accelerated-video-encode");
     expect(appendSwitch).toHaveBeenCalledWith("disable-accelerated-video-encode", undefined);
+  });
+
+  it("appends disable-gpu-vsync when disableGpuVsyncEnabled is true", () => {
+    const appendSwitch = vi.fn();
+
+    const applied = applyGraphicsCompatibilityFlags(
+      {
+        commandLine: { appendSwitch },
+        disableHardwareAcceleration: vi.fn(),
+      },
+      {
+        ...defaultSettings,
+        disableGpuVsyncEnabled: true,
+      }
+    );
+
+    expect(applied.appendedSwitches).toContain("disable-gpu-vsync");
+    expect(appendSwitch).toHaveBeenCalledWith("disable-gpu-vsync", undefined);
   });
 
   it("appends use-angle=gl when forceAngleOpenGL is true", () => {
@@ -347,6 +371,13 @@ describe("graphicsCompatibility", () => {
     ).toBe(true);
     expect(
       persistGraphicsCompatibilityStartupSetting(
+        GRAPHICS_DISABLE_GPU_VSYNC_ENABLED_KEY,
+        true,
+        store
+      )
+    ).toBe(true);
+    expect(
+      persistGraphicsCompatibilityStartupSetting(
         GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY,
         false,
         store
@@ -360,6 +391,6 @@ describe("graphicsCompatibility", () => {
       )
     ).toBe(true);
 
-    expect(set).toHaveBeenCalledTimes(7);
+    expect(set).toHaveBeenCalledTimes(8);
   });
 });

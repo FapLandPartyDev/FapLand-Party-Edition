@@ -49,6 +49,12 @@ export type TargetDetectionFailure = {
 
 export type TargetDetectionResult = TargetDetectionSuccess | TargetDetectionFailure;
 
+const CADENCE_PADDING_MIN_MS = 500;
+const CADENCE_PADDING_MAX_MS = 3_000;
+const CADENCE_PADDING_FALLBACK_MS = 1_500;
+const CADENCE_INTERVAL_LIMIT_MS = 5_000;
+const MIN_RAW_ROUND_MS = 1;
+
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min;
   if (value > max) return max;
@@ -65,6 +71,140 @@ function normalizeActions(actions: DetectionAction[]): DetectionAction[] {
     .sort((a, b) => a.at - b.at);
 }
 
+function getActionsInDuration(actions: DetectionAction[], durationMs: number): DetectionAction[] {
+  return actions.filter((action) => action.at >= 0 && action.at <= durationMs);
+}
+
+function actionHasMovementNeighbor(actions: DetectionAction[], index: number): boolean {
+  const action = actions[index];
+  if (!action) return false;
+
+  const previous = actions[index - 1];
+  if (previous && previous.at !== action.at && previous.pos !== action.pos) return true;
+
+  const next = actions[index + 1];
+  if (next && next.at !== action.at && next.pos !== action.pos) return true;
+
+  return false;
+}
+
+function getActionExtent(
+  actions: DetectionAction[],
+  durationMs: number
+): { firstActionAt: number; lastActionAt: number; firstIndex: number; lastIndex: number } | null {
+  const inDuration = getActionsInDuration(actions, durationMs);
+  if (inDuration.length === 0) return null;
+
+  const firstMovingIndex = inDuration.findIndex((_, index) =>
+    actionHasMovementNeighbor(inDuration, index)
+  );
+  if (firstMovingIndex < 0) {
+    const first = inDuration[0];
+    const last = inDuration[inDuration.length - 1];
+    if (!first || !last) return null;
+    return {
+      firstActionAt: first.at,
+      lastActionAt: last.at,
+      firstIndex: 0,
+      lastIndex: inDuration.length - 1,
+    };
+  }
+
+  let lastMovingIndex = firstMovingIndex;
+  for (let index = inDuration.length - 1; index >= firstMovingIndex; index -= 1) {
+    if (actionHasMovementNeighbor(inDuration, index)) {
+      lastMovingIndex = index;
+      break;
+    }
+  }
+
+  const first = inDuration[firstMovingIndex];
+  const last = inDuration[lastMovingIndex];
+  if (!first || !last) return null;
+
+  return {
+    firstActionAt: first.at,
+    lastActionAt: last.at,
+    firstIndex: firstMovingIndex,
+    lastIndex: lastMovingIndex,
+  };
+}
+
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) return sorted[middle] ?? null;
+  const left = sorted[middle - 1];
+  const right = sorted[middle];
+  if (left === undefined || right === undefined) return null;
+  return (left + right) / 2;
+}
+
+function estimateCadencePaddingMs(
+  actions: DetectionAction[],
+  edge: "start" | "end",
+  options: { minMs?: number; maxMs?: number; pauseGapMs?: number; actionIndex?: number } = {}
+): number {
+  const minMs = Math.max(1, Math.floor(options.minMs ?? CADENCE_PADDING_MIN_MS));
+  const maxMs = Math.max(minMs, Math.floor(options.maxMs ?? CADENCE_PADDING_MAX_MS));
+  const intervalLimit = Math.max(
+    minMs,
+    Math.floor(options.pauseGapMs ?? CADENCE_INTERVAL_LIMIT_MS)
+  );
+  const intervals: number[] = [];
+
+  if (edge === "start") {
+    const startIndex = Math.max(0, Math.floor(options.actionIndex ?? 0));
+    for (let index = startIndex + 1; index < actions.length && intervals.length < 5; index += 1) {
+      const previous = actions[index - 1];
+      const current = actions[index];
+      if (!previous || !current) continue;
+      const interval = current.at - previous.at;
+      if (interval > 0 && interval < intervalLimit) intervals.push(interval);
+    }
+  } else {
+    const endIndex = Math.min(
+      actions.length - 1,
+      Math.floor(options.actionIndex ?? actions.length - 1)
+    );
+    for (let index = endIndex; index > 0 && intervals.length < 5; index -= 1) {
+      const previous = actions[index - 1];
+      const current = actions[index];
+      if (!previous || !current) continue;
+      const interval = current.at - previous.at;
+      if (interval > 0 && interval < intervalLimit) intervals.push(interval);
+    }
+  }
+
+  const cadence = median(intervals);
+  if (cadence === null) return clamp(CADENCE_PADDING_FALLBACK_MS, minMs, maxMs);
+  return clamp(Math.round(cadence * 2.5), minMs, maxMs);
+}
+
+function getDetectionBounds(
+  actions: DetectionAction[],
+  durationMs: number,
+  pauseGapMs: number
+): { startBoundary: number; endBoundary: number } {
+  const extent = getActionExtent(actions, durationMs);
+  if (!extent) return { startBoundary: 0, endBoundary: durationMs };
+
+  const startPadding = estimateCadencePaddingMs(actions, "start", {
+    pauseGapMs,
+    actionIndex: extent.firstIndex,
+  });
+  const endPadding = estimateCadencePaddingMs(actions, "end", {
+    pauseGapMs,
+    actionIndex: extent.lastIndex,
+  });
+
+  const startBoundary = clamp(extent.firstActionAt - startPadding, 0, durationMs);
+  const endBoundary = clamp(extent.lastActionAt + endPadding, startBoundary, durationMs);
+
+  return { startBoundary, endBoundary };
+}
+
 export function buildDetectedSegments(input: BuildDetectedSegmentsInput): DetectedSegment[] {
   const durationMs = Math.max(0, Math.floor(input.durationMs));
   if (durationMs <= 0) return [];
@@ -74,8 +214,10 @@ export function buildDetectedSegments(input: BuildDetectedSegmentsInput): Detect
   const defaultType = input.defaultType ?? "Normal";
 
   const actions = normalizeActions(input.actions);
+  const { startBoundary, endBoundary } = getDetectionBounds(actions, durationMs, pauseGapMs);
+  if (endBoundary <= startBoundary) return [];
 
-  const boundaries = new Set<number>([0, durationMs]);
+  const boundaries = new Set<number>([startBoundary, endBoundary]);
   for (let index = 1; index < actions.length; index += 1) {
     const prev = actions[index - 1];
     const current = actions[index];
@@ -89,7 +231,9 @@ export function buildDetectedSegments(input: BuildDetectedSegmentsInput): Detect
     if (isLeadingIdleGap || isTrailingIdleGap) continue;
 
     const midpoint = prev.at + Math.floor(gap / 2);
-    boundaries.add(clamp(midpoint, 0, durationMs));
+    if (midpoint > startBoundary && midpoint < endBoundary) {
+      boundaries.add(clamp(midpoint, 0, durationMs));
+    }
   }
 
   const sorted = [...boundaries].sort((a, b) => a - b);
@@ -135,11 +279,94 @@ function windowedRange(
   return steppedRange(Math.max(min, center - radius), Math.min(max, center + radius), step);
 }
 
+function roundedVariants(value: number): number[] {
+  const floor50 = Math.floor(value / 50) * 50;
+  const ceil50 = Math.ceil(value / 50) * 50;
+  const floor100 = Math.floor(value / 100) * 100;
+  const ceil100 = Math.ceil(value / 100) * 100;
+  return [floor50, ceil50, floor100, ceil100];
+}
+
+function getAdjacentGaps(actions: DetectionAction[]): number[] {
+  const gaps: number[] = [];
+  for (let index = 1; index < actions.length; index += 1) {
+    const previous = actions[index - 1];
+    const current = actions[index];
+    if (!previous || !current) continue;
+    const gap = current.at - previous.at;
+    if (gap > 0) gaps.push(gap);
+  }
+  return gaps;
+}
+
+function getPauseGapCandidates(
+  actions: DetectionAction[],
+  currentPauseGapMs: number,
+  min: number,
+  max: number
+): number[] {
+  const actionCandidates = getAdjacentGaps(actions)
+    .filter((gap) => gap >= min && gap <= max)
+    .flatMap((gap) => [gap - 1, gap, gap + 1, ...roundedVariants(gap)]);
+  const candidates = uniqueSortedNumbers([
+    currentPauseGapMs,
+    min,
+    max,
+    ...actionCandidates,
+    ...(actionCandidates.length < 12 ? steppedRange(min, max, 500) : []),
+  ])
+    .map((value) => clamp(value, min, max))
+    .filter((value) => value >= min && value <= max);
+
+  return uniqueSortedNumbers(candidates).sort((a, b) => b - a);
+}
+
 function durationBalanceScore(segments: DetectedSegment[]): number {
   if (segments.length <= 1) return 0;
   const durations = segments.map((segment) => segment.endTimeMs - segment.startTimeMs);
   const average = durations.reduce((sum, duration) => sum + duration, 0) / durations.length;
   return durations.reduce((sum, duration) => sum + Math.abs(duration - average), 0);
+}
+
+function buildMinRoundCandidates(
+  rawSegments: DetectedSegment[],
+  currentMinRoundMs: number,
+  min: number,
+  max: number
+): number[] {
+  const durations = rawSegments.map((segment) => segment.endTimeMs - segment.startTimeMs);
+  const candidates = uniqueSortedNumbers([
+    MIN_RAW_ROUND_MS,
+    min,
+    max,
+    currentMinRoundMs,
+    ...windowedRange(currentMinRoundMs, min, max, 2_000, 250),
+    ...durations.flatMap((duration) => [duration - 1, duration, ...roundedVariants(duration)]),
+  ])
+    .map((value) => clamp(value, min, max))
+    .filter((value) => value >= min && value <= max);
+
+  return uniqueSortedNumbers(candidates).sort((a, b) => {
+    const distance = Math.abs(a - currentMinRoundMs) - Math.abs(b - currentMinRoundMs);
+    if (distance !== 0) return distance;
+    return b - a;
+  });
+}
+
+function leadingTrailingIdleScore(
+  segments: DetectedSegment[],
+  actions: DetectionAction[],
+  durationMs: number
+): number {
+  const extent = getActionExtent(actions, durationMs);
+  const firstSegment = segments[0];
+  const lastSegment = segments[segments.length - 1];
+  if (!extent || !firstSegment || !lastSegment) return 0;
+
+  return (
+    Math.abs(extent.firstActionAt - firstSegment.startTimeMs) +
+    Math.abs(lastSegment.endTimeMs - extent.lastActionAt)
+  );
 }
 
 export function findDetectionSettingsForTargetCount(
@@ -167,16 +394,12 @@ export function findDetectionSettingsForTargetCount(
   const currentPauseGapMs = clamp(Math.floor(input.currentPauseGapMs), pauseMin, pauseMax);
   const currentMinRoundMs = clamp(Math.floor(input.currentMinRoundMs), minRoundMin, minRoundMax);
 
-  const pauseCandidates = uniqueSortedNumbers([
+  const pauseCandidates = getPauseGapCandidates(
+    normalizedActions,
     currentPauseGapMs,
-    ...steppedRange(pauseMin, pauseMax, 500),
-    ...windowedRange(currentPauseGapMs, pauseMin, pauseMax, 1_000, 100),
-  ]);
-  const minRoundCandidates = uniqueSortedNumbers([
-    currentMinRoundMs,
-    ...steppedRange(minRoundMin, minRoundMax, 1_000),
-    ...windowedRange(currentMinRoundMs, minRoundMin, minRoundMax, 2_000, 250),
-  ]);
+    pauseMin,
+    pauseMax
+  );
 
   let evaluations = 0;
   let bestSuccess: {
@@ -185,6 +408,7 @@ export function findDetectionSettingsForTargetCount(
     segments: DetectedSegment[];
     minRoundDistance: number;
     balanceScore: number;
+    idleScore: number;
     evaluation: number;
   } | null = null;
   let closest: {
@@ -229,16 +453,22 @@ export function findDetectionSettingsForTargetCount(
     if (segments.length !== targetCount) return;
 
     const balanceScore = durationBalanceScore(segments);
+    const idleScore = leadingTrailingIdleScore(segments, normalizedActions, durationMs);
     if (
       !bestSuccess ||
       pauseGapMs > bestSuccess.pauseGapMs ||
-      (pauseGapMs === bestSuccess.pauseGapMs && minRoundDistance < bestSuccess.minRoundDistance) ||
+      (pauseGapMs === bestSuccess.pauseGapMs && idleScore < bestSuccess.idleScore) ||
       (pauseGapMs === bestSuccess.pauseGapMs &&
-        minRoundDistance === bestSuccess.minRoundDistance &&
+        idleScore === bestSuccess.idleScore &&
         balanceScore < bestSuccess.balanceScore) ||
       (pauseGapMs === bestSuccess.pauseGapMs &&
-        minRoundDistance === bestSuccess.minRoundDistance &&
+        idleScore === bestSuccess.idleScore &&
         balanceScore === bestSuccess.balanceScore &&
+        minRoundDistance < bestSuccess.minRoundDistance) ||
+      (pauseGapMs === bestSuccess.pauseGapMs &&
+        idleScore === bestSuccess.idleScore &&
+        balanceScore === bestSuccess.balanceScore &&
+        minRoundDistance === bestSuccess.minRoundDistance &&
         evaluations < bestSuccess.evaluation)
     ) {
       bestSuccess = {
@@ -247,29 +477,33 @@ export function findDetectionSettingsForTargetCount(
         segments,
         minRoundDistance,
         balanceScore,
+        idleScore,
         evaluation: evaluations,
       };
     }
   };
 
-  const orderedPairs = pauseCandidates
-    .flatMap((pauseGapMs) =>
-      minRoundCandidates.map((minRoundMs) => ({
-        pauseGapMs,
-        minRoundMs,
-        minRoundDistance: Math.abs(minRoundMs - currentMinRoundMs),
-      }))
-    )
-    .sort((a, b) => {
-      if (b.pauseGapMs !== a.pauseGapMs) {
-        return b.pauseGapMs - a.pauseGapMs;
-      }
-      return a.minRoundDistance - b.minRoundDistance;
-    });
-
-  for (const candidate of orderedPairs) {
-    evaluate(candidate.pauseGapMs, candidate.minRoundMs);
+  for (const pauseGapMs of pauseCandidates) {
     if (evaluations >= maxEvaluations) break;
+
+    const rawSegments = buildDetectedSegments({
+      actions: normalizedActions,
+      durationMs,
+      pauseGapMs,
+      minRoundMs: MIN_RAW_ROUND_MS,
+      defaultType,
+    });
+    const minRoundCandidates = buildMinRoundCandidates(
+      rawSegments,
+      currentMinRoundMs,
+      minRoundMin,
+      minRoundMax
+    );
+
+    for (const minRoundMs of minRoundCandidates) {
+      evaluate(pauseGapMs, minRoundMs);
+      if (evaluations >= maxEvaluations) break;
+    }
   }
 
   if (bestSuccess) {

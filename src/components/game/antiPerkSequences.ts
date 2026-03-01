@@ -14,6 +14,13 @@ export type BeatHit = {
   strength: number;
 };
 
+export type BeatbarBeat = {
+  at: number;
+  lowPos: number;
+  fromPos: number;
+  strength: number;
+};
+
 export type BeatbarMotionEvent = {
   at: number;
   fromPos: number;
@@ -30,6 +37,7 @@ export type AntiPerkSequenceDefinition = {
   supportsBeatbar: boolean;
   beatbarStyle: BeatbarVisualStyle;
   createActions: (durationMs: number, rng?: () => number) => FunscriptAction[];
+  createBeatbarBeats: (actions: FunscriptAction[]) => BeatbarBeat[];
   extractBeatHits: (actions: FunscriptAction[]) => BeatHit[];
 };
 
@@ -83,6 +91,56 @@ function extractAccentBeatHits(
 
 function isMicroVibrationMove(move: { deltaPos: number; durationMs: number }): boolean {
   return move.durationMs <= 55 && Math.abs(move.deltaPos) <= 12;
+}
+
+export function extractLowPointBeatbarBeats(
+  actions: FunscriptAction[],
+  options: {
+    minDownwardTravel: number;
+    minSpacingMs: number;
+    maxLowPos: number;
+  }
+): BeatbarBeat[] {
+  const beats: BeatbarBeat[] = [];
+
+  for (let index = 1; index < actions.length - 1; index += 1) {
+    const previous = actions[index - 1]!;
+    const current = actions[index]!;
+    const next = actions[index + 1]!;
+
+    const downwardTravel = previous.pos - current.pos;
+    const upwardRecovery = next.pos - current.pos;
+    const intoDurationMs = Math.max(1, current.at - previous.at);
+    const outDurationMs = Math.max(1, next.at - current.at);
+    const isLowPoint = current.pos <= previous.pos && current.pos < next.pos;
+
+    if (!isLowPoint) continue;
+    if (downwardTravel < options.minDownwardTravel) continue;
+    if (current.pos > options.maxLowPos) continue;
+    if (upwardRecovery <= 0) continue;
+    if (isMicroVibrationMove({ deltaPos: -downwardTravel, durationMs: intoDurationMs })) continue;
+    if (isMicroVibrationMove({ deltaPos: upwardRecovery, durationMs: outDurationMs })) continue;
+
+    const strength = clamp((downwardTravel + upwardRecovery) / 60, 0.35, 1);
+    const candidate: BeatbarBeat = {
+      at: current.at,
+      lowPos: current.pos,
+      fromPos: previous.pos,
+      strength,
+    };
+
+    const lastBeat = beats[beats.length - 1];
+    if (lastBeat && current.at - lastBeat.at < options.minSpacingMs) {
+      if (candidate.strength < lastBeat.strength) continue;
+      if (candidate.strength === lastBeat.strength && candidate.lowPos >= lastBeat.lowPos) continue;
+      beats[beats.length - 1] = candidate;
+      continue;
+    }
+
+    beats.push(candidate);
+  }
+
+  return beats;
 }
 
 export function extractBeatbarMotionEvents(actions: FunscriptAction[]): BeatbarMotionEvent[] {
@@ -154,6 +212,12 @@ export const ANTI_PERK_SEQUENCE_DEFINITIONS: Record<
     supportsBeatbar: true,
     beatbarStyle: "milker",
     createActions: (durationMs, rng) => createGeneratedSequenceActions(durationMs, "milker", rng),
+    createBeatbarBeats: (actions) =>
+      extractLowPointBeatbarBeats(actions, {
+        minDownwardTravel: 40,
+        minSpacingMs: 220,
+        maxLowPos: 26,
+      }),
     extractBeatHits: (actions) =>
       extractAccentBeatHits(actions, {
         minUpwardTravel: 22,
@@ -177,6 +241,12 @@ export const ANTI_PERK_SEQUENCE_DEFINITIONS: Record<
     beatbarStyle: "jackhammer",
     createActions: (durationMs, rng) =>
       createGeneratedSequenceActions(durationMs, "jackhammer", rng),
+    createBeatbarBeats: (actions) =>
+      extractLowPointBeatbarBeats(actions, {
+        minDownwardTravel: 35,
+        minSpacingMs: 140,
+        maxLowPos: 24,
+      }),
     extractBeatHits: (actions) =>
       extractAccentBeatHits(actions, {
         minUpwardTravel: 20,
@@ -199,6 +269,7 @@ export const ANTI_PERK_SEQUENCE_DEFINITIONS: Record<
     supportsBeatbar: false,
     beatbarStyle: "neutral",
     createActions: (durationMs, rng) => createGeneratedSequenceActions(durationMs, "no-rest", rng),
+    createBeatbarBeats: () => [],
     extractBeatHits: () => [],
   },
 };

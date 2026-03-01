@@ -15,6 +15,7 @@ import { resolveYtDlpBinary } from "./webVideo/binaries";
 
 const EROSCRIPTS_BASE_URL = "https://discuss.eroscripts.com";
 const EROSCRIPTS_LOGIN_URL = `${EROSCRIPTS_BASE_URL}/login`;
+const EROSCRIPTS_LOGIN_CHECK_TIMEOUT_MS = 5000;
 const DEPRECATED_EROSCRIPTS_USERNAME_KEY = "eroscripts.username";
 const DEPRECATED_EROSCRIPTS_API_KEY_KEY = "eroscripts.apiKey";
 const EROSCRIPTS_FREE_SCRIPTS_CATEGORY_FILTER = "#scripts:free-scripts";
@@ -245,6 +246,7 @@ export async function getEroScriptsLoginStatus(): Promise<EroScriptsLoginStatus>
         "User-Agent": "F-Land EroScripts Search",
         Cookie: cookieHeader,
       },
+      signal: AbortSignal.timeout(EROSCRIPTS_LOGIN_CHECK_TIMEOUT_MS),
     });
     if (response.status === 401 || response.status === 403) {
       return blankLoginStatus(cookies.length);
@@ -265,9 +267,14 @@ export async function getEroScriptsLoginStatus(): Promise<EroScriptsLoginStatus>
       error: null,
     };
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "EroScripts login check failed.";
+    const isTimeout =
+      error instanceof Error &&
+      (error.name === "TimeoutError" || error.name === "AbortError");
     return blankLoginStatus(
       cookies.length,
-      error instanceof Error ? error.message : "EroScripts login check failed."
+      isTimeout ? "EroScripts login check timed out." : message
     );
   }
 }

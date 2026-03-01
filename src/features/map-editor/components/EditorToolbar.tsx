@@ -21,6 +21,7 @@ interface EditorToolbarProps {
   alignmentStrategy: GraphAlignmentStrategy;
   canRealign: boolean;
   showGrid: boolean;
+  snapToGrid: boolean;
   isDirty: boolean;
   savePending: boolean;
   testMapPending: boolean;
@@ -32,6 +33,7 @@ interface EditorToolbarProps {
   onRealignGraph: () => void;
   onRequestRoundBulkAction: (action: MapRoundBulkAction) => void;
   onToggleGrid: () => void;
+  onToggleSnapToGrid: () => void;
   onResetView: () => void;
   onDelete: () => void;
   onUndo: () => void;
@@ -48,6 +50,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(
     alignmentStrategy,
     canRealign,
     showGrid,
+    snapToGrid,
     isDirty,
     savePending,
     testMapPending,
@@ -59,6 +62,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(
     onRealignGraph,
     onRequestRoundBulkAction,
     onToggleGrid,
+    onToggleSnapToGrid,
     onResetView,
     onDelete,
     onUndo,
@@ -120,6 +124,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(
             shortcut="G"
             icon={showGrid ? "▦" : "▢"}
             onClick={onToggleGrid}
+          />
+          <ToolbarIconButton
+            label={snapToGrid ? t`Disable Snap` : t`Enable Snap`}
+            icon={snapToGrid ? "⊞" : "⊡"}
+            onClick={onToggleSnapToGrid}
           />
           <ToolbarIconButton label={t`Reset View`} shortcut="0" icon="⌖" onClick={onResetView} />
         </div>
