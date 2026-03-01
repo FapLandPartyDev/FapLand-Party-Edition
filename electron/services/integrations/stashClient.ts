@@ -490,6 +490,7 @@ export async function fetchStashMediaWithAuth(
     const response = await fetch(upstreamTargetUrl, {
       method: request.method,
       headers,
+      signal: request.signal,
     });
 
     if (

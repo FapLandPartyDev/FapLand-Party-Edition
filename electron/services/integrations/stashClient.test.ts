@@ -71,11 +71,15 @@ describe("stash client helpers", () => {
     expect(response.status).toBe(200);
 
     expect(upstreamFetch).toHaveBeenCalledTimes(1);
-    const [target, init] = upstreamFetch.mock.calls[0] as [string, { headers: Headers }];
+    const [target, init] = upstreamFetch.mock.calls[0] as [
+      string,
+      { headers: Headers; signal: AbortSignal },
+    ];
     expect(target).toBe("https://stash.example.com/scene/123/stream?apikey=secret-key");
     expect(init.headers.get("ApiKey")).toBe("secret-key");
     expect(init.headers.get("Range")).toBe("bytes=0-100");
     expect(init.headers.get("Authorization")).toBeNull();
+    expect(init.signal).toBe(request.signal);
   });
 
   it("rejects unsafe proxy methods", async () => {

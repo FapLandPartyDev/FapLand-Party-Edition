@@ -1204,9 +1204,66 @@ describe("exportPlaylistPackage", () => {
     });
 
     expect(fetchStashMediaWithAuthMock).toHaveBeenCalled();
+    const stashRequests = fetchStashMediaWithAuthMock.mock.calls.map((call) => call[2] as Request);
+    expect(stashRequests.some((request) => request.method === "GET")).toBe(true);
+    expect(stashRequests.every((request) => request.signal instanceof AbortSignal)).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
     const fileNamesAfter = await fs.readdir(result.exportDir);
     expect(fileNamesAfter.some((entry) => entry.endsWith(".round"))).toBe(true);
+  });
+
+  it("reports the round name when a stash-backed resource cannot be fetched", async () => {
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Stash Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: "stash-round",
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: "stash:https://stash.example.com:scene:123",
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: "https://stash.example.com/scene/123/stream",
+            funscriptUri: null,
+          },
+        ],
+      },
+    ];
+    installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Stash Round" }]));
+    listExternalSourcesMock.mockReturnValue([
+      {
+        id: "stash-1",
+        kind: "stash",
+        name: "Main Stash",
+        enabled: true,
+        baseUrl: "https://stash.example.com",
+        authMode: "none",
+        apiKey: null,
+        username: null,
+        password: null,
+        tagSelections: [],
+        createdAt: "2026-03-18T00:00:00.000Z",
+        updatedAt: "2026-03-18T00:00:00.000Z",
+      },
+    ]);
+    fetchStashMediaWithAuthMock.mockRejectedValue(new TypeError("fetch failed"));
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    await expect(
+      exportPlaylistPackage({
+        playlistId: "playlist-1",
+        directoryPath: rootDir,
+      })
+    ).rejects.toThrow(
+      'Failed to export video for round "Stash Round" (round-1) from Stash source "Main Stash": fetch failed'
+    );
   });
 
   it("downloads generic remote resources with plain fetch", async () => {
@@ -1250,6 +1307,113 @@ describe("exportPlaylistPackage", () => {
     );
     const fileNamesAfter = await fs.readdir(result.exportDir);
     expect(fileNamesAfter.some((entry) => entry.endsWith(".round"))).toBe(true);
+  });
+
+  it("keeps remote video URIs when included media cannot be fetched", async () => {
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Remote Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: "remote-round",
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: "https://cdn.example.com/remote.mp4",
+            funscriptUri: "https://cdn.example.com/remote.funscript",
+          },
+        ],
+      },
+    ];
+    installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Remote Round" }]));
+    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    const result = await exportPlaylistPackage({
+      playlistId: "playlist-1",
+      directoryPath: rootDir,
+      compressionMode: "copy",
+      includeMedia: true,
+    });
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(result.videoFiles).toBe(0);
+    expect(result.funscriptFiles).toBe(0);
+
+    const fileNamesAfter = await fs.readdir(result.exportDir);
+    expect(fileNamesAfter.filter((entry) => entry.endsWith(".mp4"))).toHaveLength(0);
+    expect(fileNamesAfter.filter((entry) => entry.endsWith(".funscript"))).toHaveLength(0);
+
+    const parsedRound = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Remote Round.round"), "utf8")
+    ) as { resources: Array<{ videoUri: string; funscriptUri?: string }> };
+    expect(parsedRound.resources[0]?.videoUri).toBe("https://cdn.example.com/remote.mp4");
+    expect(parsedRound.resources[0]?.funscriptUri).toBe("https://cdn.example.com/remote.funscript");
+  });
+
+  it("does not fetch remote videos when package media is excluded", async () => {
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Remote Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: "remote-round",
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: "https://cdn.example.com/remote.mp4",
+            funscriptUri: null,
+          },
+        ],
+      },
+    ];
+    installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Remote Round" }]));
+    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+
+    const analysis = await analyzePlaylistExportPackage({
+      playlistId: "playlist-1",
+      includeMedia: false,
+    });
+
+    expect(analysis.videoTotals).toMatchObject({
+      uniqueVideos: 1,
+      localVideos: 0,
+      remoteVideos: 0,
+      estimatedReencodeVideos: 0,
+    });
+    expect(analysis.estimate.expectedVideoBytes).toBe(0);
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    const result = await exportPlaylistPackage({
+      playlistId: "playlist-1",
+      directoryPath: rootDir,
+      compressionMode: "copy",
+      includeMedia: false,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.videoFiles).toBe(0);
+    expect(result.sidecarFiles).toBe(1);
+    const parsedRound = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Remote Round.round"), "utf8")
+    ) as { resources: Array<{ videoUri: string }> };
+    expect(parsedRound.resources[0]?.videoUri).toBe("https://cdn.example.com/remote.mp4");
   });
 
   it("reports progress and allows aborting an in-flight export", async () => {

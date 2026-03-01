@@ -142,6 +142,7 @@ export const playlistRouter = router({
         directoryPath: z.string().min(1),
         compressionMode: z.enum(["copy", "av1"]).optional(),
         compressionStrength: z.number().finite().min(0).max(100).optional(),
+        includeMedia: z.boolean().optional(),
         asFpack: z.boolean().optional(),
       })
     )
@@ -162,6 +163,7 @@ export const playlistRouter = router({
         playlistId: z.string().min(1),
         compressionMode: z.enum(["copy", "av1"]).optional(),
         compressionStrength: z.number().finite().min(0).max(100).optional(),
+        includeMedia: z.boolean().optional(),
       })
     )
     .query(async ({ input }) => {

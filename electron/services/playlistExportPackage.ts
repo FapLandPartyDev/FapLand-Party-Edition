@@ -18,6 +18,7 @@ import { resolvePortableRoundRefExact } from "../../src/game/playlistResolution"
 import { ZHeroSidecar, ZRoundSidecar } from "../../src/zod/installSidecar";
 import { parseOptionalRoundCutRangesJson } from "../../src/utils/roundCuts";
 import { getDb } from "./db";
+import { debugLog } from "./debugLogging";
 import { playlist as playlistTable } from "./db/schema";
 import { assertApprovedDialogPath } from "./dialogPathApproval";
 import { createFpackFromDirectory } from "./fpack";
@@ -230,11 +231,18 @@ type ResourceReference = {
   preferredBaseName: string;
 };
 
+type ResourceContext = {
+  roundId: string;
+  roundName: string;
+  installSourceKey: string | null;
+};
+
 type VideoTask = {
   canonicalKey: string;
   uri: string;
   installSourceKey: string | null;
   preferredBaseName: string;
+  sourceContexts: ResourceContext[];
   originalExtension: string;
   probe: PlaylistExportVideoProbe;
   output: ExportedMediaFile | null;
@@ -245,6 +253,7 @@ type FunscriptTask = {
   uri: string;
   installSourceKey: string | null;
   preferredBaseName: string;
+  sourceContexts: ResourceContext[];
   output: ExportedMediaFile | null;
 };
 
@@ -786,11 +795,10 @@ async function withTransferAbort<T>(
 
 type ExternalSourceRecord = ReturnType<typeof listExternalSources>[number];
 
-async function resolveRemoteResponse(
+function findStashSourceForRemoteResource(
   uri: string,
-  installSourceKey: string | null,
-  request: Request
-): Promise<Response> {
+  installSourceKey: string | null
+): ExternalSourceRecord | null {
   const enabledSources = listExternalSources().filter((source) => source.enabled);
   for (const source of enabledSources) {
     if (source.kind !== "stash") continue;
@@ -799,6 +807,18 @@ async function resolveRemoteResponse(
     );
     const shouldUseByUri = stashProvider.canHandleUri(uri, source);
     if (!shouldUseByInstallSource && !shouldUseByUri) continue;
+    return source;
+  }
+  return null;
+}
+
+async function resolveRemoteResponse(
+  uri: string,
+  installSourceKey: string | null,
+  request: Request
+): Promise<Response> {
+  const source = findStashSourceForRemoteResource(uri, installSourceKey);
+  if (source) {
     return fetchStashMediaWithAuth(source as ExternalSourceRecord, uri, request);
   }
   return fetch(uri, {
@@ -983,6 +1003,11 @@ function buildResourceInventory(loaded: ResolvedPlaylistExport): {
 
     for (const resource of round.resources) {
       const preferredBaseName = round.hero ? round.hero.name : round.name;
+      const sourceContext = {
+        roundId: round.id,
+        roundName: round.name,
+        installSourceKey: round.installSourceKey,
+      };
       resourceReferences.push({
         round,
         resource,
@@ -996,6 +1021,7 @@ function buildResourceInventory(loaded: ResolvedPlaylistExport): {
           uri: resource.videoUri,
           installSourceKey: round.installSourceKey,
           preferredBaseName,
+          sourceContexts: [sourceContext],
           originalExtension: inferExtensionFromUri(resource.videoUri, ".mp4"),
           probe: {
             codecName: null,
@@ -1012,6 +1038,13 @@ function buildResourceInventory(loaded: ResolvedPlaylistExport): {
           existing.probe.durationMs = resource.durationMs;
         }
       }
+      const videoTask = videoTaskByKey.get(canonicalVideoKey);
+      if (
+        videoTask &&
+        !videoTask.sourceContexts.some((context) => context.roundId === sourceContext.roundId)
+      ) {
+        videoTask.sourceContexts.push(sourceContext);
+      }
 
       if (resource.funscriptUri) {
         const canonicalFunscriptKey = canonicalizeResourceKey(resource.funscriptUri);
@@ -1021,8 +1054,17 @@ function buildResourceInventory(loaded: ResolvedPlaylistExport): {
             uri: resource.funscriptUri,
             installSourceKey: round.installSourceKey,
             preferredBaseName,
+            sourceContexts: [sourceContext],
             output: null,
           });
+        } else {
+          const existing = funscriptTaskByKey.get(canonicalFunscriptKey);
+          if (
+            existing &&
+            !existing.sourceContexts.some((context) => context.roundId === sourceContext.roundId)
+          ) {
+            existing.sourceContexts.push(sourceContext);
+          }
         }
       }
     }
@@ -1072,6 +1114,7 @@ function buildResourceInventory(loaded: ResolvedPlaylistExport): {
 async function preparePlaylistExport(
   input: AnalyzeExportPackageInput
 ): Promise<PreparedPlaylistExport> {
+  const includeMedia = input.includeMedia ?? true;
   const loaded = await loadPlaylistForExport(input.playlistId);
   const binaries = await resolvePhashBinaries();
   const encoder = await detectAv1Encoder(binaries.ffmpegPath);
@@ -1087,33 +1130,46 @@ async function preparePlaylistExport(
     backgroundTask: discoveredBackgroundTask,
     musicTasks,
   } = buildResourceInventory(loaded);
-  const backgroundTask = input.includeMedia === false ? null : discoveredBackgroundTask;
+  const backgroundTask = includeMedia ? discoveredBackgroundTask : null;
 
-  for (const task of videoTasks) {
-    const localPath = await resolveLocalSourcePath(task.uri);
-    if (localPath) {
-      task.probe = await probeLocalVideo(binaries.ffprobePath, localPath);
-      if (task.probe.durationMs === null && resourceReferences.length > 0) {
-        const matching = resourceReferences.find(
-          (entry) => canonicalizeResourceKey(entry.resource.videoUri) === task.canonicalKey
-        );
-        task.probe.durationMs = matching?.resource.durationMs ?? null;
+  if (includeMedia) {
+    for (const task of videoTasks) {
+      const localPath = await resolveLocalSourcePath(task.uri);
+      if (localPath) {
+        task.probe = await probeLocalVideo(binaries.ffprobePath, localPath);
+        if (task.probe.durationMs === null && resourceReferences.length > 0) {
+          const matching = resourceReferences.find(
+            (entry) => canonicalizeResourceKey(entry.resource.videoUri) === task.canonicalKey
+          );
+          task.probe.durationMs = matching?.resource.durationMs ?? null;
+        }
+        continue;
       }
-      continue;
+      task.probe = await fetchRemoteVideoMetadata(task);
     }
-    task.probe = await fetchRemoteVideoMetadata(task);
   }
 
-  const localVideos = videoTasks.filter((task) => task.probe.codecName !== null).length;
-  const remoteVideos = videoTasks.length - localVideos;
-  const alreadyAv1Videos = videoTasks.filter((task) => isAv1Codec(task.probe.codecName)).length;
+  const localVideos = includeMedia
+    ? videoTasks.filter((task) => task.probe.codecName !== null).length
+    : 0;
+  const remoteVideos = includeMedia ? videoTasks.length - localVideos : 0;
+  const alreadyAv1Videos = includeMedia
+    ? videoTasks.filter((task) => isAv1Codec(task.probe.codecName)).length
+    : 0;
   const estimatedReencodeVideos =
-    effectiveCompressionMode === "av1"
+    includeMedia && effectiveCompressionMode === "av1"
       ? videoTasks.filter((task) => !isAv1Codec(task.probe.codecName)).length
       : 0;
 
-  const estimate =
-    effectiveCompressionMode === "av1" && encoder
+  const estimate = !includeMedia
+    ? ({
+        sourceVideoBytes: 0,
+        expectedVideoBytes: 0,
+        savingsBytes: 0,
+        estimatedCompressionSeconds: 0,
+        approximate: false,
+      } satisfies PlaylistExportEstimate)
+    : effectiveCompressionMode === "av1" && encoder
       ? estimateCompressionForProbes({
           probes: videoTasks.map((task) => task.probe),
           strength: compressionStrength,
@@ -1183,7 +1239,7 @@ async function preparePlaylistExport(
   };
 }
 
-function estimateExportWork(input: PreparedPlaylistExport) {
+function estimateExportWork(input: PreparedPlaylistExport, includeMedia: boolean) {
   let standaloneSidecars = 0;
   const heroGroups = new Set<string>();
 
@@ -1196,15 +1252,15 @@ function estimateExportWork(input: PreparedPlaylistExport) {
   }
 
   return {
-    videoFiles: input.videoTasks.length,
+    videoFiles: includeMedia ? input.videoTasks.length : 0,
     funscriptFiles: input.funscriptTasks.length,
     sidecarFiles: standaloneSidecars + heroGroups.size,
-    musicFiles: input.musicTasks.length,
+    musicFiles: includeMedia ? input.musicTasks.length : 0,
     total:
-      input.videoTasks.length +
+      (includeMedia ? input.videoTasks.length : 0) +
       input.funscriptTasks.length +
-      (input.backgroundTask ? 1 : 0) +
-      input.musicTasks.length +
+      (includeMedia && input.backgroundTask ? 1 : 0) +
+      (includeMedia ? input.musicTasks.length : 0) +
       standaloneSidecars +
       heroGroups.size +
       1,
@@ -1627,6 +1683,112 @@ async function materializeFunscriptTask(task: FunscriptTask): Promise<void> {
   incrementExportProgress();
 }
 
+async function canKeepOriginalRemoteUriAfterFailure(uri: string): Promise<boolean> {
+  return (await resolveLocalSourcePath(uri)) === null;
+}
+
+function formatResourceContexts(contexts: ResourceContext[]): string {
+  if (contexts.length === 0) return "unknown round";
+  return contexts.map((context) => `"${context.roundName}" (${context.roundId})`).join(", ");
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function getTaskStashSource(task: VideoTask | FunscriptTask): ExternalSourceRecord | null {
+  const installSourceKeys = [
+    task.installSourceKey,
+    ...task.sourceContexts.map((context) => context.installSourceKey),
+  ].filter((value): value is string => Boolean(value));
+
+  for (const installSourceKey of installSourceKeys) {
+    const source = findStashSourceForRemoteResource(task.uri, installSourceKey);
+    if (source) return source;
+  }
+
+  return findStashSourceForRemoteResource(task.uri, task.installSourceKey);
+}
+
+function createExportResourceError(input: {
+  kind: "video" | "funscript";
+  task: VideoTask | FunscriptTask;
+  cause: unknown;
+}): Error {
+  const roundContext = formatResourceContexts(input.task.sourceContexts);
+  const source = getTaskStashSource(input.task);
+  const sourceLabel = fromLocalMediaUri(input.task.uri)
+    ? "local file"
+    : source
+      ? `Stash source "${source.name}"`
+      : "remote source";
+  const message = `Failed to export ${input.kind} for round ${roundContext} from ${sourceLabel}: ${getErrorMessage(input.cause)}`;
+  debugLog.warn("playlistExport", message, {
+    kind: input.kind,
+    uri: input.task.uri,
+    installSourceKey: input.task.installSourceKey,
+    rounds: input.task.sourceContexts,
+    sourceId: source?.id ?? null,
+    sourceName: source?.name ?? null,
+    error: input.cause,
+  });
+  return new Error(message);
+}
+
+async function skipUnavailableRemoteVideo(task: VideoTask, cause: unknown): Promise<boolean> {
+  if (!(await canKeepOriginalRemoteUriAfterFailure(task.uri))) {
+    return false;
+  }
+
+  if (getTaskStashSource(task)) {
+    return false;
+  }
+
+  const outputPath = task.output?.absolutePath;
+  if (outputPath) {
+    await fs.rm(outputPath, { force: true }).catch(() => {});
+  }
+  task.output = null;
+  updateExportPhase("copying", `Keeping remote video URI for ${task.preferredBaseName}...`);
+  debugLog.warn("playlistExport", "Remote video fetch failed; keeping original URI", {
+    uri: task.uri,
+    rounds: task.sourceContexts,
+    error: cause,
+  });
+  setCompressionStatus({
+    reencodedTotal: Math.max(0, (exportStatus.compression?.reencodedTotal ?? 0) - 1),
+  });
+  incrementExportProgress();
+  return true;
+}
+
+async function skipUnavailableRemoteFunscript(
+  task: FunscriptTask,
+  cause: unknown
+): Promise<boolean> {
+  if (!(await canKeepOriginalRemoteUriAfterFailure(task.uri))) {
+    return false;
+  }
+
+  if (getTaskStashSource(task)) {
+    return false;
+  }
+
+  const outputPath = task.output?.absolutePath;
+  if (outputPath) {
+    await fs.rm(outputPath, { force: true }).catch(() => {});
+  }
+  task.output = null;
+  updateExportPhase("copying", `Keeping remote funscript URI for ${task.preferredBaseName}...`);
+  debugLog.warn("playlistExport", "Remote funscript fetch failed; keeping original URI", {
+    uri: task.uri,
+    rounds: task.sourceContexts,
+    error: cause,
+  });
+  incrementExportProgress();
+  return true;
+}
+
 async function materializeBackgroundTask(task: BackgroundMediaTask): Promise<void> {
   if (!task.output) {
     throw new Error("Map background output path was not allocated.");
@@ -1765,7 +1927,8 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
   const parentDirectory = assertApprovedDialogPath("playlistExportDirectory", input.directoryPath);
   updateExportPhase("analyzing", "Resolving playlist references...");
   const prepared = await preparePlaylistExport(input);
-  const workEstimate = estimateExportWork(prepared);
+  const includeMedia = input.includeMedia ?? true;
+  const workEstimate = estimateExportWork(prepared, includeMedia);
   setExportProgress({
     completed: 0,
     total: workEstimate.total,
@@ -1818,8 +1981,8 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
     let actualVideoBytes = 0;
     let reencodedVideos = 0;
     let alreadyAv1Copied = 0;
-    const includeMedia = input.includeMedia ?? true;
-
+    let exportedVideoFiles = 0;
+    let exportedFunscriptFiles = 0;
     if (includeMedia) {
       const compressionLiveTracker =
         prepared.effectiveCompressionMode === "av1"
@@ -1833,17 +1996,25 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
         prepared.videoTasks,
         prepared.effectiveCompressionMode === "av1" ? prepared.parallelJobs : 1,
         async (task) => {
-          const result = await materializeVideoTask({
-            task,
-            workDir,
-            ffmpegPath: binaries.ffmpegPath,
-            ffprobePath: binaries.ffprobePath,
-            encoder: prepared.encoder,
-            compressionMode: prepared.effectiveCompressionMode,
-            compressionStrength: prepared.compressionStrength,
-            compressionLiveTracker,
-          });
+          let result: Awaited<ReturnType<typeof materializeVideoTask>>;
+          try {
+            result = await materializeVideoTask({
+              task,
+              workDir,
+              ffmpegPath: binaries.ffmpegPath,
+              ffprobePath: binaries.ffprobePath,
+              encoder: prepared.encoder,
+              compressionMode: prepared.effectiveCompressionMode,
+              compressionStrength: prepared.compressionStrength,
+              compressionLiveTracker,
+            });
+          } catch (error) {
+            if (error instanceof ExportAbortError) throw error;
+            if (await skipUnavailableRemoteVideo(task, error)) return;
+            throw createExportResourceError({ kind: "video", task, cause: error });
+          }
           actualVideoBytes += result.outputBytes;
+          exportedVideoFiles += 1;
           if (result.reencoded) reencodedVideos += 1;
           if (result.alreadyAv1Copied) alreadyAv1Copied += 1;
         }
@@ -1851,7 +2022,14 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
     }
 
     for (const task of prepared.funscriptTasks) {
-      await materializeFunscriptTask(task);
+      try {
+        await materializeFunscriptTask(task);
+        exportedFunscriptFiles += 1;
+      } catch (error) {
+        if (error instanceof ExportAbortError) throw error;
+        if (await skipUnavailableRemoteFunscript(task, error)) continue;
+        throw createExportResourceError({ kind: "funscript", task, cause: error });
+      }
     }
     if (includeMedia && prepared.backgroundTask) {
       await materializeBackgroundTask(prepared.backgroundTask);
@@ -1883,10 +2061,7 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
 
       if (includeMedia) {
         const videoKey = `video:${canonicalizeResourceKey(entry.resource.videoUri)}`;
-        video = videoOutputByKey.get(videoKey);
-        if (!video) {
-          throw new Error(`Exported video output is missing for ${entry.resource.videoUri}`);
-        }
+        video = videoOutputByKey.get(videoKey) ?? null;
       }
 
       return {
@@ -2016,9 +2191,11 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
       exportDir: finalDir,
       playlistFilePath: path.join(finalDir, playlistFileName),
       sidecarFiles,
-      videoFiles: prepared.videoTasks.length + (prepared.backgroundTask?.kind === "video" ? 1 : 0),
-      funscriptFiles: prepared.funscriptTasks.length,
-      musicFiles: prepared.musicTasks.length,
+      videoFiles: includeMedia
+        ? exportedVideoFiles + (prepared.backgroundTask?.kind === "video" ? 1 : 0)
+        : 0,
+      funscriptFiles: exportedFunscriptFiles,
+      musicFiles: includeMedia ? prepared.musicTasks.length : 0,
       referencedRounds: prepared.loaded.rounds.length,
       compression: {
         enabled: prepared.effectiveCompressionMode === "av1" && Boolean(prepared.encoder),
@@ -2152,6 +2329,7 @@ export async function exportPlaylistPackage(
       playlistId: input.playlistId,
       compressionMode: input.compressionMode,
       compressionStrength: normalizedStrength,
+      includeMedia: input.includeMedia,
     });
     if (prepared.effectiveCompressionMode === "av1") {
       exportStatus = {
