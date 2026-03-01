@@ -1,6 +1,13 @@
 import { app, shell } from "electron";
+import {
+  DEFAULT_UPDATE_CHANNEL,
+  UPDATE_CHANNEL_KEY,
+  normalizeUpdateChannel,
+  type UpdateChannel,
+} from "../../src/constants/updateSettings";
 import { getNodeEnv } from "../../src/zod/env";
 import { isPortableMode } from "./portable";
+import { getStore } from "./store";
 
 export type AppUpdateStatus = "idle" | "checking" | "up_to_date" | "update_available" | "error";
 
@@ -23,12 +30,13 @@ interface GitHubReleaseAsset {
   state?: unknown;
 }
 
-interface GitHubLatestReleaseResponse {
+export interface GitHubLatestReleaseResponse {
   tag_name?: unknown;
   html_url?: unknown;
   body?: unknown;
   published_at?: unknown;
   assets?: unknown;
+  prerelease?: unknown;
 }
 
 type ReleaseAssetPreference = "windows-portable" | "windows-installer" | "macos" | "linux-appimage";
@@ -191,7 +199,11 @@ export function resolveReleaseAssetUrl(
   return findMatchingAsset(parsedAssets, () => true, [".appimage"]);
 }
 
-export function getReleaseConfig(): { apiUrl: string; releasePageUrl: string } | null {
+export function getReleaseConfig(): {
+  apiUrl: string;
+  releasesApiUrl: string;
+  releasePageUrl: string;
+} | null {
   const rawRepository = getNodeEnv().updateRepository;
   if (!rawRepository) return null;
 
@@ -203,17 +215,21 @@ export function getReleaseConfig(): { apiUrl: string; releasePageUrl: string } |
   const repo = matched[2];
   return {
     apiUrl: `https://api.github.com/repos/${owner}/${repo}/releases/latest`,
+    releasesApiUrl: `https://api.github.com/repos/${owner}/${repo}/releases`,
     releasePageUrl: `https://github.com/${owner}/${repo}/releases/latest`,
   };
 }
 
-async function fetchLatestRelease(): Promise<GitHubLatestReleaseResponse> {
-  const releaseConfig = getReleaseConfig();
-  if (!releaseConfig) {
-    throw new Error("Update feed is not configured.");
+export function getUpdateChannel(): UpdateChannel {
+  try {
+    return normalizeUpdateChannel(getStore().get(UPDATE_CHANNEL_KEY));
+  } catch {
+    return DEFAULT_UPDATE_CHANNEL;
   }
+}
 
-  const response = await fetch(releaseConfig.apiUrl, {
+async function fetchGitHubJson(url: string): Promise<unknown> {
+  const response = await fetch(url, {
     headers: {
       Accept: "application/vnd.github+json",
       "User-Agent": `f-land/${process.env.FLAND_APP_VERSION ?? app.getVersion()}`,
@@ -224,8 +240,52 @@ async function fetchLatestRelease(): Promise<GitHubLatestReleaseResponse> {
     throw new Error(`Update check failed with HTTP ${response.status}.`);
   }
 
-  const payload = await response.json();
-  return payload as GitHubLatestReleaseResponse;
+  return response.json();
+}
+
+async function fetchLatestRelease(): Promise<GitHubLatestReleaseResponse> {
+  const releaseConfig = getReleaseConfig();
+  if (!releaseConfig) {
+    throw new Error("Update feed is not configured.");
+  }
+
+  return (await fetchGitHubJson(releaseConfig.apiUrl)) as GitHubLatestReleaseResponse;
+}
+
+async function fetchLatestPrerelease(): Promise<GitHubLatestReleaseResponse | null> {
+  const releaseConfig = getReleaseConfig();
+  if (!releaseConfig) {
+    throw new Error("Update feed is not configured.");
+  }
+
+  const payload = await fetchGitHubJson(`${releaseConfig.releasesApiUrl}?per_page=100`);
+  if (!Array.isArray(payload)) return null;
+  return (
+    (payload as GitHubLatestReleaseResponse[]).find((release) => release.prerelease === true) ??
+    null
+  );
+}
+
+export function selectHighestRelease(
+  latestRelease: GitHubLatestReleaseResponse,
+  latestPrerelease: GitHubLatestReleaseResponse | null
+): GitHubLatestReleaseResponse {
+  if (!latestPrerelease) return latestRelease;
+  const releaseVersion = asTrimmedString(latestRelease.tag_name);
+  const prereleaseVersion = asTrimmedString(latestPrerelease.tag_name);
+  if (!releaseVersion) return latestPrerelease;
+  if (!prereleaseVersion) return latestRelease;
+  return compareVersions(prereleaseVersion, releaseVersion) > 0 ? latestPrerelease : latestRelease;
+}
+
+async function fetchUpdateRelease(channel: UpdateChannel): Promise<GitHubLatestReleaseResponse> {
+  const latestRelease = await fetchLatestRelease();
+  if (channel === "release") {
+    return latestRelease;
+  }
+
+  const latestPrerelease = await fetchLatestPrerelease();
+  return selectHighestRelease(latestRelease, latestPrerelease);
 }
 
 export function shouldRefreshUpdateState(state: AppUpdateState): boolean {
@@ -269,7 +329,7 @@ export async function checkForAppUpdates(force = false): Promise<AppUpdateState>
       if (!releaseConfig) {
         throw new Error("Update feed is not configured.");
       }
-      const release = await fetchLatestRelease();
+      const release = await fetchUpdateRelease(getUpdateChannel());
       const latestVersion = normalizeVersion(asTrimmedString(release.tag_name) ?? app.getVersion());
       const releasePageUrl = asTrimmedString(release.html_url) ?? releaseConfig.releasePageUrl;
       const downloadUrl = resolveReleaseAssetUrl(release.assets) ?? releasePageUrl;

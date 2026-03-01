@@ -308,7 +308,7 @@ function getStepDescription(id: string): string {
       return i18n._({
         id: "first-start.step.handy.description",
         message:
-          "Connect a haptics device for synchronized motion support. TheHandy and Intiface are both supported. This is optional but enhances the experience.",
+          "Connect a haptics device for synchronized motion support. TheHandy is preferred, but experimental Intiface support is also available. This is optional but enhances the experience.",
       });
     case "booru":
       return i18n._({
@@ -2402,6 +2402,17 @@ function FirstStartPage() {
 
                       {handyProvider === "intiface" ? (
                         <>
+                          <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                            <p className="font-bold uppercase tracking-wider">
+                              <Trans>Experimental Support</Trans>
+                            </p>
+                            <p className="mt-1 leading-relaxed">
+                              <Trans>
+                                Intiface support is experimental. A direct TheHandy connection is
+                                always preferred for performance.
+                              </Trans>
+                            </p>
+                          </div>
                           <div className="mt-3 flex flex-col gap-2">
                             <label
                               className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"

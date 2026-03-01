@@ -1,5 +1,20 @@
 # What's New
 
+## v0.3.7-beta
+
+### Changed
+
+- Increased the minimum round duration for the automatic round converter from 60 seconds to 3 minutes to produce longer, higher quality rounds.
+- Optimized Intiface haptics responsiveness by removing command interval clamps and syncing directly to the next funscript action for unlimited fine movement updates.
+- Added clearer experimental warning notices for Intiface hardware connections in the Settings and First-Start wizard.
+- Adjusted the visual opacity and transparency of the game's loading overlay for a better visual transition experience.
+- Experimental feature toggles (like the test animation) are now persisted across app restarts.
+
+### Fixed
+
+- Fixed a UI issue where the settings page could sometimes remain frozen in a disabled "loading" state.
+
+---
 ## v0.3.6-beta
 
 ### Added

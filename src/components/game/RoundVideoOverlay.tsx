@@ -10,6 +10,7 @@ import type {
 } from "../../game/types";
 import { db, type InstalledRound } from "../../services/db";
 import { useToast } from "../ui/ToastHost";
+import { AntiPerkBeatbar } from "./AntiPerkBeatbar";
 import ControllerHints from "./ControllerHints";
 import {
   getCachedBooruMedia,
@@ -157,14 +158,13 @@ const UI_SHOW_AFTER_MOUSEMOVE_MS = 2200;
 const LOADING_MEDIA_ROTATE_MS = 2400;
 const LOADING_MEDIA_FADE_MS = 900;
 const HANDY_PUSH_INTERVAL_MS = 60;
+const INTIFACE_PUSH_INTERVAL_MS = 10;
 const HANDY_REAUTH_MARGIN_MS = 30_000;
 const HANDY_SYNC_STALE_MS = 4_000;
 const MAIN_WINDOW_SEEK_EPSILON_SEC = 0.05;
 const MAIN_WINDOW_END_TOLERANCE_SEC = 0.04;
 const INTERMEDIARY_WINDOW_SEEK_EPSILON_SEC = 0.05;
 const MANUAL_PAUSE_DURATION_MS = 15_000;
-const ANTI_PERK_BEATBAR_LEAD_MS = 1_800;
-const ANTI_PERK_BEATBAR_TRAIL_MS = 300;
 const BOARD_VIDEO_VOLUME = 1;
 const MEDIA_NOT_FOUND_AUTO_CLOSE_MS = 10_000;
 
@@ -245,104 +245,6 @@ function clampToPlaybackWindow(
   return Math.max(window.startSec, Math.min(valueSec, window.endSec ?? valueSec));
 }
 
-function AntiPerkBeatbar({
-  actions,
-  beatbarEvents,
-  beatHits,
-  elapsedMs,
-  showBeatbar,
-  showBall,
-  style,
-}: {
-  actions: FunscriptAction[];
-  beatbarEvents: BeatbarMotionEvent[];
-  beatHits: BeatHit[];
-  elapsedMs: number;
-  showBeatbar: boolean;
-  showBall: boolean;
-  style: "jackhammer" | "milker" | "neutral";
-}) {
-  const noteColor = style === "jackhammer" ? "rgba(251,113,133,0.98)" : "rgba(34,211,238,0.98)";
-  const glowColor = style === "jackhammer" ? "rgba(251,113,133,0.52)" : "rgba(34,211,238,0.46)";
-  const activeIndex = beatHits.findIndex((hit) => elapsedMs < hit.at);
-  const hitPulse =
-    activeIndex >= 0 && activeIndex < beatHits.length
-      ? Math.max(0, 1 - Math.abs(beatHits[activeIndex]!.at - elapsedMs) / 110)
-      : 0;
-  const currentPosition =
-    actions.length > 0 ? (getFunscriptPositionAtMs({ actions }, elapsedMs) ?? 50) : 50;
-  const visibleEvents = beatbarEvents.filter(
-    (event) =>
-      event.at >= elapsedMs - ANTI_PERK_BEATBAR_TRAIL_MS &&
-      event.at <= elapsedMs + ANTI_PERK_BEATBAR_LEAD_MS
-  );
-  const positionToPercent = (pos: number) => 88 - pos * 0.76;
-
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 bottom-[12%] z-[62] mx-auto w-[min(92vw,960px)] px-4"
-      data-testid="anti-perk-beatbar"
-    >
-      <div className="relative h-24 overflow-hidden">
-        <div
-          className="absolute bottom-[12%] left-1/2 top-[12%] w-[4px] -translate-x-1/2 rounded-full"
-          style={{
-            background: noteColor,
-            boxShadow: `0 0 ${24 + hitPulse * 20}px ${glowColor}`,
-            opacity: 0.88 + hitPulse * 0.12,
-          }}
-        />
-        {showBeatbar &&
-          visibleEvents.map((event) => {
-            if (event.kind === "vibration") return null;
-
-            const relativeMs = event.at - elapsedMs;
-            const normalized =
-              (relativeMs + ANTI_PERK_BEATBAR_TRAIL_MS) /
-              (ANTI_PERK_BEATBAR_LEAD_MS + ANTI_PERK_BEATBAR_TRAIL_MS);
-            const left = normalized * 100;
-            const proximity =
-              1 -
-              Math.min(
-                1,
-                Math.abs(relativeMs) / (ANTI_PERK_BEATBAR_LEAD_MS + ANTI_PERK_BEATBAR_TRAIL_MS)
-              );
-
-            return (
-              <div
-                key={`${event.at}-${event.toPos}-downstroke`}
-                className="absolute -translate-x-1/2 rounded-full"
-                data-testid="anti-perk-beat-note"
-                style={{
-                  left: `${left}%`,
-                  top: "12%",
-                  bottom: "12%",
-                  width: `${style === "jackhammer" ? 9 : 11 + event.strength * 2}px`,
-                  background: `linear-gradient(180deg, rgba(255,255,255,0.88), ${noteColor} 28%, rgba(255,255,255,0.28) 100%)`,
-                  boxShadow: `0 0 ${12 + proximity * 16}px ${glowColor}`,
-                  opacity: 0.4 + proximity * 0.52,
-                }}
-              />
-            );
-          })}
-        {showBall && (
-          <div
-            className="absolute left-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/40"
-            data-testid="anti-perk-position-ball"
-            style={{
-              top: `${positionToPercent(currentPosition)}%`,
-              background: noteColor,
-              boxShadow: `0 0 ${14 + hitPulse * 18}px ${glowColor}`,
-              transform: `translate(-50%, -50%) scale(${1 + hitPulse * 0.24})`,
-            }}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
 function applyTimelineIntensityCap(
   timeline: Awaited<ReturnType<typeof loadFunscriptTimeline>>,
   cap: number | null | undefined
@@ -405,6 +307,8 @@ export function RoundVideoOverlay({
         "--loading-body-98": colorWithAlpha(loadingPalette.body, 0.98),
         "--loading-body-90": colorWithAlpha(loadingPalette.body, 0.9),
         "--loading-body-82": colorWithAlpha(loadingPalette.body, 0.82),
+        "--loading-body-62": colorWithAlpha(loadingPalette.body, 0.62),
+        "--loading-body-38": colorWithAlpha(loadingPalette.body, 0.38),
         "--loading-rail-a-50": colorWithAlpha(loadingPalette.railA, 0.5),
         "--loading-rail-a-16": colorWithAlpha(loadingPalette.railA, 0.16),
         "--loading-rail-b-55": colorWithAlpha(loadingPalette.railB, 0.55),
@@ -874,6 +778,8 @@ export function RoundVideoOverlay({
   const hasRequiredHapticsConnection =
     hapticsProvider === "intiface" ||
     (connectionKey.trim().length > 0 && appApiKey.trim().length > 0);
+  const hapticsPushIntervalMs =
+    hapticsProvider === "intiface" ? INTIFACE_PUSH_INTERVAL_MS : HANDY_PUSH_INTERVAL_MS;
 
   const shouldUseHandySync =
     hasUsableActiveTimeline &&
@@ -2921,7 +2827,7 @@ export function RoundVideoOverlay({
       if (position === null) return;
 
       const now = Date.now();
-      if (now - handyLastPushAtRef.current < HANDY_PUSH_INTERVAL_MS) return;
+      if (now - handyLastPushAtRef.current < hapticsPushIntervalMs) return;
 
       const playbackRate = video.playbackRate ?? 1;
       handyPushInFlightRef.current = true;
@@ -2963,7 +2869,7 @@ export function RoundVideoOverlay({
           handyPushInFlightRef.current = false;
         }
       })();
-    }, HANDY_PUSH_INTERVAL_MS);
+    }, hapticsPushIntervalMs);
 
     return () => {
       cancelled = true;
@@ -2976,6 +2882,7 @@ export function RoundVideoOverlay({
     ensureHandySession,
     handyManuallyStopped,
     hapticsConfig,
+    hapticsPushIntervalMs,
     hasRequiredHapticsConnection,
     isIntermediaryScreenActive,
     segment.kind,
@@ -3338,10 +3245,10 @@ export function RoundVideoOverlay({
     const shouldRenderStandaloneBeatbar = shouldShowManualBeatbar || shouldShowHandyPositionBall;
     return (
       <div
-        className="fixed inset-0 z-50 pointer-events-none bg-[#07040f]"
+        className="fixed inset-0 z-50 pointer-events-none bg-transparent"
         style={{
           ...loadingPaletteStyle,
-          backgroundColor: "var(--loading-body-98)",
+          backgroundColor: activeLoadingMedia ? "var(--loading-body-38)" : "transparent",
         }}
       >
         <div className="absolute inset-0">
@@ -3349,7 +3256,7 @@ export function RoundVideoOverlay({
             (isVideoMedia(activeLoadingMedia.url) ? (
               <video
                 key={activeLoadingMedia.id}
-                className="h-full w-full object-cover opacity-40"
+                className="h-full w-full object-cover opacity-80"
                 src={activeLoadingMedia.url}
                 autoPlay
                 muted
@@ -3360,19 +3267,21 @@ export function RoundVideoOverlay({
             ) : (
               <img
                 key={activeLoadingMedia.id}
-                className="h-full w-full object-cover opacity-40"
+                className="h-full w-full object-cover opacity-80"
                 src={activeLoadingMedia.url}
                 alt="loading media"
                 onError={() => setLoadingMediaIndex((prev) => prev + 1)}
               />
             ))}
         </div>
-        <div
-          className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,4,16,0.9),rgba(6,4,16,0.98))]"
-          style={{
-            background: "linear-gradient(180deg, var(--loading-body-90), var(--loading-body-98))",
-          }}
-        />
+        {activeLoadingMedia && (
+          <div
+            className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,4,16,0.9),rgba(6,4,16,0.98))]"
+            style={{
+              background: "linear-gradient(180deg, var(--loading-body-38), var(--loading-body-62))",
+            }}
+          />
+        )}
         {shouldRenderStandaloneBeatbar && activeAntiPerkSequence && (
           <AntiPerkBeatbar
             actions={activeAntiPerkSequence.actions}
@@ -3518,7 +3427,7 @@ export function RoundVideoOverlay({
         {`
           @keyframes loadingMediaFadeIn {
             0% { opacity: 0; transform: scale(1.035); filter: saturate(1.05); }
-            100% { opacity: 0.95; transform: scale(1.0); filter: saturate(1.12); }
+            100% { opacity: 1; transform: scale(1.0); filter: saturate(1.18) brightness(1.04); }
           }
           @keyframes handySyncRing {
             0% { transform: scale(0.94); opacity: 0.32; }
@@ -4395,7 +4304,7 @@ export function RoundVideoOverlay({
               {canSaveOffsetToRound && (
                 <button
                   type="button"
-                  className={`absolute bottom-14 right-4 z-40 rounded-md border border-cyan-300/35 bg-cyan-500/15 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100 backdrop-blur transition hover:border-cyan-200/70 hover:bg-cyan-500/25 ${isUiVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}
+                  className={`absolute bottom-10 right-10 z-40 rounded-md border border-cyan-300/35 bg-cyan-500/15 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100 backdrop-blur transition hover:border-cyan-200/70 hover:bg-cyan-500/25 ${isUiVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}
                   onClick={handleSaveOffsetToRound}
                 >
                   <Trans>Save Offset to Round</Trans>

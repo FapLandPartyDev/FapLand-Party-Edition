@@ -61,7 +61,7 @@ const mocks = vi.hoisted(() => {
       stopContinuousLoop: vi.fn(),
     },
     handy: {
-      provider: "thehandy" as const,
+      provider: "thehandy" as "thehandy" | "intiface",
       setProvider: vi.fn(async (provider: "thehandy" | "intiface") => {
         mocks.handy.provider = provider;
       }),
@@ -82,9 +82,13 @@ const mocks = vi.hoisted(() => {
       connected: false,
       manuallyStopped: false,
       synced: false,
-      syncError: null,
+      syncError: null as string | null,
+      testDeviceStarting: false,
+      testDeviceRunning: false,
+      testDeviceStartedAtMs: null as number | null,
+      testDeviceError: null as string | null,
       isConnecting: false,
-      error: null,
+      error: null as string | null,
       connect: vi.fn(async () => true),
       connectIntiface: vi.fn(async () => true),
       reconnect: vi.fn(async () => true),
@@ -92,6 +96,8 @@ const mocks = vi.hoisted(() => {
       forceStop: vi.fn(async () => {}),
       adjustOffset: vi.fn(async (deltaMs: number) => deltaMs),
       resetOffset: vi.fn(async () => {}),
+      startTestDevice: vi.fn(async () => {}),
+      stopTestDevice: vi.fn(async () => {}),
       refreshStroke: vi.fn(async () => {}),
       setStrokePercent: vi.fn(async () => {}),
       setStrokeBounds: vi.fn(async () => {}),
@@ -245,6 +251,7 @@ vi.mock("../services/trpc", () => ({
             else if (key === "experimental.systemLanguageEnabled") values[key] = false;
             else if (key === "experimental.playlistCacheOngoingRestrictionDisabled")
               values[key] = false;
+            else if (key === "experimental.deviceAnimationTestEnabled") values[key] = false;
             else if (key === "round.video.progressBarAlwaysVisible") values[key] = false;
             else values[key] = null;
           }
@@ -267,6 +274,11 @@ vi.mock("../hooks/useGameplayMoaning", () => ({
 }));
 
 vi.mock("../contexts/HandyContext", () => ({
+  HAPTICS_TEST_PERIOD_MS: 12000,
+  HAPTICS_TEST_ACTIONS: [
+    { at: 0, pos: 8 },
+    { at: 12000, pos: 8 },
+  ],
   useHandy: () => mocks.handy,
 }));
 
@@ -622,6 +634,8 @@ describe("Settings music section", () => {
     render(<SettingsPage />);
 
     fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);
+    expect(screen.getByTestId("haptics-test-device-layer")).toBeDefined();
+    expect(screen.queryByTestId("anti-perk-beat-note")).toBeNull();
     fireEvent.change(screen.getByLabelText("Connection Key / Channel Ref"), {
       target: { value: "conn-key-123" },
     });
@@ -629,6 +643,35 @@ describe("Settings music section", () => {
 
     await waitFor(() => {
       expect(mocks.handy.connect).toHaveBeenCalledWith("conn-key-123", "", "");
+    });
+  });
+
+  it("starts the hardware test device loop from hardware settings", async () => {
+    mocks.handy.connected = true;
+    vi.mocked(trpc.store.getMany.query).mockImplementationOnce(
+      async ({ keys }: { keys: string[] }) => {
+        const values: Record<string, unknown> = {};
+        for (const key of keys) {
+          if (key === "experimental.deviceAnimationTestEnabled") values[key] = true;
+          else if (key === "experimental.controllerSupportEnabled") values[key] = false;
+          else if (key === "experimental.installWebFunscriptUrlEnabled") values[key] = false;
+          else if (key === "experimental.systemLanguageEnabled") values[key] = false;
+          else if (key === "experimental.playlistCacheOngoingRestrictionDisabled")
+            values[key] = false;
+          else if (key === "background.video.enabled") values[key] = true;
+          else if (key === "round.video.progressBarAlwaysVisible") values[key] = false;
+          else values[key] = null;
+        }
+        return values;
+      }
+    );
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Start Test" }));
+
+    await waitFor(() => {
+      expect(mocks.handy.startTestDevice).toHaveBeenCalled();
     });
   });
 

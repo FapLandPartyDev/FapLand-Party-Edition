@@ -1,9 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HandyProvider, useHandy } from "./HandyContext";
+import type { HapticsConnectionResult } from "../services/haptics/types";
 
 const mocks = vi.hoisted(() => ({
-  verifyConnection: vi.fn(async () => ({ success: true })),
+  verifyConnection: vi.fn(async (): Promise<HapticsConnectionResult> => ({ success: true, provider: "thehandy" })),
   issueHandySession: vi.fn(async () => ({
     provider: "thehandy" as const,
     mode: "appId" as const,
@@ -24,6 +25,7 @@ const mocks = vi.hoisted(() => ({
     hspAddBackoffUntilMs: 0,
     hspModeActive: false,
   })),
+  sendHapticsSync: vi.fn(async () => undefined),
   stopHandyPlayback: vi.fn(async () => undefined),
   getHandyStroke: vi.fn(async () => ({ min: 0, max: 1, minAbsolute: 0, maxAbsolute: 200 })),
   updateHandyStroke: vi.fn(async (_auth: unknown, input: { min: number; max: number }) => ({
@@ -44,6 +46,7 @@ vi.mock("../services/haptics/runtime", () => ({
   verifyHapticsConnection: mocks.verifyConnection,
   getHapticsStroke: mocks.getHandyStroke,
   createHapticsSession: mocks.issueHandySession,
+  sendHapticsSync: mocks.sendHapticsSync,
   stopHapticsPlayback: mocks.stopHandyPlayback,
   disconnectHapticsSession: mocks.stopHandyPlayback,
   updateHapticsStroke: mocks.updateHandyStroke,
@@ -165,7 +168,7 @@ describe("HandyContext", () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
-    mocks.verifyConnection.mockResolvedValue({ success: true });
+    mocks.verifyConnection.mockResolvedValue({ success: true, provider: "thehandy" });
     mocks.issueHandySession.mockResolvedValue({
       provider: "thehandy",
       mode: "appId",

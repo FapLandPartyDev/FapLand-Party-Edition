@@ -147,7 +147,7 @@ describe("findDetectionSettingsForTargetCount", () => {
     expect(result.evaluations).toBeLessThanOrEqual(3);
   });
 
-  it("prefers exact matches close to current settings", () => {
+  it("prefers exact matches with the highest possible pause gap", () => {
     const result = findDetectionSettingsForTargetCount({
       actions: [
         { at: 0, pos: 20 },
@@ -162,7 +162,7 @@ describe("findDetectionSettingsForTargetCount", () => {
 
     expect(result.status).toBe("success");
     if (result.status !== "success") return;
-    expect(Math.abs(result.pauseGapMs - 5000)).toBeLessThanOrEqual(100);
+    expect(result.pauseGapMs).toBeGreaterThan(5000);
   });
 
   it("handles a target count of one", () => {

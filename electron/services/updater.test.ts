@@ -14,10 +14,13 @@ vi.mock("electron", () => ({
 import {
   compareVersions,
   resolveReleaseAssetUrl,
+  selectHighestRelease,
   shouldRefreshUpdateState,
   getReleaseConfig,
   type AppUpdateState,
+  type GitHubLatestReleaseResponse,
 } from "./updater";
+import { normalizeUpdateChannel } from "../../src/constants/updateSettings";
 
 describe("updater.getReleaseConfig", () => {
   it("parses valid repository strings", () => {
@@ -51,6 +54,36 @@ describe("updater.compareVersions", () => {
   it("ignores build metadata when comparing versions", () => {
     expect(compareVersions("0.1.0+deadbeef", "0.1.0+12345678")).toBe(0);
     expect(compareVersions("0.2.0", "0.1.9+deadbeef")).toBe(1);
+  });
+});
+
+describe("updater.selectHighestRelease", () => {
+  const release = (tagName: string): GitHubLatestReleaseResponse => ({
+    tag_name: tagName,
+    html_url: `https://example.test/releases/${tagName}`,
+  });
+
+  it("keeps the latest release when prerelease is missing or lower", () => {
+    expect(selectHighestRelease(release("v1.2.0"), null).tag_name).toBe("v1.2.0");
+    expect(selectHighestRelease(release("v1.2.0"), release("v1.1.9-beta")).tag_name).toBe("v1.2.0");
+  });
+
+  it("selects the prerelease when its version is higher", () => {
+    expect(selectHighestRelease(release("v1.2.0"), release("v1.3.0-beta")).tag_name).toBe(
+      "v1.3.0-beta"
+    );
+  });
+
+  it("prefers the release when versions compare equal", () => {
+    expect(selectHighestRelease(release("v1.2.0"), release("v1.2.0-beta")).tag_name).toBe("v1.2.0");
+  });
+});
+
+describe("updateSettings.normalizeUpdateChannel", () => {
+  it("defaults to release unless prerelease is selected", () => {
+    expect(normalizeUpdateChannel(undefined)).toBe("release");
+    expect(normalizeUpdateChannel("release")).toBe("release");
+    expect(normalizeUpdateChannel("prerelease")).toBe("prerelease");
   });
 });
 

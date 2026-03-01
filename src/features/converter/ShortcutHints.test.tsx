@@ -53,7 +53,7 @@ describe("converter shortcut hints", () => {
           onCommitMinRoundDraft={() => {}}
           onRunAutoDetect={() => {}}
           onRunTargetCountAutoDetect={() => {}}
-          onRunSixtySecondPauseDetectAndApply={() => {}}
+          onRunThreeMinutePauseDetectAndApply={() => {}}
           onApplyDetected={() => {}}
         />
       </div>
@@ -66,8 +66,8 @@ describe("converter shortcut hints", () => {
     expect(screen.getByText("Shift+A")).toBeDefined();
   });
 
-  it("runs the 60 second detect-and-apply action from target count enter", () => {
-    const onRunSixtySecondPauseDetectAndApply = vi.fn();
+  it("runs the target count detect action from target count enter", () => {
+    const onRunTargetCountAutoDetect = vi.fn();
     render(
       <AutoDetectionPanel
         funscriptUri="file:///tmp/test.funscript"
@@ -85,8 +85,8 @@ describe("converter shortcut hints", () => {
         onCommitPauseGapDraft={() => {}}
         onCommitMinRoundDraft={() => {}}
         onRunAutoDetect={() => {}}
-        onRunTargetCountAutoDetect={() => {}}
-        onRunSixtySecondPauseDetectAndApply={onRunSixtySecondPauseDetectAndApply}
+        onRunTargetCountAutoDetect={onRunTargetCountAutoDetect}
+        onRunThreeMinutePauseDetectAndApply={() => {}}
         onApplyDetected={() => {}}
       />
     );
@@ -94,7 +94,7 @@ describe("converter shortcut hints", () => {
     const targetInputs = screen.getAllByLabelText("Target Count");
     fireEvent.keyDown(targetInputs[targetInputs.length - 1]!, { key: "Enter" });
 
-    expect(onRunSixtySecondPauseDetectAndApply).toHaveBeenCalledTimes(1);
+    expect(onRunTargetCountAutoDetect).toHaveBeenCalledTimes(1);
   });
 
   it("renders move selected segment boundary buttons with shortcut hints", () => {

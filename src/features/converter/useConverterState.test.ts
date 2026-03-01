@@ -2042,7 +2042,7 @@ describe("useConverterState", () => {
     });
 
     await act(async () => {
-      await result.current.runSixtySecondPauseDetectAndApply();
+      await result.current.runThreeMinutePauseDetectAndApply();
     });
 
     expect(mocks.buildDetectedSegments).toHaveBeenCalledWith(

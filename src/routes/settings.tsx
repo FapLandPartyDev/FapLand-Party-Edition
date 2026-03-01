@@ -5,6 +5,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import ReactMarkdown from "react-markdown";
 import changelogMarkdown from "../content/changelog.md?raw";
 import { AnimatedBackground } from "../components/AnimatedBackground";
+import { AntiPerkBeatbar } from "../components/game/AntiPerkBeatbar";
 import { HandyStrokeRangeControl } from "../components/HandyStrokeRangeControl";
 import { MenuButton } from "../components/MenuButton";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
@@ -26,6 +27,13 @@ import {
 } from "../constants/musicSettings";
 import { DEFAULT_MOANING_VOLUME } from "../constants/moaningSettings";
 import { useHandy } from "../contexts/HandyContext";
+import {
+  HAPTICS_TEST_ACTIONS,
+  HAPTICS_TEST_BEATBAR_EVENTS,
+  HAPTICS_TEST_BEATBAR_STYLE,
+  HAPTICS_TEST_BEAT_HITS,
+  HAPTICS_TEST_PERIOD_MS,
+} from "../constants/hapticsTest";
 import { useGlobalMusic } from "../hooks/useGlobalMusic";
 import { useGameplayMoaning } from "../hooks/useGameplayMoaning";
 import { useAppUpdate } from "../hooks/useAppUpdate";
@@ -108,6 +116,9 @@ import {
   STARTUP_SAFE_MODE_SHORTCUT_ENABLED_KEY,
   DEFAULT_STARTUP_SAFE_MODE_SHORTCUT_ENABLED,
   normalizeStartupSafeModeShortcutEnabled,
+  DEVICE_ANIMATION_TEST_ENABLED_KEY,
+  DEFAULT_DEVICE_ANIMATION_TEST_ENABLED,
+  normalizeDeviceAnimationTestEnabled,
 } from "../constants/experimentalFeatures";
 import {
   SFX_VOLUME_CHANGED_EVENT,
@@ -147,6 +158,12 @@ import { WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY } from "../constants/websiteVideoCach
 import { EROSCRIPTS_CACHE_ROOT_PATH_KEY } from "../constants/eroscriptsSettings";
 import { MUSIC_CACHE_ROOT_PATH_KEY } from "../constants/musicSettings";
 import { FPACK_EXTRACTION_PATH_KEY } from "../constants/fpackSettings";
+import {
+  DEFAULT_UPDATE_CHANNEL,
+  UPDATE_CHANNEL_KEY,
+  normalizeUpdateChannel,
+  type UpdateChannel,
+} from "../constants/updateSettings";
 import { CONVERTER_SHORTCUTS } from "../features/converter/shortcuts";
 import { formatStoragePathDisplay, isStoragePathResettable } from "../utils/storagePath";
 
@@ -655,7 +672,7 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const appUpdate = useAppUpdate();
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isLoadingFullscreen, setIsLoadingFullscreen] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [zoomPercent, setZoomPercent] = useState<number | null>(null);
   const [isLoadingZoom, setIsLoadingZoom] = useState(true);
   const [intermediaryLoadingPrompt, setIntermediaryLoadingPrompt] = useState(
@@ -705,6 +722,9 @@ export function SettingsPage() {
   const [startupSafeModeShortcutEnabled, setStartupSafeModeShortcutEnabled] = useState(
     DEFAULT_STARTUP_SAFE_MODE_SHORTCUT_ENABLED
   );
+  const [deviceAnimationTestEnabled, setDeviceAnimationTestEnabled] = useState(
+    DEFAULT_DEVICE_ANIMATION_TEST_ENABLED
+  );
   const [backgroundPhashScanningEnabled, setBackgroundPhashScanningEnabled] = useState(
     DEFAULT_BACKGROUND_PHASH_SCANNING_ENABLED
   );
@@ -735,36 +755,7 @@ export function SettingsPage() {
   const [binaryDiagnosticsError, setBinaryDiagnosticsError] = useState<string | null>(null);
   const [isLoadingBinaryDiagnostics, setIsLoadingBinaryDiagnostics] = useState(true);
   const [isRefreshingBinaryDiagnostics, setIsRefreshingBinaryDiagnostics] = useState(false);
-  const [isLoadingPrompt, setIsLoadingPrompt] = useState(true);
-  const [isLoadingVideoHashPreference, setIsLoadingVideoHashPreference] = useState(true);
-  const [isLoadingYtDlpPreference, setIsLoadingYtDlpPreference] = useState(true);
-  const [isLoadingBackgroundVideoEnabled, setIsLoadingBackgroundVideoEnabled] = useState(true);
-  const [isLoadingAutofixBrokenFunscripts, setIsLoadingAutofixBrokenFunscripts] = useState(true);
-  const [isLoadingRoundProgressBarAlwaysVisible, setIsLoadingRoundProgressBarAlwaysVisible] =
-    useState(true);
-  const [isLoadingAntiPerkBeatbarEnabled, setIsLoadingAntiPerkBeatbarEnabled] = useState(true);
-  const [isLoadingControllerSupportEnabled, setIsLoadingControllerSupportEnabled] = useState(true);
-  const [isLoadingFpsCounterEnabled, setIsLoadingFpsCounterEnabled] = useState(true);
-  const [isLoadingCheatModeEnabled, setIsLoadingCheatModeEnabled] = useState(true);
-  const [isLoadingStartupSafeModeShortcutEnabled, setIsLoadingStartupSafeModeShortcutEnabled] =
-    useState(true);
-  const [isLoadingBackgroundPhashScanningEnabled, setIsLoadingBackgroundPhashScanningEnabled] =
-    useState(true);
-  const [isLoadingBackgroundPhashRoundsPerPass, setIsLoadingBackgroundPhashRoundsPerPass] =
-    useState(true);
-  const [isLoadingPreviewFfmpegSingleThreadEnabled, setIsLoadingPreviewFfmpegSingleThreadEnabled] =
-    useState(true);
-  const [isLoadingDatabaseBackupEnabled, setIsLoadingDatabaseBackupEnabled] = useState(true);
-  const [isLoadingDatabaseBackupFrequencyDays, setIsLoadingDatabaseBackupFrequencyDays] =
-    useState(true);
-  const [isLoadingDatabaseBackupRetentionDays, setIsLoadingDatabaseBackupRetentionDays] =
-    useState(true);
-  const [isLoadingWebsiteVideoCacheRootPath, setIsLoadingWebsiteVideoCacheRootPath] =
-    useState(true);
-  const [isLoadingEroScriptsCacheRootPath, setIsLoadingEroScriptsCacheRootPath] = useState(true);
-  const [isLoadingEroScriptsAuth, setIsLoadingEroScriptsAuth] = useState(true);
-  const [isLoadingMusicCacheRootPath, setIsLoadingMusicCacheRootPath] = useState(true);
-  const [isLoadingFpackExtractionPath, setIsLoadingFpackExtractionPath] = useState(true);
+
   const [isUpdatingWebsiteVideoCacheRootPath, setIsUpdatingWebsiteVideoCacheRootPath] =
     useState(false);
   const [isUpdatingEroScriptsCacheRootPath, setIsUpdatingEroScriptsCacheRootPath] = useState(false);
@@ -775,7 +766,7 @@ export function SettingsPage() {
     "website-video-cache" | "music-cache" | "fpack-extraction" | "eroscripts-cache" | null
   >(null);
   const [autoScanFolders, setAutoScanFolders] = useState<string[]>([]);
-  const [isLoadingAutoScanFolders, setIsLoadingAutoScanFolders] = useState(true);
+
   const [isUpdatingAutoScanFolders, setIsUpdatingAutoScanFolders] = useState(false);
   const [folderImportNotices, setFolderImportNotices] = useState<FolderImportNotice[]>([]);
   const [isClearDataDialogOpen, setIsClearDataDialogOpen] = useState(false);
@@ -846,6 +837,7 @@ export function SettingsPage() {
         EROSCRIPTS_CACHE_ROOT_PATH_KEY,
         MUSIC_CACHE_ROOT_PATH_KEY,
         FPACK_EXTRACTION_PATH_KEY,
+        DEVICE_ANIMATION_TEST_ENABLED_KEY,
       ];
 
       try {
@@ -887,6 +879,7 @@ export function SettingsPage() {
           storeValues[PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED_KEY];
         const rawStartupSafeModeShortcutEnabled =
           storeValues[STARTUP_SAFE_MODE_SHORTCUT_ENABLED_KEY];
+        const rawDeviceAnimationTestEnabled = storeValues[DEVICE_ANIMATION_TEST_ENABLED_KEY];
         const rawWebsiteVideoCacheRootPath = storeValues[WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY];
         const rawEroScriptsCacheRootPath = storeValues[EROSCRIPTS_CACHE_ROOT_PATH_KEY];
         const rawMusicCacheRootPath = storeValues[MUSIC_CACHE_ROOT_PATH_KEY];
@@ -958,6 +951,9 @@ export function SettingsPage() {
         setStartupSafeModeShortcutEnabled(
           normalizeStartupSafeModeShortcutEnabled(rawStartupSafeModeShortcutEnabled)
         );
+        setDeviceAnimationTestEnabled(
+          normalizeDeviceAnimationTestEnabled(rawDeviceAnimationTestEnabled)
+        );
         setWebsiteVideoCacheRootPath(
           typeof rawWebsiteVideoCacheRootPath === "string" &&
             rawWebsiteVideoCacheRootPath.trim().length > 0
@@ -994,32 +990,7 @@ export function SettingsPage() {
       } catch (error) {
         console.error("Failed to read settings state", error);
       } finally {
-        if (mounted) {
-          setIsLoadingFullscreen(false);
-          setIsLoadingPrompt(false);
-          setIsLoadingVideoHashPreference(false);
-          setIsLoadingYtDlpPreference(false);
-          setIsLoadingBackgroundVideoEnabled(false);
-          setIsLoadingAutofixBrokenFunscripts(false);
-          setIsLoadingRoundProgressBarAlwaysVisible(false);
-          setIsLoadingAntiPerkBeatbarEnabled(false);
-          setIsLoadingControllerSupportEnabled(false);
-          setIsLoadingFpsCounterEnabled(false);
-          setIsLoadingCheatModeEnabled(false);
-          setIsLoadingBackgroundPhashScanningEnabled(false);
-          setIsLoadingBackgroundPhashRoundsPerPass(false);
-          setIsLoadingPreviewFfmpegSingleThreadEnabled(false);
-          setIsLoadingDatabaseBackupEnabled(false);
-          setIsLoadingDatabaseBackupFrequencyDays(false);
-          setIsLoadingDatabaseBackupRetentionDays(false);
-          setIsLoadingWebsiteVideoCacheRootPath(false);
-          setIsLoadingEroScriptsCacheRootPath(false);
-          setIsLoadingEroScriptsAuth(false);
-          setIsLoadingMusicCacheRootPath(false);
-          setIsLoadingFpackExtractionPath(false);
-          setIsLoadingStartupSafeModeShortcutEnabled(false);
-          setIsLoadingAutoScanFolders(false);
-        }
+        setIsInitialLoading(false);
       }
     };
 
@@ -1641,6 +1612,20 @@ export function SettingsPage() {
               setInstallWebFunscriptUrlEnabled(next);
             },
           },
+          {
+            id: "device-animation-test-enabled",
+            type: "toggle",
+            label: t`Device Animation Test`,
+            description: t`Shows the Test Device panel in Hardware & Sync for visual sync checks with a generated motion loop.`,
+            value: deviceAnimationTestEnabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: DEVICE_ANIMATION_TEST_ENABLED_KEY,
+                value: next,
+              });
+              setDeviceAnimationTestEnabled(next);
+            },
+          },
         ],
       },
       {
@@ -1692,6 +1677,7 @@ export function SettingsPage() {
       databaseBackupFrequencyDays,
       databaseBackupRetentionDays,
       startupSafeModeShortcutEnabled,
+      deviceAnimationTestEnabled,
       locale,
       locales,
       setLocale,
@@ -2113,7 +2099,7 @@ export function SettingsPage() {
                   <AutoScanFoldersCard
                     folders={autoScanFolders}
                     notices={folderImportNotices}
-                    isLoading={isLoadingAutoScanFolders}
+                    isLoading={isInitialLoading}
                     isPending={isUpdatingAutoScanFolders}
                     onAddFolders={() => {
                       playSelectSound();
@@ -2129,7 +2115,7 @@ export function SettingsPage() {
                 <>
                   <SettingsSectionCard
                     section={activeSection}
-                    loading={isLoadingFullscreen || isLoadingBackgroundVideoEnabled}
+                    loading={isInitialLoading}
                   />
                   <AppZoomCard
                     zoomPercent={zoomPercent}
@@ -2170,7 +2156,7 @@ export function SettingsPage() {
                 <>
                   <SettingsSectionCard
                     section={activeSection}
-                    loading={isLoadingStartupSafeModeShortcutEnabled}
+                    loading={isInitialLoading}
                   />
                   <SecuritySettingsCard />
                 </>
@@ -2179,18 +2165,11 @@ export function SettingsPage() {
                   <AppUpdateCard appUpdate={appUpdate} />
                   <SettingsSectionCard
                     section={activeSection}
-                    loading={
-                      isLoadingBackgroundPhashScanningEnabled ||
-                      isLoadingBackgroundPhashRoundsPerPass ||
-                      isLoadingPreviewFfmpegSingleThreadEnabled ||
-                      isLoadingDatabaseBackupEnabled ||
-                      isLoadingDatabaseBackupFrequencyDays ||
-                      isLoadingDatabaseBackupRetentionDays
-                    }
+                    loading={isInitialLoading}
                   />
                   <MusicCacheLocationCard
                     configuredPath={musicCacheRootPath}
-                    isLoading={isLoadingMusicCacheRootPath}
+                    isLoading={isInitialLoading}
                     isPending={isUpdatingMusicCacheRootPath}
                     isOpening={openingPathTarget === "music-cache"}
                     onChooseFolder={() => {
@@ -2208,7 +2187,7 @@ export function SettingsPage() {
                   />
                   <WebsiteVideoCacheLocationCard
                     configuredPath={websiteVideoCacheRootPath}
-                    isLoading={isLoadingWebsiteVideoCacheRootPath}
+                    isLoading={isInitialLoading}
                     isPending={isUpdatingWebsiteVideoCacheRootPath}
                     isOpening={openingPathTarget === "website-video-cache"}
                     onChooseFolder={() => {
@@ -2226,7 +2205,7 @@ export function SettingsPage() {
                   />
                   <EroScriptsCacheLocationCard
                     configuredPath={eroscriptsCacheRootPath}
-                    isLoading={isLoadingEroScriptsCacheRootPath}
+                    isLoading={isInitialLoading}
                     isPending={isUpdatingEroScriptsCacheRootPath}
                     isOpening={openingPathTarget === "eroscripts-cache"}
                     onChooseFolder={() => {
@@ -2245,7 +2224,7 @@ export function SettingsPage() {
                   <WebsiteVideoCacheScanCard />
                   <FpackExtractionLocationCard
                     configuredPath={fpackExtractionPath}
-                    isLoading={isLoadingFpackExtractionPath}
+                    isLoading={isInitialLoading}
                     isPending={isUpdatingFpackExtractionPath}
                     isOpening={openingPathTarget === "fpack-extraction"}
                     onChooseFolder={() => {
@@ -2281,13 +2260,14 @@ export function SettingsPage() {
               ) : activeSection && activeSection.id === "hardware" ? (
                 <HardwareSettingsCard
                   section={activeSection}
-                  loading={isLoadingAutofixBrokenFunscripts}
+                  loading={isInitialLoading}
+                  deviceAnimationTestEnabled={deviceAnimationTestEnabled}
                 />
               ) : activeSection && activeSection.id === "advanced" ? (
                 <>
                   <SettingsSectionCard
                     section={activeSection}
-                    loading={isLoadingVideoHashPreference || isLoadingYtDlpPreference}
+                    loading={isInitialLoading}
                   />
                   <ProgramVersionsCard
                     diagnostics={binaryDiagnostics}
@@ -2305,21 +2285,7 @@ export function SettingsPage() {
               ) : activeSection ? (
                 <SettingsSectionCard
                   section={activeSection}
-                  loading={
-                    isLoadingPrompt ||
-                    isLoadingVideoHashPreference ||
-                    isLoadingYtDlpPreference ||
-                    isLoadingAutofixBrokenFunscripts ||
-                    isLoadingRoundProgressBarAlwaysVisible ||
-                    isLoadingAntiPerkBeatbarEnabled ||
-                    isLoadingControllerSupportEnabled ||
-                    isLoadingFpsCounterEnabled ||
-                    isLoadingCheatModeEnabled ||
-                    isLoadingStartupSafeModeShortcutEnabled ||
-                    isLoadingBackgroundPhashScanningEnabled ||
-                    isLoadingBackgroundPhashRoundsPerPass ||
-                    isLoadingPreviewFfmpegSingleThreadEnabled
-                  }
+                  loading={isInitialLoading}
                 />
               ) : null}
             </div>
@@ -3248,6 +3214,10 @@ function WebsiteVideoCacheScanCard() {
 
 function AppUpdateCard({ appUpdate }: { appUpdate: ReturnType<typeof useAppUpdate> }) {
   const { t } = useLingui();
+  const [updateChannel, setUpdateChannel] = useState<UpdateChannel>(DEFAULT_UPDATE_CHANNEL);
+  const [isLoadingChannel, setIsLoadingChannel] = useState(true);
+  const [isSavingChannel, setIsSavingChannel] = useState(false);
+  const [channelError, setChannelError] = useState<string | null>(null);
   const statusTone =
     appUpdate.state.status === "update_available"
       ? "border-amber-300/30 bg-amber-500/10 text-amber-100"
@@ -3266,6 +3236,48 @@ function AppUpdateCard({ appUpdate }: { appUpdate: ReturnType<typeof useAppUpdat
           : appUpdate.state.status === "error"
             ? t`Check Failed`
             : t`Not Checked Yet`;
+
+  useEffect(() => {
+    let mounted = true;
+    trpc.store.get
+      .query({ key: UPDATE_CHANNEL_KEY })
+      .then((value) => {
+        if (mounted) {
+          setUpdateChannel(normalizeUpdateChannel(value));
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load update channel", error);
+        if (mounted) {
+          setUpdateChannel(DEFAULT_UPDATE_CHANNEL);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setIsLoadingChannel(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const changeUpdateChannel = async (next: UpdateChannel) => {
+    if (isSavingChannel || next === updateChannel) return;
+    playSelectSound();
+    setIsSavingChannel(true);
+    setChannelError(null);
+    try {
+      await trpc.store.set.mutate({ key: UPDATE_CHANNEL_KEY, value: next });
+      setUpdateChannel(next);
+      await trpc.updater.check.mutate({ force: true });
+    } catch (error) {
+      setChannelError(error instanceof Error ? error.message : t`Failed to update channel.`);
+    } finally {
+      setIsSavingChannel(false);
+    }
+  };
 
   return (
     <section
@@ -3300,22 +3312,41 @@ function AppUpdateCard({ appUpdate }: { appUpdate: ReturnType<typeof useAppUpdat
             </div>
           </div>
 
-          <button
-            type="button"
-            disabled={appUpdate.isBusy}
-            onClick={() => {
-              playSelectSound();
-              void appUpdate.triggerPrimaryAction();
-            }}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-              appUpdate.isBusy
-                ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
-                : "border-violet-300/60 bg-violet-500/30 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/45"
-            }`}
-          >
-            {appUpdate.actionLabel}
-          </button>
+          <div className="flex w-full flex-col gap-2 sm:w-56">
+            <GameDropdown
+              label={t`Channel`}
+              value={updateChannel}
+              options={[
+                { value: "release", label: t`Release` },
+                { value: "prerelease", label: t`Prerelease` },
+              ]}
+              disabled={isLoadingChannel || isSavingChannel || appUpdate.isBusy}
+              onHoverSfx={playHoverSound}
+              onSelectSfx={playSelectSound}
+              onChange={(value) => void changeUpdateChannel(normalizeUpdateChannel(value))}
+            />
+            <button
+              type="button"
+              disabled={appUpdate.isBusy || isSavingChannel}
+              onClick={() => {
+                playSelectSound();
+                void appUpdate.triggerPrimaryAction();
+              }}
+              className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                appUpdate.isBusy || isSavingChannel
+                  ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
+                  : "border-violet-300/60 bg-violet-500/30 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/45"
+              }`}
+            >
+              {isSavingChannel ? t`Saving...` : appUpdate.actionLabel}
+            </button>
+          </div>
         </div>
+        {channelError ? (
+          <p className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 font-mono text-xs text-rose-200 animate-entrance">
+            {channelError}
+          </p>
+        ) : null}
       </div>
     </section>
   );
@@ -3360,9 +3391,11 @@ function OnboardingCard() {
 function HardwareSettingsCard({
   section,
   loading,
+  deviceAnimationTestEnabled,
 }: {
   section: SettingsSection;
   loading: boolean;
+  deviceAnimationTestEnabled: boolean;
 }) {
   const { t } = useLingui();
   const {
@@ -3383,12 +3416,18 @@ function HardwareSettingsCard({
     connected,
     synced,
     syncError,
+    testDeviceStarting,
+    testDeviceRunning,
+    testDeviceStartedAtMs,
+    testDeviceError,
     isConnecting,
     error,
     connect,
     connectIntiface,
     disconnect,
     forceStop,
+    startTestDevice,
+    stopTestDevice,
     adjustOffset,
     resetOffset,
     setStrokeBounds,
@@ -3404,6 +3443,7 @@ function HardwareSettingsCard({
   const [strokeMaxSliderValue, setStrokeMaxSliderValue] = useState(
     formatHandyStrokeBoundPercent(strokeMax)
   );
+  const [testAnimationNowMs, setTestAnimationNowMs] = useState(() => performance.now());
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -3421,6 +3461,17 @@ function HardwareSettingsCard({
     });
   }, [appApiKeyOverride, connectionKey, intifaceWebsocketUrl, isUsingDefaultAppApiKey]);
 
+  useEffect(() => {
+    if (!testDeviceRunning) return;
+    let animationFrame = 0;
+    const tick = () => {
+      setTestAnimationNowMs(performance.now());
+      animationFrame = window.requestAnimationFrame(tick);
+    };
+    animationFrame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [testDeviceRunning]);
+
   const handleConnect = async () => {
     if (connected) {
       await disconnect();
@@ -3434,6 +3485,14 @@ function HardwareSettingsCard({
 
     await connect(inputKey, "", useCustomApiKey ? inputApiKeyOverride : "");
   };
+
+  const testElapsedMs =
+    testDeviceRunning && testDeviceStartedAtMs !== null
+      ? testAnimationNowMs - testDeviceStartedAtMs + offsetMs
+      : 0;
+  const normalizedTestElapsedMs =
+    ((testElapsedMs % HAPTICS_TEST_PERIOD_MS) + HAPTICS_TEST_PERIOD_MS) %
+    HAPTICS_TEST_PERIOD_MS;
 
   return (
     <section
@@ -3508,6 +3567,18 @@ function HardwareSettingsCard({
 
             {provider === "intiface" ? (
               <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-4">
+                <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+                  <p className="font-bold uppercase tracking-wider">
+                    <Trans>Experimental Support</Trans>
+                  </p>
+                  <p className="mt-1">
+                    <Trans>
+                      Intiface support is currently experimental and may have performance
+                      limitations. Using a direct TheHandy connection is always preferred for the
+                      best experience.
+                    </Trans>
+                  </p>
+                </div>
                 <div className="flex flex-col gap-2">
                   <label
                     className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
@@ -3685,6 +3756,73 @@ function HardwareSettingsCard({
             </div>
           </div>
         </div>
+
+        {deviceAnimationTestEnabled ? (
+        <div
+          className="rounded-2xl border border-fuchsia-300/20 bg-[linear-gradient(160deg,rgba(31,10,38,0.74),rgba(8,18,32,0.74))] p-4 shadow-[0_0_32px_rgba(217,70,239,0.08)] transition-colors duration-200 hover:border-fuchsia-300/35"
+          data-testid="haptics-test-device-layer"
+          onMouseEnter={playHoverSound}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] text-fuchsia-200/80">
+                <Trans>Test Device</Trans>
+              </p>
+              <p className="mt-1 text-sm text-zinc-200">
+                <Trans>
+                  Runs a generated motion loop with a matching visual animation for sync checks.
+                </Trans>
+              </p>
+            </div>
+            <span
+              className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
+                testDeviceRunning
+                  ? "border-fuchsia-300/40 bg-fuchsia-500/15 text-fuchsia-100"
+                  : testDeviceStarting
+                    ? "border-cyan-300/40 bg-cyan-500/15 text-cyan-100"
+                  : "border-zinc-500/40 bg-zinc-800/70 text-zinc-300"
+              }`}
+            >
+              {testDeviceRunning ? t`Running` : testDeviceStarting ? t`Syncing` : t`Stopped`}
+            </span>
+          </div>
+
+          <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-black/35 p-4">
+            <div className="relative h-28 rounded-lg border border-fuchsia-300/15 bg-[radial-gradient(circle_at_50%_50%,rgba(244,63,94,0.18),rgba(2,6,23,0.9)_68%)]">
+              <AntiPerkBeatbar
+                actions={HAPTICS_TEST_ACTIONS}
+                beatbarEvents={HAPTICS_TEST_BEATBAR_EVENTS}
+                beatHits={HAPTICS_TEST_BEAT_HITS}
+                elapsedMs={normalizedTestElapsedMs}
+                showBeatbar={false}
+                showBall
+                style={HAPTICS_TEST_BEATBAR_STYLE}
+                className="pointer-events-none absolute inset-x-0 top-1/2 z-10 mx-auto w-full -translate-y-1/2 px-2"
+              />
+            </div>
+          </div>
+
+          {testDeviceError ? (
+            <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm font-[family-name:var(--font-jetbrains-mono)] text-amber-300">
+              {testDeviceError}
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!connected || isConnecting || testDeviceStarting}
+              onClick={() => {
+                playSelectSound();
+                void (testDeviceRunning ? stopTestDevice() : startTestDevice());
+              }}
+              className="inline-flex rounded-xl border border-fuchsia-300/40 bg-fuchsia-500/15 px-4 py-2 text-sm font-semibold text-fuchsia-100 transition-all duration-200 hover:border-fuchsia-200/70 hover:bg-fuchsia-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {testDeviceRunning ? t`Stop Test` : testDeviceStarting ? t`Syncing...` : t`Start Test`}
+            </button>
+          </div>
+        </div>
+        ) : null}
 
         <div
           className="rounded-2xl border border-cyan-300/20 bg-[linear-gradient(160deg,rgba(8,20,36,0.72),rgba(12,16,38,0.72))] p-4 shadow-[0_0_32px_rgba(34,211,238,0.08)] transition-colors duration-200 hover:border-cyan-300/35"

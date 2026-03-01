@@ -1,5 +1,4 @@
 import type { FunscriptAction } from "../../game/media/playback";
-import { getFunscriptPositionAtMs } from "../../game/media/playback";
 import { normalizeHandyStrokeState } from "../theHandyConfig";
 import type {
   HapticsConnectionConfig,
@@ -17,7 +16,7 @@ type ButtplugModule = {
       percent: (position: number, durationMs: number) => unknown;
     };
     Position?: {
-      percent: (position: number, durationMs: number) => unknown;
+      percent: (position: number) => unknown;
     };
   };
   OutputType?: {
@@ -62,14 +61,14 @@ export type IntifaceHapticsSession = HapticsSession & {
   lastCommandedTimeMs: number | null;
   lastPlaybackRate: number | null;
   lastPosition: number | null;
-  lastTargetAtMs: number | null;
+  lastTargetActionAt: number | null;
 };
 
 const INTIFACE_CLIENT_NAME = "Fap Land";
 const INTIFACE_SESSION_TTL_MS = 60 * 60_000;
 const INTIFACE_SCAN_MS = 2500;
-const INTIFACE_MIN_MOVE_MS = 20;
-const INTIFACE_MAX_MOVE_MS = 1000;
+const INTIFACE_MIN_MOVE_MS = 0;
+const INTIFACE_MAX_MOVE_MS = 5000;
 const DEFAULT_INTIFACE_URL = "ws://127.0.0.1:12345";
 
 let moduleOverride: ButtplugModule | null = null;
@@ -137,12 +136,10 @@ function getClientDevices(
 
 function outputValues(module: ButtplugModule): unknown[] {
   return [
-    module.OutputType?.Position,
-    module.OutputType?.Linear,
     module.OutputType?.HwPositionWithDuration,
-    "Position",
-    "Linear",
+    module.OutputType?.Position,
     "HwPositionWithDuration",
+    "Position",
   ].filter((value) => value !== undefined);
 }
 
@@ -214,30 +211,48 @@ function applyStroke(position: number, stroke: HapticsStrokeState): number {
   return normalized.min + (normalized.max - normalized.min) * clamped;
 }
 
-function nextActionAfter(actions: FunscriptAction[], timeMs: number): FunscriptAction | null {
-  for (const action of actions) {
-    if (action.at > timeMs) return action;
+function getNextAction(actions: FunscriptAction[], timeMs: number): FunscriptAction | null {
+  let lo = 0;
+  let hi = actions.length - 1;
+  let best = -1;
+
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const point = actions[mid];
+    if (!point) break;
+
+    if (point.at > timeMs) {
+      best = mid;
+      hi = mid - 1;
+    } else {
+      lo = mid + 1;
+    }
   }
-  return actions[actions.length - 1] ?? null;
+
+  return best >= 0 ? actions[best] : null;
 }
 
 function shouldSendPositionCommand(
   session: IntifaceHapticsSession,
   timeMs: number,
   playbackRate: number,
-  targetActionAtMs: number | null,
-  targetPosition: number
+  nextActionAt: number
 ): boolean {
-  if (session.lastPosition === null || session.lastCommandedTimeMs === null) return true;
-  if (timeMs < session.lastCommandedTimeMs - 100) return true;
+  if (session.lastTargetActionAt === null || session.lastCommandedTimeMs === null) return true;
+  if (session.lastTargetActionAt !== nextActionAt) return true;
+
   if (
     session.lastPlaybackRate !== null &&
     Math.abs(session.lastPlaybackRate - playbackRate) > 0.01
   ) {
     return true;
   }
-  if (session.lastTargetAtMs !== targetActionAtMs) return true;
-  return Math.abs(session.lastPosition - targetPosition) > 0.001;
+
+  const elapsedMs = Date.now() - session.lastCommandAtMs;
+  const expectedTimeMs = session.lastCommandedTimeMs + elapsedMs * playbackRate;
+  if (Math.abs(timeMs - expectedTimeMs) > 350) return true;
+
+  return false;
 }
 
 async function runPositionCommand(
@@ -248,7 +263,23 @@ async function runPositionCommand(
 ): Promise<void> {
   const clampedPosition = Math.max(0, Math.min(1, position));
   const clampedDuration = clampDurationMs(durationMs);
+  const supportsOutput = (outputType: unknown): boolean => {
+    if (outputType === undefined || typeof device.hasOutput !== "function") return false;
+    try {
+      return device.hasOutput(outputType) === true;
+    } catch {
+      return false;
+    }
+  };
+  const supportsPositionWithDuration =
+    supportsOutput(module.OutputType?.HwPositionWithDuration) ||
+    supportsOutput("HwPositionWithDuration");
+  const supportsPosition =
+    supportsOutput(module.OutputType?.Position) ||
+    supportsOutput("Position");
+
   if (
+    supportsPositionWithDuration &&
     module.DeviceOutput?.PositionWithDuration?.percent &&
     typeof device.runOutput === "function"
   ) {
@@ -257,8 +288,12 @@ async function runPositionCommand(
     );
     return;
   }
-  if (module.DeviceOutput?.Position?.percent && typeof device.runOutput === "function") {
-    await device.runOutput(module.DeviceOutput.Position.percent(clampedPosition, clampedDuration));
+  if (
+    supportsPosition &&
+    module.DeviceOutput?.Position?.percent &&
+    typeof device.runOutput === "function"
+  ) {
+    await device.runOutput(module.DeviceOutput.Position.percent(clampedPosition));
     return;
   }
   if (typeof device.positionWithDuration === "function") {
@@ -333,7 +368,7 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
       lastCommandedTimeMs: null,
       lastPlaybackRate: null,
       lastPosition: null,
-      lastTargetAtMs: null,
+      lastTargetActionAt: null,
     };
   },
 
@@ -344,38 +379,32 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
     session.lastCommandedTimeMs = null;
     session.lastPlaybackRate = null;
     session.lastPosition = null;
-    session.lastTargetAtMs = null;
+    session.lastTargetActionAt = null;
   },
 
   async sendSync(config, session, timeMs, playbackRate, sourceId, actions): Promise<void> {
     const module = await loadButtplug();
     const id = scriptId(sourceId, actions);
     if (session.loadedScriptId !== id) {
-      await intifaceAdapter.preloadScript(config, session, sourceId, actions, timeMs);
+      await intifaceAdapter.preloadScript(config, session, sourceId, actions);
     }
     const activeActions = session.actions.length > 0 ? session.actions : actions;
-    const currentPosition = getFunscriptPositionAtMs({ actions: activeActions }, timeMs);
-    if (currentPosition === null) return;
-    const rate = Math.max(0.25, Math.min(3, playbackRate));
-    const nextAction = nextActionAfter(activeActions, timeMs);
-    const targetAction =
-      nextAction && nextAction.at > timeMs
-        ? nextAction
-        : (activeActions[activeActions.length - 1] ?? null);
-    const targetRawPosition = targetAction ? targetAction.pos : currentPosition;
-    const durationMs =
-      targetAction && targetAction.at > timeMs ? Math.max(0, targetAction.at - timeMs) / rate : 120;
-    const position = applyStroke(targetRawPosition, requireIntifaceConfig(config).stroke);
-    const targetAtMs = targetAction?.at ?? null;
+    
+    const nextAction = getNextAction(activeActions, timeMs);
+    if (!nextAction) return;
 
-    if (!shouldSendPositionCommand(session, timeMs, rate, targetAtMs, position)) return;
+    const rate = Math.max(0.25, Math.min(3, playbackRate));
+    if (!shouldSendPositionCommand(session, timeMs, rate, nextAction.at)) return;
+
+    const position = applyStroke(nextAction.pos, requireIntifaceConfig(config).stroke);
+    const durationMs = (nextAction.at - timeMs) / rate;
 
     await runPositionCommand(module, session.device, position, durationMs);
     session.lastCommandAtMs = Date.now();
     session.lastCommandedTimeMs = timeMs;
     session.lastPlaybackRate = rate;
     session.lastPosition = position;
-    session.lastTargetAtMs = targetAtMs;
+    session.lastTargetActionAt = nextAction.at;
   },
 
   async pausePlayback(_config, session): Promise<void> {
@@ -403,7 +432,7 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
     session.lastCommandedTimeMs = null;
     session.lastPlaybackRate = null;
     session.lastPosition = null;
-    session.lastTargetAtMs = null;
+    session.lastTargetActionAt = null;
     await session.device.stop?.().catch(() => undefined);
   },
 

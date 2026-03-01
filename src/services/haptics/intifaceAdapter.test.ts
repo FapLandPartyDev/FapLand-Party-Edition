@@ -22,9 +22,15 @@ function createModule(devices: unknown[]) {
     DeviceOutput: {
       PositionWithDuration: {
         percent: (position: number, durationMs: number) => ({
-          type: "position",
+          type: "position-with-duration",
           position,
           durationMs,
+        }),
+      },
+      Position: {
+        percent: (position: number) => ({
+          type: "position",
+          position,
         }),
       },
     },
@@ -123,11 +129,36 @@ describe("intifaceAdapter", () => {
     expect(result.message).toContain("no linear/position-capable device");
   });
 
-  it("sends position-with-duration commands to the next funscript point", async () => {
+  it("sends interpolated position with short duration", async () => {
     setIntifaceButtplugModuleForTests(
       createModule([
         {
           name: "Linear Device",
+          hasOutput: (type: unknown) => type === "HwPositionWithDuration",
+          runOutput,
+          stop,
+        },
+      ]) as never
+    );
+    const session = await intifaceAdapter.createSession(config);
+
+    await intifaceAdapter.sendSync(config, session, 500, 1, "script", [
+      { at: 0, pos: 0 },
+      { at: 1000, pos: 100 },
+    ]);
+
+    expect(runOutput).toHaveBeenCalledWith({
+      type: "position-with-duration",
+      position: 0.8,
+      durationMs: 500,
+    });
+  });
+
+  it("does not send duration commands to position-only Intiface devices", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule([
+        {
+          name: "Position Device",
           hasOutput: (type: unknown) => type === "Position",
           runOutput,
           stop,
@@ -144,11 +175,10 @@ describe("intifaceAdapter", () => {
     expect(runOutput).toHaveBeenCalledWith({
       type: "position",
       position: 0.8,
-      durationMs: 500,
     });
   });
 
-  it("does not resend the same Intiface target on every sync tick", async () => {
+  it("does not resend when interpolated position is unchanged", async () => {
     setIntifaceButtplugModuleForTests(
       createModule([
         {
@@ -166,12 +196,12 @@ describe("intifaceAdapter", () => {
     ];
 
     await intifaceAdapter.sendSync(config, session, 500, 1, "script", actions);
-    await intifaceAdapter.sendSync(config, session, 560, 1, "script", actions);
+    await intifaceAdapter.sendSync(config, session, 500, 1, "script", actions);
 
     expect(runOutput).toHaveBeenCalledTimes(1);
   });
 
-  it("resends the current Intiface target after a seek or playback rate change", async () => {
+  it("resends after a seek or playback rate change", async () => {
     setIntifaceButtplugModuleForTests(
       createModule([
         {
@@ -192,12 +222,10 @@ describe("intifaceAdapter", () => {
     await intifaceAdapter.sendSync(config, session, 300, 1, "script", actions);
     await intifaceAdapter.sendSync(config, session, 360, 1.5, "script", actions);
 
-    expect(runOutput).toHaveBeenCalledTimes(3);
-    expect(runOutput).toHaveBeenLastCalledWith({
-      type: "position",
-      position: 0.8,
-      durationMs: 427,
-    });
+    expect(runOutput).toHaveBeenCalledTimes(2);
+    const lastArg = runOutput.mock.lastCall![0] as { type: string; position: number };
+    expect(lastArg.type).toBe("position");
+    expect(lastArg.position).toBeCloseTo(0.8, 3);
   });
 
   it("stops devices on pause, stop, and disconnect", async () => {

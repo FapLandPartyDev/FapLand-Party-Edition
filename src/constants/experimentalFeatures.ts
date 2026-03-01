@@ -64,6 +64,13 @@ export function normalizePlaylistCacheOngoingRestrictionDisabled(value: unknown)
     : DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED;
 }
 
+export const DEVICE_ANIMATION_TEST_ENABLED_KEY = "experimental.deviceAnimationTestEnabled";
+export const DEFAULT_DEVICE_ANIMATION_TEST_ENABLED = false;
+
+export function normalizeDeviceAnimationTestEnabled(value: unknown): boolean {
+  return typeof value === "boolean" ? value : DEFAULT_DEVICE_ANIMATION_TEST_ENABLED;
+}
+
 export const MULTIPLAYER_MINIMUM_ROUNDS = 100;
 
 export const STARTUP_SAFE_MODE_SHORTCUT_ENABLED_KEY = "experimental.startupSafeModeShortcutEnabled";

@@ -4,6 +4,12 @@ import {
     THEHANDY_OFFSET_MS_STORE_KEY,
 } from "../constants/theHandy";
 import {
+    HAPTICS_TEST_ACTIONS,
+    HAPTICS_TEST_PERIOD_MS,
+    HAPTICS_TEST_SOURCE_ID,
+    HAPTICS_TEST_TICK_MS,
+} from "../constants/hapticsTest";
+import {
     DEFAULT_INTIFACE_WEBSOCKET_URL,
     HAPTICS_PROVIDER_STORE_KEY,
     INTIFACE_DEVICE_INDEX_STORE_KEY,
@@ -23,6 +29,7 @@ import {
     createHapticsSession,
     disconnectHapticsSession,
     getHapticsStroke,
+    sendHapticsSync,
     stopHapticsPlayback,
     updateHapticsStroke,
     verifyHapticsConnection,
@@ -53,6 +60,10 @@ type HapticsContextType = {
     manuallyStopped: boolean;
     synced: boolean;
     syncError: string | null;
+    testDeviceStarting: boolean;
+    testDeviceRunning: boolean;
+    testDeviceStartedAtMs: number | null;
+    testDeviceError: string | null;
     isConnecting: boolean;
     error: string | null;
     connect: (key: string, ip?: string, apiKeyOverride?: string) => Promise<boolean>;
@@ -65,6 +76,8 @@ type HapticsContextType = {
     adjustOffset: (deltaMs: number) => Promise<number>;
     resetOffset: () => Promise<void>;
     setResourceOffsetOverride: (offsetMs: number | null) => void;
+    startTestDevice: () => Promise<void>;
+    stopTestDevice: () => Promise<void>;
     refreshStroke: () => Promise<void>;
     setStrokePercent: (percent: number) => Promise<void>;
     setStrokeBounds: (minPercent: number, maxPercent: number) => Promise<void>;
@@ -199,14 +212,26 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [manuallyStopped, setManuallyStopped] = useState(false);
     const [synced, setSynced] = useState(false);
     const [syncError, setSyncError] = useState<string | null>(null);
+    const [testDeviceStarting, setTestDeviceStarting] = useState(false);
+    const [testDeviceRunning, setTestDeviceRunning] = useState(false);
+    const [testDeviceStartedAtMs, setTestDeviceStartedAtMs] = useState<number | null>(null);
+    const [testDeviceError, setTestDeviceError] = useState<string | null>(null);
     const [isConnecting, setIsConnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const userMutatedStateRef = useRef(false);
+    const testDeviceTimerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null);
+    const testDeviceSessionRef = useRef<AnyHapticsSession | null>(null);
+    const testDeviceTickBusyRef = useRef(false);
+    const offsetMsRef = useRef(0);
 
     const appApiKey = resolveHandyAppApiKey(appApiKeyOverride);
     const isUsingDefaultAppApiKey = normalizeHandyAppApiKeyOverride(appApiKeyOverride).length === 0;
     const strokePercent = getHandyStrokePercent(strokeState);
     const offsetMs = resourceOffsetOverrideMs ?? globalOffsetMs;
+
+    useEffect(() => {
+        offsetMsRef.current = offsetMs;
+    }, [offsetMs]);
 
     const getConnectionConfig = useCallback((override?: Partial<{
         provider: HapticsProviderId;
@@ -485,8 +510,113 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return connect(connectionKey, localIp, appApiKeyOverride);
     }, [appApiKeyOverride, connect, connectIntiface, connectionKey, intifaceWebsocketUrl, localIp, provider]);
 
+    const stopTestDevice = useCallback(async (): Promise<void> => {
+        if (testDeviceTimerRef.current) {
+            globalThis.clearInterval(testDeviceTimerRef.current);
+            testDeviceTimerRef.current = null;
+        }
+        testDeviceTickBusyRef.current = false;
+        const session = testDeviceSessionRef.current ?? activeSession;
+        testDeviceSessionRef.current = null;
+        setTestDeviceStarting(false);
+        setTestDeviceRunning(false);
+        setTestDeviceStartedAtMs(null);
+        if (session) {
+            await stopHapticsPlayback(getConnectionConfig(), session).catch((err) => {
+                console.warn("Failed to stop haptics test device", err);
+            });
+        }
+    }, [activeSession, getConnectionConfig]);
+
+    const startTestDevice = useCallback(async (): Promise<void> => {
+        if (!connected) {
+            setTestDeviceError("Connect a haptics device before starting the test.");
+            return;
+        }
+
+        await stopTestDevice();
+
+        let config: HapticsConnectionConfig;
+        let session: AnyHapticsSession;
+        try {
+            config = getConnectionConfig();
+            session = activeSession ?? await createHapticsSession(config);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to start haptics test.";
+            setTestDeviceError(message);
+            setSyncError(message);
+            setSynced(false);
+            return;
+        }
+
+        setActiveSession(session);
+        testDeviceSessionRef.current = session;
+        setManuallyStopped(false);
+        setTestDeviceError(null);
+        setSyncError(null);
+        setSynced(false);
+        setTestDeviceStarting(true);
+
+        let animationStartedAtMs: number | null = null;
+        let activeLoopIndex = -1;
+
+        const tick = async (): Promise<boolean> => {
+            if (testDeviceTickBusyRef.current) return true;
+            testDeviceTickBusyRef.current = true;
+            try {
+                const nowMs = globalThis.performance?.now?.() ?? Date.now();
+                const elapsedMs =
+                    animationStartedAtMs === null
+                        ? offsetMsRef.current
+                        : nowMs - animationStartedAtMs + offsetMsRef.current;
+                const loopIndex = Math.floor(Math.max(0, elapsedMs) / HAPTICS_TEST_PERIOD_MS);
+                const timeMs =
+                    ((elapsedMs % HAPTICS_TEST_PERIOD_MS) + HAPTICS_TEST_PERIOD_MS) %
+                    HAPTICS_TEST_PERIOD_MS;
+                if (config.provider === "thehandy" && loopIndex !== activeLoopIndex) {
+                    activeLoopIndex = loopIndex;
+                    await stopHapticsPlayback(config, session);
+                }
+                await sendHapticsSync(
+                    config,
+                    session,
+                    timeMs,
+                    1,
+                    `${HAPTICS_TEST_SOURCE_ID}-${loopIndex}`,
+                    HAPTICS_TEST_ACTIONS
+                );
+                if (animationStartedAtMs === null) {
+                    const syncedAtMs = globalThis.performance?.now?.() ?? Date.now();
+                    animationStartedAtMs = syncedAtMs + offsetMsRef.current - timeMs;
+                    setTestDeviceStartedAtMs(animationStartedAtMs);
+                    setTestDeviceRunning(true);
+                    setTestDeviceStarting(false);
+                }
+                setSynced(true);
+                return true;
+            } catch (err) {
+                const message = err instanceof Error ? err.message : "Failed to run haptics test.";
+                setTestDeviceError(message);
+                setSyncError(message);
+                setSynced(false);
+                setTestDeviceStarting(false);
+                await stopTestDevice();
+                return false;
+            } finally {
+                testDeviceTickBusyRef.current = false;
+            }
+        };
+
+        if (await tick()) {
+            testDeviceTimerRef.current = globalThis.setInterval(() => {
+                void tick();
+            }, HAPTICS_TEST_TICK_MS);
+        }
+    }, [activeSession, connected, getConnectionConfig, stopTestDevice]);
+
     const disconnect = useCallback(async () => {
         userMutatedStateRef.current = true;
+        await stopTestDevice();
         const session = activeSession;
         setConnected(false);
         setManuallyStopped(false);
@@ -511,9 +641,11 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         intifaceDeviceName,
         intifaceWebsocketUrl,
         localIp,
+        stopTestDevice,
     ]);
 
     const forceStop = useCallback(async () => {
+        await stopTestDevice();
         setManuallyStopped(true);
         setSynced(false);
         setError(null);
@@ -532,7 +664,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         setConnected((current) => current);
         await saveToStore(connectionKey, appApiKeyOverride, localIp);
-    }, [activeSession, appApiKeyOverride, connected, connectionKey, getConnectionConfig, localIp]);
+    }, [activeSession, appApiKeyOverride, connected, connectionKey, getConnectionConfig, localIp, stopTestDevice]);
 
     const toggleManualStop = useCallback(async (): Promise<"stopped" | "resumed" | "unavailable"> => {
         if (manuallyStopped) {
@@ -637,6 +769,13 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         await setStrokeBounds(0, 100);
     }, [setStrokeBounds]);
 
+    useEffect(() => () => {
+        if (testDeviceTimerRef.current) {
+            globalThis.clearInterval(testDeviceTimerRef.current);
+            testDeviceTimerRef.current = null;
+        }
+    }, []);
+
     const value = useMemo(() => ({
         provider,
         setProvider,
@@ -658,6 +797,10 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         manuallyStopped,
         synced,
         syncError,
+        testDeviceStarting,
+        testDeviceRunning,
+        testDeviceStartedAtMs,
+        testDeviceError,
         isConnecting,
         error,
         connect,
@@ -670,6 +813,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         adjustOffset,
         resetOffset,
         setResourceOffsetOverride,
+        startTestDevice,
+        stopTestDevice,
         refreshStroke,
         setStrokePercent,
         setStrokeBounds,
@@ -695,6 +840,10 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         manuallyStopped,
         synced,
         syncError,
+        testDeviceStarting,
+        testDeviceRunning,
+        testDeviceStartedAtMs,
+        testDeviceError,
         isConnecting,
         error,
         connect,
@@ -707,6 +856,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         adjustOffset,
         resetOffset,
         setResourceOffsetOverride,
+        startTestDevice,
+        stopTestDevice,
         refreshStroke,
         setStrokePercent,
         setStrokeBounds,

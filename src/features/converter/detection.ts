@@ -136,15 +136,6 @@ function durationBalanceScore(segments: DetectedSegment[]): number {
   return durations.reduce((sum, duration) => sum + Math.abs(duration - average), 0);
 }
 
-function candidateDistanceScore(
-  pauseGapMs: number,
-  minRoundMs: number,
-  currentPauseGapMs: number,
-  currentMinRoundMs: number
-): number {
-  return Math.abs(pauseGapMs - currentPauseGapMs) + Math.abs(minRoundMs - currentMinRoundMs);
-}
-
 export function findDetectionSettingsForTargetCount(
   input: TargetDetectionInput
 ): TargetDetectionResult {
@@ -187,7 +178,7 @@ export function findDetectionSettingsForTargetCount(
         pauseGapMs: number;
         minRoundMs: number;
         segments: DetectedSegment[];
-        distanceScore: number;
+        minRoundDistance: number;
         balanceScore: number;
         evaluation: number;
       }
@@ -198,7 +189,7 @@ export function findDetectionSettingsForTargetCount(
         minRoundMs: number;
         segmentCount: number;
         countDistance: number;
-        distanceScore: number;
+        minRoundDistance: number;
       }
     | null = null;
 
@@ -213,25 +204,21 @@ export function findDetectionSettingsForTargetCount(
       minRoundMs,
       defaultType,
     });
-    const distanceScore = candidateDistanceScore(
-      pauseGapMs,
-      minRoundMs,
-      currentPauseGapMs,
-      currentMinRoundMs
-    );
+    const minRoundDistance = Math.abs(minRoundMs - currentMinRoundMs);
     const countDistance = Math.abs(segments.length - targetCount);
 
     if (
       !closest ||
       countDistance < closest.countDistance ||
-      (countDistance === closest.countDistance && distanceScore < closest.distanceScore)
+      (countDistance === closest.countDistance && pauseGapMs > closest.pauseGapMs) ||
+      (countDistance === closest.countDistance && pauseGapMs === closest.pauseGapMs && minRoundDistance < closest.minRoundDistance)
     ) {
       closest = {
         pauseGapMs,
         minRoundMs,
         segmentCount: segments.length,
         countDistance,
-        distanceScore,
+        minRoundDistance,
       };
     }
 
@@ -240,9 +227,13 @@ export function findDetectionSettingsForTargetCount(
     const balanceScore = durationBalanceScore(segments);
     if (
       !bestSuccess ||
-      distanceScore < bestSuccess.distanceScore ||
-      (distanceScore === bestSuccess.distanceScore && balanceScore < bestSuccess.balanceScore) ||
-      (distanceScore === bestSuccess.distanceScore &&
+      pauseGapMs > bestSuccess.pauseGapMs ||
+      (pauseGapMs === bestSuccess.pauseGapMs && minRoundDistance < bestSuccess.minRoundDistance) ||
+      (pauseGapMs === bestSuccess.pauseGapMs &&
+        minRoundDistance === bestSuccess.minRoundDistance &&
+        balanceScore < bestSuccess.balanceScore) ||
+      (pauseGapMs === bestSuccess.pauseGapMs &&
+        minRoundDistance === bestSuccess.minRoundDistance &&
         balanceScore === bestSuccess.balanceScore &&
         evaluations < bestSuccess.evaluation)
     ) {
@@ -250,7 +241,7 @@ export function findDetectionSettingsForTargetCount(
         pauseGapMs,
         minRoundMs,
         segments,
-        distanceScore,
+        minRoundDistance,
         balanceScore,
         evaluation: evaluations,
       };
@@ -262,10 +253,15 @@ export function findDetectionSettingsForTargetCount(
       minRoundCandidates.map((minRoundMs) => ({
         pauseGapMs,
         minRoundMs,
-        score: candidateDistanceScore(pauseGapMs, minRoundMs, currentPauseGapMs, currentMinRoundMs),
+        minRoundDistance: Math.abs(minRoundMs - currentMinRoundMs),
       }))
     )
-    .sort((a, b) => a.score - b.score);
+    .sort((a, b) => {
+      if (b.pauseGapMs !== a.pauseGapMs) {
+        return b.pauseGapMs - a.pauseGapMs;
+      }
+      return a.minRoundDistance - b.minRoundDistance;
+    });
 
   for (const candidate of orderedPairs) {
     evaluate(candidate.pauseGapMs, candidate.minRoundMs);

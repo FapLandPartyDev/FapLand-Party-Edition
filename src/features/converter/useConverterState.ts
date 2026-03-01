@@ -1859,7 +1859,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     }
   }, [commitMinRoundDraft, commitPauseGapDraft, durationMs, funscriptUri]);
 
-  const runSixtySecondPauseDetectAndApply = useCallback(async () => {
+  const runThreeMinutePauseDetectAndApply = useCallback(async () => {
     if (!funscriptUri) {
       setError("Attach a funscript to use automatic detection.");
       playConverterValidationErrorSound();
@@ -1876,7 +1876,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setError(null);
     try {
       const effectivePauseGapMs = commitPauseGapDraft();
-      const effectiveMinRoundMs = 60_000;
+      const effectiveMinRoundMs = 180_000;
       setMinRoundMs(effectiveMinRoundMs);
       setMinRoundDraft(`${effectiveMinRoundMs}`);
 
@@ -2644,7 +2644,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     isDetecting,
     runAutoDetect,
     runTargetCountAutoDetect,
-    runSixtySecondPauseDetectAndApply,
+    runThreeMinutePauseDetectAndApply,
     targetSegmentCountDraft,
     setTargetSegmentCountDraft,
     targetDetectionResultSummary,

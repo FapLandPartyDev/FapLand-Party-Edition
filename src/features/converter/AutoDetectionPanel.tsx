@@ -20,7 +20,7 @@ type AutoDetectionPanelProps = {
   onCommitMinRoundDraft: () => void;
   onRunAutoDetect: () => void;
   onRunTargetCountAutoDetect: () => void;
-  onRunSixtySecondPauseDetectAndApply: () => void;
+  onRunThreeMinutePauseDetectAndApply: () => void;
   onApplyDetected: () => void;
 };
 
@@ -42,7 +42,7 @@ export const AutoDetectionPanel: React.FC<AutoDetectionPanelProps> = React.memo(
     onCommitMinRoundDraft,
     onRunAutoDetect,
     onRunTargetCountAutoDetect,
-    onRunSixtySecondPauseDetectAndApply,
+    onRunThreeMinutePauseDetectAndApply,
     onApplyDetected,
   }) => {
     const { t } = useLingui();
@@ -108,7 +108,7 @@ export const AutoDetectionPanel: React.FC<AutoDetectionPanelProps> = React.memo(
               onKeyDown={(event) => {
                 if (event.key !== "Enter") return;
                 event.preventDefault();
-                onRunSixtySecondPauseDetectAndApply();
+                onRunTargetCountAutoDetect();
               }}
               className="converter-number-input mt-1 w-full rounded-lg border border-zinc-600 bg-black/40 px-2 py-1.5 text-xs text-zinc-100"
             />
@@ -195,7 +195,7 @@ export function pickAutoDetectionPanelProps(state: ConverterState): AutoDetectio
     onCommitMinRoundDraft: state.commitMinRoundDraft,
     onRunAutoDetect: () => void state.runAutoDetect(),
     onRunTargetCountAutoDetect: () => void state.runTargetCountAutoDetect(),
-    onRunSixtySecondPauseDetectAndApply: () => void state.runSixtySecondPauseDetectAndApply(),
+    onRunThreeMinutePauseDetectAndApply: () => void state.runThreeMinutePauseDetectAndApply(),
     onApplyDetected: state.applyDetectedSuggestions,
   };
 }

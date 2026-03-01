@@ -72,7 +72,7 @@ export const DEFAULT_ZOOM_PX_PER_SEC = 80;
 export const MIN_ZOOM_PX_PER_SEC = 1;
 export const MAX_ZOOM_PX_PER_SEC = 480;
 export const DEFAULT_PAUSE_GAP_MS = 900;
-export const DEFAULT_MIN_ROUND_MS = 15_000;
+export const DEFAULT_MIN_ROUND_MS = 180_000;
 export const MIN_SEGMENT_MS = 100;
 
 /* ─── Pure Utilities ─────────────────────────────────────────────── */
