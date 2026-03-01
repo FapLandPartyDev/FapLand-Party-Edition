@@ -199,6 +199,13 @@ export function getVisibleShortcutGroups(
           }),
         },
         {
+          keys: "Ctrl/Cmd+R",
+          description: i18n._({
+            id: "settings.help.shortcuts.global.reconnectHandy",
+            message: "Reconnect TheHandy using the saved connection settings.",
+          }),
+        },
+        {
           keys: "Escape",
           description: i18n._({
             id: "settings.help.shortcuts.global.closeMusic",

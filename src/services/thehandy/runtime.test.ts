@@ -21,13 +21,72 @@ vi.mock("./index", () => handyIndexMocks);
 
 import {
   issueHandySession,
+  preloadHspScript,
   resolveInitialPreloadTargetMs,
   sendHspSync,
   type HandySession,
 } from "./runtime";
 
+function createLoadedHspSession(overrides: Partial<HandySession> = {}): HandySession {
+  return {
+    mode: "appId",
+    clientToken: null,
+    expiresAtMs: 120_000,
+    serverTimeOffsetMs: 0,
+    serverTimeOffsetMeasuredAtMs: Date.now(),
+    loadedScriptId: "video-1:500:0:249500",
+    activeScriptId: "video-1:500:0:249500",
+    lastSyncAtMs: Date.now(),
+    lastPlaybackRate: 1,
+    maxBufferPoints: 1000,
+    streamedPoints: Array.from({ length: 500 }, (_, index) => ({
+      t: index * 500,
+      x: index % 2 === 0 ? 20 : 80,
+    })),
+    nextStreamPointIndex: 100,
+    tailPointStreamIndex: 100,
+    uploadedUntilMs: 49_500,
+    lastHspAddAtMs: 0,
+    hspAddBackoffUntilMs: 0,
+    hspModeActive: true,
+    ...overrides,
+  };
+}
+
+const longActions = Array.from({ length: 500 }, (_, index) => ({
+  at: index * 500,
+  pos: index % 2 === 0 ? 20 : 80,
+}));
+
+type HspAddCallOptions = {
+  body: {
+    points: Array<{ t: number; x: number }>;
+    tail_point_stream_index: number;
+    flush: boolean;
+  };
+};
+
+function getHspAddCall(index: number): HspAddCallOptions {
+  const call = handyIndexMocks.hspAdd.mock.calls[index] as unknown as
+    | [HspAddCallOptions]
+    | undefined;
+  const options = call?.[0];
+  if (!options) {
+    throw new Error(`Missing hspAdd call ${index}`);
+  }
+  return options;
+}
+
+function getAllHspAddedPoints(): Array<{ t: number; x: number }> {
+  return handyIndexMocks.hspAdd.mock.calls.flatMap((call) => {
+    const [options] = call as unknown as [HspAddCallOptions];
+    return options.body.points;
+  });
+}
+
 describe("resolveInitialPreloadTargetMs", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
@@ -75,6 +134,7 @@ describe("resolveInitialPreloadTargetMs", () => {
 
 describe("sendHspSync", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
@@ -91,16 +151,21 @@ describe("sendHspSync", () => {
       expiresAtMs: 60_000,
       serverTimeOffsetMs: 180,
       serverTimeOffsetMeasuredAtMs: 19_000,
-      loadedScriptId: null,
+      loadedScriptId: "video-1:2:0:1000",
       activeScriptId: null,
       lastSyncAtMs: 0,
       lastPlaybackRate: 1,
       maxBufferPoints: 4000,
-      streamedPoints: null,
-      nextStreamPointIndex: 0,
-      tailPointStreamIndex: 0,
-      uploadedUntilMs: 0,
-      hspModeActive: false,
+      streamedPoints: [
+        { t: 0, x: 20 },
+        { t: 1000, x: 80 },
+      ],
+      nextStreamPointIndex: 2,
+      tailPointStreamIndex: 2,
+      uploadedUntilMs: 1000,
+      lastHspAddAtMs: 0,
+      hspAddBackoffUntilMs: 0,
+      hspModeActive: true,
     };
 
     await sendHspSync(
@@ -136,10 +201,264 @@ describe("sendHspSync", () => {
       })
     );
   });
+
+  it("advances HSP stream state only after a successful top-up append", async () => {
+    const session = createLoadedHspSession();
+
+    await sendHspSync(
+      {
+        connectionKey: "conn-key",
+        appApiKey: "app-key",
+      },
+      session,
+      20_000,
+      1,
+      "video-1",
+      longActions
+    );
+
+    expect(handyIndexMocks.hspAdd).toHaveBeenCalled();
+    const firstAppend = getHspAddCall(0);
+    expect(firstAppend).toEqual(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          points: expect.arrayContaining([
+            { t: 50_000, x: 20 },
+            { t: 99_500, x: 80 },
+          ]),
+          tail_point_stream_index: 200,
+          flush: false,
+        }),
+      })
+    );
+    expect(firstAppend.body.points).toHaveLength(100);
+    for (const call of handyIndexMocks.hspAdd.mock.calls) {
+      const [options] = call as unknown as [HspAddCallOptions];
+      expect(options.body.points.length).toBeLessThanOrEqual(100);
+    }
+    expect(session.nextStreamPointIndex).toBe(200);
+    expect(session.tailPointStreamIndex).toBe(200);
+    expect(session.uploadedUntilMs).toBe(99_500);
+    expect(session.lastHspAddAtMs).toBeGreaterThan(0);
+  });
+
+  it("does not advance HSP stream state when a top-up append fails", async () => {
+    const session = createLoadedHspSession();
+    handyIndexMocks.hspAdd.mockRejectedValueOnce(new Error("temporary hsp add failure"));
+
+    await expect(
+      sendHspSync(
+        {
+          connectionKey: "conn-key",
+          appApiKey: "app-key",
+        },
+        session,
+        20_000,
+        1,
+        "video-1",
+        longActions
+      )
+    ).rejects.toThrow("temporary hsp add failure");
+
+    expect(session.nextStreamPointIndex).toBe(100);
+    expect(session.tailPointStreamIndex).toBe(100);
+    expect(session.uploadedUntilMs).toBe(49_500);
+    expect(session.hspAddBackoffUntilMs).toBeGreaterThan(0);
+  });
+
+  it("retries the same unsent HSP chunk after a failed top-up append", async () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    const session = createLoadedHspSession();
+    handyIndexMocks.hspAdd.mockRejectedValueOnce(new Error("temporary hsp add failure"));
+
+    await expect(
+      sendHspSync(
+        {
+          connectionKey: "conn-key",
+          appApiKey: "app-key",
+        },
+        session,
+        20_000,
+        1,
+        "video-1",
+        longActions
+      )
+    ).rejects.toThrow("temporary hsp add failure");
+
+    nowSpy.mockReturnValue(1_400);
+    await sendHspSync(
+      {
+        connectionKey: "conn-key",
+        appApiKey: "app-key",
+      },
+      session,
+      20_000,
+      1,
+      "video-1",
+      longActions
+    );
+
+    expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(2);
+    const failedAppend = getHspAddCall(0);
+    const retryAppend = getHspAddCall(1);
+    expect(failedAppend.body.points).toEqual(retryAppend.body.points);
+    expect(retryAppend.body.tail_point_stream_index).toBe(200);
+    expect(session.nextStreamPointIndex).toBe(200);
+    expect(session.tailPointStreamIndex).toBe(200);
+    expect(session.uploadedUntilMs).toBe(99_500);
+  });
+
+  it("uses a larger initial buffer for dense fast scripts", async () => {
+    handyIndexMocks.hspFlush.mockResolvedValueOnce({ result: { max_points: 4000 } });
+    const denseActions = Array.from({ length: 5000 }, (_, index) => ({
+      at: index * 10,
+      pos: index % 2 === 0 ? 15 : 95,
+    }));
+    const session = createLoadedHspSession({
+      loadedScriptId: null,
+      activeScriptId: null,
+      streamedPoints: null,
+      nextStreamPointIndex: 0,
+      tailPointStreamIndex: 0,
+      uploadedUntilMs: 0,
+      maxBufferPoints: 4000,
+      hspModeActive: false,
+    });
+
+    await preloadHspScript(
+      {
+        connectionKey: "conn-key",
+        appApiKey: "app-key",
+      },
+      session,
+      "dense-video",
+      denseActions,
+      0
+    );
+
+    expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(30);
+    for (const call of handyIndexMocks.hspAdd.mock.calls) {
+      const [options] = call as unknown as [HspAddCallOptions];
+      expect(options.body.points.length).toBeLessThanOrEqual(100);
+    }
+    expect(session.nextStreamPointIndex).toBe(3000);
+    expect(session.tailPointStreamIndex).toBe(3000);
+    expect(session.uploadedUntilMs).toBe(29_990);
+  });
+
+  it("paces ongoing top-up appends from repeated sync calls", async () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    const session = createLoadedHspSession();
+
+    await sendHspSync(
+      {
+        connectionKey: "conn-key",
+        appApiKey: "app-key",
+      },
+      session,
+      20_000,
+      1,
+      "video-1",
+      longActions
+    );
+    expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(1);
+    expect(session.nextStreamPointIndex).toBe(200);
+
+    nowSpy.mockReturnValue(1_200);
+    await sendHspSync(
+      {
+        connectionKey: "conn-key",
+        appApiKey: "app-key",
+      },
+      session,
+      20_100,
+      1,
+      "video-1",
+      longActions
+    );
+    expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(1);
+    expect(session.nextStreamPointIndex).toBe(200);
+
+    nowSpy.mockReturnValue(1_400);
+    await sendHspSync(
+      {
+        connectionKey: "conn-key",
+        appApiKey: "app-key",
+      },
+      session,
+      20_200,
+      1,
+      "video-1",
+      longActions
+    );
+    expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(2);
+    expect(session.nextStreamPointIndex).toBe(300);
+  });
+
+  it("tops up dense scripts when point-buffer occupancy is low", async () => {
+    const session = createLoadedHspSession({
+      nextStreamPointIndex: 40,
+      tailPointStreamIndex: 40,
+      uploadedUntilMs: 100_000,
+    });
+
+    await sendHspSync(
+      {
+        connectionKey: "conn-key",
+        appApiKey: "app-key",
+      },
+      session,
+      10_000,
+      1,
+      "video-1",
+      longActions
+    );
+
+    expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(1);
+    expect(session.nextStreamPointIndex).toBe(140);
+    expect(session.tailPointStreamIndex).toBe(140);
+    expect(session.uploadedUntilMs).toBe(69_500);
+  });
+
+  it("uploads fast script points without downsampling", async () => {
+    const fastActions = Array.from({ length: 64 }, (_, index) => ({
+      at: index * 8,
+      pos: index % 4 === 0 ? 100 : index % 4 === 1 ? 0 : index % 4 === 2 ? 75 : 25,
+    }));
+    const session = createLoadedHspSession({
+      loadedScriptId: null,
+      activeScriptId: null,
+      streamedPoints: null,
+      nextStreamPointIndex: 0,
+      tailPointStreamIndex: 0,
+      uploadedUntilMs: 0,
+      maxBufferPoints: 4000,
+      hspModeActive: false,
+    });
+
+    await preloadHspScript(
+      {
+        connectionKey: "conn-key",
+        appApiKey: "app-key",
+      },
+      session,
+      "fast-video",
+      fastActions,
+      0
+    );
+
+    expect(getAllHspAddedPoints()).toEqual(
+      fastActions.map((action) => ({
+        t: action.at,
+        x: action.pos,
+      }))
+    );
+  });
 });
 
 describe("issueHandySession", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 

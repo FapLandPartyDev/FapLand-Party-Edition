@@ -73,7 +73,8 @@ const mocks = vi.hoisted(() => {
       syncError: null,
       isConnecting: false,
       error: null,
-      connect: vi.fn(async () => {}),
+      connect: vi.fn(async () => true),
+      reconnect: vi.fn(async () => true),
       disconnect: vi.fn(async () => {}),
       forceStop: vi.fn(async () => {}),
       adjustOffset: vi.fn(async (deltaMs: number) => deltaMs),
@@ -619,8 +620,10 @@ describe("Settings music section", () => {
     expect(screen.getByText("Converter")).toBeDefined();
     expect(screen.getByText("Map Editor")).toBeDefined();
     expect(screen.getByText("Ctrl/Cmd+M")).toBeDefined();
+    expect(screen.getByText("Ctrl/Cmd+R")).toBeDefined();
     expect(screen.getAllByText("Ctrl/Cmd+S").length).toBeGreaterThan(0);
     expect(screen.getByText("Open or close the global music overlay.")).toBeDefined();
+    expect(screen.getByText("Reconnect TheHandy using the saved connection settings.")).toBeDefined();
     expect(screen.getByText("Save converted rounds to the current hero.")).toBeDefined();
   });
 

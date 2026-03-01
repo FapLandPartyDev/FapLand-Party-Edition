@@ -25,7 +25,8 @@ type HandyContextType = {
     syncError: string | null;
     isConnecting: boolean;
     error: string | null;
-    connect: (key: string, ip?: string, apiKeyOverride?: string) => Promise<void>;
+    connect: (key: string, ip?: string, apiKeyOverride?: string) => Promise<boolean>;
+    reconnect: () => Promise<boolean>;
     disconnect: () => Promise<void>;
     forceStop: () => Promise<void>;
     toggleManualStop: () => Promise<"stopped" | "resumed" | "unavailable">;
@@ -138,7 +139,7 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return normalized;
     }, []);
 
-    const connect = useCallback(async (key: string, ip?: string, apiKeyOverride?: string) => {
+    const connect = useCallback(async (key: string, ip?: string, apiKeyOverride?: string): Promise<boolean> => {
         setIsConnecting(true);
         setError(null);
         setSyncError(null);
@@ -160,18 +161,25 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (result.success) {
                 setConnected(true);
                 await saveToStore(nextKey, nextOverride, nextIp);
+                return true;
             } else {
                 setError(result.message ?? "Failed to connect to TheHandy");
                 setConnected(false);
+                return false;
             }
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to connect to TheHandy";
             setError(message);
             setConnected(false);
+            return false;
         } finally {
             setIsConnecting(false);
         }
     }, [appApiKeyOverride, localIp]);
+
+    const reconnect = useCallback(async (): Promise<boolean> => {
+        return connect(connectionKey, localIp, appApiKeyOverride);
+    }, [appApiKeyOverride, connect, connectionKey, localIp]);
 
     const disconnect = useCallback(async () => {
         setConnected(false);
@@ -275,6 +283,7 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isConnecting,
         error,
         connect,
+        reconnect,
         disconnect,
         forceStop,
         toggleManualStop,
@@ -295,6 +304,7 @@ export const HandyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isConnecting,
         error,
         connect,
+        reconnect,
         disconnect,
         forceStop,
         toggleManualStop,

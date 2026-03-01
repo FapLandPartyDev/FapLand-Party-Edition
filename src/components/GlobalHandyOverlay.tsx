@@ -45,43 +45,19 @@ export function GlobalHandyOverlay() {
     resetOffset,
     toggleManualStop,
     connect,
+    reconnect,
     disconnect,
   } = useHandy();
   const [open, setOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const overlayRef = useRef<HTMLElement | null>(null);
   const setOpenRef = useRef(setOpen);
-  setOpenRef.current = setOpen;
 
   useEffect(() => {
     return subscribeToGlobalHandyOverlayOpen(() => {
       setOpenRef.current(true);
     });
   }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === "h" &&
-        !event.shiftKey &&
-        !event.altKey
-      ) {
-        event.preventDefault();
-        if (!open && isEditableTarget(event.target)) return;
-        setOpen((current) => !current);
-        return;
-      }
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
 
   const handleAdjust = useCallback(
     (deltaMs: number) => {
@@ -116,10 +92,65 @@ export function GlobalHandyOverlay() {
     void connect(connectionKey);
   }, [connect, connectionKey]);
 
+  const reconnectTheHandy = useCallback(
+    (showMessage: boolean) => {
+      playSelectSound();
+      if (showMessage) {
+        setActionMessage(t`Reconnecting TheHandy...`);
+      }
+      void reconnect().then((success) => {
+        if (!showMessage) return;
+        setActionMessage(success ? t`TheHandy reconnected.` : t`TheHandy reconnect failed.`);
+      });
+    },
+    [reconnect, t]
+  );
+
+  const handleReconnect = useCallback(() => {
+    reconnectTheHandy(true);
+  }, [reconnectTheHandy]);
+
   const handleDisconnect = useCallback(() => {
     playSelectSound();
     void disconnect();
   }, [disconnect]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "h" &&
+        !event.shiftKey &&
+        !event.altKey
+      ) {
+        event.preventDefault();
+        if (!open && isEditableTarget(event.target)) return;
+        setOpen((current) => !current);
+        return;
+      }
+
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "r" &&
+        !event.shiftKey &&
+        !event.altKey
+      ) {
+        event.preventDefault();
+        if (isEditableTarget(event.target)) return;
+        reconnectTheHandy(open);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, reconnectTheHandy]);
 
   const statusLabel = !connected
     ? t`Disconnected`
@@ -355,6 +386,20 @@ export function GlobalHandyOverlay() {
                       className={`mt-3 w-full rounded-lg border px-4 py-2 text-xs font-semibold backdrop-blur-sm transition-all ${
                         isConnecting
                           ? "cursor-not-allowed border-zinc-500/40 bg-zinc-500/15 text-zinc-400"
+                          : "border-cyan-300/40 bg-cyan-400/15 text-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.2)] hover:bg-cyan-400/25"
+                      }`}
+                      onClick={handleReconnect}
+                      onMouseEnter={() => playHoverSound()}
+                      data-controller-focus-id="handy-reconnect"
+                    >
+                      <Trans>Reconnect</Trans>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isConnecting}
+                      className={`mt-2 w-full rounded-lg border px-4 py-2 text-xs font-semibold backdrop-blur-sm transition-all ${
+                        isConnecting
+                          ? "cursor-not-allowed border-zinc-500/40 bg-zinc-500/15 text-zinc-400"
                           : connected
                             ? "border-orange-300/30 bg-orange-400/12 text-orange-100 hover:bg-orange-400/20"
                             : "border-cyan-300/40 bg-cyan-400/15 text-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.2)] hover:bg-cyan-400/25"
@@ -397,6 +442,12 @@ export function GlobalHandyOverlay() {
                         Ctrl+W
                       </code>{" "}
                       <Trans>start / stop</Trans>
+                    </span>
+                    <span>
+                      <code className="rounded border border-white/15 bg-white/[0.08] px-1 py-0.5 text-[9px] font-semibold text-zinc-200">
+                        Ctrl+R
+                      </code>{" "}
+                      <Trans>reconnect</Trans>
                     </span>
                     <span>
                       <code className="rounded border border-white/15 bg-white/[0.08] px-1 py-0.5 text-[9px] font-semibold text-zinc-200">

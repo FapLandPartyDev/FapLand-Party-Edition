@@ -36,15 +36,21 @@ export type HandySession = {
   nextStreamPointIndex: number;
   tailPointStreamIndex: number;
   uploadedUntilMs: number;
+  lastHspAddAtMs: number;
+  hspAddBackoffUntilMs: number;
   hspModeActive: boolean;
 };
 
 const HSP_CHUNK_SIZE = 100;
 const DEFAULT_HSP_MAX_POINTS = 4000;
 const HSP_INITIAL_PREFETCH_MS = 30_000;
+const HSP_INITIAL_BUFFER_RATIO = 0.75;
 const HSP_PREFETCH_MS = 180_000;
 const HSP_TOPUP_TRIGGER_MS = 45_000;
-const HSP_MAX_POINTS_PER_SYNC = 600;
+const HSP_TOPUP_TRIGGER_POINT_RATIO = 0.55;
+const HSP_TOPUP_TARGET_POINT_RATIO = 0.85;
+const HSP_TOPUP_APPEND_MIN_INTERVAL_MS = 350;
+const HSP_TOPUP_MAX_POINTS_PER_SYNC = HSP_CHUNK_SIZE;
 const SERVER_TIME_SAMPLE_COUNT = 3;
 const SERVER_TIME_SAMPLE_KEEP_COUNT = 2;
 const SERVER_TIME_OFFSET_TTL_MS = 5 * 60_000;
@@ -95,6 +101,7 @@ function toHspPoints(actions: FunscriptAction[]): Array<{ t: number; x: number }
   return actions
     .map((action) => ({
       t: Math.max(0, Math.floor(action.at)),
+      // Keep 0..100 stroke positions for compatibility with existing playback.
       x: Math.max(0, Math.min(100, Math.round(action.pos))),
     }))
     .sort((a, b) => a.t - b.t);
@@ -229,6 +236,8 @@ export async function issueHandySession(auth: HandyAuthBundle): Promise<HandySes
         nextStreamPointIndex: 0,
         tailPointStreamIndex: 0,
         uploadedUntilMs: 0,
+        lastHspAddAtMs: 0,
+        hspAddBackoffUntilMs: 0,
         hspModeActive: false,
       };
       await refreshServerTimeOffset(auth, session);
@@ -253,6 +262,8 @@ export async function issueHandySession(auth: HandyAuthBundle): Promise<HandySes
     nextStreamPointIndex: 0,
     tailPointStreamIndex: 0,
     uploadedUntilMs: 0,
+    lastHspAddAtMs: 0,
+    hspAddBackoffUntilMs: 0,
     hspModeActive: false,
   };
   await refreshServerTimeOffset(auth, session);
@@ -338,18 +349,36 @@ async function prepareHspMode(auth: HandyAuthBundle, session: HandySession): Pro
     flushResponse?.result?.max_points ?? setupResponse?.result?.max_points
   );
   session.maxBufferPoints = maxPoints;
+  session.lastHspAddAtMs = 0;
+  session.hspAddBackoffUntilMs = 0;
   session.hspModeActive = true;
 }
+
+type AppendHspPointsOptions = {
+  paced?: boolean;
+};
 
 async function appendPointsUpToTime(
   auth: HandyAuthBundle,
   session: HandySession,
   targetTimeMs: number,
-  maxPointsToSend: number
+  maxPointsToSend: number,
+  options: AppendHspPointsOptions = {}
 ): Promise<number> {
   const points = session.streamedPoints;
   if (!points || points.length === 0) return 0;
   if (maxPointsToSend <= 0) return 0;
+
+  const now = Date.now();
+  if (options.paced) {
+    if (now < session.hspAddBackoffUntilMs) return 0;
+    if (
+      session.lastHspAddAtMs > 0 &&
+      now - session.lastHspAddAtMs < HSP_TOPUP_APPEND_MIN_INTERVAL_MS
+    ) {
+      return 0;
+    }
+  }
 
   const connectionRef = requireConnectionRef(auth.connectionKey);
   const appCredential = requireAppCredential(auth.appApiKey);
@@ -363,39 +392,48 @@ async function appendPointsUpToTime(
     const remainingBudget = maxPointsToSend - sent;
     const chunkLimit = Math.min(HSP_CHUNK_SIZE, remainingBudget);
     const chunk: Array<{ t: number; x: number }> = [];
+    let cursor = session.nextStreamPointIndex;
 
     while (
       chunk.length < chunkLimit &&
-      session.nextStreamPointIndex < points.length &&
-      points[session.nextStreamPointIndex]!.t <= targetTimeMs
+      cursor < points.length &&
+      points[cursor]!.t <= targetTimeMs
     ) {
-      const point = points[session.nextStreamPointIndex];
+      const point = points[cursor];
       if (!point) break;
       chunk.push(point);
-      session.nextStreamPointIndex += 1;
+      cursor += 1;
     }
 
     if (chunk.length === 0) break;
 
-    session.tailPointStreamIndex += chunk.length;
-    await hspAdd({
-      auth: createAuthResolver(appCredential, session.clientToken),
-      responseStyle: "data",
-      requestValidator: undefined,
-      responseValidator: undefined,
-      headers: {
-        "X-Connection-Key": connectionRef,
-      },
-      body: {
-        points: chunk,
-        tail_point_stream_index: session.tailPointStreamIndex,
-        flush: false,
-      },
-      query: {
-        timeout: 5000,
-      },
-    });
+    const nextTailPointStreamIndex = session.tailPointStreamIndex + chunk.length;
+    try {
+      await hspAdd({
+        auth: createAuthResolver(appCredential, session.clientToken),
+        responseStyle: "data",
+        requestValidator: undefined,
+        responseValidator: undefined,
+        headers: {
+          "X-Connection-Key": connectionRef,
+        },
+        body: {
+          points: chunk,
+          tail_point_stream_index: nextTailPointStreamIndex,
+          flush: false,
+        },
+        query: {
+          timeout: 5000,
+        },
+      });
+    } catch (error) {
+      session.hspAddBackoffUntilMs = Date.now() + HSP_TOPUP_APPEND_MIN_INTERVAL_MS;
+      throw error;
+    }
 
+    session.nextStreamPointIndex = cursor;
+    session.tailPointStreamIndex = nextTailPointStreamIndex;
+    session.lastHspAddAtMs = Date.now();
     sent += chunk.length;
     const lastPoint = chunk[chunk.length - 1];
     if (lastPoint) {
@@ -436,12 +474,17 @@ async function preloadScript(
   session.nextStreamPointIndex = nextIdx;
   session.tailPointStreamIndex = 0;
   session.uploadedUntilMs = points[nextIdx]?.t ?? 0;
+  session.lastHspAddAtMs = 0;
+  session.hspAddBackoffUntilMs = 0;
 
   // Seed enough data for startup to include the first point after the requested
   // start time, even when the script begins inside a long interpolation gap.
   const initialTargetMs = resolveInitialPreloadTargetMs(points, nextIdx, skipToMs);
-  const maxSafeInitialPoints = Math.floor(session.maxBufferPoints * 0.5);
-  const preferredPoints = Math.max(HSP_CHUNK_SIZE, Math.floor(session.maxBufferPoints * 0.25));
+  const maxSafeInitialPoints = Math.max(1, session.maxBufferPoints - 10);
+  const preferredPoints = Math.max(
+    HSP_CHUNK_SIZE,
+    Math.floor(session.maxBufferPoints * HSP_INITIAL_BUFFER_RATIO)
+  );
   const initialBudget = Math.min(maxSafeInitialPoints, preferredPoints);
   await appendPointsUpToTime(auth, session, initialTargetMs, initialBudget);
 
@@ -487,15 +530,16 @@ export async function sendHspSync(
     }
     const pointsInBuffer = session.nextStreamPointIndex - Math.max(0, playingIdx);
 
-    const shouldTopUp = session.uploadedUntilMs - timeMs <= HSP_TOPUP_TRIGGER_MS;
-    if (shouldTopUp && pointsInBuffer < session.maxBufferPoints * 0.8) {
+    const shouldTopUpByTime = session.uploadedUntilMs - timeMs <= HSP_TOPUP_TRIGGER_MS;
+    const shouldTopUpByPoints =
+      pointsInBuffer <= session.maxBufferPoints * HSP_TOPUP_TRIGGER_POINT_RATIO;
+    if (shouldTopUpByTime || shouldTopUpByPoints) {
       const targetMs = Math.max(timeMs + HSP_PREFETCH_MS, session.uploadedUntilMs);
-      const budget = Math.floor(session.maxBufferPoints - pointsInBuffer - 10);
-      if (budget > 0) {
-        const fetchBudget = Math.min(HSP_MAX_POINTS_PER_SYNC, budget);
-        if (fetchBudget > 0) {
-          await appendPointsUpToTime(auth, session, targetMs, fetchBudget);
-        }
+      const targetPointCount = Math.floor(session.maxBufferPoints * HSP_TOPUP_TARGET_POINT_RATIO);
+      const pointBudget = Math.max(0, targetPointCount - pointsInBuffer);
+      const fetchBudget = Math.min(HSP_TOPUP_MAX_POINTS_PER_SYNC, pointBudget);
+      if (fetchBudget > 0) {
+        await appendPointsUpToTime(auth, session, targetMs, fetchBudget, { paced: true });
       }
     }
   }
@@ -698,6 +742,8 @@ export async function stopHandyPlayback(
   session.nextStreamPointIndex = 0;
   session.tailPointStreamIndex = 0;
   session.uploadedUntilMs = 0;
+  session.lastHspAddAtMs = 0;
+  session.hspAddBackoffUntilMs = 0;
   session.hspModeActive = false;
 
   await hspStop({

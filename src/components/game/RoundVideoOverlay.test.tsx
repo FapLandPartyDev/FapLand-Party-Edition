@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
     manuallyStopped: false,
     setSyncStatus: vi.fn(),
     toggleManualStop: vi.fn(async () => "unavailable" as const),
+    reconnect: vi.fn(async () => true),
   },
   playback: {
     getFunscriptPositionAtMs: vi.fn<
