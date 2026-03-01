@@ -30,6 +30,16 @@ const TARGETS = {
   },
 };
 
+const RELEASE_API_URL = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest";
+const FETCH_ATTEMPTS = 6;
+const FETCH_RETRY_DELAY_MS = 10_000;
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 function normalizeDigest(value) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -37,8 +47,8 @@ function normalizeDigest(value) {
   return trimmed.replace(/^sha256:/i, "");
 }
 
-async function fetchLatestTarget() {
-  const response = await fetch("https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest", {
+async function fetchJson(url) {
+  const response = await fetch(url, {
     headers: {
       Accept: "application/vnd.github+json",
       "User-Agent": "f-land-build-fetch-ffmpeg",
@@ -49,13 +59,52 @@ async function fetchLatestTarget() {
       `Failed to fetch latest FFmpeg release metadata: ${response.status} ${response.statusText}`
     );
   }
+  return response.json();
+}
 
-  const release = await response.json();
+async function fetchText(url) {
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "f-land-build-fetch-ffmpeg",
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
+  }
+  return response.text();
+}
+
+function parseChecksumsSha256(content) {
+  const checksums = new Map();
+  for (const line of content.split(/\r?\n/)) {
+    const match = /^([a-f0-9]{64})\s+\*?(.+?)\s*$/i.exec(line);
+    if (match) {
+      checksums.set(match[2], match[1].toLowerCase());
+    }
+  }
+  return checksums;
+}
+
+async function fetchChecksumFromAsset(release, assetName) {
+  const checksumAsset = (Array.isArray(release.assets) ? release.assets : []).find(
+    (entry) => entry?.name === "checksums.sha256"
+  );
+  const checksumUrl = String(checksumAsset?.browser_download_url ?? "").trim();
+  if (!checksumUrl) return null;
+
+  const checksums = parseChecksumsSha256(await fetchText(checksumUrl));
+  return checksums.get(assetName) ?? null;
+}
+
+async function fetchLatestTargetOnce() {
+  const release = await fetchJson(RELEASE_API_URL);
   const target = TARGETS[targetKey];
   const asset = (Array.isArray(release.assets) ? release.assets : []).find(
     (entry) => entry?.name && target.assetPattern.test(entry.name)
   );
-  const sha256 = normalizeDigest(asset?.digest);
+  const sha256 =
+    normalizeDigest(asset?.digest) ??
+    (asset?.name ? await fetchChecksumFromAsset(release, asset.name) : null);
 
   if (!asset || !sha256) {
     throw new Error(
@@ -73,6 +122,25 @@ async function fetchLatestTarget() {
     sha256,
     downloadUrl: String(asset.browser_download_url ?? "").trim(),
   };
+}
+
+async function fetchLatestTarget() {
+  let lastError = null;
+  for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt += 1) {
+    try {
+      return await fetchLatestTargetOnce();
+    } catch (error) {
+      lastError = error;
+      if (attempt === FETCH_ATTEMPTS) break;
+      console.warn(
+        `[ffmpeg] Latest release metadata is not ready yet (${error.message}); retrying in ${
+          FETCH_RETRY_DELAY_MS / 1000
+        }s (${attempt}/${FETCH_ATTEMPTS})`
+      );
+      await sleep(FETCH_RETRY_DELAY_MS);
+    }
+  }
+  throw lastError;
 }
 
 async function fileExists(filePath) {
