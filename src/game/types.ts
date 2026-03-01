@@ -414,6 +414,7 @@ export type GameConfig = {
   disableDiceAnimation?: boolean;
   playlistMusic?: PlaylistMusicConfig;
   automations?: AutomationRuleRuntime[];
+  endlessGeneration?: EndlessGenerationConfig;
 };
 
 export type PlayerStats = {
@@ -489,7 +490,20 @@ export type CompletedRoundSummary = {
 
 export type CumRoundOutcome = "came_as_told" | "did_not_cum" | "failed_instruction";
 
-export type GameCompletionReason = "finished" | "self_reported_cum" | "cum_instruction_failed";
+export type EndlessGenerationConfig = {
+  safePointEveryN: number;
+  perkNodeEveryN: number;
+  initialBatchSize: number;
+  extendBatchSize: number;
+  roundCounter: number;
+  randomFilter?: import("./playlistSchema").RandomRoundFilter;
+};
+
+export type GameCompletionReason =
+  | "finished"
+  | "self_reported_cum"
+  | "cum_instruction_failed"
+  | "player_ended_endless";
 
 export type GameState = {
   config: GameConfig;
@@ -521,4 +535,5 @@ export type GameState = {
   log: string[];
   lastRoll: number | null;
   completionReason: GameCompletionReason | null;
+  endlessRoundsCompleted: number;
 };

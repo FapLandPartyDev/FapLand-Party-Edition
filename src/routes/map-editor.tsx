@@ -165,7 +165,13 @@ const withActivePlaylist = (
 const toEditorConfigFromPlaylist = (playlist: StoredPlaylist): EditorGraphConfig => {
   const board = playlist.config.boardConfig;
   const graphConfig =
-    board.mode === "graph" ? toEditorGraphConfig(board) : layoutLinearGraphFromPlaylist(board);
+    board.mode === "graph"
+      ? toEditorGraphConfig(board)
+      : layoutLinearGraphFromPlaylist(
+          board.mode === "endless"
+            ? { mode: "linear", totalIndices: board.initialBatchSize, safePointIndices: [], safePointRestMsByIndex: {}, normalRoundRefsByIndex: {}, normalRoundOrder: [], cumRoundRefs: [] }
+            : board
+        );
   return {
     ...graphConfig,
     perkSelection: {
@@ -3095,7 +3101,7 @@ function MapEditorPage() {
 
           {/* ── Center: Toolbar + Canvas + Status bar ─────────────────── */}
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="flex-shrink-0 border-b border-white/6 px-2 py-1.5">
+            <div className="relative z-30 flex-shrink-0 overflow-visible border-b border-white/6 px-2 py-1.5">
               <EditorToolbar
                 tool={tool}
                 alignmentStrategy={alignmentStrategy}

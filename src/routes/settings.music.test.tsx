@@ -61,11 +61,18 @@ const mocks = vi.hoisted(() => {
       stopContinuousLoop: vi.fn(),
     },
     handy: {
+      provider: "thehandy" as const,
+      setProvider: vi.fn(async (provider: "thehandy" | "intiface") => {
+        mocks.handy.provider = provider;
+      }),
       connectionKey: "",
       appApiKey: "default-app-key",
       appApiKeyOverride: "",
       isUsingDefaultAppApiKey: true,
       localIp: "",
+      intifaceWebsocketUrl: "ws://127.0.0.1:12345",
+      intifaceDeviceName: null as string | null,
+      intifaceDeviceIndex: null as number | null,
       offsetMs: 0,
       strokeMin: 0,
       strokeMax: 1,
@@ -79,6 +86,7 @@ const mocks = vi.hoisted(() => {
       isConnecting: false,
       error: null,
       connect: vi.fn(async () => true),
+      connectIntiface: vi.fn(async () => true),
       reconnect: vi.fn(async () => true),
       disconnect: vi.fn(async () => {}),
       forceStop: vi.fn(async () => {}),
@@ -218,6 +226,9 @@ vi.mock("../services/trpc", () => ({
       },
     },
     store: {
+      get: {
+        query: vi.fn(async () => null),
+      },
       getMany: {
         query: vi.fn(async ({ keys }: { keys: string[] }) => {
           const values: Record<string, unknown> = {};
@@ -259,6 +270,10 @@ vi.mock("../contexts/HandyContext", () => ({
   useHandy: () => mocks.handy,
 }));
 
+vi.mock("../components/ui/ToastHost", () => ({
+  useToast: () => ({ showToast: vi.fn() }),
+}));
+
 vi.mock("../hooks/useAppUpdate", () => ({
   useAppUpdate: () => mocks.appUpdate,
 }));
@@ -283,10 +298,18 @@ describe("Settings music section", () => {
     mocks.globalMusic.setVolume.mockClear();
     mocks.gameplayMoaning.clearQueue.mockClear();
     mocks.handy.connect.mockClear();
+    mocks.handy.connectIntiface.mockClear();
+    mocks.handy.setProvider.mockClear();
     mocks.handy.disconnect.mockClear();
     mocks.handy.forceStop.mockClear();
     mocks.handy.adjustOffset.mockClear();
     mocks.handy.resetOffset.mockClear();
+    mocks.handy.provider = "thehandy";
+    mocks.handy.error = null;
+    mocks.handy.connected = false;
+    mocks.handy.intifaceWebsocketUrl = "ws://127.0.0.1:12345";
+    mocks.handy.intifaceDeviceName = null;
+    mocks.handy.intifaceDeviceIndex = null;
     mocks.handy.offsetMs = 0;
     mocks.appUpdate.triggerPrimaryAction.mockClear();
     vi.mocked(trpc.binaries.getResolvedVersions.query).mockClear();
@@ -609,6 +632,35 @@ describe("Settings music section", () => {
     });
   });
 
+  it("renders Intiface connection controls inline in settings", async () => {
+    mocks.handy.provider = "intiface";
+    mocks.handy.intifaceWebsocketUrl = "ws://127.0.0.1:12345";
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);
+    fireEvent.change(screen.getByLabelText("Intiface WebSocket URL"), {
+      target: { value: "ws://localhost:12345" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+    await waitFor(() => {
+      expect(mocks.handy.connectIntiface).toHaveBeenCalledWith("ws://localhost:12345");
+    });
+  });
+
+  it("shows Intiface connection errors in hardware settings", async () => {
+    mocks.handy.provider = "intiface";
+    mocks.handy.error =
+      "Intiface connected, but no linear/position-capable device was found.";
+    render(<SettingsPage />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);
+
+    expect(
+      screen.getByText("Intiface connected, but no linear/position-capable device was found.")
+    ).toBeDefined();
+  });
+
   it("renders and uses TheHandy offset controls in hardware settings", async () => {
     mocks.handy.offsetMs = 75;
     mocks.handy.strokeMin = 0.12;
@@ -720,7 +772,7 @@ describe("Settings music section", () => {
     render(<SettingsPage />);
 
     const helpButton = screen.getAllByRole("button", { name: /Help/ })[0]!;
-    const changelogButton = screen.getByRole("button", { name: "What's New" });
+    const changelogButton = screen.getByRole("button", { name: /What's New/ });
     const creditsButton = screen.getByRole("button", { name: /Credits \/ License/ });
 
     expect(
@@ -771,7 +823,7 @@ describe("Settings music section", () => {
   it("shows live program versions in Advanced and refreshes after source changes", async () => {
     render(<SettingsPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "🔧 Advanced" }));
+    fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
 
     await screen.findByText("Program Versions");
     expect(screen.getByText("/bundle/ffmpeg")).toBeDefined();
@@ -837,7 +889,7 @@ describe("Settings music section", () => {
     });
 
     render(<SettingsPage />);
-    fireEvent.click(screen.getByRole("button", { name: "🔧 Advanced" }));
+    fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
 
     await screen.findAllByText("Unavailable");
     expect(screen.getByText("ffmpeg missing")).toBeDefined();

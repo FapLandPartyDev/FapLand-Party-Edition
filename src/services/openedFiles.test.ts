@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
     install: {
       inspectSidecarFile: vi.fn(),
       importSidecarFile: vi.fn(),
+      importVideoFileAsRound: vi.fn(),
+      scanFolderOnce: vi.fn(),
     },
   },
   playlists: {
@@ -67,6 +69,28 @@ beforeEach(() => {
       },
     },
   });
+  mocks.db.install.importVideoFileAsRound.mockResolvedValue({
+    status: {
+      state: "done",
+      stats: {
+        installed: 1,
+        playlistsImported: 0,
+        updated: 0,
+        failed: 0,
+      },
+    },
+  });
+  mocks.db.install.scanFolderOnce.mockResolvedValue({
+    status: {
+      state: "done",
+      stats: {
+        installed: 2,
+        playlistsImported: 0,
+        updated: 0,
+        failed: 0,
+      },
+    },
+  });
   mocks.reviewInstallSidecarTrust.mockResolvedValue({
     action: "import",
     trustedBaseDomains: [],
@@ -95,7 +119,10 @@ describe("getOpenedFileKind", () => {
     expect(getOpenedFileKind("/tmp/example.hero")).toBe("sidecar");
     expect(getOpenedFileKind("/tmp/example.fpack")).toBe("sidecar");
     expect(getOpenedFileKind("/tmp/example.fplay")).toBe("playlist");
-    expect(getOpenedFileKind("/tmp/example.mp4")).toBe("unsupported");
+    expect(getOpenedFileKind("/tmp/example.mp4")).toBe("video");
+    expect(getOpenedFileKind("/tmp/videos")).toBe("folder");
+    expect(getOpenedFileKind("/tmp/videos.2026/")).toBe("folder");
+    expect(getOpenedFileKind("/tmp/readme.txt")).toBe("unsupported");
   });
 });
 
@@ -212,6 +239,22 @@ describe("importOpenedFile", () => {
     expect(mocks.playlists.importFromFile).toHaveBeenCalledWith({ filePath: "/tmp/example.fplay" });
     expect(mocks.playlists.setActive).toHaveBeenCalledWith("playlist-1");
     expect(result.kind).toBe("playlist");
+  });
+
+  it("imports dropped video files as rounds", async () => {
+    const result = await importOpenedFile("/tmp/example.mp4");
+
+    expect(mocks.db.install.importVideoFileAsRound).toHaveBeenCalledWith("/tmp/example.mp4");
+    expect(result.kind).toBe("video");
+    expect(result.kind === "video" ? result.feedback.message : "").toContain("Installed");
+  });
+
+  it("imports dropped folders with the folder scanner", async () => {
+    const result = await importOpenedFile("/tmp/videos");
+
+    expect(mocks.db.install.scanFolderOnce).toHaveBeenCalledWith("/tmp/videos");
+    expect(result.kind).toBe("folder");
+    expect(result.kind === "folder" ? result.feedback.message : "").toContain("Installed");
   });
 });
 

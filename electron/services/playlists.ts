@@ -337,6 +337,57 @@ export async function setActivePlaylist(playlistId: string): Promise<PlaylistRec
   return playlist;
 }
 
+const ENDLESS_MIN_NORMAL_ROUNDS = 10;
+
+export async function ensureEndlessPlaylist(): Promise<PlaylistRecord | null> {
+  const allPlaylists = await listPlaylists();
+  const existingEndless = allPlaylists.find((p) => p.config.boardConfig.mode === "endless");
+  if (existingEndless) return existingEndless;
+
+  const normalRoundCount = await getDb().query.round.findMany({
+    where: and(eq(round.type, "Normal"), eq(round.excludeFromRandom, false)),
+    columns: { id: true },
+  });
+
+  if (normalRoundCount.length < ENDLESS_MIN_NORMAL_ROUNDS) return null;
+
+  const config: PlaylistConfig = {
+    playlistVersion: CURRENT_PLAYLIST_VERSION,
+    boardConfig: {
+      mode: "endless",
+      safePointEveryN: 25,
+      perkNodeEveryN: 5,
+      initialBatchSize: 50,
+      extendBatchSize: 25,
+    },
+    roundStartDelayMs: 20000,
+    disableDiceAnimation: true,
+    perkSelection: { optionsPerPick: 3, triggerChancePerCompletedRound: 0.35 },
+    perkPool: { enabledPerkIds: [], enabledAntiPerkIds: [] },
+    probabilityScaling: {
+      initialIntermediaryProbability: 0.1,
+      initialAntiPerkProbability: 0.1,
+      intermediaryIncreasePerRound: 0.02,
+      antiPerkIncreasePerRound: 0.015,
+      maxIntermediaryProbability: 1,
+      maxAntiPerkProbability: 0.75,
+    },
+    economy: {
+      startingMoney: 120,
+      moneyPerCompletedRound: 50,
+      startingScore: 0,
+      scorePerCompletedRound: 100,
+      scorePerIntermediary: 30,
+      scorePerActiveAntiPerk: 25,
+      scorePerCumRoundSuccess: 0,
+    },
+    dice: { min: 1, max: 1 },
+    saveMode: "checkpoint",
+  };
+
+  return createPlaylist({ name: "Endless Run", config });
+}
+
 export async function analyzePlaylistImportFile(filePath: string): Promise<PlaylistImportAnalysis> {
   return await readPlaylistImportAnalysis(filePath);
 }

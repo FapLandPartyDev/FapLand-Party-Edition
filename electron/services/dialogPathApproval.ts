@@ -2,6 +2,7 @@ import path from "node:path";
 
 export type DialogPathApprovalKind =
   | "installFolder"
+  | "installVideoFile"
   | "installSidecarFile"
   | "playlistExportDirectory"
   | "playlistExportFile"
@@ -59,7 +60,6 @@ export function assertApprovedDialogPath(
   }
   return normalizedPath;
 }
-
 
 export function clearApprovedDialogPathsForTests(): void {
   approvedPathsByKind.clear();

@@ -18,6 +18,7 @@ import {
   THEHANDY_OFFSET_MIN_MS,
   THEHANDY_OFFSET_STEP_MS,
 } from "../constants/theHandy";
+import { DEFAULT_INTIFACE_WEBSOCKET_URL } from "../constants/haptics";
 import {
   DEFAULT_MUSIC_LOOP_MODE,
   DEFAULT_MUSIC_VOLUME,
@@ -1263,7 +1264,7 @@ export function SettingsPage() {
         id: "hardware",
         icon: "🔗",
         title: t`Hardware & Sync`,
-        description: t`TheHandy hardware integration and funscript compatibility.`,
+        description: t`Haptics hardware integration and funscript compatibility.`,
         settings: [
           {
             id: "autofix-broken-funscripts",
@@ -3365,9 +3366,14 @@ function HardwareSettingsCard({
 }) {
   const { t } = useLingui();
   const {
+    provider,
+    setProvider,
     connectionKey,
     appApiKeyOverride,
     isUsingDefaultAppApiKey,
+    intifaceWebsocketUrl,
+    intifaceDeviceName,
+    intifaceDeviceIndex,
     offsetMs,
     strokeMin,
     strokeMax,
@@ -3380,6 +3386,7 @@ function HardwareSettingsCard({
     isConnecting,
     error,
     connect,
+    connectIntiface,
     disconnect,
     forceStop,
     adjustOffset,
@@ -3389,6 +3396,7 @@ function HardwareSettingsCard({
   } = useHandy();
   const [inputKey, setInputKey] = useState(connectionKey);
   const [inputApiKeyOverride, setInputApiKeyOverride] = useState(appApiKeyOverride);
+  const [inputIntifaceUrl, setInputIntifaceUrl] = useState(intifaceWebsocketUrl);
   const [useCustomApiKey, setUseCustomApiKey] = useState(!isUsingDefaultAppApiKey);
   const [strokeMinSliderValue, setStrokeMinSliderValue] = useState(
     formatHandyStrokeBoundPercent(strokeMin)
@@ -3398,21 +3406,29 @@ function HardwareSettingsCard({
   );
 
   useEffect(() => {
-    setStrokeMinSliderValue(formatHandyStrokeBoundPercent(strokeMin));
-    setStrokeMaxSliderValue(formatHandyStrokeBoundPercent(strokeMax));
+    queueMicrotask(() => {
+      setStrokeMinSliderValue(formatHandyStrokeBoundPercent(strokeMin));
+      setStrokeMaxSliderValue(formatHandyStrokeBoundPercent(strokeMax));
+    });
   }, [strokeMin, strokeMax]);
 
   useEffect(() => {
     queueMicrotask(() => {
       setInputKey(connectionKey);
       setInputApiKeyOverride(appApiKeyOverride);
+      setInputIntifaceUrl(intifaceWebsocketUrl);
       setUseCustomApiKey(!isUsingDefaultAppApiKey);
     });
-  }, [appApiKeyOverride, connectionKey, isUsingDefaultAppApiKey]);
+  }, [appApiKeyOverride, connectionKey, intifaceWebsocketUrl, isUsingDefaultAppApiKey]);
 
   const handleConnect = async () => {
     if (connected) {
       await disconnect();
+      return;
+    }
+
+    if (provider === "intiface") {
+      await connectIntiface(inputIntifaceUrl);
       return;
     }
 
@@ -3457,106 +3473,174 @@ function HardwareSettingsCard({
           </div>
 
           <div className="space-y-4 text-left">
-            <div className="flex flex-col gap-2">
-              <label
-                className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
-                htmlFor="settings-handy-connection-key"
-              >
-                <Trans>Connection Key / Channel Ref</Trans>
-              </label>
-              <input
-                id="settings-handy-connection-key"
-                type="text"
-                value={inputKey}
-                onChange={(event) => setInputKey(event.target.value)}
-                placeholder={t`Device connection key`}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
                 disabled={connected || isConnecting}
-                className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-purple-500 focus:ring-1 focus:ring-purple-500 disabled:opacity-50"
-              />
+                onClick={() => {
+                  playSelectSound();
+                  void setProvider("thehandy");
+                }}
+                className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                  provider === "thehandy"
+                    ? "border-violet-300/60 bg-violet-500/30 text-violet-100"
+                    : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
+                }`}
+              >
+                <Trans>TheHandy</Trans>
+              </button>
+              <button
+                type="button"
+                disabled={connected || isConnecting}
+                onClick={() => {
+                  playSelectSound();
+                  void setProvider("intiface");
+                }}
+                className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                  provider === "intiface"
+                    ? "border-cyan-300/60 bg-cyan-500/25 text-cyan-100"
+                    : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
+                }`}
+              >
+                <Trans>Intiface</Trans>
+              </button>
             </div>
 
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm font-[family-name:var(--font-jetbrains-mono)] text-amber-200">
-              <Trans>Only firmware version 4 and up is supported.</Trans>
-            </div>
-
-            <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] text-cyan-200/80">
-                    <Trans>App Key</Trans>
-                  </p>
-                  <p className="mt-1 text-sm text-cyan-50">
-                    {useCustomApiKey
-                      ? t`Using your custom TheHandy app key.`
-                      : t`Using the built-in TheHandy app key automatically.`}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={connected || isConnecting}
-                  onClick={() => {
-                    setUseCustomApiKey((current) => {
-                      const next = !current;
-                      if (!next) {
-                        setInputApiKeyOverride("");
-                      }
-                      return next;
-                    });
-                  }}
-                  className="rounded-lg border border-cyan-300/40 bg-cyan-500/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-cyan-100 transition-colors hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {useCustomApiKey ? t`Use Built-In` : t`Use Custom`}
-                </button>
-              </div>
-
-              {useCustomApiKey ? (
-                <div className="mt-4 flex flex-col gap-2">
+            {provider === "intiface" ? (
+              <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-4">
+                <div className="flex flex-col gap-2">
                   <label
                     className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
-                    htmlFor="settings-handy-api-key"
+                    htmlFor="settings-intiface-websocket-url"
                   >
-                    <Trans>Application ID</Trans>
+                    <Trans>Intiface WebSocket URL</Trans>
                   </label>
                   <input
-                    id="settings-handy-api-key"
-                    type="password"
-                    value={inputApiKeyOverride}
-                    onChange={(event) => setInputApiKeyOverride(event.target.value)}
-                    placeholder={t`Enter your Handy application ID`}
+                    id="settings-intiface-websocket-url"
+                    type="text"
+                    value={inputIntifaceUrl}
+                    onChange={(event) => setInputIntifaceUrl(event.target.value)}
+                    placeholder={DEFAULT_INTIFACE_WEBSOCKET_URL}
+                    disabled={connected || isConnecting}
+                    className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 disabled:opacity-50"
+                  />
+                  <p className="ml-1 text-xs text-zinc-400">
+                    <Trans>
+                      Start Intiface Central, start its server, then connect to a linear/position-capable device.
+                    </Trans>
+                  </p>
+                  {intifaceDeviceName || intifaceDeviceIndex !== null ? (
+                    <p className="ml-1 text-xs text-cyan-100">
+                      <Trans>Selected device</Trans>: {intifaceDeviceName ?? t`Device`}{" "}
+                      {intifaceDeviceIndex !== null ? `#${intifaceDeviceIndex}` : ""}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  <label
+                    className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                    htmlFor="settings-handy-connection-key"
+                  >
+                    <Trans>Connection Key / Channel Ref</Trans>
+                  </label>
+                  <input
+                    id="settings-handy-connection-key"
+                    type="text"
+                    value={inputKey}
+                    onChange={(event) => setInputKey(event.target.value)}
+                    placeholder={t`Device connection key`}
                     disabled={connected || isConnecting}
                     className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-purple-500 focus:ring-1 focus:ring-purple-500 disabled:opacity-50"
                   />
-                  <a
-                    href={HANDY_USER_PORTAL_URL}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1 inline-flex w-fit items-center justify-center rounded-lg border border-cyan-300/40 bg-cyan-500/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-cyan-100 transition-colors hover:bg-cyan-500/25"
-                  >
-                    <Trans>Open Handy User Portal</Trans>
-                  </a>
-                  <p className="ml-1 text-xs text-zinc-400">
-                    <Trans>
-                      Do not use your access token here. Create or select an app at Handy and paste
-                      the application ID instead.
-                    </Trans>
-                  </p>
-                  <p className="ml-1 text-xs text-zinc-400">
-                    <Trans>
-                      Leave custom mode off unless you explicitly want to override the built-in app
-                      identity.
-                    </Trans>
-                  </p>
                 </div>
-              ) : (
-                <p className="mt-3 text-xs text-zinc-400">
-                  <Trans>
-                    Built-in key loaded. Override only if you need a different app identity.
-                  </Trans>
-                </p>
-              )}
-            </div>
 
-            {DEFAULT_THEHANDY_APP_API_KEY.trim().length === 0 ? (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm font-[family-name:var(--font-jetbrains-mono)] text-amber-200">
+                  <Trans>Only firmware version 4 and up is supported.</Trans>
+                </div>
+
+                <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] text-cyan-200/80">
+                        <Trans>App Key</Trans>
+                      </p>
+                      <p className="mt-1 text-sm text-cyan-50">
+                        {useCustomApiKey
+                          ? t`Using your custom TheHandy app key.`
+                          : t`Using the built-in TheHandy app key automatically.`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={connected || isConnecting}
+                      onClick={() => {
+                        setUseCustomApiKey((current) => {
+                          const next = !current;
+                          if (!next) {
+                            setInputApiKeyOverride("");
+                          }
+                          return next;
+                        });
+                      }}
+                      className="rounded-lg border border-cyan-300/40 bg-cyan-500/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-cyan-100 transition-colors hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {useCustomApiKey ? t`Use Built-In` : t`Use Custom`}
+                    </button>
+                  </div>
+
+                  {useCustomApiKey ? (
+                    <div className="mt-4 flex flex-col gap-2">
+                      <label
+                        className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                        htmlFor="settings-handy-api-key"
+                      >
+                        <Trans>Application ID</Trans>
+                      </label>
+                      <input
+                        id="settings-handy-api-key"
+                        type="password"
+                        value={inputApiKeyOverride}
+                        onChange={(event) => setInputApiKeyOverride(event.target.value)}
+                        placeholder={t`Enter your Handy application ID`}
+                        disabled={connected || isConnecting}
+                        className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-purple-500 focus:ring-1 focus:ring-purple-500 disabled:opacity-50"
+                      />
+                      <a
+                        href={HANDY_USER_PORTAL_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-flex w-fit items-center justify-center rounded-lg border border-cyan-300/40 bg-cyan-500/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-cyan-100 transition-colors hover:bg-cyan-500/25"
+                      >
+                        <Trans>Open Handy User Portal</Trans>
+                      </a>
+                      <p className="ml-1 text-xs text-zinc-400">
+                        <Trans>
+                          Do not use your access token here. Create or select an app at Handy and paste
+                          the application ID instead.
+                        </Trans>
+                      </p>
+                      <p className="ml-1 text-xs text-zinc-400">
+                        <Trans>
+                          Leave custom mode off unless you explicitly want to override the built-in app
+                          identity.
+                        </Trans>
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-xs text-zinc-400">
+                      <Trans>
+                        Built-in key loaded. Override only if you need a different app identity.
+                      </Trans>
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {provider === "thehandy" && DEFAULT_THEHANDY_APP_API_KEY.trim().length === 0 ? (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm font-[family-name:var(--font-jetbrains-mono)] text-amber-300">
                 <Trans>
                   No bundled TheHandy app key is configured in this build. Enable custom mode and
@@ -3614,7 +3698,7 @@ function HardwareSettingsCard({
               </p>
               <p className="mt-1 text-sm text-zinc-200">
                 <Trans>
-                  Applies to all TheHandy sync operations. Use this if the device is slightly ahead
+                  Applies to all haptics sync operations. Use this if the device is slightly ahead
                   or behind the video.
                 </Trans>
               </p>
@@ -3738,7 +3822,7 @@ function HardwareSettingsCard({
                 <Trans>Stroke Adjustment</Trans>
               </p>
               <p className="mt-1 text-sm text-zinc-200">
-                <Trans>Adjust the device stroke length directly on TheHandy.</Trans>
+                <Trans>Adjust the active haptics stroke range.</Trans>
               </p>
             </div>
             <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-right">
@@ -6105,7 +6189,7 @@ function ChangelogCard() {
               <Trans>Release Notes</Trans>
             </p>
             <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
-              <Trans>What's New</Trans>
+              <Trans>What&apos;s New</Trans>
             </h2>
             <p className="mt-2 text-sm text-fuchsia-50/80">
               <Trans>Release notes and shipped improvements bundled directly into the app.</Trans>

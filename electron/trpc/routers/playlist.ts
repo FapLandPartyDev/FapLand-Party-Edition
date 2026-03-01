@@ -5,6 +5,7 @@ import {
   createPlaylist,
   deletePlaylist,
   duplicatePlaylist,
+  ensureEndlessPlaylist,
   exportPlaylistToFile,
   getActivePlaylist,
   getDistinctPlayedByPool,
@@ -85,6 +86,10 @@ export const playlistRouter = router({
     .mutation(({ input }) => {
       return setActivePlaylist(input.playlistId);
     }),
+
+  ensureEndless: publicProcedure.mutation(() => {
+    return ensureEndlessPlaylist();
+  }),
 
   importFromFile: publicProcedure
     .input(

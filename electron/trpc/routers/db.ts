@@ -28,6 +28,7 @@ import {
   getInstallScanStatus,
   inspectInstallSidecarFile,
   importInstallSidecarFile,
+  importLegacyVideoFileAsRound,
   repairTemplateHero,
   repairTemplateRound,
   importLegacyFolderWithPlan,
@@ -81,15 +82,13 @@ import {
   playlist,
 } from "../../services/db/schema";
 import { ZSinglePlayerRunSaveSnapshot } from "../../../src/game/saveSchema";
-import {
-  THEHANDY_OFFSET_MAX_MS,
-  THEHANDY_OFFSET_MIN_MS,
-} from "../../../src/constants/theHandy";
+import { THEHANDY_OFFSET_MAX_MS, THEHANDY_OFFSET_MIN_MS } from "../../../src/constants/theHandy";
 
 const ZNullableText = z.string().optional().nullable();
 const ZRoundType = z.enum(["Normal", "Interjection", "Cum"]);
 const ZPersistablePlaylistSaveMode = z.enum(["checkpoint", "everywhere"]);
 const ZTagList = z.array(z.string()).optional();
+const ROUND_DELETE_CHUNK_SIZE = 500;
 
 function normalizeTextMetadata(input: string | null | undefined): string | null {
   const trimmed = input?.trim();
@@ -111,6 +110,35 @@ function parseTagsJson(value: string | null | undefined): string[] {
   } catch {
     return [];
   }
+}
+
+function chunkArray<T>(values: T[], chunkSize: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += chunkSize) {
+    chunks.push(values.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
+async function cleanupDeletedRoundWebsiteCache(deletedRoundWebsiteUrls: string[]): Promise<void> {
+  if (deletedRoundWebsiteUrls.length === 0) {
+    return;
+  }
+
+  const db = getDb();
+  const remainingResources = await db.query.resource.findMany({
+    columns: {
+      videoUri: true,
+    },
+  });
+  const remainingWebsiteUrls = new Set(
+    collectWebsiteVideoTargetUrls(remainingResources.map((entry) => entry.videoUri))
+  );
+  await Promise.all(
+    [...new Set(deletedRoundWebsiteUrls)]
+      .filter((targetUrl) => !remainingWebsiteUrls.has(targetUrl))
+      .map((targetUrl) => removeCachedWebsiteVideo(targetUrl))
+  );
 }
 
 function isMissingInstalledLibraryColumnError(error: unknown): boolean {
@@ -1062,24 +1090,56 @@ export const dbRouter = router({
         existing.resources.map((entry) => entry.videoUri)
       );
       await db.delete(round).where(eq(round.id, input.id));
-
-      if (deletedRoundWebsiteUrls.length > 0) {
-        const remainingResources = await db.query.resource.findMany({
-          columns: {
-            videoUri: true,
-          },
-        });
-        const remainingWebsiteUrls = new Set(
-          collectWebsiteVideoTargetUrls(remainingResources.map((entry) => entry.videoUri))
-        );
-        await Promise.all(
-          deletedRoundWebsiteUrls
-            .filter((targetUrl) => !remainingWebsiteUrls.has(targetUrl))
-            .map((targetUrl) => removeCachedWebsiteVideo(targetUrl))
-        );
-      }
+      await cleanupDeletedRoundWebsiteCache(deletedRoundWebsiteUrls);
 
       return { deleted: true };
+    }),
+
+  deleteRounds: publicProcedure
+    .input(z.object({ ids: z.array(z.string().min(1)).min(1) }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const requestedIds = [...new Set(input.ids)];
+      const existingRounds = (
+        await Promise.all(
+          chunkArray(requestedIds, ROUND_DELETE_CHUNK_SIZE).map((idChunk) =>
+            db.query.round.findMany({
+              where: inArray(round.id, idChunk),
+              columns: {
+                id: true,
+              },
+              with: {
+                resources: {
+                  columns: {
+                    videoUri: true,
+                  },
+                },
+              },
+            })
+          )
+        )
+      ).flat();
+
+      const existingIds = new Set(existingRounds.map((entry) => entry.id));
+      const missingIds = requestedIds.filter((id) => !existingIds.has(id));
+      const existingIdList = [...existingIds];
+      const deletedRoundWebsiteUrls = collectWebsiteVideoTargetUrls(
+        existingRounds.flatMap((entry) =>
+          entry.resources.map((resourceEntry) => resourceEntry.videoUri)
+        )
+      );
+
+      for (const idChunk of chunkArray(existingIdList, ROUND_DELETE_CHUNK_SIZE)) {
+        await db.delete(round).where(inArray(round.id, idChunk));
+      }
+      await cleanupDeletedRoundWebsiteCache(deletedRoundWebsiteUrls);
+
+      return {
+        deleted: true,
+        deletedCount: existingIdList.length,
+        requestedCount: requestedIds.length,
+        missingIds,
+      };
     }),
 
   createWebsiteRound: publicProcedure
@@ -1566,6 +1626,7 @@ export const dbRouter = router({
                 phash: true,
                 durationMs: true,
                 funscriptUri: true,
+                funscriptOffsetMs: true,
               },
             },
           },
@@ -1873,6 +1934,32 @@ export const dbRouter = router({
           code: "BAD_REQUEST",
           message:
             error instanceof Error ? error.message : "Failed to install from selected folder.",
+        });
+      }
+    }),
+
+  importLegacyVideoFileAsRound: publicProcedure
+    .input(
+      z.object({
+        filePath: z.string().min(1),
+        deferPhash: z.boolean().optional(),
+        deferPreview: z.boolean().optional(),
+        deferDuration: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const result = await importLegacyVideoFileAsRound(input.filePath, {
+          deferPhash: input.deferPhash ?? true,
+          deferPreview: input.deferPreview ?? true,
+          deferDuration: input.deferDuration ?? true,
+        });
+        queueWebsiteVideoCaching();
+        return result;
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: error instanceof Error ? error.message : "Failed to install selected video.",
         });
       }
     }),

@@ -5,6 +5,25 @@ import { i18n } from "../../i18n";
 
 // Pricing tiers for balancing against default economy (starting money 120 / +50 per round).
 // Utility: 120-170, Strong: 180-240, Extreme: 250-360.
+
+export const DICE_PERK_IDS: ReadonlySet<string> = new Set([
+  "loaded-dice",
+  "steady-steps",
+  "doubler",
+  "im-close",
+]);
+
+export const DICE_ANTIPERK_IDS: ReadonlySet<string> = new Set([
+  "cold-streak",
+  "jammed-dice",
+  "cement-boots",
+  "snake-eyes",
+]);
+
+export function isDiceRelatedPerk(perkId: string): boolean {
+  return DICE_PERK_IDS.has(perkId) || DICE_ANTIPERK_IDS.has(perkId);
+}
+
 export const PERK_LIBRARY: PerkDefinition[] = [
   {
     id: "loaded-dice",

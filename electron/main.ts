@@ -18,7 +18,7 @@ import { createIPCHandler } from "trpc-electron/main";
 import { config as loadDotenv } from "dotenv";
 import { appRouter } from "./trpc/router";
 import { getNodeEnv } from "../src/zod/env";
-import { SUPPORTED_VIDEO_EXTENSIONS } from "../src/constants/videoFormats";
+import { isVideoExtension, SUPPORTED_VIDEO_EXTENSIONS } from "../src/constants/videoFormats";
 import { approveDialogPath } from "./services/dialogPathApproval";
 import { normalizeMultiplayerAuthCallback } from "./services/authCallback";
 import { ensureAppDatabaseReady } from "./services/db";
@@ -37,7 +37,10 @@ import { startContinuousWebsiteVideoScan } from "./services/webVideoScanService"
 import { createMediaResponse } from "./services/protocol/mediaResponse";
 import { initializeAppUpdater, subscribeToUpdateState } from "./services/updater";
 import { subscribeToEroScriptsLoginStatus } from "./services/eroscripts";
-import { getRendererPerformanceState, setRendererPerformanceState } from "./services/rendererPerformance";
+import {
+  getRendererPerformanceState,
+  setRendererPerformanceState,
+} from "./services/rendererPerformance";
 import {
   startContinuousDatabaseBackup,
   stopContinuousDatabaseBackup,
@@ -391,17 +394,37 @@ function scheduleRendererDevTools(mainWindow: BrowserWindow): void {
   });
 }
 
-function normalizeOpenedFilePath(rawPath: string): string | null {
+async function normalizeOpenedFilePath(rawPath: string): Promise<string | null> {
   const trimmed = rawPath.trim();
   if (trimmed.length === 0 || trimmed.startsWith("-")) return null;
 
-  const ext = path.extname(trimmed).toLowerCase();
-  if (!OPENABLE_FILE_EXTENSIONS.has(ext)) return null;
+  const normalized = path.normalize(path.resolve(trimmed));
+  let pathStat: Awaited<ReturnType<typeof stat>>;
+  try {
+    pathStat = await stat(normalized);
+  } catch {
+    return null;
+  }
 
-  return path.normalize(path.resolve(trimmed));
+  if (pathStat.isDirectory()) {
+    return normalized.endsWith(path.sep) ? normalized : `${normalized}${path.sep}`;
+  }
+
+  if (!pathStat.isFile()) return null;
+
+  const ext = path.extname(normalized).toLowerCase();
+  if (OPENABLE_FILE_EXTENSIONS.has(ext) || isVideoExtension(ext)) return normalized;
+
+  return null;
 }
 
-function approveOpenedFilePath(filePath: string): void {
+async function approveOpenedFilePath(filePath: string): Promise<void> {
+  const pathStat = await stat(filePath);
+  if (pathStat.isDirectory()) {
+    approveDialogPath("installFolder", filePath);
+    return;
+  }
+
   const ext = path.extname(filePath).toLowerCase();
   if (ext === ".fplay") {
     approveDialogPath("playlistImportFile", filePath);
@@ -410,17 +433,22 @@ function approveOpenedFilePath(filePath: string): void {
 
   if (ext === ".hero" || ext === ".round" || ext === ".fpack") {
     approveDialogPath("installSidecarFile", filePath);
+    return;
+  }
+
+  if (isVideoExtension(ext)) {
+    approveDialogPath("installVideoFile", filePath);
   }
 }
 
-function queueOpenedFiles(filePaths: string[]): void {
-  const normalized = filePaths
-    .map(normalizeOpenedFilePath)
-    .filter((filePath): filePath is string => Boolean(filePath));
+async function queueOpenedFiles(filePaths: string[]): Promise<void> {
+  const normalized = (
+    await Promise.all(filePaths.map((filePath) => normalizeOpenedFilePath(filePath)))
+  ).filter((filePath): filePath is string => Boolean(filePath));
   if (normalized.length === 0) return;
 
   for (const filePath of normalized) {
-    approveOpenedFilePath(filePath);
+    await approveOpenedFilePath(filePath);
   }
 
   pendingOpenedFiles.push(...normalized);
@@ -464,13 +492,17 @@ function focusMainWindow(): void {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  queueOpenedFiles(process.argv.slice(1));
+  void queueOpenedFiles(process.argv.slice(1)).catch((error) => {
+    console.error("Failed to queue opened files", error);
+  });
   for (const arg of process.argv) {
     queueAuthCallback(arg);
   }
 
   app.on("second-instance", (_event, argv) => {
-    queueOpenedFiles(argv.slice(1));
+    void queueOpenedFiles(argv.slice(1)).catch((error) => {
+      console.error("Failed to queue opened files", error);
+    });
     for (const arg of argv) {
       queueAuthCallback(arg);
     }
@@ -480,7 +512,9 @@ if (!app.requestSingleInstanceLock()) {
 
 app.on("open-file", (event, filePath) => {
   event.preventDefault();
-  queueOpenedFiles([filePath]);
+  void queueOpenedFiles([filePath]).catch((error) => {
+    console.error("Failed to queue opened file", error);
+  });
   focusMainWindow();
 });
 
@@ -888,9 +922,9 @@ function registerWindowControlsIpc() {
       const previous = getRendererPerformanceState();
       const next = setRendererPerformanceState(state);
       if (
-        previous.route !== next.route
-        || previous.visible !== next.visible
-        || previous.idleSensitive !== next.idleSensitive
+        previous.route !== next.route ||
+        previous.visible !== next.visible ||
+        previous.idleSensitive !== next.idleSensitive
       ) {
         console.log("[RendererPerformanceState]", next);
       }
@@ -943,7 +977,7 @@ function registerDialogIpc() {
       return null;
     }
 
-    approveOpenedFilePath(filePath);
+    await approveOpenedFilePath(filePath);
     return filePath;
   });
 
@@ -1291,11 +1325,11 @@ function registerAppOpenIpc() {
   ipcMain.handle("app-open:consumePendingFiles", () => {
     return pendingOpenedFiles.splice(0, pendingOpenedFiles.length);
   });
-  ipcMain.handle("app-open:openDroppedFiles", (_event, rawFilePaths) => {
+  ipcMain.handle("app-open:openDroppedFiles", async (_event, rawFilePaths) => {
     const filePaths = Array.isArray(rawFilePaths)
       ? rawFilePaths.filter((filePath): filePath is string => typeof filePath === "string")
       : [];
-    queueOpenedFiles(filePaths);
+    await queueOpenedFiles(filePaths);
   });
   ipcMain.handle("app-open:renderer-ready", () => {
     appOpenRendererReady = true;

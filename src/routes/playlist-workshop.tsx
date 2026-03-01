@@ -40,6 +40,7 @@ import {
   type PlaylistResolutionAnalysis,
 } from "../game/playlistResolution";
 import {
+  createDefaultEndlessPlaylistConfig,
   createDefaultPlaylistConfig,
   resolvePortableRoundRef,
   toPortableRoundRef,
@@ -100,7 +101,7 @@ const DEFAULT_INTERMEDIARY_RETURN_PAUSE_SEC = 4;
 const AVAILABLE_ROUND_ROW_ESTIMATE_PX = 58;
 const AVAILABLE_ROUNDS_INITIAL_RECT_HEIGHT_PX = 352;
 const LARGE_AVAILABLE_LIST_THRESHOLD = 50;
-type NewPlaylistMode = "fully-random" | "progressive-random";
+type NewPlaylistMode = "fully-random" | "progressive-random" | "endless";
 type NormalRoundSort = "name-asc" | "name-desc" | "author" | "difficulty-asc";
 type RoundOrderConfirmAction = "difficulty" | "random" | "progressive" | "clear";
 type DurationFilter = "any" | "short" | "medium" | "long" | "unknown";
@@ -1235,6 +1236,10 @@ function PlaylistWorkshopPage() {
         : null;
 
   function buildNewPlaylistConfig(mode: NewPlaylistMode) {
+    if (mode === "endless") {
+      return createDefaultEndlessPlaylistConfig();
+    }
+
     const base = createDefaultPlaylistConfig(installedRounds);
     const normalRounds = installedRounds.filter(
       (round: WorkshopInstalledRound) => (round.type ?? "Normal") === "Normal"
@@ -4311,6 +4316,25 @@ function NewPlaylistDialog({
               <Trans>
                 Keeps randomness, but later rounds increasingly favor longer and higher-difficulty
                 entries.
+              </Trans>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("endless")}
+            className={`rounded-xl border px-4 py-3 text-left text-sm ${
+              mode === "endless"
+                ? "border-fuchsia-300/60 bg-fuchsia-500/20 text-fuchsia-100"
+                : "border-zinc-600 bg-black/35 text-zinc-200"
+            }`}
+          >
+            <div className="font-semibold">
+              <Trans>Endless</Trans>
+            </div>
+            <div className="mt-1 text-xs text-zinc-300">
+              <Trans>
+                Infinite run with random rounds. Dice locked to 1. No dice-related perks.
+                Anti-perks can be toggled in the playlist settings.
               </Trans>
             </div>
           </button>

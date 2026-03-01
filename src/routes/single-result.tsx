@@ -10,7 +10,7 @@ const SingleResultSearchSchema = z.object({
   score: z.coerce.number().int().min(0).default(0),
   highscore: z.coerce.number().int().min(0).default(0),
   survivedDurationSec: z.coerce.number().int().min(0).default(0),
-  reason: z.enum(["finished", "self_reported_cum", "cum_instruction_failed"]).default("finished"),
+  reason: z.enum(["finished", "self_reported_cum", "cum_instruction_failed", "player_ended_endless"]).default("finished"),
   cheatMode: z.coerce.boolean().optional(),
   assisted: z.coerce.boolean().optional(),
   assistedSaveMode: z.enum(["checkpoint", "everywhere"]).optional(),
@@ -111,6 +111,8 @@ export function SingleResultRoute() {
               <Trans>Campaign Completed</Trans>
             ) : search.reason === "self_reported_cum" ? (
               <Trans>CLIMAX ACHIEVED</Trans>
+            ) : search.reason === "player_ended_endless" ? (
+              <Trans>Endless Run Ended</Trans>
             ) : (
               <Trans>INSTRUCTION FAILED</Trans>
             )}
@@ -123,6 +125,8 @@ export function SingleResultRoute() {
               <Trans>You completed the board and closed out the match.</Trans>
             ) : search.reason === "self_reported_cum" ? (
               <Trans>Sensory overload threshold reached. Initiating cooldown sequence.</Trans>
+            ) : search.reason === "player_ended_endless" ? (
+              <Trans>You ended your endless run. Great endurance!</Trans>
             ) : (
               <Trans>You failed the final instruction. The system is disappointed.</Trans>
             )}

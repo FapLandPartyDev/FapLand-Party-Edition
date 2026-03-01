@@ -12,11 +12,18 @@ export type TypeFilter = "all" | NonNullable<RoundLibraryEntry["type"]>;
 export type ScriptFilter = "all" | "installed" | "missing";
 export type SortMode = "newest" | "oldest" | "difficulty" | "bpm" | "length" | "name" | "excluded";
 export type MetadataFilter = "all" | string;
+export type SourceFilter = "all" | "stash" | "web" | "local";
+export type AddedDateFilter =
+  | { mode: "all" }
+  | { mode: "since"; fromDate: string }
+  | { mode: "before"; toDate: string }
+  | { mode: "between"; fromDate: string; toDate: string };
 
 export type IndexedRound = {
   round: RoundLibraryEntry;
   searchText: string;
   roundType: NonNullable<RoundLibraryEntry["type"]>;
+  source: Exclude<SourceFilter, "all">;
   hasScript: boolean;
   createdAtMs: number;
   difficultyValue: number;
@@ -49,6 +56,67 @@ function resourceHasFunscript(
   return "hasFunscript" in resource && resource.hasFunscript === true;
 }
 
+export function getRoundSource(
+  round: Pick<RoundLibraryEntry, "installSourceKey">
+): Exclude<SourceFilter, "all"> {
+  if (round.installSourceKey?.startsWith("stash:")) {
+    return "stash";
+  }
+  if (round.installSourceKey?.startsWith("website:")) {
+    return "web";
+  }
+  return "local";
+}
+
+function parseLocalDateStart(value: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day, 0, 0, 0, 0);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+  return date.getTime();
+}
+
+function parseLocalDateEnd(value: string): number | null {
+  const start = parseLocalDateStart(value);
+  if (start === null) return null;
+  const date = new Date(start);
+  date.setHours(23, 59, 59, 999);
+  return date.getTime();
+}
+
+function isWithinAddedDateFilter(
+  createdAtMs: number,
+  filter: AddedDateFilter | undefined
+): boolean {
+  if (!filter || filter.mode === "all" || createdAtMs <= 0) {
+    return true;
+  }
+  if (filter.mode === "since") {
+    const from = parseLocalDateStart(filter.fromDate);
+    return from === null || (createdAtMs >= from && createdAtMs <= Date.now());
+  }
+  if (filter.mode === "before") {
+    const to = parseLocalDateEnd(filter.toDate);
+    return to === null || createdAtMs <= to;
+  }
+
+  const firstStart = parseLocalDateStart(filter.fromDate);
+  const firstEnd = parseLocalDateEnd(filter.fromDate);
+  const secondStart = parseLocalDateStart(filter.toDate);
+  const secondEnd = parseLocalDateEnd(filter.toDate);
+  if (firstStart === null || firstEnd === null || secondStart === null || secondEnd === null) {
+    return true;
+  }
+  const from = Math.min(firstStart, secondStart);
+  const to = Math.max(firstEnd, secondEnd);
+  return createdAtMs >= from && createdAtMs <= to;
+}
+
 export function toIndexedRound(round: RoundLibraryEntry): IndexedRound {
   return {
     round,
@@ -64,6 +132,7 @@ export function toIndexedRound(round: RoundLibraryEntry): IndexedRound {
       .join("\n")
       .toLowerCase(),
     roundType: round.type ?? "Normal",
+    source: getRoundSource(round),
     hasScript: resourceHasFunscript(round.resources[0]),
     createdAtMs: Date.parse(String(round.createdAt)) || 0,
     difficultyValue: round.difficulty ?? 0,
@@ -111,6 +180,8 @@ export function filterAndSortRounds({
   tagFilter,
   actorFilter,
   libraryFilter,
+  sourceFilter,
+  addedDateFilter,
   sortMode,
 }: {
   indexedRounds: IndexedRound[];
@@ -120,6 +191,8 @@ export function filterAndSortRounds({
   tagFilter?: MetadataFilter;
   actorFilter?: MetadataFilter;
   libraryFilter?: MetadataFilter;
+  sourceFilter?: SourceFilter;
+  addedDateFilter?: AddedDateFilter;
   sortMode: SortMode;
 }): RoundLibraryEntry[] {
   const normalizedQuery = query.trim().toLowerCase();
@@ -132,6 +205,8 @@ export function filterAndSortRounds({
     normalizedQuery.length === 0 &&
     typeFilter === "all" &&
     scriptFilter === "all" &&
+    (!sourceFilter || sourceFilter === "all") &&
+    (!addedDateFilter || addedDateFilter.mode === "all") &&
     !normalizedTag &&
     !normalizedActor &&
     !normalizedLibrary
@@ -141,6 +216,12 @@ export function filterAndSortRounds({
             return false;
           }
           if (scriptFilter !== "all" && entry.hasScript !== (scriptFilter === "installed")) {
+            return false;
+          }
+          if (sourceFilter && sourceFilter !== "all" && entry.source !== sourceFilter) {
+            return false;
+          }
+          if (!isWithinAddedDateFilter(entry.createdAtMs, addedDateFilter)) {
             return false;
           }
           if (normalizedTag) {

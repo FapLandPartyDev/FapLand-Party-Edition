@@ -151,7 +151,11 @@ export const db = {
       excludeFromRandom?: boolean;
       libraryLabel?: string | null;
     }) => withInstalledRoundCacheInvalidation(() => trpc.db.updateRound.mutate(input)),
-    updateResourceFunscriptOffset: (input: { resourceId: string; roundId?: string; offsetMs: number }) =>
+    updateResourceFunscriptOffset: (input: {
+      resourceId: string;
+      roundId?: string;
+      offsetMs: number;
+    }) =>
       withInstalledRoundCacheInvalidation(() =>
         trpc.db.updateResourceFunscriptOffset.mutate({
           resourceId: input.resourceId,
@@ -172,6 +176,8 @@ export const db = {
       trpc.db.checkWebsiteRoundVideoSupport.query({ videoUri }),
     delete: (id: string) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.deleteRound.mutate({ id })),
+    deleteMany: (ids: string[]) =>
+      withInstalledRoundCacheInvalidation(() => trpc.db.deleteRounds.mutate({ ids })),
     repairTemplate: (input: { roundId: string; installedRoundId: string }) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.repairTemplateRound.mutate(input)),
     retryTemplateLinking: (input?: { roundId?: string; heroId?: string }) =>
@@ -200,6 +206,10 @@ export const db = {
     scanFolderOnce: (folderPath: string, omitCheckpointRounds = true) =>
       withInstalledRoundCacheInvalidation(() =>
         trpc.db.scanInstallFolderOnce.mutate({ folderPath, omitCheckpointRounds })
+      ),
+    importVideoFileAsRound: (filePath: string) =>
+      withInstalledRoundCacheInvalidation(() =>
+        trpc.db.importLegacyVideoFileAsRound.mutate({ filePath })
       ),
     inspectSidecarFile: (filePath: string) => trpc.db.inspectInstallSidecarFile.query({ filePath }),
     importSidecarFile: (filePath: string, allowedBaseDomains?: string[]) =>

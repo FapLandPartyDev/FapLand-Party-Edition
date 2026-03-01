@@ -35,9 +35,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
 export function GlobalHandyOverlay() {
   const { t } = useLingui();
   const {
+    provider,
     connected,
     isConnecting,
     connectionKey,
+    intifaceDeviceName,
     error,
     synced,
     syncError,
@@ -54,6 +56,7 @@ export function GlobalHandyOverlay() {
     resetStroke,
     toggleManualStop,
     connect,
+    connectIntiface,
     reconnect,
     disconnect,
   } = useHandy();
@@ -70,8 +73,10 @@ export function GlobalHandyOverlay() {
   const setOpenRef = useRef(setOpen);
 
   useEffect(() => {
-    setStrokeMinSliderValue(formatHandyStrokeBoundPercent(strokeMin));
-    setStrokeMaxSliderValue(formatHandyStrokeBoundPercent(strokeMax));
+    queueMicrotask(() => {
+      setStrokeMinSliderValue(formatHandyStrokeBoundPercent(strokeMin));
+      setStrokeMaxSliderValue(formatHandyStrokeBoundPercent(strokeMax));
+    });
   }, [strokeMin, strokeMax]);
 
   useEffect(() => {
@@ -120,7 +125,7 @@ export function GlobalHandyOverlay() {
     setStrokeMinSliderValue(0);
     setStrokeMaxSliderValue(100);
     void resetStroke().then(() => {
-      setActionMessage(t`TheHandy stroke reset.`);
+      setActionMessage(t`Haptics stroke reset.`);
     });
   }, [resetStroke, t]);
 
@@ -128,31 +133,35 @@ export function GlobalHandyOverlay() {
     playSelectSound();
     void toggleManualStop().then((result) => {
       if (result === "stopped") {
-        setActionMessage(t`TheHandy stopped.`);
+        setActionMessage(t`Haptics stopped.`);
         return;
       }
       if (result === "resumed") {
-        setActionMessage(t`TheHandy resumed.`);
+        setActionMessage(t`Haptics resumed.`);
         return;
       }
-      setActionMessage(t`No connected TheHandy to toggle.`);
+      setActionMessage(t`No connected haptics device to toggle.`);
     });
   }, [t, toggleManualStop]);
 
   const handleConnect = useCallback(() => {
     playSelectSound();
+    if (provider === "intiface") {
+      void connectIntiface();
+      return;
+    }
     void connect(connectionKey);
-  }, [connect, connectionKey]);
+  }, [connect, connectIntiface, connectionKey, provider]);
 
   const reconnectTheHandy = useCallback(
     (showMessage: boolean) => {
       playSelectSound();
       if (showMessage) {
-        setActionMessage(t`Reconnecting TheHandy...`);
+        setActionMessage(t`Reconnecting haptics...`);
       }
       void reconnect().then((success) => {
         if (!showMessage) return;
-        setActionMessage(success ? t`TheHandy reconnected.` : t`TheHandy reconnect failed.`);
+        setActionMessage(success ? t`Haptics reconnected.` : t`Haptics reconnect failed.`);
       });
     },
     [reconnect, t]
@@ -263,7 +272,7 @@ export function GlobalHandyOverlay() {
             ref={overlayRef}
             role="dialog"
             aria-modal="true"
-            aria-label={t`Global TheHandy controls`}
+            aria-label={t`Global haptics controls`}
             initial={{ opacity: 0, y: 24, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.97 }}
@@ -279,7 +288,7 @@ export function GlobalHandyOverlay() {
             <header className="relative flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-6">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/90">
-                  <Trans>TheHandy Controls</Trans>
+                  <Trans>Haptics Controls</Trans>
                 </p>
                 <p className="mt-0.5 text-xs text-zinc-300">
                   <Trans>Press</Trans>{" "}
@@ -304,7 +313,7 @@ export function GlobalHandyOverlay() {
                     setOpen(false);
                   }}
                   className="rounded-full border border-white/15 bg-white/[0.08] px-3.5 py-1.5 text-xs font-semibold text-zinc-200 transition hover:bg-white/15"
-                  aria-label={t`Close TheHandy overlay`}
+                  aria-label={t`Close haptics overlay`}
                   data-controller-focus-id="handy-close"
                   data-controller-back="true"
                 >
@@ -358,7 +367,7 @@ export function GlobalHandyOverlay() {
                     <input
                       id="global-handy-offset-slider"
                       data-controller-focus-id="handy-offset-slider"
-                      aria-label={t`TheHandy global offset slider`}
+                      aria-label={t`Haptics global offset slider`}
                       type="range"
                       min={THEHANDY_OFFSET_MIN_MS}
                       max={THEHANDY_OFFSET_MAX_MS}
@@ -446,7 +455,7 @@ export function GlobalHandyOverlay() {
                         <Trans>Stroke Adjustment</Trans>
                       </p>
                       <p className="mt-0.5 text-[10px] text-zinc-400">
-                        <Trans>Adjust the device stroke length directly on TheHandy.</Trans>
+                        <Trans>Adjust the active haptics stroke range.</Trans>
                       </p>
                     </div>
                     <div className="text-right">
@@ -510,7 +519,11 @@ export function GlobalHandyOverlay() {
                       <Trans>Connection</Trans>
                     </p>
                     <p className="mt-0.5 text-[10px] text-zinc-400">
-                      {connected ? t`Device connected` : t`No device connected`}
+                    {connected
+                      ? provider === "intiface" && intifaceDeviceName
+                        ? t`Intiface device connected`
+                        : t`Device connected`
+                      : t`No device connected`}
                     </p>
                     <button
                       type="button"
@@ -562,7 +575,7 @@ export function GlobalHandyOverlay() {
                       onMouseEnter={() => playHoverSound()}
                       data-controller-focus-id="handy-toggle"
                     >
-                      {manuallyStopped ? t`Start TheHandy` : t`Stop TheHandy`}
+                      {manuallyStopped ? t`Start Haptics` : t`Stop Haptics`}
                     </button>
                   </div>
                 </div>

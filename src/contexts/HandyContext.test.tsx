@@ -5,6 +5,7 @@ import { HandyProvider, useHandy } from "./HandyContext";
 const mocks = vi.hoisted(() => ({
   verifyConnection: vi.fn(async () => ({ success: true })),
   issueHandySession: vi.fn(async () => ({
+    provider: "thehandy" as const,
     mode: "appId" as const,
     clientToken: null,
     expiresAtMs: Date.now() + 60_000,
@@ -39,11 +40,13 @@ vi.mock("../services/handyApi", () => ({
   verifyConnection: mocks.verifyConnection,
 }));
 
-vi.mock("../services/thehandy/runtime", () => ({
-  getHandyStroke: mocks.getHandyStroke,
-  issueHandySession: mocks.issueHandySession,
-  stopHandyPlayback: mocks.stopHandyPlayback,
-  updateHandyStroke: mocks.updateHandyStroke,
+vi.mock("../services/haptics/runtime", () => ({
+  verifyHapticsConnection: mocks.verifyConnection,
+  getHapticsStroke: mocks.getHandyStroke,
+  createHapticsSession: mocks.issueHandySession,
+  stopHapticsPlayback: mocks.stopHandyPlayback,
+  disconnectHapticsSession: mocks.stopHandyPlayback,
+  updateHapticsStroke: mocks.updateHandyStroke,
 }));
 
 vi.mock("../services/trpc", () => ({
@@ -65,6 +68,8 @@ function Consumer() {
   return (
     <div>
       <div data-testid="connected">{String(handy.connected)}</div>
+      <div data-testid="provider">{handy.provider}</div>
+      <div data-testid="intiface-url">{handy.intifaceWebsocketUrl}</div>
       <div data-testid="manually-stopped">{String(handy.manuallyStopped)}</div>
       <div data-testid="synced">{String(handy.synced)}</div>
       <div data-testid="stroke-percent">{String(handy.strokePercent)}</div>
@@ -79,6 +84,14 @@ function Consumer() {
         }}
       >
         connect
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void handy.connectIntiface("ws://127.0.0.1:12345");
+        }}
+      >
+        connect-intiface
       </button>
       <button
         type="button"
@@ -154,6 +167,7 @@ describe("HandyContext", () => {
     vi.clearAllMocks();
     mocks.verifyConnection.mockResolvedValue({ success: true });
     mocks.issueHandySession.mockResolvedValue({
+      provider: "thehandy",
       mode: "appId",
       clientToken: null,
       expiresAtMs: Date.now() + 60_000,
@@ -293,6 +307,74 @@ describe("HandyContext", () => {
       expect(screen.getByTestId("stroke-min").textContent).toBe("0");
       expect(screen.getByTestId("stroke-max").textContent).toBe("1");
       expect(screen.getByTestId("stroke-percent").textContent).toBe("100");
+    });
+  });
+
+  it("persists and connects the Intiface provider", async () => {
+    mocks.verifyConnection.mockResolvedValueOnce({
+      success: true,
+      provider: "intiface",
+      deviceName: "Linear Device",
+      deviceIndex: 2,
+    });
+
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "connect-intiface" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("connected").textContent).toBe("true");
+      expect(screen.getByTestId("provider").textContent).toBe("intiface");
+      expect(mocks.verifyConnection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: "intiface",
+          websocketUrl: "ws://127.0.0.1:12345",
+        })
+      );
+      expect(mocks.setMutate).toHaveBeenCalledWith({
+        key: "haptics.provider",
+        value: "intiface",
+      });
+    });
+  });
+
+  it("updates Intiface stroke state app-side", async () => {
+    mocks.verifyConnection.mockResolvedValueOnce({
+      success: true,
+      provider: "intiface",
+      deviceName: "Linear Device",
+      deviceIndex: 2,
+    });
+
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "connect-intiface" }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "set-stroke" }));
+    });
+
+    await waitFor(() => {
+      expect(mocks.updateHandyStroke).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: "intiface",
+          stroke: expect.objectContaining({ min: 0.2, max: 0.8 }),
+        }),
+        expect.objectContaining({ min: 0.2, max: 0.8 })
+      );
+      expect(screen.getByTestId("stroke-percent").textContent).toBe("60");
     });
   });
 

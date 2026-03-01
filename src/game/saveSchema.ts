@@ -426,7 +426,8 @@ export const ZPersistedGameState = z.object({
   restTimerRemainingMsOverride: z.number().int().min(0).nullable().default(null),
   log: z.array(z.string()),
   lastRoll: z.number().int().nullable(),
-  completionReason: z.enum(["finished", "self_reported_cum", "cum_instruction_failed"]).nullable(),
+  endlessRoundsCompleted: z.number().int().default(0),
+  completionReason: z.enum(["finished", "self_reported_cum", "cum_instruction_failed", "player_ended_endless"]).nullable(),
 });
 
 export const ZSinglePlayerRunSaveSnapshot = z.object({

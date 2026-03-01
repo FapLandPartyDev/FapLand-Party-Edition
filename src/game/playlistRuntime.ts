@@ -2,6 +2,7 @@ import type { InstalledRound } from "../services/db";
 import {
   CURRENT_PLAYLIST_VERSION,
   ZPlaylistConfig,
+  type EndlessBoardConfig,
   type GraphBoardConfig,
   type LinearBoardConfig,
   type PlaylistConfig,
@@ -12,10 +13,11 @@ import {
   resolvePortableRoundRefExact,
   toPortableRoundRefFromRound,
 } from "./playlistResolution";
-import { getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "./data/perks";
+import { DICE_ANTIPERK_IDS, DICE_PERK_IDS, getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "./data/perks";
 import type {
   BoardField,
   BoardFieldKind,
+  EndlessGenerationConfig,
   GameConfig,
   RuntimeGraphConfig,
   RuntimeGraphEdge,
@@ -392,6 +394,180 @@ function buildGraphConfig(
   };
 }
 
+const ENDLESS_COLUMNS = 4;
+const ENDLESS_TILE_SIZE = 160;
+const ENDLESS_ROW_GAP = 120;
+
+function endlessNodePosition(
+  index: number,
+  totalColumns: number,
+  totalRows: number
+): { x: number; y: number } {
+  const row = Math.floor(index / totalColumns);
+  const col =
+    row % 2 === 0 ? index % totalColumns : totalColumns - 1 - (index % totalColumns);
+  return {
+    x: 160 + col * ENDLESS_TILE_SIZE,
+    y: 360 + (totalRows > 0 ? row : 0) * ENDLESS_ROW_GAP,
+  };
+}
+
+function buildEndlessNodeBatch(
+  startIndex: number,
+  count: number,
+  safePointEveryN: number,
+  perkNodeEveryN: number,
+  totalExistingNodes: number
+): { nodes: BoardField[]; edges: RuntimeGraphEdge[] } {
+  const nodes: BoardField[] = [];
+  const edges: RuntimeGraphEdge[] = [];
+  const totalGridNodes = totalExistingNodes + count;
+  const totalRows = Math.ceil(totalGridNodes / ENDLESS_COLUMNS);
+
+  for (let i = 0; i < count; i++) {
+    const globalIndex = startIndex + i;
+    const nodeId = `endless-${globalIndex}`;
+    const gridIndex = totalExistingNodes + i;
+    const pos = endlessNodePosition(gridIndex, ENDLESS_COLUMNS, totalRows);
+
+    let kind: BoardFieldKind;
+    const relativeIndex = globalIndex;
+
+    if (relativeIndex % safePointEveryN === 0 && safePointEveryN > 0) {
+      kind = "safePoint";
+    } else if (relativeIndex % perkNodeEveryN === 0 && perkNodeEveryN > 0) {
+      kind = "perk";
+    } else {
+      kind = "randomRound";
+    }
+
+    nodes.push({
+      id: nodeId,
+      name: kind === "safePoint" ? `Checkpoint ${globalIndex}` : kind === "perk" ? `Perk ${globalIndex}` : `Round ${globalIndex}`,
+      kind,
+      forceStop: kind === "perk",
+      randomSelectionMode: kind === "randomRound" ? "installed" : undefined,
+      styleHint: { x: pos.x, y: pos.y },
+    });
+
+    const prevNodeId = i === 0 ? undefined : nodes[i - 1]!.id;
+    if (prevNodeId) {
+      edges.push({
+        id: `edge-${prevNodeId}-${nodeId}`,
+        fromNodeId: prevNodeId,
+        toNodeId: nodeId,
+        gateCost: 0,
+        weight: 1,
+      });
+    }
+  }
+
+  return { nodes, edges };
+}
+
+function buildEndlessConfig(
+  config: EndlessBoardConfig,
+  installedRounds: ReadonlyArray<InstalledRound>
+): GameConfig {
+  const batchSize = config.initialBatchSize;
+  const safePointEveryN = config.safePointEveryN;
+  const perkNodeEveryN = config.perkNodeEveryN;
+
+  const startNode: BoardField = {
+    id: "start",
+    name: "Start",
+    kind: "start",
+    styleHint: endlessNodePosition(0, ENDLESS_COLUMNS, Math.ceil((batchSize + 2) / ENDLESS_COLUMNS)),
+  };
+
+  const endNode: BoardField = {
+    id: "end",
+    name: "End",
+    kind: "end",
+    styleHint: endlessNodePosition(batchSize + 1, ENDLESS_COLUMNS, Math.ceil((batchSize + 2) / ENDLESS_COLUMNS)),
+  };
+
+  const batch = buildEndlessNodeBatch(1, batchSize, safePointEveryN, perkNodeEveryN, 2);
+
+  const firstNodeEdge: RuntimeGraphEdge = {
+    id: "edge-start-endless-1",
+    fromNodeId: "start",
+    toNodeId: batch.nodes[0]!.id,
+    gateCost: 0,
+    weight: 1,
+  };
+
+  const lastNodeEdge: RuntimeGraphEdge = {
+    id: `edge-${batch.nodes[batch.nodes.length - 1]!.id}-end`,
+    fromNodeId: batch.nodes[batch.nodes.length - 1]!.id,
+    toNodeId: "end",
+    gateCost: 0,
+    weight: 1,
+  };
+
+  const board = [startNode, ...batch.nodes, endNode];
+  const edges = [firstNodeEdge, ...batch.edges, lastNodeEdge];
+
+  const randomPools = [buildRandomInstalledRoundPool(installedRounds)];
+  const safePointIndices = board
+    .map((field, index) => ({ field, index }))
+    .filter(({ field }) => field.kind === "safePoint")
+    .map(({ index }) => index);
+
+  const endlessGeneration: EndlessGenerationConfig = {
+    safePointEveryN,
+    perkNodeEveryN,
+    initialBatchSize: batchSize,
+    extendBatchSize: config.extendBatchSize,
+    roundCounter: 0,
+    randomFilter: config.randomFilter,
+  };
+
+  return {
+    board,
+    runtimeGraph: buildRuntimeGraph(board, "start", edges, randomPools, 12000),
+    dice: { min: 1, max: 1 },
+    perkSelection: {
+      optionsPerPick: 3,
+      triggerChancePerCompletedRound: 0.35,
+    },
+    perkPool: {
+      enabledPerkIds: getSinglePlayerPerkPool()
+        .map((p) => p.id)
+        .filter((id) => !DICE_PERK_IDS.has(id)),
+      enabledAntiPerkIds: getSinglePlayerAntiPerkPool()
+        .map((p) => p.id)
+        .filter((id) => !DICE_ANTIPERK_IDS.has(id)),
+    },
+    probabilityScaling: {
+      initialIntermediaryProbability: 0.1,
+      initialAntiPerkProbability: 0.1,
+      intermediaryIncreasePerRound: 0.02,
+      antiPerkIncreasePerRound: 0.015,
+      maxIntermediaryProbability: 1,
+      maxAntiPerkProbability: 0.75,
+    },
+    singlePlayer: {
+      totalIndices: Math.max(1, board.length - 1),
+      safePointIndices,
+      normalRoundIdsByIndex: {},
+      cumRoundIds: [],
+    },
+    economy: {
+      startingMoney: 120,
+      moneyPerCompletedRound: 50,
+      startingScore: 0,
+      scorePerCompletedRound: 100,
+      scorePerIntermediary: 30,
+      scorePerActiveAntiPerk: 25,
+      scorePerCumRoundSuccess: 0,
+    },
+    roundStartDelayMs: 20000,
+    disableDiceAnimation: true,
+    endlessGeneration,
+  };
+}
+
 export function normalizePlaylistConfig(input: unknown): PlaylistConfig {
   const parsed = ZPlaylistConfig.parse(input);
   if (parsed.playlistVersion < 1) {
@@ -412,7 +588,9 @@ export function toGameConfigFromPlaylist(
   const config =
     boardConfig.mode === "linear"
       ? buildLinearConfig(boardConfig, installedRounds, randomValue)
-      : buildGraphConfig(boardConfig, installedRounds);
+      : boardConfig.mode === "graph"
+        ? buildGraphConfig(boardConfig, installedRounds)
+        : buildEndlessConfig(boardConfig, installedRounds);
 
   return {
     ...config,
@@ -491,6 +669,55 @@ export function createDefaultPlaylistConfig<T extends PlaylistResolutionRoundLik
     dice: {
       min: 1,
       max: 6,
+    },
+    saveMode: "checkpoint",
+  };
+}
+
+export function createDefaultEndlessPlaylistConfig(): PlaylistConfig {
+  return {
+    playlistVersion: CURRENT_PLAYLIST_VERSION,
+    boardConfig: {
+      mode: "endless",
+      safePointEveryN: 25,
+      perkNodeEveryN: 5,
+      initialBatchSize: 50,
+      extendBatchSize: 25,
+    },
+    roundStartDelayMs: 20000,
+    disableDiceAnimation: true,
+    perkSelection: {
+      optionsPerPick: 3,
+      triggerChancePerCompletedRound: 0.35,
+    },
+    perkPool: {
+      enabledPerkIds: getSinglePlayerPerkPool()
+        .map((p) => p.id)
+        .filter((id) => !DICE_PERK_IDS.has(id)),
+      enabledAntiPerkIds: getSinglePlayerAntiPerkPool()
+        .map((p) => p.id)
+        .filter((id) => !DICE_ANTIPERK_IDS.has(id)),
+    },
+    probabilityScaling: {
+      initialIntermediaryProbability: 0.1,
+      initialAntiPerkProbability: 0.1,
+      intermediaryIncreasePerRound: 0.02,
+      antiPerkIncreasePerRound: 0.015,
+      maxIntermediaryProbability: 1,
+      maxAntiPerkProbability: 0.75,
+    },
+    economy: {
+      startingMoney: 120,
+      moneyPerCompletedRound: 50,
+      startingScore: 0,
+      scorePerCompletedRound: 100,
+      scorePerIntermediary: 30,
+      scorePerActiveAntiPerk: 25,
+      scorePerCumRoundSuccess: 0,
+    },
+    dice: {
+      min: 1,
+      max: 1,
     },
     saveMode: "checkpoint",
   };

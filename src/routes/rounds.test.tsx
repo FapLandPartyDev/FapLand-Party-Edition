@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "../game/data/perks";
 import type { InstalledRound, InstalledRoundCatalogEntry } from "../services/db";
@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
       createWebsiteRound: vi.fn(),
       checkWebsiteVideoSupport: vi.fn(),
       delete: vi.fn(),
+      deleteMany: vi.fn(),
       repairTemplate: vi.fn(),
       retryTemplateLinking: vi.fn(),
       convertHeroGroupToRound: vi.fn(),
@@ -88,6 +89,8 @@ vi.mock("../services/playlists", () => ({
 }));
 
 vi.mock("../services/installedRoundsCache", () => ({
+  peekInstalledRoundCardAssetsCached: (roundIds: string[]) =>
+    mocks.loaderData.rounds.filter((round) => roundIds.includes(round.id)).map(toCardAssets),
   getInstalledRoundCardAssetsCached: (roundIds: string[], includeDisabled = false) =>
     mocks.db.round.findInstalledCardAssets(roundIds, includeDisabled),
   getInstalledRoundPlaybackEntryCached: (roundId: string, includeDisabled = false) =>
@@ -187,6 +190,7 @@ function toCatalogRound(round: InstalledRound): InstalledRoundCatalogEntry {
       disabled: resource.disabled,
       phash: resource.phash,
       durationMs: resource.durationMs,
+      funscriptOffsetMs: resource.funscriptOffsetMs,
       hasFunscript: Boolean(resource.funscriptUri),
     })),
   } as InstalledRoundCatalogEntry;
@@ -340,6 +344,17 @@ function makePlaylist(id: string, name: string, roundIds: string[]): StoredPlayl
   };
 }
 
+function openDropdown(label: string): HTMLElement {
+  const labelElement = screen.getByText(label);
+  const container = labelElement.parentElement;
+  if (!container) {
+    throw new Error(`Missing dropdown container for ${label}`);
+  }
+  const button = within(container).getByRole("button");
+  fireEvent.click(button);
+  return button;
+}
+
 beforeEach(() => {
   vi.useRealTimers();
   window.electronAPI = {
@@ -432,6 +447,12 @@ beforeEach(() => {
     title: "Demo title",
   });
   mocks.db.round.delete.mockResolvedValue({ deleted: true });
+  mocks.db.round.deleteMany.mockResolvedValue({
+    deleted: true,
+    deletedCount: 0,
+    requestedCount: 0,
+    missingIds: [],
+  });
   mocks.db.round.convertHeroGroupToRound.mockResolvedValue({
     keptRoundId: "kept",
     removedRoundCount: 0,
@@ -776,6 +797,129 @@ describe("roundsSelectors", () => {
 
     expect(result.map((round) => round.id)).toEqual(["scripted"]);
   });
+
+  it("filters rounds by source", () => {
+    const stash = toCatalogRound(
+      makeRound({
+        id: "stash",
+        name: "Stash",
+        createdAt: "2026-03-03T10:00:00.000Z",
+        installSourceKey: "stash:https://stash.example.com:scene:123",
+      })
+    );
+    const web = toCatalogRound(
+      makeRound({
+        id: "web",
+        name: "Web",
+        createdAt: "2026-03-03T09:00:00.000Z",
+        installSourceKey: "website:https://example.com/video.mp4",
+      })
+    );
+    const local = toCatalogRound(
+      makeRound({
+        id: "local",
+        name: "Local",
+        createdAt: "2026-03-03T08:00:00.000Z",
+      })
+    );
+
+    const indexedRounds = [stash, web, local].map(toIndexedRound);
+    const baseInput = {
+      indexedRounds,
+      query: "",
+      typeFilter: "all" as const,
+      scriptFilter: "all" as const,
+      sortMode: "newest" as const,
+    };
+
+    expect(
+      filterAndSortRounds({ ...baseInput, sourceFilter: "stash" }).map((round) => round.id)
+    ).toEqual(["stash"]);
+    expect(
+      filterAndSortRounds({ ...baseInput, sourceFilter: "web" }).map((round) => round.id)
+    ).toEqual(["web"]);
+    expect(
+      filterAndSortRounds({ ...baseInput, sourceFilter: "local" }).map((round) => round.id)
+    ).toEqual(["local"]);
+  });
+
+  it("filters rounds by added date inclusively", () => {
+    const older = toCatalogRound(
+      makeRound({ id: "older", name: "Older", createdAt: "2026-03-01T10:00:00.000Z" })
+    );
+    const middle = toCatalogRound(
+      makeRound({ id: "middle", name: "Middle", createdAt: "2026-03-02T12:00:00.000Z" })
+    );
+    const newer = toCatalogRound(
+      makeRound({ id: "newer", name: "Newer", createdAt: "2026-03-03T00:00:00.000Z" })
+    );
+    const indexedRounds = [older, middle, newer].map(toIndexedRound);
+    const baseInput = {
+      indexedRounds,
+      query: "",
+      typeFilter: "all" as const,
+      scriptFilter: "all" as const,
+      sortMode: "oldest" as const,
+    };
+
+    expect(
+      filterAndSortRounds({
+        ...baseInput,
+        addedDateFilter: { mode: "since", fromDate: "2026-03-02" },
+      }).map((round) => round.id)
+    ).toEqual(["middle", "newer"]);
+    expect(
+      filterAndSortRounds({
+        ...baseInput,
+        addedDateFilter: { mode: "before", toDate: "2026-03-02" },
+      }).map((round) => round.id)
+    ).toEqual(["older", "middle"]);
+    expect(
+      filterAndSortRounds({
+        ...baseInput,
+        addedDateFilter: { mode: "between", fromDate: "2026-03-03", toDate: "2026-03-02" },
+      }).map((round) => round.id)
+    ).toEqual(["middle", "newer"]);
+  });
+
+  it("composes source, added date, and text filters", () => {
+    const matching = toCatalogRound(
+      makeRound({
+        id: "matching",
+        name: "Target Stash Round",
+        createdAt: "2026-03-03T10:00:00.000Z",
+        installSourceKey: "stash:https://stash.example.com:scene:123",
+      })
+    );
+    const wrongSource = toCatalogRound(
+      makeRound({
+        id: "wrong-source",
+        name: "Target Web Round",
+        createdAt: "2026-03-03T10:00:00.000Z",
+        installSourceKey: "website:https://example.com/video.mp4",
+      })
+    );
+    const tooOld = toCatalogRound(
+      makeRound({
+        id: "too-old",
+        name: "Target Old Stash Round",
+        createdAt: "2026-03-01T10:00:00.000Z",
+        installSourceKey: "stash:https://stash.example.com:scene:456",
+      })
+    );
+
+    const result = filterAndSortRounds({
+      indexedRounds: [matching, wrongSource, tooOld].map(toIndexedRound),
+      query: "target",
+      typeFilter: "all",
+      scriptFilter: "all",
+      sourceFilter: "stash",
+      addedDateFilter: { mode: "since", fromDate: "2026-03-02" },
+      sortMode: "newest",
+    });
+
+    expect(result.map((round) => round.id)).toEqual(["matching"]);
+  });
 });
 
 describe("InstalledRoundsPage hero grouping", () => {
@@ -967,6 +1111,99 @@ describe("InstalledRoundsPage hero grouping", () => {
     expect(
       screen.getByText((_content, node) => node?.textContent === "Source: Local")
     ).toBeDefined();
+  });
+
+  it("filters the library by source", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "stash-round",
+        name: "Stash Filter Round",
+        createdAt: "2026-03-03T11:00:00.000Z",
+        installSourceKey: "stash:https://stash.example.com:scene:123",
+      }),
+      makeRound({
+        id: "local-round",
+        name: "Local Filter Round",
+        createdAt: "2026-03-03T10:00:00.000Z",
+      }),
+    ];
+
+    await renderInstalledRoundsPage();
+
+    openDropdown("Source");
+    fireEvent.click(screen.getByRole("option", { name: /Stash/ }));
+
+    expect(screen.getByRole("heading", { name: "Stash Filter Round" })).toBeDefined();
+    expect(screen.queryByRole("heading", { name: "Local Filter Round" })).toBeNull();
+  });
+
+  it("filters the library by added date", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "new-round",
+        name: "Newly Added Round",
+        createdAt: "2026-03-03T11:00:00.000Z",
+      }),
+      makeRound({
+        id: "old-round",
+        name: "Older Added Round",
+        createdAt: "2026-03-01T10:00:00.000Z",
+      }),
+    ];
+
+    await renderInstalledRoundsPage();
+
+    openDropdown("Added");
+    fireEvent.click(screen.getByRole("option", { name: /Since Date/ }));
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-03-02" } });
+
+    expect(screen.getByRole("heading", { name: "Newly Added Round" })).toBeDefined();
+    expect(screen.queryByRole("heading", { name: "Older Added Round" })).toBeNull();
+  });
+
+  it("selects visible rounds and confirms bulk deletion", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "stash-round",
+        name: "Stash Delete Round",
+        createdAt: "2026-03-03T11:00:00.000Z",
+        installSourceKey: "stash:https://stash.example.com:scene:123",
+      }),
+      makeRound({
+        id: "local-round",
+        name: "Local Keep Round",
+        createdAt: "2026-03-03T10:00:00.000Z",
+      }),
+    ];
+    mocks.db.round.deleteMany.mockResolvedValue({
+      deleted: true,
+      deletedCount: 1,
+      requestedCount: 1,
+      missingIds: [],
+    });
+
+    await renderInstalledRoundsPage();
+
+    openDropdown("Source");
+    fireEvent.click(screen.getByRole("option", { name: /Stash/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Items" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Visible Rounds" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete Selected" }));
+
+    expect(screen.getByRole("dialog", { name: "Delete Selected Rounds?" })).toBeDefined();
+    expect(screen.getByText(/Delete 1 selected round entries/)).toBeDefined();
+    expect(screen.getByText(/Current filters: Source: Stash/)).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(mocks.db.round.deleteMany).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Selected" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete 1 Rounds" }));
+
+    await waitFor(() => {
+      expect(mocks.db.round.deleteMany).toHaveBeenCalledWith(["stash-round"]);
+    });
+    expect(mocks.db.round.findInstalledCatalog).toHaveBeenCalledTimes(2);
   });
 
   it("falls back to a normal round type label when persisted type data is blank", async () => {

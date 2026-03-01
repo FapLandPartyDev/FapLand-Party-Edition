@@ -1,5 +1,23 @@
 # What's New
 
+## v0.3.4-beta
+
+### Added
+
+- **Intiface / Buttplug haptics support** — connect any Buttplug-compatible linear or position device via Intiface Central alongside the existing direct TheHandy connection; the first-start wizard, Settings, and global overlay now let you switch between TheHandy and Intiface providers.
+- **Endless playlist mode** — a new "Endless" board mode generates rounds infinitely with configurable safe points and perk spacing; players can end the run at any time and the endless playlist is auto-created if none exist.
+- **Source and date filters in the round library** — filter installed rounds by source (Stash, Web, Local) and by added date (since, before, or between dates).
+- **Bulk round management** — new "Select Visible Rounds" and "Delete Selected" actions let you batch-select and delete round entries from the installed rounds page.
+- **Video file and folder drag-and-drop import** — dropping individual video files or entire folders onto the app now imports them directly through the existing install pipeline.
+
+### Changed
+
+- Haptics-related UI labels are now phrased generically ("haptics device") instead of referencing TheHandy only, reflecting the multi-provider support.
+- Electron build target updated from Node 20 to Node 24.
+- Electron upgraded to v42; drizzle-kit updated.
+
+---
+
 ## v0.3.2-beta
 
 ### Added

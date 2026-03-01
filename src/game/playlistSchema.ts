@@ -512,7 +512,19 @@ export const ZGraphBoardConfig = z
     }
   });
 
-export const ZBoardConfig = z.union([ZLinearBoardConfig, ZGraphBoardConfig]);
+export const ZEndlessBoardConfig = z
+  .object({
+    mode: z.literal("endless"),
+    randomFilter: ZRandomRoundFilter.optional(),
+    safePointEveryN: z.number().int().min(1).default(25),
+    perkNodeEveryN: z.number().int().min(1).default(5),
+    initialBatchSize: z.number().int().min(5).default(50),
+    extendBatchSize: z.number().int().min(5).default(25),
+    style: ZGraphBoardStyle.optional(),
+  })
+  .strict();
+
+export const ZBoardConfig = z.union([ZLinearBoardConfig, ZGraphBoardConfig, ZEndlessBoardConfig]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -719,6 +731,7 @@ export type GraphRoadPalette = z.infer<typeof ZGraphRoadPalette>;
 export type GraphBoardStyle = z.infer<typeof ZGraphBoardStyle>;
 export type GraphTextAnnotation = z.infer<typeof ZGraphTextAnnotation>;
 export type GraphBoardConfig = z.infer<typeof ZGraphBoardConfig>;
+export type EndlessBoardConfig = z.infer<typeof ZEndlessBoardConfig>;
 export type BoardConfig = z.infer<typeof ZBoardConfig>;
 export type PlaylistConfig = z.infer<typeof ZPlaylistConfig>;
 export type PlaylistEnvelopeV1 = z.infer<typeof ZPlaylistEnvelopeV1>;
@@ -732,4 +745,8 @@ export function isLinearBoardConfig(config: BoardConfig): config is LinearBoardC
 
 export function isGraphBoardConfig(config: BoardConfig): config is GraphBoardConfig {
   return config.mode === "graph";
+}
+
+export function isEndlessBoardConfig(config: BoardConfig): config is EndlessBoardConfig {
+  return config.mode === "endless";
 }

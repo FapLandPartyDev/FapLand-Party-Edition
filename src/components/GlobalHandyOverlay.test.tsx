@@ -4,9 +4,11 @@ import { GlobalHandyOverlay } from "./GlobalHandyOverlay";
 
 const mocks = vi.hoisted(() => ({
   handy: {
+    provider: "thehandy" as const,
     connected: true,
     isConnecting: false,
     connectionKey: "conn-key",
+    intifaceDeviceName: null as string | null,
     error: null as string | null,
     synced: true,
     syncError: null as string | null,
@@ -26,6 +28,7 @@ const mocks = vi.hoisted(() => ({
       async (): Promise<"stopped" | "resumed" | "unavailable"> => "stopped"
     ),
     connect: vi.fn(async () => true),
+    connectIntiface: vi.fn(async () => true),
     disconnect: vi.fn(async () => undefined),
     reconnect: vi.fn(async () => true),
   },
@@ -45,6 +48,7 @@ describe("GlobalHandyOverlay", () => {
     cleanup();
     vi.clearAllMocks();
     mocks.handy.connected = true;
+    mocks.handy.provider = "thehandy";
     mocks.handy.isConnecting = false;
     mocks.handy.connectionKey = "conn-key";
     mocks.handy.error = null;
@@ -66,7 +70,7 @@ describe("GlobalHandyOverlay", () => {
 
     fireEvent.keyDown(window, { key: "h", ctrlKey: true });
 
-    expect(screen.getByRole("dialog", { name: "Global TheHandy controls" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Global haptics controls" })).toBeTruthy();
     expect(screen.getByText("Sync Offset")).toBeTruthy();
     expect(screen.getByText("Stroke Adjustment")).toBeTruthy();
     expect(screen.getByText("Current stroke: 12% - 88%")).toBeTruthy();
@@ -76,12 +80,12 @@ describe("GlobalHandyOverlay", () => {
     render(<GlobalHandyOverlay />);
 
     fireEvent.keyDown(window, { key: "h", ctrlKey: true });
-    expect(screen.getByRole("dialog", { name: "Global TheHandy controls" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Global haptics controls" })).toBeTruthy();
 
     fireEvent.keyDown(window, { key: "h", ctrlKey: true });
 
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Global TheHandy controls" })).toBeNull();
+      expect(screen.queryByRole("dialog", { name: "Global haptics controls" })).toBeNull();
     });
   });
 
@@ -97,14 +101,14 @@ describe("GlobalHandyOverlay", () => {
     input.focus();
     fireEvent.keyDown(window, { key: "h", ctrlKey: true });
 
-    expect(screen.queryByRole("dialog", { name: "Global TheHandy controls" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Global haptics controls" })).toBeNull();
   });
 
   it("adjusts and resets the offset from the overlay", async () => {
     render(<GlobalHandyOverlay />);
     fireEvent.keyDown(window, { key: "h", ctrlKey: true });
 
-    fireEvent.change(screen.getByLabelText("TheHandy global offset slider"), {
+    fireEvent.change(screen.getByLabelText("Haptics global offset slider"), {
       target: { value: "120" },
     });
     fireEvent.click(screen.getByRole("button", { name: "-25ms" }));
@@ -152,18 +156,18 @@ describe("GlobalHandyOverlay", () => {
     const view = render(<GlobalHandyOverlay />);
     fireEvent.keyDown(window, { key: "h", ctrlKey: true });
 
-    fireEvent.click(screen.getByRole("button", { name: "Stop TheHandy" }));
+    fireEvent.click(screen.getByRole("button", { name: "Stop Haptics" }));
 
     await waitFor(() => {
       expect(mocks.handy.toggleManualStop).toHaveBeenCalledTimes(1);
     });
-    expect(screen.getByText("TheHandy stopped.")).toBeTruthy();
+    expect(screen.getByText("Haptics stopped.")).toBeTruthy();
 
     mocks.handy.manuallyStopped = true;
     mocks.handy.toggleManualStop.mockResolvedValue("resumed");
     view.rerender(<GlobalHandyOverlay />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start TheHandy" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start Haptics" }));
 
     await waitFor(() => {
       expect(mocks.handy.toggleManualStop).toHaveBeenCalledTimes(2);
@@ -212,8 +216,8 @@ describe("GlobalHandyOverlay", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Reconnect" }));
 
-    expect(screen.getByText("Reconnecting TheHandy...")).toBeTruthy();
-    expect(await screen.findByText("TheHandy reconnected.")).toBeTruthy();
+    expect(screen.getByText("Reconnecting haptics...")).toBeTruthy();
+    expect(await screen.findByText("Haptics reconnected.")).toBeTruthy();
   });
 
   it("shows a failure message after reconnecting fails", async () => {
@@ -223,6 +227,6 @@ describe("GlobalHandyOverlay", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Reconnect" }));
 
-    expect(await screen.findByText("TheHandy reconnect failed.")).toBeTruthy();
+    expect(await screen.findByText("Haptics reconnect failed.")).toBeTruthy();
   });
 });

@@ -8,7 +8,7 @@ import type {
 } from "../../game/types";
 import type { InstalledRound } from "../../services/db";
 import { extractBeatbarMotionEvents, getAntiPerkSequenceDefinition } from "./antiPerkSequences";
-import * as handyRuntime from "../../services/thehandy/runtime";
+import * as handyRuntime from "../../services/haptics/runtime";
 import * as booru from "../../services/booru";
 
 const mocks = vi.hoisted(() => ({
@@ -97,14 +97,15 @@ vi.mock("../ui/ToastHost", () => ({
 
 vi.mock("../globalHandyOverlayControls", () => ({
   openGlobalHandyOverlay: mocks.openGlobalHandyOverlay,
+  registerSaveOffsetToRound: vi.fn(() => undefined),
 }));
 
-vi.mock("../../services/thehandy/runtime", () => ({
-  issueHandySession: vi.fn(),
-  pauseHandyPlayback: vi.fn(),
-  preloadHspScript: vi.fn(),
-  sendHspSync: vi.fn(),
-  stopHandyPlayback: vi.fn(),
+vi.mock("../../services/haptics/runtime", () => ({
+  createHapticsSession: vi.fn(),
+  pauseHapticsPlayback: vi.fn(),
+  preloadHapticsScript: vi.fn(),
+  sendHapticsSync: vi.fn(),
+  stopHapticsPlayback: vi.fn(),
 }));
 
 vi.mock("../../game/media/playback", () => ({
@@ -217,8 +218,9 @@ function createActiveRound(roundId = "round-1"): ActiveRound {
   };
 }
 
-function createHandySession(): handyRuntime.HandySession {
+function createAnyHapticsSession(): handyRuntime.AnyHapticsSession {
   return {
+    provider: "thehandy",
     mode: "appId",
     clientToken: null,
     expiresAtMs: Date.now() + 60_000,
@@ -365,11 +367,11 @@ describe("RoundVideoOverlay", () => {
     vi.mocked(booru.getCachedBooruMedia).mockClear();
     vi.mocked(booru.getCachedBooruMediaForDisplay).mockClear();
     vi.mocked(booru.refreshBooruMediaCache).mockClear();
-    vi.mocked(handyRuntime.issueHandySession).mockClear();
-    vi.mocked(handyRuntime.pauseHandyPlayback).mockClear();
-    vi.mocked(handyRuntime.preloadHspScript).mockClear();
-    vi.mocked(handyRuntime.sendHspSync).mockClear();
-    vi.mocked(handyRuntime.stopHandyPlayback).mockClear();
+    vi.mocked(handyRuntime.createHapticsSession).mockClear();
+    vi.mocked(handyRuntime.pauseHapticsPlayback).mockClear();
+    vi.mocked(handyRuntime.preloadHapticsScript).mockClear();
+    vi.mocked(handyRuntime.sendHapticsSync).mockClear();
+    vi.mocked(handyRuntime.stopHapticsPlayback).mockClear();
     vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(async () => undefined);
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
@@ -849,7 +851,7 @@ describe("RoundVideoOverlay", () => {
       actions: [{ at: 0, pos: 10 }],
     });
     mocks.playback.getFunscriptPositionAtMs.mockReturnValue(10);
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
 
     const playSpy = vi.spyOn(HTMLMediaElement.prototype, "play");
     const { container } = renderOverlay({
@@ -866,14 +868,14 @@ describe("RoundVideoOverlay", () => {
     fireEvent.loadedMetadata(video);
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledWith(
+      expect(vi.mocked(handyRuntime.preloadHapticsScript)).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
         "/video.mp4:main",
         [{ at: 0, pos: 10 }],
         0
       );
-      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalled();
+      expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalled();
       expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({ synced: true, error: null });
       expect(playSpy).toHaveBeenCalled();
     });
@@ -888,7 +890,7 @@ describe("RoundVideoOverlay", () => {
       actions: [{ at: 0, pos: 10 }],
     });
     mocks.playback.getFunscriptPositionAtMs.mockReturnValue(10);
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
 
     const { container } = renderOverlay({
       installedRounds: [createInstalledRound("round-1", "/script.funscript")],
@@ -904,14 +906,14 @@ describe("RoundVideoOverlay", () => {
     fireEvent.loadedMetadata(video);
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledWith(
+      expect(vi.mocked(handyRuntime.preloadHapticsScript)).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
         "/video.mp4:main",
         [{ at: 0, pos: 10 }],
         625
       );
-      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalledWith(
+      expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
         625,
@@ -929,7 +931,7 @@ describe("RoundVideoOverlay", () => {
     mocks.playback.loadFunscriptTimeline.mockResolvedValue({
       actions: [{ at: 0, pos: 10 }],
     });
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
 
     const { container } = renderOverlay({
       installedRounds: [createInstalledRound("round-1", "/script.funscript")],
@@ -947,7 +949,7 @@ describe("RoundVideoOverlay", () => {
     fireEvent.loadedMetadata(video);
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(handyRuntime.preloadHapticsScript)).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -992,7 +994,7 @@ describe("RoundVideoOverlay", () => {
     mocks.playback.loadFunscriptTimeline.mockResolvedValue({
       actions: [{ at: 0, pos: 10 }],
     });
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
 
     const view = renderOverlay({
       activeRound: createActiveRound("round-1"),
@@ -1008,7 +1010,7 @@ describe("RoundVideoOverlay", () => {
     fireEvent.loadedMetadata(firstVideo);
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(handyRuntime.preloadHapticsScript)).toHaveBeenCalledTimes(1);
     });
 
     view.rerender(
@@ -1033,7 +1035,7 @@ describe("RoundVideoOverlay", () => {
     fireEvent.loadedMetadata(secondVideo);
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(handyRuntime.preloadHapticsScript)).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -1044,8 +1046,8 @@ describe("RoundVideoOverlay", () => {
     mocks.playback.loadFunscriptTimeline.mockResolvedValue({
       actions: [{ at: 0, pos: 10 }],
     });
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
-    vi.mocked(handyRuntime.sendHspSync)
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
+    vi.mocked(handyRuntime.sendHapticsSync)
       .mockRejectedValueOnce(new Error("sync failed"))
       .mockResolvedValue(undefined);
 
@@ -1073,8 +1075,8 @@ describe("RoundVideoOverlay", () => {
     fireEvent.canPlay(video);
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledTimes(2);
-      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(handyRuntime.preloadHapticsScript)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalledTimes(2);
       expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({ synced: true, error: null });
     });
   });
@@ -1087,10 +1089,10 @@ describe("RoundVideoOverlay", () => {
       actions: [{ at: 0, pos: 10 }],
     });
     mocks.playback.getFunscriptPositionAtMs.mockReturnValue(10);
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
 
     let resolveSync: (() => void) | null = null;
-    vi.mocked(handyRuntime.sendHspSync).mockImplementation(
+    vi.mocked(handyRuntime.sendHapticsSync).mockImplementation(
       () =>
         new Promise<void>((resolve) => {
           resolveSync = resolve;
@@ -1123,8 +1125,8 @@ describe("RoundVideoOverlay", () => {
     fireEvent.loadedMetadata(video);
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalledTimes(1);
-      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(handyRuntime.preloadHapticsScript)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalledTimes(1);
     });
 
     mocks.handy.manuallyStopped = true;
@@ -1142,7 +1144,7 @@ describe("RoundVideoOverlay", () => {
     );
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.stopHandyPlayback)).toHaveBeenCalled();
+      expect(vi.mocked(handyRuntime.stopHapticsPlayback)).toHaveBeenCalled();
     });
 
     await act(async () => {
@@ -1166,8 +1168,8 @@ describe("RoundVideoOverlay", () => {
       actions: [{ at: 0, pos: 10 }],
     });
     mocks.playback.getFunscriptPositionAtMs.mockReturnValue(10);
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
-    vi.mocked(handyRuntime.sendHspSync).mockResolvedValue(undefined);
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
+    vi.mocked(handyRuntime.sendHapticsSync).mockResolvedValue(undefined);
     mocks.handy.toggleManualStop.mockImplementation(async () => {
       mocks.handy.manuallyStopped = true;
       return "stopped";
@@ -1187,7 +1189,7 @@ describe("RoundVideoOverlay", () => {
     fireEvent.loadedMetadata(video);
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalledTimes(1);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Force Stop" }));
@@ -1203,7 +1205,7 @@ describe("RoundVideoOverlay", () => {
       vi.advanceTimersByTime(500);
     });
 
-    expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalledTimes(1);
   });
 
   it("shows an in-game TheHandy sync card with an idle no-script preview", async () => {
@@ -1229,7 +1231,7 @@ describe("RoundVideoOverlay", () => {
       actions: [{ at: 0, pos: 10 }],
     });
     mocks.playback.getFunscriptPositionAtMs.mockReturnValue(42);
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
 
     const { container } = renderOverlay({
       installedRounds: [createInstalledRound("round-1", "/script.funscript")],
@@ -1557,13 +1559,13 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.connectionKey = "conn-key";
     mocks.handy.appApiKey = "app-key";
     mocks.handy.connected = true;
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
 
     renderOverlay({ activeRound: null, idleBoardSequence: "no-rest" });
 
     expect(screen.queryByTestId("anti-perk-sequence-card")).toBeNull();
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalled();
+      expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalled();
     });
   });
 
@@ -1596,10 +1598,10 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.connectionKey = "conn-key";
     mocks.handy.appApiKey = "app-key";
     mocks.handy.connected = false;
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
 
     const view = renderOverlay({ activeRound: null, boardSequence: "jackhammer" });
-    expect(vi.mocked(handyRuntime.sendHspSync)).not.toHaveBeenCalled();
+    expect(vi.mocked(handyRuntime.sendHapticsSync)).not.toHaveBeenCalled();
 
     mocks.handy.connected = true;
     view.rerender(
@@ -1618,8 +1620,8 @@ describe("RoundVideoOverlay", () => {
     );
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalled();
-      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalled();
+      expect(vi.mocked(handyRuntime.preloadHapticsScript)).toHaveBeenCalled();
+      expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalled();
     });
   });
 
@@ -1627,8 +1629,8 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.connectionKey = "conn-key";
     mocks.handy.appApiKey = "app-key";
     mocks.handy.connected = true;
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue({
-      ...createHandySession(),
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue({
+      ...createAnyHapticsSession(),
       loadedScriptId: "/video.mp4:main:120:0:30000",
       activeScriptId: "/video.mp4:main:120:0:30000",
       streamedPoints: [{ t: 0, x: 20 }],
@@ -1638,15 +1640,15 @@ describe("RoundVideoOverlay", () => {
     renderOverlay({ activeRound: null, boardSequence: "milker" });
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.stopHandyPlayback)).toHaveBeenCalledWith(
-        { connectionKey: "conn-key", appApiKey: "app-key" },
+      expect(vi.mocked(handyRuntime.stopHapticsPlayback)).toHaveBeenCalledWith(
+        expect.objectContaining({ connectionKey: "conn-key", appApiKey: "app-key" }),
         expect.objectContaining({
           loadedScriptId: "/video.mp4:main:120:0:30000",
           activeScriptId: "/video.mp4:main:120:0:30000",
         })
       );
-      expect(vi.mocked(handyRuntime.preloadHspScript)).toHaveBeenCalled();
-      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalled();
+      expect(vi.mocked(handyRuntime.preloadHapticsScript)).toHaveBeenCalled();
+      expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalled();
     });
   });
 
@@ -1657,12 +1659,12 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.appApiKey = "app-key";
     mocks.handy.offsetMs = 125;
     mocks.handy.connected = true;
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
 
     renderOverlay({ activeRound: null, boardSequence: "jackhammer" });
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalledWith(
+      expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
         0,
@@ -1680,15 +1682,15 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.connectionKey = "conn-key";
     mocks.handy.appApiKey = "app-key";
     mocks.handy.connected = true;
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
-    vi.mocked(handyRuntime.preloadHspScript).mockImplementation(async () => {
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
+    vi.mocked(handyRuntime.preloadHapticsScript).mockImplementation(async () => {
       nowMs = 1_280;
     });
 
     renderOverlay({ activeRound: null, boardSequence: "milker" });
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalledWith(
+      expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
         280,
@@ -1703,7 +1705,7 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.connectionKey = "conn-key";
     mocks.handy.appApiKey = "app-key";
     mocks.handy.connected = true;
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
 
     renderOverlay({
       currentPlayer: {
@@ -1734,9 +1736,9 @@ describe("RoundVideoOverlay", () => {
     });
 
     await waitFor(() => {
-      expect(vi.mocked(handyRuntime.sendHspSync)).toHaveBeenCalled();
+      expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalled();
     });
-    expect(vi.mocked(handyRuntime.pauseHandyPlayback)).not.toHaveBeenCalled();
+    expect(vi.mocked(handyRuntime.pauseHapticsPlayback)).not.toHaveBeenCalled();
   });
 
   it("keeps generated Handy sync marked fresh during a jackhammer sequence", async () => {
@@ -1752,7 +1754,7 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.connected = true;
     mocks.handy.setSyncStatus.mockClear();
 
-    vi.mocked(handyRuntime.issueHandySession).mockResolvedValue(createHandySession());
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
 
     renderOverlay({ activeRound: null, boardSequence: "jackhammer" });
 

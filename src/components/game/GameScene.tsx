@@ -9,7 +9,7 @@ import "pixi.js/unsafe-eval";
 import { Application, Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
 import "pixi.js/events";
 import { memo, useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useControllerSurface } from "../../controller";
 import {
   CONTROLLER_SUPPORT_ENABLED_EVENT,
@@ -43,7 +43,7 @@ import type {
 import { PERK_RARITY_META, resolvePerkRarity, getRarityLabel } from "../../game/data/perkRarity";
 import type { InstalledRound } from "../../services/db";
 import { trpc } from "../../services/trpc";
-import { describePerkEffects } from "../../game/engine";
+import { describePerkEffects, endEndlessRun } from "../../game/engine";
 import { useSfwMode } from "../../hooks/useSfwMode";
 import { i18n } from "../../i18n";
 import { THEHANDY_OFFSET_FINE_STEP_MS, THEHANDY_OFFSET_STEP_MS } from "../../constants/theHandy";
@@ -1689,6 +1689,7 @@ interface GameSceneProps {
   initialShowAntiPerkBeatbar?: boolean;
   hideInventoryButton?: boolean;
   controllerSupportEnabled?: boolean;
+  endlessMode?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -1724,6 +1725,7 @@ export const GameScene = memo(function GameScene({
   showMultiplayerPlayerNames = false,
   hideInventoryButton = false,
   controllerSupportEnabled: initialControllerSupportEnabled = false,
+  endlessMode = false,
 }: GameSceneProps) {
   const { t } = useLingui();
   const sfwMode = useSfwMode();
@@ -5100,6 +5102,20 @@ export const GameScene = memo(function GameScene({
                   {action.label}
                 </button>
               ))}
+              {endlessMode && (
+                <button
+                  type="button"
+                  className="w-full rounded-lg border border-emerald-400/70 bg-emerald-500/20 px-3 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/35"
+                  onClick={() => {
+                    setShowOptionsMenu(false);
+                    const ended = endEndlessRun(state);
+                    onStateChangeRef.current?.(ended);
+                  }}
+                  data-controller-focus-id="game-options-end-endless"
+                >
+                  <Trans>Finish Run</Trans>
+                </button>
+              )}
               <button
                 type="button"
                 className="w-full rounded-lg border border-rose-400/70 bg-rose-500/20 px-3 py-2 text-sm font-semibold text-rose-100 hover:bg-rose-500/35"

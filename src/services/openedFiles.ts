@@ -4,30 +4,43 @@ import { security } from "./security";
 import { reviewInstallSidecarTrust } from "../components/InstallSidecarTrustModalHost";
 import { confirmInstallSidecar } from "../components/InstallConfirmationModalHost";
 import type { ToastVariant } from "../components/ui/ToastHost";
+import { isVideoExtension } from "../constants/videoFormats";
 
-export type OpenedFileKind = "sidecar" | "playlist" | "unsupported" | "cancelled";
+export type OpenedFileKind =
+  | "sidecar"
+  | "playlist"
+  | "video"
+  | "folder"
+  | "unsupported"
+  | "cancelled";
 
 export type OpenedFileImportResult =
   | {
-    kind: "sidecar";
-    filePath: string;
-    result: InstallFolderScanResult;
-    feedback: ImportFeedback;
-  }
+      kind: "sidecar";
+      filePath: string;
+      result: InstallFolderScanResult;
+      feedback: ImportFeedback;
+    }
   | {
-    kind: "playlist";
-    filePath: string;
-    imported: PlaylistImportResult;
-    feedback: ImportFeedback;
-  }
+      kind: "playlist";
+      filePath: string;
+      imported: PlaylistImportResult;
+      feedback: ImportFeedback;
+    }
   | {
-    kind: "unsupported";
-    filePath: string;
-  }
+      kind: "video" | "folder";
+      filePath: string;
+      result: InstallFolderScanResult;
+      feedback: ImportFeedback;
+    }
   | {
-    kind: "cancelled";
-    filePath: string;
-  };
+      kind: "unsupported";
+      filePath: string;
+    }
+  | {
+      kind: "cancelled";
+      filePath: string;
+    };
 
 export type ImportFeedback = {
   variant: ToastVariant;
@@ -38,8 +51,11 @@ function pluralize(count: number, singular: string, plural = `${singular}s`): st
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-export function summarizeImportResult(filePath: string, result: InstallFolderScanResult): ImportFeedback {
-  const fileName = filePath.split(/[/\\]/).pop() ?? filePath;
+export function summarizeImportResult(
+  filePath: string,
+  result: InstallFolderScanResult
+): ImportFeedback {
+  const fileName = filePath.split(/[/\\]/).filter(Boolean).pop() ?? filePath;
   const { status } = result;
   const stats = status.stats;
 
@@ -86,11 +102,22 @@ export function summarizeImportResult(filePath: string, result: InstallFolderSca
 
 export function getOpenedFileKind(filePath: string): OpenedFileKind {
   const normalized = filePath.trim().toLowerCase();
-  if (normalized.endsWith(".hero") || normalized.endsWith(".round") || normalized.endsWith(".fpack")) {
+  if (
+    normalized.endsWith(".hero") ||
+    normalized.endsWith(".round") ||
+    normalized.endsWith(".fpack")
+  ) {
     return "sidecar";
   }
   if (normalized.endsWith(".fplay")) {
     return "playlist";
+  }
+  const extension = normalized.split(/[/\\]/).pop()?.split(".").pop() ?? "";
+  if (extension && isVideoExtension(extension)) {
+    return "video";
+  }
+  if (!extension || extension === normalized.split(/[/\\]/).pop()) {
+    return "folder";
   }
   return "unsupported";
 }
@@ -107,9 +134,10 @@ export async function importOpenedFile(filePath: string): Promise<OpenedFileImpo
     }
 
     const { securityMode } = await security.listTrustedSites();
-    const review = securityMode === "prompt"
-      ? await reviewInstallSidecarTrust(analysis)
-      : { action: "import" as const, trustedBaseDomains: [] };
+    const review =
+      securityMode === "prompt"
+        ? await reviewInstallSidecarTrust(analysis)
+        : { action: "import" as const, trustedBaseDomains: [] };
     if (review.action === "cancel") {
       return {
         kind: "cancelled",
@@ -117,7 +145,9 @@ export async function importOpenedFile(filePath: string): Promise<OpenedFileImpo
       };
     }
 
-    await Promise.all(review.trustedBaseDomains.map((baseDomain) => security.addTrustedSite(baseDomain)));
+    await Promise.all(
+      review.trustedBaseDomains.map((baseDomain) => security.addTrustedSite(baseDomain))
+    );
     const result = await db.install.importSidecarFile(filePath, review.trustedBaseDomains);
     return {
       kind,
@@ -150,6 +180,26 @@ export async function importOpenedFile(filePath: string): Promise<OpenedFileImpo
         variant: "success",
         message: `Imported playlist "${imported.playlist.name}".`,
       },
+    };
+  }
+
+  if (kind === "video") {
+    const result = await db.install.importVideoFileAsRound(filePath);
+    return {
+      kind,
+      filePath,
+      result,
+      feedback: summarizeImportResult(filePath, result),
+    };
+  }
+
+  if (kind === "folder") {
+    const result = await db.install.scanFolderOnce(filePath);
+    return {
+      kind,
+      filePath,
+      result,
+      feedback: summarizeImportResult(filePath, result),
     };
   }
 

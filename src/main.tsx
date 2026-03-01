@@ -52,7 +52,7 @@ function registerOpenedFileHandler() {
 
   const navigateForOpenedFile = async (filePath: string) => {
     const kind = getOpenedFileKind(filePath);
-    if (kind === "sidecar") {
+    if (kind === "sidecar" || kind === "video" || kind === "folder") {
       await router.navigate({ to: "/rounds" });
     } else if (kind === "playlist") {
       await router.navigate({ to: "/playlist-workshop" });
@@ -67,10 +67,12 @@ function registerOpenedFileHandler() {
         try {
           await navigateForOpenedFile(filePath);
           const result = await importOpenedFile(filePath);
-          if (result.kind === "sidecar") {
-            showGlobalToast(result.feedback.message, result.feedback.variant);
-            await router.invalidate();
-          } else if (result.kind === "playlist") {
+          if (
+            result.kind === "sidecar" ||
+            result.kind === "playlist" ||
+            result.kind === "video" ||
+            result.kind === "folder"
+          ) {
             showGlobalToast(result.feedback.message, result.feedback.variant);
             await router.invalidate();
           }

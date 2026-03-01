@@ -46,7 +46,11 @@ const withActivePlaylist = (
 const estimatePlaylistDurationSec = (
   config: PlaylistConfig,
   installedRounds: InstalledRoundCatalogEntry[]
-): number => {
+): number | null => {
+  if (config.boardConfig.mode === "endless") {
+    return null;
+  }
+
   if (config.boardConfig.mode === "linear") {
     const safeSet = new Set(config.boardConfig.safePointIndices);
     const explicitRefsByIndex = config.boardConfig.normalRoundRefsByIndex;
@@ -94,10 +98,21 @@ export const Route = createFileRoute("/single-player-setup")({
       getInstalledRoundCatalogCached(),
       db.singlePlayerSaves.list(),
     ]);
-    const activePlaylist = availablePlaylists.length > 0 ? await playlists.getActive() : null;
+
+    const hasEndless = availablePlaylists.some(
+      (p) => p.config.boardConfig.mode === "endless"
+    );
+    if (!hasEndless) {
+      await playlists.ensureEndless();
+    }
+
+    const finalPlaylists = hasEndless
+      ? availablePlaylists
+      : await playlists.list();
+    const activePlaylist = finalPlaylists.length > 0 ? await playlists.getActive() : null;
 
     return {
-      availablePlaylists: withActivePlaylist(availablePlaylists, activePlaylist),
+      availablePlaylists: withActivePlaylist(finalPlaylists, activePlaylist),
       activePlaylist,
       installedRounds,
       savedRuns,
@@ -195,6 +210,8 @@ function SinglePlayerSetupPage() {
       selectedPlaylist ? estimatePlaylistDurationSec(selectedPlaylist.config, installedRounds) : 0,
     [installedRounds, selectedPlaylist]
   );
+  const selectedPlaylistDurationLabel =
+    selectedPlaylistDurationSec != null ? formatDurationLabel(selectedPlaylistDurationSec) : "Endless";
   const selectedPlaylistCacheSummary = selectedPlaylist
     ? (playlistCacheSummaryById.get(selectedPlaylist.id) ?? {
         hasPending: false,
@@ -445,7 +462,7 @@ function SinglePlayerSetupPage() {
         playlistName={selectedPlaylist.name}
         boardModeLabel={boardSummary.modeLabel}
         roundCount={boardSummary.roundNodeCount}
-        estimatedDurationLabel={formatDurationLabel(selectedPlaylistDurationSec)}
+        estimatedDurationLabel={selectedPlaylistDurationLabel}
         progress={launchProgress}
         roadPalette={
           selectedPlaylist.config.boardConfig.mode === "graph"
@@ -501,6 +518,7 @@ function SinglePlayerSetupPage() {
                   installedRounds
                 );
                 const isLinear = summary.modeLabel === "Linear";
+                const isEndless = summary.modeLabel === "Endless";
                 const cacheSummary = playlistCacheSummaryById.get(playlist.id);
                 const isCachePending = cacheSummary?.hasPending ?? false;
                 const savedRun = savedRunByPlaylistId.get(playlist.id) ?? null;
@@ -542,9 +560,11 @@ function SinglePlayerSetupPage() {
                           <span
                             className={[
                               "rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em]",
-                              isLinear
-                                ? "border-teal-400/45 bg-teal-500/15 text-teal-200"
-                                : "border-amber-400/45 bg-amber-500/15 text-amber-200",
+                              isEndless
+                                ? "border-violet-400/45 bg-violet-500/15 text-violet-200"
+                                : isLinear
+                                  ? "border-teal-400/45 bg-teal-500/15 text-teal-200"
+                                  : "border-amber-400/45 bg-amber-500/15 text-amber-200",
                             ].join(" ")}
                           >
                             {summary.modeLabel}
@@ -556,7 +576,7 @@ function SinglePlayerSetupPage() {
                           <Trans>{summary.roundNodeCount} rounds</Trans>
                         </span>
                         <span>•</span>
-                        <span>{formatDurationLabel(estimatedDurationSec)}</span>
+                        <span>{estimatedDurationSec != null ? formatDurationLabel(estimatedDurationSec) : "Endless"}</span>
                         {isCachePending && (
                           <>
                             <span>•</span>
@@ -626,7 +646,7 @@ function SinglePlayerSetupPage() {
                       <Trans>{boardSummary.safePointCount} safe points</Trans>
                     </span>
                     <span className="rounded-full border border-zinc-700/70 bg-black/30 px-3 py-1.5">
-                      {formatDurationLabel(selectedPlaylistDurationSec)} <Trans>estimated</Trans>
+                      {selectedPlaylistDurationLabel} <Trans>estimated</Trans>
                     </span>
                     <span className="rounded-full border border-zinc-700/70 bg-black/30 px-3 py-1.5">
                       v{selectedPlaylist.config.playlistVersion}

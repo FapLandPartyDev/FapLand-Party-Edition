@@ -65,7 +65,9 @@ import {
   buildSourceHeroOptions,
   extractRoundMetadataOptions,
   filterAndSortRounds,
+  type AddedDateFilter,
   type MetadataFilter,
+  type SourceFilter,
   toIndexedRound,
   type ScriptFilter,
   type SortMode,
@@ -94,10 +96,7 @@ import {
   INSTALL_WEB_FUNSCRIPT_URL_ENABLED_KEY,
   normalizeInstallWebFunscriptUrlEnabled,
 } from "../constants/experimentalFeatures";
-import {
-  THEHANDY_OFFSET_MAX_MS,
-  THEHANDY_OFFSET_MIN_MS,
-} from "../constants/theHandy";
+import { THEHANDY_OFFSET_MAX_MS, THEHANDY_OFFSET_MIN_MS } from "../constants/theHandy";
 
 type GroupMode = "hero" | "playlist";
 type EroScriptsDialogContext = "library" | "website-round" | "edit-round";
@@ -129,6 +128,11 @@ type HeroEditDraft = {
 type DeleteRoundDialogState = {
   id: string;
   name: string;
+};
+type DeleteSelectedRoundsDialogState = {
+  ids: string[];
+  names: string[];
+  filterContext: string[];
 };
 type DeleteHeroDialogState = {
   id: string;
@@ -218,6 +222,7 @@ type PreviewSettings = {
 type WebInstallSettings = {
   installWebFunscriptUrlEnabled: boolean;
 };
+type AddedDateMode = AddedDateFilter["mode"];
 const INTERMEDIARY_LOADING_PROMPT_KEY = "game.intermediary.loadingPrompt";
 const INTERMEDIARY_LOADING_DURATION_KEY = "game.intermediary.loadingDurationSec";
 const INTERMEDIARY_RETURN_PAUSE_KEY = "game.intermediary.returnPauseSec";
@@ -838,6 +843,8 @@ export function InstalledRoundsPage() {
   const sfwMode = useSfwMode();
   const { showToast } = useToast();
   const [deleteRoundDialog, setDeleteRoundDialog] = useState<DeleteRoundDialogState | null>(null);
+  const [deleteSelectedRoundsDialog, setDeleteSelectedRoundsDialog] =
+    useState<DeleteSelectedRoundsDialogState | null>(null);
   const [deleteHeroDialog, setDeleteHeroDialog] = useState<DeleteHeroDialogState | null>(null);
   const [showDisabledRounds, setShowDisabledRounds] = useState(false);
   const [roundsResource, setRoundsResource] = useState<AsyncResource<InstalledRoundCatalogEntry[]>>(
@@ -883,6 +890,8 @@ export function InstalledRoundsPage() {
   const [tagFilter, setTagFilter] = useState<MetadataFilter>("all");
   const [actorFilter, setActorFilter] = useState<MetadataFilter>("all");
   const [libraryFilter, setLibraryFilter] = useState<MetadataFilter>("all");
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [addedDateFilter, setAddedDateFilter] = useState<AddedDateFilter>({ mode: "all" });
   const [sortMode, setSortMode] = useState<SortMode>("newest");
   const [groupMode, setGroupMode] = useState<GroupMode>("hero");
   const [expandedHeroGroups, setExpandedHeroGroups] = useState<Record<string, boolean>>({});
@@ -1660,6 +1669,8 @@ export function InstalledRoundsPage() {
         tagFilter,
         actorFilter,
         libraryFilter,
+        sourceFilter,
+        addedDateFilter,
         sortMode,
       }),
     [
@@ -1668,6 +1679,8 @@ export function InstalledRoundsPage() {
       indexedRounds,
       libraryFilter,
       scriptFilter,
+      sourceFilter,
+      addedDateFilter,
       sortMode,
       tagFilter,
       typeFilter,
@@ -1711,14 +1724,18 @@ export function InstalledRoundsPage() {
     scriptFilter !== "all" ||
     tagFilter !== "all" ||
     actorFilter !== "all" ||
-    libraryFilter !== "all";
+    libraryFilter !== "all" ||
+    sourceFilter !== "all" ||
+    addedDateFilter.mode !== "all";
   const activeFilterCount =
     Number(queryInput.trim().length > 0) +
     Number(typeFilter !== "all") +
     Number(scriptFilter !== "all") +
     Number(tagFilter !== "all") +
     Number(actorFilter !== "all") +
-    Number(libraryFilter !== "all");
+    Number(libraryFilter !== "all") +
+    Number(sourceFilter !== "all") +
+    Number(addedDateFilter.mode !== "all");
   const actionButtonsDisabled =
     isStartingScan || isExportingDatabase || isInstallingWebsiteRound || isLibraryScanning;
   const scanRunning = isStartingScan || isLibraryScanning;
@@ -2443,7 +2460,9 @@ export function InstalledRoundsPage() {
     const startTime = parseOptionalInteger(editingRound.startTime);
     const endTime = parseOptionalInteger(editingRound.endTime);
     const funscriptOffsetMs = parseOptionalSignedInteger(editingRound.funscriptOffsetMs);
-    if ([bpm, difficulty, startTime, endTime, funscriptOffsetMs].some((value) => Number.isNaN(value))) {
+    if (
+      [bpm, difficulty, startTime, endTime, funscriptOffsetMs].some((value) => Number.isNaN(value))
+    ) {
       showToast(t`Round fields must use valid numeric values.`, "error");
       return;
     }
@@ -2534,6 +2553,69 @@ export function InstalledRoundsPage() {
       name: editingRound.name.trim() || persistedRoundName.trim(),
     });
   };
+
+  const buildActiveFilterContext = useCallback((): string[] => {
+    const context: string[] = [];
+    if (sourceFilter !== "all") {
+      const sourceLabel =
+        sourceFilter === "stash" ? t`Stash` : sourceFilter === "web" ? t`Web` : t`Local`;
+      context.push(t`Source: ${sourceLabel}`);
+    }
+    if (addedDateFilter.mode === "since" && addedDateFilter.fromDate.trim()) {
+      context.push(t`Added: since ${formatDate(addedDateFilter.fromDate)}`);
+    } else if (addedDateFilter.mode === "before" && addedDateFilter.toDate.trim()) {
+      context.push(t`Added: before ${formatDate(addedDateFilter.toDate)}`);
+    } else if (
+      addedDateFilter.mode === "between" &&
+      addedDateFilter.fromDate.trim() &&
+      addedDateFilter.toDate.trim()
+    ) {
+      context.push(
+        t`Added: ${formatDate(addedDateFilter.fromDate)} to ${formatDate(addedDateFilter.toDate)}`
+      );
+    }
+    return context;
+  }, [addedDateFilter, sourceFilter, t]);
+
+  const openDeleteSelectedRoundsDialog = useCallback(() => {
+    if (selectedRoundIds.size === 0 || isSavingEdit) return;
+    const selectedRounds = rounds.filter((round) => selectedRoundIds.has(round.id));
+    if (selectedRounds.length === 0) return;
+    setDeleteSelectedRoundsDialog({
+      ids: selectedRounds.map((round) => round.id),
+      names: selectedRounds.map((round) => round.name),
+      filterContext: buildActiveFilterContext(),
+    });
+  }, [buildActiveFilterContext, isSavingEdit, rounds, selectedRoundIds]);
+
+  const confirmDeleteSelectedRounds = useCallback(async () => {
+    if (!deleteSelectedRoundsDialog || isSavingEdit) return;
+    const idsToDelete = deleteSelectedRoundsDialog.ids;
+    const idsToDeleteSet = new Set(idsToDelete);
+    setDeleteSelectedRoundsDialog(null);
+
+    setIsSavingEdit(true);
+    try {
+      const result = await db.round.deleteMany(idsToDelete);
+      setEditingRound((current) => (current && idsToDeleteSet.has(current.id) ? null : current));
+      setSelectedRoundIds((previous) => {
+        const next = new Set(previous);
+        for (const id of idsToDeleteSet) next.delete(id);
+        return next;
+      });
+      setSelectedHeroIds(new Set());
+      await refreshInstalledRounds();
+      showToast(t`Deleted ${result.deletedCount} rounds.`, "success");
+    } catch (error) {
+      console.error("Failed to delete selected rounds", error);
+      showToast(
+        error instanceof Error ? error.message : t`Failed to delete selected rounds.`,
+        "error"
+      );
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }, [deleteSelectedRoundsDialog, isSavingEdit, refreshInstalledRounds, showToast, t]);
 
   const confirmDeleteHero = useCallback(async () => {
     if (!deleteHeroDialog || isSavingEdit) return;
@@ -2677,6 +2759,25 @@ export function InstalledRoundsPage() {
       setIsSavingEdit(false);
     }
   };
+
+  const deleteSelectedRoundCount = deleteSelectedRoundsDialog?.ids.length ?? 0;
+  const deleteSelectedRoundExamples =
+    deleteSelectedRoundsDialog?.names
+      .slice(0, 3)
+      .map((name) => abbreviateNsfwText(name, sfwMode))
+      .join(", ") ?? "";
+  const deleteSelectedRoundMessage = deleteSelectedRoundsDialog
+    ? [
+        t`Delete ${deleteSelectedRoundCount} selected round entries from the database?`,
+        t`Files on disk will be left untouched. This cannot be undone from inside the app.`,
+        deleteSelectedRoundsDialog.filterContext.length > 0
+          ? t`Current filters: ${deleteSelectedRoundsDialog.filterContext.join(", ")}`
+          : null,
+        deleteSelectedRoundExamples ? t`Examples: ${deleteSelectedRoundExamples}` : null,
+      ]
+        .filter((entry): entry is string => Boolean(entry))
+        .join("\n\n")
+    : "";
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -2954,6 +3055,27 @@ export function InstalledRoundsPage() {
                           >
                             {selectionMode ? t`Cancel Selection` : t`Select Items`}
                           </button>
+                          {selectionMode && (
+                            <button
+                              type="button"
+                              disabled={filteredRounds.length === 0}
+                              onMouseEnter={handleHoverSfx}
+                              onClick={() => {
+                                handleSelectSfx();
+                                setSelectedRoundIds(
+                                  new Set(filteredRounds.map((round) => round.id))
+                                );
+                                setSelectedHeroIds(new Set());
+                              }}
+                              className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${
+                                filteredRounds.length > 0
+                                  ? "border-cyan-300/50 bg-cyan-500/20 text-cyan-100 hover:border-cyan-200/75"
+                                  : "cursor-not-allowed border-zinc-700 bg-zinc-900/70 text-zinc-500"
+                              }`}
+                            >
+                              <Trans>Select Visible Rounds</Trans>
+                            </button>
+                          )}
                           {(selectedRoundIds.size > 0 || selectedHeroIds.size > 0) && (
                             <>
                               <span className="text-sm text-violet-200">
@@ -2981,6 +3103,22 @@ export function InstalledRoundsPage() {
                                 className="rounded-xl border border-cyan-300/50 bg-cyan-500/20 px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] text-cyan-100 hover:border-cyan-200/75"
                               >
                                 <Trans>Export Selected</Trans>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={selectedRoundIds.size === 0 || isSavingEdit}
+                                onMouseEnter={handleHoverSfx}
+                                onClick={() => {
+                                  handleSelectSfx();
+                                  openDeleteSelectedRoundsDialog();
+                                }}
+                                className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${
+                                  selectedRoundIds.size > 0 && !isSavingEdit
+                                    ? "border-rose-300/55 bg-rose-500/20 text-rose-100 hover:border-rose-200/80"
+                                    : "cursor-not-allowed border-zinc-700 bg-zinc-900/70 text-zinc-500"
+                                }`}
+                              >
+                                <Trans>Delete Selected</Trans>
                               </button>
                             </>
                           )}
@@ -3051,8 +3189,8 @@ export function InstalledRoundsPage() {
                           </h3>
                           <p className="mt-1 text-sm text-zinc-300">
                             <Trans>
-                              Narrow the collection by round type, script availability, or a text
-                              search across round metadata.
+                              Narrow the collection by source, added date, round type, script
+                              availability, or a text search across round metadata.
                             </Trans>
                           </p>
                         </div>
@@ -3078,6 +3216,8 @@ export function InstalledRoundsPage() {
                                 setTagFilter("all");
                                 setActorFilter("all");
                                 setLibraryFilter("all");
+                                setSourceFilter("all");
+                                setAddedDateFilter({ mode: "all" });
                                 setSortMode("newest");
                               });
                             }}
@@ -3223,6 +3363,99 @@ export function InstalledRoundsPage() {
                           onHoverSfx={handleHoverSfx}
                           onSelectSfx={handleSelectSfx}
                         />
+
+                        <GameDropdown
+                          label={t`Source`}
+                          value={sourceFilter}
+                          options={[
+                            { value: "all", label: t`All` },
+                            { value: "stash", label: t`Stash` },
+                            { value: "web", label: t`Web` },
+                            { value: "local", label: t`Local` },
+                          ]}
+                          onChange={(value) => {
+                            startTransition(() => {
+                              setSourceFilter(value as SourceFilter);
+                            });
+                          }}
+                          onHoverSfx={handleHoverSfx}
+                          onSelectSfx={handleSelectSfx}
+                        />
+
+                        <GameDropdown
+                          label={t`Added`}
+                          value={addedDateFilter.mode}
+                          options={[
+                            { value: "all", label: t`Any Time` },
+                            { value: "since", label: t`Since Date` },
+                            { value: "before", label: t`Before Date` },
+                            { value: "between", label: t`Between Dates` },
+                          ]}
+                          onChange={(value) => {
+                            const mode = value as AddedDateMode;
+                            startTransition(() => {
+                              setAddedDateFilter((current) => {
+                                const currentFrom =
+                                  current.mode === "since" || current.mode === "between"
+                                    ? current.fromDate
+                                    : "";
+                                const currentTo =
+                                  current.mode === "before" || current.mode === "between"
+                                    ? current.toDate
+                                    : "";
+                                if (mode === "since") return { mode, fromDate: currentFrom };
+                                if (mode === "before") return { mode, toDate: currentTo };
+                                if (mode === "between") {
+                                  return { mode, fromDate: currentFrom, toDate: currentTo };
+                                }
+                                return { mode: "all" };
+                              });
+                            });
+                          }}
+                          onHoverSfx={handleHoverSfx}
+                          onSelectSfx={handleSelectSfx}
+                        />
+
+                        {addedDateFilter.mode === "since" && (
+                          <RoundDateFilterInput
+                            label={t`From`}
+                            value={addedDateFilter.fromDate}
+                            onChange={(fromDate) => setAddedDateFilter({ mode: "since", fromDate })}
+                          />
+                        )}
+                        {addedDateFilter.mode === "before" && (
+                          <RoundDateFilterInput
+                            label={t`To`}
+                            value={addedDateFilter.toDate}
+                            onChange={(toDate) => setAddedDateFilter({ mode: "before", toDate })}
+                          />
+                        )}
+                        {addedDateFilter.mode === "between" && (
+                          <>
+                            <RoundDateFilterInput
+                              label={t`From`}
+                              value={addedDateFilter.fromDate}
+                              onChange={(fromDate) =>
+                                setAddedDateFilter((current) =>
+                                  current.mode === "between"
+                                    ? { ...current, fromDate }
+                                    : { mode: "between", fromDate, toDate: "" }
+                                )
+                              }
+                            />
+                            <RoundDateFilterInput
+                              label={t`To`}
+                              value={addedDateFilter.toDate}
+                              onChange={(toDate) =>
+                                setAddedDateFilter((current) =>
+                                  current.mode === "between"
+                                    ? { ...current, toDate }
+                                    : { mode: "between", fromDate: "", toDate }
+                                )
+                              }
+                            />
+                          </>
+                        )}
                       </div>
 
                       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -3922,9 +4155,7 @@ export function InstalledRoundsPage() {
                     placeholder="0"
                     onChange={(event) =>
                       setEditingRound((previous) =>
-                        previous
-                          ? { ...previous, funscriptOffsetMs: event.target.value }
-                          : previous
+                        previous ? { ...previous, funscriptOffsetMs: event.target.value } : previous
                       )
                     }
                     className="w-full rounded-xl border border-violet-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-200/70 disabled:cursor-not-allowed disabled:opacity-50"
@@ -4473,6 +4704,16 @@ export function InstalledRoundsPage() {
         variant="danger"
         onConfirm={confirmDeleteRound}
         onCancel={() => setDeleteRoundDialog(null)}
+      />
+      <ConfirmDialog
+        isOpen={deleteSelectedRoundsDialog !== null}
+        title={t`Delete Selected Rounds?`}
+        message={deleteSelectedRoundMessage}
+        confirmLabel={t`Delete ${deleteSelectedRoundCount} Rounds`}
+        variant="danger"
+        isPending={isSavingEdit}
+        onConfirm={confirmDeleteSelectedRounds}
+        onCancel={() => setDeleteSelectedRoundsDialog(null)}
       />
       <ConfirmDialog
         isOpen={deleteHeroDialog !== null}
@@ -6208,6 +6449,30 @@ function RoundActionButton({
   );
 }
 
+function RoundDateFilterInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex min-w-[10rem] flex-col gap-1 rounded-xl border border-zinc-700/80 bg-black/30 px-3 py-2 text-xs text-zinc-300">
+      <span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+        {label}
+      </span>
+      <input
+        type="date"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="bg-transparent font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-100 outline-none [color-scheme:dark]"
+      />
+    </label>
+  );
+}
+
 function WebsiteRoundInstallDialog({
   open,
   roundName,
@@ -6559,6 +6824,14 @@ function summarizeHeroGroupPreviewState(
 }
 
 function formatDate(value: Date | string): string {
+  if (typeof value === "string") {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+    if (match) {
+      return ROUND_CARD_DATE_FORMATTER.format(
+        new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+      );
+    }
+  }
   const date = value instanceof Date ? value : new Date(value);
   return ROUND_CARD_DATE_FORMATTER.format(date);
 }

@@ -56,6 +56,9 @@
 
           appimage-run
           yt-dlp
+
+          #Intiface
+          intiface-central
         ];
         shellHook = with pkgs; ''
           # Prisma engines

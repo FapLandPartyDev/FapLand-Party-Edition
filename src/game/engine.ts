@@ -4,8 +4,11 @@ import { resolvePerkRarity } from "./data/perkRarity";
 import { appendAutomationEvent, createInitialAutomationState } from "./automation/state";
 import type {
   ActivePerkEffect,
+  BoardField,
+  BoardFieldKind,
   CompletedRoundSummary,
   CumRoundOutcome,
+  EndlessGenerationConfig,
   GameConfig,
   GameEffect,
   GameState,
@@ -1022,6 +1025,10 @@ function resolveTerminalLanding(
     return { state, stopMovement: false, stoppedAtEnd: false };
   }
 
+  if (isEndlessMode(state)) {
+    return { state, stopMovement: true, stoppedAtEnd: false };
+  }
+
   return {
     state: startCumPhase(state, installedRounds),
     stopMovement: true,
@@ -1562,6 +1569,7 @@ export function createInitialGameState(
     log: ["Game initialized."],
     lastRoll: null,
     completionReason: null,
+    endlessRoundsCompleted: 0,
   };
 }
 
@@ -1806,6 +1814,7 @@ export function completeRound(
       activeRoundAudioEffect: null,
       intermediaryProbability: nextIntermediaryProbability,
       antiPerkProbability: nextAntiPerkProbability,
+      endlessRoundsCompleted: state.endlessRoundsCompleted + 1,
       log: [
         `Round finished. +$${moneyEarned}, +${scoreEarned} score (${intermediaryCount} intermediary, ${activeAntiPerkCount} anti-perks). Chances now ${Math.round(nextIntermediaryProbability * 100)}%/${Math.round(nextAntiPerkProbability * 100)}%.`,
         ...state.log,
@@ -1871,7 +1880,8 @@ export function completeRound(
   if (
     !hasExplicitEndNodes &&
     validOutgoingEdges.length === 0 &&
-    next.config.singlePlayer.cumRoundIds.length > 0
+    next.config.singlePlayer.cumRoundIds.length > 0 &&
+    !isEndlessMode(next)
   ) {
     next = startCumPhase(next, installedRounds);
     if (
@@ -1889,7 +1899,8 @@ export function completeRound(
   if (
     !hasExplicitEndNodes &&
     validOutgoingEdges.length === 0 &&
-    next.config.singlePlayer.cumRoundIds.length === 0
+    next.config.singlePlayer.cumRoundIds.length === 0 &&
+    !isEndlessMode(next)
   ) {
     return {
       ...next,
@@ -1897,6 +1908,10 @@ export function completeRound(
       completionReason: "finished",
       log: ["Session completed.", ...next.log].slice(0, 40),
     };
+  }
+
+  if (isEndlessMode(next)) {
+    next = extendEndlessBoard(next);
   }
 
   const updatedCurrentPlayer = next.players[next.currentPlayerIndex];
@@ -2230,4 +2245,176 @@ export function describePerkEffects(perk: PerkDefinition): string {
       return `${effect.stat} ${sign}${effect.amount}`;
     })
     .join(", ");
+}
+
+const ENDLESS_COLUMNS = 4;
+const ENDLESS_TILE_SIZE = 160;
+const ENDLESS_ROW_GAP = 120;
+
+function endlessNodePosition(index: number, totalNodes: number): { x: number; y: number } {
+  const totalRows = Math.ceil(totalNodes / ENDLESS_COLUMNS);
+  const row = Math.floor(index / ENDLESS_COLUMNS);
+  const col =
+    row % 2 === 0 ? index % ENDLESS_COLUMNS : ENDLESS_COLUMNS - 1 - (index % ENDLESS_COLUMNS);
+  return {
+    x: 160 + col * ENDLESS_TILE_SIZE,
+    y: 360 + (totalRows > 0 ? row : 0) * ENDLESS_ROW_GAP,
+  };
+}
+
+function extendEndlessBoard(state: GameState): GameState {
+  const gen = state.config.endlessGeneration;
+  if (!gen) return state;
+
+  const extendSize = gen.extendBatchSize;
+  const board = [...state.config.board];
+  const edges = [...state.config.runtimeGraph.edges];
+
+  const endFieldIndex = board.findIndex((field) => field.kind === "end");
+  if (endFieldIndex < 0) return state;
+
+  const nodeBeforeEnd = endFieldIndex > 0 ? board[endFieldIndex - 1] : null;
+  if (!nodeBeforeEnd) return state;
+
+  const currentPlayer = state.players[state.currentPlayerIndex];
+  const currentNodeIndex = currentPlayer
+    ? (state.config.runtimeGraph.nodeIndexById[currentPlayer.currentNodeId] ?? 0)
+    : 0;
+  const nodesAhead = endFieldIndex - currentNodeIndex;
+
+  if (nodesAhead > Math.ceil(extendSize / 2)) return state;
+
+  const startCounter = gen.roundCounter + 1;
+  const safeEveryN = gen.safePointEveryN;
+  const perkEveryN = gen.perkNodeEveryN;
+  const totalAfterExtension = board.length + extendSize;
+
+  const newNodes: BoardField[] = [];
+  const newEdges: RuntimeGraphEdge[] = [];
+
+  for (let i = 0; i < extendSize; i++) {
+    const globalIndex = startCounter + i;
+    const nodeId = `endless-${globalIndex}`;
+    const gridIndex = endFieldIndex + i;
+    const pos = endlessNodePosition(gridIndex, totalAfterExtension);
+
+    let kind: BoardFieldKind;
+    if (globalIndex % safeEveryN === 0 && safeEveryN > 0) {
+      kind = "safePoint";
+    } else if (globalIndex % perkEveryN === 0 && perkEveryN > 0) {
+      kind = "perk";
+    } else {
+      kind = "randomRound";
+    }
+
+    newNodes.push({
+      id: nodeId,
+      name:
+        kind === "safePoint"
+          ? `Checkpoint ${globalIndex}`
+          : kind === "perk"
+            ? `Perk ${globalIndex}`
+            : `Round ${globalIndex}`,
+      kind,
+      forceStop: kind === "perk",
+      randomSelectionMode: kind === "randomRound" ? "installed" : undefined,
+      styleHint: { x: pos.x, y: pos.y },
+    });
+
+    const prevNodeId = i === 0 ? nodeBeforeEnd.id : newNodes[i - 1]!.id;
+    newEdges.push({
+      id: `edge-${prevNodeId}-${nodeId}`,
+      fromNodeId: prevNodeId,
+      toNodeId: nodeId,
+      gateCost: 0,
+      weight: 1,
+    });
+  }
+
+  const lastNewNode = newNodes[newNodes.length - 1]!;
+  const endToLastEdge: RuntimeGraphEdge = {
+    id: `edge-${lastNewNode.id}-end`,
+    fromNodeId: lastNewNode.id,
+    toNodeId: "end",
+    gateCost: 0,
+    weight: 1,
+  };
+
+  const existingEdgeToEndIndex = edges.findIndex(
+    (edge) => edge.toNodeId === "end" && edge.fromNodeId === nodeBeforeEnd.id
+  );
+  if (existingEdgeToEndIndex >= 0) {
+    edges.splice(existingEdgeToEndIndex, 1);
+  }
+
+  const insertIndex = endFieldIndex;
+  const nextBoard = [...board.slice(0, insertIndex), ...newNodes, ...board.slice(insertIndex)];
+  const nextEdges = [...edges, ...newEdges, endToLastEdge];
+
+  const safePointIndices = nextBoard
+    .map((field, index) => ({ field, index }))
+    .filter(({ field }) => field.kind === "safePoint")
+    .map(({ index }) => index);
+
+  const nextGen: EndlessGenerationConfig = {
+    ...gen,
+    roundCounter: startCounter + extendSize - 1,
+  };
+
+  const edgesById: Record<string, RuntimeGraphEdge> = {};
+  const outgoingEdgeIdsByNodeId: Record<string, string[]> = {};
+  for (const edge of nextEdges) {
+    edgesById[edge.id] = edge;
+    const outgoing = outgoingEdgeIdsByNodeId[edge.fromNodeId];
+    if (outgoing) {
+      outgoing.push(edge.id);
+    } else {
+      outgoingEdgeIdsByNodeId[edge.fromNodeId] = [edge.id];
+    }
+  }
+  const nodeIndexById = nextBoard.reduce<Record<string, number>>((acc, node, index) => {
+    acc[node.id] = index;
+    return acc;
+  }, {});
+
+  return {
+    ...state,
+    config: {
+      ...state.config,
+      board: nextBoard,
+      runtimeGraph: {
+        ...state.config.runtimeGraph,
+        edges: nextEdges,
+        edgesById,
+        outgoingEdgeIdsByNodeId,
+        nodeIndexById,
+      },
+      singlePlayer: {
+        ...state.config.singlePlayer,
+        totalIndices: Math.max(1, nextBoard.length - 1),
+        safePointIndices,
+      },
+      endlessGeneration: nextGen,
+    },
+  };
+}
+
+export function endEndlessRun(state: GameState): GameState {
+  if (state.sessionPhase === "completed") return state;
+  const currentPlayer = state.players[state.currentPlayerIndex];
+  return {
+    ...state,
+    sessionPhase: "completed",
+    completionReason: "player_ended_endless",
+    log: [
+      currentPlayer
+        ? `Endless run ended after ${state.endlessRoundsCompleted} rounds with ${currentPlayer.score} points.`
+        : "Endless run ended.",
+      ...state.log,
+    ].slice(0, 40),
+  };
+}
+
+export function isEndlessMode(state: GameState): boolean {
+  return Boolean(state.config.endlessGeneration);
 }

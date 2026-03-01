@@ -634,6 +634,10 @@ function collectPortableRefs(config: PlaylistConfig): PortableRefEntry[] {
     return refs;
   }
 
+  if (config.boardConfig.mode === "endless") {
+    return [];
+  }
+
   const refs: PortableRefEntry[] = [];
   for (const node of config.boardConfig.nodes) {
     if (node.roundRef) {

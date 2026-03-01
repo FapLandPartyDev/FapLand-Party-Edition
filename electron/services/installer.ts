@@ -487,6 +487,7 @@ async function createInstallSessionContext(
         funscriptUri: true,
         phash: true,
         durationMs: true,
+        funscriptOffsetMs: true,
       },
     }),
     db.query.round.findMany({
@@ -560,6 +561,7 @@ async function createInstallSessionContext(
         funscriptUri: entry.funscriptUri,
         phash: normalizedPhash,
         durationMs: entry.durationMs,
+        funscriptOffsetMs: entry.funscriptOffsetMs ?? null,
       });
     }
 
@@ -746,6 +748,19 @@ async function resolveApprovedInstallFolder(folderPath: string): Promise<string>
   }
 
   return normalizedFolder;
+}
+
+async function resolveApprovedInstallVideoFile(filePath: string): Promise<string> {
+  const normalizedFile = assertApprovedDialogPath("installVideoFile", filePath);
+  if (!(await isFile(normalizedFile))) {
+    throw new Error("Selected video does not exist or is not a file.");
+  }
+
+  if (!isSupportedVideoFileExtension(path.extname(normalizedFile).toLowerCase())) {
+    throw new Error("Selected file is not a supported video file.");
+  }
+
+  return normalizedFile;
 }
 
 async function isFile(filePath: string): Promise<boolean> {
@@ -1336,7 +1351,8 @@ function rememberCanonicalResource(
   videoUri: string,
   phash: string | null,
   funscriptUri: string | null = null,
-  durationMs: number | null = null
+  durationMs: number | null = null,
+  funscriptOffsetMs: number | null = null
 ): void {
   const normalizedPhash = normalizeText(phash);
   if (!normalizedPhash) return;
@@ -1350,6 +1366,7 @@ function rememberCanonicalResource(
       funscriptUri,
       phash: normalizedPhash,
       durationMs,
+      funscriptOffsetMs,
     });
   }
 
@@ -3324,6 +3341,103 @@ export async function scanInstallFolderOnceWithLegacySupport(
 ): Promise<InstallFolderScanResult> {
   const normalizedFolder = await resolveApprovedInstallFolder(folderPath);
   return scanInstallFolderOnceWithLegacySupportResolved(normalizedFolder, options);
+}
+
+export async function importLegacyVideoFileAsRound(
+  filePath: string,
+  options?: PrepareMediaOptions
+): Promise<InstallFolderScanResult> {
+  activeManualFolderImport = true;
+
+  try {
+    const normalizedFile = await resolveApprovedInstallVideoFile(filePath);
+    const startedAt = new Date().toISOString();
+    const nextStatus: InstallScanStatus = {
+      state: "running",
+      triggeredBy: "manual",
+      startedAt,
+      finishedAt: null,
+      phase: "preparing-sidecars",
+      phaseProgress: null,
+      stats: emptyStats(),
+      lastMessage: `Preparing ${path.basename(normalizedFile)}...`,
+      lastErrors: [],
+      etaMs: null,
+      lastPreviewImage: null,
+      securityWarnings: [],
+    };
+    nextStatus.stats.totalSidecars = 1;
+    scanStatus = nextStatus;
+
+    throwIfAbortRequested();
+    const context = await createInstallSessionContext();
+    const preparedEntry = await prepareLegacyRoundEntry(context, normalizedFile, options);
+    if (preparedEntry.kind !== "round") {
+      throw new Error("Unexpected checkpoint result from prepareLegacyRoundEntry");
+    }
+
+    updateRunningScanPhase("persisting", {
+      message: `Persisting ${path.basename(normalizedFile)}...`,
+      progress: null,
+    });
+    const persisted = await persistPreparedEntry(context, {
+      kind: "hero_round",
+      heroInput: null,
+      writes: [preparedEntry.write],
+    });
+
+    const doneStatus: InstallScanStatus = cloneStatus(scanStatus);
+    doneStatus.state = "done";
+    doneStatus.finishedAt = new Date().toISOString();
+    doneStatus.phase = "done";
+    doneStatus.phaseProgress = null;
+    doneStatus.stats.installed = persisted.installed;
+    doneStatus.stats.updated = persisted.updated;
+    doneStatus.lastMessage = `Video import finished. ${formatImportStatsSummary(doneStatus.stats)}`;
+    scanStatus = doneStatus;
+
+    const roundId = persisted.roundIds[0];
+    return {
+      status: cloneStatus(doneStatus),
+      legacyImport: roundId
+        ? {
+            roundIds: [roundId],
+            orderedSlots: [
+              {
+                kind: "round",
+                ref: toPortableRoundRef({
+                  roundId,
+                  installSourceKey: preparedEntry.write.installSourceKey,
+                  phash: preparedEntry.write.round.phash,
+                  name: preparedEntry.write.round.name,
+                  author: preparedEntry.write.round.author,
+                  type: preparedEntry.write.round.type,
+                }),
+              },
+            ],
+            playlistNameHint: path.parse(normalizedFile).name,
+          }
+        : undefined,
+    };
+  } catch (error) {
+    if (error instanceof InstallAbortError) {
+      const abortedStatus: InstallScanStatus = {
+        ...scanStatus,
+        state: "aborted",
+        finishedAt: new Date().toISOString(),
+        phase: "aborted",
+        phaseProgress: null,
+        lastMessage: "Import aborted by user.",
+      };
+      scanStatus = abortedStatus;
+      return { status: cloneStatus(abortedStatus) };
+    }
+
+    throw error;
+  } finally {
+    activeManualFolderImport = false;
+    abortRequested = false;
+  }
 }
 
 export async function importLegacyFolderWithPlan(

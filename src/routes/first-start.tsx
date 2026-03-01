@@ -6,6 +6,7 @@ import { BACKGROUND_VIDEO_ENABLED_KEY } from "../constants/backgroundSettings";
 import { DEFAULT_INTERMEDIARY_LOADING_PROMPT } from "../constants/booruSettings";
 import { EROSCRIPTS_CACHE_ROOT_PATH_KEY } from "../constants/eroscriptsSettings";
 import type { EroScriptsLoginStatus } from "../services/eroscripts";
+import { DEFAULT_INTIFACE_WEBSOCKET_URL } from "../constants/haptics";
 import { FPACK_EXTRACTION_PATH_KEY } from "../constants/fpackSettings";
 import { MUSIC_CACHE_ROOT_PATH_KEY } from "../constants/musicSettings";
 import {
@@ -235,7 +236,7 @@ function getStepTitle(id: string): string {
     case "handy":
       return i18n._({
         id: "first-start.step.handy.title",
-        message: "Linking your Handy device",
+        message: "Connecting a haptics device",
       });
     case "booru":
       return i18n._({
@@ -307,7 +308,7 @@ function getStepDescription(id: string): string {
       return i18n._({
         id: "first-start.step.handy.description",
         message:
-          "Connect your Handy device for synchronized motion support. This is optional but enhances the experience.",
+          "Connect a haptics device for synchronized motion support. TheHandy and Intiface are both supported. This is optional but enhances the experience.",
       });
     case "booru":
       return i18n._({
@@ -536,12 +537,12 @@ function getStepDetails(id: string): string[] {
         i18n._({
           id: "first-start.step.handy.detail.1",
           message:
-            "Enter your Handy connection key below to connect directly. You can find this key in the Handy app or on the device.",
+            "You can connect a Handy device using its connection key, or use Intiface to connect any Buttplug-compatible linear/position device.",
         }),
         i18n._({
           id: "first-start.step.handy.detail.2",
           message:
-            "If you do not own a Handy, skip this step. You can still use the app and play the game without hardware.",
+            "If you do not own a compatible device, skip this step. You can still use the app and play the game without hardware.",
         }),
         i18n._({
           id: "first-start.step.handy.detail.3",
@@ -600,7 +601,12 @@ function FirstStartPage() {
     connected: handyConnected,
     isConnecting: handyIsConnecting,
     error: handyError,
+    provider: handyProvider,
+    setProvider: setHandyProvider,
+    intifaceWebsocketUrl,
+    intifaceDeviceName,
     connect: handyConnect,
+    connectIntiface: handyConnectIntiface,
     disconnect: handyDisconnect,
   } = useHandy();
   const [stepIndex, setStepIndex] = useState(0);
@@ -641,6 +647,7 @@ function FirstStartPage() {
   const [isSkipping, setIsSkipping] = useState(false);
   const [contentKey, setContentKey] = useState(0);
   const [handyInputKey, setHandyInputKey] = useState("");
+  const [inputIntifaceUrl, setInputIntifaceUrl] = useState(intifaceWebsocketUrl);
   const [eroscriptsLoginStatus, setEroScriptsLoginStatus] = useState<EroScriptsLoginStatus | null>(
     null
   );
@@ -649,6 +656,10 @@ function FirstStartPage() {
   const [isEroScriptsAuthPending, setIsEroScriptsAuthPending] = useState(false);
   const stepNavRef = useRef<HTMLDivElement | null>(null);
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setInputIntifaceUrl(intifaceWebsocketUrl);
+  }, [intifaceWebsocketUrl]);
   const currentStep = STEPS[stepIndex] ?? STEPS[0]!;
   const displayStepTitle = abbreviateNsfwText(getStepTitle(currentStep.id), sfwMode);
   const displayStepDescription = abbreviateNsfwText(getStepDescription(currentStep.id), sfwMode);
@@ -1090,6 +1101,10 @@ function FirstStartPage() {
   const handleHandyConnect = async () => {
     if (handyConnected) {
       await handyDisconnect();
+      return;
+    }
+    if (handyProvider === "intiface") {
+      await handyConnectIntiface(inputIntifaceUrl.trim() || DEFAULT_INTIFACE_WEBSOCKET_URL);
       return;
     }
     await handyConnect(handyInputKey.trim());
@@ -2347,28 +2362,99 @@ function FirstStartPage() {
                         )}
                       </div>
                       <p className="text-sm text-zinc-400">
-                        <Trans>Enter your Handy connection key to enable synchronized motion.</Trans>
+                        <Trans>
+                          Connect a haptics device for synchronized motion. Choose TheHandy or Intiface below.
+                        </Trans>
                       </p>
-                      <div className="mt-3 flex flex-col gap-2">
-                        <label
-                          className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
-                          htmlFor="first-start-handy-key"
-                        >
-                          <Trans>Connection Key</Trans>
-                        </label>
-                        <input
-                          id="first-start-handy-key"
-                          type="text"
-                          value={handyInputKey}
-                          onChange={(event) => setHandyInputKey(event.target.value)}
-                          placeholder={t`Enter connection key from Handy app`}
+
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
                           disabled={handyConnected || handyIsConnecting}
-                          className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20 disabled:opacity-60"
-                        />
+                          onClick={() => {
+                            playSelectSound();
+                            void setHandyProvider("thehandy");
+                          }}
+                          className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                            handyProvider === "thehandy"
+                              ? "border-violet-300/60 bg-violet-500/30 text-violet-100"
+                              : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
+                          }`}
+                        >
+                          <Trans>TheHandy</Trans>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={handyConnected || handyIsConnecting}
+                          onClick={() => {
+                            playSelectSound();
+                            void setHandyProvider("intiface");
+                          }}
+                          className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                            handyProvider === "intiface"
+                              ? "border-cyan-300/60 bg-cyan-500/25 text-cyan-100"
+                              : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
+                          }`}
+                        >
+                          <Trans>Intiface</Trans>
+                        </button>
                       </div>
-                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 mt-3 text-xs font-[family-name:var(--font-jetbrains-mono)] text-amber-200">
-                        <Trans>Only firmware version 4 and up is supported.</Trans>
-                      </div>
+
+                      {handyProvider === "intiface" ? (
+                        <>
+                          <div className="mt-3 flex flex-col gap-2">
+                            <label
+                              className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                              htmlFor="first-start-intiface-url"
+                            >
+                              <Trans>Intiface WebSocket URL</Trans>
+                            </label>
+                            <input
+                              id="first-start-intiface-url"
+                              type="text"
+                              value={inputIntifaceUrl}
+                              onChange={(event) => setInputIntifaceUrl(event.target.value)}
+                              placeholder={DEFAULT_INTIFACE_WEBSOCKET_URL}
+                              disabled={handyConnected || handyIsConnecting}
+                              className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-3 text-sm text-white outline-none transition-all focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-60"
+                            />
+                          </div>
+                          <p className="mt-2 text-xs text-zinc-400">
+                            <Trans>
+                              Start Intiface Central, start its server, then connect to a linear/position-capable device.
+                            </Trans>
+                          </p>
+                          {intifaceDeviceName && handyConnected && (
+                            <p className="mt-1 text-xs text-cyan-100">
+                              <Trans>Selected device</Trans>: {intifaceDeviceName}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="mt-3 flex flex-col gap-2">
+                            <label
+                              className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                              htmlFor="first-start-handy-key"
+                            >
+                              <Trans>Connection Key</Trans>
+                            </label>
+                            <input
+                              id="first-start-handy-key"
+                              type="text"
+                              value={handyInputKey}
+                              onChange={(event) => setHandyInputKey(event.target.value)}
+                              placeholder={t`Enter connection key from Handy app`}
+                              disabled={handyConnected || handyIsConnecting}
+                              className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20 disabled:opacity-60"
+                            />
+                          </div>
+                          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 mt-3 text-xs font-[family-name:var(--font-jetbrains-mono)] text-amber-200">
+                            <Trans>Only firmware version 4 and up is supported.</Trans>
+                          </div>
+                        </>
+                      )}
+
                       {handyError && (
                         <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-200">
                           <span>⚠</span>
@@ -2377,7 +2463,13 @@ function FirstStartPage() {
                       )}
                       <button
                         type="button"
-                        disabled={handyIsConnecting || (!handyConnected && !handyInputKey.trim())}
+                        disabled={
+                          handyIsConnecting ||
+                          (!handyConnected &&
+                            (handyProvider === "thehandy"
+                              ? !handyInputKey.trim()
+                              : !inputIntifaceUrl.trim()))
+                        }
                         onMouseEnter={playHoverSound}
                         onClick={() => {
                           playSelectSound();

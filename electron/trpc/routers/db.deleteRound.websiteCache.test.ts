@@ -71,6 +71,10 @@ function extractSqlParams(input: unknown): unknown[] {
   return values;
 }
 
+function createRendererCaller() {
+  return dbRouter.createCaller({ event: { sender: {} } } as never);
+}
+
 describe("dbRouter deleteRound website cache cleanup", () => {
   let roundsById: Map<string, RoundRow>;
   let resourcesById: Map<string, ResourceRow>;
@@ -83,16 +87,22 @@ describe("dbRouter deleteRound website cache cleanup", () => {
       ["round-2", { id: "round-2", name: "Other Round" }],
     ]);
     resourcesById = new Map<string, ResourceRow>([
-      ["resource-1", {
-        id: "resource-1",
-        roundId: "round-1",
-        videoUri: "https://example.com/watch?v=1",
-      }],
-      ["resource-2", {
-        id: "resource-2",
-        roundId: "round-2",
-        videoUri: "file:///tmp/local.mp4",
-      }],
+      [
+        "resource-1",
+        {
+          id: "resource-1",
+          roundId: "round-1",
+          videoUri: "https://example.com/watch?v=1",
+        },
+      ],
+      [
+        "resource-2",
+        {
+          id: "resource-2",
+          roundId: "round-2",
+          videoUri: "file:///tmp/local.mp4",
+        },
+      ],
     ]);
 
     getDbMock.mockReturnValue({
@@ -112,20 +122,41 @@ describe("dbRouter deleteRound website cache cleanup", () => {
                 .map((entry) => ({ videoUri: entry.videoUri })),
             };
           }),
+          findMany: vi.fn(async (input: { where: unknown }) => {
+            const ids = new Set(
+              extractSqlParams(input.where).filter(
+                (value): value is string => typeof value === "string"
+              )
+            );
+            return [...roundsById.values()]
+              .filter((entry) => ids.has(entry.id))
+              .map((entry) => ({
+                ...entry,
+                resources: [...resourcesById.values()]
+                  .filter((resourceEntry) => resourceEntry.roundId === entry.id)
+                  .map((resourceEntry) => ({ videoUri: resourceEntry.videoUri })),
+              }));
+          }),
         },
         resource: {
-          findMany: vi.fn(async () => [...resourcesById.values()].map((entry) => ({ videoUri: entry.videoUri }))),
+          findMany: vi.fn(async () =>
+            [...resourcesById.values()].map((entry) => ({ videoUri: entry.videoUri }))
+          ),
         },
       },
       delete: vi.fn((table: unknown) => ({
         where: async (whereClause: unknown) => {
-          const [id] = extractSqlParams(whereClause);
-          const deleteId = typeof id === "string" ? id : "round-1";
+          const ids = extractSqlParams(whereClause).filter(
+            (value): value is string => typeof value === "string"
+          );
+          const deleteIds = ids.length > 0 ? ids : ["round-1"];
           if (table === roundTable) {
-            roundsById.delete(deleteId);
-            for (const [resourceId, entry] of resourcesById.entries()) {
-              if (entry.roundId === deleteId) {
-                resourcesById.delete(resourceId);
+            for (const deleteId of deleteIds) {
+              roundsById.delete(deleteId);
+              for (const [resourceId, entry] of resourcesById.entries()) {
+                if (entry.roundId === deleteId) {
+                  resourcesById.delete(resourceId);
+                }
               }
             }
           }
@@ -136,7 +167,7 @@ describe("dbRouter deleteRound website cache cleanup", () => {
   });
 
   it("removes website cache when deleting the last round that references it", async () => {
-    const caller = dbRouter.createCaller({} as never);
+    const caller = createRendererCaller();
 
     await expect(caller.deleteRound({ id: "round-1" })).resolves.toEqual({ deleted: true });
 
@@ -150,9 +181,51 @@ describe("dbRouter deleteRound website cache cleanup", () => {
       videoUri: "https://example.com/watch?v=1",
     });
 
-    const caller = dbRouter.createCaller({} as never);
+    const caller = createRendererCaller();
     await expect(caller.deleteRound({ id: "round-1" })).resolves.toEqual({ deleted: true });
 
     expect(removeCachedWebsiteVideoMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes multiple rounds and reports missing ids", async () => {
+    resourcesById.set("resource-3", {
+      id: "resource-3",
+      roundId: "round-2",
+      videoUri: "https://example.com/watch?v=2",
+    });
+
+    const caller = createRendererCaller();
+    await expect(
+      caller.deleteRounds({ ids: ["round-1", "round-1", "round-2", "missing-round"] })
+    ).resolves.toEqual({
+      deleted: true,
+      deletedCount: 2,
+      requestedCount: 3,
+      missingIds: ["missing-round"],
+    });
+
+    expect(roundsById.has("round-1")).toBe(false);
+    expect(roundsById.has("round-2")).toBe(false);
+    expect(removeCachedWebsiteVideoMock).toHaveBeenCalledWith("https://example.com/watch?v=1");
+    expect(removeCachedWebsiteVideoMock).toHaveBeenCalledWith("https://example.com/watch?v=2");
+  });
+
+  it("keeps shared website cache when bulk deletion leaves another reference", async () => {
+    roundsById.set("round-3", { id: "round-3", name: "Remaining Website Round" });
+    resourcesById.set("resource-3", {
+      id: "resource-3",
+      roundId: "round-3",
+      videoUri: "https://example.com/watch?v=1",
+    });
+
+    const caller = createRendererCaller();
+    await expect(caller.deleteRounds({ ids: ["round-1", "round-2"] })).resolves.toEqual({
+      deleted: true,
+      deletedCount: 2,
+      requestedCount: 2,
+      missingIds: [],
+    });
+
+    expect(removeCachedWebsiteVideoMock).not.toHaveBeenCalledWith("https://example.com/watch?v=1");
   });
 });

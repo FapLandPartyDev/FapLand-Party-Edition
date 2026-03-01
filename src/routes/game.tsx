@@ -9,7 +9,7 @@ import {
   getMapEditorTestPlaylistId,
   setMapEditorTestSession,
 } from "../features/map-editor/testSession";
-import { createInitialGameState } from "../game/engine";
+import { createInitialGameState, isEndlessMode } from "../game/engine";
 import { filterPerkIdsByGameplayCapabilities } from "../game/data/perks";
 import { toGameConfigFromPlaylist } from "../game/playlistRuntime";
 import { ZSinglePlayerRunSaveSnapshot, type SinglePlayerRunSaveSnapshot } from "../game/saveSchema";
@@ -738,6 +738,7 @@ function GameRoute() {
         initialShowAntiPerkBeatbar={antiPerkBeatbarEnabled}
         applyPerkDirectly={applyPerkDirectly}
         onApplyPerkDirectlyChange={handleApplyPerkDirectlyChange}
+        endlessMode={isEndlessMode(initialState)}
       />
     </BlockCommandPalette>
   );

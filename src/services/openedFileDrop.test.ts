@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { registerGlobalOpenedFileDropHandler } from "./openedFileDrop";
 
+vi.mock("../components/GlobalDragOverlay", () => ({
+  requestDropConfirmation: vi.fn(async () => true),
+  setDragActive: vi.fn(),
+}));
+
 const originalElectronAPI = window.electronAPI;
 let cleanup: UpdateUnsubscribe | undefined;
 
@@ -29,7 +34,7 @@ describe("registerGlobalOpenedFileDropHandler", () => {
     window.electronAPI = originalElectronAPI;
   });
 
-  it("prevents browser navigation and opens dropped files", () => {
+  it("prevents browser navigation and opens dropped files", async () => {
     cleanup = registerGlobalOpenedFileDropHandler();
     const files = [new File(["content"], "demo.fpack")];
     const event = createFileEvent("drop", {
@@ -40,8 +45,9 @@ describe("registerGlobalOpenedFileDropHandler", () => {
     window.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(true);
-    expect(window.electronAPI.appOpen.openDroppedFiles).toHaveBeenCalledWith(files);
-
+    await vi.waitFor(() => {
+      expect(window.electronAPI.appOpen.openDroppedFiles).toHaveBeenCalledWith(files);
+    });
   });
 
   it("sets copy drop effect while dragging files over the app", () => {
@@ -57,7 +63,6 @@ describe("registerGlobalOpenedFileDropHandler", () => {
 
     expect(event.defaultPrevented).toBe(true);
     expect(dataTransfer.dropEffect).toBe("copy");
-
   });
 
   it("does not intercept non-file drops", () => {
@@ -71,6 +76,5 @@ describe("registerGlobalOpenedFileDropHandler", () => {
 
     expect(event.defaultPrevented).toBe(false);
     expect(window.electronAPI.appOpen.openDroppedFiles).not.toHaveBeenCalled();
-
   });
 });

@@ -296,6 +296,10 @@ export function collectPlaylistRefs(config: PlaylistConfig): PlaylistRefEntry[] 
     return [...normalOrder, ...normalByIndex, ...cumRefs];
   }
 
+  if (config.boardConfig.mode === "endless") {
+    return [];
+  }
+
   const nodeRefs = config.boardConfig.nodes
     .filter((node) => Boolean(node.roundRef))
     .map((node) => ({
@@ -443,6 +447,10 @@ export function applyPlaylistResolutionMapping<T extends PlaylistResolutionRound
       return round ? toPortableRoundRefFromRound(round) : ref;
     });
 
+    return nextConfig;
+  }
+
+  if (nextConfig.boardConfig.mode === "endless") {
     return nextConfig;
   }
 

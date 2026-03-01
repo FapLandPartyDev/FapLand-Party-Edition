@@ -37,14 +37,15 @@ import {
   type PlaybackResource,
 } from "../../game/media/playback";
 import {
-  issueHandySession,
-  pauseHandyPlayback,
-  preloadHspScript,
-  resumeHandyPlayback,
-  sendHspSync,
-  stopHandyPlayback,
-  type HandySession,
-} from "../../services/thehandy/runtime";
+  createHapticsSession,
+  pauseHapticsPlayback,
+  preloadHapticsScript,
+  resumeHapticsPlayback,
+  sendHapticsSync,
+  stopHapticsPlayback,
+  type AnyHapticsSession,
+  type HapticsConnectionConfig,
+} from "../../services/haptics/runtime";
 import {
   playDiceResultSound,
   playHoverSound,
@@ -420,9 +421,17 @@ export function RoundVideoOverlay({
   );
   const { playRandomOneShot, startContinuousLoop, stopContinuousLoop } = useGameplayMoaning();
   const {
+    provider: hapticsProvider,
     connectionKey,
     appApiKey,
+    appApiKeyOverride,
+    localIp,
+    intifaceWebsocketUrl,
+    intifaceDeviceName,
+    intifaceDeviceIndex,
     offsetMs,
+    strokeMin,
+    strokeMax,
     connected: handyConnected,
     manuallyStopped: handyManuallyStopped,
     setSyncStatus,
@@ -479,8 +488,8 @@ export function RoundVideoOverlay({
   const needsMainWindowSeekRef = useRef(false);
   const missingMediaCloseHandledRef = useRef(false);
 
-  const handySessionRef = useRef<HandySession | null>(null);
-  const handyInitPromiseRef = useRef<Promise<HandySession | null> | null>(null);
+  const handySessionRef = useRef<AnyHapticsSession | null>(null);
+  const handyInitPromiseRef = useRef<Promise<AnyHapticsSession | null> | null>(null);
   const handyPushInFlightRef = useRef(false);
   const handyLastPushAtRef = useRef(0);
   const handyLastPushPosRef = useRef<number | null>(null);
@@ -827,13 +836,50 @@ export function RoundVideoOverlay({
     Boolean(activeSegmentResource?.funscriptUri) &&
     timelineUri === activeSegmentResource?.funscriptUri &&
     (timeline?.actions.length ?? 0) > 0;
+  const hapticsConfig = useMemo<HapticsConnectionConfig>(() => {
+    if (hapticsProvider === "intiface") {
+      return {
+        provider: "intiface",
+        websocketUrl: intifaceWebsocketUrl,
+        deviceName: intifaceDeviceName,
+        deviceIndex: intifaceDeviceIndex,
+        stroke: {
+          min: strokeMin,
+          max: strokeMax,
+          minAbsolute: null,
+          maxAbsolute: null,
+        },
+      };
+    }
+
+    return {
+      provider: "thehandy",
+      connectionKey: connectionKey.trim(),
+      appApiKey: appApiKey.trim(),
+      appApiKeyOverride,
+      localIp,
+    };
+  }, [
+    appApiKey,
+    appApiKeyOverride,
+    connectionKey,
+    hapticsProvider,
+    intifaceDeviceIndex,
+    intifaceDeviceName,
+    intifaceWebsocketUrl,
+    localIp,
+    strokeMax,
+    strokeMin,
+  ]);
+  const hasRequiredHapticsConnection =
+    hapticsProvider === "intiface" ||
+    (connectionKey.trim().length > 0 && appApiKey.trim().length > 0);
 
   const shouldUseHandySync =
     hasUsableActiveTimeline &&
     handyConnected &&
     !handyManuallyStopped &&
-    connectionKey.trim().length > 0 &&
-    appApiKey.trim().length > 0;
+    hasRequiredHapticsConnection;
   const isWaitingForHandyStart = shouldUseHandySync && handySyncState !== "synced";
   const shouldGatePlaybackForHandyStart =
     shouldUseHandySync &&
@@ -843,8 +889,8 @@ export function RoundVideoOverlay({
     handySyncState === "error"
       ? t`The device reported a sync error. Retrying handshake...`
       : handySyncState === "connecting"
-        ? t`Aligning timeline with TheHandy before playback starts.`
-        : t`Preparing TheHandy synchronization.`;
+        ? t`Aligning timeline with haptics before playback starts.`
+        : t`Preparing haptics synchronization.`;
   const isOnlyNoRest = useMemo(
     () => idleBoardSequence === "no-rest" && !activeRound && !boardSequence,
     [idleBoardSequence, activeRound, boardSequence]
@@ -996,43 +1042,31 @@ export function RoundVideoOverlay({
 
   const stopHandyIfNeeded = useCallback(async () => {
     if (!handyConnected) return;
-    if (!connectionKey.trim() || !appApiKey.trim()) return;
+    if (!hasRequiredHapticsConnection) return;
     const session = handySessionRef.current;
     if (!session) return;
     try {
-      await stopHandyPlayback(
-        {
-          connectionKey: connectionKey.trim(),
-          appApiKey: appApiKey.trim(),
-        },
-        session
-      );
+      await stopHapticsPlayback(hapticsConfig, session);
     } catch {
       // ignore teardown failures
     }
-  }, [appApiKey, connectionKey, handyConnected]);
+  }, [handyConnected, hapticsConfig, hasRequiredHapticsConnection]);
 
   const pauseHandyIfNeeded = useCallback(async () => {
     if (!handyConnected) return;
-    if (!connectionKey.trim() || !appApiKey.trim()) return;
+    if (!hasRequiredHapticsConnection) return;
     const session = handySessionRef.current;
     if (!session) return;
     try {
-      await pauseHandyPlayback(
-        {
-          connectionKey: connectionKey.trim(),
-          appApiKey: appApiKey.trim(),
-        },
-        session
-      );
+      await pauseHapticsPlayback(hapticsConfig, session);
     } catch {
       // ignore teardown failures
     }
-  }, [appApiKey, connectionKey, handyConnected]);
+  }, [handyConnected, hapticsConfig, hasRequiredHapticsConnection]);
 
   const resumeHandyIfNeeded = useCallback(async () => {
     if (!handyConnected) return;
-    if (!connectionKey.trim() || !appApiKey.trim()) return;
+    if (!hasRequiredHapticsConnection) return;
     if (handyManuallyStoppedRef.current) return;
     const session = handySessionRef.current;
     if (!session) return;
@@ -1045,30 +1079,22 @@ export function RoundVideoOverlay({
       const playbackRate = video.playbackRate ?? 1;
       if (handyManuallyStoppedRef.current) return;
 
-      await resumeHandyPlayback(
-        {
-          connectionKey: connectionKey.trim(),
-          appApiKey: appApiKey.trim(),
-        },
-        session,
-        effectiveTimeMs,
-        playbackRate
-      );
+      await resumeHapticsPlayback(hapticsConfig, session, effectiveTimeMs, playbackRate);
     } catch {
       // ignore resume failures
     }
   }, [
-    appApiKey,
     applyHandyOffsetMs,
-    connectionKey,
     handyConnected,
     handyManuallyStopped,
+    hapticsConfig,
+    hasRequiredHapticsConnection,
     segment.kind,
   ]);
 
-  const ensureHandySession = useCallback(async (): Promise<HandySession | null> => {
+  const ensureHandySession = useCallback(async (): Promise<AnyHapticsSession | null> => {
     if (!handyConnected) return null;
-    if (!connectionKey.trim() || !appApiKey.trim()) return null;
+    if (!hasRequiredHapticsConnection) return null;
 
     const now = Date.now();
     const existing = handySessionRef.current;
@@ -1082,17 +1108,14 @@ export function RoundVideoOverlay({
     setHandySyncState("connecting");
     setHandySyncError(null);
 
-    const initPromise = issueHandySession({
-      connectionKey: connectionKey.trim(),
-      appApiKey: appApiKey.trim(),
-    })
+    const initPromise = createHapticsSession(hapticsConfig)
       .then((session) => {
         handySessionRef.current = session;
         return session;
       })
       .catch((error) => {
         const message =
-          error instanceof Error ? error.message : t`Failed to initialize TheHandy session.`;
+          error instanceof Error ? error.message : t`Failed to initialize haptics session.`;
         resetHandySync("error", message);
         return null;
       })
@@ -1102,7 +1125,7 @@ export function RoundVideoOverlay({
 
     handyInitPromiseRef.current = initPromise;
     return initPromise;
-  }, [appApiKey, connectionKey, handyConnected, resetHandySync]);
+  }, [handyConnected, hapticsConfig, hasRequiredHapticsConnection, resetHandySync]);
 
   const createActiveAntiPerkSequenceUi = useCallback(
     (sequenceId: AntiPerkSequenceId): ActiveAntiPerkSequenceUi => {
@@ -1134,9 +1157,7 @@ export function RoundVideoOverlay({
     }) => {
       clearGeneratedSequenceTimer();
       if (!handyConnected) return;
-      const appKey = appApiKey.trim();
-      const connKey = connectionKey.trim();
-      if (!appKey || !connKey) return null;
+      if (!hasRequiredHapticsConnection) return null;
 
       const syncToken = generatedSequenceSyncTokenRef.current;
       const sourceId = `anti-${input.sequenceId}-${Date.now()}`;
@@ -1176,11 +1197,11 @@ export function RoundVideoOverlay({
             if (!preloadStarted) {
               preloadStarted = true;
               if (
-                session.loadedScriptId !== null ||
-                session.activeScriptId !== null ||
-                session.streamedPoints !== null
+                ("loadedScriptId" in session && session.loadedScriptId !== null) ||
+                ("activeScriptId" in session && session.activeScriptId !== null) ||
+                ("streamedPoints" in session && session.streamedPoints !== null)
               ) {
-                await stopHandyPlayback({ connectionKey: connKey, appApiKey: appKey }, session);
+                await stopHapticsPlayback(hapticsConfig, session);
                 if (
                   generatedSequenceSyncTokenRef.current !== syncToken ||
                   handyManuallyStoppedRef.current
@@ -1188,8 +1209,8 @@ export function RoundVideoOverlay({
                   return;
                 }
               }
-              await preloadHspScript(
-                { connectionKey: connKey, appApiKey: appKey },
+              await preloadHapticsScript(
+                hapticsConfig,
                 session,
                 sourceId,
                 input.actions,
@@ -1209,8 +1230,8 @@ export function RoundVideoOverlay({
             ) {
               return;
             }
-            await sendHspSync(
-              { connectionKey: connKey, appApiKey: appKey },
+            await sendHapticsSync(
+              hapticsConfig,
               session,
               effectiveElapsedMs,
               1,
@@ -1265,11 +1286,11 @@ export function RoundVideoOverlay({
       generatedSequenceTimerRef.current = window.setInterval(tick, HANDY_PUSH_INTERVAL_MS);
     },
     [
-      appApiKey,
       clearGeneratedSequenceTimer,
-      connectionKey,
       ensureHandySession,
       handyConnected,
+      hapticsConfig,
+      hasRequiredHapticsConnection,
       setSyncStatus,
     ]
   );
@@ -1425,6 +1446,29 @@ export function RoundVideoOverlay({
           video.muted = true;
           video.defaultMuted = true;
           setAwaitingPlaybackUnmute(true);
+          const restoreBlockedAutoplayAudio = () => {
+            window.removeEventListener("pointerdown", restoreBlockedAutoplayAudio, true);
+            window.removeEventListener("keydown", restoreBlockedAutoplayAudio, true);
+            video.muted = false;
+            video.defaultMuted = false;
+            video.volume = BOARD_VIDEO_VOLUME;
+            setAwaitingPlaybackUnmute(false);
+            if (video.paused) {
+              void video.play().catch((retryError) => {
+                if (!isIgnorableVideoPlayError(retryError)) {
+                  console.warn("Video autoplay failed", retryError);
+                }
+              });
+            }
+          };
+          window.addEventListener("pointerdown", restoreBlockedAutoplayAudio, {
+            once: true,
+            capture: true,
+          });
+          window.addEventListener("keydown", restoreBlockedAutoplayAudio, {
+            once: true,
+            capture: true,
+          });
           void video.play().catch((mutedError) => {
             if (!isIgnorableVideoPlayError(mutedError)) {
               console.warn("Video autoplay failed", mutedError);
@@ -1754,35 +1798,24 @@ export function RoundVideoOverlay({
       const effectiveTimeMs = applyHandyOffsetMs(timeMs);
       const playbackRate = video.playbackRate ?? 1;
 
-      if (!connectionKey.trim() || !appApiKey.trim()) {
+      if (!hasRequiredHapticsConnection) {
         setHandySyncState("missing-key");
-        setSyncStatus({ synced: false, error: t`Missing Application ID/API key for TheHandy v3.` });
-        setStatus(t`Cannot resync: missing Application ID/API key.`);
+        setSyncStatus({ synced: false, error: t`Missing haptics connection settings.` });
+        setStatus(t`Cannot resync: missing haptics connection settings.`);
         return;
       }
 
       const session = await ensureHandySession();
       if (!session || handyManuallyStoppedRef.current) {
-        setStatus(t`Failed to initialize TheHandy session for resync.`);
+        setStatus(t`Failed to initialize haptics session for resync.`);
         return;
       }
 
-      session.lastSyncAtMs = 0;
-      await preloadHspScript(
-        {
-          connectionKey: connectionKey.trim(),
-          appApiKey: appApiKey.trim(),
-        },
-        session,
-        `${activeVideoUri}:${segment.kind}`,
-        actions
-      );
+      if ("lastSyncAtMs" in session) session.lastSyncAtMs = 0;
+      await preloadHapticsScript(hapticsConfig, session, `${activeVideoUri}:${segment.kind}`, actions);
       if (handyManuallyStoppedRef.current) return;
-      await sendHspSync(
-        {
-          connectionKey: connectionKey.trim(),
-          appApiKey: appApiKey.trim(),
-        },
+      await sendHapticsSync(
+        hapticsConfig,
         session,
         effectiveTimeMs,
         playbackRate,
@@ -1798,11 +1831,11 @@ export function RoundVideoOverlay({
       setHandySyncState("synced");
       setHandySyncError(null);
       setSyncStatus({ synced: true, error: null });
-      setStatus(t`TheHandy timing resynced.`);
+      setStatus(t`Haptics timing resynced.`);
     } catch (error) {
       if (handyManuallyStoppedRef.current) return;
       const message =
-        error instanceof Error ? error.message : t`Failed to resync timing with TheHandy.`;
+        error instanceof Error ? error.message : t`Failed to resync timing with haptics.`;
       setHandySyncState("error");
       setHandySyncError(message);
       setSyncStatus({ synced: false, error: message });
@@ -1812,9 +1845,9 @@ export function RoundVideoOverlay({
     activeRound,
     activeVideoUri,
     applyHandyOffsetMs,
-    appApiKey,
-    connectionKey,
     ensureHandySession,
+    hapticsConfig,
+    hasRequiredHapticsConnection,
     segment.kind,
     setSyncStatus,
     shouldUseHandySync,
@@ -1868,31 +1901,19 @@ export function RoundVideoOverlay({
       const effectiveTimeMs = applyHandyOffsetMs(timeMs);
       const playbackRate = video.playbackRate ?? 1;
 
-      if (!connectionKey.trim() || !appApiKey.trim()) {
+      if (!hasRequiredHapticsConnection) {
         setHandySyncState("missing-key");
-        setSyncStatus({ synced: false, error: t`Missing Application ID/API key for TheHandy v3.` });
+        setSyncStatus({ synced: false, error: t`Missing haptics connection settings.` });
         return false;
       }
 
       const session = await ensureHandySession();
       if (!session || handyManuallyStoppedRef.current) return false;
 
-      await preloadHspScript(
-        {
-          connectionKey: connectionKey.trim(),
-          appApiKey: appApiKey.trim(),
-        },
-        session,
-        `${activeVideoUri}:${segment.kind}`,
-        actions,
-        effectiveTimeMs
-      );
+      await preloadHapticsScript(hapticsConfig, session, `${activeVideoUri}:${segment.kind}`, actions, effectiveTimeMs);
       if (handyManuallyStoppedRef.current) return false;
-      await sendHspSync(
-        {
-          connectionKey: connectionKey.trim(),
-          appApiKey: appApiKey.trim(),
-        },
+      await sendHapticsSync(
+        hapticsConfig,
         session,
         effectiveTimeMs,
         playbackRate,
@@ -1914,7 +1935,7 @@ export function RoundVideoOverlay({
     } catch (error) {
       if (handyManuallyStoppedRef.current) return false;
       const message =
-        error instanceof Error ? error.message : t`Failed to initialize TheHandy sync.`;
+        error instanceof Error ? error.message : t`Failed to initialize haptics sync.`;
       setHandySyncState("error");
       setHandySyncError(message);
       setSyncStatus({ synced: false, error: message });
@@ -1929,9 +1950,9 @@ export function RoundVideoOverlay({
     activeSegmentResource?.funscriptUri,
     activeVideoUri,
     applyHandyOffsetMs,
-    appApiKey,
-    connectionKey,
     ensureHandySession,
+    hapticsConfig,
+    hasRequiredHapticsConnection,
     isIntermediaryScreenActive,
     resolveMainWindowForDuration,
     segment.kind,
@@ -2707,16 +2728,16 @@ export function RoundVideoOverlay({
       resetHandySync("disconnected", null);
       return;
     }
-    if (!appApiKey.trim()) {
+    if (!hasRequiredHapticsConnection) {
       handyBootstrapKeyRef.current = null;
       handyBootstrapInFlightRef.current = null;
-      resetHandySync("missing-key", t`Missing Application ID/API key for TheHandy v3.`);
+      resetHandySync("missing-key", t`Missing haptics connection settings.`);
       return;
     }
     setHandySyncState("connecting");
     setHandySyncError(null);
     setSyncStatus({ synced: false, error: null });
-  }, [appApiKey, handyConnected, resetHandySync, setSyncStatus]);
+  }, [handyConnected, hasRequiredHapticsConnection, resetHandySync, setSyncStatus]);
 
   useEffect(() => {
     if (!handyManuallyStopped) return;
@@ -2782,20 +2803,17 @@ export function RoundVideoOverlay({
     let cancelled = false;
     void (async () => {
       try {
-        if (!connectionKey.trim() || !appApiKey.trim()) return;
+        if (!hasRequiredHapticsConnection) return;
         const session = await ensureHandySession();
         if (!session || cancelled) return;
 
-        // The intermediary's sendHspSync will have overwritten loadedScriptId
+        // The intermediary's sendHapticsSync will have overwritten loadedScriptId
         // with the intermediary's script. Force a fresh upload of the main
         // script by clearing the stale ID before preloading.
-        session.loadedScriptId = null;
+        if ("loadedScriptId" in session) session.loadedScriptId = null;
 
-        await preloadHspScript(
-          {
-            connectionKey: connectionKey.trim(),
-            appApiKey: appApiKey.trim(),
-          },
+        await preloadHapticsScript(
+          hapticsConfig,
           session,
           `${resolvedMainResource.videoUri}:main`,
           mainActions,
@@ -2811,9 +2829,9 @@ export function RoundVideoOverlay({
       cancelled = true;
     };
   }, [
-    appApiKey,
-    connectionKey,
     ensureHandySession,
+    hapticsConfig,
+    hasRequiredHapticsConnection,
     isIntermediaryScreenActive,
     loadingLabel,
     mainResourceDurationSec,
@@ -2911,18 +2929,13 @@ export function RoundVideoOverlay({
       void (async () => {
         try {
           if (handyManuallyStoppedRef.current) return;
-          if (!connectionKey.trim() || !appApiKey.trim()) return;
+          if (!hasRequiredHapticsConnection) return;
 
           const session = await ensureHandySession();
           if (!session || handyManuallyStoppedRef.current) return;
 
-          const syncPayload = {
-            connectionKey: connectionKey.trim(),
-            appApiKey: appApiKey.trim(),
-          };
-
-          await sendHspSync(
-            syncPayload,
+          await sendHapticsSync(
+            hapticsConfig,
             session,
             effectiveTimeMs,
             playbackRate,
@@ -2942,7 +2955,7 @@ export function RoundVideoOverlay({
         } catch (error) {
           if (handyManuallyStoppedRef.current) return;
           const message =
-            error instanceof Error ? error.message : t`Failed to stream sync position to TheHandy.`;
+            error instanceof Error ? error.message : t`Failed to stream sync position to haptics.`;
           setHandySyncState("error");
           setHandySyncError(message);
           setSyncStatus({ synced: false, error: message });
@@ -2960,10 +2973,10 @@ export function RoundVideoOverlay({
     activeRound,
     activeVideoUri,
     applyHandyOffsetMs,
-    appApiKey,
-    connectionKey,
     ensureHandySession,
     handyManuallyStopped,
+    hapticsConfig,
+    hasRequiredHapticsConnection,
     isIntermediaryScreenActive,
     segment.kind,
     setSyncStatus,

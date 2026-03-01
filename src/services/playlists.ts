@@ -39,4 +39,5 @@ export const playlists = {
   recordRoundPlay: (input: { playlistId: string; roundId: string; nodeId?: string | null; poolId?: string | null }) =>
     trpc.playlist.recordRoundPlay.mutate(input),
   getDistinctPlayedByPool: (playlistId: string) => trpc.playlist.getDistinctPlayedByPool.query({ playlistId }),
+  ensureEndless: () => trpc.playlist.ensureEndless.mutate(),
 };

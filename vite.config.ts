@@ -160,7 +160,7 @@ export default defineConfig(({ command, mode }) => {
             build: {
               minify: isReleaseBuild ? "terser" : "esbuild",
               sourcemap: false,
-              target: "node20",
+              target: "node24",
               terserOptions: isReleaseBuild ? releaseTerserOptions : undefined,
               rollupOptions: {
                 external: ["@libsql/client"],
@@ -176,7 +176,7 @@ export default defineConfig(({ command, mode }) => {
             build: {
               minify: isReleaseBuild ? "terser" : "esbuild",
               sourcemap: false,
-              target: "node20",
+              target: "node24",
               terserOptions: isReleaseBuild ? releaseTerserOptions : undefined,
               rollupOptions: {
                 plugins: preloadObfuscationPlugin ? [preloadObfuscationPlugin] : [],

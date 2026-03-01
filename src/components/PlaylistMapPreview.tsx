@@ -36,6 +36,17 @@ function getPreviewGraph(config: PlaylistConfig) {
   if (config.boardConfig.mode === "graph") {
     return toEditorGraphConfig(config.boardConfig);
   }
+  if (config.boardConfig.mode === "endless") {
+    return layoutLinearGraphFromPlaylist({
+      mode: "linear",
+      totalIndices: config.boardConfig.initialBatchSize,
+      safePointIndices: [],
+      safePointRestMsByIndex: {},
+      normalRoundRefsByIndex: {},
+      normalRoundOrder: [],
+      cumRoundRefs: [],
+    });
+  }
   return layoutLinearGraphFromPlaylist(config.boardConfig);
 }
 
