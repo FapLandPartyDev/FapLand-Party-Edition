@@ -11,6 +11,7 @@ import {
 import { useHandy } from "../contexts/HandyContext";
 import {
   subscribeToGlobalHandyOverlayOpen,
+  subscribeToSaveOffsetAvailability,
   getSaveOffsetToRoundCallback,
 } from "./globalHandyOverlayControls";
 import { HandyStrokeRangeControl } from "./HandyStrokeRangeControl";
@@ -111,10 +112,7 @@ export function GlobalHandyOverlay() {
   }, [t]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setHasSaveOffsetToRound(getSaveOffsetToRoundCallback() !== null);
-    }, 500);
-    return () => clearInterval(interval);
+    return subscribeToSaveOffsetAvailability(setHasSaveOffsetToRound);
   }, []);
 
   const commitStrokeSlider = useCallback(

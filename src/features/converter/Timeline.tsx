@@ -1,4 +1,4 @@
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import React, { useEffect, useMemo, useState, type RefObject } from "react";
 import { useSfwMode } from "../../hooks/useSfwMode";
 import { playHoverSound } from "../../utils/audio";
@@ -85,6 +85,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(
     onZoomChange,
   }) => {
     const sfwMode = useSfwMode();
+    const { t } = useLingui();
     const waveformPath = useMemo(
       () => buildWaveformPath(funscriptActions, durationMs, timelineWidthPx),
       [funscriptActions, durationMs, timelineWidthPx]
@@ -151,7 +152,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(
                     event.currentTarget.blur();
                   }
                 }}
-                aria-label="Timeline zoom"
+                aria-label={t`Timeline zoom`}
                 className="w-16 border-0 bg-transparent text-right font-medium text-zinc-100 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <span className="text-zinc-500">px/s</span>
@@ -324,7 +325,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(
                 return (
                   <div
                     key={`${segment.id}-${cut.id}`}
-                    aria-label="Cut range"
+                    aria-label={t`Cut range`}
                     data-cut-segment-id={segment.id}
                     data-cut-lane={lane}
                     className="pointer-events-none absolute rounded border border-rose-200/70 bg-[repeating-linear-gradient(135deg,rgba(244,63,94,0.42)_0,rgba(244,63,94,0.42)_6px,rgba(127,29,29,0.22)_6px,rgba(127,29,29,0.22)_12px)]"

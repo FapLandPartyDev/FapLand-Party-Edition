@@ -143,6 +143,8 @@ vi.mock("pixi.js", () => {
 
     async init() {}
 
+    render() {}
+
     destroy() {}
   }
 
@@ -454,7 +456,7 @@ describe("GameScene keyboard perk selection", () => {
     cleanup();
   });
 
-  async function renderScene() {
+  async function renderScene(onReady?: () => void) {
     const initialState = createInitialGameState(makeConfig());
     currentState ??= initialState;
     const view = render(
@@ -468,6 +470,7 @@ describe("GameScene keyboard perk selection", () => {
           intermediaryLoadingDurationSec={5}
           intermediaryReturnPauseSec={4}
           onApplyPerkDirectlyChange={vi.fn()}
+          onReady={onReady}
         />
       </ControllerProvider>
     );
@@ -475,6 +478,14 @@ describe("GameScene keyboard perk selection", () => {
     flushAnimationFrames();
     return view;
   }
+
+  it("reports readiness after Pixi renders its first complete frame", async () => {
+    const onReady = vi.fn();
+
+    await renderScene(onReady);
+
+    expect(onReady).toHaveBeenCalledTimes(1);
+  });
 
   it("resets perk selection to the first option when a new prompt opens", async () => {
     currentState = withPendingPerkSelection(createInitialGameState(makeConfig()), [

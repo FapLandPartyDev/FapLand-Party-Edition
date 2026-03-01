@@ -1265,21 +1265,40 @@ function drawBackground(g: Graphics, w: number, h: number, t: number): void {
   }
 
   // Draw Constellation Lines + Nodes
+  const grid = new Map<string, number[]>();
+  const cellSize = maxDist;
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]!;
+    const cellX = Math.floor(node.x / cellSize);
+    const cellY = Math.floor(node.y / cellSize);
+    const key = `${cellX}:${cellY}`;
+    const entries = grid.get(key);
+    if (entries) entries.push(i);
+    else grid.set(key, [i]);
+  }
+  const maxDistSquared = maxDist * maxDist;
   for (let i = 0; i < numNodes; i++) {
     const n1 = nodes[i];
     if (!n1) continue;
-    for (let j = i + 1; j < numNodes; j++) {
-      const n2 = nodes[j];
-      if (!n2) continue;
-
-      const dx = n2.x - n1.x;
-      const dy = n2.y - n1.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist < maxDist) {
-        const alpha = Math.pow(1 - dist / maxDist, 2) * 0.55;
-        g.moveTo(n1.x, n1.y);
-        g.lineTo(n2.x, n2.y);
-        g.stroke({ color: blendColor(n1.c, n2.c, 0.5), alpha, width: 2.0 });
+    const cellX = Math.floor(n1.x / cellSize);
+    const cellY = Math.floor(n1.y / cellSize);
+    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+        const candidates = grid.get(`${cellX + offsetX}:${cellY + offsetY}`);
+        if (!candidates) continue;
+        for (const j of candidates) {
+          if (j <= i) continue;
+          const n2 = nodes[j]!;
+          const dx = n2.x - n1.x;
+          const dy = n2.y - n1.y;
+          const distanceSquared = dx * dx + dy * dy;
+          if (distanceSquared >= maxDistSquared) continue;
+          const dist = Math.sqrt(distanceSquared);
+          const alpha = Math.pow(1 - dist / maxDist, 2) * 0.55;
+          g.moveTo(n1.x, n1.y);
+          g.lineTo(n2.x, n2.y);
+          g.stroke({ color: blendColor(n1.c, n2.c, 0.5), alpha, width: 2.0 });
+        }
       }
     }
   }
@@ -1700,6 +1719,7 @@ interface GameSceneProps {
   hideInventoryButton?: boolean;
   controllerSupportEnabled?: boolean;
   endlessMode?: boolean;
+  onReady?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -1737,11 +1757,14 @@ export const GameScene = memo(function GameScene({
   hideInventoryButton = false,
   controllerSupportEnabled: initialControllerSupportEnabled = false,
   endlessMode = false,
+  onReady,
 }: GameSceneProps) {
   const { t } = useLingui();
   const sfwMode = useSfwMode();
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
   const {
     connected: handyConnected,
     manuallyStopped: handyManuallyStopped,
@@ -1826,10 +1849,8 @@ export const GameScene = memo(function GameScene({
   showNonCumOutcomeMenuRef.current = showNonCumOutcomeMenu;
   const [handyNotification, setHandyNotification] = useState<string | null>(null);
   const [roundPreviewState, setRoundPreviewState] = useState({ active: false, loading: false });
-  const [backgroundParallaxOffset, setBackgroundParallaxOffset] = useState({ x: 0, y: 0 });
-  const backgroundParallaxOffsetRef = useRef(backgroundParallaxOffset);
-  backgroundParallaxOffsetRef.current = backgroundParallaxOffset;
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const backgroundParallaxElementRef = useRef<HTMLDivElement | null>(null);
+  const backgroundParallaxOffsetRef = useRef({ x: 0, y: 0 });
   const [completedElapsedSec, setCompletedElapsedSec] = useState<number | null>(null);
   const [controllerPerkSelectionIndex, setControllerPerkSelectionIndex] = useState(0);
   const [highlightedPathEdgeId, setHighlightedPathEdgeId] = useState<string | null>(null);
@@ -1845,14 +1866,16 @@ export const GameScene = memo(function GameScene({
   );
   const highlightedPathEdgeIdRef = useRef<string | null>(highlightedPathEdgeId);
   highlightedPathEdgeIdRef.current = highlightedPathEdgeId;
-  const updateBackgroundParallaxOffset = useEffectEvent((next: { x: number; y: number }) => {
+  const updateBackgroundParallaxOffset = (next: { x: number; y: number }) => {
     const previous = backgroundParallaxOffsetRef.current;
     if (Math.abs(previous.x - next.x) < 0.5 && Math.abs(previous.y - next.y) < 0.5) return;
     backgroundParallaxOffsetRef.current = next;
-    setBackgroundParallaxOffset(next);
-  });
-  const nowMsRef = useRef(nowMs);
-  nowMsRef.current = nowMs;
+    const element = backgroundParallaxElementRef.current;
+    if (!element) return;
+    element.style.setProperty("--map-parallax-x", `${next.x}px`);
+    element.style.setProperty("--map-parallax-y", `${next.y}px`);
+  };
+  const nowMsRef = useRef(Date.now());
   const completedElapsedSecRef = useRef<number | null>(completedElapsedSec);
   completedElapsedSecRef.current = completedElapsedSec;
   const handyNotificationTimerRef = useRef<number | null>(null);
@@ -2113,18 +2136,16 @@ export const GameScene = memo(function GameScene({
 
     window.addEventListener("gamepadconnected", updateHasConnectedGamepad);
     window.addEventListener("gamepaddisconnected", updateHasConnectedGamepad);
-    const intervalId = window.setInterval(updateHasConnectedGamepad, 500);
 
     return () => {
       window.removeEventListener("gamepadconnected", updateHasConnectedGamepad);
       window.removeEventListener("gamepaddisconnected", updateHasConnectedGamepad);
-      window.clearInterval(intervalId);
     };
   }, [controllerSupportEnabled]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setNowMs(Date.now());
+      nowMsRef.current = Date.now();
     }, 1000);
     return () => {
       window.clearInterval(timer);
@@ -2633,11 +2654,12 @@ export const GameScene = memo(function GameScene({
     let H = container.clientHeight || window.innerHeight;
 
     const app = new Application();
-    let rafId: number;
+    let rafId = 0;
     let ro: ResizeObserver;
     let disposed = false;
     let destroyed = false;
     let initialized = false;
+    let removeVisibilityListener = () => undefined;
     const destroyApp = () => {
       if (destroyed) return;
       destroyed = true;
@@ -3777,9 +3799,14 @@ export const GameScene = memo(function GameScene({
           lastSeenSec: number;
         };
         const remoteMotionById = new Map<string, RemoteMotion>();
+        const activeTokenLabelIds = new Set<string>();
+        const seenRemoteIds = new Set<string>();
+        let hasReportedReady = false;
 
         const renderFrame = (now: number) => {
+          rafId = 0;
           if (disposed) return;
+          if (document.hidden) return;
           try {
             const rawDt = Math.max(0, (now - lastFrameTs) / 1000);
             // Clamp long stalls (tab switch, debugger pause) to avoid giant simulation jumps.
@@ -4072,7 +4099,7 @@ export const GameScene = memo(function GameScene({
             }
             const localTX = tokenDisplayPos.x;
             const localTY = tokenDisplayPos.y;
-            const activeTokenLabelIds = new Set<string>();
+            activeTokenLabelIds.clear();
 
             const localPlayerId = currentPlayer?.id ?? "local-player";
             const labelPlayerToken = (
@@ -4113,7 +4140,7 @@ export const GameScene = memo(function GameScene({
               localTY - tokenBob
             );
 
-            const seenRemoteIds = new Set<string>();
+            seenRemoteIds.clear();
             for (const remote of multiplayerRemotePlayersRef.current) {
               if (remote.id === localPlayerId) continue;
               const targetIndex = wrapIndex(Math.floor(remote.position), total);
@@ -4149,10 +4176,8 @@ export const GameScene = memo(function GameScene({
                     lastSeenSec: t,
                   };
                 } else {
-                  nextMotion = {
-                    ...existing,
-                    lastSeenSec: t,
-                  };
+                  existing.lastSeenSec = t;
+                  nextMotion = existing;
                 }
               }
               remoteMotionById.set(remote.id, nextMotion);
@@ -4771,17 +4796,41 @@ export const GameScene = memo(function GameScene({
               }
             }
 
+            if (!hasReportedReady) {
+              hasReportedReady = true;
+              app.render();
+              onReadyRef.current?.();
+            }
+
             rafId = requestAnimationFrame(renderFrame);
           } catch (error) {
             console.error("Pixi game scene render failed", error);
           }
         };
 
-        rafId = requestAnimationFrame((ts) => {
-          if (disposed) return;
-          lastFrameTs = ts;
-          renderFrame(ts);
-        });
+        const handleVisibilityChange = () => {
+          if (document.hidden) {
+            if (rafId !== 0) cancelAnimationFrame(rafId);
+            rafId = 0;
+            app.ticker.stop();
+            return;
+          }
+          app.ticker.start();
+          lastFrameTs = performance.now();
+          if (rafId === 0) rafId = requestAnimationFrame(renderFrame);
+        };
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        removeVisibilityListener = () =>
+          document.removeEventListener("visibilitychange", handleVisibilityChange);
+        if (document.hidden) {
+          app.ticker.stop();
+        } else {
+          rafId = requestAnimationFrame((ts) => {
+            if (disposed) return;
+            lastFrameTs = ts;
+            renderFrame(ts);
+          });
+        }
       } catch (error) {
         console.error("Pixi game scene init failed", error);
         destroyApp();
@@ -4791,6 +4840,7 @@ export const GameScene = memo(function GameScene({
     return () => {
       disposed = true;
       cancelAnimationFrame(rafId);
+      removeVisibilityListener();
       ro?.disconnect();
       destroyApp();
     };
@@ -4847,7 +4897,7 @@ export const GameScene = memo(function GameScene({
           state.runtimeMapOverrides.backgroundOverride ?? state.config.mapStyle?.background
         }
         className="z-0"
-        parallaxOffset={backgroundParallaxOffset}
+        containerRef={backgroundParallaxElementRef}
       />
       <div
         ref={containerRef}

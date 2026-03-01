@@ -122,8 +122,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     close: () => ipcRenderer.invoke("window:close") as Promise<boolean>,
   },
   performance: {
-    updateState: (state: { route: string; visible: boolean; idleSensitive: boolean }) =>
-      ipcRenderer.invoke("performance:updateState", state) as Promise<void>,
+    updateState: (state: {
+      route: string;
+      visible: boolean;
+      activity: "critical" | "interactive" | "idle";
+    }) => ipcRenderer.invoke("performance:updateState", state) as Promise<void>,
   },
   debug: {
     recordVideoEvent: (payload: Record<string, unknown>) =>
@@ -185,8 +188,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     },
   },
   gpuRecovery: {
-    consumeRecoveryHint: () =>
-      ipcRenderer.invoke("gpu:consumeRecoveryHint") as Promise<boolean>,
+    consumeRecoveryHint: () => ipcRenderer.invoke("gpu:consumeRecoveryHint") as Promise<boolean>,
     subscribe: (callback: (pending: boolean) => void) => {
       const listener = (_event: unknown, pending: boolean) => {
         callback(pending);
@@ -200,5 +202,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   startupRecovery: {
     enterRecovery: () => ipcRenderer.invoke("startup-recovery:enter") as Promise<void>,
     startNormally: () => ipcRenderer.invoke("startup-recovery:start-normal") as Promise<void>,
+    getStatus: () => ipcRenderer.invoke("startup-recovery:status"),
+    backupDatabase: () => ipcRenderer.invoke("startup-recovery:backup-database"),
+    repairDatabase: () => ipcRenderer.invoke("startup-recovery:repair-database"),
+    clearCaches: () => ipcRenderer.invoke("startup-recovery:clear-caches"),
+    resetSettings: () => ipcRenderer.invoke("startup-recovery:reset-settings"),
+    resetInstallation: (keepDatabase: boolean) =>
+      ipcRenderer.invoke("startup-recovery:reset-installation", keepDatabase),
+    restart: () => ipcRenderer.invoke("startup-recovery:restart") as Promise<void>,
   },
 } as const);

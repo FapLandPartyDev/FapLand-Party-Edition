@@ -1,7 +1,8 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, createEvent, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EditorCanvas } from "./EditorCanvas";
 import type { EditorGraphConfig, EditorSelectionState, ViewportState } from "./EditorState";
+import { MAP_EDITOR_DRAG_TYPE, serializeMapEditorDragItem } from "./mapEditorDrag";
 
 const baseConfig: EditorGraphConfig = {
   mode: "graph",
@@ -507,5 +508,61 @@ describe("EditorCanvas", () => {
     expect(pattern?.getAttribute("height")).toBe("72");
     expect(pattern?.getAttribute("x")).toBe("13");
     expect(pattern?.getAttribute("y")).toBe("61");
+  });
+
+  it("drops sidebar nodes, rounds, and heroes at viewport-correct world coordinates", () => {
+    const onPlaceNodeAtWorld = vi.fn();
+    const onDropRoundAtWorld = vi.fn();
+    const onDropHeroAtWorld = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        config={baseConfig}
+        selection={selection}
+        connectFromNodeId={null}
+        tool="select"
+        activePlacementKind={null}
+        viewport={{ x: 20, y: 40, zoom: 2 }}
+        showGrid={false}
+        spacePanActive={false}
+        onViewportChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        onSetConnectFrom={vi.fn()}
+        onMoveNodes={vi.fn()}
+        onMoveTextAnnotation={vi.fn()}
+        onCreateEdge={vi.fn()}
+        onDeleteEdgeBetween={vi.fn()}
+        onDeleteSelection={vi.fn()}
+        onPlaceNodeAtWorld={onPlaceNodeAtWorld}
+        onPlaceHeroChainAtWorld={vi.fn()}
+        onDropHeroAtWorld={onDropHeroAtWorld}
+        isHeroPlacementActive={false}
+        onDropRoundAtWorld={onDropRoundAtWorld}
+        onPlaceTextAtWorld={vi.fn()}
+      />
+    );
+
+    const canvas = container.firstElementChild!;
+    const drop = (payload: string) => {
+      const dataTransfer = {
+        types: [MAP_EDITOR_DRAG_TYPE],
+        dropEffect: "none",
+        getData: (type: string) => (type === MAP_EDITOR_DRAG_TYPE ? payload : ""),
+      };
+      fireEvent.dragOver(canvas, { clientX: 220, clientY: 240, dataTransfer });
+      const dropEvent = createEvent.drop(canvas, { dataTransfer });
+      Object.defineProperties(dropEvent, {
+        clientX: { value: 220 },
+        clientY: { value: 240 },
+      });
+      fireEvent(canvas, dropEvent);
+    };
+
+    drop(serializeMapEditorDragItem({ type: "node", nodeKind: "safePoint" }));
+    drop(serializeMapEditorDragItem({ type: "round", roundId: "round-12" }));
+    drop(serializeMapEditorDragItem({ type: "hero", heroId: "hero-4" }));
+
+    expect(onPlaceNodeAtWorld).toHaveBeenCalledWith("safePoint", 100, 100);
+    expect(onDropRoundAtWorld).toHaveBeenCalledWith("round-12", 100, 100);
+    expect(onDropHeroAtWorld).toHaveBeenCalledWith("hero-4", 100, 100);
   });
 });

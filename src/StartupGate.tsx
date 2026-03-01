@@ -93,11 +93,17 @@ export function StartupGate() {
   }
 
   if (mode === "error") {
-    return <StartupError error={startupError} onRetry={() => {
-      setStartupError(null);
-      setAttemptId((prev) => prev + 1);
-      setMode("pending");
-    }} />;
+    return (
+      <StartupError
+        error={startupError}
+        onRecovery={() => void enterRecovery()}
+        onRetry={() => {
+          setStartupError(null);
+          setAttemptId((prev) => prev + 1);
+          setMode("pending");
+        }}
+      />
+    );
   }
 
   return <StartupSplash message="Starting" />;
@@ -184,7 +190,8 @@ function StartupSplash({ message }: { message: string }) {
             backgroundClip: "text",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
-            filter: "drop-shadow(0 0 40px rgba(139,92,246,0.5)) drop-shadow(0 0 80px rgba(139,92,246,0.2))",
+            filter:
+              "drop-shadow(0 0 40px rgba(139,92,246,0.5)) drop-shadow(0 0 80px rgba(139,92,246,0.2))",
             backgroundSize: "200% auto",
           }}
         >
@@ -196,12 +203,16 @@ function StartupSplash({ message }: { message: string }) {
           style={{
             width: "120px",
             height: "2px",
-            background: "linear-gradient(to right, transparent, rgba(139,92,246,0.8), rgba(99,102,241,0.6), transparent)",
+            background:
+              "linear-gradient(to right, transparent, rgba(139,92,246,0.8), rgba(99,102,241,0.6), transparent)",
             animationDelay: "0.3s",
           }}
         />
 
-        <div className="mt-8 flex items-center gap-2 animate-entrance" style={{ animationDelay: "0.5s" }}>
+        <div
+          className="mt-8 flex items-center gap-2 animate-entrance"
+          style={{ animationDelay: "0.5s" }}
+        >
           <span className="relative flex h-1.5 w-1.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-75" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-violet-300" />
@@ -215,14 +226,20 @@ function StartupSplash({ message }: { message: string }) {
   );
 }
 
-function StartupError({ error, onRetry }: { error: string | null; onRetry: () => void }) {
+function StartupError({
+  error,
+  onRetry,
+  onRecovery,
+}: {
+  error: string | null;
+  onRetry: () => void;
+  onRecovery: () => void;
+}) {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050508]">
       <div className="relative z-30 flex flex-col items-center px-6 text-center max-w-lg">
         <div className="mb-6 text-6xl">&#x26A0;&#xFE0F;</div>
-        <h1 className="mb-3 text-2xl font-extrabold tracking-tight text-red-100">
-          Startup failed
-        </h1>
+        <h1 className="mb-3 text-2xl font-extrabold tracking-tight text-red-100">Startup failed</h1>
         <p className="mb-2 text-sm text-zinc-400">
           The app could not initialize. You can retry or open recovery mode.
         </p>
@@ -241,10 +258,10 @@ function StartupError({ error, onRetry }: { error: string | null; onRetry: () =>
           </button>
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={onRecovery}
             className="rounded-xl border border-zinc-600 bg-zinc-800/80 px-6 py-2.5 text-sm font-semibold text-zinc-300 transition-all duration-200 hover:border-zinc-500 hover:bg-zinc-700/80"
           >
-            Reload
+            Open Recovery
           </button>
         </div>
       </div>

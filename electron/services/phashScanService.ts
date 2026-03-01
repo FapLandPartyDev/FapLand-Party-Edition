@@ -178,6 +178,13 @@ async function runPhashScan(options: RunPhashScanOptions): Promise<void> {
   const db = getDb();
 
   for (const row of roundsToProcess) {
+    if (options.mode === "background" && shouldDeferBackgroundWork()) {
+      scanStatus.state = "aborted";
+      scanStatus.finishedAt = new Date().toISOString();
+      scanStatus.currentRoundName = null;
+      debugLog.info("phashScan", "Background scan yielded to renderer activity");
+      return;
+    }
     if (abortRequested) {
       scanStatus.state = "aborted";
       scanStatus.finishedAt = new Date().toISOString();
@@ -215,6 +222,14 @@ async function runPhashScan(options: RunPhashScanOptions): Promise<void> {
         );
         scanStatus.skippedCount += 1;
         continue;
+      }
+
+      if (options.mode === "background" && shouldDeferBackgroundWork()) {
+        scanStatus.state = "aborted";
+        scanStatus.finishedAt = new Date().toISOString();
+        scanStatus.currentRoundName = null;
+        debugLog.info("phashScan", "Background scan yielded before phash generation");
+        return;
       }
 
       console.log(`[PhashScan] [${row.roundName}] Generating phash...`);

@@ -1,5 +1,29 @@
 # What's New
 
+## v0.5.23-beta
+
+### Added
+
+- **Startup Recovery Center** — failed startups can now open a dedicated recovery screen with database health details and actions to back up or repair the database, clear caches, reset settings, reset the installation while optionally preserving the database, and restart the app safely.
+- **Drag-and-drop Map Editor palette** — node tiles, installed rounds, and complete heroes can now be dragged directly from the sidebar onto the canvas. Rounds also have a searchable sidebar section with type colors and click-to-place support.
+- **Seamless playlist launch handoff** — starting or resuming a run now preloads the game route and keeps the themed playlist launch transition visible until the Pixi gameboard has rendered its first ready frame.
+
+### Changed
+
+- Automatic website-video and perceptual-hash scans now yield while the renderer is active, and renderer performance reporting distinguishes critical gameplay from interactive and idle routes so background work does not compete with playback.
+- Gamepad polling and gameboard rendering now pause while the app is hidden and resume when it becomes visible or a controller reconnects, reducing unnecessary background CPU and GPU use.
+- Gameboard starfield connections now use spatial lookup instead of comparing every particle pair, while map parallax, playback progress, and haptics preview updates avoid React rerenders for smoother animation.
+- Playlist pickers now visually distinguish graph maps, show endless playlists with the correct mode label, and retain the appropriate editor routing behavior.
+- Map Editor round nodes now inherit their round type color and display the assigned round type when available.
+
+### Fixed
+
+- Startup retry now clears failed database initialization state instead of reusing a rejected connection attempt.
+- Expanding grouped shelves in the installed-rounds library no longer leaves persistent blank gaps caused by discarded virtualizer measurements.
+- Background video rendering and anti-perk beat sequences now avoid stale animation state during visibility and playback transitions.
+
+---
+
 ## v0.5.15-beta
 
 ### Added
@@ -15,7 +39,7 @@
 
 - Round Converter auto-detection now trims leading and trailing idle funscript space, uses cadence-aware padding around real motion, and searches pause-gap/min-round settings from actual action gaps for more accurate target segment counts.
 - The Round Converter's quick-detect action now uses a 60-second minimum round length again.
-- Anti-perk beatbar timing now keys off low-point beat markers instead of every motion event, making Milker and Jackhammer prompts easier to read.
+- Milker and Jackhammer beatbars now show a beat for every downward movement in their generated motion.
 - Settings now lazily refresh binary diagnostics only when Advanced is opened, and debug diagnostics only when Debug is opened.
 - Debug diagnostics and available GPU listing now use a shared cached system-info service.
 - Hardware-derived machine IDs and legacy settings decryption now tolerate slow or unavailable system-information probes instead of blocking indefinitely.

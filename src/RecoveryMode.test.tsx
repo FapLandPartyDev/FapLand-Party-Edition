@@ -7,6 +7,14 @@ const mocks = vi.hoisted(() => ({
   backupDatabaseNow: vi.fn(async () => {}),
   backupSettingsNow: vi.fn(async () => {}),
   createPlaintextSettingsFile: vi.fn(async () => {}),
+  recoveryBackupDatabase: vi.fn(async () => "/tmp/database-backup.db"),
+  getRecoveryStatus: vi.fn(async () => ({
+    databasePath: "/tmp/dev.db",
+    databaseExists: true,
+    databaseBytes: 1024,
+    integrity: "ok" as const,
+    integrityMessage: "Database integrity check passed.",
+  })),
   startNormally: vi.fn(async () => {}),
   setLogLevel: vi.fn(async () => {}),
   getDebugState: vi.fn(async () => ({ logLevel: "off", logFilePath: "" })),
@@ -40,6 +48,8 @@ describe("RecoveryMode", () => {
     mocks.backupDatabaseNow.mockClear();
     mocks.backupSettingsNow.mockClear();
     mocks.createPlaintextSettingsFile.mockClear();
+    mocks.recoveryBackupDatabase.mockClear();
+    mocks.getRecoveryStatus.mockClear();
     mocks.startNormally.mockClear();
     mocks.setLogLevel.mockClear();
     mocks.openLogFolder.mockClear();
@@ -47,8 +57,10 @@ describe("RecoveryMode", () => {
     window.electronAPI = {
       startupRecovery: {
         startNormally: mocks.startNormally,
+        getStatus: mocks.getRecoveryStatus,
+        backupDatabase: mocks.recoveryBackupDatabase,
       },
-    } as typeof window.electronAPI;
+    } as unknown as typeof window.electronAPI;
   });
 
   afterEach(() => {
@@ -59,6 +71,7 @@ describe("RecoveryMode", () => {
     render(<RecoveryMode />);
 
     expect(screen.getByRole("heading", { name: "Emergency Recovery Mode" })).toBeDefined();
+    expect(screen.getByTestId("recovery-scroll-container").className).toContain("overflow-y-auto");
     expect(screen.getByRole("button", { name: "Start Normally" })).toBeDefined();
 
     fireEvent.click(screen.getByRole("button", { name: "Manage & Clear Data" }));
@@ -130,7 +143,7 @@ describe("RecoveryMode", () => {
     fireEvent.click(screen.getByRole("button", { name: "Backup Database" }));
 
     await waitFor(() => {
-      expect(mocks.backupDatabaseNow).toHaveBeenCalled();
+      expect(mocks.recoveryBackupDatabase).toHaveBeenCalled();
     });
     expect(screen.getByText("Database backup created.")).toBeDefined();
   });

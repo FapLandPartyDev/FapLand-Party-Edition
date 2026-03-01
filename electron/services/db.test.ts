@@ -4,6 +4,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import { migrate } from "drizzle-orm/libsql/migrator";
 
 vi.mock("electron", () => ({
   app: {
@@ -53,6 +56,58 @@ describe("drizzle migration journal", () => {
       .sort();
 
     expect(journalTags).toEqual(migrationFiles);
+  });
+
+  it("upgrades a populated v0.5.06 database without losing user data", async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-v0506-migration-"));
+    const client = createClient({ url: `file:${path.join(tempRoot, "dev.db")}` });
+    const database = drizzle(client);
+    const migrationsFolder = path.resolve(process.cwd(), "drizzle");
+
+    try {
+      // v0.5.06 shipped the journal through 0009. Reapplying today's journal
+      // models the direct in-place upgrade performed by the current release.
+      await migrate(database, { migrationsFolder });
+      await client.execute(
+        `INSERT INTO "Hero" ("id", "name", "createdAt", "updatedAt") VALUES ('hero-06', 'Saved Hero', 1, 1)`
+      );
+      await client.execute(
+        `INSERT INTO "Round" ("id", "name", "type", "heroId", "createdAt", "updatedAt") VALUES ('round-06', 'Saved Round', 'Normal', 'hero-06', 1, 1)`
+      );
+      await client.execute(
+        `INSERT INTO "Resource" ("id", "videoUri", "roundId", "createdAt", "updatedAt") VALUES ('resource-06', '/library/video.mp4', 'round-06', 1, 1)`
+      );
+      await client.execute(
+        `INSERT INTO "Playlist" ("id", "name", "configJson", "createdAt", "updatedAt") VALUES ('playlist-06', 'Saved Playlist', '{}', 1, 1)`
+      );
+
+      await migrate(database, { migrationsFolder });
+      await repairSinglePlayerRunSaveSchema(database as never);
+      await repairInstalledLibrarySchema(database as never);
+
+      const rows = await client.execute(
+        `SELECT r."name" AS roundName, h."name" AS heroName, p."name" AS playlistName, x."videoUri" AS videoUri
+         FROM "Round" r
+         JOIN "Hero" h ON h."id" = r."heroId"
+         JOIN "Resource" x ON x."roundId" = r."id"
+         CROSS JOIN "Playlist" p
+         WHERE r."id" = 'round-06' AND p."id" = 'playlist-06'`
+      );
+      expect(rows.rows).toEqual([
+        expect.objectContaining({
+          roundName: "Saved Round",
+          heroName: "Saved Hero",
+          playlistName: "Saved Playlist",
+          videoUri: "/library/video.mp4",
+        }),
+      ]);
+      await expect(client.execute("PRAGMA integrity_check")).resolves.toMatchObject({
+        rows: [{ integrity_check: "ok" }],
+      });
+    } finally {
+      client.close();
+      await fs.rm(tempRoot, { recursive: true, force: true });
+    }
   });
 });
 

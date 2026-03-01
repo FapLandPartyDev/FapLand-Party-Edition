@@ -42,6 +42,17 @@ const KIND_COLORS: Record<NodeVisualKind, string> = {
   catapult: "#06b6d4",
 };
 
+export const ROUND_TYPE_COLORS: Record<string, string> = {
+  Normal: "#38bdf8",
+  Interjection: "#f59e0b",
+  Cum: "#f43f5e",
+};
+
+export function getRoundTypeColor(type: string | null | undefined): string {
+  if (type && ROUND_TYPE_COLORS[type]) return ROUND_TYPE_COLORS[type];
+  return ROUND_TYPE_COLORS.Normal;
+}
+
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 const isFiniteNumber = (value: unknown): value is number =>

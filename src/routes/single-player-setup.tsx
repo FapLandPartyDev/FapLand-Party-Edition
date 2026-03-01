@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as z from "zod";
@@ -16,6 +16,7 @@ import { useControllerSurface } from "../controller";
 import { collectPlaylistRefs, createPortableRoundRefResolver } from "../game/playlistResolution";
 import type { PlaylistConfig } from "../game/playlistSchema";
 import { getSaveModeEmoji } from "../game/saveMode";
+import { getPlaylistLaunchProgress, PLAYLIST_LAUNCH_MIN_DURATION_MS } from "../game/playlistLaunch";
 import { describePlaylistBoard } from "../game/playlistStats";
 import { resolvePortableRoundRef } from "../game/playlistRuntime";
 import { db, type InstalledRoundCardAssets, type InstalledRoundCatalogEntry } from "../services/db";
@@ -80,7 +81,6 @@ const estimatePlaylistDurationSec = (
   }, 0);
 };
 
-const PLAYLIST_LAUNCH_DURATION_MS = 2500;
 const SinglePlayerSetupSearchSchema = z.object({
   notice: z.string().optional(),
 });
@@ -117,6 +117,7 @@ export const Route = createFileRoute("/single-player-setup")({
 function SinglePlayerSetupPage() {
   const { t } = useLingui();
   const navigate = useNavigate();
+  const router = useRouter();
   const search = SinglePlayerSetupSearchSchema.parse(Route.useSearch());
   const { availablePlaylists, activePlaylist, installedRounds, savedRuns } =
     Route.useLoaderData() as {
@@ -275,7 +276,7 @@ function SinglePlayerSetupPage() {
     let rafId = 0;
     const step = () => {
       const elapsed = performance.now() - launchState.startedAt;
-      setLaunchProgress(Math.max(0, Math.min(1, elapsed / PLAYLIST_LAUNCH_DURATION_MS)));
+      setLaunchProgress(getPlaylistLaunchProgress(elapsed));
       rafId = window.requestAnimationFrame(step);
     };
 
@@ -292,6 +293,30 @@ function SinglePlayerSetupPage() {
     await playlists.setActive(selectedPlaylist.id);
   };
 
+  const launchSelectedPlaylist = async (resume: boolean) => {
+    if (!selectedPlaylist) {
+      throw new Error("No playlist selected.");
+    }
+
+    const search = {
+      playlistId: selectedPlaylist.id,
+      launchNonce: Date.now(),
+      ...(resume ? { resume: true } : {}),
+    };
+
+    playPlaylistLaunchSound();
+    setLaunchState({ kind: "animating", startedAt: performance.now() });
+
+    await Promise.all([
+      new Promise<void>((resolve) => {
+        window.setTimeout(resolve, PLAYLIST_LAUNCH_MIN_DURATION_MS);
+      }),
+      router.preloadRoute({ to: "/game", search }),
+    ]);
+
+    await navigate({ to: "/game", search });
+  };
+
   const handleStart = async () => {
     if (pendingAction || !selectedPlaylist || !canStartSelectedPlaylist) return;
     setPendingAction("start");
@@ -299,18 +324,7 @@ function SinglePlayerSetupPage() {
     try {
       await db.singlePlayerSaves.deleteByPlaylist(selectedPlaylist.id);
       await activateSelectedPlaylist();
-      playPlaylistLaunchSound();
-      setLaunchState({ kind: "animating", startedAt: performance.now() });
-      await new Promise<void>((resolve) => {
-        window.setTimeout(resolve, PLAYLIST_LAUNCH_DURATION_MS);
-      });
-      await navigate({
-        to: "/game",
-        search: {
-          playlistId: selectedPlaylist.id,
-          launchNonce: Date.now(),
-        },
-      });
+      await launchSelectedPlaylist(false);
     } catch (error) {
       console.error("Failed to start selected playlist", error);
       setLaunchState({ kind: "idle" });
@@ -327,19 +341,7 @@ function SinglePlayerSetupPage() {
     setNotice(null);
     try {
       await activateSelectedPlaylist();
-      playPlaylistLaunchSound();
-      setLaunchState({ kind: "animating", startedAt: performance.now() });
-      await new Promise<void>((resolve) => {
-        window.setTimeout(resolve, PLAYLIST_LAUNCH_DURATION_MS);
-      });
-      await navigate({
-        to: "/game",
-        search: {
-          playlistId: selectedPlaylist.id,
-          launchNonce: Date.now(),
-          resume: true,
-        },
-      });
+      await launchSelectedPlaylist(true);
     } catch (error) {
       console.error("Failed to resume selected playlist", error);
       setLaunchState({ kind: "idle" });

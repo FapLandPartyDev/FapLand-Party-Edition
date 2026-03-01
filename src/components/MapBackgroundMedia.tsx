@@ -1,10 +1,11 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, Ref } from "react";
 import type { MapBackgroundMedia } from "../game/types";
 
 type MapBackgroundMediaProps = {
   background?: MapBackgroundMedia;
   className?: string;
   parallaxOffset?: { x: number; y: number };
+  containerRef?: Ref<HTMLDivElement>;
   testId?: string;
 };
 
@@ -35,6 +36,7 @@ export function MapBackgroundMedia({
   background,
   className = "",
   parallaxOffset = { x: 0, y: 0 },
+  containerRef,
   testId = "map-background-media",
 }: MapBackgroundMediaProps) {
   if (!background) return null;
@@ -49,11 +51,9 @@ export function MapBackgroundMedia({
     background.motion,
   ].join(":");
 
-  const effectiveOffsetX =
-    background.offsetX + (background.motion === "parallax" ? parallaxOffset.x : 0);
-  const effectiveOffsetY =
-    background.offsetY + (background.motion === "parallax" ? parallaxOffset.y : 0);
-  const translate = `translate(${effectiveOffsetX}px, ${effectiveOffsetY}px)`;
+  const parallaxX = background.motion === "parallax" ? parallaxOffset.x : 0;
+  const parallaxY = background.motion === "parallax" ? parallaxOffset.y : 0;
+  const translate = `translate(calc(${background.offsetX + parallaxX}px + var(--map-parallax-x, 0px)), calc(${background.offsetY + parallaxY}px + var(--map-parallax-y, 0px)))`;
   const scale = `scale(${background.scale})`;
   const mediaStyle: CSSProperties = {
     opacity: background.opacity,
@@ -69,6 +69,7 @@ export function MapBackgroundMedia({
 
   return (
     <div
+      ref={containerRef}
       className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`}
       aria-hidden="true"
       data-testid={testId}

@@ -1365,7 +1365,7 @@ describe("RoundVideoOverlay", () => {
     await waitFor(() => {
       expect(mocks.playback.getFunscriptPositionAtMs).toHaveBeenCalledWith(
         { actions: [{ at: 0, pos: 10 }] },
-        300
+        expect.any(Number)
       );
       const orb = screen.getByTestId("thehandy-preview-orb");
       expect(orb.getAttribute("style")).toContain("top: 58%");

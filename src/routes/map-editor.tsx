@@ -11,6 +11,7 @@ import {
   CURRENT_PLAYLIST_VERSION,
   ZPlaylistConfig,
   type PlaylistConfig,
+  type PortableRoundRef,
 } from "../game/playlistSchema";
 import {
   analyzePlaylistResolution,
@@ -81,7 +82,7 @@ import { getRoundDurationSec } from "../utils/duration";
 import { groupRoundsByHero } from "../utils/heroGrouping";
 import { PlaylistPickerView } from "../features/map-editor/components/PlaylistPickerView";
 import { EditorToolbar } from "../features/map-editor/components/EditorToolbar";
-import { TileSidebar } from "../features/map-editor/components/TileSidebar";
+import { TileSidebar, type RoundListItem } from "../features/map-editor/components/TileSidebar";
 import { NodeInspectorPanel } from "../features/map-editor/components/NodeInspectorPanel";
 import { EdgeInspectorPanel } from "../features/map-editor/components/EdgeInspectorPanel";
 import { TextInspectorPanel } from "../features/map-editor/components/TextInspectorPanel";
@@ -90,6 +91,7 @@ import { ValidationPanel } from "../features/map-editor/components/ValidationPan
 import { AutomationPanel } from "../features/map-editor/components/AutomationPanel";
 import { buildDefaultAction } from "../features/map-editor/components/automation/ActionStepEditor";
 import { EditorStatusBar } from "../features/map-editor/components/EditorStatusBar";
+import { getRoundTypeColor } from "../features/map-editor/nodeVisuals";
 import {
   createAutomationRule,
   createAutomationTemplate,
@@ -542,6 +544,11 @@ const buildRepeatedRoundAssignment = (
 
 type GraphUpdateFn = (previous: EditorGraphConfig) => EditorGraphConfig;
 
+type HeroPlacementData = {
+  heroName: string;
+  chainNodes: HeroChainNodeInput[];
+};
+
 function MapEditorPage() {
   const { t } = useLingui();
   const navigate = useNavigate();
@@ -605,9 +612,12 @@ function MapEditorPage() {
   const [tileSearch, setTileSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<TileCatalogCategory["id"] | "all">("all");
   const [activePlacementKind, setActivePlacementKind] = useState<EditorNode["kind"]>("path");
-  const [heroPlacementData, setHeroPlacementData] = useState<{
-    heroName: string;
-    chainNodes: HeroChainNodeInput[];
+  const [heroPlacementData, setHeroPlacementData] = useState<HeroPlacementData | null>(null);
+  const [roundPlacementData, setRoundPlacementData] = useState<{
+    roundId: string;
+    displayName: string;
+    roundRef: PortableRoundRef;
+    typeColor: string;
   } | null>(null);
 
   const [recentlyPlacedNodeIds, setRecentlyPlacedNodeIds] = useState<string[]>([]);
@@ -897,6 +907,16 @@ function MapEditorPage() {
     [installedRounds]
   );
   const heroGroups = useMemo(() => groupRoundsByHero(normalRounds), [normalRounds]);
+  const paletteRounds = useMemo<RoundListItem[]>(
+    () =>
+      sortMapRoundsByName(installedRounds).map((round) => ({
+        roundId: round.id,
+        name: round.name,
+        author: round.author ?? null,
+        type: round.type ?? null,
+      })),
+    [installedRounds]
+  );
   const selectedCumRoundIds = useMemo(
     () =>
       config.cumRoundRefs.map(
@@ -1065,13 +1085,13 @@ function MapEditorPage() {
     setActivePlacementKind(tile.kind);
     setTool("place");
     setHeroPlacementData(null);
+    setRoundPlacementData(null);
   }, []);
 
-  const armHero = useCallback(
-    (heroGroupItem: { heroId: string }) => {
-      const heroGroup = heroGroups.find((g) => g.heroId === heroGroupItem.heroId);
-      if (!heroGroup) return;
-      playSelectSound();
+  const resolveHeroPlacementData = useCallback(
+    (heroId: string): HeroPlacementData | null => {
+      const heroGroup = heroGroups.find((group) => group.heroId === heroId);
+      if (!heroGroup) return null;
       const chainNodes: HeroChainNodeInput[] = heroGroup.rounds.map((round) => ({
         roundRef: {
           ...(round.id ? { idHint: round.id } : {}),
@@ -1083,10 +1103,47 @@ function MapEditorPage() {
         },
         name: round.name,
       }));
-      setHeroPlacementData({ heroName: heroGroup.heroName, chainNodes });
-      setTool("place");
+      return { heroName: heroGroup.heroName, chainNodes };
     },
     [heroGroups]
+  );
+
+  const armHero = useCallback(
+    (heroGroupItem: { heroId: string }) => {
+      const placementData = resolveHeroPlacementData(heroGroupItem.heroId);
+      if (!placementData) return;
+      playSelectSound();
+      setHeroPlacementData(placementData);
+      setRoundPlacementData(null);
+      setTool("place");
+    },
+    [resolveHeroPlacementData]
+  );
+
+  const armRound = useCallback(
+    (roundItem: RoundListItem) => {
+      const round = installedRounds.find((r) => r.id === roundItem.roundId);
+      if (!round) return;
+      playSelectSound();
+      const roundType = round.type ?? "Normal";
+      const roundRef: PortableRoundRef = {
+        ...(round.id ? { idHint: round.id } : {}),
+        name: round.name,
+        ...(round.author ? { author: round.author } : {}),
+        ...(round.type ? { type: round.type } : {}),
+        ...(round.installSourceKey ? { installSourceKeyHint: round.installSourceKey } : {}),
+        ...(round.phash ? { phash: round.phash } : {}),
+      };
+      setRoundPlacementData({
+        roundId: round.id,
+        displayName: round.name,
+        roundRef,
+        typeColor: getRoundTypeColor(roundType),
+      });
+      setHeroPlacementData(null);
+      setTool("place");
+    },
+    [installedRounds]
   );
 
   const patchNode = useCallback(
@@ -2304,8 +2361,8 @@ function MapEditorPage() {
   );
 
   const placeHeroChainAtWorld = useCallback(
-    (worldX: number, worldY: number) => {
-      const data = heroPlacementData;
+    (worldX: number, worldY: number, explicitData?: HeroPlacementData) => {
+      const data = explicitData ?? heroPlacementData;
       if (!data || data.chainNodes.length === 0) return;
 
       let firstNodeId: string | null = null;
@@ -2337,10 +2394,106 @@ function MapEditorPage() {
         selectedEdgeId: null,
         selectedTextAnnotationId: null,
       });
-      setHeroPlacementData(null);
-      setTool("select");
+      if (!explicitData) {
+        setHeroPlacementData(null);
+        setTool("select");
+      }
     },
     [commitSelection, flashPlacedNode, heroPlacementData, updateGraphConfig]
+  );
+
+  const dropHeroAtWorld = useCallback(
+    (heroId: string, worldX: number, worldY: number) => {
+      const placementData = resolveHeroPlacementData(heroId);
+      if (!placementData) return;
+      placeHeroChainAtWorld(worldX, worldY, placementData);
+    },
+    [placeHeroChainAtWorld, resolveHeroPlacementData]
+  );
+
+  const placeRoundAtWorld = useCallback(
+    (worldX: number, worldY: number, explicitData = roundPlacementData) => {
+      const data = explicitData;
+      if (!data) return;
+
+      let createdNodeId: string | null = null;
+      const changed = updateGraphConfig((previous) => {
+        const tileDefinition = tilesByKind.get("round");
+        const width = Math.max(160, Number(tileDefinition?.width ?? 190));
+        const height = Math.max(58, Number(tileDefinition?.height ?? 84));
+        const topLeft = snapToGrid
+          ? snapPointToGrid({ x: worldX - width / 2, y: worldY - height / 2 })
+          : { x: worldX - width / 2, y: worldY - height / 2 };
+        const nextNode: EditorNode = {
+          id: createEditorId("round"),
+          name: data.displayName,
+          kind: "round",
+          roundRef: { ...data.roundRef },
+          roundPlaylistRefs: [{ ...data.roundRef }],
+          styleHint: {
+            x: topLeft.x,
+            y: topLeft.y,
+            width,
+            height,
+            color: data.typeColor,
+            size: tileDefinition?.size,
+          },
+        };
+        createdNodeId = nextNode.id;
+        const nextNodes = [...previous.nodes, nextNode];
+        return {
+          ...previous,
+          startNodeId: resolveStartNodeId(previous.startNodeId, nextNodes),
+          nodes: nextNodes,
+        };
+      });
+
+      if (!changed || !createdNodeId) {
+        playMapInvalidActionSound();
+        return;
+      }
+
+      playMapPlaceNodeSound();
+      flashPlacedNode(createdNodeId);
+      commitSelection({
+        selectedNodeIds: [createdNodeId],
+        primaryNodeId: createdNodeId,
+        selectedEdgeId: null,
+        selectedTextAnnotationId: null,
+      });
+    },
+    [
+      commitSelection,
+      flashPlacedNode,
+      roundPlacementData,
+      snapToGrid,
+      tilesByKind,
+      updateGraphConfig,
+    ]
+  );
+
+  const dropRoundAtWorld = useCallback(
+    (roundId: string, worldX: number, worldY: number) => {
+      const round = installedRounds.find((candidate) => candidate.id === roundId);
+      if (!round) return;
+
+      const roundType = round.type ?? "Normal";
+      const roundRef: PortableRoundRef = {
+        idHint: round.id,
+        name: round.name,
+        ...(round.author ? { author: round.author } : {}),
+        ...(round.type ? { type: round.type } : {}),
+        ...(round.installSourceKey ? { installSourceKeyHint: round.installSourceKey } : {}),
+        ...(round.phash ? { phash: round.phash } : {}),
+      };
+      placeRoundAtWorld(worldX, worldY, {
+        roundId: round.id,
+        displayName: round.name,
+        roundRef,
+        typeColor: getRoundTypeColor(roundType),
+      });
+    },
+    [installedRounds, placeRoundAtWorld]
   );
 
   const placeTextAtWorld = useCallback(
@@ -3421,10 +3574,14 @@ function MapEditorPage() {
               activePlacementKind={activePlacementKind}
               heroGroups={heroGroups}
               isHeroPlacementActive={heroPlacementData !== null}
+              rounds={paletteRounds}
+              armedRoundId={roundPlacementData?.roundId ?? null}
+              isRoundPlacementActive={roundPlacementData !== null}
               onCategoryChange={setActiveCategory}
               onSearchChange={setTileSearch}
               onArmTile={armTile}
               onArmHero={armHero}
+              onArmRound={armRound}
             />
           </div>
 
@@ -3513,7 +3670,11 @@ function MapEditorPage() {
                 onDeleteSelection={deleteSelection}
                 onPlaceNodeAtWorld={placeNodeAtWorld}
                 onPlaceHeroChainAtWorld={placeHeroChainAtWorld}
+                onDropHeroAtWorld={dropHeroAtWorld}
                 isHeroPlacementActive={heroPlacementData !== null}
+                onPlaceRoundAtWorld={placeRoundAtWorld}
+                onDropRoundAtWorld={dropRoundAtWorld}
+                isRoundPlacementActive={roundPlacementData !== null}
                 onPlaceTextAtWorld={placeTextAtWorld}
                 onQuickAddConnectedNode={quickAddConnectedNode}
                 onDuplicateNode={duplicateNode}

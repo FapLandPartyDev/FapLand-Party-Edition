@@ -56,6 +56,8 @@ type PendingWebsiteVideoDiscoveryError = PendingWebsiteVideo & {
   reason: string;
 };
 
+type WebsiteVideoScanMode = "background" | "manual";
+
 type WebsiteRoundPreviewCandidate = {
   roundId: string;
   resourceId: string;
@@ -248,7 +250,7 @@ async function generateMissingPreviewImagesForCachedWebsiteVideo(
   }
 }
 
-async function runWebsiteVideoScan(): Promise<void> {
+async function runWebsiteVideoScan(mode: WebsiteVideoScanMode): Promise<void> {
   const { items, discoveryErrors } = await findUncachedWebsiteVideos();
   for (const discoveryError of discoveryErrors) {
     pushScanError(discoveryError, discoveryError.reason);
@@ -268,6 +270,11 @@ async function runWebsiteVideoScan(): Promise<void> {
 
   const worker = async (): Promise<void> => {
     while (!abortRequested) {
+      if (mode === "background" && shouldDeferBackgroundWork()) {
+        abortRequested = true;
+        debugLog.info("websiteVideoScan", "Background scan yielded to renderer activity");
+        return;
+      }
       const item = items[cursor];
       cursor += 1;
       if (!item) {
@@ -329,8 +336,8 @@ async function runWebsiteVideoScan(): Promise<void> {
   debugLog.info("websiteVideoScan", "Scan finished", scanStatus);
 }
 
-function launchScanRun(): void {
-  activeScanPromise = runWebsiteVideoScan()
+function launchScanRun(mode: WebsiteVideoScanMode): void {
+  activeScanPromise = runWebsiteVideoScan(mode)
     .catch((error) => {
       scanStatus.state = "error";
       scanStatus.finishedAt = new Date().toISOString();
@@ -369,7 +376,7 @@ function launchScanRun(): void {
           currentUrl: null,
           errors: [],
         };
-        launchScanRun();
+        launchScanRun(mode);
         return;
       }
 
@@ -396,8 +403,7 @@ export function requestWebsiteVideoScanAbort(): WebsiteVideoScanStatus {
   return cloneStatus(scanStatus);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function startScanInternal(_ignoreEnabledSetting: boolean): Promise<WebsiteVideoScanStatus> {
+async function startScanInternal(manual: boolean): Promise<WebsiteVideoScanStatus> {
   if (activeScanPromise) {
     rerunRequested = true;
     return cloneStatus(scanStatus);
@@ -427,7 +433,7 @@ async function startScanInternal(_ignoreEnabledSetting: boolean): Promise<Websit
   };
 
   rerunRequested = false;
-  launchScanRun();
+  launchScanRun(manual ? "manual" : "background");
 
   await activeScanPromise;
   return cloneStatus(scanStatus);

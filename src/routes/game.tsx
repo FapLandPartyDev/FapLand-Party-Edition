@@ -3,6 +3,7 @@ import { useLingui } from "@lingui/react/macro";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { GameScene } from "../components/game/GameScene";
+import { PlaylistLaunchTransition } from "../components/game/PlaylistLaunchTransition";
 import { BlockCommandPalette } from "../contexts/CommandPaletteGuardContext";
 import {
   clearMapEditorTestSession,
@@ -11,11 +12,14 @@ import {
 } from "../features/map-editor/testSession";
 import { createInitialGameState, isEndlessMode } from "../game/engine";
 import { filterPerkIdsByGameplayCapabilities } from "../game/data/perks";
-import { toGameConfigFromPlaylist } from "../game/playlistRuntime";
+import { resolvePortableRoundRef, toGameConfigFromPlaylist } from "../game/playlistRuntime";
+import type { PlaylistConfig } from "../game/playlistSchema";
+import { getPlaylistLaunchProgress, PLAYLIST_LAUNCH_MIN_DURATION_MS } from "../game/playlistLaunch";
 import { ZSinglePlayerRunSaveSnapshot, type SinglePlayerRunSaveSnapshot } from "../game/saveSchema";
 import type { GameConfig, GameState } from "../game/types";
 import { shouldClearSinglePlayerSaveOnCompletion } from "./gameSavePolicy";
 import { isAssistedSaveMode } from "../game/saveMode";
+import { describePlaylistBoard } from "../game/playlistStats";
 import {
   ANTI_PERK_BEATBAR_ENABLED_KEY,
   DEFAULT_ANTI_PERK_BEATBAR_ENABLED,
@@ -43,6 +47,7 @@ import {
 } from "../constants/experimentalFeatures";
 import { DEFAULT_INTERMEDIARY_LOADING_PROMPT } from "../constants/booruSettings";
 import { useHandy } from "../contexts/HandyContext";
+import { formatDurationLabel, getRoundDurationSec } from "../utils/duration";
 import {
   DEFAULT_MOANING_ENABLED,
   MOANING_ENABLED_KEY,
@@ -57,6 +62,8 @@ const APPLY_PERK_DIRECTLY_KEY = "game.singleplayer.applyPerkDirectly";
 const DEFAULT_INTERMEDIARY_LOADING_DURATION_SEC = 5;
 const DEFAULT_INTERMEDIARY_RETURN_PAUSE_SEC = 4;
 const DEFAULT_APPLY_PERK_DIRECTLY = true;
+const PLAYLIST_LAUNCH_FINISH_DURATION_MS = 650;
+const PLAYLIST_LAUNCH_MAX_AGE_MS = 60_000;
 const ECONOMY_STORE_KEYS = {
   moneyPerCompletedRound: "game.economy.moneyPerCompletedRound",
   startingScore: "game.economy.startingScore",
@@ -64,6 +71,37 @@ const ECONOMY_STORE_KEYS = {
   scorePerIntermediary: "game.economy.scorePerIntermediary",
   scorePerActiveAntiPerk: "game.economy.scorePerActiveAntiPerk",
 } as const;
+
+function estimatePlaylistDurationSec(
+  config: PlaylistConfig,
+  installedRounds: InstalledRound[]
+): number | null {
+  if (config.boardConfig.mode === "endless") return null;
+
+  if (config.boardConfig.mode === "linear") {
+    const safePointIndices = new Set(config.boardConfig.safePointIndices);
+    let orderedRoundIndex = 0;
+    let totalDurationSec = 0;
+
+    for (let fieldIndex = 1; fieldIndex <= config.boardConfig.totalIndices; fieldIndex += 1) {
+      if (safePointIndices.has(fieldIndex)) continue;
+      const explicitRoundRef = config.boardConfig.normalRoundRefsByIndex[String(fieldIndex)];
+      const roundRef = explicitRoundRef ?? config.boardConfig.normalRoundOrder[orderedRoundIndex];
+      if (!explicitRoundRef) orderedRoundIndex += 1;
+      if (!roundRef) continue;
+      const round = resolvePortableRoundRef(roundRef, installedRounds);
+      if (round) totalDurationSec += getRoundDurationSec(round);
+    }
+
+    return totalDurationSec;
+  }
+
+  return config.boardConfig.nodes.reduce((totalDurationSec, node) => {
+    if (!node.roundRef) return totalDurationSec;
+    const round = resolvePortableRoundRef(node.roundRef, installedRounds);
+    return round ? totalDurationSec + getRoundDurationSec(round) : totalDurationSec;
+  }, 0);
+}
 
 const GameSearchSchema = z.object({
   playlistId: z.string().min(1).optional(),
@@ -376,6 +414,7 @@ export const Route = createFileRoute("/game")({
       resumeRedirectNotice,
     };
   },
+  preloadStaleTime: 10_000,
   component: GameRoute,
 });
 
@@ -402,11 +441,26 @@ function GameRoute() {
     resumeRedirectNotice,
   } = Route.useLoaderData();
   const navigate = useNavigate();
+  const search = GameSearchSchema.parse(Route.useSearch());
+  const [initialLaunchProgress] = useState(() =>
+    typeof search.launchNonce === "number"
+      ? getPlaylistLaunchProgress(Date.now() - search.launchNonce)
+      : getPlaylistLaunchProgress(PLAYLIST_LAUNCH_MIN_DURATION_MS)
+  );
   const hasNavigatedToResultRef = useRef(false);
   const sessionStartedAtMsRef = useRef(savedSnapshot?.sessionStartedAtMs ?? Date.now());
   const mapEditorTestPlaylistIdRef = useRef<string | null>(getMapEditorTestPlaylistId());
   const isMapEditorTestRun = mapEditorTestPlaylistIdRef.current !== null;
   const [applyPerkDirectly, setApplyPerkDirectly] = useState(initialApplyPerkDirectly);
+  const [boardReady, setBoardReady] = useState(false);
+  const [launchProgress, setLaunchProgress] = useState(initialLaunchProgress);
+  const launchFinishStartProgressRef = useRef(initialLaunchProgress);
+  const [showLaunchTransition, setShowLaunchTransition] = useState(
+    () =>
+      typeof search.launchNonce === "number" &&
+      Date.now() - search.launchNonce >= 0 &&
+      Date.now() - search.launchNonce < PLAYLIST_LAUNCH_MAX_AGE_MS
+  );
   const [saveNotification, setSaveNotification] = useState<{
     nonce: number;
     message: string;
@@ -446,7 +500,11 @@ function GameRoute() {
         }),
         enabledAntiPerkIds: filterPerkIdsByGameplayCapabilities(
           baseConfig.perkPool.enabledAntiPerkIds,
-          { handyConnected, moaningAvailable, allowHapticsWithoutDevice: allowHapticsPerksWithoutDevice }
+          {
+            handyConnected,
+            moaningAvailable,
+            allowHapticsWithoutDevice: allowHapticsPerksWithoutDevice,
+          }
         ),
       },
     };
@@ -472,6 +530,36 @@ function GameRoute() {
         : createInitialGameState(config, { initialHighscore, playedRoundIdsByPool: playedByPool }),
     [config, initialHighscore, playedByPool, savedSnapshot]
   );
+
+  const launchBoardSummary = useMemo(
+    () => describePlaylistBoard(activePlaylist.config),
+    [activePlaylist.config]
+  );
+  const launchDurationLabel = useMemo(() => {
+    const durationSec = estimatePlaylistDurationSec(activePlaylist.config, installedRounds);
+    return durationSec === null ? "Endless" : formatDurationLabel(durationSec);
+  }, [activePlaylist.config, installedRounds]);
+
+  useEffect(() => {
+    if (!showLaunchTransition || !boardReady) return;
+
+    const startedAt = performance.now();
+    let rafId = 0;
+    const finish = () => {
+      const elapsed = performance.now() - startedAt;
+      const progress = Math.min(1, elapsed / PLAYLIST_LAUNCH_FINISH_DURATION_MS);
+      setLaunchProgress(
+        launchFinishStartProgressRef.current + (1 - launchFinishStartProgressRef.current) * progress
+      );
+      if (progress >= 1) {
+        setShowLaunchTransition(false);
+        return;
+      }
+      rafId = window.requestAnimationFrame(finish);
+    };
+    rafId = window.requestAnimationFrame(finish);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [boardReady, showLaunchTransition]);
 
   const [latestState, setLatestState] = useState<GameState>(initialState);
   const latestStateRef = useRef<GameState>(initialState);
@@ -783,6 +871,20 @@ function GameRoute() {
         applyPerkDirectly={applyPerkDirectly}
         onApplyPerkDirectlyChange={handleApplyPerkDirectlyChange}
         endlessMode={isEndlessMode(initialState)}
+        onReady={() => setBoardReady(true)}
+      />
+      <PlaylistLaunchTransition
+        visible={showLaunchTransition}
+        playlistName={activePlaylist.name}
+        boardModeLabel={launchBoardSummary.modeLabel}
+        roundCount={launchBoardSummary.roundNodeCount}
+        estimatedDurationLabel={launchDurationLabel}
+        progress={launchProgress}
+        roadPalette={
+          activePlaylist.config.boardConfig.mode === "graph"
+            ? activePlaylist.config.boardConfig.style?.roadPalette
+            : undefined
+        }
       />
     </BlockCommandPalette>
   );

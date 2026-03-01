@@ -33,7 +33,7 @@ msgstr " (Default)"
 msgid " Warning: runs from this playlist are marked as assisted on the highscore and in run history."
 msgstr " Warning: runs from this playlist are marked as assisted on the highscore and in run history."
 
-#: src/routes/playlist-workshop.tsx:4619
+#: src/routes/playlist-workshop.tsx:4630
 msgid "…"
 msgstr "…"
 
@@ -54,12 +54,12 @@ msgstr ".fpack Extractions"
 #. placeholder {0}: perk.description
 #. placeholder {0}: perk.name
 #: src/routes/playlist-workshop.tsx:1575
-#: src/routes/playlist-workshop.tsx:3589
-#: src/routes/playlist-workshop.tsx:3610
-#: src/routes/playlist-workshop.tsx:3617
-#: src/routes/playlist-workshop.tsx:3693
-#: src/routes/playlist-workshop.tsx:3714
-#: src/routes/playlist-workshop.tsx:3721
+#: src/routes/playlist-workshop.tsx:3600
+#: src/routes/playlist-workshop.tsx:3621
+#: src/routes/playlist-workshop.tsx:3628
+#: src/routes/playlist-workshop.tsx:3704
+#: src/routes/playlist-workshop.tsx:3725
+#: src/routes/playlist-workshop.tsx:3732
 msgid "{0}"
 msgstr "{0}"
 
@@ -92,7 +92,7 @@ msgid "{0} | Pos {1} | Score {2}"
 msgstr "{0} | Pos {1} | Score {2}"
 
 #. placeholder {0}: getSaveModeEmoji(selectedSavedRun.saveMode)
-#: src/routes/single-player-setup.tsx:692
+#: src/routes/single-player-setup.tsx:694
 msgid "{0} A saved run is available for this playlist. Resume continues the existing run. Starting fresh overwrites that save."
 msgstr "{0} A saved run is available for this playlist. Resume continues the existing run. Starting fresh overwrites that save."
 
@@ -102,12 +102,12 @@ msgid "{0} ACTIVATED"
 msgstr "{0} ACTIVATED"
 
 #. placeholder {0}: availableNormalRounds.length
-#: src/routes/playlist-workshop.tsx:3066
+#: src/routes/playlist-workshop.tsx:3077
 msgid "{0} available"
 msgstr "{0} available"
 
 #. placeholder {0}: boardSummary.modeLabel
-#: src/routes/single-player-setup.tsx:644
+#: src/routes/single-player-setup.tsx:646
 msgid "{0} board"
 msgstr "{0} board"
 
@@ -161,7 +161,7 @@ msgstr "{0} player{1}"
 
 #. placeholder {0}: round.name
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1409
-#: src/routes/playlist-workshop.tsx:4555
+#: src/routes/playlist-workshop.tsx:4566
 msgid "{0} preview"
 msgstr "{0} preview"
 
@@ -178,13 +178,13 @@ msgstr "{0} remaining"
 
 #. placeholder {0}: selectedPlaylistCacheSummary.pendingRoundCount
 #. placeholder {1}: selectedPlaylistCacheSummary.pendingRoundCount === 1 ? "" : "s"
-#: src/routes/single-player-setup.tsx:681
+#: src/routes/single-player-setup.tsx:683
 msgid "{0} required web round{1} are still caching in the background. Playback unlocks automatically when caching finishes."
 msgstr "{0} required web round{1} are still caching in the background. Playback unlocks automatically when caching finishes."
 
 #. placeholder {0}: selectedPlaylistCacheSummary.pendingRoundCount
 #. placeholder {1}: selectedPlaylistCacheSummary.pendingRoundCount === 1 ? "" : "s"
-#: src/routes/single-player-setup.tsx:674
+#: src/routes/single-player-setup.tsx:676
 msgid "{0} required web round{1} are still caching in the background. Some rounds may not play, and the web version is used instead of the local cache."
 msgstr "{0} required web round{1} are still caching in the background. Some rounds may not play, and the web version is used instead of the local cache."
 
@@ -200,7 +200,7 @@ msgid "{0} result{1}"
 msgstr "{0} result{1}"
 
 #. placeholder {0}: getSaveModeEmoji(selectedSavedRun.saveMode)
-#: src/routes/single-player-setup.tsx:665
+#: src/routes/single-player-setup.tsx:667
 msgid "{0} Resume available"
 msgstr "{0} Resume available"
 
@@ -208,8 +208,8 @@ msgstr "{0} Resume available"
 #. placeholder {0}: effect.remainingRounds
 #. placeholder {0}: summary.roundNodeCount
 #: src/components/game/PerkInventoryPanel.tsx:342
-#: src/routes/single-player-setup.tsx:576
-#: src/routes/single-player-setup.tsx:647
+#: src/routes/single-player-setup.tsx:578
+#: src/routes/single-player-setup.tsx:649
 msgid "{0} rounds"
 msgstr "{0} rounds"
 
@@ -253,19 +253,19 @@ msgid "{0} rounds, {1} playlists, {2} updated, {3} failed"
 msgstr "{0} rounds, {1} playlists, {2} updated, {3} failed"
 
 #. placeholder {0}: boardSummary.safePointCount
-#: src/routes/single-player-setup.tsx:650
+#: src/routes/single-player-setup.tsx:652
 msgid "{0} safe points"
 msgstr "{0} safe points"
 
 #. placeholder {0}: visibleAvailableNormalRounds.length
-#: src/routes/playlist-workshop.tsx:3069
+#: src/routes/playlist-workshop.tsx:3080
 msgid "{0} shown"
 msgstr "{0} shown"
 
 #. placeholder {0}: availablePlaylists.length
 #. placeholder {0}: cumLoadCount.toLocaleString()
 #: src/routes/index.tsx:925
-#: src/routes/single-player-setup.tsx:507
+#: src/routes/single-player-setup.tsx:509
 msgid "{0} total"
 msgstr "{0} total"
 
@@ -282,7 +282,7 @@ msgstr "{0} tracks"
 
 #. placeholder {0}: cacheSummary?.pendingRoundCount ?? 0
 #. placeholder {1}: (cacheSummary?.pendingRoundCount ?? 0) === 1 ? "" : "s"
-#: src/routes/single-player-setup.tsx:588
+#: src/routes/single-player-setup.tsx:590
 msgid "{0} web round{1} caching"
 msgstr "{0} web round{1} caching"
 
@@ -294,8 +294,8 @@ msgstr "{0} web round{1} caching"
 #. placeholder {1}: perkOptions.length
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1163
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1200
-#: src/routes/playlist-workshop.tsx:3528
-#: src/routes/playlist-workshop.tsx:3629
+#: src/routes/playlist-workshop.tsx:3539
+#: src/routes/playlist-workshop.tsx:3640
 msgid "{0}/{1} active"
 msgstr "{0}/{1} active"
 
@@ -303,7 +303,7 @@ msgstr "{0}/{1} active"
 msgid "{activeFilterCount} Active Filters"
 msgstr "{activeFilterCount} Active Filters"
 
-#: src/routes/playlist-workshop.tsx:1613
+#: src/routes/playlist-workshop.tsx:1624
 msgid "{boardMode} Playlist"
 msgstr "{boardMode} Playlist"
 
@@ -328,7 +328,7 @@ msgstr "{count, plural, one {# Playlist} other {# Playlists}}"
 msgid "playlist-workshop.resolution.auto-resolved-summary"
 msgstr "{count, plural, one {# ref was auto-resolved and can be reviewed.} other {# refs were auto-resolved and can be reviewed.}}"
 
-#: src/features/rounds/library/components/RoundCard.tsx:193
+#: src/features/rounds/library/components/RoundCard.tsx:192
 msgid "{displayName} preview"
 msgstr "{displayName} preview"
 
@@ -385,15 +385,15 @@ msgstr "{syncQueueCount} multiplayer result entries are still queued."
 msgid "{transcodeCompletedLabel} / {transcodeTotalLabel} encoded"
 msgstr "{transcodeCompletedLabel} / {transcodeTotalLabel} encoded"
 
-#: src/routes/map-editor.tsx:3321
+#: src/routes/map-editor.tsx:3474
 msgid "• unsaved"
 msgstr "• unsaved"
 
 #: src/routes/converter.tsx:142
 #: src/routes/highscores.tsx:458
-#: src/routes/playlist-workshop.tsx:2298
+#: src/routes/playlist-workshop.tsx:2309
 #: src/routes/settings.tsx:2759
-#: src/routes/single-player-setup.tsx:613
+#: src/routes/single-player-setup.tsx:615
 msgid "← Back"
 msgstr "← Back"
 
@@ -401,7 +401,7 @@ msgstr "← Back"
 msgid "+"
 msgstr "+"
 
-#: src/routes/playlist-workshop.tsx:3153
+#: src/routes/playlist-workshop.tsx:3164
 msgid "+ Add {availableCount}"
 msgstr "+ Add {availableCount}"
 
@@ -409,11 +409,11 @@ msgstr "+ Add {availableCount}"
 msgid "+ Add Tracks"
 msgstr "+ Add Tracks"
 
-#: src/routes/playlist-workshop.tsx:3195
+#: src/routes/playlist-workshop.tsx:3206
 msgid "< 3 min"
 msgstr "< 3 min"
 
-#: src/routes/playlist-workshop.tsx:3197
+#: src/routes/playlist-workshop.tsx:3208
 msgid "> 10 min"
 msgstr "> 10 min"
 
@@ -449,39 +449,39 @@ msgstr "✓ Fallback path available."
 msgid "✕ Cancel"
 msgstr "✕ Cancel"
 
-#: src/routes/playlist-workshop.tsx:2868
+#: src/routes/playlist-workshop.tsx:2879
 msgid "✕ Clear"
 msgstr "✕ Clear"
 
 #. js-lingui-explicit-id
 #: src/components/game/GameBoardRenderer.tsx:168
-#: src/components/game/GameScene.tsx:2870
+#: src/components/game/GameScene.tsx:2892
 msgid "gameboard.kind.perk"
 msgstr "✦ PERK"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:3570
+#: src/components/game/GameScene.tsx:3592
 msgid "game.perk.header"
 msgstr "✦ PICK A PERK ✦"
 
 #. placeholder {0}: setup.normalRoundOrder.length
-#: src/routes/playlist-workshop.tsx:3385
+#: src/routes/playlist-workshop.tsx:3396
 msgid "🎯 {0} added to queue"
 msgstr "🎯 {0} added to queue"
 
-#: src/routes/playlist-workshop.tsx:2791
+#: src/routes/playlist-workshop.tsx:2802
 msgid "🎯 Queue"
 msgstr "🎯 Queue"
 
-#: src/routes/playlist-workshop.tsx:2850
+#: src/routes/playlist-workshop.tsx:2861
 msgid "🎲 Random"
 msgstr "🎲 Random"
 
-#: src/routes/playlist-workshop.tsx:2859
+#: src/routes/playlist-workshop.tsx:2870
 msgid "📈 Progressive"
 msgstr "📈 Progressive"
 
-#: src/routes/playlist-workshop.tsx:2769
+#: src/routes/playlist-workshop.tsx:2780
 msgid "📚 Library"
 msgstr "📚 Library"
 
@@ -514,11 +514,11 @@ msgstr "2"
 msgid "2. Media"
 msgstr "2. Media"
 
-#: src/routes/playlist-workshop.tsx:2700
+#: src/routes/playlist-workshop.tsx:2711
 msgid "25, 50, 75"
 msgstr "25, 50, 75"
 
-#: src/routes/playlist-workshop.tsx:3196
+#: src/routes/playlist-workshop.tsx:3207
 msgid "3-10 min"
 msgstr "3-10 min"
 
@@ -545,7 +545,7 @@ msgstr "A linear map is a straight path. It is easier to understand, quicker to 
 msgid "first-start.step.booru.detail.2"
 msgstr "A simple, specific prompt usually works better than a long one. You can keep the default if you are unsure."
 
-#: src/routes/playlist-workshop.tsx:3183
+#: src/routes/playlist-workshop.tsx:3194
 msgid "A-Z"
 msgstr "A-Z"
 
@@ -579,7 +579,7 @@ msgid "actions"
 msgstr "actions"
 
 #: src/features/rounds/library/components/GroupHeaders.tsx:122
-#: src/routes/playlist-workshop.tsx:2443
+#: src/routes/playlist-workshop.tsx:2454
 msgid "Actions"
 msgstr "Actions"
 
@@ -588,11 +588,11 @@ msgstr "Actions"
 msgid "Activate all"
 msgstr "Activate all"
 
-#: src/routes/playlist-workshop.tsx:3648
+#: src/routes/playlist-workshop.tsx:3659
 msgid "Activate all anti-perks"
 msgstr "Activate all anti-perks"
 
-#: src/routes/playlist-workshop.tsx:3544
+#: src/routes/playlist-workshop.tsx:3555
 msgid "Activate all perks"
 msgstr "Activate all perks"
 
@@ -601,22 +601,22 @@ msgid "active"
 msgstr "active"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1366
+#: src/components/game/GameScene.tsx:1385
 msgid "hud.duration.active"
 msgstr "active"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1386
+#: src/components/game/GameScene.tsx:1405
 msgid "hud.effect.active"
 msgstr "active"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1189
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1226
-#: src/features/map-editor/components/PlaylistPickerView.tsx:121
-#: src/routes/playlist-workshop.tsx:1617
-#: src/routes/playlist-workshop.tsx:3605
-#: src/routes/playlist-workshop.tsx:3709
-#: src/routes/single-player-setup.tsx:599
+#: src/features/map-editor/components/PlaylistPickerView.tsx:141
+#: src/routes/playlist-workshop.tsx:1628
+#: src/routes/playlist-workshop.tsx:3616
+#: src/routes/playlist-workshop.tsx:3720
+#: src/routes/single-player-setup.tsx:601
 msgid "Active"
 msgstr "Active"
 
@@ -629,8 +629,8 @@ msgid "Active Effects"
 msgstr "Active Effects"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1424
-#: src/components/game/GameScene.tsx:1432
+#: src/components/game/GameScene.tsx:1443
+#: src/components/game/GameScene.tsx:1451
 msgid "hud.activeEffects"
 msgstr "ACTIVE EFFECTS"
 
@@ -643,7 +643,7 @@ msgstr "Active Jobs"
 msgid "Active Players"
 msgstr "Active Players"
 
-#: src/routes/playlist-workshop.tsx:2350
+#: src/routes/playlist-workshop.tsx:2361
 msgid "Active Playlist"
 msgstr "Active Playlist"
 
@@ -664,7 +664,7 @@ msgstr "Add"
 msgid "Add a content folder or import a single hero/round file."
 msgstr "Add a content folder or import a single hero/round file."
 
-#: src/routes/map-editor.tsx:3227
+#: src/routes/map-editor.tsx:3380
 msgid "Add a start node from the left sidebar or use Place mode."
 msgstr "Add a start node from the left sidebar or use Place mode."
 
@@ -672,7 +672,7 @@ msgstr "Add a start node from the left sidebar or use Place mode."
 msgid "Add Action"
 msgstr "Add Action"
 
-#: src/routes/playlist-workshop.tsx:3107
+#: src/routes/playlist-workshop.tsx:3118
 msgid "Add all rounds from a hero at once"
 msgstr "Add all rounds from a hero at once"
 
@@ -733,7 +733,7 @@ msgstr "Add music"
 msgid "Add Music Files"
 msgstr "Add Music Files"
 
-#: src/routes/playlist-workshop.tsx:2911
+#: src/routes/playlist-workshop.tsx:2922
 msgid "Add Section"
 msgstr "Add Section"
 
@@ -761,10 +761,10 @@ msgstr "Add tags to {selectedCount} selected rounds."
 msgid "Add the guaranteed perk to the player's inventory instead of applying it immediately."
 msgstr "Add the guaranteed perk to the player's inventory instead of applying it immediately."
 
-#: src/routes/playlist-workshop.tsx:3272
-#: src/routes/playlist-workshop.tsx:3273
-#: src/routes/playlist-workshop.tsx:3330
-#: src/routes/playlist-workshop.tsx:3331
+#: src/routes/playlist-workshop.tsx:3283
+#: src/routes/playlist-workshop.tsx:3284
+#: src/routes/playlist-workshop.tsx:3341
+#: src/routes/playlist-workshop.tsx:3342
 msgid "Add to queue"
 msgstr "Add to queue"
 
@@ -780,7 +780,7 @@ msgstr "Add trusted base domain"
 msgid "Add Trusted Site"
 msgstr "Add Trusted Site"
 
-#: src/routes/playlist-workshop.tsx:3083
+#: src/routes/playlist-workshop.tsx:3094
 msgid "Add Visible"
 msgstr "Add Visible"
 
@@ -892,11 +892,11 @@ msgstr "Adding a folder is best when you already keep your packs together in one
 msgid "Adding..."
 msgstr "Adding..."
 
-#: src/routes/playlist-workshop.tsx:3940
+#: src/routes/playlist-workshop.tsx:3951
 msgid "Additional anti-perk chance added after each completed round. The chance ramps up round by round until it hits the configured maximum."
 msgstr "Additional anti-perk chance added after each completed round. The chance ramps up round by round until it hits the configured maximum."
 
-#: src/routes/playlist-workshop.tsx:3889
+#: src/routes/playlist-workshop.tsx:3900
 msgid "Additional intermediary chance added after each completed round. Example: 10% initial plus 5% increase becomes 15% on the next round, then 20%, until the max is reached."
 msgstr "Additional intermediary chance added after each completed round. Example: 10% initial plus 5% increase becomes 15% on the next round, then 20%, until the max is reached."
 
@@ -912,11 +912,11 @@ msgstr "Adds extra pause when landed on"
 msgid "Adds to normal rest when set"
 msgstr "Adds to normal rest when set"
 
-#: src/components/GlobalHandyOverlay.tsx:615
+#: src/components/GlobalHandyOverlay.tsx:613
 msgid "adjust in-game"
 msgstr "adjust in-game"
 
-#: src/components/GlobalHandyOverlay.tsx:466
+#: src/components/GlobalHandyOverlay.tsx:464
 #: src/routes/settings.tsx:4986
 msgid "Adjust the active haptics stroke range."
 msgstr "Adjust the active haptics stroke range."
@@ -942,7 +942,7 @@ msgstr "Advertise on Public List"
 msgid "After:"
 msgstr "After:"
 
-#: src/components/game/RoundVideoOverlay.tsx:933
+#: src/components/game/RoundVideoOverlay.tsx:965
 msgid "Aligning timeline with haptics before playback starts."
 msgstr "Aligning timeline with haptics before playback starts."
 
@@ -953,7 +953,7 @@ msgstr "Aligning timeline with haptics before playback starts."
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2679
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2691
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2703
-#: src/routes/map-editor.tsx:3172
+#: src/routes/map-editor.tsx:3325
 msgid "All"
 msgstr "All"
 
@@ -961,7 +961,7 @@ msgstr "All"
 msgid "All (AND)"
 msgstr "All (AND)"
 
-#: src/routes/playlist-workshop.tsx:3140
+#: src/routes/playlist-workshop.tsx:3151
 msgid "All added"
 msgstr "All added"
 
@@ -981,7 +981,7 @@ msgstr "All downloaded/imported game content."
 msgid "All files from this playlist are already in your moaning library."
 msgstr "All files from this playlist are already in your moaning library."
 
-#: src/routes/playlist-workshop.tsx:3359
+#: src/routes/playlist-workshop.tsx:3370
 msgid "All rounds are in the queue."
 msgstr "All rounds are in the queue."
 
@@ -1028,7 +1028,7 @@ msgstr "Allowing only configured Stash source URLs and blocking yt-dlp and user-
 msgid "Already AV1"
 msgstr "Already AV1"
 
-#: src/components/game/RoundVideoOverlay.tsx:1786
+#: src/components/game/RoundVideoOverlay.tsx:1818
 msgid "Already inside an intermediary segment."
 msgstr "Already inside an intermediary segment."
 
@@ -1081,17 +1081,17 @@ msgid "Anonymous account"
 msgstr "Anonymous account"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:2231
+#: src/components/game/GameScene.tsx:2252
 msgid "game.inventory.antiPerk"
 msgstr "anti-perk"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4326
+#: src/components/game/GameScene.tsx:4351
 msgid "hud.antiPerk"
 msgstr "ANTI-PERK"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4334
+#: src/components/game/GameScene.tsx:4359
 msgid "hud.antiPerkApplied"
 msgstr "ANTI-PERK APPLIED:"
 
@@ -1105,7 +1105,7 @@ msgstr "Anti-Perk Feed"
 msgid "Anti-perk increase"
 msgstr "Anti-perk increase"
 
-#: src/routes/playlist-workshop.tsx:3939
+#: src/routes/playlist-workshop.tsx:3950
 msgid "Anti-Perk Increase %"
 msgstr "Anti-Perk Increase %"
 
@@ -1114,11 +1114,11 @@ msgstr "Anti-Perk Increase %"
 msgid "Anti-perk initial"
 msgstr "Anti-perk initial"
 
-#: src/routes/playlist-workshop.tsx:3924
+#: src/routes/playlist-workshop.tsx:3935
 msgid "Anti-Perk Initial %"
 msgstr "Anti-Perk Initial %"
 
-#: src/components/game/GameScene.tsx:5042
+#: src/components/game/GameScene.tsx:5092
 msgid "Anti-perk items cannot be applied to yourself in singleplayer."
 msgstr "Anti-perk items cannot be applied to yourself in singleplayer."
 
@@ -1127,11 +1127,11 @@ msgstr "Anti-perk items cannot be applied to yourself in singleplayer."
 msgid "Anti-perk max"
 msgstr "Anti-perk max"
 
-#: src/routes/playlist-workshop.tsx:3957
+#: src/routes/playlist-workshop.tsx:3968
 msgid "Anti-Perk Max %"
 msgstr "Anti-Perk Max %"
 
-#: src/components/game/RoundVideoOverlay.tsx:3515
+#: src/components/game/RoundVideoOverlay.tsx:3544
 msgid "Anti-perk sequence"
 msgstr "Anti-perk sequence"
 
@@ -1195,10 +1195,10 @@ msgstr "Anti-perk: reduce minimum dice roll by 1 for 2 rounds."
 msgid "perk.description.sticky-fingers"
 msgstr "Anti-perk: remove one pause charge and one skip charge."
 
-#: src/components/game/GameScene.tsx:5404
+#: src/components/game/GameScene.tsx:5454
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1197
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1049
-#: src/routes/playlist-workshop.tsx:3627
+#: src/routes/playlist-workshop.tsx:3638
 msgid "Anti-Perks"
 msgstr "Anti-Perks"
 
@@ -1207,7 +1207,7 @@ msgstr "Anti-Perks"
 msgid "perk.name.antigravity"
 msgstr "Antigravity"
 
-#: src/routes/playlist-workshop.tsx:3194
+#: src/routes/playlist-workshop.tsx:3205
 msgid "Any"
 msgstr "Any"
 
@@ -1268,7 +1268,7 @@ msgid "Application ID"
 msgstr "Application ID"
 
 #. placeholder {0}: updated.name
-#: src/routes/map-editor.tsx:3786
+#: src/routes/map-editor.tsx:3947
 msgid "Applied playlist resolutions to \"{0}\"."
 msgstr "Applied playlist resolutions to \"{0}\"."
 
@@ -1286,7 +1286,7 @@ msgstr "Apply \"{0}\""
 msgid "Apply {0}"
 msgstr "Apply {0}"
 
-#: src/routes/playlist-workshop.tsx:2679
+#: src/routes/playlist-workshop.tsx:2690
 msgid "Apply 25/50/75 Preset"
 msgstr "Apply 25/50/75 Preset"
 
@@ -1302,7 +1302,7 @@ msgstr "Apply boost only when landing directly on this tile (not when passing ov
 msgid "Apply defaults"
 msgstr "Apply defaults"
 
-#: src/components/game/GameScene.tsx:4992
+#: src/components/game/GameScene.tsx:5042
 msgid "Apply directly"
 msgstr "Apply directly"
 
@@ -1310,17 +1310,17 @@ msgstr "Apply directly"
 msgid "Apply Layout"
 msgstr "Apply Layout"
 
-#: src/routes/map-editor.tsx:2516
+#: src/routes/map-editor.tsx:2669
 msgid "Apply Order"
 msgstr "Apply Order"
 
-#: src/components/game/GameScene.tsx:5032
+#: src/components/game/GameScene.tsx:5082
 #: src/routes/multiplayer-match.tsx:1507
 msgid "Apply Perk"
 msgstr "Apply Perk"
 
-#: src/routes/map-editor.tsx:2520
-#: src/routes/playlist-workshop.tsx:2185
+#: src/routes/map-editor.tsx:2673
+#: src/routes/playlist-workshop.tsx:2196
 msgid "Apply Progressive"
 msgstr "Apply Progressive"
 
@@ -1329,12 +1329,12 @@ msgstr "Apply Progressive"
 msgid "Apply recommended settings for weak hardware"
 msgstr "Apply recommended settings for weak hardware"
 
-#: src/routes/map-editor.tsx:3735
-#: src/routes/playlist-workshop.tsx:4193
+#: src/routes/map-editor.tsx:3896
+#: src/routes/playlist-workshop.tsx:4204
 msgid "Apply Resolutions"
 msgstr "Apply Resolutions"
 
-#: src/components/game/GameScene.tsx:5013
+#: src/components/game/GameScene.tsx:5063
 msgid "Apply stored perks to your run or clear out items you do not want to keep."
 msgstr "Apply stored perks to your run or clear out items you do not want to keep."
 
@@ -1364,7 +1364,7 @@ msgstr "Applying..."
 msgid "Approximate"
 msgstr "Approximate"
 
-#: src/routes/map-editor.tsx:3834
+#: src/routes/map-editor.tsx:3995
 msgid "Are you sure you want to reset the graph? This will delete all progress made."
 msgstr "Are you sure you want to reset the graph? This will delete all progress made."
 
@@ -1444,7 +1444,7 @@ msgstr "Authentication failed."
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:43
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:61
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2676
-#: src/routes/playlist-workshop.tsx:3185
+#: src/routes/playlist-workshop.tsx:3196
 msgid "Author"
 msgstr "Author"
 
@@ -1460,7 +1460,7 @@ msgstr "Author filter"
 msgid "author-one, author-two"
 msgstr "author-one, author-two"
 
-#: src/features/rounds/library/components/RoundCard.tsx:406
+#: src/features/rounds/library/components/RoundCard.tsx:405
 msgid "Author:"
 msgstr "Author:"
 
@@ -1506,11 +1506,11 @@ msgstr "Auto-apply"
 msgid "Auto-Apply Perks"
 msgstr "Auto-Apply Perks"
 
-#: src/components/game/GameScene.tsx:5070
+#: src/components/game/GameScene.tsx:5120
 msgid "Auto-pick in"
 msgstr "Auto-pick in"
 
-#: src/components/game/GameScene.tsx:5071
+#: src/components/game/GameScene.tsx:5121
 msgid "Auto-pick pending"
 msgstr "Auto-pick pending"
 
@@ -1526,7 +1526,7 @@ msgstr "Automatic Local Backups"
 msgid "Automatically compute visual fingerprints for rounds in the background. Highly recommended for accurate similarity matching."
 msgstr "Automatically compute visual fingerprints for rounds in the background. Highly recommended for accurate similarity matching."
 
-#: src/routes/playlist-workshop.tsx:2620
+#: src/routes/playlist-workshop.tsx:2631
 msgid "Automatically grows to fit the selected queue."
 msgstr "Automatically grows to fit the selected queue."
 
@@ -1535,7 +1535,7 @@ msgid "Automation is still in development. Expect bugs and some things not to wo
 msgstr "Automation is still in development. Expect bugs and some things not to work yet."
 
 #: src/features/map-editor/components/AutomationPanel.tsx:148
-#: src/routes/map-editor.tsx:3182
+#: src/routes/map-editor.tsx:3335
 msgid "Automations"
 msgstr "Automations"
 
@@ -1558,12 +1558,12 @@ msgid "Available on"
 msgstr "Available on"
 
 #. placeholder {0}: round.name
-#: src/routes/playlist-workshop.tsx:3234
-#: src/routes/playlist-workshop.tsx:3293
+#: src/routes/playlist-workshop.tsx:3245
+#: src/routes/playlist-workshop.tsx:3304
 msgid "Available round {0}"
 msgstr "Available round {0}"
 
-#: src/routes/playlist-workshop.tsx:3058
+#: src/routes/playlist-workshop.tsx:3069
 msgid "Available Rounds"
 msgstr "Available Rounds"
 
@@ -1575,11 +1575,11 @@ msgstr "Available Rounds"
 #: src/routes/multiplayer-lobby.tsx:588
 #: src/routes/playlist-workshop.tsx:1484
 #: src/routes/playlist-workshop.tsx:1554
-#: src/routes/playlist-workshop.tsx:4078
+#: src/routes/playlist-workshop.tsx:4089
 msgid "Back"
 msgstr "Back"
 
-#: src/routes/game.tsx:769
+#: src/routes/game.tsx:857
 msgid "Back to Editor"
 msgstr "Back to Editor"
 
@@ -1663,11 +1663,11 @@ msgid "Bans apply to your hosted lobbies by user ID or hardware ID."
 msgstr "Bans apply to your hosted lobbies by user ID or hardware ID."
 
 #. placeholder {0}: showProgressBarAlways ? "Pinned" : "Auto"
-#: src/components/game/RoundVideoOverlay.tsx:3857
+#: src/components/game/RoundVideoOverlay.tsx:3884
 msgid "Bar {0}"
 msgstr "Bar {0}"
 
-#: src/routes/playlist-workshop.tsx:3862
+#: src/routes/playlist-workshop.tsx:3873
 msgid "Base chance to roll a random perk after each completed round. This does not stack per round; the same chance is checked again each time."
 msgstr "Base chance to roll a random perk after each completed round. This does not stack per round; the same chance is checked again each time."
 
@@ -1694,7 +1694,7 @@ msgstr "Before Date"
 msgid "Before:"
 msgstr "Before:"
 
-#: src/routes/single-player-setup.tsx:773
+#: src/routes/single-player-setup.tsx:775
 msgid "Begin a fresh run and replace the saved one"
 msgstr "Begin a fresh run and replace the saved one"
 
@@ -1703,7 +1703,7 @@ msgid "Best"
 msgstr "Best"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4314
+#: src/components/game/GameScene.tsx:4339
 msgid "hud.best"
 msgstr "BEST"
 
@@ -1725,7 +1725,7 @@ msgid "perk.description.shield"
 msgstr "Block incoming anti-perks for 2 rounds."
 
 #: src/routes/multiplayer.tsx:1006
-#: src/routes/single-player-setup.tsx:754
+#: src/routes/single-player-setup.tsx:756
 msgid "Blocked"
 msgstr "Blocked"
 
@@ -1751,11 +1751,11 @@ msgid "Board Progress"
 msgstr "Board Progress"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4300
+#: src/components/game/GameScene.tsx:4325
 msgid "hud.boardProgress"
 msgstr "BOARD PROGRESS"
 
-#: src/components/game/RoundVideoOverlay.tsx:2204
+#: src/components/game/RoundVideoOverlay.tsx:2237
 msgid "Board sequence completed."
 msgstr "Board sequence completed."
 
@@ -1765,7 +1765,7 @@ msgstr "Board sequence completed."
 msgid "Body"
 msgstr "Body"
 
-#: src/routes/playlist-workshop.tsx:4056
+#: src/routes/playlist-workshop.tsx:4067
 msgid "Bonus score granted when a cum round is completed successfully. This affects scoring only and does not influence trigger probabilities."
 msgstr "Bonus score granted when a cum round is completed successfully. This affects scoring only and does not influence trigger probabilities."
 
@@ -1789,7 +1789,7 @@ msgid "BPM"
 msgstr "BPM"
 
 #: src/features/converter/SegmentCard.tsx:289
-#: src/features/rounds/library/components/RoundCard.tsx:388
+#: src/features/rounds/library/components/RoundCard.tsx:387
 msgid "BPM:"
 msgstr "BPM:"
 
@@ -1819,7 +1819,7 @@ msgstr "Browse 1 cached match result and expand individual player standings."
 msgid "Browse advertised lobbies and join with one click."
 msgstr "Browse advertised lobbies and join with one click."
 
-#: src/routes/playlist-workshop.tsx:3038
+#: src/routes/playlist-workshop.tsx:3049
 msgid "Browse Library →"
 msgstr "Browse Library →"
 
@@ -1898,16 +1898,16 @@ msgid "Caching Failed"
 msgstr "Caching Failed"
 
 #: src/features/rounds/library/components/GroupHeaders.tsx:231
-#: src/routes/single-player-setup.tsx:557
-#: src/routes/single-player-setup.tsx:660
+#: src/routes/single-player-setup.tsx:559
+#: src/routes/single-player-setup.tsx:662
 msgid "Caching ongoing"
 msgstr "Caching ongoing"
 
 #: src/features/rounds/library/components/GroupHeaders.tsx:95
 #: src/features/rounds/library/components/GroupHeaders.tsx:238
-#: src/features/rounds/library/components/RoundCard.tsx:233
-#: src/features/rounds/library/components/RoundCard.tsx:301
-#: src/routes/single-player-setup.tsx:721
+#: src/features/rounds/library/components/RoundCard.tsx:232
+#: src/features/rounds/library/components/RoundCard.tsx:300
+#: src/routes/single-player-setup.tsx:723
 msgid "Caching Ongoing"
 msgstr "Caching Ongoing"
 
@@ -1927,11 +1927,11 @@ msgstr "Calculating ETA..."
 msgid "Calculating…"
 msgstr "Calculating…"
 
-#: src/components/game/RoundVideoOverlay.tsx:4564
+#: src/components/game/RoundVideoOverlay.tsx:4592
 msgid "Came as told"
 msgstr "Came as told"
 
-#: src/components/game/RoundVideoOverlay.tsx:4744
+#: src/components/game/RoundVideoOverlay.tsx:4776
 msgid "Came as Told"
 msgstr "Came as Told"
 
@@ -1960,16 +1960,16 @@ msgstr "CAMPFIRE"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:626
 #: src/features/rounds/library/ui/Modal.tsx:87
 #: src/routes/highscores.tsx:1081
-#: src/routes/playlist-workshop.tsx:4153
-#: src/routes/playlist-workshop.tsx:4718
-#: src/routes/playlist-workshop.tsx:4855
+#: src/routes/playlist-workshop.tsx:4164
+#: src/routes/playlist-workshop.tsx:4729
+#: src/routes/playlist-workshop.tsx:4866
 #: src/routes/settings.tsx:5386
 #: src/routes/settings.tsx:5805
 #: src/routes/settings.tsx:6090
 #: src/routes/settings.tsx:6167
 #: src/routes/settings.tsx:8367
 #: src/routes/settings.tsx:8610
-#: src/routes/single-player-setup.tsx:889
+#: src/routes/single-player-setup.tsx:891
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -1978,12 +1978,12 @@ msgstr "Cancel"
 msgid "Cancel Selection"
 msgstr "Cancel Selection"
 
-#: src/components/game/RoundVideoOverlay.tsx:1858
+#: src/components/game/RoundVideoOverlay.tsx:1890
 msgid "Cannot resync: missing haptics connection settings."
 msgstr "Cannot resync: missing haptics connection settings."
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1445
+#: src/components/game/GameScene.tsx:1464
 msgid "hud.cap"
 msgstr "CAP"
 
@@ -1998,7 +1998,7 @@ msgstr "Catapult"
 
 #. js-lingui-explicit-id
 #: src/components/game/GameBoardRenderer.tsx:172
-#: src/components/game/GameScene.tsx:2871
+#: src/components/game/GameScene.tsx:2893
 msgid "gameboard.kind.catapult"
 msgstr "CATAPULT"
 
@@ -2088,7 +2088,7 @@ msgstr "Checking..."
 msgid "Checkpoint"
 msgstr "Checkpoint"
 
-#: src/routes/game.tsx:637
+#: src/routes/game.tsx:725
 msgid "Checkpoint reached. Game saved."
 msgstr "Checkpoint reached. Game saved."
 
@@ -2096,7 +2096,7 @@ msgstr "Checkpoint reached. Game saved."
 msgid "Checkpoint:"
 msgstr "Checkpoint:"
 
-#: src/routes/map-editor.tsx:3183
+#: src/routes/map-editor.tsx:3336
 msgid "Checks"
 msgstr "Checks"
 
@@ -2114,11 +2114,11 @@ msgstr "Choose a booru search prompt"
 msgid "Choose a folder and scan it for supported round media."
 msgstr "Choose a folder and scan it for supported round media."
 
-#: src/routes/playlist-workshop.tsx:4689
+#: src/routes/playlist-workshop.tsx:4700
 msgid "Choose a new name for this playlist."
 msgstr "Choose a new name for this playlist."
 
-#: src/routes/single-player-setup.tsx:495
+#: src/routes/single-player-setup.tsx:497
 msgid "Choose a playlist on the left, review any cache warnings, then start your run."
 msgstr "Choose a playlist on the left, review any cache warnings, then start your run."
 
@@ -2190,7 +2190,7 @@ msgstr "Choose which cum rounds are available."
 msgid "Choose which GPU is used by FFmpeg and Electron's renderer. \"Default\" lets the OS decide. On Linux, selects the GPU via DRI_PRIME for both FFmpeg transcoding and Electron's Chromium GPU process. On Windows/macOS, selects the Electron rendering GPU via the --gpu-device-index switch (FFmpeg codec selection is unaffected). Requires an app restart to apply."
 msgstr "Choose which GPU is used by FFmpeg and Electron's renderer. \"Default\" lets the OS decide. On Linux, selects the GPU via DRI_PRIME for both FFmpeg transcoding and Electron's Chromium GPU process. On Windows/macOS, selects the Electron rendering GPU via the --gpu-device-index switch (FFmpeg codec selection is unaffected). Requires an app restart to apply."
 
-#: src/components/game/GameScene.tsx:5062
+#: src/components/game/GameScene.tsx:5112
 msgid "Choose your route"
 msgstr "Choose your route"
 
@@ -2205,7 +2205,7 @@ msgstr "clear"
 
 #: src/components/GlobalMusicOverlay.tsx:698
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2472
-#: src/routes/playlist-workshop.tsx:2186
+#: src/routes/playlist-workshop.tsx:2197
 #: src/routes/settings.tsx:5399
 #: src/routes/settings.tsx:5818
 msgid "Clear"
@@ -2258,7 +2258,7 @@ msgstr "Clear music playlist?"
 msgid "Clear Playlist"
 msgstr "Clear Playlist"
 
-#: src/routes/playlist-workshop.tsx:2178
+#: src/routes/playlist-workshop.tsx:2189
 msgid "Clear selected rounds?"
 msgstr "Clear selected rounds?"
 
@@ -2286,7 +2286,7 @@ msgid "Click export to choose a destination and generate the package."
 msgstr "Click export to choose a destination and generate the package."
 
 #. placeholder {0}: activeTile.label
-#: src/routes/map-editor.tsx:3245
+#: src/routes/map-editor.tsx:3398
 msgid "Click the canvas to place {0}."
 msgstr "Click the canvas to place {0}."
 
@@ -2303,12 +2303,12 @@ msgid "close"
 msgstr "close"
 
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:369
-#: src/components/game/GameScene.tsx:5008
-#: src/components/game/GameScene.tsx:5367
-#: src/components/game/RoundVideoOverlay.tsx:3420
-#: src/components/game/RoundVideoOverlay.tsx:3917
-#: src/components/game/RoundVideoOverlay.tsx:4590
-#: src/components/GlobalHandyOverlay.tsx:328
+#: src/components/game/GameScene.tsx:5058
+#: src/components/game/GameScene.tsx:5417
+#: src/components/game/RoundVideoOverlay.tsx:3450
+#: src/components/game/RoundVideoOverlay.tsx:3944
+#: src/components/game/RoundVideoOverlay.tsx:4618
+#: src/components/GlobalHandyOverlay.tsx:326
 #: src/components/GlobalMusicOverlay.tsx:328
 #: src/components/PlaylistPackExportDialog.tsx:191
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:191
@@ -2318,7 +2318,7 @@ msgstr "close"
 msgid "Close"
 msgstr "Close"
 
-#: src/components/game/RoundVideoOverlay.tsx:3419
+#: src/components/game/RoundVideoOverlay.tsx:3449
 msgid "Close ({missingMediaAutoCloseRemainingSec}s)"
 msgstr "Close ({missingMediaAutoCloseRemainingSec}s)"
 
@@ -2326,7 +2326,7 @@ msgstr "Close ({missingMediaAutoCloseRemainingSec}s)"
 msgid "Close command palette"
 msgstr "Close command palette"
 
-#: src/components/GlobalHandyOverlay.tsx:324
+#: src/components/GlobalHandyOverlay.tsx:322
 msgid "Close haptics overlay"
 msgstr "Close haptics overlay"
 
@@ -2413,6 +2413,10 @@ msgstr "Compress non-AV1 videos to AV1"
 msgid "Compression"
 msgstr "Compression"
 
+#: src/components/PlaylistPackExportDialog.tsx:384
+msgid "Compression strength"
+msgstr "Compression strength"
+
 #: src/components/PlaylistPackExportDialog.tsx:365
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:436
 msgid "Compression Strength"
@@ -2460,15 +2464,15 @@ msgstr "Confirm Migration"
 msgid "Confirm Reveal"
 msgstr "Confirm Reveal"
 
-#: src/components/game/RoundVideoOverlay.tsx:4554
+#: src/components/game/RoundVideoOverlay.tsx:4582
 msgid "Confirm what happened in this cum round."
 msgstr "Confirm what happened in this cum round."
 
-#: src/components/game/GameScene.tsx:5166
+#: src/components/game/GameScene.tsx:5216
 msgid "Confirm you came"
 msgstr "Confirm you came"
 
-#: src/components/game/GameScene.tsx:5151
+#: src/components/game/GameScene.tsx:5201
 msgid "Confirm your orgasm. Because this is not a cum round, this will immediately end the round and the entire game as a loss."
 msgstr "Confirm your orgasm. Because this is not a cum round, this will immediately end the round and the entire game as a loss."
 
@@ -2476,7 +2480,7 @@ msgstr "Confirm your orgasm. Because this is not a cum round, this will immediat
 msgid "Confirmation text did not match. No changes were made."
 msgstr "Confirmation text did not match. No changes were made."
 
-#: src/components/GlobalHandyOverlay.tsx:566
+#: src/components/GlobalHandyOverlay.tsx:564
 #: src/features/map-editor/components/EditorToolbar.tsx:80
 #: src/routes/first-start.tsx:2838
 #: src/routes/settings.tsx:4764
@@ -2526,13 +2530,13 @@ msgstr "Connecting"
 msgid "first-start.step.handy.title"
 msgstr "Linking your Handy device"
 
-#: src/components/GlobalHandyOverlay.tsx:566
+#: src/components/GlobalHandyOverlay.tsx:564
 #: src/routes/first-start.tsx:2824
 #: src/routes/settings.tsx:4764
 msgid "Connecting..."
 msgstr "Connecting..."
 
-#: src/components/GlobalHandyOverlay.tsx:527
+#: src/components/GlobalHandyOverlay.tsx:525
 msgid "Connection"
 msgstr "Connection"
 
@@ -2574,12 +2578,12 @@ msgstr "Continue"
 msgid "Continue on error"
 msgstr "Continue on error"
 
-#: src/routes/single-player-setup.tsx:747
+#: src/routes/single-player-setup.tsx:749
 msgid "Continue the saved run for this playlist"
 msgstr "Continue the saved run for this playlist"
 
-#: src/routes/map-editor.tsx:3738
-#: src/routes/playlist-workshop.tsx:4196
+#: src/routes/map-editor.tsx:3899
+#: src/routes/playlist-workshop.tsx:4207
 msgid "Continue Unresolved"
 msgstr "Continue Unresolved"
 
@@ -2593,7 +2597,7 @@ msgid "command-palette.settings-experimental.description"
 msgstr "Controller support, web funscripts"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1414
+#: src/components/game/GameScene.tsx:1433
 msgid "hud.controls"
 msgstr "Controls"
 
@@ -2605,7 +2609,7 @@ msgstr "Controls how much diagnostic information is written to the local log fil
 msgid "Controls the range of the dice used for movement."
 msgstr "Controls the range of the dice used for movement."
 
-#: src/routes/playlist-workshop.tsx:3786
+#: src/routes/playlist-workshop.tsx:3797
 msgid "Controls the range of the dice used for movement. Default is 1 to 6."
 msgstr "Controls the range of the dice used for movement. Default is 1 to 6."
 
@@ -2631,16 +2635,16 @@ msgstr "Convert Hero to Round"
 msgid "Convert to AV1"
 msgstr "Convert to AV1"
 
-#: src/features/rounds/library/components/RoundCard.tsx:468
+#: src/features/rounds/library/components/RoundCard.tsx:467
 msgid "Convert to Hero"
 msgstr "Convert to Hero"
 
 #: src/features/map-editor/components/EditorToolbar.tsx:217
-#: src/routes/map-editor.tsx:3853
+#: src/routes/map-editor.tsx:4014
 msgid "Convert to Linear"
 msgstr "Convert to Linear"
 
-#: src/routes/map-editor.tsx:3851
+#: src/routes/map-editor.tsx:4012
 msgid "Convert to Linear Playlist?"
 msgstr "Convert to Linear Playlist?"
 
@@ -2654,7 +2658,7 @@ msgid "command-palette.converter.description"
 msgstr "Convert videos to playable rounds"
 
 #. placeholder {0}: updated.name
-#: src/routes/map-editor.tsx:2947
+#: src/routes/map-editor.tsx:3100
 msgid "Converted \"{0}\" to a linear playlist."
 msgstr "Converted \"{0}\" to a linear playlist."
 
@@ -2693,7 +2697,7 @@ msgstr "Cooldown (ms)"
 msgid "Copied to Clipboard!"
 msgstr "Copied to Clipboard!"
 
-#: src/features/map-editor/components/PlaylistPickerView.tsx:144
+#: src/features/map-editor/components/PlaylistPickerView.tsx:164
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:239
 msgid "Copy"
 msgstr "Copy"
@@ -2736,7 +2740,7 @@ msgid "Could not sync remote results. Showing cached data."
 msgstr "Could not sync remote results. Showing cached data."
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4282
+#: src/components/game/GameScene.tsx:4307
 msgid "hud.phase.countdown"
 msgstr "COUNTDOWN"
 
@@ -2749,7 +2753,7 @@ msgstr "Countdown duration (seconds)"
 msgid "perk.name.coupon-clipper"
 msgstr "Coupon Clipper"
 
-#: src/routes/playlist-workshop.tsx:4878
+#: src/routes/playlist-workshop.tsx:4889
 msgid "Create"
 msgstr "Create"
 
@@ -2773,7 +2777,7 @@ msgstr "Create a playlist after import."
 msgid "Create a playlist in the playlist workshop or map editor before hosting a lobby."
 msgstr "Create a playlist in the playlist workshop or map editor before hosting a lobby."
 
-#: src/routes/single-player-setup.tsx:414
+#: src/routes/single-player-setup.tsx:416
 msgid "Create a playlist or import one first, then start your run."
 msgstr "Create a playlist or import one first, then start your run."
 
@@ -2806,7 +2810,7 @@ msgstr "Create and edit playlists"
 msgid "Create Lobby"
 msgstr "Create Lobby"
 
-#: src/features/map-editor/components/PlaylistPickerView.tsx:163
+#: src/features/map-editor/components/PlaylistPickerView.tsx:184
 msgid "Create New"
 msgstr "Create New"
 
@@ -2822,14 +2826,14 @@ msgstr "Create periodic local SQLite and settings backups in the app data folder
 msgid "Create Plaintext Settings File"
 msgstr "Create Plaintext Settings File"
 
-#: src/features/map-editor/components/PlaylistPickerView.tsx:188
+#: src/features/map-editor/components/PlaylistPickerView.tsx:209
 #: src/routes/playlist-workshop.tsx:1475
 #: src/routes/playlist-workshop.tsx:1545
-#: src/routes/playlist-workshop.tsx:4767
+#: src/routes/playlist-workshop.tsx:4778
 msgid "Create Playlist"
 msgstr "Create Playlist"
 
-#: src/routes/playlist-workshop.tsx:2902
+#: src/routes/playlist-workshop.tsx:2913
 msgid "Create Suggested Sections"
 msgstr "Create Suggested Sections"
 
@@ -2841,8 +2845,8 @@ msgstr "Created/Updated/Linked:"
 msgid "Creating or resuming your multiplayer account on the selected server."
 msgstr "Creating or resuming your multiplayer account on the selected server."
 
-#: src/features/map-editor/components/PlaylistPickerView.tsx:188
-#: src/routes/playlist-workshop.tsx:4878
+#: src/features/map-editor/components/PlaylistPickerView.tsx:209
+#: src/routes/playlist-workshop.tsx:4889
 #: src/routes/settings.tsx:7192
 msgid "Creating..."
 msgstr "Creating..."
@@ -2855,7 +2859,7 @@ msgstr "Creation"
 #: src/routes/index.tsx:261
 #: src/routes/playlist-workshop.tsx:1458
 #: src/routes/playlist-workshop.tsx:1529
-#: src/routes/playlist-workshop.tsx:2231
+#: src/routes/playlist-workshop.tsx:2242
 msgid "Creation & Workshop"
 msgstr "Creation & Workshop"
 
@@ -2881,8 +2885,8 @@ msgstr "Credits & License"
 msgid "Cum"
 msgstr "Cum"
 
-#: src/components/game/GameScene.tsx:4968
-#: src/components/game/RoundVideoOverlay.tsx:3901
+#: src/components/game/GameScene.tsx:5018
+#: src/components/game/RoundVideoOverlay.tsx:3928
 msgid "Cum (C)"
 msgstr "Cum (C)"
 
@@ -2895,11 +2899,11 @@ msgstr "CUM ROUND"
 msgid "Cum round bonus score"
 msgstr "Cum round bonus score"
 
-#: src/routes/playlist-workshop.tsx:4054
+#: src/routes/playlist-workshop.tsx:4065
 msgid "Cum Round Bonus Score"
 msgstr "Cum Round Bonus Score"
 
-#: src/components/game/RoundVideoOverlay.tsx:4548
+#: src/components/game/RoundVideoOverlay.tsx:4576
 msgid "Cum Round Check"
 msgstr "Cum Round Check"
 
@@ -2912,7 +2916,7 @@ msgstr "Cum Rounds"
 msgid "Cum Rounds"
 msgstr "Cum Rounds"
 
-#: src/routes/playlist-workshop.tsx:3419
+#: src/routes/playlist-workshop.tsx:3430
 msgid "Cum rounds play after the main playlist reaches the end. The rounds you enable here become a random selection pool, and one of them will be chosen when the run finishes."
 msgstr "Cum rounds play after the main playlist reaches the end. The rounds you enable here become a random selection pool, and one of them will be chosen when the run finishes."
 
@@ -2934,7 +2938,7 @@ msgstr "Current filters: {0}"
 msgid "Current Location"
 msgstr "Current Location"
 
-#: src/components/game/GameScene.tsx:5129
+#: src/components/game/GameScene.tsx:5179
 msgid "Current Preview"
 msgstr "Current Preview"
 
@@ -2946,7 +2950,7 @@ msgstr "Current round already has a funscript"
 msgid "Current round preview"
 msgstr "Current round preview"
 
-#: src/components/game/RoundVideoOverlay.tsx:4687
+#: src/components/game/RoundVideoOverlay.tsx:4720
 msgid "Current script position"
 msgstr "Current script position"
 
@@ -2954,7 +2958,7 @@ msgstr "Current script position"
 msgid "Current Status"
 msgstr "Current Status"
 
-#: src/components/GlobalHandyOverlay.tsx:503
+#: src/components/GlobalHandyOverlay.tsx:501
 #: src/routes/settings.tsx:5027
 msgid "Current stroke"
 msgstr "Current stroke"
@@ -2980,6 +2984,10 @@ msgstr "Custom Server"
 msgid "Cut marks"
 msgstr "Cut marks"
 
+#: src/features/converter/Timeline.tsx:328
+msgid "Cut range"
+msgstr "Cut range"
+
 #: src/features/converter/SegmentCard.tsx:232
 msgid "Cut Segment"
 msgstr "Cut Segment"
@@ -2989,9 +2997,9 @@ msgid "Cuts"
 msgstr "Cuts"
 
 #. placeholder {0}: round.difficulty
-#: src/routes/playlist-workshop.tsx:3258
-#: src/routes/playlist-workshop.tsx:3316
-#: src/routes/playlist-workshop.tsx:4409
+#: src/routes/playlist-workshop.tsx:3269
+#: src/routes/playlist-workshop.tsx:3327
+#: src/routes/playlist-workshop.tsx:4420
 msgid "D{0}"
 msgstr "D{0}"
 
@@ -3030,11 +3038,11 @@ msgstr "Database: {0}"
 msgid "Deactivate all"
 msgstr "Deactivate all"
 
-#: src/routes/playlist-workshop.tsx:3660
+#: src/routes/playlist-workshop.tsx:3671
 msgid "Deactivate all anti-perks"
 msgstr "Deactivate all anti-perks"
 
-#: src/routes/playlist-workshop.tsx:3556
+#: src/routes/playlist-workshop.tsx:3567
 msgid "Deactivate all perks"
 msgstr "Deactivate all perks"
 
@@ -3086,12 +3094,12 @@ msgstr "Defer phash generation to a later moment."
 #: src/features/converter/SegmentCard.tsx:418
 #: src/features/map-editor/components/AutomationPanel.tsx:288
 #: src/features/map-editor/components/EditorToolbar.tsx:140
-#: src/features/map-editor/components/PlaylistPickerView.tsx:153
+#: src/features/map-editor/components/PlaylistPickerView.tsx:173
 #: src/routes/highscores.tsx:753
-#: src/routes/map-editor.tsx:3281
-#: src/routes/playlist-workshop.tsx:2424
-#: src/routes/playlist-workshop.tsx:2967
-#: src/routes/playlist-workshop.tsx:4177
+#: src/routes/map-editor.tsx:3434
+#: src/routes/playlist-workshop.tsx:2435
+#: src/routes/playlist-workshop.tsx:2978
+#: src/routes/playlist-workshop.tsx:4188
 #: src/routes/settings.tsx:6856
 msgid "Delete"
 msgstr "Delete"
@@ -3102,7 +3110,7 @@ msgid "Delete \"{0}\""
 msgstr "Delete \"{0}\""
 
 #. placeholder {0}: playlistDeleteTarget.name
-#: src/routes/map-editor.tsx:3278
+#: src/routes/map-editor.tsx:3431
 msgid "Delete \"{0}\"? This cannot be undone."
 msgstr "Delete \"{0}\"? This cannot be undone."
 
@@ -3115,7 +3123,7 @@ msgid "Delete {deleteSelectedRoundCount} selected round entries from the databas
 msgstr "Delete {deleteSelectedRoundCount} selected round entries from the database?"
 
 #. placeholder {0}: activePlaylist.name
-#: src/routes/playlist-workshop.tsx:4138
+#: src/routes/playlist-workshop.tsx:4149
 msgid "Delete <0>{0}</0>? This cannot be undone."
 msgstr "Delete <0>{0}</0>? This cannot be undone."
 
@@ -3156,11 +3164,11 @@ msgstr "Delete Highscore Entry?"
 msgid "Delete original files after successful migration"
 msgstr "Delete original files after successful migration"
 
-#: src/routes/playlist-workshop.tsx:4135
+#: src/routes/playlist-workshop.tsx:4146
 msgid "Delete Playlist"
 msgstr "Delete Playlist"
 
-#: src/routes/map-editor.tsx:3275
+#: src/routes/map-editor.tsx:3428
 msgid "Delete Playlist?"
 msgstr "Delete Playlist?"
 
@@ -3223,7 +3231,7 @@ msgstr "Deleted {0} rounds."
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:39
 #: src/routes/highscores.tsx:753
 #: src/routes/highscores.tsx:1094
-#: src/routes/playlist-workshop.tsx:4177
+#: src/routes/playlist-workshop.tsx:4188
 msgid "Deleting..."
 msgstr "Deleting..."
 
@@ -3241,7 +3249,7 @@ msgstr "Description"
 msgid "Description (optional)"
 msgstr "Description (optional)"
 
-#: src/features/rounds/library/components/RoundCard.tsx:173
+#: src/features/rounds/library/components/RoundCard.tsx:172
 msgid "Deselect {displayName}"
 msgstr "Deselect {displayName}"
 
@@ -3254,7 +3262,7 @@ msgstr "Deselect {heroName}"
 msgid "command-palette.map-editor.description"
 msgstr "Design board layouts"
 
-#: src/components/game/GameScene.tsx:5109
+#: src/components/game/GameScene.tsx:5159
 msgid "Destination:"
 msgstr "Destination:"
 
@@ -3263,7 +3271,7 @@ msgstr "Destination:"
 msgid "Detach Funscript"
 msgstr "Detach Funscript"
 
-#: src/features/rounds/library/components/RoundCard.tsx:439
+#: src/features/rounds/library/components/RoundCard.tsx:438
 msgid "Details"
 msgstr "Details"
 
@@ -3286,17 +3294,17 @@ msgstr "Detect Target"
 msgid "Detecting..."
 msgstr "Detecting..."
 
-#: src/components/game/GameScene.tsx:5385
-#: src/components/game/GameScene.tsx:5416
+#: src/components/game/GameScene.tsx:5435
+#: src/components/game/GameScene.tsx:5466
 msgid "Dev menu"
 msgstr "Dev menu"
 
-#: src/components/game/GameScene.tsx:5297
-#: src/components/game/GameScene.tsx:5353
+#: src/components/game/GameScene.tsx:5347
+#: src/components/game/GameScene.tsx:5403
 msgid "Dev Perks"
 msgstr "Dev Perks"
 
-#: src/components/game/RoundVideoOverlay.tsx:3976
+#: src/components/game/RoundVideoOverlay.tsx:4003
 msgid "Dev Skip (K)"
 msgstr "Dev Skip (K)"
 
@@ -3305,24 +3313,24 @@ msgstr "Dev Skip (K)"
 msgid "settings.help.shortcuts.gameDebug.description"
 msgstr "Development-only shortcuts that are only active when round debug controls are enabled."
 
-#: src/components/game/RoundVideoOverlay.tsx:1816
+#: src/components/game/RoundVideoOverlay.tsx:1848
 msgid "Development: forced intermediary clip."
 msgstr "Development: forced intermediary clip."
 
-#: src/components/game/RoundVideoOverlay.tsx:3207
-#: src/components/game/RoundVideoOverlay.tsx:3942
+#: src/components/game/RoundVideoOverlay.tsx:3237
+#: src/components/game/RoundVideoOverlay.tsx:3969
 msgid "Development: intermediary ended early."
 msgstr "Development: intermediary ended early."
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1189
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1226
-#: src/routes/playlist-workshop.tsx:3593
-#: src/routes/playlist-workshop.tsx:3697
+#: src/routes/playlist-workshop.tsx:3604
+#: src/routes/playlist-workshop.tsx:3708
 #: src/routes/settings.tsx:4436
 msgid "Device"
 msgstr "Device"
 
-#: src/components/GlobalHandyOverlay.tsx:575
+#: src/components/GlobalHandyOverlay.tsx:573
 msgid "Device active"
 msgstr "Device active"
 
@@ -3330,7 +3338,7 @@ msgstr "Device active"
 msgid "Device Animation Test"
 msgstr "Device Animation Test"
 
-#: src/components/GlobalHandyOverlay.tsx:535
+#: src/components/GlobalHandyOverlay.tsx:533
 msgid "Device connected"
 msgstr "Device connected"
 
@@ -3347,28 +3355,28 @@ msgstr "Device connection key"
 msgid "Device IP / Host"
 msgstr "Device IP / Host"
 
-#: src/components/GlobalHandyOverlay.tsx:575
+#: src/components/GlobalHandyOverlay.tsx:573
 msgid "Device stopped"
 msgstr "Device stopped"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:775
-#: src/routes/playlist-workshop.tsx:3737
+#: src/routes/playlist-workshop.tsx:3748
 msgid "Dice Roll Limits"
 msgstr "Dice Roll Limits"
 
-#: src/components/game/RoundVideoOverlay.tsx:4572
+#: src/components/game/RoundVideoOverlay.tsx:4600
 msgid "Did not cum"
 msgstr "Did not cum"
 
-#: src/components/game/RoundVideoOverlay.tsx:4747
+#: src/components/game/RoundVideoOverlay.tsx:4779
 msgid "Did Not Cum"
 msgstr "Did Not Cum"
 
-#: src/components/game/RoundVideoOverlay.tsx:4551
+#: src/components/game/RoundVideoOverlay.tsx:4579
 msgid "Did you cum as instructed?"
 msgstr "Did you cum as instructed?"
 
-#: src/components/game/GameScene.tsx:5147
+#: src/components/game/GameScene.tsx:5197
 msgid "Did you cum?"
 msgstr "Did you cum?"
 
@@ -3381,7 +3389,7 @@ msgid "Difficulty"
 msgstr "Difficulty"
 
 #. placeholder {0}: round.difficulty
-#: src/routes/playlist-workshop.tsx:3462
+#: src/routes/playlist-workshop.tsx:3473
 msgid "Difficulty {0}"
 msgstr "Difficulty {0}"
 
@@ -3389,7 +3397,7 @@ msgstr "Difficulty {0}"
 msgid "Difficulty {value}"
 msgstr "Difficulty {value}"
 
-#: src/routes/playlist-workshop.tsx:2882
+#: src/routes/playlist-workshop.tsx:2893
 msgid "Difficulty Sections"
 msgstr "Difficulty Sections"
 
@@ -3407,7 +3415,7 @@ msgid "Direct"
 msgstr "Direct"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4712
+#: src/components/game/GameScene.tsx:4737
 msgid "game.perk.directApply"
 msgstr "Direct apply"
 
@@ -3432,12 +3440,12 @@ msgid "Disable dice animation"
 msgstr "Disable dice animation"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:821
-#: src/routes/playlist-workshop.tsx:3794
+#: src/routes/playlist-workshop.tsx:3805
 msgid "Disable Dice Animation"
 msgstr "Disable Dice Animation"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:3805
+#: src/routes/playlist-workshop.tsx:3816
 msgid "playlist-workshop.disable-dice-animation.toggle"
 msgstr "Disable dice animation toggle"
 
@@ -3476,14 +3484,14 @@ msgstr "disabled"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:841
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1074
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1108
-#: src/features/rounds/library/components/RoundCard.tsx:286
+#: src/features/rounds/library/components/RoundCard.tsx:285
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2531
 #: src/routes/first-start.tsx:1839
-#: src/routes/playlist-workshop.tsx:2658
-#: src/routes/playlist-workshop.tsx:3482
-#: src/routes/playlist-workshop.tsx:3824
-#: src/routes/playlist-workshop.tsx:4007
-#: src/routes/playlist-workshop.tsx:4048
+#: src/routes/playlist-workshop.tsx:2669
+#: src/routes/playlist-workshop.tsx:3493
+#: src/routes/playlist-workshop.tsx:3835
+#: src/routes/playlist-workshop.tsx:4018
+#: src/routes/playlist-workshop.tsx:4059
 msgid "Disabled"
 msgstr "Disabled"
 
@@ -3503,13 +3511,13 @@ msgstr "Disables hardware acceleration on next launch. Use only when GPU renderi
 msgid "Disabling both checks may result in a bad user experience for you and other players"
 msgstr "Disabling both checks may result in a bad user experience for you and other players"
 
-#: src/routes/map-editor.tsx:3865
-#: src/routes/map-editor.tsx:3874
+#: src/routes/map-editor.tsx:4026
+#: src/routes/map-editor.tsx:4035
 msgid "Discard Changes"
 msgstr "Discard Changes"
 
-#: src/routes/map-editor.tsx:3863
-#: src/routes/map-editor.tsx:3872
+#: src/routes/map-editor.tsx:4024
+#: src/routes/map-editor.tsx:4033
 msgid "Discard Changes?"
 msgstr "Discard Changes?"
 
@@ -3517,26 +3525,26 @@ msgstr "Discard Changes?"
 msgid "Discard Item"
 msgstr "Discard Item"
 
-#: src/routes/map-editor.tsx:3864
+#: src/routes/map-editor.tsx:4025
 msgid "Discard unsaved map changes and choose another playlist?"
 msgstr "Discard unsaved map changes and choose another playlist?"
 
-#: src/routes/map-editor.tsx:3873
+#: src/routes/map-editor.tsx:4034
 msgid "Discard unsaved map changes and import another playlist?"
 msgstr "Discard unsaved map changes and import another playlist?"
 
-#: src/components/game/GameScene.tsx:5029
+#: src/components/game/GameScene.tsx:5079
 msgid "Discarded item"
 msgstr "Discarded item"
 
-#: src/components/GlobalHandyOverlay.tsx:566
+#: src/components/GlobalHandyOverlay.tsx:564
 #: src/routes/first-start.tsx:2831
 #: src/routes/settings.tsx:4764
 msgid "Disconnect"
 msgstr "Disconnect"
 
-#: src/components/game/RoundVideoOverlay.tsx:3571
-#: src/components/GlobalHandyOverlay.tsx:225
+#: src/components/game/RoundVideoOverlay.tsx:3600
+#: src/components/GlobalHandyOverlay.tsx:223
 #: src/routes/index.tsx:357
 #: src/routes/settings.tsx:4335
 msgid "Disconnected"
@@ -3581,7 +3589,7 @@ msgid "Do not use your access token here. Create or select an app at Handy and p
 msgstr "Do not use your access token here. Create or select an app at Handy and paste the application ID instead."
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:3696
+#: src/components/game/GameScene.tsx:3718
 msgid "game.perk.skip"
 msgstr "DON'T BUY ANY PERKS"
 
@@ -3646,8 +3654,8 @@ msgstr "Downloading..."
 msgid "Draft"
 msgstr "Draft"
 
-#: src/routes/playlist-workshop.tsx:4378
-#: src/routes/playlist-workshop.tsx:4379
+#: src/routes/playlist-workshop.tsx:4389
+#: src/routes/playlist-workshop.tsx:4390
 msgid "Drag to reorder"
 msgstr "Drag to reorder"
 
@@ -3661,11 +3669,11 @@ msgid "perk.name.dry-spell"
 msgstr "Dry Spell"
 
 #: src/features/map-editor/components/AutomationPanel.tsx:281
-#: src/routes/playlist-workshop.tsx:2422
+#: src/routes/playlist-workshop.tsx:2433
 msgid "Duplicate"
 msgstr "Duplicate"
 
-#: src/components/game/RoundVideoOverlay.tsx:4678
+#: src/components/game/RoundVideoOverlay.tsx:4711
 msgid "Duration"
 msgstr "Duration"
 
@@ -3677,20 +3685,20 @@ msgstr "Each row preserves score progression, completion reason, playlist refere
 msgid "Early Access"
 msgstr "Early Access"
 
-#: src/routes/playlist-workshop.tsx:3186
+#: src/routes/playlist-workshop.tsx:3197
 msgid "Easiest"
 msgstr "Easiest"
 
 #: src/features/map-editor/components/EditorStatusBar.tsx:31
-#: src/routes/map-editor.tsx:3179
+#: src/routes/map-editor.tsx:3332
 msgid "Edge"
 msgstr "Edge"
 
-#: src/routes/single-player-setup.tsx:845
+#: src/routes/single-player-setup.tsx:847
 msgid "Edges"
 msgstr "Edges"
 
-#: src/features/map-editor/components/PlaylistPickerView.tsx:135
+#: src/features/map-editor/components/PlaylistPickerView.tsx:155
 msgid "Edit"
 msgstr "Edit"
 
@@ -3708,7 +3716,7 @@ msgstr "Edit an existing hero and add or modify segments."
 msgid "Edit Hero"
 msgstr "Edit Hero"
 
-#: src/features/rounds/library/components/RoundCard.tsx:427
+#: src/features/rounds/library/components/RoundCard.tsx:426
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:34
 msgid "Edit Round"
 msgstr "Edit Round"
@@ -3721,7 +3729,7 @@ msgstr "Edit Tags"
 msgid "Edit Tags for {selectedCount} Rounds"
 msgstr "Edit Tags for {selectedCount} Rounds"
 
-#: src/routes/single-player-setup.tsx:790
+#: src/routes/single-player-setup.tsx:792
 msgid "Edit this playlist before playing"
 msgstr "Edit this playlist before playing"
 
@@ -3791,11 +3799,11 @@ msgstr "enabled"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1072
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1106
 #: src/routes/first-start.tsx:1839
-#: src/routes/playlist-workshop.tsx:2658
-#: src/routes/playlist-workshop.tsx:3482
-#: src/routes/playlist-workshop.tsx:3822
-#: src/routes/playlist-workshop.tsx:4005
-#: src/routes/playlist-workshop.tsx:4046
+#: src/routes/playlist-workshop.tsx:2669
+#: src/routes/playlist-workshop.tsx:3493
+#: src/routes/playlist-workshop.tsx:3833
+#: src/routes/playlist-workshop.tsx:4016
+#: src/routes/playlist-workshop.tsx:4057
 msgid "Enabled"
 msgstr "Enabled"
 
@@ -3809,11 +3817,11 @@ msgstr "Encoder pending"
 
 #: src/features/converter/SegmentCard.tsx:408
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:401
-#: src/routes/playlist-workshop.tsx:2938
+#: src/routes/playlist-workshop.tsx:2949
 msgid "End"
 msgstr "End"
 
-#: src/components/game/RoundVideoOverlay.tsx:3947
+#: src/components/game/RoundVideoOverlay.tsx:3974
 msgid "End Intermediary (J)"
 msgstr "End Intermediary (J)"
 
@@ -3830,7 +3838,9 @@ msgstr "End the current intermediary early and resume the main round."
 msgid "End Time (ms)"
 msgstr "End Time (ms)"
 
-#: src/routes/playlist-workshop.tsx:4835
+#: src/features/map-editor/components/PlaylistPickerView.tsx:113
+#: src/routes/playlist-workshop.tsx:1587
+#: src/routes/playlist-workshop.tsx:4846
 msgid "Endless"
 msgstr "Endless"
 
@@ -3972,7 +3982,7 @@ msgstr "Est. Time"
 msgid "Estimate"
 msgstr "Estimate"
 
-#: src/routes/single-player-setup.tsx:653
+#: src/routes/single-player-setup.tsx:655
 msgid "estimated"
 msgstr "estimated"
 
@@ -3991,7 +4001,7 @@ msgstr "Event"
 
 #. js-lingui-explicit-id
 #: src/components/game/GameBoardRenderer.tsx:166
-#: src/components/game/GameScene.tsx:2869
+#: src/components/game/GameScene.tsx:2891
 msgid "gameboard.kind.event"
 msgstr "EVENT★"
 
@@ -4000,7 +4010,7 @@ msgid "Every shortcut currently wired into the app is listed here."
 msgstr "Every shortcut currently wired into the app is listed here."
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:862
-#: src/routes/playlist-workshop.tsx:2712
+#: src/routes/playlist-workshop.tsx:2723
 msgid "Everywhere"
 msgstr "Everywhere"
 
@@ -4016,7 +4026,7 @@ msgstr "Examples: {deleteSelectedRoundExamples}"
 msgid "Exclude from random round selection"
 msgstr "Exclude from random round selection"
 
-#: src/features/rounds/library/components/RoundCard.tsx:291
+#: src/features/rounds/library/components/RoundCard.tsx:290
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1665
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2750
 msgid "Excluded"
@@ -4031,7 +4041,7 @@ msgstr "Excluded:"
 msgid "Executable: {0}"
 msgstr "Executable: {0}"
 
-#: src/routes/map-editor.tsx:3385
+#: src/routes/map-editor.tsx:3538
 msgid "Exit"
 msgstr "Exit"
 
@@ -4103,7 +4113,7 @@ msgstr "Experimental Support"
 msgid "Export"
 msgstr "Export"
 
-#: src/routes/playlist-workshop.tsx:2434
+#: src/routes/playlist-workshop.tsx:2445
 msgid "Export .fplay"
 msgstr "Export .fplay"
 
@@ -4128,12 +4138,12 @@ msgstr "Export complete."
 msgid "Export Debug File"
 msgstr "Export Debug File"
 
-#: src/routes/map-editor.tsx:3337
+#: src/routes/map-editor.tsx:3490
 msgid "Export Fplay"
 msgstr "Export Fplay"
 
-#: src/routes/map-editor.tsx:3349
-#: src/routes/playlist-workshop.tsx:2546
+#: src/routes/map-editor.tsx:3502
+#: src/routes/playlist-workshop.tsx:2557
 msgid "Export Pack"
 msgstr "Export Pack"
 
@@ -4157,7 +4167,7 @@ msgstr "Export the entire installed library."
 msgid "Export the pack without reencoding. File size stays close to the original sources."
 msgstr "Export the pack without reencoding. File size stays close to the original sources."
 
-#: src/routes/playlist-workshop.tsx:2510
+#: src/routes/playlist-workshop.tsx:2521
 msgid "Export Your Creation"
 msgstr "Export Your Creation"
 
@@ -4199,7 +4209,7 @@ msgstr "Extracting pack {0} / {1} files"
 msgid "ey..."
 msgstr "ey..."
 
-#: src/routes/playlist-workshop.tsx:4414
+#: src/routes/playlist-workshop.tsx:4425
 msgid "F{fieldIndex}"
 msgstr "F{fieldIndex}"
 
@@ -4207,11 +4217,11 @@ msgstr "F{fieldIndex}"
 msgid "Failed"
 msgstr "Failed"
 
-#: src/components/game/RoundVideoOverlay.tsx:4580
+#: src/components/game/RoundVideoOverlay.tsx:4608
 msgid "Failed instruction"
 msgstr "Failed instruction"
 
-#: src/routes/playlist-workshop.tsx:1690
+#: src/routes/playlist-workshop.tsx:1701
 msgid "Failed to abort playlist export."
 msgstr "Failed to abort playlist export."
 
@@ -4280,8 +4290,8 @@ msgstr "Failed to clear login cookies."
 msgid "Failed to convert hero group back to a round."
 msgstr "Failed to convert hero group back to a round."
 
-#: src/routes/map-editor.tsx:2919
-#: src/routes/map-editor.tsx:2955
+#: src/routes/map-editor.tsx:3072
+#: src/routes/map-editor.tsx:3108
 msgid "Failed to convert playlist to linear."
 msgstr "Failed to convert playlist to linear."
 
@@ -4307,8 +4317,8 @@ msgid "Failed to create plaintext settings file."
 msgstr "Failed to create plaintext settings file."
 
 #: src/routes/playlist-workshop.tsx:1509
-#: src/routes/playlist-workshop.tsx:1647
-#: src/routes/playlist-workshop.tsx:4123
+#: src/routes/playlist-workshop.tsx:1658
+#: src/routes/playlist-workshop.tsx:4134
 msgid "Failed to create playlist."
 msgstr "Failed to create playlist."
 
@@ -4320,7 +4330,7 @@ msgstr "Failed to create source."
 msgid "Failed to delete hero."
 msgstr "Failed to delete hero."
 
-#: src/routes/playlist-workshop.tsx:4169
+#: src/routes/playlist-workshop.tsx:4180
 msgid "Failed to delete playlist."
 msgstr "Failed to delete playlist."
 
@@ -4357,12 +4367,12 @@ msgstr "Failed to export debug file."
 msgid "Failed to export library package."
 msgstr "Failed to export library package."
 
-#: src/routes/playlist-workshop.tsx:1880
-#: src/routes/playlist-workshop.tsx:1906
+#: src/routes/playlist-workshop.tsx:1891
+#: src/routes/playlist-workshop.tsx:1917
 msgid "Failed to export playlist pack."
 msgstr "Failed to export playlist pack."
 
-#: src/routes/playlist-workshop.tsx:1833
+#: src/routes/playlist-workshop.tsx:1844
 msgid "Failed to export playlist."
 msgstr "Failed to export playlist."
 
@@ -4386,15 +4396,15 @@ msgstr "Failed to import the selected file."
 msgid "Failed to import the selected folder."
 msgstr "Failed to import the selected folder."
 
-#: src/components/game/RoundVideoOverlay.tsx:1864
+#: src/components/game/RoundVideoOverlay.tsx:1896
 msgid "Failed to initialize haptics session for resync."
 msgstr "Failed to initialize haptics session for resync."
 
-#: src/components/game/RoundVideoOverlay.tsx:1176
+#: src/components/game/RoundVideoOverlay.tsx:1208
 msgid "Failed to initialize haptics session."
 msgstr "Failed to initialize haptics session."
 
-#: src/components/game/RoundVideoOverlay.tsx:2003
+#: src/components/game/RoundVideoOverlay.tsx:2035
 msgid "Failed to initialize haptics sync."
 msgstr "Failed to initialize haptics sync."
 
@@ -4459,7 +4469,7 @@ msgid "Failed to load trusted sites."
 msgstr "Failed to load trusted sites."
 
 #: src/routes/playlist-workshop.tsx:1318
-#: src/routes/playlist-workshop.tsx:1855
+#: src/routes/playlist-workshop.tsx:1866
 msgid "Failed to open advanced map editor."
 msgstr "Failed to open advanced map editor."
 
@@ -4476,7 +4486,7 @@ msgstr "Failed to open EroScripts login."
 msgid "Failed to open log folder."
 msgstr "Failed to open log folder."
 
-#: src/routes/single-player-setup.tsx:366
+#: src/routes/single-player-setup.tsx:368
 msgid "Failed to open playlist workshop."
 msgstr "Failed to open playlist workshop."
 
@@ -4514,7 +4524,7 @@ msgstr "Failed to refresh result."
 msgid "Failed to remove server profile."
 msgstr "Failed to remove server profile."
 
-#: src/routes/playlist-workshop.tsx:4102
+#: src/routes/playlist-workshop.tsx:4113
 msgid "Failed to rename playlist."
 msgstr "Failed to rename playlist."
 
@@ -4526,11 +4536,11 @@ msgstr "Failed to repair template hero."
 msgid "Failed to repair template round."
 msgstr "Failed to repair template round."
 
-#: src/routes/single-player-setup.tsx:346
+#: src/routes/single-player-setup.tsx:348
 msgid "Failed to resume selected playlist."
 msgstr "Failed to resume selected playlist."
 
-#: src/components/game/RoundVideoOverlay.tsx:1897
+#: src/components/game/RoundVideoOverlay.tsx:1929
 msgid "Failed to resync timing with haptics."
 msgstr "Failed to resync timing with haptics."
 
@@ -4542,7 +4552,7 @@ msgstr "Failed to retry template hero linking."
 msgid "Failed to retry template round linking."
 msgstr "Failed to retry template round linking."
 
-#: src/components/game/RoundVideoOverlay.tsx:779
+#: src/components/game/RoundVideoOverlay.tsx:811
 msgid "Failed to save offset to round."
 msgstr "Failed to save offset to round."
 
@@ -4550,7 +4560,7 @@ msgstr "Failed to save offset to round."
 msgid "Failed to save palette"
 msgstr "Failed to save palette"
 
-#: src/routes/playlist-workshop.tsx:1927
+#: src/routes/playlist-workshop.tsx:1938
 msgid "Failed to save playlist."
 msgstr "Failed to save playlist."
 
@@ -4583,11 +4593,11 @@ msgstr "Failed to start export."
 msgid "Failed to start for all players."
 msgstr "Failed to start for all players."
 
-#: src/routes/single-player-setup.tsx:317
+#: src/routes/single-player-setup.tsx:331
 msgid "Failed to start selected playlist."
 msgstr "Failed to start selected playlist."
 
-#: src/components/game/RoundVideoOverlay.tsx:3056
+#: src/components/game/RoundVideoOverlay.tsx:3086
 msgid "Failed to stream sync position to haptics."
 msgstr "Failed to stream sync position to haptics."
 
@@ -4679,7 +4689,7 @@ msgstr "Fastest"
 msgid "Fastest export. Keeps current codec and file size."
 msgstr "Fastest export. Keeps current codec and file size."
 
-#: src/routes/single-player-setup.tsx:748
+#: src/routes/single-player-setup.tsx:750
 msgid "Fastest path into a round"
 msgstr "Fastest path into a round"
 
@@ -4689,7 +4699,7 @@ msgid "command-palette.settings-advanced.description"
 msgstr "FFmpeg, yt-dlp"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4294
+#: src/components/game/GameScene.tsx:4319
 msgid "hud.field"
 msgstr "FIELD"
 
@@ -4756,11 +4766,11 @@ msgstr "Find Videos & Funscripts"
 msgid "Find videos and direct funscripts from EroScripts."
 msgstr "Find videos and direct funscripts from EroScripts."
 
-#: src/components/GlobalHandyOverlay.tsx:621
+#: src/components/GlobalHandyOverlay.tsx:619
 msgid "fine 1ms tuning"
 msgstr "fine 1ms tuning"
 
-#: src/components/GlobalHandyOverlay.tsx:362
+#: src/components/GlobalHandyOverlay.tsx:360
 msgid "Fine tune delay if motion leads or lags video"
 msgstr "Fine tune delay if motion leads or lags video"
 
@@ -4780,17 +4790,17 @@ msgstr "Finish account setup to host."
 msgid "Finish account setup to join."
 msgstr "Finish account setup to join."
 
-#: src/components/game/GameScene.tsx:2277
+#: src/components/game/GameScene.tsx:2298
 msgid "Finish Round"
 msgstr "Finish Round"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:3229
-#: src/components/game/GameScene.tsx:4388
+#: src/components/game/GameScene.tsx:3251
+#: src/components/game/GameScene.tsx:4413
 msgid "game.btn.finishRound"
 msgstr "FINISH ROUND"
 
-#: src/components/game/GameScene.tsx:5330
+#: src/components/game/GameScene.tsx:5380
 msgid "Finish Run"
 msgstr "Finish Run"
 
@@ -4851,12 +4861,12 @@ msgstr "Force OpenGL ANGLE Backend"
 msgid "Force stop"
 msgstr "Force stop"
 
-#: src/components/game/RoundVideoOverlay.tsx:3888
+#: src/components/game/RoundVideoOverlay.tsx:3915
 #: src/routes/settings.tsx:4774
 msgid "Force Stop"
 msgstr "Force Stop"
 
-#: src/components/game/GameScene.tsx:4959
+#: src/components/game/GameScene.tsx:5009
 msgid "Force Stop Handy"
 msgstr "Force Stop Handy"
 
@@ -4892,7 +4902,7 @@ msgstr "Fpack Extraction Location"
 msgid "FPS Counter"
 msgstr "FPS Counter"
 
-#: src/components/game/GameScene.tsx:5135
+#: src/components/game/GameScene.tsx:5185
 msgid "Free"
 msgstr "Free"
 
@@ -4940,7 +4950,7 @@ msgstr "Fullscreen"
 msgid "command-palette.settings-general.description"
 msgstr "Fullscreen, background videos"
 
-#: src/routes/playlist-workshop.tsx:4800
+#: src/routes/playlist-workshop.tsx:4811
 msgid "Fully Random"
 msgstr "Fully Random"
 
@@ -4949,7 +4959,7 @@ msgstr "Fully Random"
 msgid "Funscript"
 msgstr "Funscript"
 
-#: src/components/game/RoundVideoOverlay.tsx:4684
+#: src/components/game/RoundVideoOverlay.tsx:4717
 msgid "Funscript actions"
 msgstr "Funscript actions"
 
@@ -5015,7 +5025,7 @@ msgstr "Gain one skip charge that immediately ends an active normal round."
 msgid "settings.help.shortcuts.gameDebug.title"
 msgstr "Game Debug"
 
-#: src/routes/game.tsx:742
+#: src/routes/game.tsx:830
 msgid "Game saved."
 msgstr "Game saved."
 
@@ -5028,8 +5038,8 @@ msgstr "Game Session"
 msgid "Gameplay"
 msgstr "Gameplay"
 
-#: src/components/game/RoundVideoOverlay.tsx:4135
-#: src/components/game/RoundVideoOverlay.tsx:4264
+#: src/components/game/RoundVideoOverlay.tsx:4162
+#: src/components/game/RoundVideoOverlay.tsx:4291
 msgid "Gameplay captions"
 msgstr "Gameplay captions"
 
@@ -5054,7 +5064,7 @@ msgstr "Gate"
 msgid "gate ${0} · w{1}"
 msgstr "gate ${0} · w{1}"
 
-#: src/components/game/GameScene.tsx:5114
+#: src/components/game/GameScene.tsx:5164
 msgid "Gate cost"
 msgstr "Gate cost"
 
@@ -5070,7 +5080,7 @@ msgstr "Gate: if the player lacks money, this edge is unavailable."
 msgid "General"
 msgstr "General"
 
-#: src/components/game/RoundVideoOverlay.tsx:1316
+#: src/components/game/RoundVideoOverlay.tsx:1348
 msgid "Generated sequence sync failed."
 msgstr "Generated sequence sync failed."
 
@@ -5087,25 +5097,25 @@ msgstr "Getting Started"
 msgid "Gift guaranteed perk"
 msgstr "Gift guaranteed perk"
 
-#: src/components/game/GameScene.tsx:5342
-#: src/routes/game.tsx:769
+#: src/components/game/GameScene.tsx:5392
+#: src/routes/game.tsx:857
 msgid "Give Up"
 msgstr "Give Up"
-
-#: src/features/map-editor/components/AutomationPanel.tsx:235
-msgid "Global"
-msgstr "Global"
 
 #. js-lingui-explicit-id
 #: src/routes/settings.tsx:299
 msgid "settings.help.shortcuts.global.title"
 msgstr "Global"
 
+#: src/features/map-editor/components/AutomationPanel.tsx:235
+msgid "Global"
+msgstr "Global"
+
 #: src/routes/settings.tsx:1496
 msgid "Global background music queue and playback preferences."
 msgstr "Global background music queue and playback preferences."
 
-#: src/components/GlobalHandyOverlay.tsx:283
+#: src/components/GlobalHandyOverlay.tsx:281
 msgid "Global haptics controls"
 msgstr "Global haptics controls"
 
@@ -5133,7 +5143,7 @@ msgstr "Glow"
 
 #: src/features/converter/ConverterCachingOverlay.tsx:163
 #: src/routes/multiplayer.tsx:787
-#: src/routes/single-player-setup.tsx:405
+#: src/routes/single-player-setup.tsx:407
 msgid "Go Back"
 msgstr "Go Back"
 
@@ -5150,11 +5160,12 @@ msgstr "Gooooal"
 msgid "GPU Preference (FFmpeg & Electron)"
 msgstr "GPU Preference (FFmpeg & Electron)"
 
-#: src/routes/playlist-workshop.tsx:1583
+#: src/features/map-editor/components/PlaylistPickerView.tsx:111
+#: src/routes/playlist-workshop.tsx:1585
 msgid "Graph"
 msgstr "Graph"
 
-#: src/routes/playlist-workshop.tsx:2412
+#: src/routes/playlist-workshop.tsx:2423
 msgid "Graph Board"
 msgstr "Graph Board"
 
@@ -5162,7 +5173,7 @@ msgstr "Graph Board"
 msgid "Graph is valid"
 msgstr "Graph is valid"
 
-#: src/routes/playlist-workshop.tsx:2450
+#: src/routes/playlist-workshop.tsx:2461
 msgid "Graph Playlist"
 msgstr "Graph Playlist"
 
@@ -5217,11 +5228,11 @@ msgstr "Guidance text"
 msgid "perk.description.no-rest"
 msgstr "Handy performs a low-intensity filler sequence while you are on the board. Persistent until a round or another intermediary starts."
 
-#: src/components/GlobalHandyOverlay.tsx:299
+#: src/components/GlobalHandyOverlay.tsx:297
 msgid "Haptics Controls"
 msgstr "Haptics Controls"
 
-#: src/components/GlobalHandyOverlay.tsx:378
+#: src/components/GlobalHandyOverlay.tsx:376
 msgid "Haptics global offset slider"
 msgstr "Haptics global offset slider"
 
@@ -5229,56 +5240,56 @@ msgstr "Haptics global offset slider"
 msgid "Haptics hardware integration and funscript compatibility."
 msgstr "Haptics hardware integration and funscript compatibility."
 
-#: src/components/game/RoundVideoOverlay.tsx:4348
+#: src/components/game/RoundVideoOverlay.tsx:4376
 msgid "Haptics Linkup"
 msgstr "Haptics Linkup"
 
-#: src/components/game/RoundVideoOverlay.tsx:3765
+#: src/components/game/RoundVideoOverlay.tsx:3792
 msgid "Haptics Menu"
 msgstr "Haptics Menu"
 
-#: src/components/GlobalHandyOverlay.tsx:172
+#: src/components/GlobalHandyOverlay.tsx:170
 msgid "Haptics reconnect failed."
 msgstr "Haptics reconnect failed."
 
-#: src/components/GlobalHandyOverlay.tsx:172
+#: src/components/GlobalHandyOverlay.tsx:170
 msgid "Haptics reconnected."
 msgstr "Haptics reconnected."
 
-#: src/components/game/RoundVideoOverlay.tsx:3873
-#: src/components/GlobalHandyOverlay.tsx:144
+#: src/components/game/RoundVideoOverlay.tsx:3900
+#: src/components/GlobalHandyOverlay.tsx:142
 msgid "Haptics resumed."
 msgstr "Haptics resumed."
 
-#: src/components/game/RoundVideoOverlay.tsx:3789
+#: src/components/game/RoundVideoOverlay.tsx:3816
 msgid "Haptics Status Off"
 msgstr "Haptics Status Off"
 
-#: src/components/game/RoundVideoOverlay.tsx:3789
+#: src/components/game/RoundVideoOverlay.tsx:3816
 msgid "Haptics Status On"
 msgstr "Haptics Status On"
 
-#: src/components/game/RoundVideoOverlay.tsx:3877
+#: src/components/game/RoundVideoOverlay.tsx:3904
 msgid "Haptics stopped manually."
 msgstr "Haptics stopped manually."
 
-#: src/components/GlobalHandyOverlay.tsx:140
+#: src/components/GlobalHandyOverlay.tsx:138
 msgid "Haptics stopped."
 msgstr "Haptics stopped."
 
-#: src/components/GlobalHandyOverlay.tsx:132
+#: src/components/GlobalHandyOverlay.tsx:130
 msgid "Haptics stroke reset."
 msgstr "Haptics stroke reset."
 
-#: src/components/game/RoundVideoOverlay.tsx:1893
+#: src/components/game/RoundVideoOverlay.tsx:1925
 msgid "Haptics timing resynced."
 msgstr "Haptics timing resynced."
 
-#: src/routes/playlist-workshop.tsx:3958
+#: src/routes/playlist-workshop.tsx:3969
 msgid "Hard cap for anti-perk chance. Once reached, later rounds keep using this maximum instead of growing further."
 msgstr "Hard cap for anti-perk chance. Once reached, later rounds keep using this maximum instead of growing further."
 
-#: src/routes/playlist-workshop.tsx:3907
+#: src/routes/playlist-workshop.tsx:3918
 msgid "Hard cap for intermediary chance. Scaling stops increasing once this value is reached, even if more rounds are completed."
 msgstr "Hard cap for intermediary chance. Scaling stops increasing once this value is reached, even if more rounds are completed."
 
@@ -5349,15 +5360,15 @@ msgstr "Hero Metadata"
 msgid "Hero name *"
 msgstr "Hero name *"
 
-#: src/features/rounds/library/components/RoundCard.tsx:392
+#: src/features/rounds/library/components/RoundCard.tsx:391
 msgid "Hero:"
 msgstr "Hero:"
 
 #: src/components/LibraryExportOverlay.tsx:124
-#: src/features/map-editor/components/TileSidebar.tsx:164
+#: src/features/map-editor/components/TileSidebar.tsx:305
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:222
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1743
-#: src/routes/playlist-workshop.tsx:3100
+#: src/routes/playlist-workshop.tsx:3111
 msgid "Heroes"
 msgstr "Heroes"
 
@@ -5370,7 +5381,7 @@ msgstr "Heroes and rounds are the content packs the game uses during play. If yo
 msgid "Hidden for built-in server"
 msgstr "Hidden for built-in server"
 
-#: src/features/rounds/library/components/RoundCard.tsx:439
+#: src/features/rounds/library/components/RoundCard.tsx:438
 msgid "Hide Details"
 msgstr "Hide Details"
 
@@ -5394,7 +5405,7 @@ msgstr "Hide Shortcuts"
 msgid "Hide shortcuts, clear marks, or clear selection."
 msgstr "Hide shortcuts, clear marks, or clear selection."
 
-#: src/features/rounds/library/components/RoundCard.tsx:436
+#: src/features/rounds/library/components/RoundCard.tsx:435
 msgid "Hide Technical Details"
 msgstr "Hide Technical Details"
 
@@ -5478,11 +5489,11 @@ msgstr "Host Lobby"
 msgid "perk.name.hot-streak"
 msgstr "Hot Streak"
 
-#: src/components/game/GameScene.tsx:5065
+#: src/components/game/GameScene.tsx:5115
 msgid "Hover, focus, or click a route to preview it on the board. You can also click the glowing destination tiles."
 msgstr "Hover, focus, or click a route to preview it on the board. You can also click the glowing destination tiles."
 
-#: src/routes/playlist-workshop.tsx:3415
+#: src/routes/playlist-workshop.tsx:3426
 msgid "How cum rounds work"
 msgstr "How cum rounds work"
 
@@ -5490,7 +5501,7 @@ msgstr "How cum rounds work"
 msgid "How long the intermediary loading countdown runs before switching videos."
 msgstr "How long the intermediary loading countdown runs before switching videos."
 
-#: src/routes/playlist-workshop.tsx:3504
+#: src/routes/playlist-workshop.tsx:3515
 msgid "How the system works"
 msgstr "How the system works"
 
@@ -5579,7 +5590,7 @@ msgstr "If you do not have an account yet, you can create one for free on the Er
 msgid "first-start.step.handy.detail.2"
 msgstr "If you do not own a Handy, skip this step. You can still use the app and play the game without hardware."
 
-#: src/routes/playlist-workshop.tsx:3425
+#: src/routes/playlist-workshop.tsx:3436
 msgid "If you leave this list empty, the game falls back to a random installed cum round instead of ending without one."
 msgstr "If you leave this list empty, the game falls back to a random installed cum round instead of ending without one."
 
@@ -5609,7 +5620,7 @@ msgid "IMPACT COST: ₪{0}"
 msgstr "IMPACT COST: ₪{0}"
 
 #: src/features/rounds/library/dialogs/LegacyPlaylistReviewDialog.tsx:126
-#: src/routes/playlist-workshop.tsx:2433
+#: src/routes/playlist-workshop.tsx:2444
 msgid "Import"
 msgstr "Import"
 
@@ -5645,8 +5656,8 @@ msgstr "Import New Content"
 msgid "Import Order Preview"
 msgstr "Import Order Preview"
 
-#: src/routes/map-editor.tsx:3734
-#: src/routes/playlist-workshop.tsx:4192
+#: src/routes/map-editor.tsx:3895
+#: src/routes/playlist-workshop.tsx:4203
 msgid "Import with Selected Resolutions"
 msgstr "Import with Selected Resolutions"
 
@@ -5663,12 +5674,12 @@ msgid "Imported"
 msgstr "Imported"
 
 #. placeholder {0}: imported.playlist.name
-#: src/routes/map-editor.tsx:3805
+#: src/routes/map-editor.tsx:3966
 msgid "Imported \"{0}\" with unresolved refs preserved."
 msgstr "Imported \"{0}\" with unresolved refs preserved."
 
 #. placeholder {0}: imported.playlist.name
-#: src/routes/map-editor.tsx:3759
+#: src/routes/map-editor.tsx:3920
 msgid "Imported \"{0}\"."
 msgstr "Imported \"{0}\"."
 
@@ -5694,7 +5705,7 @@ msgstr "Importing a single file is better when someone sent you one `.hero` or `
 msgid "Importing..."
 msgstr "Importing..."
 
-#: src/components/game/GameScene.tsx:5356
+#: src/components/game/GameScene.tsx:5406
 msgid "in development mode."
 msgstr "in development mode."
 
@@ -5708,8 +5719,8 @@ msgstr "In-game HUD, anti-perks, intermediary session behavior, and gameplay mod
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1189
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1226
-#: src/routes/playlist-workshop.tsx:3605
-#: src/routes/playlist-workshop.tsx:3709
+#: src/routes/playlist-workshop.tsx:3616
+#: src/routes/playlist-workshop.tsx:3720
 msgid "Inactive"
 msgstr "Inactive"
 
@@ -5778,7 +5789,7 @@ msgstr "Increase resting period by 1500ms for 2 rounds."
 msgid "perk.description.highspeed"
 msgstr "Increase round playback speed to 1.2x for one round."
 
-#: src/routes/playlist-workshop.tsx:4838
+#: src/routes/playlist-workshop.tsx:4849
 msgid "Infinite run with random rounds. Dice locked to 1. No dice-related perks. Anti-perks can be toggled in the playlist settings."
 msgstr "Infinite run with random rounds. Dice locked to 1. No dice-related perks. Anti-perks can be toggled in the playlist settings."
 
@@ -5883,7 +5894,7 @@ msgstr "Installed library"
 msgid "Installed Library"
 msgstr "Installed Library"
 
-#: src/routes/playlist-workshop.tsx:3061
+#: src/routes/playlist-workshop.tsx:3072
 msgid "Installed library · click Add to include in queue"
 msgstr "Installed library · click Add to include in queue"
 
@@ -5945,7 +5956,7 @@ msgid "INSTRUCTION FAILED"
 msgstr "INSTRUCTION FAILED"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1407
+#: src/components/game/GameScene.tsx:1426
 msgid "hud.intensityCap"
 msgstr "Intensity <="
 
@@ -5955,16 +5966,16 @@ msgstr "Intensity <="
 msgid "Interjection"
 msgstr "Interjection"
 
-#: src/components/game/RoundVideoOverlay.tsx:4675
+#: src/components/game/RoundVideoOverlay.tsx:4708
 msgid "Intermediary"
 msgstr "Intermediary"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4326
+#: src/components/game/GameScene.tsx:4351
 msgid "hud.intermediary"
 msgstr "INTERMEDIARY"
 
-#: src/components/game/RoundVideoOverlay.tsx:2726
+#: src/components/game/RoundVideoOverlay.tsx:2757
 msgid "Intermediary clip spawned."
 msgstr "Intermediary clip spawned."
 
@@ -5973,7 +5984,7 @@ msgstr "Intermediary clip spawned."
 msgid "Intermediary increase"
 msgstr "Intermediary increase"
 
-#: src/routes/playlist-workshop.tsx:3888
+#: src/routes/playlist-workshop.tsx:3899
 msgid "Intermediary Increase %"
 msgstr "Intermediary Increase %"
 
@@ -5982,7 +5993,7 @@ msgstr "Intermediary Increase %"
 msgid "Intermediary initial"
 msgstr "Intermediary initial"
 
-#: src/routes/playlist-workshop.tsx:3870
+#: src/routes/playlist-workshop.tsx:3881
 msgid "Intermediary Initial %"
 msgstr "Intermediary Initial %"
 
@@ -5999,7 +6010,7 @@ msgstr "Intermediary Loading Prompt"
 msgid "Intermediary max"
 msgstr "Intermediary max"
 
-#: src/routes/playlist-workshop.tsx:3906
+#: src/routes/playlist-workshop.tsx:3917
 msgid "Intermediary Max %"
 msgstr "Intermediary Max %"
 
@@ -6008,11 +6019,11 @@ msgstr "Intermediary Max %"
 msgid "first-start.step.booru.eyebrow"
 msgstr "Intermediary Media"
 
-#: src/components/game/RoundVideoOverlay.tsx:1724
+#: src/components/game/RoundVideoOverlay.tsx:1756
 msgid "Intermediary media was not found. Returning to main video."
 msgstr "Intermediary media was not found. Returning to main video."
 
-#: src/components/game/RoundVideoOverlay.tsx:4697
+#: src/components/game/RoundVideoOverlay.tsx:4729
 msgid "Intermediary queue"
 msgstr "Intermediary queue"
 
@@ -6025,7 +6036,7 @@ msgstr "Internal Name"
 msgid "Intiface"
 msgstr "Intiface"
 
-#: src/components/GlobalHandyOverlay.tsx:532
+#: src/components/GlobalHandyOverlay.tsx:530
 msgid "Intiface device connected"
 msgstr "Intiface device connected"
 
@@ -6055,7 +6066,7 @@ msgstr "Intiface WebSocket URL"
 msgid "Invalid URL format"
 msgstr "Invalid URL format"
 
-#: src/components/game/GameScene.tsx:5450
+#: src/components/game/GameScene.tsx:5500
 msgid "Inventory"
 msgstr "Inventory"
 
@@ -6094,12 +6105,12 @@ msgid "perk.name.jackhammer"
 msgstr "Jackhammer"
 
 #. js-lingui-explicit-id
-#: src/components/game/antiPerkSequences.ts:234
+#: src/components/game/antiPerkSequences.ts:200
 msgid "antiperk.sequence.jackhammer.status"
 msgstr "Jackhammer anti-perk active..."
 
 #. js-lingui-explicit-id
-#: src/components/game/antiPerkSequences.ts:231
+#: src/components/game/antiPerkSequences.ts:197
 msgid "antiperk.sequence.jackhammer.label"
 msgstr "JACKHAMMER SEQUENCE"
 
@@ -6168,7 +6179,7 @@ msgstr "Keep the manual round name without linking to an installed round."
 msgid "Keep the round playback progress bar visible even after the rest of the HUD fades out."
 msgstr "Keep the round playback progress bar visible even after the rest of the HUD fades out."
 
-#: src/routes/playlist-workshop.tsx:4819
+#: src/routes/playlist-workshop.tsx:4830
 msgid "Keeps randomness, but later rounds increasingly favor longer and higher-difficulty entries."
 msgstr "Keeps randomness, but later rounds increasingly favor longer and higher-difficulty entries."
 
@@ -6209,7 +6220,7 @@ msgid "Label"
 msgstr "Label"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4281
+#: src/components/game/GameScene.tsx:4306
 msgid "hud.phase.landing"
 msgstr "LANDING"
 
@@ -6308,7 +6319,7 @@ msgstr "LEGENDARY"
 msgid "Length"
 msgstr "Length"
 
-#: src/features/rounds/library/components/RoundCard.tsx:413
+#: src/features/rounds/library/components/RoundCard.tsx:412
 msgid "Length:"
 msgstr "Length:"
 
@@ -6324,7 +6335,7 @@ msgstr "Let's get you set up. This quick walkthrough covers the essentials and l
 msgid "Lets singleplayer start while required web rounds are still caching. Warning: some rounds may not play, and the web version is used instead of the local cache."
 msgstr "Lets singleplayer start while required web rounds are still caching. Warning: some rounds may not play, and the web version is used instead of the local cache."
 
-#: src/features/rounds/library/components/RoundCard.tsx:309
+#: src/features/rounds/library/components/RoundCard.tsx:308
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:257
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1731
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1800
@@ -6393,11 +6404,12 @@ msgstr "Limit preview ffmpeg to one thread"
 msgid "Limits how many missing video fingerprints are calculated during each automatic background pass. Manual scans still process the full backlog."
 msgstr "Limits how many missing video fingerprints are calculated during each automatic background pass. Manual scans still process the full backlog."
 
-#: src/routes/playlist-workshop.tsx:1583
+#: src/features/map-editor/components/PlaylistPickerView.tsx:114
+#: src/routes/playlist-workshop.tsx:1588
 msgid "Linear"
 msgstr "Linear"
 
-#: src/routes/playlist-workshop.tsx:2410
+#: src/routes/playlist-workshop.tsx:2421
 msgid "Linear Board"
 msgstr "Linear Board"
 
@@ -6440,7 +6452,7 @@ msgstr "Load the previous unconverted round and focus target count."
 msgid "perk.name.loaded-dice"
 msgstr "Loaded Dice"
 
-#: src/components/game/RoundVideoOverlay.tsx:4434
+#: src/components/game/RoundVideoOverlay.tsx:4462
 msgid "Loading captions"
 msgstr "Loading captions"
 
@@ -6456,11 +6468,11 @@ msgstr "Loading external sources..."
 msgid "Loading folders..."
 msgstr "Loading folders..."
 
-#: src/components/game/RoundVideoOverlay.tsx:1652
+#: src/components/game/RoundVideoOverlay.tsx:1684
 msgid "LOADING INTERMEDIARY"
 msgstr "LOADING INTERMEDIARY"
 
-#: src/components/game/RoundVideoOverlay.tsx:1654
+#: src/components/game/RoundVideoOverlay.tsx:1686
 msgid "Loading intermediary assets..."
 msgstr "Loading intermediary assets..."
 
@@ -6472,7 +6484,7 @@ msgstr "Loading license manifest..."
 msgid "Loading palettes…"
 msgstr "Loading palettes…"
 
-#: src/features/rounds/library/components/RoundCard.tsx:213
+#: src/features/rounds/library/components/RoundCard.tsx:212
 msgid "Loading Preview"
 msgstr "Loading Preview"
 
@@ -6566,6 +6578,14 @@ msgstr "Local"
 msgid "Local Best"
 msgstr "Local Best"
 
+#: src/features/converter/SegmentCard.tsx:190
+msgid "Local cut in"
+msgstr "Local cut in"
+
+#: src/features/converter/SegmentCard.tsx:197
+msgid "Local cut out"
+msgstr "Local cut out"
+
 #. placeholder {0}: getUriFilename(localFunscriptUri)
 #: src/features/converter/ConverterSourcePicker.tsx:253
 msgid "Local funscript attached: {0}"
@@ -6579,7 +6599,7 @@ msgstr "Local funscript attached: {funscriptFileLabel}"
 msgid "Local funscript attached: {websiteFunscriptFileLabel}"
 msgstr "Local funscript attached: {websiteFunscriptFileLabel}"
 
-#: src/components/game/RoundVideoOverlay.tsx:4291
+#: src/components/game/RoundVideoOverlay.tsx:4318
 msgid "Local media file not found"
 msgstr "Local media file not found"
 
@@ -6713,7 +6733,7 @@ msgstr "Lucky Momentum"
 msgid "perk.name.lucky-star"
 msgstr "Lucky Star"
 
-#: src/components/game/RoundVideoOverlay.tsx:4675
+#: src/components/game/RoundVideoOverlay.tsx:4708
 msgid "Main"
 msgstr "Main"
 
@@ -6735,7 +6755,7 @@ msgstr "Main Menu"
 msgid "first-start.step.heroes.detail.4"
 msgstr "Making your own packs is also pretty easy. You can use the Round Converter to turn source material into playable rounds, then organize them with the Playlist Workshop or Map Editor."
 
-#: src/routes/playlist-workshop.tsx:2417
+#: src/routes/playlist-workshop.tsx:2428
 msgid "Manage"
 msgstr "Manage"
 
@@ -6756,11 +6776,11 @@ msgstr "Manage your round library"
 msgid "Manage your stored perks and active effects."
 msgstr "Manage your stored perks and active effects."
 
-#: src/components/game/RoundVideoOverlay.tsx:3279
+#: src/components/game/RoundVideoOverlay.tsx:3309
 msgid "Manual pause active (15s)."
 msgstr "Manual pause active (15s)."
 
-#: src/components/game/RoundVideoOverlay.tsx:3283
+#: src/components/game/RoundVideoOverlay.tsx:3313
 msgid "Manual pause ended."
 msgstr "Manual pause ended."
 
@@ -6772,13 +6792,13 @@ msgstr "Manually trigger a scan to compute perceptual hashes for rounds that do 
 msgid "Map Appearance"
 msgstr "Map Appearance"
 
-#: src/routes/map-editor.tsx:3233
+#: src/routes/map-editor.tsx:3386
 msgid "Map contains validation errors."
 msgstr "Map contains validation errors."
 
 #: src/features/map-editor/components/PlaylistPickerView.tsx:62
 #: src/routes/index.tsx:280
-#: src/routes/map-editor.tsx:3303
+#: src/routes/map-editor.tsx:3456
 msgid "Map Editor"
 msgstr "Map Editor"
 
@@ -6797,17 +6817,17 @@ msgstr "Map Editor"
 msgid "Map editor help"
 msgstr "Map editor help"
 
-#: src/routes/map-editor.tsx:3307
-#: src/routes/map-editor.tsx:3318
-#: src/routes/map-editor.tsx:3319
+#: src/routes/map-editor.tsx:3460
+#: src/routes/map-editor.tsx:3471
+#: src/routes/map-editor.tsx:3472
 msgid "Map name"
 msgstr "Map name"
 
-#: src/routes/single-player-setup.tsx:812
+#: src/routes/single-player-setup.tsx:814
 msgid "Map Preview"
 msgstr "Map Preview"
 
-#: src/components/game/GameScene.tsx:5195
+#: src/components/game/GameScene.tsx:5245
 msgid "Map Zoom"
 msgstr "Map Zoom"
 
@@ -6850,12 +6870,12 @@ msgstr "Matchmaking"
 msgid "Matchmaking Terminal"
 msgstr "Matchmaking Terminal"
 
-#: src/components/GlobalHandyOverlay.tsx:483
+#: src/components/GlobalHandyOverlay.tsx:481
 #: src/routes/settings.tsx:5005
 msgid "Max"
 msgstr "Max"
 
-#: src/routes/playlist-workshop.tsx:2940
+#: src/routes/playlist-workshop.tsx:2951
 msgid "Max D"
 msgstr "Max D"
 
@@ -6865,7 +6885,7 @@ msgstr "Max Log File Size (MB)"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:801
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:804
-#: src/routes/playlist-workshop.tsx:3767
+#: src/routes/playlist-workshop.tsx:3778
 msgid "Maximum Roll"
 msgstr "Maximum Roll"
 
@@ -6946,21 +6966,21 @@ msgid "perk.name.milker"
 msgstr "Milker"
 
 #. js-lingui-explicit-id
-#: src/components/game/antiPerkSequences.ts:206
+#: src/components/game/antiPerkSequences.ts:177
 msgid "antiperk.sequence.milker.status"
 msgstr "Milker anti-perk active..."
 
 #. js-lingui-explicit-id
-#: src/components/game/antiPerkSequences.ts:203
+#: src/components/game/antiPerkSequences.ts:174
 msgid "antiperk.sequence.milker.label"
 msgstr "MILKER SEQUENCE"
 
-#: src/components/GlobalHandyOverlay.tsx:480
+#: src/components/GlobalHandyOverlay.tsx:478
 #: src/routes/settings.tsx:5002
 msgid "Min"
 msgstr "Min"
 
-#: src/routes/playlist-workshop.tsx:2939
+#: src/routes/playlist-workshop.tsx:2950
 msgid "Min D"
 msgstr "Min D"
 
@@ -6974,11 +6994,11 @@ msgstr "Minimum number of days between automatic database and settings backups."
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:784
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:787
-#: src/routes/playlist-workshop.tsx:3745
+#: src/routes/playlist-workshop.tsx:3756
 msgid "Minimum Roll"
 msgstr "Minimum Roll"
 
-#: src/routes/playlist-workshop.tsx:2827
+#: src/routes/playlist-workshop.tsx:2838
 msgid "Minimum Round Count: {requiredNormalRoundCount}"
 msgstr "Minimum Round Count: {requiredNormalRoundCount}"
 
@@ -6986,9 +7006,9 @@ msgstr "Minimum Round Count: {requiredNormalRoundCount}"
 msgid "Missing"
 msgstr "Missing"
 
-#: src/components/game/RoundVideoOverlay.tsx:1857
-#: src/components/game/RoundVideoOverlay.tsx:1965
-#: src/components/game/RoundVideoOverlay.tsx:2819
+#: src/components/game/RoundVideoOverlay.tsx:1889
+#: src/components/game/RoundVideoOverlay.tsx:1997
+#: src/components/game/RoundVideoOverlay.tsx:2849
 msgid "Missing haptics connection settings."
 msgstr "Missing haptics connection settings."
 
@@ -7004,7 +7024,7 @@ msgstr "Missing or Stash-Origin Only"
 msgid "Missing player id."
 msgstr "Missing player id."
 
-#: src/components/game/RoundVideoOverlay.tsx:3575
+#: src/components/game/RoundVideoOverlay.tsx:3604
 msgid "Missing Settings"
 msgstr "Missing Settings"
 
@@ -7046,11 +7066,11 @@ msgid "Mode"
 msgstr "Mode"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4310
+#: src/components/game/GameScene.tsx:4335
 msgid "hud.money"
 msgstr "MONEY"
 
-#: src/routes/playlist-workshop.tsx:3834
+#: src/routes/playlist-workshop.tsx:3845
 msgid "Money available at the beginning of a new run from this playlist. Existing resumed runs keep their saved money."
 msgstr "Money available at the beginning of a new run from this playlist. Existing resumed runs keep their saved money."
 
@@ -7059,7 +7079,7 @@ msgid "Money available at the start of a new run from this playlist."
 msgstr "Money available at the start of a new run from this playlist."
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1429
+#: src/components/game/GameScene.tsx:1448
 msgid "hud.more"
 msgstr "more"
 
@@ -7092,7 +7112,7 @@ msgstr "Move straight to the detailed score views when you know what you want to
 msgid "Move the player instantly after each roll instead of playing the dice and movement animation."
 msgstr "Move the player instantly after each roll instead of playing the dice and movement animation."
 
-#: src/routes/playlist-workshop.tsx:3797
+#: src/routes/playlist-workshop.tsx:3808
 msgid "Move the player instantly after each roll instead of playing the dice and movement animation. Disabled by default."
 msgstr "Move the player instantly after each roll instead of playing the dice and movement animation. Disabled by default."
 
@@ -7264,7 +7284,7 @@ msgstr "My Website Round"
 
 #: src/components/PlaylistPackExportDialog.tsx:438
 #: src/features/rounds/library/components/RoundCard.tsx:103
-#: src/features/rounds/library/components/RoundCard.tsx:389
+#: src/features/rounds/library/components/RoundCard.tsx:388
 #: src/routes/highscores.tsx:680
 msgid "N/A"
 msgstr "N/A"
@@ -7313,16 +7333,16 @@ msgid "New Endpoint"
 msgstr "New Endpoint"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4608
+#: src/components/game/GameScene.tsx:4633
 msgid "game.reward.newMoneyTotal"
 msgstr "NEW MONEY TOTAL"
 
-#: src/routes/playlist-workshop.tsx:2421
-#: src/routes/playlist-workshop.tsx:4759
+#: src/routes/playlist-workshop.tsx:2432
+#: src/routes/playlist-workshop.tsx:4770
 msgid "New Playlist"
 msgstr "New Playlist"
 
-#: src/features/map-editor/components/PlaylistPickerView.tsx:173
+#: src/features/map-editor/components/PlaylistPickerView.tsx:194
 msgid "New playlist name"
 msgstr "New playlist name"
 
@@ -7331,7 +7351,7 @@ msgid "New Rule"
 msgstr "New Rule"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4618
+#: src/components/game/GameScene.tsx:4643
 msgid "game.reward.newScoreTotal"
 msgstr "NEW SCORE TOTAL"
 
@@ -7346,7 +7366,7 @@ msgid "Next"
 msgstr "Next"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1442
+#: src/components/game/GameScene.tsx:1461
 msgid "hud.next"
 msgstr "NEXT"
 
@@ -7355,12 +7375,12 @@ msgid "Next ▶▶"
 msgstr "Next ▶▶"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4492
+#: src/components/game/GameScene.tsx:4517
 msgid "hud.autoRoll"
 msgstr "NEXT AUTO ROLL IN"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1397
+#: src/components/game/GameScene.tsx:1416
 msgid "hud.nextRollMultiplier"
 msgstr "Next roll"
 
@@ -7369,7 +7389,7 @@ msgstr "Next roll"
 msgid "perk.description.succubus"
 msgstr "Next round becomes a random high-difficulty installed round."
 
-#: src/components/game/RoundVideoOverlay.tsx:3964
+#: src/components/game/RoundVideoOverlay.tsx:3991
 msgid "Next Video"
 msgstr "Next Video"
 
@@ -7398,11 +7418,11 @@ msgstr "No Active Filters"
 msgid "No active perk effects."
 msgstr "No active perk effects."
 
-#: src/components/game/RoundVideoOverlay.tsx:2355
+#: src/components/game/RoundVideoOverlay.tsx:2388
 msgid "No active round."
 msgstr "No active round."
 
-#: src/components/game/RoundVideoOverlay.tsx:1837
+#: src/components/game/RoundVideoOverlay.tsx:1869
 msgid "No active TheHandy timeline to resync."
 msgstr "No active TheHandy timeline to resync."
 
@@ -7410,7 +7430,7 @@ msgstr "No active TheHandy timeline to resync."
 msgid "NO ACTIVE THREATS"
 msgstr "NO ACTIVE THREATS"
 
-#: src/components/game/RoundVideoOverlay.tsx:1833
+#: src/components/game/RoundVideoOverlay.tsx:1865
 msgid "No active video to resync."
 msgstr "No active video to resync."
 
@@ -7439,8 +7459,8 @@ msgstr "No bundled TheHandy app key is configured in this build. Enable custom m
 msgid "No conditions. Rule fires whenever the trigger matches."
 msgstr "No conditions. Rule fires whenever the trigger matches."
 
-#: src/components/game/RoundVideoOverlay.tsx:3880
-#: src/components/GlobalHandyOverlay.tsx:147
+#: src/components/game/RoundVideoOverlay.tsx:3907
+#: src/components/GlobalHandyOverlay.tsx:145
 msgid "No connected haptics device to toggle."
 msgstr "No connected haptics device to toggle."
 
@@ -7450,7 +7470,7 @@ msgid "command-palette.thehandy-unavailable"
 msgstr "No connected TheHandy to toggle."
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:2015
+#: src/components/game/GameScene.tsx:2038
 msgid "game.handy.noDevice"
 msgstr "No connected TheHandy to toggle."
 
@@ -7462,7 +7482,7 @@ msgstr "No Connection Key"
 msgid "No credentials required for this Stash instance."
 msgstr "No credentials required for this Stash instance."
 
-#: src/routes/playlist-workshop.tsx:3490
+#: src/routes/playlist-workshop.tsx:3501
 msgid "No cum rounds installed."
 msgstr "No cum rounds installed."
 
@@ -7474,13 +7494,13 @@ msgstr "No cum rounds selected."
 msgid "No dependencies match this search."
 msgstr "No dependencies match this search."
 
-#: src/features/map-editor/components/PlaylistPickerView.tsx:126
+#: src/features/map-editor/components/PlaylistPickerView.tsx:146
 #: src/features/rounds/library/components/RoundCard.tsx:101
-#: src/routes/single-player-setup.tsx:640
+#: src/routes/single-player-setup.tsx:642
 msgid "No description"
 msgstr "No description"
 
-#: src/components/GlobalHandyOverlay.tsx:536
+#: src/components/GlobalHandyOverlay.tsx:534
 msgid "No device connected"
 msgstr "No device connected"
 
@@ -7518,7 +7538,7 @@ msgstr "No folder was selected. You can continue and import content later."
 msgid "No funscript attached"
 msgstr "No funscript attached"
 
-#: src/components/game/GameScene.tsx:5115
+#: src/components/game/GameScene.tsx:5165
 msgid "No gate cost"
 msgstr "No gate cost"
 
@@ -7538,7 +7558,7 @@ msgstr "No installed cum rounds found."
 msgid "No installed rounds match the current filter."
 msgstr "No installed rounds match the current filter."
 
-#: src/components/game/RoundVideoOverlay.tsx:1790
+#: src/components/game/RoundVideoOverlay.tsx:1822
 msgid "No intermediary resources available for this round."
 msgstr "No intermediary resources available for this round."
 
@@ -7578,8 +7598,8 @@ msgstr "No music tracks configured."
 msgid "No New Record Set"
 msgstr "No New Record Set"
 
-#: src/routes/playlist-workshop.tsx:3023
-#: src/routes/playlist-workshop.tsx:3357
+#: src/routes/playlist-workshop.tsx:3034
+#: src/routes/playlist-workshop.tsx:3368
 msgid "No normal rounds installed."
 msgstr "No normal rounds installed."
 
@@ -7599,7 +7619,7 @@ msgstr "No playlist exists yet. Create one here when you want to start editing."
 msgid "No playlist music configured."
 msgstr "No playlist music configured."
 
-#: src/routes/single-player-setup.tsx:411
+#: src/routes/single-player-setup.tsx:413
 msgid "No Playlist Yet"
 msgstr "No Playlist Yet"
 
@@ -7608,8 +7628,8 @@ msgid "No playlists available"
 msgstr "No playlists available"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1473
-#: src/features/rounds/library/components/RoundCard.tsx:236
-#: src/routes/playlist-workshop.tsx:4619
+#: src/features/rounds/library/components/RoundCard.tsx:235
+#: src/routes/playlist-workshop.tsx:4630
 msgid "No Preview"
 msgstr "No Preview"
 
@@ -7627,7 +7647,7 @@ msgid "perk.name.no-rest"
 msgstr "No Rest"
 
 #. js-lingui-explicit-id
-#: src/components/game/antiPerkSequences.ts:260
+#: src/components/game/antiPerkSequences.ts:221
 msgid "antiperk.sequence.noRest.label"
 msgstr "NO REST FILLER"
 
@@ -7648,17 +7668,18 @@ msgid "No rounds match this filter"
 msgstr "No rounds match this filter"
 
 #: src/features/converter/ConverterSourcePicker.tsx:422
-#: src/routes/playlist-workshop.tsx:3361
+#: src/features/map-editor/components/TileSidebar.tsx:278
+#: src/routes/playlist-workshop.tsx:3372
 msgid "No rounds match your search."
 msgstr "No rounds match your search."
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:860
-#: src/routes/playlist-workshop.tsx:2710
+#: src/routes/playlist-workshop.tsx:2721
 msgid "No Saves"
 msgstr "No Saves"
 
-#: src/features/rounds/library/components/RoundCard.tsx:330
-#: src/features/rounds/library/components/RoundCard.tsx:403
+#: src/features/rounds/library/components/RoundCard.tsx:329
+#: src/features/rounds/library/components/RoundCard.tsx:402
 msgid "No Script"
 msgstr "No Script"
 
@@ -7698,7 +7719,7 @@ msgstr "No standings available yet. Keep this page open or check back from the H
 msgid "No stored items yet."
 msgstr "No stored items yet."
 
-#: src/components/game/GameScene.tsx:5045
+#: src/components/game/GameScene.tsx:5095
 msgid "No stored perks yet."
 msgstr "No stored perks yet."
 
@@ -7706,7 +7727,7 @@ msgstr "No stored perks yet."
 msgid "No supported video files found in selected folder."
 msgstr "No supported video files found in selected folder."
 
-#: src/features/map-editor/components/TileSidebar.tsx:145
+#: src/features/map-editor/components/TileSidebar.tsx:203
 msgid "No tiles match this filter."
 msgstr "No tiles match this filter."
 
@@ -7735,16 +7756,16 @@ msgstr "No user-trusted domains yet."
 msgid "No video packaging step is required."
 msgstr "No video packaging step is required."
 
-#: src/components/game/RoundVideoOverlay.tsx:3547
+#: src/components/game/RoundVideoOverlay.tsx:3576
 msgid "No video resource found for this round. The board is still running underneath."
 msgstr "No video resource found for this round. The board is still running underneath."
 
 #. js-lingui-explicit-id
-#: src/components/game/antiPerkSequences.ts:263
+#: src/components/game/antiPerkSequences.ts:224
 msgid "antiperk.sequence.noRest.status"
 msgstr "No-rest anti-perk active..."
 
-#: src/routes/map-editor.tsx:3178
+#: src/routes/map-editor.tsx:3331
 msgid "Node"
 msgstr "Node"
 
@@ -7757,7 +7778,7 @@ msgid "Node size"
 msgstr "Node size"
 
 #: src/features/map-editor/components/EditorStatusBar.tsx:28
-#: src/routes/single-player-setup.tsx:837
+#: src/routes/single-player-setup.tsx:839
 msgid "Nodes"
 msgstr "Nodes"
 
@@ -7768,7 +7789,7 @@ msgid "None"
 msgstr "None"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1424
+#: src/components/game/GameScene.tsx:1443
 msgid "hud.none"
 msgstr "None"
 
@@ -7847,8 +7868,8 @@ msgstr "OAuth Unavailable"
 msgid "Off"
 msgstr "Off"
 
-#: src/components/game/RoundVideoOverlay.tsx:774
-#: src/components/GlobalHandyOverlay.tsx:110
+#: src/components/game/RoundVideoOverlay.tsx:806
+#: src/components/GlobalHandyOverlay.tsx:111
 msgid "Offset saved to round."
 msgstr "Offset saved to round."
 
@@ -7885,7 +7906,7 @@ msgid "Only affects vibration-only toys. Higher values map funscript stroke spee
 msgstr "Only affects vibration-only toys. Higher values map funscript stroke speed to stronger vibration."
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:861
-#: src/routes/playlist-workshop.tsx:2711
+#: src/routes/playlist-workshop.tsx:2722
 msgid "Only Checkpoint"
 msgstr "Only Checkpoint"
 
@@ -7911,12 +7932,12 @@ msgstr "Opacity"
 msgid "open"
 msgstr "open"
 
-#: src/routes/playlist-workshop.tsx:1623
+#: src/routes/playlist-workshop.tsx:1634
 msgid "Open"
 msgstr "Open"
 
 #. placeholder {0}: round.name
-#: src/routes/playlist-workshop.tsx:4549
+#: src/routes/playlist-workshop.tsx:4560
 msgid "Open {0}"
 msgstr "Open {0}"
 
@@ -7928,8 +7949,8 @@ msgstr "Open A Playlist"
 msgid "Open a popup to create an installed round from a public website URL."
 msgstr "Open a popup to create an installed round from a public website URL."
 
-#: src/routes/playlist-workshop.tsx:2289
-#: src/routes/playlist-workshop.tsx:2471
+#: src/routes/playlist-workshop.tsx:2300
+#: src/routes/playlist-workshop.tsx:2482
 msgid "Open Advanced Map Editor"
 msgstr "Open Advanced Map Editor"
 
@@ -7976,7 +7997,7 @@ msgstr "Open Lobby Control"
 msgid "Open Log Folder"
 msgstr "Open Log Folder"
 
-#: src/routes/single-player-setup.tsx:441
+#: src/routes/single-player-setup.tsx:443
 msgid "Open Map Editor"
 msgstr "Open Map Editor"
 
@@ -8003,8 +8024,8 @@ msgstr "Open or close the global music overlay."
 msgid "settings.help.shortcuts.global.handy"
 msgstr "Open or close the global TheHandy overlay."
 
-#: src/routes/single-player-setup.tsx:430
-#: src/routes/single-player-setup.tsx:788
+#: src/routes/single-player-setup.tsx:432
+#: src/routes/single-player-setup.tsx:790
 msgid "Open Playlist Workshop"
 msgstr "Open Playlist Workshop"
 
@@ -8045,7 +8066,7 @@ msgstr "Open the global TheHandy overlay"
 msgid "settings.help.shortcuts.game.options"
 msgstr "Open the in-game options menu."
 
-#: src/routes/single-player-setup.tsx:423
+#: src/routes/single-player-setup.tsx:425
 msgid "Open the playlist workshop to build a linear playlist, or use the map editor if you want a graph-based board."
 msgstr "Open the playlist workshop to build a linear playlist, or use the map editor if you want a graph-based board."
 
@@ -8062,11 +8083,11 @@ msgstr "Open topic"
 msgid "Opening Discord..."
 msgstr "Opening Discord..."
 
-#: src/routes/playlist-workshop.tsx:1669
+#: src/routes/playlist-workshop.tsx:1680
 msgid "Opening Graph Editor"
 msgstr "Opening Graph Editor"
 
-#: src/routes/single-player-setup.tsx:787
+#: src/routes/single-player-setup.tsx:789
 msgid "Opening Workshop..."
 msgstr "Opening Workshop..."
 
@@ -8092,15 +8113,16 @@ msgstr "Optional label"
 msgid "first-start.step.optional-setup.eyebrow"
 msgstr "Optional Setup"
 
+#: src/features/converter/ConverterSourcePicker.tsx:310
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:191
 msgid "Optional: https://example.com/video.funscript"
 msgstr "Optional: https://example.com/video.funscript"
 
-#: src/components/game/GameScene.tsx:4976
-#: src/components/game/GameScene.tsx:5189
-#: src/components/game/GameScene.tsx:5452
-#: src/components/game/RoundVideoOverlay.tsx:3840
-#: src/components/game/RoundVideoOverlay.tsx:4734
+#: src/components/game/GameScene.tsx:5026
+#: src/components/game/GameScene.tsx:5239
+#: src/components/game/GameScene.tsx:5502
+#: src/components/game/RoundVideoOverlay.tsx:3867
+#: src/components/game/RoundVideoOverlay.tsx:4766
 msgid "Options"
 msgstr "Options"
 
@@ -8240,7 +8262,7 @@ msgstr "Path"
 
 #. js-lingui-explicit-id
 #: src/components/game/GameBoardRenderer.tsx:164
-#: src/components/game/GameScene.tsx:2868
+#: src/components/game/GameScene.tsx:2890
 msgid "gameboard.kind.path"
 msgstr "PATH"
 
@@ -8254,7 +8276,7 @@ msgid "Pause"
 msgstr "Pause"
 
 #. placeholder {0}: roundControl?.pauseCharges ?? 0
-#: src/components/game/RoundVideoOverlay.tsx:3808
+#: src/components/game/RoundVideoOverlay.tsx:3835
 msgid "Pause {0}"
 msgstr "Pause {0}"
 
@@ -8270,7 +8292,7 @@ msgstr "Pause duration after intermediary ends before resuming the main round."
 msgid "Pause Gap (ms)"
 msgstr "Pause Gap (ms)"
 
-#: src/components/game/RoundVideoOverlay.tsx:4732
+#: src/components/game/RoundVideoOverlay.tsx:4764
 msgid "Pause Round"
 msgstr "Pause Round"
 
@@ -8302,7 +8324,7 @@ msgid "first-start.step.phash.eyebrow"
 msgstr "Performance"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:2231
+#: src/components/game/GameScene.tsx:2252
 msgid "game.inventory.perk"
 msgstr "perk"
 
@@ -8311,12 +8333,12 @@ msgid "Perk"
 msgstr "Perk"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4283
+#: src/components/game/GameScene.tsx:4308
 msgid "hud.phase.perk"
 msgstr "PERK"
 
-#: src/components/game/GameScene.tsx:5012
-#: src/components/game/GameScene.tsx:5285
+#: src/components/game/GameScene.tsx:5062
+#: src/components/game/GameScene.tsx:5335
 #: src/components/game/PerkInventoryPanel.tsx:123
 msgid "Perk Inventory"
 msgstr "Perk Inventory"
@@ -8325,13 +8347,13 @@ msgstr "Perk Inventory"
 msgid "Perk Rates"
 msgstr "Perk Rates"
 
-#: src/routes/playlist-workshop.tsx:3861
+#: src/routes/playlist-workshop.tsx:3872
 msgid "Perk Trigger Chance %"
 msgstr "Perk Trigger Chance %"
 
-#: src/components/game/GameScene.tsx:5373
+#: src/components/game/GameScene.tsx:5423
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1160
-#: src/routes/playlist-workshop.tsx:3526
+#: src/routes/playlist-workshop.tsx:3537
 msgid "Perks"
 msgstr "Perks"
 
@@ -8340,12 +8362,12 @@ msgstr "Perks"
 msgid "playlist-workshop.section.perks.title"
 msgstr "Perks & Anti-Perks"
 
-#: src/routes/playlist-workshop.tsx:3507
+#: src/routes/playlist-workshop.tsx:3518
 msgid "Perks are beneficial choices offered between completed rounds. Anti-perks are harmful effects that can enter the same choice pool when enabled and can also stay active across multiple rounds."
 msgstr "Perks are beneficial choices offered between completed rounds. Anti-perks are harmful effects that can enter the same choice pool when enabled and can also stay active across multiple rounds."
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1364
+#: src/components/game/GameScene.tsx:1383
 msgid "hud.duration.perm"
 msgstr "perm"
 
@@ -8384,7 +8406,7 @@ msgstr "Pick a target player before sending this anti-perk."
 msgid "Pick a target player."
 msgstr "Pick a target player."
 
-#: src/routes/single-player-setup.tsx:492
+#: src/routes/single-player-setup.tsx:494
 msgid "Pick And Start"
 msgstr "Pick And Start"
 
@@ -8409,7 +8431,7 @@ msgstr "Place: P or a tile shortcut, then click the canvas."
 msgid "Plaintext settings file created."
 msgstr "Plaintext settings file created."
 
-#: src/components/game/GameScene.tsx:2274
+#: src/components/game/GameScene.tsx:2295
 #: src/routes/index.tsx:224
 #: src/routes/settings.tsx:5258
 msgid "Play"
@@ -8422,12 +8444,12 @@ msgid "command-palette.category.play"
 msgstr "Play"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:3274
-#: src/components/game/GameScene.tsx:4392
+#: src/components/game/GameScene.tsx:3296
+#: src/components/game/GameScene.tsx:4417
 msgid "game.btn.play"
 msgstr "PLAY"
 
-#: src/features/rounds/library/components/RoundCard.tsx:265
+#: src/features/rounds/library/components/RoundCard.tsx:264
 msgid "Play {displayName}"
 msgstr "Play {displayName}"
 
@@ -8447,14 +8469,14 @@ msgstr "Play or pause the source video."
 msgid "Play/Pause"
 msgstr "Play/Pause"
 
-#: src/components/game/RoundVideoOverlay.tsx:4681
-#: src/components/GlobalHandyOverlay.tsx:572
+#: src/components/game/RoundVideoOverlay.tsx:4714
+#: src/components/GlobalHandyOverlay.tsx:570
 msgid "Playback"
 msgstr "Playback"
 
-#: src/components/game/RoundVideoOverlay.tsx:1479
-#: src/components/game/RoundVideoOverlay.tsx:4125
-#: src/components/game/RoundVideoOverlay.tsx:4254
+#: src/components/game/RoundVideoOverlay.tsx:1511
+#: src/components/game/RoundVideoOverlay.tsx:4152
+#: src/components/game/RoundVideoOverlay.tsx:4281
 msgid "Playback paused for transition..."
 msgstr "Playback paused for transition..."
 
@@ -8469,7 +8491,7 @@ msgid "Player"
 msgstr "Player"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4288
+#: src/components/game/GameScene.tsx:4313
 msgid "hud.player"
 msgstr "Player"
 
@@ -8482,17 +8504,17 @@ msgstr "Player Standings"
 msgid "Playing on <0>{0}</0> · Codes are case-insensitive."
 msgstr "Playing on <0>{0}</0> · Codes are case-insensitive."
 
-#: src/components/game/RoundVideoOverlay.tsx:2586
-#: src/components/game/RoundVideoOverlay.tsx:2604
+#: src/components/game/RoundVideoOverlay.tsx:2619
+#: src/components/game/RoundVideoOverlay.tsx:2637
 msgid "Playing video (empty funscript)."
 msgstr "Playing video (empty funscript)."
 
-#: src/components/game/RoundVideoOverlay.tsx:2574
+#: src/components/game/RoundVideoOverlay.tsx:2607
 msgid "Playing video (no funscript)."
 msgstr "Playing video (no funscript)."
 
-#: src/components/game/RoundVideoOverlay.tsx:2586
-#: src/components/game/RoundVideoOverlay.tsx:2604
+#: src/components/game/RoundVideoOverlay.tsx:2619
+#: src/components/game/RoundVideoOverlay.tsx:2637
 msgid "Playing video + funscript."
 msgstr "Playing video + funscript."
 
@@ -8513,12 +8535,12 @@ msgid "playlist-workshop.section.playlist.title"
 msgstr "Playlist"
 
 #: src/routes/playlist-workshop.tsx:1506
-#: src/routes/playlist-workshop.tsx:1644
-#: src/routes/playlist-workshop.tsx:4120
+#: src/routes/playlist-workshop.tsx:1655
+#: src/routes/playlist-workshop.tsx:4131
 msgid "Playlist created."
 msgstr "Playlist created."
 
-#: src/routes/playlist-workshop.tsx:4166
+#: src/routes/playlist-workshop.tsx:4177
 msgid "Playlist deleted."
 msgstr "Playlist deleted."
 
@@ -8526,7 +8548,7 @@ msgstr "Playlist deleted."
 msgid "Playlist Export Running"
 msgstr "Playlist Export Running"
 
-#: src/routes/playlist-workshop.tsx:1829
+#: src/routes/playlist-workshop.tsx:1840
 msgid "Playlist exported."
 msgstr "Playlist exported."
 
@@ -8539,12 +8561,12 @@ msgstr "Playlist Group"
 msgid "playlist-workshop.import.auto-resolved"
 msgstr "Playlist imported with {count, plural, one {# auto-resolved round ref} other {# auto-resolved round refs}}."
 
-#: src/routes/playlist-workshop.tsx:4260
+#: src/routes/playlist-workshop.tsx:4271
 msgid "Playlist imported with unresolved refs preserved."
 msgstr "Playlist imported with unresolved refs preserved."
 
 #: src/routes/playlist-workshop.tsx:1422
-#: src/routes/playlist-workshop.tsx:4219
+#: src/routes/playlist-workshop.tsx:4230
 msgid "Playlist imported."
 msgstr "Playlist imported."
 
@@ -8566,21 +8588,21 @@ msgstr "Playlist Music"
 msgid "Playlist music URL"
 msgstr "Playlist music URL"
 
-#: src/features/map-editor/components/PlaylistPickerView.tsx:167
-#: src/features/map-editor/components/PlaylistPickerView.tsx:171
+#: src/features/map-editor/components/PlaylistPickerView.tsx:188
+#: src/features/map-editor/components/PlaylistPickerView.tsx:192
 msgid "Playlist name"
 msgstr "Playlist name"
 
 #: src/features/rounds/library/dialogs/LegacyPlaylistReviewDialog.tsx:76
-#: src/routes/playlist-workshop.tsx:4696
-#: src/routes/playlist-workshop.tsx:4777
+#: src/routes/playlist-workshop.tsx:4707
+#: src/routes/playlist-workshop.tsx:4788
 msgid "Playlist Name"
 msgstr "Playlist Name"
 
 #: src/routes/playlist-workshop.tsx:1513
-#: src/routes/playlist-workshop.tsx:1651
-#: src/routes/playlist-workshop.tsx:4106
-#: src/routes/playlist-workshop.tsx:4127
+#: src/routes/playlist-workshop.tsx:1662
+#: src/routes/playlist-workshop.tsx:4117
+#: src/routes/playlist-workshop.tsx:4138
 msgid "Playlist name cannot be empty."
 msgstr "Playlist name cannot be empty."
 
@@ -8589,31 +8611,31 @@ msgid "Playlist Pack Export"
 msgstr "Playlist Pack Export"
 
 #. placeholder {0}: result.fpackPath ?? result.exportDir
-#: src/routes/playlist-workshop.tsx:1902
+#: src/routes/playlist-workshop.tsx:1913
 msgid "Playlist pack exported to {0}."
 msgstr "Playlist pack exported to {0}."
 
-#: src/routes/playlist-workshop.tsx:4099
+#: src/routes/playlist-workshop.tsx:4110
 msgid "Playlist renamed."
 msgstr "Playlist renamed."
 
-#: src/routes/playlist-workshop.tsx:4243
+#: src/routes/playlist-workshop.tsx:4254
 msgid "Playlist resolutions applied."
 msgstr "Playlist resolutions applied."
 
-#: src/routes/playlist-workshop.tsx:1923
+#: src/routes/playlist-workshop.tsx:1934
 msgid "Playlist saved."
 msgstr "Playlist saved."
 
 #. placeholder {0}: activePlaylist.config.playlistVersion
-#: src/routes/playlist-workshop.tsx:2400
+#: src/routes/playlist-workshop.tsx:2411
 msgid "Playlist Version {0}"
 msgstr "Playlist Version {0}"
 
 #: src/routes/index.tsx:275
 #: src/routes/playlist-workshop.tsx:1461
 #: src/routes/playlist-workshop.tsx:1532
-#: src/routes/playlist-workshop.tsx:2234
+#: src/routes/playlist-workshop.tsx:2245
 msgid "Playlist Workshop"
 msgstr "Playlist Workshop"
 
@@ -8631,7 +8653,7 @@ msgstr "Playlist:"
 #: src/features/map-editor/components/PlaylistPickerView.tsx:96
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1744
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3219
-#: src/routes/single-player-setup.tsx:504
+#: src/routes/single-player-setup.tsx:506
 msgid "Playlists"
 msgstr "Playlists"
 
@@ -8692,7 +8714,7 @@ msgstr "Preparing"
 msgid "Preparing Account..."
 msgstr "Preparing Account..."
 
-#: src/routes/playlist-workshop.tsx:3343
+#: src/routes/playlist-workshop.tsx:3354
 msgid "Preparing available rounds"
 msgstr "Preparing available rounds"
 
@@ -8705,7 +8727,7 @@ msgstr "Preparing export package..."
 msgid "Preparing export..."
 msgstr "Preparing export..."
 
-#: src/components/game/RoundVideoOverlay.tsx:934
+#: src/components/game/RoundVideoOverlay.tsx:966
 msgid "Preparing haptics synchronization."
 msgstr "Preparing haptics synchronization."
 
@@ -8713,7 +8735,7 @@ msgstr "Preparing haptics synchronization."
 msgid "Preparing import..."
 msgstr "Preparing import..."
 
-#: src/components/game/RoundVideoOverlay.tsx:1684
+#: src/components/game/RoundVideoOverlay.tsx:1716
 msgid "Preparing main round resume..."
 msgstr "Preparing main round resume..."
 
@@ -8725,7 +8747,7 @@ msgstr "Preparing multiplayer authentication on the selected server."
 msgid "Preparing playback..."
 msgstr "Preparing playback..."
 
-#: src/components/game/RoundVideoOverlay.tsx:2390
+#: src/components/game/RoundVideoOverlay.tsx:2423
 msgid "Preparing round video..."
 msgstr "Preparing round video..."
 
@@ -8741,7 +8763,7 @@ msgstr "Prerelease"
 msgid "Prerelease updates are unstable and may break features. In rare cases, you may lose data. Back up important data before continuing."
 msgstr "Prerelease updates are unstable and may break features. In rare cases, you may lose data. Back up important data before continuing."
 
-#: src/components/GlobalHandyOverlay.tsx:302
+#: src/components/GlobalHandyOverlay.tsx:300
 msgid "Press"
 msgstr "Press"
 
@@ -8749,7 +8771,7 @@ msgstr "Press"
 msgid "Press <0>Ctrl+M</0> to toggle"
 msgstr "Press <0>Ctrl+M</0> to toggle"
 
-#: src/components/game/GameScene.tsx:5167
+#: src/components/game/GameScene.tsx:5217
 msgid "Press C"
 msgstr "Press C"
 
@@ -8774,7 +8796,7 @@ msgstr "Prevents further rules from firing"
 msgid "Prevents the GPU from compositing render layers. Can fix flickering or blank screens on some hardware. Requires an app restart."
 msgstr "Prevents the GPU from compositing render layers. Can fix flickering or blank screens on some hardware. Requires an app restart."
 
-#: src/components/game/GameScene.tsx:5105
+#: src/components/game/GameScene.tsx:5155
 #: src/features/map-editor/components/AutomationPanel.tsx:378
 #: src/routes/settings.tsx:5762
 msgid "Preview"
@@ -8785,7 +8807,7 @@ msgstr "Preview"
 msgid "Preview {0}"
 msgstr "Preview {0}"
 
-#: src/features/converter/Timeline.tsx:118
+#: src/features/converter/Timeline.tsx:119
 msgid "Preview + Timeline"
 msgstr "Preview + Timeline"
 
@@ -8794,15 +8816,15 @@ msgid "Preview First File"
 msgstr "Preview First File"
 
 #: src/features/rounds/library/components/GroupHeaders.tsx:102
-#: src/features/rounds/library/components/RoundCard.tsx:235
+#: src/features/rounds/library/components/RoundCard.tsx:234
 msgid "Preview Is Being Generated"
 msgstr "Preview Is Being Generated"
 
-#: src/components/game/GameScene.tsx:5105
+#: src/components/game/GameScene.tsx:5155
 msgid "Previewing"
 msgstr "Previewing"
 
-#: src/routes/single-player-setup.tsx:711
+#: src/routes/single-player-setup.tsx:713
 msgid "Primary Action"
 msgstr "Primary Action"
 
@@ -8818,8 +8840,8 @@ msgstr "Private lobbies are invite-code only."
 msgid "Private Lobby (Click to Advertise)"
 msgstr "Private Lobby (Click to Advertise)"
 
-#: src/components/game/GameScene.tsx:5180
-#: src/components/game/GameScene.tsx:5274
+#: src/components/game/GameScene.tsx:5230
+#: src/components/game/GameScene.tsx:5324
 msgid "Proceed"
 msgstr "Proceed"
 
@@ -8849,7 +8871,7 @@ msgstr "Progress"
 msgid "Progressive"
 msgstr "Progressive"
 
-#: src/routes/playlist-workshop.tsx:4816
+#: src/routes/playlist-workshop.tsx:4827
 msgid "Progressive Random"
 msgstr "Progressive Random"
 
@@ -8857,7 +8879,7 @@ msgstr "Progressive Random"
 msgid "prompt"
 msgstr "prompt"
 
-#: src/components/game/RoundVideoOverlay.tsx:4516
+#: src/components/game/RoundVideoOverlay.tsx:4544
 msgid "Prompt:"
 msgstr "Prompt:"
 
@@ -8899,7 +8921,7 @@ msgstr "Pull remote match history into the local cache, then browse it instantly
 msgid "Queue"
 msgstr "Queue"
 
-#: src/routes/playlist-workshop.tsx:2817
+#: src/routes/playlist-workshop.tsx:2828
 msgid "Queue · drag to reorder · fills repeats if shorter than session"
 msgstr "Queue · drag to reorder · fills repeats if shorter than session"
 
@@ -8912,7 +8934,7 @@ msgstr "Queue ({0} tracks)"
 msgid "Quick Jumps"
 msgstr "Quick Jumps"
 
-#: src/routes/single-player-setup.tsx:870
+#: src/routes/single-player-setup.tsx:872
 msgid "Quick Start"
 msgstr "Quick Start"
 
@@ -8954,7 +8976,7 @@ msgstr "Random round acquired"
 msgid "Random Selection"
 msgstr "Random Selection"
 
-#: src/routes/playlist-workshop.tsx:2183
+#: src/routes/playlist-workshop.tsx:2194
 msgid "Randomize"
 msgstr "Randomize"
 
@@ -8963,8 +8985,8 @@ msgid "Randomize track order"
 msgstr "Randomize track order"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1436
-#: src/components/game/GameScene.tsx:1439
+#: src/components/game/GameScene.tsx:1455
+#: src/components/game/GameScene.tsx:1458
 msgid "hud.range"
 msgstr "RANGE"
 
@@ -8993,7 +9015,7 @@ msgstr "Ready to join or host"
 msgid "Ready to play"
 msgstr "Ready to play"
 
-#: src/routes/single-player-setup.tsx:634
+#: src/routes/single-player-setup.tsx:636
 msgid "Ready To Play"
 msgstr "Ready To Play"
 
@@ -9001,7 +9023,7 @@ msgstr "Ready To Play"
 msgid "Ready to scan"
 msgstr "Ready to scan"
 
-#: src/routes/playlist-workshop.tsx:2513
+#: src/routes/playlist-workshop.tsx:2524
 msgid "Ready to share? Bundle this playlist along with all its associated media into a highly compressed, easily shareable format. Perfect for distribution."
 msgstr "Ready to share? Bundle this playlist along with all its associated media into a highly compressed, easily shareable format. Perfect for distribution."
 
@@ -9014,16 +9036,16 @@ msgstr "Reason: {0}"
 msgid "Reattach Funscripts in Stash Rounds"
 msgstr "Reattach Funscripts in Stash Rounds"
 
-#: src/routes/playlist-workshop.tsx:2984
+#: src/routes/playlist-workshop.tsx:2995
 msgid "Rebuild Queue From Sections"
 msgstr "Rebuild Queue From Sections"
 
-#: src/routes/playlist-workshop.tsx:2890
+#: src/routes/playlist-workshop.tsx:2901
 msgid "Rebuild the queue from index ranges and difficulty bands."
 msgstr "Rebuild the queue from index ranges and difficulty bands."
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:2231
+#: src/components/game/GameScene.tsx:2252
 msgid "game.inventory.received"
 msgstr "Received"
 
@@ -9047,11 +9069,11 @@ msgstr "Recommended on faster machines. Disable this if startup work or backgrou
 msgid "Recommended on weak hardware if preview generation causes stutters. Leave it off for faster imports on stronger machines."
 msgstr "Recommended on weak hardware if preview generation causes stutters. Leave it off for faster imports on stronger machines."
 
-#: src/components/GlobalHandyOverlay.tsx:605
+#: src/components/GlobalHandyOverlay.tsx:603
 msgid "reconnect"
 msgstr "reconnect"
 
-#: src/components/GlobalHandyOverlay.tsx:550
+#: src/components/GlobalHandyOverlay.tsx:548
 msgid "Reconnect"
 msgstr "Reconnect"
 
@@ -9060,7 +9082,7 @@ msgstr "Reconnect"
 msgid "settings.help.shortcuts.global.reconnectHandy"
 msgstr "Reconnect TheHandy using the saved connection settings."
 
-#: src/components/GlobalHandyOverlay.tsx:168
+#: src/components/GlobalHandyOverlay.tsx:166
 msgid "Reconnecting haptics..."
 msgstr "Reconnecting haptics..."
 
@@ -9068,7 +9090,7 @@ msgstr "Reconnecting haptics..."
 msgid "Records of your past games and sessions."
 msgstr "Records of your past games and sessions."
 
-#: src/routes/playlist-workshop.tsx:1666
+#: src/routes/playlist-workshop.tsx:1677
 msgid "Redirecting"
 msgstr "Redirecting"
 
@@ -9168,7 +9190,7 @@ msgstr "Remaining missing:"
 msgid "Remote Import Trust"
 msgstr "Remote Import Trust"
 
-#: src/components/game/RoundVideoOverlay.tsx:4292
+#: src/components/game/RoundVideoOverlay.tsx:4319
 msgid "Remote media file not found"
 msgstr "Remote media file not found"
 
@@ -9197,8 +9219,8 @@ msgstr "Remove all anti-perks currently affecting you."
 msgid "Remove background"
 msgstr "Remove background"
 
-#: src/routes/playlist-workshop.tsx:4429
-#: src/routes/playlist-workshop.tsx:4430
+#: src/routes/playlist-workshop.tsx:4440
+#: src/routes/playlist-workshop.tsx:4441
 msgid "Remove from queue"
 msgstr "Remove from queue"
 
@@ -9222,28 +9244,28 @@ msgstr "Remove the currently selected segment."
 msgid "Remove video"
 msgstr "Remove video"
 
-#: src/routes/playlist-workshop.tsx:2423
-#: src/routes/playlist-workshop.tsx:4741
+#: src/routes/playlist-workshop.tsx:2434
+#: src/routes/playlist-workshop.tsx:4752
 msgid "Rename"
 msgstr "Rename"
 
-#: src/routes/playlist-workshop.tsx:4686
+#: src/routes/playlist-workshop.tsx:4697
 msgid "Rename Playlist"
 msgstr "Rename Playlist"
 
-#: src/routes/playlist-workshop.tsx:4741
+#: src/routes/playlist-workshop.tsx:4752
 msgid "Renaming..."
 msgstr "Renaming..."
 
-#: src/routes/map-editor.tsx:2513
+#: src/routes/map-editor.tsx:2666
 msgid "Reorder rounds by difficulty?"
 msgstr "Reorder rounds by difficulty?"
 
-#: src/routes/playlist-workshop.tsx:2178
+#: src/routes/playlist-workshop.tsx:2189
 msgid "Reorder selected rounds?"
 msgstr "Reorder selected rounds?"
 
-#: src/features/rounds/library/components/RoundCard.tsx:449
+#: src/features/rounds/library/components/RoundCard.tsx:448
 msgid "Repair Template"
 msgstr "Repair Template"
 
@@ -9287,24 +9309,24 @@ msgstr "Report Bug"
 msgid "Repository:"
 msgstr "Repository:"
 
-#: src/routes/map-editor.tsx:2518
+#: src/routes/map-editor.tsx:2671
 msgid "Reroll Random"
 msgstr "Reroll Random"
 
-#: src/routes/map-editor.tsx:2508
+#: src/routes/map-editor.tsx:2661
 msgid "Reroll rounds in order?"
 msgstr "Reroll rounds in order?"
 
-#: src/routes/map-editor.tsx:2512
+#: src/routes/map-editor.tsx:2665
 msgid "Reroll rounds progressively?"
 msgstr "Reroll rounds progressively?"
 
-#: src/routes/map-editor.tsx:2510
+#: src/routes/map-editor.tsx:2663
 msgid "Reroll rounds randomly?"
 msgstr "Reroll rounds randomly?"
 
-#: src/components/game/GameScene.tsx:5259
-#: src/components/GlobalHandyOverlay.tsx:423
+#: src/components/game/GameScene.tsx:5309
+#: src/components/GlobalHandyOverlay.tsx:421
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:490
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:531
 #: src/features/map-editor/components/TextInspectorPanel.tsx:119
@@ -9318,25 +9340,25 @@ msgid "Reset anti-perk chance after trigger"
 msgstr "Reset anti-perk chance after trigger"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1083
-#: src/routes/playlist-workshop.tsx:4016
+#: src/routes/playlist-workshop.tsx:4027
 msgid "Reset Anti-Perk Chance After Trigger"
 msgstr "Reset Anti-Perk Chance After Trigger"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:4027
+#: src/routes/playlist-workshop.tsx:4038
 msgid "playlist-workshop.reset-antiperk-chance.toggle"
 msgstr "Reset anti-perk chance after trigger toggle"
 
 #: src/features/map-editor/components/EditorToolbar.tsx:155
-#: src/routes/map-editor.tsx:3835
+#: src/routes/map-editor.tsx:3996
 msgid "Reset Graph"
 msgstr "Reset Graph"
 
-#: src/routes/map-editor.tsx:3833
+#: src/routes/map-editor.tsx:3994
 msgid "Reset Graph?"
 msgstr "Reset Graph?"
 
-#: src/components/GlobalHandyOverlay.tsx:627
+#: src/components/GlobalHandyOverlay.tsx:625
 msgid "reset in-game"
 msgstr "reset in-game"
 
@@ -9345,12 +9367,12 @@ msgid "Reset intermediary chance after trigger"
 msgstr "Reset intermediary chance after trigger"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1047
-#: src/routes/playlist-workshop.tsx:3975
+#: src/routes/playlist-workshop.tsx:3986
 msgid "Reset Intermediary Chance After Trigger"
 msgstr "Reset Intermediary Chance After Trigger"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:3986
+#: src/routes/playlist-workshop.tsx:3997
 msgid "playlist-workshop.reset-intermediary-chance.toggle"
 msgstr "Reset intermediary chance after trigger toggle"
 
@@ -9375,7 +9397,7 @@ msgstr "Reset position"
 msgid "Reset roads"
 msgstr "Reset roads"
 
-#: src/components/GlobalHandyOverlay.tsx:520
+#: src/components/GlobalHandyOverlay.tsx:518
 #: src/routes/settings.tsx:5048
 msgid "Reset Stroke"
 msgstr "Reset Stroke"
@@ -9426,9 +9448,9 @@ msgstr "Resets the intermediary chance to its initial value after a round where 
 #. placeholder {0}: activePlaylist.name
 #. placeholder {0}: lobby?.name ?? t`Lobby Playlist`
 #. placeholder {0}: selectedPlaylist.name
-#: src/routes/map-editor.tsx:3359
+#: src/routes/map-editor.tsx:3512
 #: src/routes/multiplayer-lobby.tsx:932
-#: src/routes/playlist-workshop.tsx:2560
+#: src/routes/playlist-workshop.tsx:2571
 msgid "Resolve {0}"
 msgstr "Resolve {0}"
 
@@ -9444,11 +9466,11 @@ msgstr "Resolve Missing"
 msgid "Resolve multiplayer readiness first."
 msgstr "Resolve multiplayer readiness first."
 
-#: src/features/rounds/library/components/RoundCard.tsx:347
+#: src/features/rounds/library/components/RoundCard.tsx:346
 msgid "Resource Hash"
 msgstr "Resource Hash"
 
-#: src/features/rounds/library/components/RoundCard.tsx:349
+#: src/features/rounds/library/components/RoundCard.tsx:348
 msgid "Resource ID"
 msgstr "Resource ID"
 
@@ -9462,7 +9484,7 @@ msgid "Restart App"
 msgstr "Restart App"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4279
+#: src/components/game/GameScene.tsx:4304
 msgid "hud.phase.result"
 msgstr "RESULT"
 
@@ -9470,40 +9492,40 @@ msgstr "RESULT"
 msgid "Result Nexus"
 msgstr "Result Nexus"
 
-#: src/routes/single-player-setup.tsx:552
+#: src/routes/single-player-setup.tsx:554
 msgid "Resume"
 msgstr "Resume"
 
-#: src/components/game/GameScene.tsx:4959
+#: src/components/game/GameScene.tsx:5009
 msgid "Resume Handy"
 msgstr "Resume Handy"
 
-#: src/components/game/RoundVideoOverlay.tsx:3888
+#: src/components/game/RoundVideoOverlay.tsx:3915
 msgid "Resume Haptics"
 msgstr "Resume Haptics"
 
-#: src/routes/single-player-setup.tsx:714
+#: src/routes/single-player-setup.tsx:716
 msgid "Resume Here"
 msgstr "Resume Here"
 
-#: src/routes/single-player-setup.tsx:734
+#: src/routes/single-player-setup.tsx:736
 msgid "Resume Run"
 msgstr "Resume Run"
 
-#: src/routes/single-player-setup.tsx:727
+#: src/routes/single-player-setup.tsx:729
 msgid "Resume With Web Fallback"
 msgstr "Resume With Web Fallback"
 
-#: src/routes/single-player-setup.tsx:726
-#: src/routes/single-player-setup.tsx:733
+#: src/routes/single-player-setup.tsx:728
+#: src/routes/single-player-setup.tsx:735
 msgid "Resuming..."
 msgstr "Resuming..."
 
-#: src/components/game/RoundVideoOverlay.tsx:3753
+#: src/components/game/RoundVideoOverlay.tsx:3780
 msgid "Resync (R)"
 msgstr "Resync (R)"
 
-#: src/components/game/RoundVideoOverlay.tsx:1901
+#: src/components/game/RoundVideoOverlay.tsx:1933
 msgid "Resync failed: {message}"
 msgstr "Resync failed: {message}"
 
@@ -9512,7 +9534,7 @@ msgstr "Resync failed: {message}"
 msgid "settings.help.shortcuts.game.resyncHandy"
 msgstr "Resync TheHandy timing to the current round video."
 
-#: src/components/game/RoundVideoOverlay.tsx:1844
+#: src/components/game/RoundVideoOverlay.tsx:1876
 msgid "Resyncing TheHandy timing..."
 msgstr "Resyncing TheHandy timing..."
 
@@ -9523,7 +9545,7 @@ msgid "Retry"
 msgstr "Retry"
 
 #: src/features/rounds/library/components/GroupHeaders.tsx:170
-#: src/features/rounds/library/components/RoundCard.tsx:457
+#: src/features/rounds/library/components/RoundCard.tsx:456
 msgid "Retry Auto-Link"
 msgstr "Retry Auto-Link"
 
@@ -9535,17 +9557,17 @@ msgstr "Retry Needed"
 msgid "Return Pause After Intermediary (s)"
 msgstr "Return Pause After Intermediary (s)"
 
-#: src/routes/single-player-setup.tsx:614
+#: src/routes/single-player-setup.tsx:616
 msgid "Return to main menu"
 msgstr "Return to main menu"
 
-#: src/components/game/RoundVideoOverlay.tsx:1682
-#: src/components/game/RoundVideoOverlay.tsx:2881
+#: src/components/game/RoundVideoOverlay.tsx:1714
+#: src/components/game/RoundVideoOverlay.tsx:2911
 msgid "RETURNING TO MAIN"
 msgstr "RETURNING TO MAIN"
 
-#: src/components/game/RoundVideoOverlay.tsx:1667
-#: src/components/game/RoundVideoOverlay.tsx:2514
+#: src/components/game/RoundVideoOverlay.tsx:1699
+#: src/components/game/RoundVideoOverlay.tsx:2547
 msgid "Returning to main round video."
 msgstr "Returning to main round video."
 
@@ -9580,7 +9602,7 @@ msgstr "Review the estimated pack size and compression time before choosing the 
 msgid "Review the folder before import. Ordered by filename (natural sort), so entries like 2, 10, and 100 stay in human order."
 msgstr "Review the folder before import. Ordered by filename (natural sort), so entries like 2, 10, and 100 stay in human order."
 
-#: src/routes/map-editor.tsx:3234
+#: src/routes/map-editor.tsx:3387
 msgid "Review validation"
 msgstr "Review validation"
 
@@ -9594,21 +9616,21 @@ msgid "Roll {0}"
 msgstr "Roll {0}"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1402
+#: src/components/game/GameScene.tsx:1421
 msgid "hud.rollCap"
 msgstr "Roll cap"
 
-#: src/components/game/GameScene.tsx:2271
+#: src/components/game/GameScene.tsx:2292
 msgid "Roll Dice"
 msgstr "Roll Dice"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4384
+#: src/components/game/GameScene.tsx:4409
 msgid "game.btn.rollDice.short"
 msgstr "ROLL DICE"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:3184
+#: src/components/game/GameScene.tsx:3206
 msgid "game.btn.rollDice"
 msgstr "ROLL DICE (SPACE)"
 
@@ -9618,11 +9640,11 @@ msgid "settings.help.shortcuts.game.mainAction"
 msgstr "Roll the dice or trigger the main gameplay action."
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4278
+#: src/components/game/GameScene.tsx:4303
 msgid "hud.phase.rolling"
 msgstr "ROLLING"
 
-#: src/components/game/RoundVideoOverlay.tsx:3734
+#: src/components/game/RoundVideoOverlay.tsx:3761
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:409
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:422
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:552
@@ -9631,7 +9653,7 @@ msgid "Round"
 msgstr "Round"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4581
+#: src/components/game/GameScene.tsx:4606
 msgid "game.reward.title"
 msgstr "ROUND COMPLETE"
 
@@ -9646,7 +9668,7 @@ msgstr "Round Converter"
 msgid "command-palette.converter"
 msgstr "Round Converter"
 
-#: src/routes/playlist-workshop.tsx:2619
+#: src/routes/playlist-workshop.tsx:2630
 msgid "Round Count"
 msgstr "Round Count"
 
@@ -9659,11 +9681,11 @@ msgstr "Round count, safe points, and board layout."
 msgid "Round fields must use valid numeric values."
 msgstr "Round fields must use valid numeric values."
 
-#: src/features/rounds/library/components/RoundCard.tsx:346
+#: src/features/rounds/library/components/RoundCard.tsx:345
 msgid "Round Hash"
 msgstr "Round Hash"
 
-#: src/features/rounds/library/components/RoundCard.tsx:348
+#: src/features/rounds/library/components/RoundCard.tsx:347
 msgid "Round ID"
 msgstr "Round ID"
 
@@ -9694,7 +9716,7 @@ msgstr "Round preview"
 msgid "Round Slot {0}"
 msgstr "Round Slot {0}"
 
-#: src/routes/playlist-workshop.tsx:3847
+#: src/routes/playlist-workshop.tsx:3858
 msgid "Round Start Delay (sec)"
 msgstr "Round Start Delay (sec)"
 
@@ -9712,15 +9734,16 @@ msgid "Round Vault"
 msgstr "Round Vault"
 
 #: src/components/game/PlaylistLaunchTransition.tsx:35
-#: src/features/map-editor/components/TileSidebar.tsx:189
-#: src/routes/playlist-workshop.tsx:3134
+#: src/features/map-editor/components/TileSidebar.tsx:334
+#: src/routes/playlist-workshop.tsx:3145
 msgid "rounds"
 msgstr "rounds"
 
 #: src/features/converter/SegmentList.tsx:88
 #: src/features/map-editor/components/EditorToolbar.tsx:188
+#: src/features/map-editor/components/TileSidebar.tsx:226
 #: src/routes/multiplayer.tsx:885
-#: src/routes/single-player-setup.tsx:853
+#: src/routes/single-player-setup.tsx:855
 msgid "Rounds"
 msgstr "Rounds"
 
@@ -9739,7 +9762,7 @@ msgstr "Rounds"
 msgid "Rounds per background pHash pass"
 msgstr "Rounds per background pHash pass"
 
-#: src/components/game/GameScene.tsx:5096
+#: src/components/game/GameScene.tsx:5146
 msgid "Route"
 msgstr "Route"
 
@@ -9759,7 +9782,7 @@ msgstr "Run History"
 msgid "RUN INITIALIZATION"
 msgstr "RUN INITIALIZATION"
 
-#: src/routes/single-player-setup.tsx:832
+#: src/routes/single-player-setup.tsx:834
 msgid "Run Summary"
 msgstr "Run Summary"
 
@@ -9771,7 +9794,7 @@ msgstr "Run the guided introduction again if you want a refresher on play modes,
 msgid "Running"
 msgstr "Running"
 
-#: src/components/game/RoundVideoOverlay.tsx:2150
+#: src/components/game/RoundVideoOverlay.tsx:2183
 msgid "Running anti-perk sequence..."
 msgstr "Running anti-perk sequence..."
 
@@ -9795,19 +9818,19 @@ msgstr "Safe Mode Startup Shortcut"
 msgid "Safe Point"
 msgstr "Safe Point"
 
-#: src/routes/playlist-workshop.tsx:2689
+#: src/routes/playlist-workshop.tsx:2700
 msgid "Safe Point Indices (comma-separated)"
 msgstr "Safe Point Indices (comma-separated)"
 
-#: src/routes/playlist-workshop.tsx:2637
-#: src/routes/single-player-setup.tsx:861
+#: src/routes/playlist-workshop.tsx:2648
+#: src/routes/single-player-setup.tsx:863
 msgid "Safe Points"
 msgstr "Safe Points"
 
 #: src/features/converter/SegmentList.tsx:94
 #: src/features/map-editor/components/CustomPaletteManager.tsx:289
 #: src/features/map-editor/components/EditorToolbar.tsx:244
-#: src/routes/playlist-workshop.tsx:2270
+#: src/routes/playlist-workshop.tsx:2281
 #: src/routes/settings.tsx:6830
 #: src/routes/settings.tsx:7851
 #: src/routes/settings.tsx:7924
@@ -9815,7 +9838,7 @@ msgstr "Safe Points"
 msgid "Save"
 msgstr "Save"
 
-#: src/routes/playlist-workshop.tsx:2578
+#: src/routes/playlist-workshop.tsx:2589
 msgid "Save and Test"
 msgstr "Save and Test"
 
@@ -9839,7 +9862,7 @@ msgstr "Save current as palette"
 msgid "Save Endpoint"
 msgstr "Save Endpoint"
 
-#: src/routes/game.tsx:736
+#: src/routes/game.tsx:824
 msgid "Save Game"
 msgstr "Save Game"
 
@@ -9848,12 +9871,12 @@ msgid "Save Hero"
 msgstr "Save Hero"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:850
-#: src/routes/playlist-workshop.tsx:2706
+#: src/routes/playlist-workshop.tsx:2717
 msgid "Save Mode"
 msgstr "Save Mode"
 
-#: src/components/game/RoundVideoOverlay.tsx:4605
-#: src/components/GlobalHandyOverlay.tsx:450
+#: src/components/game/RoundVideoOverlay.tsx:4633
+#: src/components/GlobalHandyOverlay.tsx:448
 msgid "Save Offset to Round"
 msgstr "Save Offset to Round"
 
@@ -9874,7 +9897,7 @@ msgstr "Save Rounds to Hero"
 msgid "settings.help.shortcuts.mapEditor.save"
 msgstr "Save the current playlist."
 
-#: src/routes/playlist-workshop.tsx:2569
+#: src/routes/playlist-workshop.tsx:2580
 msgid "Save Without Test"
 msgstr "Save Without Test"
 
@@ -9895,10 +9918,10 @@ msgstr "Saved TCode URL"
 #: src/features/rounds/library/dialogs/BulkAndConversionDialogs.tsx:26
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:30
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:37
-#: src/routes/playlist-workshop.tsx:2270
-#: src/routes/playlist-workshop.tsx:2278
-#: src/routes/playlist-workshop.tsx:2569
-#: src/routes/playlist-workshop.tsx:2578
+#: src/routes/playlist-workshop.tsx:2281
+#: src/routes/playlist-workshop.tsx:2289
+#: src/routes/playlist-workshop.tsx:2580
+#: src/routes/playlist-workshop.tsx:2589
 #: src/routes/settings.tsx:4076
 msgid "Saving..."
 msgstr "Saving..."
@@ -9954,18 +9977,18 @@ msgstr "Scenes:"
 msgid "score"
 msgstr "score"
 
-#: src/components/game/GameScene.tsx:5046
+#: src/components/game/GameScene.tsx:5096
 #: src/routes/multiplayer-result.tsx:281
 msgid "Score"
 msgstr "Score"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4306
+#: src/components/game/GameScene.tsx:4331
 msgid "hud.score"
 msgstr "SCORE"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4598
+#: src/components/game/GameScene.tsx:4623
 msgid "game.reward.score"
 msgstr "SCORE"
 
@@ -9995,8 +10018,8 @@ msgstr "Score:"
 msgid "Script"
 msgstr "Script"
 
-#: src/features/rounds/library/components/RoundCard.tsx:329
-#: src/features/rounds/library/components/RoundCard.tsx:403
+#: src/features/rounds/library/components/RoundCard.tsx:328
+#: src/features/rounds/library/components/RoundCard.tsx:402
 msgid "Script Ready"
 msgstr "Script Ready"
 
@@ -10028,7 +10051,7 @@ msgstr "Search & Filter"
 msgid "Search by package, version, or license"
 msgstr "Search by package, version, or license"
 
-#: src/routes/playlist-workshop.tsx:3177
+#: src/routes/playlist-workshop.tsx:3188
 msgid "Search by round or author…"
 msgstr "Search by round or author…"
 
@@ -10070,7 +10093,8 @@ msgstr "Search Prompt"
 msgid "Search prompt used for loading-screen media from rule34/booru sites."
 msgstr "Search prompt used for loading-screen media from rule34/booru sites."
 
-#: src/routes/playlist-workshop.tsx:3168
+#: src/features/map-editor/components/TileSidebar.tsx:237
+#: src/routes/playlist-workshop.tsx:3179
 msgid "Search rounds"
 msgstr "Search rounds"
 
@@ -10078,7 +10102,7 @@ msgstr "Search rounds"
 msgid "Search tags"
 msgstr "Search tags"
 
-#: src/features/map-editor/components/TileSidebar.tsx:98
+#: src/features/map-editor/components/TileSidebar.tsx:151
 msgid "Search tiles"
 msgstr "Search tiles"
 
@@ -10123,9 +10147,17 @@ msgstr "Seek forward by 1 second."
 msgid "Seek forward by 5 seconds."
 msgstr "Seek forward by 5 seconds."
 
-#: src/components/game/RoundVideoOverlay.tsx:4675
+#: src/components/game/RoundVideoOverlay.tsx:4708
 msgid "Segment"
 msgstr "Segment"
+
+#: src/features/converter/SegmentCard.tsx:173
+msgid "Segment cut overlay"
+msgstr "Segment cut overlay"
+
+#: src/features/converter/SegmentCard.tsx:183
+msgid "Segment playhead"
+msgstr "Segment playhead"
 
 #: src/features/converter/SegmentCard.tsx:149
 msgid "Segment Timeline"
@@ -10143,11 +10175,11 @@ msgstr "Sel"
 #: src/components/PlaylistPackExportDialog.tsx:289
 #: src/components/PlaylistPackExportDialog.tsx:351
 #: src/features/map-editor/components/EditorToolbar.tsx:78
-#: src/routes/playlist-workshop.tsx:2389
+#: src/routes/playlist-workshop.tsx:2400
 msgid "Select"
 msgstr "Select"
 
-#: src/features/rounds/library/components/RoundCard.tsx:173
+#: src/features/rounds/library/components/RoundCard.tsx:172
 msgid "Select {displayName}"
 msgstr "Select {displayName}"
 
@@ -10163,7 +10195,7 @@ msgstr "Select a dependency to inspect its license."
 msgid "Select a node to inspect"
 msgstr "Select a node to inspect"
 
-#: src/routes/map-editor.tsx:3239
+#: src/routes/map-editor.tsx:3392
 msgid "Select a node to start connecting."
 msgstr "Select a node to start connecting."
 
@@ -10264,7 +10296,7 @@ msgstr "Select Matching Rounds"
 msgid "Select or configure a multiplayer server first."
 msgstr "Select or configure a multiplayer server first."
 
-#: src/components/game/GameScene.tsx:5462
+#: src/components/game/GameScene.tsx:5512
 msgid "Select Perk"
 msgstr "Select Perk"
 
@@ -10322,7 +10354,7 @@ msgstr "Select/move: V, then drag nodes or text."
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:302
 #: src/routes/first-start.tsx:1596
 #: src/routes/first-start.tsx:1644
-#: src/routes/playlist-workshop.tsx:2389
+#: src/routes/playlist-workshop.tsx:2400
 msgid "Selected"
 msgstr "Selected"
 
@@ -10345,16 +10377,16 @@ msgid "Selected Item"
 msgstr "Selected Item"
 
 #. placeholder {0}: round.name
-#: src/routes/playlist-workshop.tsx:4369
+#: src/routes/playlist-workshop.tsx:4380
 msgid "Selected round {0}"
 msgstr "Selected round {0}"
 
-#: src/routes/playlist-workshop.tsx:2811
+#: src/routes/playlist-workshop.tsx:2822
 msgid "Selected Rounds"
 msgstr "Selected Rounds"
 
 #. placeholder {0}: setup.normalRoundOrder.length
-#: src/routes/playlist-workshop.tsx:2824
+#: src/routes/playlist-workshop.tsx:2835
 msgid "Selected: {0}"
 msgstr "Selected: {0}"
 
@@ -10367,11 +10399,11 @@ msgid "Selective Maintenance"
 msgstr "Selective Maintenance"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4714
+#: src/components/game/GameScene.tsx:4739
 msgid "game.perk.selfApply"
 msgstr "Self-apply"
 
-#: src/components/game/GameScene.tsx:5144
+#: src/components/game/GameScene.tsx:5194
 msgid "Self-Reported Finish"
 msgstr "Self-Reported Finish"
 
@@ -10420,7 +10452,7 @@ msgstr "Server selection and self-hosted setup for multiplayer."
 msgid "playlist-workshop.section.session.title"
 msgstr "Session"
 
-#: src/routes/playlist-workshop.tsx:4770
+#: src/routes/playlist-workshop.tsx:4781
 msgid "Set a name and choose how rounds are generated."
 msgstr "Set a name and choose how rounds are generated."
 
@@ -10473,7 +10505,7 @@ msgstr "Set up gameplay moaning so moaning perks actually have content"
 
 #: src/features/map-editor/components/AutomationPanel.tsx:370
 #: src/routes/index.tsx:293
-#: src/routes/map-editor.tsx:3181
+#: src/routes/map-editor.tsx:3334
 #: src/routes/settings.tsx:2723
 #: src/routes/settings.tsx:7091
 msgid "Settings"
@@ -10560,7 +10592,7 @@ msgstr "SFW Mode"
 msgid "command-palette.settings-security.description"
 msgstr "SFW mode, safe domains"
 
-#: src/routes/playlist-workshop.tsx:2506
+#: src/routes/playlist-workshop.tsx:2517
 msgid "Shareable Pack"
 msgstr "Shareable Pack"
 
@@ -10570,7 +10602,7 @@ msgid "perk.name.shield"
 msgstr "Shield"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:1392
+#: src/components/game/GameScene.tsx:1411
 msgid "hud.shield"
 msgstr "Shield"
 
@@ -10624,7 +10656,7 @@ msgstr "Show settings"
 msgid "Show Shortcuts"
 msgstr "Show Shortcuts"
 
-#: src/features/rounds/library/components/RoundCard.tsx:436
+#: src/features/rounds/library/components/RoundCard.tsx:435
 msgid "Show Technical Details"
 msgstr "Show Technical Details"
 
@@ -10636,8 +10668,8 @@ msgstr "Show the disconnected haptics status pill during round playback when no 
 msgid "Show this {mediaLabel} anyway?"
 msgstr "Show this {mediaLabel} anyway?"
 
-#: src/components/game/RoundVideoOverlay.tsx:4270
-#: src/components/game/RoundVideoOverlay.tsx:4451
+#: src/components/game/RoundVideoOverlay.tsx:4297
+#: src/components/game/RoundVideoOverlay.tsx:4479
 msgid "Show Video Once"
 msgstr "Show Video Once"
 
@@ -10668,7 +10700,7 @@ msgstr "Shows the Test Device panel in Hardware & Sync for visual sync checks wi
 msgid "Shuffle"
 msgstr "Shuffle"
 
-#: src/routes/playlist-workshop.tsx:4803
+#: src/routes/playlist-workshop.tsx:4814
 msgid "Shuffles normal rounds randomly without difficulty bias."
 msgstr "Shuffles normal rounds randomly without difficulty bias."
 
@@ -10710,8 +10742,8 @@ msgid "Since Date"
 msgstr "Since Date"
 
 #: src/routes/index.tsx:229
-#: src/routes/single-player-setup.tsx:408
-#: src/routes/single-player-setup.tsx:489
+#: src/routes/single-player-setup.tsx:410
+#: src/routes/single-player-setup.tsx:491
 msgid "Single Player"
 msgstr "Single Player"
 
@@ -10761,7 +10793,7 @@ msgid "perk.name.skip"
 msgstr "Skip"
 
 #. placeholder {0}: roundControl?.skipCharges ?? 0
-#: src/components/game/RoundVideoOverlay.tsx:3825
+#: src/components/game/RoundVideoOverlay.tsx:3852
 msgid "Skip {0}"
 msgstr "Skip {0}"
 
@@ -10781,7 +10813,7 @@ msgstr "Skip Multiplayer Safeguards"
 msgid "Skip Multiplayer Safeguards?"
 msgstr "Skip Multiplayer Safeguards?"
 
-#: src/components/game/GameScene.tsx:5461
+#: src/components/game/GameScene.tsx:5511
 msgid "Skip Perk"
 msgstr "Skip Perk"
 
@@ -10847,7 +10879,7 @@ msgstr "Software"
 msgid "Some media metadata is incomplete, so these numbers are approximate."
 msgstr "Some media metadata is incomplete, so these numbers are approximate."
 
-#: src/routes/single-player-setup.tsx:745
+#: src/routes/single-player-setup.tsx:747
 msgid "Some rounds may not play; uncached rounds use the web version"
 msgstr "Some rounds may not play; uncached rounds use the web version"
 
@@ -10860,9 +10892,9 @@ msgstr "Something went wrong"
 msgid "Sort"
 msgstr "Sort"
 
-#: src/routes/map-editor.tsx:2521
-#: src/routes/playlist-workshop.tsx:2181
-#: src/routes/playlist-workshop.tsx:2841
+#: src/routes/map-editor.tsx:2674
+#: src/routes/playlist-workshop.tsx:2192
+#: src/routes/playlist-workshop.tsx:2852
 msgid "Sort by Difficulty"
 msgstr "Sort by Difficulty"
 
@@ -10887,7 +10919,7 @@ msgstr "Source Code"
 msgid "Source Hero"
 msgstr "Source Hero"
 
-#: src/features/rounds/library/components/RoundCard.tsx:351
+#: src/features/rounds/library/components/RoundCard.tsx:350
 msgid "Source Key"
 msgstr "Source Key"
 
@@ -10903,7 +10935,7 @@ msgstr "Source Size"
 msgid "Source Video Size"
 msgstr "Source Video Size"
 
-#: src/features/rounds/library/components/RoundCard.tsx:416
+#: src/features/rounds/library/components/RoundCard.tsx:415
 msgid "Source:"
 msgstr "Source:"
 
@@ -10940,7 +10972,7 @@ msgstr "Special thanks to the community and creators who inspired this project."
 msgid "Speed"
 msgstr "Speed"
 
-#: src/components/game/GameScene.tsx:5059
+#: src/components/game/GameScene.tsx:5109
 msgid "Split Ahead"
 msgstr "Split Ahead"
 
@@ -10959,23 +10991,23 @@ msgid "Standalone"
 msgstr "Standalone"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4277
+#: src/components/game/GameScene.tsx:4302
 msgid "hud.phase.idle"
 msgstr "STANDBY"
 
 #: src/features/converter/SegmentCard.tsx:397
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:399
-#: src/routes/playlist-workshop.tsx:2937
+#: src/routes/playlist-workshop.tsx:2948
 msgid "Start"
 msgstr "Start"
 
 #. js-lingui-explicit-id
 #: src/components/game/GameBoardRenderer.tsx:162
-#: src/components/game/GameScene.tsx:2867
+#: src/components/game/GameScene.tsx:2889
 msgid "gameboard.kind.start"
 msgstr "START"
 
-#: src/components/GlobalHandyOverlay.tsx:599
+#: src/components/GlobalHandyOverlay.tsx:597
 msgid "start / stop"
 msgstr "start / stop"
 
@@ -10992,19 +11024,19 @@ msgstr "Start a single-player game"
 msgid "Start Export"
 msgstr "Start Export"
 
-#: src/routes/single-player-setup.tsx:888
+#: src/routes/single-player-setup.tsx:890
 msgid "Start Fresh"
 msgstr "Start Fresh"
 
-#: src/routes/single-player-setup.tsx:886
+#: src/routes/single-player-setup.tsx:888
 msgid "Start Fresh Run?"
 msgstr "Start Fresh Run?"
 
-#: src/components/GlobalHandyOverlay.tsx:588
+#: src/components/GlobalHandyOverlay.tsx:586
 msgid "Start Haptics"
 msgstr "Start Haptics"
 
-#: src/routes/single-player-setup.tsx:714
+#: src/routes/single-player-setup.tsx:716
 msgid "Start Here"
 msgstr "Start Here"
 
@@ -11031,8 +11063,8 @@ msgstr "Start Migration"
 msgid "Start Playing"
 msgstr "Start Playing"
 
-#: src/routes/single-player-setup.tsx:737
-#: src/routes/single-player-setup.tsx:771
+#: src/routes/single-player-setup.tsx:739
+#: src/routes/single-player-setup.tsx:773
 msgid "Start Selected Playlist"
 msgstr "Start Selected Playlist"
 
@@ -11049,16 +11081,16 @@ msgstr "Start TheHandy"
 msgid "Start Time (ms)"
 msgstr "Start Time (ms)"
 
-#: src/routes/single-player-setup.tsx:873
+#: src/routes/single-player-setup.tsx:875
 msgid "Start uses the selected playlist immediately and drops you straight into the run."
 msgstr "Start uses the selected playlist immediately and drops you straight into the run."
 
-#: src/components/game/GameScene.tsx:2275
+#: src/components/game/GameScene.tsx:2296
 msgid "Start Video"
 msgstr "Start Video"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4392
+#: src/components/game/GameScene.tsx:4417
 msgid "game.btn.startVideo"
 msgstr "START VIDEO"
 
@@ -11066,21 +11098,21 @@ msgstr "START VIDEO"
 msgid "Start with a trigger, add optional conditions, then chain actions."
 msgstr "Start with a trigger, add optional conditions, then chain actions."
 
-#: src/routes/single-player-setup.tsx:730
+#: src/routes/single-player-setup.tsx:732
 msgid "Start With Web Fallback"
 msgstr "Start With Web Fallback"
 
-#: src/routes/playlist-workshop.tsx:3871
+#: src/routes/playlist-workshop.tsx:3882
 msgid "Starting chance for an intermediary event before round 1. The run begins at this value, then uses the increase and max settings below to scale over time."
 msgstr "Starting chance for an intermediary event before round 1. The run begins at this value, then uses the increase and max settings below to scale over time."
 
-#: src/routes/playlist-workshop.tsx:3925
+#: src/routes/playlist-workshop.tsx:3936
 msgid "Starting chance for anti-perks at the beginning of the run. This is the first value used before any round-based scaling happens."
 msgstr "Starting chance for anti-perks at the beginning of the run. This is the first value used before any round-based scaling happens."
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1115
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1118
-#: src/routes/playlist-workshop.tsx:3833
+#: src/routes/playlist-workshop.tsx:3844
 msgid "Starting Money"
 msgstr "Starting Money"
 
@@ -11093,9 +11125,9 @@ msgstr "Starting percent chance."
 #: src/features/map-editor/components/EditorToolbar.tsx:254
 #: src/routes/settings.tsx:3740
 #: src/routes/settings.tsx:3932
-#: src/routes/single-player-setup.tsx:729
-#: src/routes/single-player-setup.tsx:736
-#: src/routes/single-player-setup.tsx:771
+#: src/routes/single-player-setup.tsx:731
+#: src/routes/single-player-setup.tsx:738
+#: src/routes/single-player-setup.tsx:773
 msgid "Starting..."
 msgstr "Starting..."
 
@@ -11156,7 +11188,7 @@ msgstr "Stop"
 msgid "Stop After Match"
 msgstr "Stop After Match"
 
-#: src/components/GlobalHandyOverlay.tsx:588
+#: src/components/GlobalHandyOverlay.tsx:586
 msgid "Stop Haptics"
 msgstr "Stop Haptics"
 
@@ -11181,8 +11213,8 @@ msgstr "Stop Test"
 msgid "command-palette.thehandy-stop"
 msgstr "Stop TheHandy"
 
-#: src/components/game/RoundVideoOverlay.tsx:3573
-#: src/components/GlobalHandyOverlay.tsx:227
+#: src/components/game/RoundVideoOverlay.tsx:3602
+#: src/components/GlobalHandyOverlay.tsx:225
 #: src/routes/settings.tsx:4806
 msgid "Stopped"
 msgstr "Stopped"
@@ -11227,7 +11259,7 @@ msgid "Store extracted .fpack contents in a custom folder, or leave this unset t
 msgstr "Store extracted .fpack contents in a custom folder, or leave this unset to use the default app data location."
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4715
+#: src/components/game/GameScene.tsx:4740
 msgid "game.perk.storedInInventory"
 msgstr "Stored in inventory"
 
@@ -11244,7 +11276,7 @@ msgstr "Stored Items"
 msgid "Stored: {0}"
 msgstr "Stored: {0}"
 
-#: src/components/GlobalHandyOverlay.tsx:463
+#: src/components/GlobalHandyOverlay.tsx:461
 #: src/routes/settings.tsx:4983
 msgid "Stroke Adjustment"
 msgstr "Stroke Adjustment"
@@ -11286,7 +11318,7 @@ msgstr "Survived"
 msgid "Survived:"
 msgstr "Survived:"
 
-#: src/routes/map-editor.tsx:3375
+#: src/routes/map-editor.tsx:3528
 msgid "Switch"
 msgstr "Switch"
 
@@ -11317,7 +11349,7 @@ msgstr "Switch to the Select tool."
 msgid "Sync & Cache"
 msgstr "Sync & Cache"
 
-#: src/components/game/RoundVideoOverlay.tsx:3579
+#: src/components/game/RoundVideoOverlay.tsx:3608
 msgid "Sync Error"
 msgstr "Sync Error"
 
@@ -11327,7 +11359,7 @@ msgstr "Sync Error"
 msgid "Sync Now"
 msgstr "Sync Now"
 
-#: src/components/GlobalHandyOverlay.tsx:359
+#: src/components/GlobalHandyOverlay.tsx:357
 msgid "Sync Offset"
 msgstr "Sync Offset"
 
@@ -11335,14 +11367,14 @@ msgstr "Sync Offset"
 msgid "Sync Queue"
 msgstr "Sync Queue"
 
-#: src/components/game/RoundVideoOverlay.tsx:3577
-#: src/components/GlobalHandyOverlay.tsx:229
+#: src/components/game/RoundVideoOverlay.tsx:3606
+#: src/components/GlobalHandyOverlay.tsx:227
 #: src/routes/settings.tsx:4340
 msgid "Synced"
 msgstr "Synced"
 
-#: src/components/game/RoundVideoOverlay.tsx:3580
-#: src/components/GlobalHandyOverlay.tsx:230
+#: src/components/game/RoundVideoOverlay.tsx:3609
+#: src/components/GlobalHandyOverlay.tsx:228
 #: src/routes/settings.tsx:4806
 msgid "Syncing"
 msgstr "Syncing"
@@ -11375,7 +11407,7 @@ msgstr "System Only"
 msgid "SYSTEM TERMINATION"
 msgstr "SYSTEM TERMINATION"
 
-#: src/components/game/RoundVideoOverlay.tsx:4715
+#: src/components/game/RoundVideoOverlay.tsx:4747
 msgid "System Warning"
 msgstr "System Warning"
 
@@ -11428,7 +11460,7 @@ msgstr "Target Player"
 msgid "TCode"
 msgstr "TCode"
 
-#: src/components/GlobalHandyOverlay.tsx:534
+#: src/components/GlobalHandyOverlay.tsx:532
 msgid "TCode device connected"
 msgstr "TCode device connected"
 
@@ -11463,8 +11495,8 @@ msgstr "TCode Version"
 msgid "Technical preferences for power users."
 msgstr "Technical preferences for power users."
 
-#: src/features/rounds/library/components/RoundCard.tsx:296
-#: src/features/rounds/library/components/RoundCard.tsx:403
+#: src/features/rounds/library/components/RoundCard.tsx:295
+#: src/features/rounds/library/components/RoundCard.tsx:402
 msgid "Template"
 msgstr "Template"
 
@@ -11481,7 +11513,7 @@ msgstr "Temporarily enable panning."
 msgid "Temporary Standings"
 msgstr "Temporary Standings"
 
-#: src/routes/playlist-workshop.tsx:2278
+#: src/routes/playlist-workshop.tsx:2289
 #: src/routes/settings.tsx:6838
 msgid "Test"
 msgstr "Test"
@@ -11490,7 +11522,7 @@ msgstr "Test"
 msgid "Test Device"
 msgstr "Test Device"
 
-#: src/components/game/RoundVideoOverlay.tsx:3931
+#: src/components/game/RoundVideoOverlay.tsx:3958
 msgid "Test Intermediary (I)"
 msgstr "Test Intermediary (I)"
 
@@ -11500,7 +11532,7 @@ msgstr "Test Map"
 
 #: src/features/map-editor/components/EditorToolbar.tsx:81
 #: src/features/map-editor/components/TextInspectorPanel.tsx:64
-#: src/routes/map-editor.tsx:3180
+#: src/routes/map-editor.tsx:3333
 msgid "Text"
 msgstr "Text"
 
@@ -11534,11 +11566,11 @@ msgstr "The app can compute visual fingerprints in the background to improve rou
 msgid "The audio will be downloaded as MP3 via yt-dlp and added to your queue"
 msgstr "The audio will be downloaded as MP3 via yt-dlp and added to your queue"
 
-#: src/components/game/RoundVideoOverlay.tsx:931
+#: src/components/game/RoundVideoOverlay.tsx:963
 msgid "The device reported a sync error. Retrying handshake..."
 msgstr "The device reported a sync error. Retrying handshake..."
 
-#: src/components/game/RoundVideoOverlay.tsx:3108
+#: src/components/game/RoundVideoOverlay.tsx:3138
 msgid "The device reported a sync error. Retrying momentarily..."
 msgstr "The device reported a sync error. Retrying momentarily..."
 
@@ -11566,7 +11598,7 @@ msgstr "The folder picker opens next. Export starts after you choose the destina
 msgid "The full installed library will be packaged."
 msgstr "The full installed library will be packaged."
 
-#: src/components/game/GameScene.tsx:5190
+#: src/components/game/GameScene.tsx:5240
 msgid "The game keeps running in the background."
 msgstr "The game keeps running in the background."
 
@@ -11604,12 +11636,12 @@ msgid "command-palette.thehandy-menu"
 msgstr "TheHandy Menu"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:2024
+#: src/components/game/GameScene.tsx:2047
 msgid "game.handy.offset"
 msgstr "TheHandy offset"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:2032
+#: src/components/game/GameScene.tsx:2055
 msgid "game.handy.offsetReset"
 msgstr "TheHandy offset reset"
 
@@ -11623,12 +11655,12 @@ msgid "command-palette.thehandy-resumed"
 msgstr "TheHandy resumed."
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:2011
+#: src/components/game/GameScene.tsx:2034
 msgid "game.handy.resumed"
 msgstr "TheHandy resumed."
 
-#: src/components/game/RoundVideoOverlay.tsx:1829
-#: src/components/game/RoundVideoOverlay.tsx:2843
+#: src/components/game/RoundVideoOverlay.tsx:1861
+#: src/components/game/RoundVideoOverlay.tsx:2873
 msgid "TheHandy stopped manually."
 msgstr "TheHandy stopped manually."
 
@@ -11638,16 +11670,16 @@ msgid "command-palette.thehandy-stopped"
 msgstr "TheHandy stopped."
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:2007
+#: src/components/game/GameScene.tsx:2030
 msgid "game.handy.stopped"
 msgstr "TheHandy stopped."
 
-#: src/components/GlobalHandyOverlay.tsx:491
+#: src/components/GlobalHandyOverlay.tsx:489
 #: src/routes/settings.tsx:5013
 msgid "TheHandy stroke maximum slider"
 msgstr "TheHandy stroke maximum slider"
 
-#: src/components/GlobalHandyOverlay.tsx:490
+#: src/components/GlobalHandyOverlay.tsx:488
 #: src/routes/settings.tsx:5012
 msgid "TheHandy stroke minimum slider"
 msgstr "TheHandy stroke minimum slider"
@@ -11682,19 +11714,19 @@ msgstr "They helped improving and polishing the game."
 msgid "This {mediaLabel} is hidden while safe mode is active."
 msgstr "This {mediaLabel} is hidden while safe mode is active."
 
-#: src/routes/map-editor.tsx:3843
+#: src/routes/map-editor.tsx:4004
 msgid "This changes every fixed round node in the current map. Continue?"
 msgstr "This changes every fixed round node in the current map. Continue?"
 
-#: src/routes/playlist-workshop.tsx:4288
+#: src/routes/playlist-workshop.tsx:4299
 msgid "This changes the order of the entire selected round list. Continue?"
 msgstr "This changes the order of the entire selected round list. Continue?"
 
-#: src/routes/map-editor.tsx:951
+#: src/routes/map-editor.tsx:971
 msgid "This conversion follows the first path from Start. Branches, graph-only nodes, text, gates, labels, and map styling may be lost if the map is complicated."
 msgstr "This conversion follows the first path from Start. Branches, graph-only nodes, text, gates, labels, and map styling may be lost if the map is complicated."
 
-#: src/routes/map-editor.tsx:954
+#: src/routes/map-editor.tsx:974
 msgid "This conversion would drop {droppedNodeCount} nodes and {droppedEdgeCount} edges."
 msgstr "This conversion would drop {droppedNodeCount} nodes and {droppedEdgeCount} edges."
 
@@ -11739,15 +11771,15 @@ msgstr "This only reveals the current {mediaLabel} for this view. Safe mode stay
 msgid "This playlist requires at least {selectedPlaylistRequiredRounds} installed rounds. You have {installedRoundCount}."
 msgstr "This playlist requires at least {selectedPlaylistRequiredRounds} installed rounds. You have {installedRoundCount}."
 
-#: src/routes/playlist-workshop.tsx:1672
+#: src/routes/playlist-workshop.tsx:1683
 msgid "This playlist uses a graph board, so it opens in the Advanced Map Editor instead."
 msgstr "This playlist uses a graph board, so it opens in the Advanced Map Editor instead."
 
-#: src/routes/playlist-workshop.tsx:2456
+#: src/routes/playlist-workshop.tsx:2467
 msgid "This playlist uses a graph board, so Playlist Workshop cannot edit its layout. Open the Advanced Map Editor to change nodes, paths, and graph flow."
 msgstr "This playlist uses a graph board, so Playlist Workshop cannot edit its layout. Open the Advanced Map Editor to change nodes, paths, and graph flow."
 
-#: src/routes/playlist-workshop.tsx:2604
+#: src/routes/playlist-workshop.tsx:2615
 msgid "This playlist uses graph board mode. Playlist Workshop only supports linear playlists. Open the Advanced Map Editor to edit this board."
 msgstr "This playlist uses graph board mode. Playlist Workshop only supports linear playlists. Open the Advanced Map Editor to edit this board."
 
@@ -11756,7 +11788,7 @@ msgstr "This playlist uses graph board mode. Playlist Workshop only supports lin
 msgid "first-start.step.booru.detail.1"
 msgstr "This prompt tells the app what kind of media it should look for during loading and intermediary moments."
 
-#: src/routes/playlist-workshop.tsx:2815
+#: src/routes/playlist-workshop.tsx:2826
 msgid "This queue defines the order used first during the session. Remaining slots are filled with repeats."
 msgstr "This queue defines the order used first during the session. Remaining slots are filled with repeats."
 
@@ -11798,7 +11830,7 @@ msgid "This will remove every track from the current music playlist."
 msgstr "This will remove every track from the current music playlist."
 
 #. placeholder {0}: selectedPlaylist.name
-#: src/routes/single-player-setup.tsx:887
+#: src/routes/single-player-setup.tsx:889
 msgid "This will replace the saved run for \"{0}\". Resume keeps your current progress."
 msgstr "This will replace the saved run for \"{0}\". Resume keeps your current progress."
 
@@ -11806,7 +11838,7 @@ msgstr "This will replace the saved run for \"{0}\". Resume keeps your current p
 msgid "Tile"
 msgstr "Tile"
 
-#: src/features/map-editor/components/TileSidebar.tsx:64
+#: src/features/map-editor/components/TileSidebar.tsx:117
 msgid "Tiles"
 msgstr "Tiles"
 
@@ -11815,13 +11847,17 @@ msgid "TIME"
 msgstr "TIME"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4321
+#: src/components/game/GameScene.tsx:4346
 msgid "hud.time"
 msgstr "TIME"
 
-#: src/routes/playlist-workshop.tsx:3848
+#: src/routes/playlist-workshop.tsx:3859
 msgid "Time to wait before each round starts. Set to 0 for instant transitions. Default is 20 seconds."
 msgstr "Time to wait before each round starts. Set to 0 for instant transitions. Default is 20 seconds."
+
+#: src/features/converter/Timeline.tsx:155
+msgid "Timeline zoom"
+msgstr "Timeline zoom"
 
 #. js-lingui-explicit-id
 #: src/routes/playlist-workshop.tsx:207
@@ -11837,7 +11873,7 @@ msgstr "Timing:"
 msgid "To"
 msgstr "To"
 
-#: src/components/GlobalHandyOverlay.tsx:306
+#: src/components/GlobalHandyOverlay.tsx:304
 msgid "to toggle"
 msgstr "to toggle"
 
@@ -11864,7 +11900,7 @@ msgstr "Toggle Enable Moaning"
 msgid "settings.help.shortcuts.global.fullscreen"
 msgstr "Toggle fullscreen for the app window."
 
-#: src/components/game/GameScene.tsx:5451
+#: src/components/game/GameScene.tsx:5501
 msgid "Toggle Handy"
 msgstr "Toggle Handy"
 
@@ -11888,7 +11924,7 @@ msgid "settings.help.shortcuts.game.toggleHandyStop"
 msgstr "Toggle TheHandy manual stop state."
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4716
+#: src/components/game/GameScene.tsx:4741
 msgid "game.perk.tooExpensive"
 msgstr "too expensive"
 
@@ -11937,7 +11973,7 @@ msgstr "Track progress"
 msgid "Transcoding Progress"
 msgstr "Transcoding Progress"
 
-#: src/routes/playlist-workshop.tsx:2429
+#: src/routes/playlist-workshop.tsx:2440
 msgid "Transfer"
 msgstr "Transfer"
 
@@ -11950,7 +11986,7 @@ msgid "Transition palette"
 msgstr "Transition palette"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4280
+#: src/components/game/GameScene.tsx:4305
 msgid "hud.phase.travel"
 msgstr "TRAVEL"
 
@@ -11974,11 +12010,11 @@ msgstr "Trigger a 30s booru sequence with generated Handy motion."
 msgid "settings.help.shortcuts.gameDebug.triggerIntermediary"
 msgstr "Trigger a test intermediary immediately."
 
-#: src/routes/playlist-workshop.tsx:3514
+#: src/routes/playlist-workshop.tsx:3525
 msgid "Trigger chance controls how often a perk choice appears. In singleplayer, the computer can also randomly hit you with one of the enabled anti-perks based on the anti-perk chance settings. The enabled lists below define what can show up during a run."
 msgstr "Trigger chance controls how often a perk choice appears. In singleplayer, the computer can also randomly hit you with one of the enabled anti-perks based on the anti-perk chance settings. The enabled lists below define what can show up during a run."
 
-#: src/components/game/GameScene.tsx:5355
+#: src/components/game/GameScene.tsx:5405
 msgid "Trigger perks and anti-perks for"
 msgstr "Trigger perks and anti-perks for"
 
@@ -12007,7 +12043,7 @@ msgid "Turn"
 msgstr "Turn"
 
 #. js-lingui-explicit-id
-#: src/components/game/GameScene.tsx:4274
+#: src/components/game/GameScene.tsx:4299
 msgid "hud.turn"
 msgstr "TURN"
 
@@ -12063,7 +12099,7 @@ msgstr "unknown"
 #: src/routes/multiplayer-lobby.tsx:768
 #: src/routes/multiplayer-match.tsx:938
 #: src/routes/multiplayer.tsx:644
-#: src/routes/playlist-workshop.tsx:3198
+#: src/routes/playlist-workshop.tsx:3209
 msgid "Unknown"
 msgstr "Unknown"
 
@@ -12161,7 +12197,7 @@ msgstr "Use Built-In"
 msgid "Use Chromium GPU Blocklist"
 msgstr "Use Chromium GPU Blocklist"
 
-#: src/routes/playlist-workshop.tsx:2926
+#: src/routes/playlist-workshop.tsx:2937
 msgid "Use current search and duration filters"
 msgstr "Use current search and duration filters"
 
@@ -12189,7 +12225,7 @@ msgstr "Use perks on yourself, fire anti-perks at opponents, or discard stored i
 msgid "Use System Language"
 msgstr "Use System Language"
 
-#: src/routes/playlist-workshop.tsx:2453
+#: src/routes/playlist-workshop.tsx:2464
 msgid "Use the Advanced Map Editor"
 msgstr "Use the Advanced Map Editor"
 
@@ -12242,7 +12278,7 @@ msgstr "Using your custom TheHandy app key."
 msgid "Valid portable installation detected"
 msgstr "Valid portable installation detected"
 
-#: src/routes/single-player-setup.tsx:815
+#: src/routes/single-player-setup.tsx:817
 msgid "Verify the board and start."
 msgstr "Verify the board and start."
 
@@ -12254,8 +12290,8 @@ msgstr "Version"
 msgid "Vibration Sensitivity"
 msgstr "Vibration Sensitivity"
 
-#: src/components/game/RoundVideoOverlay.tsx:4271
-#: src/components/game/RoundVideoOverlay.tsx:4452
+#: src/components/game/RoundVideoOverlay.tsx:4298
+#: src/components/game/RoundVideoOverlay.tsx:4480
 msgid "video"
 msgstr "video"
 
@@ -12263,7 +12299,7 @@ msgstr "video"
 msgid "Video Cache"
 msgstr "Video Cache"
 
-#: src/features/rounds/library/components/RoundCard.tsx:327
+#: src/features/rounds/library/components/RoundCard.tsx:326
 msgid "Video Caching"
 msgstr "Video Caching"
 
@@ -12283,7 +12319,7 @@ msgstr "Video installed with the selected funscript."
 msgid "Video installed without a funscript."
 msgstr "Video installed without a funscript."
 
-#: src/components/game/RoundVideoOverlay.tsx:4692
+#: src/components/game/RoundVideoOverlay.tsx:4724
 msgid "Video queue"
 msgstr "Video queue"
 
@@ -12321,8 +12357,8 @@ msgstr "Videos and funscripts will be copied into the export package without ree
 msgid "Videos will be packaged and reencoded to AV1 when needed. Funscripts remain attached."
 msgstr "Videos will be packaged and reencoded to AV1 when needed. Funscripts remain attached."
 
-#: src/routes/playlist-workshop.tsx:3374
-#: src/routes/playlist-workshop.tsx:3396
+#: src/routes/playlist-workshop.tsx:3385
+#: src/routes/playlist-workshop.tsx:3407
 msgid "View Queue →"
 msgstr "View Queue →"
 
@@ -12345,7 +12381,7 @@ msgstr "Virus Max"
 msgid "Visibility is"
 msgstr "Visibility is"
 
-#: src/components/game/GameScene.tsx:5116
+#: src/components/game/GameScene.tsx:5166
 msgid "visible steps"
 msgstr "visible steps"
 
@@ -12358,7 +12394,7 @@ msgstr "Volume"
 msgid "Volume:"
 msgstr "Volume:"
 
-#: src/routes/single-player-setup.tsx:742
+#: src/routes/single-player-setup.tsx:744
 msgid "Wait until the required web rounds finish caching"
 msgstr "Wait until the required web rounds finish caching"
 
@@ -12366,15 +12402,15 @@ msgstr "Wait until the required web rounds finish caching"
 msgid "Wait until the website video URL support check finishes."
 msgstr "Wait until the website video URL support check finishes."
 
-#: src/components/game/RoundVideoOverlay.tsx:4351
+#: src/components/game/RoundVideoOverlay.tsx:4379
 msgid "Waiting For Device Sync"
 msgstr "Waiting For Device Sync"
 
-#: src/components/game/RoundVideoOverlay.tsx:1484
+#: src/components/game/RoundVideoOverlay.tsx:1516
 msgid "Waiting for haptics sync before playback..."
 msgstr "Waiting for haptics sync before playback..."
 
-#: src/components/game/RoundVideoOverlay.tsx:3113
+#: src/components/game/RoundVideoOverlay.tsx:3143
 msgid "Waiting for TheHandy sync before playback..."
 msgstr "Waiting for TheHandy sync before playback..."
 
@@ -12382,11 +12418,11 @@ msgstr "Waiting for TheHandy sync before playback..."
 msgid "Warn"
 msgstr "Warn"
 
-#: src/routes/single-player-setup.tsx:753
+#: src/routes/single-player-setup.tsx:755
 msgid "Warning"
 msgstr "Warning"
 
-#: src/routes/playlist-workshop.tsx:2736
+#: src/routes/playlist-workshop.tsx:2747
 msgid "Warning: runs from this playlist are marked as assisted on the highscore and in run history."
 msgstr "Warning: runs from this playlist are marked as assisted on the highscore and in run history."
 
@@ -12408,7 +12444,7 @@ msgstr "Web"
 msgid "Website Install"
 msgstr "Website Install"
 
-#: src/components/game/RoundVideoOverlay.tsx:4289
+#: src/components/game/RoundVideoOverlay.tsx:4316
 msgid "Website stream playback failed"
 msgstr "Website stream playback failed"
 
@@ -12487,11 +12523,11 @@ msgstr "When enabled, holding 'S' during the first 5 seconds of app startup will
 msgid "When enabled, perks (not anti-perks) are applied immediately when received instead of being stored in inventory."
 msgstr "When enabled, perks (not anti-perks) are applied immediately when received instead of being stored in inventory."
 
-#: src/routes/playlist-workshop.tsx:4019
+#: src/routes/playlist-workshop.tsx:4030
 msgid "When enabled, the anti-perk chance resets to its initial value after a round where an anti-perk was triggered."
 msgstr "When enabled, the anti-perk chance resets to its initial value after a round where an anti-perk was triggered."
 
-#: src/routes/playlist-workshop.tsx:3978
+#: src/routes/playlist-workshop.tsx:3989
 msgid "When enabled, the intermediary chance resets to its initial value after a round where intermediaries were triggered."
 msgstr "When enabled, the intermediary chance resets to its initial value after a round where intermediaries were triggered."
 
@@ -12511,7 +12547,7 @@ msgstr "When the log file exceeds this size, the oldest entries are pruned."
 msgid "Window and display preferences."
 msgstr "Window and display preferences."
 
-#: src/features/rounds/library/components/RoundCard.tsx:409
+#: src/features/rounds/library/components/RoundCard.tsx:408
 msgid "Window:"
 msgstr "Window:"
 
@@ -12519,11 +12555,11 @@ msgstr "Window:"
 msgid "With Media"
 msgstr "With Media"
 
-#: src/features/map-editor/components/PlaylistPickerView.tsx:144
+#: src/features/map-editor/components/PlaylistPickerView.tsx:164
 #: src/routes/first-start.tsx:2062
 #: src/routes/first-start.tsx:2092
-#: src/routes/map-editor.tsx:3337
-#: src/routes/map-editor.tsx:3349
+#: src/routes/map-editor.tsx:3490
+#: src/routes/map-editor.tsx:3502
 msgid "Working..."
 msgstr "Working..."
 
@@ -12666,7 +12702,7 @@ msgstr "Your Placement"
 msgid "Your queue is empty"
 msgstr "Your queue is empty"
 
-#: src/routes/playlist-workshop.tsx:3025
+#: src/routes/playlist-workshop.tsx:3036
 msgid "Your queue is empty."
 msgstr "Your queue is empty."
 
@@ -12678,21 +12714,21 @@ msgstr "yt-dlp Binary Source"
 msgid "yt-dlp Domains"
 msgstr "yt-dlp Domains"
 
-#: src/routes/playlist-workshop.tsx:3184
+#: src/routes/playlist-workshop.tsx:3195
 msgid "Z-A"
 msgstr "Z-A"
 
-#: src/features/converter/Timeline.tsx:131
+#: src/features/converter/Timeline.tsx:132
 msgid "Zoom"
 msgstr "Zoom"
 
-#: src/components/game/GameScene.tsx:5241
+#: src/components/game/GameScene.tsx:5291
 #: src/routes/settings.tsx:7329
 #: src/routes/settings.tsx:7330
 msgid "Zoom in"
 msgstr "Zoom in"
 
-#: src/components/game/GameScene.tsx:5215
+#: src/components/game/GameScene.tsx:5265
 #: src/routes/settings.tsx:7307
 #: src/routes/settings.tsx:7308
 msgid "Zoom out"

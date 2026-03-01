@@ -16,31 +16,15 @@ export function useIdleScreenPerformance(
       } else {
         body.classList.remove("perf-reduced-effects");
       }
-      void window.electronAPI.performance?.updateState({
-        route,
-        visible: !document.hidden,
-        idleSensitive: true,
-      });
     };
 
     const clearState = () => {
       body.classList.remove("perf-reduced-effects");
-      void window.electronAPI.performance?.updateState({
-        route: "unknown",
-        visible: !document.hidden,
-        idleSensitive: false,
-      });
-    };
-
-    const handleVisibilityChange = () => {
-      updateState();
     };
 
     updateState();
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearState();
     };
   }, [options?.reduceEffects, route]);

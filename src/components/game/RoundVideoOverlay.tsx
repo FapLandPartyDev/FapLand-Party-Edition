@@ -407,7 +407,6 @@ export function RoundVideoOverlay({
   const onPreviewStateChangeRef = useRef(onPreviewStateChange);
   onPreviewStateChangeRef.current = onPreviewStateChange;
   const lastPreviewStateRef = useRef<{ active: boolean; loading: boolean } | null>(null);
-  const antiPerkBeatAnimationFrameRef = useRef<number | null>(null);
   const lastMouseMoveAtRef = useRef(0);
 
   const lastPlaybackRateLabelRef = useRef("1.00");
@@ -430,15 +429,44 @@ export function RoundVideoOverlay({
   const handyBootstrapKeyRef = useRef<string | null>(null);
   const handyBootstrapInFlightRef = useRef<string | null>(null);
   const pendingVideoActivationTokenRef = useRef(0);
+  const antiPerkBeatAnimationFrameRef = useRef<number | null>(null);
 
   const [segment, setSegment] = useState<SegmentState>({ kind: "main" });
   const [activeVideoUri, setActiveVideoUri] = useState<string | null>(null);
   const [status, setStatus] = useState(t`Preparing playback...`);
   const [playbackRateLabel, setPlaybackRateLabel] = useState("1.00");
   const [playbackTimeLabel, setPlaybackTimeLabel] = useState("0:00 / 0:00");
-  const [playbackProgress, setPlaybackProgress] = useState(0);
+  const playbackProgressElementRef = useRef<HTMLDivElement | null>(null);
+  const playbackProgressRef = useRef(0);
   const [funscriptCount, setFunscriptCount] = useState(0);
-  const [funscriptPosition, setFunscriptPosition] = useState<number | null>(null);
+  const funscriptPositionRef = useRef<number | null>(null);
+  const handyPreviewRef = useRef<HTMLDivElement | null>(null);
+  const handyPreviewOrbRef = useRef<HTMLDivElement | null>(null);
+  const funscriptDebugValueRef = useRef<HTMLSpanElement | null>(null);
+  const setFunscriptPosition = useCallback((position: number | null) => {
+    funscriptPositionRef.current = position;
+    if (handyPreviewRef.current) {
+      handyPreviewRef.current.style.visibility =
+        typeof position === "number" ? "visible" : "hidden";
+    }
+    if (handyPreviewOrbRef.current && typeof position === "number") {
+      const clampedPosition = Math.max(0, Math.min(100, position));
+      handyPreviewOrbRef.current.style.top = `${100 - clampedPosition}%`;
+    }
+    if (funscriptDebugValueRef.current) {
+      funscriptDebugValueRef.current.textContent =
+        typeof position === "number" ? String(Math.trunc(position)) : "-";
+    }
+  }, []);
+  const setPlaybackProgress = useCallback((progress: number) => {
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    if (Math.abs(playbackProgressRef.current - clampedProgress) < 0.002) return;
+    playbackProgressRef.current = clampedProgress;
+    playbackProgressElementRef.current?.style.setProperty(
+      "transform",
+      `scaleX(${clampedProgress})`
+    );
+  }, []);
   const [randomIntermediaryQueue, setRandomIntermediaryQueue] = useState<IntermediaryTrigger[]>([]);
   const [loadingCountdown, setLoadingCountdown] = useState<number | null>(null);
   const loadingCountdownRef = useRef<number | null>(null);
@@ -471,6 +499,10 @@ export function RoundVideoOverlay({
   useEffect(() => {
     loadingCountdownRef.current = loadingCountdown;
   }, [loadingCountdown]);
+
+  useEffect(() => {
+    setFunscriptPosition(funscriptPositionRef.current);
+  }, [setFunscriptPosition, timeline]);
 
   useEffect(() => {
     handyManuallyStoppedRef.current = handyManuallyStopped;
@@ -2109,6 +2141,7 @@ export function RoundVideoOverlay({
       }
     };
   }, [activeAntiPerkSequence]);
+
   useEffect(() => {
     if (!activeAntiPerkSequence) return;
     if (loadingCountdown === null) return;
@@ -2694,9 +2727,7 @@ export function RoundVideoOverlay({
           boundedDurationSec > 0
             ? Math.max(0, Math.min(1, elapsedInWindowSec / boundedDurationSec))
             : 0;
-        setPlaybackProgress((current) =>
-          Math.abs(current - nextProgress) < 0.002 ? current : nextProgress
-        );
+        setPlaybackProgress(nextProgress);
 
         const rate = computePlaybackRate(sessionModifiers, {
           elapsedSessionSec: (performance.now() - sessionStartedAtRef.current) / 1000,
@@ -2760,9 +2791,7 @@ export function RoundVideoOverlay({
           boundedDurationSec > 0
             ? Math.max(0, Math.min(1, elapsedInWindowSec / boundedDurationSec))
             : 0;
-        setPlaybackProgress((current) =>
-          Math.abs(current - nextProgress) < 0.002 ? current : nextProgress
-        );
+        setPlaybackProgress(nextProgress);
         if (Math.abs(video.playbackRate - 1) > 0.01) {
           video.playbackRate = 1;
         }
@@ -2801,6 +2830,7 @@ export function RoundVideoOverlay({
 
   useEffect(() => {
     setPlaybackTimeLabel("0:00 / 0:00");
+    playbackProgressRef.current = -1;
     setPlaybackProgress(0);
   }, [activeRound?.roundId, activeRound?.phaseKind, segment.kind]);
 
@@ -3431,8 +3461,7 @@ export function RoundVideoOverlay({
     const hasLoadingMedia = loadingMedia.length > 0;
     const activeLoadingMediaIndex = hasLoadingMedia ? loadingMediaIndex % loadingMedia.length : -1;
     const activeLoadingMedia = hasLoadingMedia ? loadingMedia[activeLoadingMediaIndex] : null;
-    const standaloneAntiPerkSequence =
-      activeAntiPerkSequence ?? activeAntiPerkSequenceRef.current;
+    const standaloneAntiPerkSequence = activeAntiPerkSequence ?? activeAntiPerkSequenceRef.current;
     const shouldShowManualBeatbar =
       showAntiPerkBeatbar &&
       !handyConnected &&
@@ -3608,8 +3637,6 @@ export function RoundVideoOverlay({
   const shouldShowPlaybackTimer = isUiVisible && loadingCountdown === null;
   const roundControllerHintsBottomClassName = handySyncError ? "bottom-24" : "bottom-14";
   const showHandySyncCard = handyConnected;
-  const hasTimelinePreview = timeline !== null && typeof funscriptPosition === "number";
-  const handyPreviewPosition = Math.max(0, Math.min(100, funscriptPosition ?? 50));
   const handleLoadingMediaError = () => {
     if (!activeLoadingMedia || activeLoadingMediaIndex < 0) return;
     const previewUrl = activeLoadingMedia.previewUrl ?? null;
@@ -4311,7 +4338,8 @@ export function RoundVideoOverlay({
           >
             <div
               className="h-full bg-violet-400/90 shadow-[0_0_8px_rgba(167,139,250,0.75),0_0_16px_rgba(139,92,246,0.4)] transition-[width] duration-150 ease-out"
-              style={{ width: `${playbackProgress * 100}%` }}
+              ref={playbackProgressElementRef}
+              style={{ transform: "scaleX(0)", transformOrigin: "left center" }}
             />
           </div>
 
@@ -4609,12 +4637,17 @@ export function RoundVideoOverlay({
                 className={`pointer-events-none absolute bottom-3 right-4 z-40 flex flex-col items-end gap-2 transition-opacity duration-250 ${isUiVisible ? "opacity-100" : "opacity-0"}`}
                 data-testid="thehandy-sync-card"
               >
-                {hasTimelinePreview && (
-                  <div className="relative h-24 w-0.5 rounded-full bg-cyan-200/20">
+                {timeline !== null && (
+                  <div
+                    ref={handyPreviewRef}
+                    className="relative h-24 w-0.5 rounded-full bg-cyan-200/20"
+                    style={{ visibility: "hidden" }}
+                  >
                     <div
+                      ref={handyPreviewOrbRef}
                       className="absolute left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/90 shadow-[0_0_10px_rgba(34,211,238,0.5)]"
                       data-testid="thehandy-preview-orb"
-                      style={{ top: `${100 - handyPreviewPosition}%` }}
+                      style={{ top: "50%" }}
                     />
                   </div>
                 )}
@@ -4684,8 +4717,7 @@ export function RoundVideoOverlay({
                 {t`Funscript actions`}: {funscriptCount}
               </div>
               <div>
-                {t`Current script position`}:{" "}
-                {typeof funscriptPosition === "number" ? Math.trunc(funscriptPosition) : "-"}
+                {t`Current script position`}: <span ref={funscriptDebugValueRef}>-</span>
               </div>
               {playlistRoundIds.length > 1 && (
                 <div>

@@ -96,11 +96,24 @@ export const PlaylistPickerView: React.FC<PlaylistPickerViewProps> = React.memo(
                   <Trans>Playlists</Trans>
                 </p>
                 <div className="mt-3 space-y-2">
-                  {playlistList.map((playlist) => (
-                    <div
-                      key={playlist.id}
-                      className="rounded-lg border border-zinc-700/70 bg-zinc-900/60 px-3 py-2"
-                    >
+                  {playlistList.map((playlist) => {
+                    const boardMode = playlist.config.boardConfig.mode;
+                    const isGraph = boardMode === "graph";
+                    const cardClassName = isGraph
+                      ? "rounded-lg border border-amber-500/45 bg-amber-950/25 px-3 py-2"
+                      : "rounded-lg border border-zinc-700/70 bg-zinc-900/60 px-3 py-2";
+                    const modeBadgeClassName = isGraph
+                      ? "border-amber-500/55 bg-amber-500/15 text-amber-100"
+                      : boardMode === "endless"
+                        ? "border-sky-500/55 bg-sky-500/15 text-sky-100"
+                        : "border-cyan-500/55 bg-cyan-500/15 text-cyan-100";
+                    const modeLabel = isGraph
+                      ? t`Graph`
+                      : boardMode === "endless"
+                        ? t`Endless`
+                        : t`Linear`;
+                    return (
+                    <div key={playlist.id} className={cardClassName}>
                       <div className="flex items-center justify-between gap-3">
                         <button
                           type="button"
@@ -112,9 +125,16 @@ export const PlaylistPickerView: React.FC<PlaylistPickerViewProps> = React.memo(
                             playlist.id === activePlaylistId ? "true" : undefined
                           }
                         >
-                          <p className="truncate text-sm font-semibold text-zinc-100">
-                            {playlist.name}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-sm font-semibold text-zinc-100">
+                              {playlist.name}
+                            </p>
+                            <span
+                              className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] ${modeBadgeClassName}`}
+                            >
+                              {modeLabel}
+                            </span>
+                          </div>
                         </button>
                         {playlist.id === activePlaylistId && (
                           <span className="rounded border border-emerald-500/55 bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-emerald-100">
@@ -154,7 +174,8 @@ export const PlaylistPickerView: React.FC<PlaylistPickerViewProps> = React.memo(
                         </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
 

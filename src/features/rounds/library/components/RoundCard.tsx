@@ -149,7 +149,6 @@ export const RoundCard = memo(function RoundCard({
       }`}
       style={animationDelay ? { animationDelay } : undefined}
       onMouseEnter={activateHoverPreview}
-      onMouseOver={activateHoverPreview}
       onMouseLeave={() => {
         clearPreviewHoverTimeout();
         setIsPreviewActive(false);

@@ -422,6 +422,22 @@ export function getDb() {
   return db;
 }
 
+/**
+ * Drop the cached connection after a failed startup or before an offline
+ * recovery operation. libSQL opens its file lazily, so clearing this reference
+ * is enough to make the next startup use the repaired/replaced file.
+ */
+export function resetAppDatabaseState(): void {
+  try {
+    db?.$client.close();
+  } catch {
+    // Recovery must still be able to replace a broken client/file.
+  }
+  db = null;
+  dbClientUrl = "";
+  databaseReadyPromise = null;
+}
+
 export async function runPreMigrationDatabaseBackup(
   dbInstance: ReturnType<typeof drizzle<typeof schema>>,
   now = new Date()
@@ -447,7 +463,7 @@ export async function runPreMigrationDatabaseBackup(
 
 export async function ensureAppDatabaseReady(): Promise<void> {
   if (!databaseReadyPromise) {
-    databaseReadyPromise = (async () => {
+    const attempt = (async () => {
       await migratePortableDatabaseIfNeeded();
       const dbInstance = getDb();
       const migrationsFolder = app.isPackaged
@@ -463,6 +479,12 @@ export async function ensureAppDatabaseReady(): Promise<void> {
       await repairSinglePlayerRunSaveSchema(dbInstance);
       await repairInstalledLibrarySchema(dbInstance);
     })();
+    databaseReadyPromise = attempt;
+    void attempt.catch(() => {
+      // A rejected promise must not poison Retry or recovery for the rest of
+      // the process lifetime.
+      if (databaseReadyPromise === attempt) resetAppDatabaseState();
+    });
   }
   return databaseReadyPromise;
 }

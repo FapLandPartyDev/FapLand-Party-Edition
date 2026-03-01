@@ -170,7 +170,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
                 {segment.cutRanges.map((cut) => (
                   <span
                     key={cut.id}
-                    aria-label="Segment cut overlay"
+                    aria-label={t`Segment cut overlay`}
                     className="absolute inset-y-0 rounded-sm border border-rose-200/60 bg-[repeating-linear-gradient(135deg,rgba(244,63,94,0.42)_0,rgba(244,63,94,0.42)_6px,rgba(127,29,29,0.22)_6px,rgba(127,29,29,0.22)_12px)]"
                     style={{
                       left: `${toPercent(cut.startTimeMs, segment.startTimeMs, segment.endTimeMs)}%`,
@@ -180,21 +180,21 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
                 ))}
                 {playheadPercent !== null && (
                   <span
-                    aria-label="Segment playhead"
+                    aria-label={t`Segment playhead`}
                     className="absolute inset-y-0 w-[2px] bg-violet-300/90"
                     style={{ left: `${playheadPercent}%` }}
                   />
                 )}
                 {markInPercent !== null && (
                   <span
-                    aria-label="Local cut in"
+                    aria-label={t`Local cut in`}
                     className="absolute inset-y-0 w-[2px] bg-cyan-300"
                     style={{ left: `${markInPercent}%` }}
                   />
                 )}
                 {markOutPercent !== null && (
                   <span
-                    aria-label="Local cut out"
+                    aria-label={t`Local cut out`}
                     className="absolute inset-y-0 w-[2px] bg-indigo-300"
                     style={{ left: `${markOutPercent}%` }}
                   />

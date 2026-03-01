@@ -99,6 +99,7 @@ export function ControllerProvider({ children }: { children: React.ReactNode }) 
   const controllerSupportHydratedRef = useRef(false);
   const orderRef = useRef(0);
   const rafRef = useRef<number | null>(null);
+  const startPollingRef = useRef<() => void>(() => undefined);
   const heldStateRef = useRef<
     Record<ControllerAction, { pressedAt: number; repeatedAt: number } | null>
   >({
@@ -203,6 +204,7 @@ export function ControllerProvider({ children }: { children: React.ReactNode }) 
         const stored = await trpc.store.get.query({ key: CONTROLLER_SUPPORT_ENABLED_KEY });
         if (mounted && !controllerSupportHydratedRef.current) {
           controllerSupportEnabledRef.current = normalizeControllerSupportEnabled(stored);
+          startPollingRef.current();
         }
       } catch (error) {
         console.error("Failed to load controller support setting", error);
@@ -214,6 +216,7 @@ export function ControllerProvider({ children }: { children: React.ReactNode }) 
         event instanceof CustomEvent ? normalizeControllerSupportEnabled(event.detail) : false;
       controllerSupportHydratedRef.current = true;
       controllerSupportEnabledRef.current = nextValue;
+      startPollingRef.current();
     };
 
     void loadControllerSupport();
@@ -301,10 +304,26 @@ export function ControllerProvider({ children }: { children: React.ReactNode }) 
   }, [dispatchAction]);
 
   useEffect(() => {
+    let disposed = false;
+    const clearHeldState = () => {
+      for (const action of Object.keys(heldStateRef.current) as ControllerAction[]) {
+        heldStateRef.current[action] = null;
+      }
+    };
+
     const tick = (timestamp: number) => {
-      const gamepad = controllerSupportEnabledRef.current
-        ? (navigator.getGamepads?.()[0] ?? null)
-        : null;
+      if (disposed || !controllerSupportEnabledRef.current || document.hidden) {
+        rafRef.current = null;
+        clearHeldState();
+        return;
+      }
+
+      const gamepad = navigator.getGamepads?.().find((entry) => entry !== null) ?? null;
+      if (!gamepad) {
+        rafRef.current = null;
+        clearHeldState();
+        return;
+      }
       const pressedActions = getPressedActions(gamepad);
 
       for (const action of Object.keys(heldStateRef.current) as ControllerAction[]) {
@@ -333,11 +352,41 @@ export function ControllerProvider({ children }: { children: React.ReactNode }) 
       rafRef.current = window.requestAnimationFrame(tick);
     };
 
-    rafRef.current = window.requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current !== null) {
-        window.cancelAnimationFrame(rafRef.current);
+    const startPolling = () => {
+      if (
+        disposed ||
+        rafRef.current !== null ||
+        !controllerSupportEnabledRef.current ||
+        document.hidden ||
+        !navigator.getGamepads?.().some((entry) => entry !== null)
+      ) {
+        return;
       }
+      rafRef.current = window.requestAnimationFrame(tick);
+    };
+    const stopPolling = () => {
+      if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      clearHeldState();
+    };
+    const handleVisibilityChange = () => {
+      if (document.hidden) stopPolling();
+      else startPolling();
+    };
+
+    startPollingRef.current = startPolling;
+    window.addEventListener("gamepadconnected", startPolling);
+    window.addEventListener("gamepaddisconnected", startPolling);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    startPolling();
+
+    return () => {
+      disposed = true;
+      startPollingRef.current = () => undefined;
+      window.removeEventListener("gamepadconnected", startPolling);
+      window.removeEventListener("gamepaddisconnected", startPolling);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      stopPolling();
     };
   }, [dispatchAction]);
 

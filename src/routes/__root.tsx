@@ -174,6 +174,27 @@ function isGameboardPath(pathname: string): boolean {
   return pathname === "/game" || pathname === "/multiplayer-match";
 }
 
+function RendererPerformanceReporter() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  useEffect(() => {
+    const report = () => {
+      const visible = !document.hidden;
+      void window.electronAPI.performance?.updateState({
+        route: pathname,
+        visible,
+        activity: isGameboardPath(pathname) ? "critical" : visible ? "interactive" : "idle",
+      });
+    };
+
+    report();
+    document.addEventListener("visibilitychange", report);
+    return () => document.removeEventListener("visibilitychange", report);
+  }, [pathname]);
+
+  return null;
+}
+
 function AppThemeScope({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [themeId, setThemeId] = useState<MainMenuThemeId>(DEFAULT_MENU_THEME_ID);
@@ -223,6 +244,7 @@ function RootComponent() {
 
   return (
     <RootErrorBoundary>
+      <RendererPerformanceReporter />
       <QueryClientProvider client={getQueryClient()}>
         <ControllerProvider>
           <ForegroundMediaProvider>

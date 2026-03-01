@@ -32,8 +32,11 @@ import {
 import { resolveExistingLocalMediaPath } from "./services/localMedia";
 import { initializePortableStorageDefaults } from "./services/storagePaths";
 import { proxyExternalRequest } from "./services/integrations";
-import { startContinuousPhashScan } from "./services/phashScanService";
-import { startContinuousWebsiteVideoScan } from "./services/webVideoScanService";
+import { startContinuousPhashScan, stopContinuousPhashScan } from "./services/phashScanService";
+import {
+  startContinuousWebsiteVideoScan,
+  stopContinuousWebsiteVideoScan,
+} from "./services/webVideoScanService";
 import { createMediaResponse } from "./services/protocol/mediaResponse";
 import { initializeAppUpdater, subscribeToUpdateState } from "./services/updater";
 import { subscribeToEroScriptsLoginStatus } from "./services/eroscripts";
@@ -65,6 +68,14 @@ import {
   isSupportedMusicUrl,
 } from "./services/musicDownload";
 import { GRAPHICS_GPU_CRASH_HINT_PENDING_KEY } from "../src/constants/graphicsSettings";
+import {
+  backupDatabaseForRecovery,
+  clearRecoveryCaches,
+  getStartupRecoveryStatus,
+  repairDatabaseForRecovery,
+  resetInstallationForRecovery,
+  resetSettingsForRecovery,
+} from "./services/startupRecovery";
 
 const OPENABLE_FILE_EXTENSIONS = new Set([".hero", ".round", ".fplay", ".fpack"]);
 const pendingOpenedFiles: string[] = [];
@@ -76,6 +87,7 @@ let rendererDevToolsWindowRef: BrowserWindow | null = null;
 let trpcIpcHandler: { attachWindow: (window: BrowserWindow) => void } | null = null;
 let performanceSnapshotTimer: ReturnType<typeof setInterval> | null = null;
 let normalStartupPromise: Promise<void> | null = null;
+let startupRecoveryActive = false;
 let gpuCrashHandlerRegistered = false;
 const WINDOW_ZOOM_STEP = 0.5;
 
@@ -943,7 +955,7 @@ async function createWindow(): Promise<BrowserWindow> {
   if (!performanceSnapshotTimer) {
     performanceSnapshotTimer = setInterval(() => {
       const performanceState = getRendererPerformanceState();
-      if (!performanceState.visible || !performanceState.idleSensitive) {
+      if (!performanceState.visible || performanceState.activity === "critical") {
         return;
       }
 
@@ -1045,13 +1057,20 @@ function registerWindowControlsIpc() {
 
   ipcMain.handle(
     "performance:updateState",
-    (_event, state: { route: string; visible: boolean; idleSensitive: boolean }) => {
+    (
+      _event,
+      state: {
+        route: string;
+        visible: boolean;
+        activity: "critical" | "interactive" | "idle";
+      }
+    ) => {
       const previous = getRendererPerformanceState();
       const next = setRendererPerformanceState(state);
       if (
         previous.route !== next.route ||
         previous.visible !== next.visible ||
-        previous.idleSensitive !== next.idleSensitive
+        previous.activity !== next.activity
       ) {
         console.log("[RendererPerformanceState]", next);
         debugLog.debug("performance", "Renderer performance state changed", next);
@@ -1497,10 +1516,36 @@ function registerAuthCallbackIpc() {
 }
 
 function registerStartupRecoveryIpc() {
-  ipcMain.handle("startup-recovery:enter", () => undefined);
+  ipcMain.handle("startup-recovery:enter", () => {
+    startupRecoveryActive = true;
+    stopContinuousPhashScan();
+    stopContinuousWebsiteVideoScan();
+    stopContinuousDatabaseBackup();
+    stopContinuousSettingsBackup();
+  });
 
   ipcMain.handle("startup-recovery:start-normal", async () => {
+    if (startupRecoveryActive) {
+      startupRecoveryActive = false;
+      normalStartupPromise = null;
+    }
     await runNormalStartupOnce();
+  });
+
+  ipcMain.handle("startup-recovery:status", () => getStartupRecoveryStatus());
+  ipcMain.handle("startup-recovery:backup-database", () => backupDatabaseForRecovery());
+  ipcMain.handle("startup-recovery:repair-database", () => repairDatabaseForRecovery());
+  ipcMain.handle("startup-recovery:clear-caches", async () => {
+    await session.defaultSession.clearCache();
+    return clearRecoveryCaches();
+  });
+  ipcMain.handle("startup-recovery:reset-settings", () => resetSettingsForRecovery());
+  ipcMain.handle("startup-recovery:reset-installation", (_event, keepDatabase: unknown) =>
+    resetInstallationForRecovery({ keepDatabase: keepDatabase === true })
+  );
+  ipcMain.handle("startup-recovery:restart", () => {
+    app.relaunch();
+    app.exit(0);
   });
 }
 
@@ -1533,6 +1578,7 @@ function runNormalStartupOnce(): Promise<void> {
 
   normalStartupPromise = (async () => {
     await initStore();
+    if (startupRecoveryActive) return;
     debugLog.info("startup", "Store initialized");
     initializeDebugLogging();
     pendingGpuRecoveryHint = safeStoreGet(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY) === true;
@@ -1568,6 +1614,7 @@ function runNormalStartupOnce(): Promise<void> {
       });
       throw error;
     }
+    if (startupRecoveryActive) return;
 
     broadcastUpdateState();
     broadcastEroScriptsLoginStatus();

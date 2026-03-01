@@ -122,6 +122,7 @@ const mocks = vi.hoisted(() => ({
     savedRuns: [] as unknown[],
   },
   navigate: vi.fn(),
+  preloadRoute: vi.fn(async () => undefined),
   db: {
     round: {
       findInstalled: vi.fn(async () => []),
@@ -151,6 +152,7 @@ vi.mock("@tanstack/react-router", () => ({
     useSearch: () => mocks.search,
   }),
   useNavigate: () => mocks.navigate,
+  useRouter: () => ({ preloadRoute: mocks.preloadRoute }),
 }));
 
 vi.mock("../components/AnimatedBackground", () => ({
@@ -218,6 +220,7 @@ beforeEach(() => {
   mocks.playlists.setActive.mockResolvedValue(undefined);
   mocks.trpc.store.get.query.mockResolvedValue(false);
   mocks.db.singlePlayerSaves.deleteByPlaylist.mockResolvedValue(undefined);
+  mocks.preloadRoute.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -257,6 +260,13 @@ describe("SinglePlayerSetupRoute", () => {
     await vi.advanceTimersByTimeAsync(PLAYLIST_LAUNCH_DURATION_MS);
     await Promise.resolve();
     expect(mocks.playlists.setActive).toHaveBeenCalledWith("playlist-2");
+    expect(mocks.preloadRoute).toHaveBeenCalledWith({
+      to: "/game",
+      search: {
+        playlistId: "playlist-2",
+        launchNonce: expect.any(Number),
+      },
+    });
     expect(mocks.navigate).toHaveBeenCalledWith({
       to: "/game",
       search: {
@@ -349,6 +359,38 @@ describe("SinglePlayerSetupRoute", () => {
     expect(mocks.navigate).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the launch transition visible until game preparation finishes", async () => {
+    vi.useFakeTimers();
+    let finishPreload: (() => void) | undefined;
+    mocks.preloadRoute.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishPreload = resolve;
+        })
+    );
+    const playlist = makePlaylist("playlist-1", "First Playlist");
+    mocks.loaderData = {
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+      installedRounds: [],
+      savedRuns: [],
+    };
+
+    render(<Component />);
+    fireEvent.click(screen.getByRole("button", { name: "Start Selected Playlist" }));
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(PLAYLIST_LAUNCH_DURATION_MS);
+
+    expect(screen.getByTestId("playlist-launch-transition")).toBeDefined();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+
+    finishPreload?.();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mocks.navigate).toHaveBeenCalledTimes(1);
+  });
+
   it("clears the launch transition when starting fails", async () => {
     mocks.playlists.setActive.mockRejectedValueOnce(new Error("boom"));
     const playlist = makePlaylist("playlist-1", "First Playlist");
@@ -406,7 +448,9 @@ describe("SinglePlayerSetupRoute", () => {
 
     render(<Component />);
 
-    expect(screen.getAllByText("Caching ongoing").length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText("Caching ongoing").length).toBeGreaterThan(0);
+    });
     const startButton = screen.getByRole("button", { name: "Caching Ongoing" });
     expect(startButton.getAttribute("disabled")).not.toBeNull();
 

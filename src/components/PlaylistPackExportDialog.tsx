@@ -381,7 +381,7 @@ export function PlaylistPackExportDialog({
                     onChange={(event) => setCompressionStrength(Number(event.target.value))}
                     disabled={!canEnableCompression || analyzing || submitting}
                     className="mt-5 h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-800 accent-cyan-300"
-                    aria-label="Compression strength"
+                    aria-label={t`Compression strength`}
                   />
                   <div className="mt-3 flex justify-between text-[11px] uppercase tracking-[0.16em] text-slate-500">
                     <span>

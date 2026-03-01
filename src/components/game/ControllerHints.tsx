@@ -64,12 +64,10 @@ function ControllerHints({
 
     window.addEventListener("gamepadconnected", updateHasController);
     window.addEventListener("gamepaddisconnected", updateHasController);
-    const intervalId = window.setInterval(updateHasController, 500);
 
     return () => {
       window.removeEventListener("gamepadconnected", updateHasController);
       window.removeEventListener("gamepaddisconnected", updateHasController);
-      window.clearInterval(intervalId);
     };
   }, [enabled]);
 

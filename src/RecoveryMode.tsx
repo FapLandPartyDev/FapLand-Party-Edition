@@ -1,10 +1,26 @@
 import { useEffect, useState } from "react";
 import { I18nProvider as LinguiProvider } from "@lingui/react";
-import { ClearDataDialog, DEFAULT_CLEAR_DATA_SELECTIONS, type ClearDataSelections } from "./components/ClearDataDialog";
+import {
+  ClearDataDialog,
+  DEFAULT_CLEAR_DATA_SELECTIONS,
+  type ClearDataSelections,
+} from "./components/ClearDataDialog";
 import { db } from "./services/db";
 import { trpc } from "./services/trpc";
 import { i18n } from "./i18n/config";
-import { DEBUG_LOG_LEVELS, normalizeDebugLogLevel, type DebugLogLevel } from "./constants/debugSettings";
+import {
+  DEBUG_LOG_LEVELS,
+  normalizeDebugLogLevel,
+  type DebugLogLevel,
+} from "./constants/debugSettings";
+
+type RecoveryStatus = {
+  databasePath: string | null;
+  databaseExists: boolean;
+  databaseBytes: number | null;
+  integrity: "ok" | "missing" | "unavailable" | "corrupt";
+  integrityMessage: string;
+};
 
 export function RecoveryMode() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -17,6 +33,8 @@ export function RecoveryMode() {
   const [isBackingUpDb, setIsBackingUpDb] = useState(false);
   const [isBackingUpSettings, setIsBackingUpSettings] = useState(false);
   const [isCreatingPlaintextSettings, setIsCreatingPlaintextSettings] = useState(false);
+  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus | null>(null);
+  const [activeRecoveryAction, setActiveRecoveryAction] = useState<string | null>(null);
 
   useEffect(() => {
     trpc.debug.getState
@@ -25,7 +43,34 @@ export function RecoveryMode() {
         setLogLevel(normalizeDebugLogLevel(state.logLevel));
       })
       .catch(() => {});
+    void window.electronAPI?.startupRecovery
+      ?.getStatus?.()
+      .then(setRecoveryStatus)
+      .catch(() => {});
   }, []);
+
+  const runRecoveryAction = async (
+    actionName: string,
+    action: () => Promise<unknown>,
+    successMessage: string,
+    restartAfter = false
+  ) => {
+    if (activeRecoveryAction) return;
+    setActiveRecoveryAction(actionName);
+    setError(null);
+    setNotice(null);
+    try {
+      await action();
+      setNotice(successMessage);
+      const status = await window.electronAPI?.startupRecovery?.getStatus?.();
+      if (status) setRecoveryStatus(status);
+      if (restartAfter) await window.electronAPI?.startupRecovery?.restart?.();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : `${actionName} failed.`);
+    } finally {
+      setActiveRecoveryAction(null);
+    }
+  };
 
   const startNormally = async () => {
     if (isStartingNormally) return;
@@ -81,7 +126,9 @@ export function RecoveryMode() {
     setError(null);
     setNotice(null);
     try {
-      await db.install.backupDatabaseNow();
+      const recoveryApi = window.electronAPI?.startupRecovery;
+      if (!recoveryApi?.backupDatabase) throw new Error("Recovery API is unavailable.");
+      await recoveryApi.backupDatabase();
       setNotice("Database backup created.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to backup database.");
@@ -114,9 +161,7 @@ export function RecoveryMode() {
       await db.install.createPlaintextSettingsFile();
       setNotice("Plaintext settings file created.");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to create plaintext settings file."
-      );
+      setError(err instanceof Error ? err.message : "Failed to create plaintext settings file.");
     } finally {
       setIsCreatingPlaintextSettings(false);
     }
@@ -124,9 +169,12 @@ export function RecoveryMode() {
 
   return (
     <LinguiProvider i18n={i18n}>
-      <div className="min-h-screen bg-[#050508] text-zinc-100">
+      <div
+        data-testid="recovery-scroll-container"
+        className="fixed inset-0 overflow-y-auto overscroll-contain bg-[#050508] text-zinc-100"
+      >
         <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(244,63,94,0.22),transparent_36%),linear-gradient(135deg,rgba(127,29,29,0.35),transparent_42%,rgba(24,24,27,0.88))]" />
-        <main className="relative mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-5 py-10">
+        <main className="relative mx-auto flex min-h-full w-full max-w-3xl flex-col px-5 py-10">
           <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.35em] text-rose-200/80">
             Emergency Startup
           </p>
@@ -182,6 +230,142 @@ export function RecoveryMode() {
               {isClearing ? "Clearing..." : "Manage & Clear Data"}
             </button>
           </div>
+
+          <section className="mt-10 border-t border-zinc-800 pt-8">
+            <h2 className="text-lg font-bold text-zinc-200">Guided Recovery</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Try these in order. Your database is backed up before repairs or a reset.
+            </p>
+
+            {recoveryStatus ? (
+              <div
+                className={`mt-4 rounded-xl border p-3 text-sm ${
+                  recoveryStatus.integrity === "ok"
+                    ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100"
+                    : recoveryStatus.integrity === "corrupt"
+                      ? "border-rose-400/30 bg-rose-500/10 text-rose-100"
+                      : "border-zinc-700 bg-zinc-900 text-zinc-300"
+                }`}
+              >
+                <div className="font-semibold">Database: {recoveryStatus.integrity}</div>
+                <div className="mt-1 break-words text-xs opacity-80">
+                  {recoveryStatus.integrityMessage}
+                  {recoveryStatus.databaseBytes !== null
+                    ? ` (${(recoveryStatus.databaseBytes / 1024 / 1024).toFixed(1)} MB)`
+                    : ""}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <RecoveryActionButton
+                title="1. Repair & Optimize Database"
+                description="Checks integrity, creates a backup, applies every migration, rebuilds indexes, and compacts SQLite."
+                pending={activeRecoveryAction === "database repair"}
+                disabled={Boolean(activeRecoveryAction)}
+                onClick={() =>
+                  void runRecoveryAction(
+                    "database repair",
+                    async () => {
+                      const api = window.electronAPI?.startupRecovery;
+                      if (!api?.repairDatabase) throw new Error("Recovery API is unavailable.");
+                      await api.repairDatabase();
+                    },
+                    "Database repaired and optimized. Restart the app when ready."
+                  )
+                }
+              />
+              <RecoveryActionButton
+                title="2. Clear Caches"
+                description="Removes Chromium, GPU, video, music, package, and website caches without touching the database or settings."
+                pending={activeRecoveryAction === "cache cleanup"}
+                disabled={Boolean(activeRecoveryAction)}
+                onClick={() =>
+                  void runRecoveryAction(
+                    "cache cleanup",
+                    async () => {
+                      const api = window.electronAPI?.startupRecovery;
+                      if (!api?.clearCaches) throw new Error("Recovery API is unavailable.");
+                      await api.clearCaches();
+                    },
+                    "Caches cleared. Restart recommended."
+                  )
+                }
+              />
+              <RecoveryActionButton
+                title="3. Reset Settings"
+                description="Backs up and removes app preferences and graphics flags. The database stays untouched."
+                pending={activeRecoveryAction === "settings reset"}
+                disabled={Boolean(activeRecoveryAction)}
+                onClick={() => {
+                  if (!window.confirm("Reset all app settings? The database will be kept.")) return;
+                  void runRecoveryAction(
+                    "settings reset",
+                    async () => {
+                      const api = window.electronAPI?.startupRecovery;
+                      if (!api?.resetSettings) throw new Error("Recovery API is unavailable.");
+                      await api.resetSettings();
+                    },
+                    "Settings reset. Restarting...",
+                    true
+                  );
+                }}
+              />
+              <RecoveryActionButton
+                title="4. Reset App, Keep Database"
+                description="Clears the installation state and caches, but preserves the SQLite database plus a separate recovery copy."
+                pending={activeRecoveryAction === "installation reset"}
+                disabled={Boolean(activeRecoveryAction)}
+                onClick={() => {
+                  if (!window.confirm("Reset the app installation while keeping the database?"))
+                    return;
+                  void runRecoveryAction(
+                    "installation reset",
+                    async () => {
+                      const api = window.electronAPI?.startupRecovery;
+                      if (!api?.resetInstallation) throw new Error("Recovery API is unavailable.");
+                      await api.resetInstallation(true);
+                    },
+                    "Installation reset while preserving the database. Restarting...",
+                    true
+                  );
+                }}
+              />
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-rose-500/35 bg-rose-950/30 p-4">
+              <h3 className="font-bold text-rose-100">Last resort: start with a clean database</h3>
+              <p className="mt-1 text-xs leading-5 text-rose-200/75">
+                Archives the existing database and sidecar files, then clears the installation. The
+                app creates a fresh database after restart, while the old one remains recoverable.
+              </p>
+              <button
+                type="button"
+                disabled={Boolean(activeRecoveryAction)}
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      "Factory reset the app? The old database will only remain as a recovery archive."
+                    )
+                  )
+                    return;
+                  void runRecoveryAction(
+                    "factory reset",
+                    async () => {
+                      const api = window.electronAPI?.startupRecovery;
+                      if (!api?.resetInstallation) throw new Error("Recovery API is unavailable.");
+                      await api.resetInstallation(false);
+                    },
+                    "Factory reset complete. Restarting...",
+                    true
+                  );
+                }}
+                className="mt-3 rounded-xl border border-rose-300/70 bg-rose-500/20 px-4 py-2 text-sm font-bold text-rose-50 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {activeRecoveryAction === "factory reset" ? "Resetting..." : "Factory Reset"}
+              </button>
+            </div>
+          </section>
 
           <div className="mt-10 border-t border-zinc-800 pt-8">
             <h2 className="text-lg font-bold text-zinc-200">Utilities</h2>
@@ -253,9 +437,7 @@ export function RecoveryMode() {
                       : "border-amber-300/70 bg-amber-500/20 text-amber-50 hover:border-amber-200 hover:bg-amber-500/30"
                   }`}
                 >
-                  {isCreatingPlaintextSettings
-                    ? "Creating..."
-                    : "Create Plaintext Settings File"}
+                  {isCreatingPlaintextSettings ? "Creating..." : "Create Plaintext Settings File"}
                 </button>
               </div>
             </div>
@@ -274,8 +456,7 @@ export function RecoveryMode() {
           copy={{
             eyebrow: "Emergency Maintenance",
             title: "Clear Recovery Data",
-            description:
-              "Choose which local data categories to wipe.",
+            description: "Choose which local data categories to wipe.",
             warning: "Emergency deletion cannot be undone. A database backup is attempted first.",
           }}
           onSelectionChange={setSelections}
@@ -286,5 +467,31 @@ export function RecoveryMode() {
         />
       </div>
     </LinguiProvider>
+  );
+}
+
+function RecoveryActionButton({
+  title,
+  description,
+  pending,
+  disabled,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  pending: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4 text-left transition-colors hover:border-sky-300/60 hover:bg-sky-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <div className="text-sm font-bold text-sky-100">{pending ? "Working..." : title}</div>
+      <div className="mt-1 text-xs leading-5 text-zinc-400">{description}</div>
+    </button>
   );
 }

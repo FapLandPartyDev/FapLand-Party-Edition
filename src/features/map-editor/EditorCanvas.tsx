@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
   type JSX,
+  type DragEvent as ReactDragEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
   type WheelEvent,
@@ -36,6 +37,7 @@ import {
   getNodeCenter,
   snapPointToGrid,
 } from "./editorGeometry";
+import { MAP_EDITOR_DRAG_TYPE, parseMapEditorDragItem } from "./mapEditorDrag";
 
 export interface QuickAddTileOption {
   kind: EditorNodeKind;
@@ -121,7 +123,11 @@ type EditorCanvasProps = {
   onDeleteSelection: () => void;
   onPlaceNodeAtWorld: (kind: EditorNode["kind"], worldX: number, worldY: number) => void;
   onPlaceHeroChainAtWorld: (worldX: number, worldY: number) => void;
+  onDropHeroAtWorld?: (heroId: string, worldX: number, worldY: number) => void;
   isHeroPlacementActive: boolean;
+  onPlaceRoundAtWorld?: (worldX: number, worldY: number) => void;
+  onDropRoundAtWorld?: (roundId: string, worldX: number, worldY: number) => void;
+  isRoundPlacementActive?: boolean;
   onPlaceTextAtWorld: (worldX: number, worldY: number) => void;
   onBeginNodeDrag?: () => void;
   onEndNodeDrag?: () => void;
@@ -254,7 +260,11 @@ export function EditorCanvas({
   onDeleteSelection,
   onPlaceNodeAtWorld,
   onPlaceHeroChainAtWorld,
+  onDropHeroAtWorld,
   isHeroPlacementActive,
+  onPlaceRoundAtWorld,
+  onDropRoundAtWorld,
+  isRoundPlacementActive = false,
   onPlaceTextAtWorld,
   onBeginNodeDrag,
   onEndNodeDrag,
@@ -585,6 +595,13 @@ export function EditorCanvas({
         return;
       }
 
+      if (tool === "place" && isRoundPlacementActive && onPlaceRoundAtWorld) {
+        const world = toLocalWorld(event.clientX, event.clientY);
+        const snapped = snapToGrid ? snapPointToGrid(world) : world;
+        onPlaceRoundAtWorld(snapped.x, snapped.y);
+        return;
+      }
+
       if (tool === "place" && activePlacementKind) {
         const world = toLocalWorld(event.clientX, event.clientY);
         const snapped = snapToGrid ? snapPointToGrid(world) : world;
@@ -622,8 +639,10 @@ export function EditorCanvas({
       activePlacementKind,
       addPan,
       isHeroPlacementActive,
+      isRoundPlacementActive,
       onPlaceNodeAtWorld,
       onPlaceHeroChainAtWorld,
+      onPlaceRoundAtWorld,
       onPlaceTextAtWorld,
       onSelectionChange,
       onSetConnectFrom,
@@ -654,6 +673,34 @@ export function EditorCanvas({
       });
     },
     [onViewportChange, toLocal, viewport]
+  );
+
+  const handleDragOver = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+    if (!Array.from(event.dataTransfer.types).includes(MAP_EDITOR_DRAG_TYPE)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }, []);
+
+  const handleDrop = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      const item = parseMapEditorDragItem(event.dataTransfer.getData(MAP_EDITOR_DRAG_TYPE));
+      if (!item) return;
+
+      event.preventDefault();
+      const world = toLocalWorld(event.clientX, event.clientY);
+      switch (item.type) {
+        case "node":
+          onPlaceNodeAtWorld(item.nodeKind, world.x, world.y);
+          break;
+        case "round":
+          onDropRoundAtWorld?.(item.roundId, world.x, world.y);
+          break;
+        case "hero":
+          onDropHeroAtWorld?.(item.heroId, world.x, world.y);
+          break;
+      }
+    },
+    [onDropHeroAtWorld, onDropRoundAtWorld, onPlaceNodeAtWorld, toLocalWorld]
   );
 
   const handleNodeMouseDown = useCallback(
@@ -979,6 +1026,8 @@ export function EditorCanvas({
     <div
       ref={containerRef}
       className="relative h-full w-full overflow-hidden rounded-xl border border-zinc-500/25 bg-zinc-950/55"
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       <MapBackgroundMedia
         background={config.style.background}
@@ -1174,9 +1223,10 @@ export function EditorCanvas({
           const selectedRoundName = trimOrNull(node.roundRef?.name);
           const primaryLabel = node.kind === "round" ? (selectedRoundName ?? node.name) : node.name;
           const perkDef = node.kind === "perk" && node.visualId ? getPerkById(node.visualId) : null;
+          const roundTypeLabel = trimOrNull(node.roundRef?.type);
           const secondaryLabel =
             node.kind === "round"
-              ? "round"
+              ? (roundTypeLabel ?? "round")
               : perkDef?.kind === "antiPerk"
                 ? "anti-perk"
                 : node.kind;

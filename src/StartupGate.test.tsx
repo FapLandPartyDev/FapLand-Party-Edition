@@ -29,7 +29,7 @@ describe("StartupGate", () => {
         enterRecovery: mocks.enterRecovery,
         startNormally: mocks.startNormally,
       },
-    } as typeof window.electronAPI;
+    } as unknown as typeof window.electronAPI;
   });
 
   afterEach(() => {
@@ -40,9 +40,10 @@ describe("StartupGate", () => {
   it("opens recovery when R is pressed during the startup window", async () => {
     let resolveStartup: () => void = () => {};
     mocks.startNormally.mockImplementation(
-      () => new Promise<void>((resolve) => {
-        resolveStartup = resolve;
-      })
+      () =>
+        new Promise<void>((resolve) => {
+          resolveStartup = resolve;
+        })
     );
 
     render(<StartupGate />);
@@ -99,6 +100,23 @@ describe("StartupGate", () => {
     });
     expect(screen.getByText("Database connection failed")).toBeDefined();
     expect(mocks.startNormally).toHaveBeenCalledTimes(1);
+  });
+
+  it("can enter recovery directly after startup fails", async () => {
+    mocks.startNormally.mockRejectedValue(new Error("Database is corrupt"));
+    render(<StartupGate />);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+      await vi.dynamicImportSettled();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Open Recovery" }));
+
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
+    expect(mocks.enterRecovery).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("heading", { name: "Emergency Recovery Mode" })).toBeDefined();
   });
 
   it("can retry after startup error", async () => {

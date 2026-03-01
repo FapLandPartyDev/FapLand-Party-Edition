@@ -215,11 +215,6 @@ export function RoundGrid({
     () => buildShelves(rows, columns, expandedGroupKeys),
     [columns, expandedGroupKeys, rows]
   );
-  const shelfSignature = useMemo(
-    () => shelves.map((shelf) => shelf.key).join("|"),
-    [shelves]
-  );
-
   const hasGroupedRows = useMemo(
     () => rows.some((row) => row.kind !== "standalone"),
     [rows]
@@ -243,12 +238,17 @@ export function RoundGrid({
 
   const virtualItems = virtualizer.getVirtualItems();
 
-  // Re-measure when the shelf layout or column count changes.
+  // Card widths can change when the column count changes, so discard cached
+  // heights in that case. Do not clear the cache when a group is expanded:
+  // existing shelves keep the same keys and sizes, and newly inserted shelves
+  // are measured through their refs. Clearing after those refs have run leaves
+  // unchanged, already-mounted shelves using estimates until some later resize,
+  // which creates a persistent blank gap between them.
   useEffect(() => {
     if (!scrollContainer) return;
     const frame = window.requestAnimationFrame(() => virtualizer.measure());
     return () => window.cancelAnimationFrame(frame);
-  }, [columns, scrollContainer, shelfSignature, virtualizer]);
+  }, [columns, scrollContainer, virtualizer]);
 
   // Re-measure once webfonts settle (card text height changes).
   useEffect(() => {

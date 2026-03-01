@@ -204,7 +204,7 @@ describe("ControllerProvider", () => {
       </ControllerProvider>
     );
 
-    runAnimationFrame(0);
+    expect(getGamepads).not.toHaveBeenCalled();
     expect(document.activeElement).not.toBe(screen.getByRole("button", { name: "First" }));
 
     window.dispatchEvent(

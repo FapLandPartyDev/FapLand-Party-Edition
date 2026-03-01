@@ -1579,8 +1579,19 @@ function PlaylistWorkshopPage() {
               <div className="mt-5 grid gap-3">
                 {playlistList.map((playlist) => {
                   const isStoredActive = playlist.id === loaderActivePlaylist?.id;
-                  const boardMode =
-                    playlist.config.boardConfig.mode === "graph" ? t`Graph` : t`Linear`;
+                  const rawMode = playlist.config.boardConfig.mode;
+                  const isGraph = rawMode === "graph";
+                  const boardMode = isGraph
+                    ? t`Graph`
+                    : rawMode === "endless"
+                      ? t`Endless`
+                      : t`Linear`;
+                  const cardClassName = isGraph
+                    ? "flex w-full items-center justify-between gap-4 rounded-2xl border border-amber-400/40 bg-gradient-to-br from-amber-500/15 to-slate-950/70 px-4 py-4 text-left transition-all duration-200 hover:border-amber-300/65 hover:bg-amber-500/20"
+                    : "flex w-full items-center justify-between gap-4 rounded-2xl border border-violet-300/25 bg-gradient-to-br from-violet-500/12 to-slate-950/70 px-4 py-4 text-left transition-all duration-200 hover:border-violet-200/60 hover:bg-violet-500/18";
+                  const openBadgeClassName = isGraph
+                    ? "shrink-0 rounded-xl border border-amber-400/50 bg-amber-500/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-amber-100"
+                    : "shrink-0 rounded-xl border border-violet-300/45 bg-violet-500/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-violet-100";
                   return (
                     <button
                       key={playlist.id}
@@ -1588,7 +1599,7 @@ function PlaylistWorkshopPage() {
                       onMouseEnter={playHoverSound}
                       onClick={() => {
                         playSelectSound();
-                        if (playlist.config.boardConfig.mode === "graph") {
+                        if (isGraph) {
                           void (async () => {
                             try {
                               await playlists.setActive(playlist.id);
@@ -1602,7 +1613,7 @@ function PlaylistWorkshopPage() {
                           setActivePlaylistId(playlist.id);
                         }
                       }}
-                      className="flex w-full items-center justify-between gap-4 rounded-2xl border border-violet-300/25 bg-gradient-to-br from-violet-500/12 to-slate-950/70 px-4 py-4 text-left transition-all duration-200 hover:border-violet-200/60 hover:bg-violet-500/18"
+                      className={cardClassName}
                     >
                       <div className="min-w-0">
                         <div className="truncate text-lg font-semibold text-white">
@@ -1619,7 +1630,7 @@ function PlaylistWorkshopPage() {
                           )}
                         </div>
                       </div>
-                      <span className="shrink-0 rounded-xl border border-violet-300/45 bg-violet-500/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-violet-100">
+                      <span className={openBadgeClassName}>
                         <Trans>Open</Trans>
                       </span>
                     </button>

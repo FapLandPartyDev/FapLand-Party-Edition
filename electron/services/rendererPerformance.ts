@@ -1,14 +1,16 @@
+export type RendererActivity = "critical" | "interactive" | "idle";
+
 type RendererPerformanceState = {
   route: string;
   visible: boolean;
-  idleSensitive: boolean;
+  activity: RendererActivity;
   updatedAt: number;
 };
 
 let rendererPerformanceState: RendererPerformanceState = {
   route: "unknown",
-  visible: true,
-  idleSensitive: false,
+  visible: false,
+  activity: "idle",
   updatedAt: Date.now(),
 };
 
@@ -29,5 +31,8 @@ export function setRendererPerformanceState(
 }
 
 export function shouldDeferBackgroundWork(): boolean {
-  return rendererPerformanceState.visible && rendererPerformanceState.idleSensitive;
+  // Never let automatic indexing/FFmpeg work compete with an active renderer.
+  // Critical routes remain protected when hidden because video, haptics, and
+  // multiplayer activity can intentionally continue in the background.
+  return rendererPerformanceState.activity === "critical" || rendererPerformanceState.visible;
 }

@@ -307,7 +307,7 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
                       setWebsiteFunscriptFileLabel(null);
                       setWebsitePickerError(null);
                     }}
-                    placeholder="Optional: https://example.com/video.funscript"
+                    placeholder={t`Optional: https://example.com/video.funscript`}
                     className="w-full rounded-xl border border-cyan-300/30 bg-black/45 px-4 py-3 text-sm text-zinc-100 outline-none transition-colors focus:border-cyan-200/75"
                   />
                 </label>

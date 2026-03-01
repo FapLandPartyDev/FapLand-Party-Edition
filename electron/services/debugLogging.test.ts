@@ -54,7 +54,7 @@ vi.mock("./rendererPerformance", () => ({
   getRendererPerformanceState: () => ({
     route: "settings",
     visible: true,
-    idleSensitive: false,
+    activity: "idle",
     updatedAt: 1,
   }),
 }));

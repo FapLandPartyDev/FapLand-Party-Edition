@@ -54,7 +54,7 @@ declare global {
         updateState: (state: {
           route: string;
           visible: boolean;
-          idleSensitive: boolean;
+          activity: "critical" | "interactive" | "idle";
         }) => Promise<void>;
       };
       debug?: {
@@ -86,8 +86,23 @@ declare global {
         subscribe: (callback: (pending: boolean) => void) => UpdateUnsubscribe;
       };
       startupRecovery?: {
-        enterRecovery: () => Promise<void>;
-        startNormally: () => Promise<void>;
+        enterRecovery?: () => Promise<void>;
+        startNormally?: () => Promise<void>;
+        getStatus?: () => Promise<{
+          databasePath: string | null;
+          databaseExists: boolean;
+          databaseBytes: number | null;
+          integrity: "ok" | "missing" | "unavailable" | "corrupt";
+          integrityMessage: string;
+        }>;
+        backupDatabase?: () => Promise<string>;
+        repairDatabase?: () => Promise<{ backupPath: string; integrityMessage: string }>;
+        clearCaches?: () => Promise<{ clearedPaths: number }>;
+        resetSettings?: () => Promise<{ backupPath: string | null }>;
+        resetInstallation?: (
+          keepDatabase: boolean
+        ) => Promise<{ databaseArchivePath: string | null }>;
+        restart?: () => Promise<void>;
       };
     };
   }

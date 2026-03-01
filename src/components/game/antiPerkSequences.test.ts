@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ANTI_PERK_SEQUENCE_DEFINITIONS,
   extractBeatbarMotionEvents,
-  extractLowPointBeatbarBeats,
+  extractDescendingBeatbarBeats,
   getAntiPerkSequenceDefinition,
 } from "./antiPerkSequences";
 
@@ -23,12 +23,7 @@ describe("antiPerkSequences", () => {
     expect(getAntiPerkSequenceDefinition("no-rest").supportsBeatbar).toBe(false);
   });
 
-  it("extracts monotonic low-point beatbar beats for beatbar-capable sequences", () => {
-    const maxLowPosById = {
-      milker: 26,
-      jackhammer: 24,
-    } as const;
-
+  it("creates one beat for every descending move in beatbar-capable sequences", () => {
     for (const definition of Object.values(ANTI_PERK_SEQUENCE_DEFINITIONS)) {
       const durationMs = definition.durationSec * 1000;
       const actions = definition.createActions(durationMs, createSeededRng(9));
@@ -46,55 +41,53 @@ describe("antiPerkSequences", () => {
         beatbarBeats.every((beat, index) => index === 0 || beat.at >= beatbarBeats[index - 1]!.at)
       ).toBe(true);
       expect(beatbarBeats.every((beat) => beat.strength >= 0.35 && beat.strength <= 1)).toBe(true);
-      expect(
-        beatbarBeats.every(
-          (beat) => beat.lowPos <= maxLowPosById[definition.id as "milker" | "jackhammer"]
-        )
-      ).toBe(true);
-      expect(
-        beatbarBeats.every((beat) => {
-          const actionIndex = actions.findIndex(
-            (action) => action.at === beat.at && action.pos === beat.lowPos
-          );
-          const previous = actions[actionIndex - 1];
-          const next = actions[actionIndex + 1];
-          return (
-            actionIndex > 0 &&
-            actionIndex < actions.length - 1 &&
-            previous !== undefined &&
-            next !== undefined &&
-            beat.lowPos <= previous.pos &&
-            beat.lowPos < next.pos
-          );
-        })
-      ).toBe(true);
+      const descendingMoves = actions.slice(1).filter((action, index) => {
+        const previous = actions[index]!;
+        return action.pos < previous.pos;
+      });
+      expect(beatbarBeats).toHaveLength(descendingMoves.length);
+      expect(beatbarBeats.map(({ at, lowPos }) => ({ at, lowPos }))).toEqual(
+        descendingMoves.map(({ at, pos }) => ({ at, lowPos: pos }))
+      );
     }
   });
 
-  it("ignores micro-vibration moves when extracting low-point beatbar beats", () => {
-    const beats = extractLowPointBeatbarBeats(
-      [
-        { at: 0, pos: 50 },
-        { at: 90, pos: 92 },
-        { at: 126, pos: 86 },
-        { at: 160, pos: 91 },
-        { at: 196, pos: 84 },
-        { at: 320, pos: 18 },
-        { at: 440, pos: 88 },
-      ],
-      {
-        minDownwardTravel: 5,
-        minSpacingMs: 0,
-        maxLowPos: 90,
-      }
-    );
+  it("includes short, consecutive, and final descending moves", () => {
+    const beats = extractDescendingBeatbarBeats([
+      { at: 0, pos: 50 },
+      { at: 90, pos: 92 },
+      { at: 126, pos: 86 },
+      { at: 160, pos: 91 },
+      { at: 196, pos: 84 },
+      { at: 320, pos: 18 },
+      { at: 440, pos: 18 },
+      { at: 520, pos: 12 },
+    ]);
 
     expect(beats).toEqual([
+      {
+        at: 126,
+        lowPos: 86,
+        fromPos: 92,
+        strength: 0.35,
+      },
+      {
+        at: 196,
+        lowPos: 84,
+        fromPos: 91,
+        strength: 0.35,
+      },
       {
         at: 320,
         lowPos: 18,
         fromPos: 84,
         strength: 1,
+      },
+      {
+        at: 520,
+        lowPos: 12,
+        fromPos: 18,
+        strength: 0.35,
       },
     ]);
   });
