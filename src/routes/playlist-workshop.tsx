@@ -31,6 +31,22 @@ import { RoundVideoOverlay } from "../components/game/RoundVideoOverlay";
 import { PlaylistPicker } from "../features/playlist-picker/PlaylistPicker";
 import { DifficultySectionNumberInput } from "../features/playlist-workshop/DifficultySectionNumberInput";
 import {
+  countActiveWorkshopRoundFilters,
+  createDefaultWorkshopRoundFilters,
+  createInclusiveWorkshopRoundFilters,
+  extractWorkshopRoundMetadataOptions,
+  filterAndSortWorkshopRounds,
+  filterWorkshopRounds,
+  type WorkshopAddedDateFilter,
+  type WorkshopDifficultyFilter,
+  type WorkshopDurationFilter,
+  type WorkshopRoundFilters,
+  type WorkshopRoundMetadataOptions,
+  type WorkshopRoundSort,
+  type WorkshopRoundSource,
+  type WorkshopRoundType,
+} from "../features/playlist-workshop/roundFilters";
+import {
   CURRENT_PLAYLIST_VERSION,
   ZPlaylistConfig,
   type LinearBoardConfig,
@@ -117,9 +133,7 @@ const AVAILABLE_ROUND_ROW_ESTIMATE_PX = 58;
 const AVAILABLE_ROUNDS_INITIAL_RECT_HEIGHT_PX = 352;
 const LARGE_AVAILABLE_LIST_THRESHOLD = 50;
 type NewPlaylistMode = "fully-random" | "progressive-random" | "endless";
-type NormalRoundSort = "name-asc" | "name-desc" | "author" | "difficulty-asc";
 type RoundOrderConfirmAction = "difficulty" | "random" | "progressive" | "clear";
-type DurationFilter = "any" | "short" | "medium" | "long" | "unknown";
 type WorkshopInstalledRound = InstalledRound | InstalledRoundCatalogEntry;
 type RoundsPanePhase = "idle" | "loading-data" | "preparing-ui" | "ready";
 type ResolutionModalState =
@@ -460,14 +474,6 @@ export function buildDifficultySectionRoundOrder(input: {
   }
 
   return output;
-}
-
-function matchesDurationFilter(durationSec: number, filter: DurationFilter): boolean {
-  if (filter === "any") return true;
-  if (filter === "unknown") return durationSec <= 0;
-  if (filter === "short") return durationSec > 0 && durationSec < 180;
-  if (filter === "medium") return durationSec >= 180 && durationSec <= 600;
-  return durationSec > 600;
 }
 
 function useVisibilityGate<T extends Element>({
@@ -916,11 +922,12 @@ function PlaylistWorkshopPage() {
   const [roundOrderConfirmAction, setRoundOrderConfirmAction] =
     useState<RoundOrderConfirmAction | null>(null);
   const [normalRoundSearch, setNormalRoundSearch] = useState("");
-  const [normalRoundSort, setNormalRoundSort] = useState<NormalRoundSort>("name-asc");
-  const [normalRoundDurationFilter, setNormalRoundDurationFilter] = useState<DurationFilter>("any");
-  const [heroFilterSearch, setHeroFilterSearch] = useState("");
-  const [selectedHeroFilterIds, setSelectedHeroFilterIds] = useState<string[]>([]);
-  const [selectedHeroTagFilters, setSelectedHeroTagFilters] = useState<string[]>([]);
+  const [normalRoundSort, setNormalRoundSort] = useState<WorkshopRoundSort>("name-asc");
+  const [normalRoundFilters, setNormalRoundFilters] = useState<WorkshopRoundFilters>(
+    createDefaultWorkshopRoundFilters
+  );
+  const [roundFilterTrayOpen, setRoundFilterTrayOpen] = useState(false);
+  const [roundMetadataSearch, setRoundMetadataSearch] = useState("");
   const [difficultySectionsUseCurrentFilters, setDifficultySectionsUseCurrentFilters] =
     useState(false);
   const [activePreviewRound, setActivePreviewRound] = useState<InstalledRound | null>(null);
@@ -1095,16 +1102,17 @@ function PlaylistWorkshopPage() {
     };
   }, [exportStatus?.state, savePending, showExportOverlay]);
 
-  const normalRounds = useMemo(
+  const queueCandidateRounds = installedRounds;
+  const defaultNormalRounds = useMemo(
     () =>
       installedRounds.filter(
-        (round: WorkshopInstalledRound) => (round.type ?? "Normal") !== "Interjection"
+        (round: WorkshopInstalledRound) => (round.type ?? "Normal") === "Normal"
       ),
     [installedRounds]
   );
   const normalRoundById = useMemo(
-    () => new Map(normalRounds.map((round) => [round.id, round])),
-    [normalRounds]
+    () => new Map(queueCandidateRounds.map((round) => [round.id, round])),
+    [queueCandidateRounds]
   );
   const cumRounds = useMemo(
     () => installedRounds.filter((round: WorkshopInstalledRound) => round.type === "Cum"),
@@ -1153,124 +1161,43 @@ function PlaylistWorkshopPage() {
     [normalRoundById, setup.normalRoundOrder]
   );
   const availableNormalRounds = useMemo(
-    () => normalRounds.filter((round) => !selectedNormalSet.has(round.id)),
-    [normalRounds, selectedNormalSet]
+    () => queueCandidateRounds.filter((round) => !selectedNormalSet.has(round.id)),
+    [queueCandidateRounds, selectedNormalSet]
   );
-  const heroFilterOptions = useMemo(() => {
-    const groups = groupRoundsByHero(normalRounds);
-    return groups.map((group) => ({
-      ...group,
-      tags: [...new Set(group.rounds.flatMap((round) => round.hero?.tags ?? []))].sort((a, b) =>
-        a.localeCompare(b, undefined, { sensitivity: "base" })
-      ),
-    }));
-  }, [normalRounds]);
-  const availableHeroTagOptions = useMemo(
-    () =>
-      [...new Set(heroFilterOptions.flatMap((group) => group.tags))].sort((a, b) =>
-        a.localeCompare(b, undefined, { sensitivity: "base" })
-      ),
-    [heroFilterOptions]
+  const roundMetadataOptions = useMemo(
+    () => extractWorkshopRoundMetadataOptions(queueCandidateRounds),
+    [queueCandidateRounds]
   );
-  const selectedHeroFilterIdSet = useMemo(
-    () => new Set(selectedHeroFilterIds),
-    [selectedHeroFilterIds]
-  );
-  const selectedHeroTagFilterSet = useMemo(
-    () => new Set(selectedHeroTagFilters.map((tag) => tag.toLocaleLowerCase())),
-    [selectedHeroTagFilters]
-  );
-  const matchesHeroFilters = useCallback(
-    (round: WorkshopInstalledRound) => {
-      if (selectedHeroFilterIdSet.size === 0 && selectedHeroTagFilterSet.size === 0) return true;
-      if (round.heroId && selectedHeroFilterIdSet.has(round.heroId)) return true;
-      return (round.hero?.tags ?? []).some((tag) =>
-        selectedHeroTagFilterSet.has(tag.toLocaleLowerCase())
-      );
-    },
-    [selectedHeroFilterIdSet, selectedHeroTagFilterSet]
+  const activeRoundFilterCount = useMemo(
+    () => countActiveWorkshopRoundFilters(normalRoundFilters),
+    [normalRoundFilters]
   );
   const visibleAvailableNormalRounds = useMemo(() => {
-    const query = normalRoundSearch.trim().toLowerCase();
-    const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
-
-    const filtered =
-      query.length === 0
-        ? availableNormalRounds
-        : availableNormalRounds.filter((round) =>
-            `${round.name} ${round.author ?? ""} ${round.hero?.name ?? ""} ${(round.hero?.tags ?? []).join(" ")}`
-              .toLowerCase()
-              .includes(query)
-          );
-    const durationFiltered = filtered.filter(
-      (round) =>
-        matchesHeroFilters(round) &&
-        matchesDurationFilter(getRoundDurationSec(round), normalRoundDurationFilter)
-    );
-
-    const compareByName = (a: WorkshopInstalledRound, b: WorkshopInstalledRound) =>
-      collator.compare(a.name, b.name);
-    const compareByAuthor = (a: WorkshopInstalledRound, b: WorkshopInstalledRound) =>
-      collator.compare(a.author ?? getUnknownAuthorLabel(), b.author ?? getUnknownAuthorLabel()) ||
-      compareByName(a, b);
-    const compareByDifficulty = (a: WorkshopInstalledRound, b: WorkshopInstalledRound) =>
-      (a.difficulty ?? 0) - (b.difficulty ?? 0) || compareByName(a, b);
-
-    return [...durationFiltered].sort((a, b) => {
-      if (normalRoundSort === "difficulty-asc") return compareByDifficulty(a, b);
-      if (normalRoundSort === "name-desc") return compareByName(b, a);
-      if (normalRoundSort === "author") return compareByAuthor(a, b);
-      return compareByName(a, b);
+    return filterAndSortWorkshopRounds({
+      rounds: availableNormalRounds,
+      query: normalRoundSearch,
+      filters: normalRoundFilters,
+      sort: normalRoundSort,
     });
-  }, [
-    availableNormalRounds,
-    matchesHeroFilters,
-    normalRoundDurationFilter,
-    normalRoundSearch,
-    normalRoundSort,
-  ]);
+  }, [availableNormalRounds, normalRoundFilters, normalRoundSearch, normalRoundSort]);
 
   const heroGroups = useMemo(() => {
-    const query = normalRoundSearch.trim().toLowerCase();
-    const filtered = availableNormalRounds.filter(
-      (round) =>
-        matchesHeroFilters(round) &&
-        (query.length === 0 ||
-          `${round.name} ${round.author ?? ""} ${round.hero?.name ?? ""} ${(round.hero?.tags ?? []).join(" ")}`
-            .toLowerCase()
-            .includes(query))
-    );
-    return groupRoundsByHero(filtered);
-  }, [availableNormalRounds, matchesHeroFilters, normalRoundSearch]);
-
-  const allHeroRoundIdsAdded = useCallback(
-    (heroGroup: (typeof heroGroups)[number]) => {
-      return heroGroup.rounds.every((round) => selectedNormalSet.has(round.id));
-    },
-    [selectedNormalSet]
-  );
+    return groupRoundsByHero(visibleAvailableNormalRounds);
+  }, [visibleAvailableNormalRounds]);
 
   const difficultySectionSourceRounds = useMemo(() => {
-    if (!difficultySectionsUseCurrentFilters) return normalRounds;
-    const query = normalRoundSearch.trim().toLowerCase();
-    return normalRounds.filter((round) => {
-      const matchesQuery =
-        query.length === 0 ||
-        `${round.name} ${round.author ?? ""} ${round.hero?.name ?? ""} ${(round.hero?.tags ?? []).join(" ")}`
-          .toLowerCase()
-          .includes(query);
-      return (
-        matchesQuery &&
-        matchesHeroFilters(round) &&
-        matchesDurationFilter(getRoundDurationSec(round), normalRoundDurationFilter)
-      );
+    if (!difficultySectionsUseCurrentFilters) return defaultNormalRounds;
+    return filterWorkshopRounds({
+      rounds: queueCandidateRounds,
+      query: normalRoundSearch,
+      filters: normalRoundFilters,
     });
   }, [
     difficultySectionsUseCurrentFilters,
-    matchesHeroFilters,
-    normalRoundDurationFilter,
+    defaultNormalRounds,
+    normalRoundFilters,
     normalRoundSearch,
-    normalRounds,
+    queueCandidateRounds,
   ]);
 
   const shouldVirtualizeAvailableRounds =
@@ -1306,8 +1233,14 @@ function PlaylistWorkshopPage() {
   });
 
   useEffect(() => {
-    availableRoundsScrollRef.current?.scrollTo({ top: 0 });
-  }, [normalRoundDurationFilter, normalRoundSearch, normalRoundSort]);
+    const scrollElement = availableRoundsScrollRef.current;
+    if (!scrollElement) return;
+    if (typeof scrollElement.scrollTo === "function") {
+      scrollElement.scrollTo({ top: 0 });
+    } else {
+      scrollElement.scrollTop = 0;
+    }
+  }, [normalRoundFilters, normalRoundSearch, normalRoundSort]);
 
   const isRoundsCatalogSection = activeSectionId === "rounds" || activeSectionId === "cum-rounds";
   const shouldShowRoundsSkeleton = isRoundsCatalogSection && roundsPanePhase !== "ready";
@@ -1405,7 +1338,7 @@ function PlaylistWorkshopPage() {
 
     const base = createDefaultPlaylistConfig(installedRounds);
     const normalRounds = installedRounds.filter(
-      (round: WorkshopInstalledRound) => (round.type ?? "Normal") !== "Interjection"
+      (round: WorkshopInstalledRound) => (round.type ?? "Normal") === "Normal"
     );
     const ordered =
       mode === "fully-random"
@@ -1498,11 +1431,7 @@ function PlaylistWorkshopPage() {
           context="workshop"
           playlists={playlistList}
           activePlaylistId={loaderActivePlaylist?.id ?? ""}
-          notice={
-            importNotice
-              ? { message: importNotice.message, tone: importNotice.tone }
-              : null
-          }
+          notice={importNotice ? { message: importNotice.message, tone: importNotice.tone } : null}
           onRequestCreate={() => {
             playSelectSound();
             setNewPlaylistDialogOpen(true);
@@ -1521,9 +1450,7 @@ function PlaylistWorkshopPage() {
                 } catch (error) {
                   console.error("Failed to open graph playlist in map editor", error);
                   showImportNotice(
-                    error instanceof Error
-                      ? error.message
-                      : t`Failed to open advanced map editor.`,
+                    error instanceof Error ? error.message : t`Failed to open advanced map editor.`,
                     "error"
                   );
                 }
@@ -2183,14 +2110,14 @@ function PlaylistWorkshopPage() {
   const applyNormalRoundOrdering = (mode: NewPlaylistMode) => {
     setSetup((prev) => {
       const selectedRoundIds = prev.normalRoundOrder.filter((roundId) =>
-        normalRounds.some((round) => round.id === roundId)
+        queueCandidateRounds.some((round) => round.id === roundId)
       );
       const sourceRounds =
         selectedRoundIds.length > 0
           ? selectedRoundIds
-              .map((roundId) => normalRounds.find((round) => round.id === roundId))
+              .map((roundId) => queueCandidateRounds.find((round) => round.id === roundId))
               .filter((round): round is WorkshopInstalledRound => Boolean(round))
-          : normalRounds;
+          : defaultNormalRounds;
 
       if (sourceRounds.length === 0) return prev;
 
@@ -2444,7 +2371,10 @@ function PlaylistWorkshopPage() {
                         </button>
                         <ManageActionButton label={t`New`} onClick={handleCreatePlaylist} />
                         <ManageActionButton label={t`Import`} onClick={handleImportPlaylist} />
-                        <ManageActionButton label={t`Duplicate`} onClick={handleDuplicatePlaylist} />
+                        <ManageActionButton
+                          label={t`Duplicate`}
+                          onClick={handleDuplicatePlaylist}
+                        />
                         <ManageActionButton label={t`Rename`} onClick={handleRenamePlaylist} />
                         <ManageActionButton
                           label={t`Delete`}
@@ -2602,10 +2532,7 @@ function PlaylistWorkshopPage() {
                         disabled={!isLinearEditable}
                       />
                     </div>
-                    <ManageActionButton
-                      label={t`Export .fplay`}
-                      onClick={handleExportFplay}
-                    />
+                    <ManageActionButton label={t`Export .fplay`} onClick={handleExportFplay} />
                   </div>
 
                   {importNotice && (
@@ -2895,7 +2822,7 @@ function PlaylistWorkshopPage() {
                           </button>
                           <button
                             type="button"
-                            disabled={!isLinearEditable || normalRounds.length === 0}
+                            disabled={!isLinearEditable || defaultNormalRounds.length === 0}
                             onMouseEnter={playHoverSound}
                             onClick={() => requestRoundOrderAction("random")}
                             className="rounded-lg border border-emerald-300/40 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-emerald-100 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
@@ -2904,7 +2831,7 @@ function PlaylistWorkshopPage() {
                           </button>
                           <button
                             type="button"
-                            disabled={!isLinearEditable || normalRounds.length === 0}
+                            disabled={!isLinearEditable || defaultNormalRounds.length === 0}
                             onMouseEnter={playHoverSound}
                             onClick={() => requestRoundOrderAction("progressive")}
                             className="rounded-lg border border-violet-300/40 bg-violet-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-violet-100 hover:bg-violet-500/30 disabled:cursor-not-allowed disabled:opacity-50"
@@ -3098,13 +3025,13 @@ function PlaylistWorkshopPage() {
                               {selectedNormalRounds.length === 0 && (
                                 <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-emerald-300/20 px-4 py-10 text-sm">
                                   <div className="text-emerald-50/50 font-medium">
-                                    {normalRounds.length === 0 ? (
-                                      <Trans>No normal rounds installed.</Trans>
+                                    {queueCandidateRounds.length === 0 ? (
+                                      <Trans>No rounds installed.</Trans>
                                     ) : (
                                       <Trans>Your queue is empty.</Trans>
                                     )}
                                   </div>
-                                  {normalRounds.length > 0 && (
+                                  {queueCandidateRounds.length > 0 && (
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -3193,19 +3120,12 @@ function PlaylistWorkshopPage() {
                             {heroSectionExpanded && (
                               <div className="max-h-52 overflow-y-auto px-2 pb-2 space-y-1">
                                 {heroGroups.map((group) => {
-                                  const allAdded = allHeroRoundIdsAdded(group);
-                                  const availableCount = group.rounds.filter(
-                                    (r) => !selectedNormalSet.has(r.id)
-                                  ).length;
+                                  const availableCount = group.rounds.length;
 
                                   return (
                                     <div
                                       key={group.heroId}
-                                      className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 transition-colors ${
-                                        allAdded
-                                          ? "border-emerald-300/30 bg-emerald-500/8"
-                                          : "border-white/5 bg-black/15 hover:border-amber-300/25 hover:bg-amber-500/10"
-                                      }`}
+                                      className="flex items-center gap-2 rounded-lg border border-white/5 bg-black/15 px-2.5 py-2 transition-colors hover:border-amber-300/25 hover:bg-amber-500/10"
                                     >
                                       <div className="min-w-0 flex-1">
                                         <div className="truncate text-xs font-semibold text-zinc-100">
@@ -3218,24 +3138,18 @@ function PlaylistWorkshopPage() {
                                           </span>
                                         </div>
                                       </div>
-                                      {allAdded ? (
-                                        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.1em] text-emerald-300/70">
-                                          <Trans>All added</Trans>
-                                        </span>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          disabled={!isLinearEditable}
-                                          onMouseEnter={playHoverSound}
-                                          onClick={() => {
-                                            playSelectSound();
-                                            addHeroRounds(group.rounds.map((r) => r.id));
-                                          }}
-                                          className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200 transition-colors hover:border-amber-300/70 hover:bg-amber-500/35 disabled:cursor-not-allowed disabled:opacity-40"
-                                        >
-                                          <Trans>+ Add {availableCount}</Trans>
-                                        </button>
-                                      )}
+                                      <button
+                                        type="button"
+                                        disabled={!isLinearEditable}
+                                        onMouseEnter={playHoverSound}
+                                        onClick={() => {
+                                          playSelectSound();
+                                          addHeroRounds(group.rounds.map((r) => r.id));
+                                        }}
+                                        className="shrink-0 rounded-lg border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200 transition-colors hover:border-amber-300/70 hover:bg-amber-500/35 disabled:cursor-not-allowed disabled:opacity-40"
+                                      >
+                                        <Trans>+ Add {availableCount}</Trans>
+                                      </button>
                                     </div>
                                   );
                                 })}
@@ -3245,166 +3159,21 @@ function PlaylistWorkshopPage() {
                         )}
 
                         {/* Filters */}
-                        <div className="mt-3 shrink-0 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
-                          <div>
-                            <label htmlFor="playlist-workshop-round-search" className="sr-only">
-                              <Trans>Search rounds</Trans>
-                            </label>
-                            <input
-                              id="playlist-workshop-round-search"
-                              type="text"
-                              value={normalRoundSearch}
-                              onChange={(event) => setNormalRoundSearch(event.target.value)}
-                              onMouseEnter={playHoverSound}
-                              className="w-full rounded-xl border border-purple-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-purple-300/75 focus:ring-2 focus:ring-purple-400/30"
-                              placeholder={t`Search by round or author…`}
-                            />
-                          </div>
-                          <GameDropdown
-                            value={normalRoundSort}
-                            options={[
-                              { value: "name-asc", label: t`A-Z` },
-                              { value: "name-desc", label: t`Z-A` },
-                              { value: "author", label: t`Author` },
-                              { value: "difficulty-asc", label: t`Easiest` },
-                            ]}
-                            onChange={(value) => setNormalRoundSort(value as NormalRoundSort)}
-                            onHoverSfx={playHoverSound}
-                          />
-                          <GameDropdown
-                            value={normalRoundDurationFilter}
-                            options={[
-                              { value: "any", label: t`Any` },
-                              { value: "short", label: t`< 3 min` },
-                              { value: "medium", label: t`3-10 min` },
-                              { value: "long", label: t`> 10 min` },
-                              { value: "unknown", label: t`Unknown` },
-                            ]}
-                            onChange={(value) =>
-                              setNormalRoundDurationFilter(value as DurationFilter)
-                            }
-                            onHoverSfx={playHoverSound}
-                          />
-                        </div>
-                        <details className="mt-2 shrink-0 rounded-xl border border-amber-300/20 bg-amber-500/5">
-                          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-amber-100">
-                            <Trans>Filter by heroes or hero tags</Trans>
-                            {(selectedHeroFilterIds.length > 0 ||
-                              selectedHeroTagFilters.length > 0) && (
-                              <span className="ml-2 rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px]">
-                                {selectedHeroFilterIds.length + selectedHeroTagFilters.length}
-                              </span>
-                            )}
-                          </summary>
-                          <div className="border-t border-amber-300/15 p-3">
-                            <div className="flex gap-2">
-                              <input
-                                type="search"
-                                value={heroFilterSearch}
-                                onChange={(event) => setHeroFilterSearch(event.target.value)}
-                                placeholder={t`Search heroes or tags…`}
-                                className="min-w-0 flex-1 rounded-lg border border-amber-300/25 bg-black/45 px-3 py-1.5 text-xs text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-amber-300/70"
-                              />
-                              <button
-                                type="button"
-                                disabled={
-                                  selectedHeroFilterIds.length === 0 &&
-                                  selectedHeroTagFilters.length === 0
-                                }
-                                onClick={() => {
-                                  setSelectedHeroFilterIds([]);
-                                  setSelectedHeroTagFilters([]);
-                                }}
-                                className="rounded-lg border border-zinc-600/50 px-2.5 py-1.5 text-[11px] text-zinc-300 disabled:opacity-40"
-                              >
-                                <Trans>Clear</Trans>
-                              </button>
-                            </div>
-                            <div className="mt-2 max-h-44 overflow-y-auto">
-                              <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-amber-100/55">
-                                <Trans>Heroes</Trans>
-                              </p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {heroFilterOptions
-                                  .filter((group) => {
-                                    const query = heroFilterSearch.trim().toLocaleLowerCase();
-                                    return (
-                                      query.length === 0 ||
-                                      `${group.heroName} ${group.tags.join(" ")}`
-                                        .toLocaleLowerCase()
-                                        .includes(query)
-                                    );
-                                  })
-                                  .map((group) => {
-                                    const selected = selectedHeroFilterIdSet.has(group.heroId);
-                                    return (
-                                      <button
-                                        key={group.heroId}
-                                        type="button"
-                                        aria-pressed={selected}
-                                        onClick={() =>
-                                          setSelectedHeroFilterIds((previous) =>
-                                            selected
-                                              ? previous.filter((id) => id !== group.heroId)
-                                              : [...previous, group.heroId]
-                                          )
-                                        }
-                                        className={`rounded-full border px-2 py-1 text-[11px] ${
-                                          selected
-                                            ? "border-amber-300/70 bg-amber-400/25 text-amber-50"
-                                            : "border-zinc-700 bg-black/30 text-zinc-300"
-                                        }`}
-                                      >
-                                        {group.heroName}
-                                      </button>
-                                    );
-                                  })}
-                              </div>
-                              <p className="mb-1 mt-3 text-[10px] uppercase tracking-[0.14em] text-amber-100/55">
-                                <Trans>Hero tags</Trans>
-                              </p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {availableHeroTagOptions
-                                  .filter((tag) =>
-                                    tag
-                                      .toLocaleLowerCase()
-                                      .includes(heroFilterSearch.trim().toLocaleLowerCase())
-                                  )
-                                  .map((tag) => {
-                                    const selected = selectedHeroTagFilterSet.has(
-                                      tag.toLocaleLowerCase()
-                                    );
-                                    return (
-                                      <button
-                                        key={tag}
-                                        type="button"
-                                        aria-pressed={selected}
-                                        onClick={() =>
-                                          setSelectedHeroTagFilters((previous) =>
-                                            selected
-                                              ? previous.filter(
-                                                  (value) =>
-                                                    value.toLocaleLowerCase() !==
-                                                    tag.toLocaleLowerCase()
-                                                )
-                                              : [...previous, tag]
-                                          )
-                                        }
-                                        className={`rounded-full border px-2 py-1 text-[11px] ${
-                                          selected
-                                            ? "border-fuchsia-300/70 bg-fuchsia-400/20 text-fuchsia-50"
-                                            : "border-zinc-700 bg-black/30 text-zinc-300"
-                                        }`}
-                                      >
-                                        #{tag}
-                                      </button>
-                                    );
-                                  })}
-                              </div>
-                            </div>
-                          </div>
-                        </details>
-
+                        <WorkshopRoundFilterPanel
+                          search={normalRoundSearch}
+                          onSearchChange={setNormalRoundSearch}
+                          sort={normalRoundSort}
+                          onSortChange={setNormalRoundSort}
+                          filters={normalRoundFilters}
+                          onFiltersChange={setNormalRoundFilters}
+                          metadataOptions={roundMetadataOptions}
+                          metadataSearch={roundMetadataSearch}
+                          onMetadataSearchChange={setRoundMetadataSearch}
+                          open={roundFilterTrayOpen}
+                          onOpenChange={setRoundFilterTrayOpen}
+                          activeFilterCount={activeRoundFilterCount}
+                          sfwMode={sfwMode}
+                        />
                         {/* Scrollable round list */}
                         <div
                           ref={setAvailableRoundsScrollNode}
@@ -3451,6 +3220,10 @@ function PlaylistWorkshopPage() {
                                             {round.author ?? getUnknownAuthorLabel()}
                                           </div>
                                           <div className="mt-0.5 flex flex-wrap gap-1 text-[10px]">
+                                            <WorkshopRoundTypeBadge
+                                              type={round.type ?? "Normal"}
+                                              sfwMode={sfwMode}
+                                            />
                                             <span className="rounded border border-zinc-700/60 bg-zinc-900/70 px-1.5 py-px text-zinc-300">
                                               {formatDurationLabel(durationSec)}
                                             </span>
@@ -3509,6 +3282,10 @@ function PlaylistWorkshopPage() {
                                         {round.author ?? getUnknownAuthorLabel()}
                                       </div>
                                       <div className="mt-0.5 flex flex-wrap gap-1 text-[10px]">
+                                        <WorkshopRoundTypeBadge
+                                          type={round.type ?? "Normal"}
+                                          sfwMode={sfwMode}
+                                        />
                                         <span className="rounded border border-zinc-700/60 bg-zinc-900/70 px-1.5 py-px text-zinc-300">
                                           {formatDurationLabel(durationSec)}
                                         </span>
@@ -3554,27 +3331,28 @@ function PlaylistWorkshopPage() {
                           {visibleAvailableNormalRounds.length === 0 && (
                             <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-violet-300/20 px-4 py-10 text-sm">
                               <div className="text-violet-50/50 font-medium">
-                                {normalRounds.length === 0 ? (
-                                  <Trans>No normal rounds installed.</Trans>
+                                {queueCandidateRounds.length === 0 ? (
+                                  <Trans>No rounds installed.</Trans>
                                 ) : availableNormalRounds.length === 0 ? (
                                   <Trans>All rounds are in the queue.</Trans>
                                 ) : (
                                   <Trans>No rounds match your search.</Trans>
                                 )}
                               </div>
-                              {normalRounds.length > 0 && availableNormalRounds.length === 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    playSelectSound();
-                                    setRoundsSubTab("queue");
-                                  }}
-                                  onMouseEnter={playHoverSound}
-                                  className="rounded-xl border border-violet-400/30 bg-violet-500/20 px-5 py-2.5 font-bold text-violet-100 transition-colors hover:bg-violet-500/30 hover:border-violet-300/50"
-                                >
-                                  <Trans>View Queue →</Trans>
-                                </button>
-                              )}
+                              {queueCandidateRounds.length > 0 &&
+                                availableNormalRounds.length === 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      playSelectSound();
+                                      setRoundsSubTab("queue");
+                                    }}
+                                    onMouseEnter={playHoverSound}
+                                    className="rounded-xl border border-violet-400/30 bg-violet-500/20 px-5 py-2.5 font-bold text-violet-100 transition-colors hover:bg-violet-500/30 hover:border-violet-300/50"
+                                  >
+                                    <Trans>View Queue →</Trans>
+                                  </button>
+                                )}
                             </div>
                           )}
                         </div>
@@ -4527,6 +4305,583 @@ function PlaylistWorkshopPage() {
             {importNotice.message}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function toggleFilterValue<T extends string | number>(values: T[], value: T): T[] {
+  return values.includes(value) ? values.filter((entry) => entry !== value) : [...values, value];
+}
+
+function WorkshopRoundTypeBadge({ type, sfwMode }: { type: WorkshopRoundType; sfwMode: boolean }) {
+  const { t } = useLingui();
+  const styles =
+    type === "Cum"
+      ? "border-rose-400/40 bg-rose-500/15 text-rose-200"
+      : type === "Interjection"
+        ? "border-amber-400/40 bg-amber-500/15 text-amber-200"
+        : "border-cyan-400/35 bg-cyan-500/10 text-cyan-200";
+  const label =
+    type === "Cum"
+      ? abbreviateNsfwText(t`Cum`, sfwMode)
+      : type === "Interjection"
+        ? t`Interjection`
+        : t`Normal`;
+  return <span className={`rounded border px-1.5 py-px ${styles}`}>{label}</span>;
+}
+
+function WorkshopRoundFilterPanel({
+  search,
+  onSearchChange,
+  sort,
+  onSortChange,
+  filters,
+  onFiltersChange,
+  metadataOptions,
+  metadataSearch,
+  onMetadataSearchChange,
+  open,
+  onOpenChange,
+  activeFilterCount,
+  sfwMode,
+}: {
+  search: string;
+  onSearchChange: (value: string) => void;
+  sort: WorkshopRoundSort;
+  onSortChange: (value: WorkshopRoundSort) => void;
+  filters: WorkshopRoundFilters;
+  onFiltersChange: (value: WorkshopRoundFilters) => void;
+  metadataOptions: WorkshopRoundMetadataOptions;
+  metadataSearch: string;
+  onMetadataSearchChange: (value: string) => void;
+  open: boolean;
+  onOpenChange: (value: boolean) => void;
+  activeFilterCount: number;
+  sfwMode: boolean;
+}) {
+  const { t } = useLingui();
+  const update = (patch: Partial<WorkshopRoundFilters>) =>
+    onFiltersChange({ ...filters, ...patch });
+  const normalizedMetadataSearch = metadataSearch.trim().toLocaleLowerCase();
+  const matchesMetadataSearch = (value: string) =>
+    !normalizedMetadataSearch || value.toLocaleLowerCase().includes(normalizedMetadataSearch);
+  const allDifficulties: WorkshopDifficultyFilter[] = [1, 2, 3, 4, 5, "unknown"];
+  const allSources: WorkshopRoundSource[] = ["local", "web", "stash"];
+  const allTypes: WorkshopRoundType[] = ["Normal", "Interjection", "Cum"];
+  const typeLabel = (type: WorkshopRoundType) =>
+    type === "Cum"
+      ? abbreviateNsfwText(t`Cum`, sfwMode)
+      : type === "Interjection"
+        ? t`Interjection`
+        : t`Normal`;
+
+  const chips: Array<{ key: string; label: string; remove: () => void }> = [];
+  for (const type of allTypes) {
+    if (!filters.includedTypes.includes(type)) {
+      chips.push({
+        key: `type:${type}`,
+        label: t`${typeLabel(type)} hidden`,
+        remove: () => update({ includedTypes: [...filters.includedTypes, type] }),
+      });
+    }
+  }
+  if (filters.difficulties.length !== allDifficulties.length) {
+    const label =
+      filters.difficulties.length === 0
+        ? t`No difficulties`
+        : filters.difficulties
+            .map((value) => (value === "unknown" ? t`Unknown` : `D${value}`))
+            .join(", ");
+    chips.push({
+      key: "difficulty",
+      label: t`Difficulty: ${label}`,
+      remove: () => update({ difficulties: allDifficulties }),
+    });
+  }
+  if (filters.duration !== "any") {
+    const labels: Record<Exclude<WorkshopDurationFilter, "any">, string> = {
+      short: t`Under 3 min`,
+      medium: t`3–10 min`,
+      long: t`Over 10 min`,
+      unknown: t`Unknown duration`,
+    };
+    chips.push({
+      key: "duration",
+      label: labels[filters.duration],
+      remove: () => update({ duration: "any" }),
+    });
+  }
+  if (filters.bpmMin.trim() || filters.bpmMax.trim()) {
+    chips.push({
+      key: "bpm",
+      label: t`BPM ${filters.bpmMin || "…"}–${filters.bpmMax || "…"}`,
+      remove: () => update({ bpmMin: "", bpmMax: "", includeUnknownBpm: true }),
+    });
+  }
+  if (filters.sources.length !== allSources.length) {
+    chips.push({
+      key: "sources",
+      label: filters.sources.length ? t`Sources: ${filters.sources.join(", ")}` : t`No sources`,
+      remove: () => update({ sources: allSources }),
+    });
+  }
+  if (filters.script !== "any") {
+    chips.push({
+      key: "script",
+      label: filters.script === "installed" ? t`Script installed` : t`Script missing`,
+      remove: () => update({ script: "any" }),
+    });
+  }
+  if (filters.randomEligibility !== "any") {
+    chips.push({
+      key: "eligibility",
+      label:
+        filters.randomEligibility === "eligible" ? t`Random eligible` : t`Excluded from random`,
+      remove: () => update({ randomEligibility: "any" }),
+    });
+  }
+  if (filters.addedDate.mode !== "any") {
+    chips.push({
+      key: "date",
+      label:
+        filters.addedDate.mode === "since"
+          ? t`Added since ${filters.addedDate.fromDate || "…"}`
+          : filters.addedDate.mode === "before"
+            ? t`Added before ${filters.addedDate.toDate || "…"}`
+            : t`Added ${filters.addedDate.fromDate || "…"}–${filters.addedDate.toDate || "…"}`,
+      remove: () => update({ addedDate: { mode: "any" } }),
+    });
+  }
+  const metadataChipGroups: Array<{
+    key: "heroIds" | "tags" | "authors" | "libraryLabels";
+    prefix: string;
+    values: string[];
+    labelFor: (value: string) => string;
+  }> = [
+    {
+      key: "heroIds",
+      prefix: "hero",
+      values: filters.heroIds,
+      labelFor: (id) => metadataOptions.heroes.find((hero) => hero.id === id)?.name ?? id,
+    },
+    { key: "tags", prefix: "tag", values: filters.tags, labelFor: (tag) => `#${tag}` },
+    { key: "authors", prefix: "author", values: filters.authors, labelFor: (author) => author },
+    {
+      key: "libraryLabels",
+      prefix: "library",
+      values: filters.libraryLabels,
+      labelFor: (label) => label,
+    },
+  ];
+  for (const group of metadataChipGroups) {
+    for (const value of group.values) {
+      chips.push({
+        key: `${group.prefix}:${value}`,
+        label: group.labelFor(value),
+        remove: () =>
+          update({ [group.key]: filters[group.key].filter((entry) => entry !== value) }),
+      });
+    }
+  }
+
+  const checkboxPill = (selected: boolean, label: string, onClick: () => void, key = label) => (
+    <button
+      key={key}
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+        selected
+          ? "border-violet-300/65 bg-violet-500/20 text-violet-100"
+          : "border-zinc-700 bg-black/30 text-zinc-400 hover:border-zinc-500"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  const metadataPills = (
+    values: string[],
+    selectedValues: string[],
+    onChange: (values: string[]) => void,
+    labelFor: (value: string) => string = (value) => value
+  ) => (
+    <div className="flex flex-wrap gap-1.5">
+      {values
+        .filter((value) => matchesMetadataSearch(labelFor(value)))
+        .map((value) =>
+          checkboxPill(
+            selectedValues.includes(value),
+            labelFor(value),
+            () => onChange(toggleFilterValue(selectedValues, value)),
+            value
+          )
+        )}
+    </div>
+  );
+
+  return (
+    <div className="mt-3 shrink-0">
+      <div className="grid gap-2 sm:grid-cols-[minmax(12rem,1fr)_auto_auto]">
+        <div className="relative">
+          <label htmlFor="playlist-workshop-round-search" className="sr-only">
+            <Trans>Search rounds</Trans>
+          </label>
+          <input
+            id="playlist-workshop-round-search"
+            type="search"
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            onMouseEnter={playHoverSound}
+            className="w-full rounded-xl border border-purple-300/30 bg-black/45 px-3 py-2 pr-8 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-purple-300/75 focus:ring-2 focus:ring-purple-400/30"
+            placeholder={t`Search rounds, heroes, authors…`}
+          />
+          {search && (
+            <button
+              type="button"
+              aria-label={t`Clear search`}
+              onClick={() => onSearchChange("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <GameDropdown
+          value={sort}
+          options={[
+            { value: "name-asc", label: t`A-Z` },
+            { value: "name-desc", label: t`Z-A` },
+            { value: "author", label: t`Author` },
+            { value: "difficulty-asc", label: t`Easiest` },
+            { value: "difficulty-desc", label: t`Hardest` },
+            { value: "duration-asc", label: t`Shortest` },
+            { value: "duration-desc", label: t`Longest` },
+            { value: "bpm-asc", label: t`Lowest BPM` },
+            { value: "bpm-desc", label: t`Highest BPM` },
+            { value: "newest", label: t`Newest` },
+            { value: "oldest", label: t`Oldest` },
+          ]}
+          onChange={onSortChange}
+          onHoverSfx={playHoverSound}
+          onSelectSfx={playSelectSound}
+        />
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls="playlist-workshop-round-filter-tray"
+          onMouseEnter={playHoverSound}
+          onClick={() => {
+            playSelectSound();
+            onOpenChange(!open);
+          }}
+          className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+            open || activeFilterCount > 0
+              ? "border-violet-300/55 bg-violet-500/20 text-violet-100"
+              : "border-zinc-700 bg-black/35 text-zinc-300"
+          }`}
+        >
+          <Trans>Filters</Trans>
+          {activeFilterCount > 0 && (
+            <span className="rounded-full bg-violet-300/20 px-1.5 py-0.5 text-[10px]">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {chips.length > 0 && (
+        <div
+          aria-label={t`Active round filters`}
+          className="mt-2 flex max-h-14 flex-wrap gap-1.5 overflow-y-auto"
+        >
+          {chips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={chip.remove}
+              aria-label={t`Remove filter ${chip.label}`}
+              className="rounded-full border border-violet-300/35 bg-violet-500/10 px-2.5 py-1 text-[10px] text-violet-100 hover:border-violet-200/65 hover:bg-violet-500/20"
+            >
+              {chip.label} <span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <section
+          id="playlist-workshop-round-filter-tray"
+          aria-label={t`Round filters`}
+          className="mt-2 max-h-[40vh] overflow-y-auto rounded-xl border border-violet-300/20 bg-[#0c0d16]/95 p-3 shadow-xl"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-violet-100">
+              <Trans>Filter library</Trans>
+            </h4>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  onSearchChange("");
+                  onMetadataSearchChange("");
+                  onFiltersChange(createInclusiveWorkshopRoundFilters());
+                }}
+                className="rounded-lg border border-zinc-600 px-2.5 py-1 text-[11px] text-zinc-300 hover:border-zinc-400"
+              >
+                <Trans>Clear all</Trans>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onSearchChange("");
+                  onMetadataSearchChange("");
+                  onFiltersChange(createDefaultWorkshopRoundFilters());
+                }}
+                className="rounded-lg border border-violet-400/45 bg-violet-500/15 px-2.5 py-1 text-[11px] text-violet-100 hover:bg-violet-500/25"
+              >
+                <Trans>Reset defaults</Trans>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 grid gap-3 lg:grid-cols-3">
+            <fieldset className="rounded-lg border border-white/8 bg-black/20 p-3">
+              <legend className="px-1 text-[10px] font-bold uppercase tracking-[0.15em] text-cyan-200">
+                <Trans>Round properties</Trans>
+              </legend>
+              <p className="mb-1.5 text-[10px] text-zinc-400">
+                <Trans>Types</Trans>
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {allTypes.map((type) =>
+                  checkboxPill(
+                    filters.includedTypes.includes(type),
+                    typeLabel(type),
+                    () => update({ includedTypes: toggleFilterValue(filters.includedTypes, type) }),
+                    type
+                  )
+                )}
+              </div>
+              <p className="mb-1.5 mt-3 text-[10px] text-zinc-400">
+                <Trans>Difficulty</Trans>
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {allDifficulties.map((difficulty) =>
+                  checkboxPill(
+                    filters.difficulties.includes(difficulty),
+                    difficulty === "unknown" ? t`Unknown` : `D${difficulty}`,
+                    () =>
+                      update({
+                        difficulties: toggleFilterValue(filters.difficulties, difficulty),
+                      }),
+                    String(difficulty)
+                  )
+                )}
+              </div>
+              <div className="mt-3">
+                <GameDropdown
+                  label={t`Duration`}
+                  value={filters.duration}
+                  options={[
+                    { value: "any", label: t`Any duration` },
+                    { value: "short", label: t`Under 3 min` },
+                    { value: "medium", label: t`3–10 min` },
+                    { value: "long", label: t`Over 10 min` },
+                    { value: "unknown", label: t`Unknown` },
+                  ]}
+                  onChange={(duration) => update({ duration })}
+                  onHoverSfx={playHoverSound}
+                  onSelectSfx={playSelectSound}
+                />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <label className="text-[10px] text-zinc-400">
+                  <Trans>Min BPM</Trans>
+                  <input
+                    type="number"
+                    min={0}
+                    value={filters.bpmMin}
+                    onChange={(event) => update({ bpmMin: event.target.value })}
+                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/40 px-2 py-1.5 text-xs text-white outline-none focus:border-violet-300/60"
+                  />
+                </label>
+                <label className="text-[10px] text-zinc-400">
+                  <Trans>Max BPM</Trans>
+                  <input
+                    type="number"
+                    min={0}
+                    value={filters.bpmMax}
+                    onChange={(event) => update({ bpmMax: event.target.value })}
+                    className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/40 px-2 py-1.5 text-xs text-white outline-none focus:border-violet-300/60"
+                  />
+                </label>
+              </div>
+              <label className="mt-2 flex items-center gap-2 text-[11px] text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={filters.includeUnknownBpm}
+                  onChange={(event) => update({ includeUnknownBpm: event.target.checked })}
+                />
+                <Trans>Include unknown BPM</Trans>
+              </label>
+            </fieldset>
+
+            <fieldset className="rounded-lg border border-white/8 bg-black/20 p-3">
+              <legend className="px-1 text-[10px] font-bold uppercase tracking-[0.15em] text-amber-200">
+                <Trans>Metadata</Trans>
+              </legend>
+              <input
+                type="search"
+                value={metadataSearch}
+                onChange={(event) => onMetadataSearchChange(event.target.value)}
+                placeholder={t`Search metadata options…`}
+                className="w-full rounded-lg border border-zinc-700 bg-black/40 px-2.5 py-1.5 text-xs text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-amber-300/60"
+              />
+              <p className="mb-1.5 mt-3 text-[10px] text-zinc-400">
+                <Trans>Heroes</Trans>
+              </p>
+              {metadataPills(
+                metadataOptions.heroes.map((hero) => hero.id),
+                filters.heroIds,
+                (heroIds) => update({ heroIds }),
+                (id) => metadataOptions.heroes.find((hero) => hero.id === id)?.name ?? id
+              )}
+              <p className="mb-1.5 mt-3 text-[10px] text-zinc-400">
+                <Trans>Tags</Trans>
+              </p>
+              {metadataPills(
+                metadataOptions.tags,
+                filters.tags,
+                (tags) => update({ tags }),
+                (tag) => `#${tag}`
+              )}
+              <p className="mb-1.5 mt-3 text-[10px] text-zinc-400">
+                <Trans>Authors</Trans>
+              </p>
+              {metadataPills(metadataOptions.authors, filters.authors, (authors) =>
+                update({ authors })
+              )}
+              <p className="mb-1.5 mt-3 text-[10px] text-zinc-400">
+                <Trans>Library labels</Trans>
+              </p>
+              {metadataPills(
+                metadataOptions.libraryLabels,
+                filters.libraryLabels,
+                (libraryLabels) => update({ libraryLabels })
+              )}
+            </fieldset>
+
+            <fieldset className="rounded-lg border border-white/8 bg-black/20 p-3">
+              <legend className="px-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-200">
+                <Trans>Installation</Trans>
+              </legend>
+              <p className="mb-1.5 text-[10px] text-zinc-400">
+                <Trans>Sources</Trans>
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {allSources.map((source) =>
+                  checkboxPill(
+                    filters.sources.includes(source),
+                    source === "web" ? t`Web` : source === "stash" ? t`Stash` : t`Local`,
+                    () => update({ sources: toggleFilterValue(filters.sources, source) }),
+                    source
+                  )
+                )}
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <GameDropdown
+                  label={t`Funscript`}
+                  value={filters.script}
+                  options={[
+                    { value: "any", label: t`Any` },
+                    { value: "installed", label: t`Installed` },
+                    { value: "missing", label: t`Missing` },
+                  ]}
+                  onChange={(script) => update({ script })}
+                  onHoverSfx={playHoverSound}
+                  onSelectSfx={playSelectSound}
+                />
+                <GameDropdown
+                  label={t`Random selection`}
+                  value={filters.randomEligibility}
+                  options={[
+                    { value: "any", label: t`Any` },
+                    { value: "eligible", label: t`Eligible` },
+                    { value: "excluded", label: t`Excluded` },
+                  ]}
+                  onChange={(randomEligibility) => update({ randomEligibility })}
+                  onHoverSfx={playHoverSound}
+                  onSelectSfx={playSelectSound}
+                />
+                <GameDropdown
+                  label={t`Added`}
+                  value={filters.addedDate.mode}
+                  options={[
+                    { value: "any", label: t`Any time` },
+                    { value: "since", label: t`Since date` },
+                    { value: "before", label: t`Before date` },
+                    { value: "between", label: t`Between dates` },
+                  ]}
+                  onChange={(mode) => {
+                    const nextMode = mode as WorkshopAddedDateFilter["mode"];
+                    if (nextMode === "since")
+                      update({ addedDate: { mode: nextMode, fromDate: "" } });
+                    else if (nextMode === "before")
+                      update({ addedDate: { mode: nextMode, toDate: "" } });
+                    else if (nextMode === "between")
+                      update({ addedDate: { mode: nextMode, fromDate: "", toDate: "" } });
+                    else update({ addedDate: { mode: "any" } });
+                  }}
+                  onHoverSfx={playHoverSound}
+                  onSelectSfx={playSelectSound}
+                />
+              </div>
+              {filters.addedDate.mode !== "any" && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {(filters.addedDate.mode === "since" || filters.addedDate.mode === "between") && (
+                    <label className="text-[10px] text-zinc-400">
+                      <Trans>From</Trans>
+                      <input
+                        type="date"
+                        value={filters.addedDate.fromDate}
+                        onChange={(event) =>
+                          update({
+                            addedDate:
+                              filters.addedDate.mode === "between"
+                                ? { ...filters.addedDate, fromDate: event.target.value }
+                                : { mode: "since", fromDate: event.target.value },
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/40 px-2 py-1.5 text-xs text-white"
+                      />
+                    </label>
+                  )}
+                  {(filters.addedDate.mode === "before" ||
+                    filters.addedDate.mode === "between") && (
+                    <label className="text-[10px] text-zinc-400">
+                      <Trans>To</Trans>
+                      <input
+                        type="date"
+                        value={filters.addedDate.toDate}
+                        onChange={(event) =>
+                          update({
+                            addedDate:
+                              filters.addedDate.mode === "between"
+                                ? { ...filters.addedDate, toDate: event.target.value }
+                                : { mode: "before", toDate: event.target.value },
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/40 px-2 py-1.5 text-xs text-white"
+                      />
+                    </label>
+                  )}
+                </div>
+              )}
+            </fieldset>
+          </div>
+        </section>
       )}
     </div>
   );

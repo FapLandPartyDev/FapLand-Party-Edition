@@ -132,7 +132,7 @@ function makeRound(
   options: {
     author?: string;
     difficulty?: number | null;
-    type?: "Normal" | "Cum";
+    type?: "Normal" | "Cum" | "Interjection";
     durationMs?: number;
   } = {}
 ) {
@@ -1158,6 +1158,81 @@ describe("PlaylistWorkshopRoute", () => {
       buildRoundRef(alpha),
       buildRoundRef(bravo),
     ]);
+  });
+
+  it("defaults to Normal rounds and lets users reveal other types with compact filters", async () => {
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
+    const normal = makeRound("normal", "Normal Pick");
+    const cum = makeRound("cum", "Cum Pick", { type: "Cum" });
+    const interjection = makeRound("interjection", "Interjection Pick", {
+      type: "Interjection",
+    });
+
+    mocks.loaderData = {
+      installedRounds: [normal, cum, interjection],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    await openLinearPlaylistAndSection("Linear Playlist", "Rounds");
+
+    const availableSection = getSectionByHeading("Available Rounds");
+    expect(
+      within(availableSection).getByRole("group", { name: "Available round Normal Pick" })
+    ).toBeDefined();
+    expect(
+      within(availableSection).queryByRole("group", { name: "Available round Cum Pick" })
+    ).toBeNull();
+    expect(
+      within(availableSection).queryByRole("group", {
+        name: "Available round Interjection Pick",
+      })
+    ).toBeNull();
+
+    const filterButton = within(availableSection).getByRole("button", { name: /Filters/i });
+    expect(filterButton.getAttribute("aria-expanded")).toBe("false");
+    expect(within(availableSection).getByLabelText("Active round filters")).toBeDefined();
+
+    fireEvent.click(
+      within(availableSection).getByRole("button", { name: "Remove filter Cum hidden" })
+    );
+    const cumRow = within(availableSection).getByRole("group", {
+      name: "Available round Cum Pick",
+    });
+    expect(within(cumRow).getByText("Cum")).toBeDefined();
+    fireEvent.click(within(cumRow).getByRole("button", { name: "Add to queue" }));
+
+    fireEvent.click(filterButton);
+    expect(filterButton.getAttribute("aria-expanded")).toBe("true");
+    expect(within(availableSection).getByLabelText("Round filters")).toBeDefined();
+    fireEvent.click(within(availableSection).getByRole("button", { name: "Clear all" }));
+    expect(
+      within(availableSection).getByRole("group", {
+        name: "Available round Interjection Pick",
+      })
+    ).toBeDefined();
+
+    fireEvent.click(within(availableSection).getByRole("button", { name: "Reset defaults" }));
+    expect(
+      within(availableSection).queryByRole("group", {
+        name: "Available round Interjection Pick",
+      })
+    ).toBeNull();
+
+    fireEvent.click(
+      within(availableSection).getByRole("button", { name: "Remove filter Interjection hidden" })
+    );
+    clickSidebarSection("Session");
+    expect(await screen.findByText("Round Count")).toBeDefined();
+    clickSidebarSection("Rounds");
+    await waitForRoundsReady();
+    expect(
+      within(getSectionByHeading("Available Rounds")).getByRole("group", {
+        name: "Available round Interjection Pick",
+      })
+    ).toBeDefined();
   });
 
   it("returns removed rounds to the available list", async () => {

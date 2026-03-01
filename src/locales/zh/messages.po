@@ -33,7 +33,7 @@ msgstr " (默认)"
 msgid " Warning: runs from this playlist are marked as assisted on the highscore and in run history."
 msgstr " 警告：来自此播放列表的运行将在排行榜和运行历史中标记为辅助。"
 
-#: src/routes/playlist-workshop.tsx:4820
+#: src/routes/playlist-workshop.tsx:5175
 msgid "…"
 msgstr "…"
 
@@ -53,12 +53,12 @@ msgstr ".fpack 提取"
 #. placeholder {0}: perk.description
 #. placeholder {0}: perk.name
 #. placeholder {0}: rarityMeta.label
-#: src/routes/playlist-workshop.tsx:3790
-#: src/routes/playlist-workshop.tsx:3811
-#: src/routes/playlist-workshop.tsx:3818
-#: src/routes/playlist-workshop.tsx:3894
-#: src/routes/playlist-workshop.tsx:3915
-#: src/routes/playlist-workshop.tsx:3922
+#: src/routes/playlist-workshop.tsx:3568
+#: src/routes/playlist-workshop.tsx:3589
+#: src/routes/playlist-workshop.tsx:3596
+#: src/routes/playlist-workshop.tsx:3672
+#: src/routes/playlist-workshop.tsx:3693
+#: src/routes/playlist-workshop.tsx:3700
 msgid "{0}"
 msgstr "{0}"
 
@@ -100,7 +100,7 @@ msgid "{0} ACTIVATED"
 msgstr "{0} 已激活"
 
 #. placeholder {0}: availableNormalRounds.length
-#: src/routes/playlist-workshop.tsx:3145
+#: src/routes/playlist-workshop.tsx:3072
 msgid "{0} available"
 msgstr "{0} 可用"
 
@@ -151,6 +151,11 @@ msgstr "{0} 已哈希"
 msgid "{0} heroes selected · {selectedSectionCount} sections"
 msgstr "已选择 {0} 个英雄 · {selectedSectionCount} 个段落"
 
+#. placeholder {0}: typeLabel(type)
+#: src/routes/playlist-workshop.tsx:4384
+msgid "{0} hidden"
+msgstr "{0} 已隐藏"
+
 #. placeholder {0}: filteredRounds.length
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3445
 msgid "{0} matching rounds are currently available."
@@ -169,7 +174,7 @@ msgstr "{0} 名玩家"
 
 #. placeholder {0}: round.name
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1458
-#: src/routes/playlist-workshop.tsx:4756
+#: src/routes/playlist-workshop.tsx:5111
 msgid "{0} preview"
 msgstr "{0} 预览"
 
@@ -273,7 +278,7 @@ msgid "{0} sections"
 msgstr "{0} 个段落"
 
 #. placeholder {0}: visibleAvailableNormalRounds.length
-#: src/routes/playlist-workshop.tsx:3148
+#: src/routes/playlist-workshop.tsx:3075
 msgid "{0} shown"
 msgstr "显示 {0} 个"
 
@@ -309,8 +314,8 @@ msgstr "{0} 个网络关卡{1} 缓存中"
 #. placeholder {1}: perkOptions.length
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1184
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1221
-#: src/routes/playlist-workshop.tsx:3729
-#: src/routes/playlist-workshop.tsx:3830
+#: src/routes/playlist-workshop.tsx:3507
+#: src/routes/playlist-workshop.tsx:3608
 msgid "{0}/{1} active"
 msgstr "{0}/{1} 已激活"
 
@@ -325,7 +330,7 @@ msgid "{completed} / {0} steps completed"
 msgstr "{completed} / {0} 步已完成"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:758
+#: src/routes/playlist-workshop.tsx:764
 msgid "playlist-workshop.resolution.missing-summary"
 msgstr "{count, plural, one {# 个播放列表引用仍需手动匹配。} other {# 个播放列表引用仍需手动匹配。}}"
 
@@ -335,7 +340,7 @@ msgid "playlist-picker.count"
 msgstr "{count, plural, one {# 个播放列表} other {# 个播放列表}}"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:767
+#: src/routes/playlist-workshop.tsx:773
 msgid "playlist-workshop.resolution.auto-resolved-summary"
 msgstr "{count, plural, one {# 个引用已自动解析，可以查看。} other {# 个引用已自动解析，可以查看。}}"
 
@@ -409,7 +414,7 @@ msgstr "• 未保存"
 
 #: src/routes/converter.tsx:160
 #: src/routes/highscores.tsx:462
-#: src/routes/playlist-workshop.tsx:2372
+#: src/routes/playlist-workshop.tsx:2299
 #: src/routes/settings.tsx:2834
 #: src/routes/single-player-setup.tsx:657
 msgid "← Back"
@@ -419,7 +424,7 @@ msgstr "← 返回"
 msgid "+"
 msgstr "+"
 
-#: src/routes/playlist-workshop.tsx:3236
+#: src/routes/playlist-workshop.tsx:3151
 msgid "+ Add {availableCount}"
 msgstr "+ 添加 {availableCount}"
 
@@ -432,14 +437,6 @@ msgstr "+ 添加曲目"
 #: src/routes/progression.tsx:296
 msgid "+{0}% solo XP · {1} disabled ranks"
 msgstr "+{0}% 单人 XP · {1} 个已禁用等级"
-
-#: src/routes/playlist-workshop.tsx:3278
-msgid "< 3 min"
-msgstr "< 3 分钟"
-
-#: src/routes/playlist-workshop.tsx:3280
-msgid "> 10 min"
-msgstr "> 10 分钟"
 
 #: src/components/GlobalMusicOverlay.tsx:489
 msgid "⊕ Add from URL"
@@ -473,7 +470,7 @@ msgstr "✓ 回退路径可用。"
 msgid "✕ Cancel"
 msgstr "✕ 取消"
 
-#: src/routes/playlist-workshop.tsx:2921
+#: src/routes/playlist-workshop.tsx:2848
 msgid "✕ Clear"
 msgstr "✕ 清除"
 
@@ -489,23 +486,23 @@ msgid "game.perk.header"
 msgstr "✦ 选择一个技能 ✦"
 
 #. placeholder {0}: setup.normalRoundOrder.length
-#: src/routes/playlist-workshop.tsx:3586
+#: src/routes/playlist-workshop.tsx:3364
 msgid "🎯 {0} added to queue"
 msgstr "🎯 已将 {0} 添加到队列"
 
-#: src/routes/playlist-workshop.tsx:2844
+#: src/routes/playlist-workshop.tsx:2771
 msgid "🎯 Queue"
 msgstr "🎯 队列"
 
-#: src/routes/playlist-workshop.tsx:2903
+#: src/routes/playlist-workshop.tsx:2830
 msgid "🎲 Random"
 msgstr "🎲 随机"
 
-#: src/routes/playlist-workshop.tsx:2912
+#: src/routes/playlist-workshop.tsx:2839
 msgid "📈 Progressive"
 msgstr "📈 递进"
 
-#: src/routes/playlist-workshop.tsx:2822
+#: src/routes/playlist-workshop.tsx:2749
 msgid "📚 Library"
 msgstr "📚 库"
 
@@ -538,13 +535,14 @@ msgstr "2"
 msgid "2. Media"
 msgstr "2. 媒体"
 
-#: src/routes/playlist-workshop.tsx:2721
+#: src/routes/playlist-workshop.tsx:2648
 msgid "25, 50, 75"
 msgstr "25, 50, 75"
 
-#: src/routes/playlist-workshop.tsx:3279
-msgid "3-10 min"
-msgstr "3-10 分钟"
+#: src/routes/playlist-workshop.tsx:4405
+#: src/routes/playlist-workshop.tsx:4690
+msgid "3–10 min"
+msgstr "3–10 分钟"
 
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:523
 msgid "3. Estimate"
@@ -569,7 +567,7 @@ msgstr "线性地图是一条直线路径。它更容易理解，构建更快，
 msgid "first-start.step.booru.detail.2"
 msgstr "简单、具体的提示通常比长提示效果更好。如果不确定，可以保留默认值。"
 
-#: src/routes/playlist-workshop.tsx:3266
+#: src/routes/playlist-workshop.tsx:4554
 msgid "A-Z"
 msgstr "A-Z（升序）"
 
@@ -602,7 +600,7 @@ msgstr "正在中止..."
 msgid "actions"
 msgstr "操作"
 
-#: src/routes/playlist-workshop.tsx:2460
+#: src/routes/playlist-workshop.tsx:2390
 msgid "Actions"
 msgstr "操作"
 
@@ -618,11 +616,11 @@ msgstr "激活{0}"
 msgid "Activate all"
 msgstr "全部激活"
 
-#: src/routes/playlist-workshop.tsx:3849
+#: src/routes/playlist-workshop.tsx:3627
 msgid "Activate all anti-perks"
 msgstr "激活所有反技能"
 
-#: src/routes/playlist-workshop.tsx:3745
+#: src/routes/playlist-workshop.tsx:3523
 msgid "Activate all perks"
 msgstr "激活所有技能"
 
@@ -647,8 +645,8 @@ msgstr "活跃"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1210
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1247
 #: src/features/playlist-picker/PlaylistPicker.tsx:593
-#: src/routes/playlist-workshop.tsx:3806
-#: src/routes/playlist-workshop.tsx:3910
+#: src/routes/playlist-workshop.tsx:3584
+#: src/routes/playlist-workshop.tsx:3688
 #: src/routes/single-player-setup.tsx:643
 msgid "Active"
 msgstr "活跃"
@@ -676,9 +674,13 @@ msgstr "活跃任务"
 msgid "Active Players"
 msgstr "活跃玩家"
 
-#: src/routes/playlist-workshop.tsx:2410
+#: src/routes/playlist-workshop.tsx:2337
 msgid "Active Playlist"
 msgstr "活跃播放列表"
+
+#: src/routes/playlist-workshop.tsx:4596
+msgid "Active round filters"
+msgstr "当前回合筛选器"
 
 #: src/routes/multiplayer.tsx:1283
 msgid "Active Server"
@@ -705,7 +707,7 @@ msgstr "从左侧边栏添加起始节点，或使用放置模式。"
 msgid "Add Action"
 msgstr "添加操作"
 
-#: src/routes/playlist-workshop.tsx:3190
+#: src/routes/playlist-workshop.tsx:3117
 msgid "Add all rounds from a hero at once"
 msgstr "一次添加某个 Hero 的所有回合"
 
@@ -774,7 +776,7 @@ msgstr "添加音乐"
 msgid "Add Music Files"
 msgstr "添加音乐文件"
 
-#: src/routes/playlist-workshop.tsx:2970
+#: src/routes/playlist-workshop.tsx:2897
 msgid "Add Section"
 msgstr "添加段落"
 
@@ -802,10 +804,10 @@ msgstr "为 {selectedCount} 个选中的回合添加标签。"
 msgid "Add the guaranteed perk to the player's inventory instead of applying it immediately."
 msgstr "将保证技能添加到玩家背包中，而不是立即应用。"
 
-#: src/routes/playlist-workshop.tsx:3473
-#: src/routes/playlist-workshop.tsx:3474
-#: src/routes/playlist-workshop.tsx:3531
-#: src/routes/playlist-workshop.tsx:3532
+#: src/routes/playlist-workshop.tsx:3246
+#: src/routes/playlist-workshop.tsx:3247
+#: src/routes/playlist-workshop.tsx:3308
+#: src/routes/playlist-workshop.tsx:3309
 msgid "Add to queue"
 msgstr "添加到队列"
 
@@ -821,13 +823,14 @@ msgstr "添加信任的基础域名"
 msgid "Add Trusted Site"
 msgstr "添加信任站点"
 
-#: src/routes/playlist-workshop.tsx:3162
+#: src/routes/playlist-workshop.tsx:3089
 msgid "Add Visible"
 msgstr "添加可见项"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3312
 #: src/routes/first-start.tsx:705
 #: src/routes/first-start.tsx:706
+#: src/routes/playlist-workshop.tsx:4819
 msgid "Added"
 msgstr "已添加"
 
@@ -886,6 +889,17 @@ msgstr "已添加 {0} 个曲目，{2} 个失败"
 msgid "Added {0} track{1}{2}"
 msgstr "已添加 {0} 首曲目{1}{2}"
 
+#. placeholder {0}: filters.addedDate.fromDate || "…"
+#. placeholder {1}: filters.addedDate.toDate || "…"
+#: src/routes/playlist-workshop.tsx:4452
+msgid "Added {0}–{1}"
+msgstr "添加于 {0}–{1}"
+
+#. placeholder {0}: filters.addedDate.toDate || "…"
+#: src/routes/playlist-workshop.tsx:4451
+msgid "Added before {0}"
+msgstr "添加于 {0} 之前"
+
 #: src/routes/settings.tsx:6455
 msgid "Added folders import immediately, including legacy video-folder fallback, and are rescanned on startup."
 msgstr "添加的文件夹会立即导入，包括旧版视频文件夹回退，并在启动时重新扫描。"
@@ -903,6 +917,11 @@ msgstr "已添加播放列表：{0} 个喘息文件{1} 已添加{2}。"
 #: src/routes/first-start.tsx:1008
 msgid "Added playlist: {0} track{1} added{2}."
 msgstr "已添加播放列表：{0} 首曲目{1} 已添加{2}。"
+
+#. placeholder {0}: filters.addedDate.fromDate || "…"
+#: src/routes/playlist-workshop.tsx:4449
+msgid "Added since {0}"
+msgstr "添加于 {0} 之后"
 
 #. placeholder {0}: formatDate(addedDateFilter.fromDate)
 #. placeholder {1}: formatDate(addedDateFilter.toDate)
@@ -933,11 +952,11 @@ msgstr "当您的包已集中存放在一个位置时，添加文件夹是最佳
 msgid "Adding..."
 msgstr "正在添加..."
 
-#: src/routes/playlist-workshop.tsx:4141
+#: src/routes/playlist-workshop.tsx:3919
 msgid "Additional anti-perk chance added after each completed round. The chance ramps up round by round until it hits the configured maximum."
 msgstr "每完成一个关卡后增加额外的反技能概率。概率逐关递增，直到达到配置的最大值。"
 
-#: src/routes/playlist-workshop.tsx:4090
+#: src/routes/playlist-workshop.tsx:3868
 msgid "Additional intermediary chance added after each completed round. Example: 10% initial plus 5% increase becomes 15% on the next round, then 20%, until the max is reached."
 msgstr "每完成一个关卡后增加额外的中间概率。例如：10% 初始值加 5% 递增，下一关变为 15%，然后 20%，直到达到最大值。"
 
@@ -1003,10 +1022,6 @@ msgstr "全部"
 msgid "All (AND)"
 msgstr "全部 (与)"
 
-#: src/routes/playlist-workshop.tsx:3223
-msgid "All added"
-msgstr "已全部添加"
-
 #: src/routes/settings.tsx:8598
 msgid "All cache data will be copied to:"
 msgstr "所有缓存数据将被复制到："
@@ -1023,7 +1038,7 @@ msgstr "所有已下载/导入的游戏内容。"
 msgid "All files from this playlist are already in your moaning library."
 msgstr "此播放列表中的所有文件已在您的喘息库中。"
 
-#: src/routes/playlist-workshop.tsx:3560
+#: src/routes/playlist-workshop.tsx:3337
 msgid "All rounds are in the queue."
 msgstr "所有关卡已在队列中。"
 
@@ -1168,7 +1183,7 @@ msgstr "反技能动态"
 msgid "Anti-perk increase"
 msgstr "反技能递增"
 
-#: src/routes/playlist-workshop.tsx:4140
+#: src/routes/playlist-workshop.tsx:3918
 msgid "Anti-Perk Increase %"
 msgstr "反技能递增 %"
 
@@ -1177,7 +1192,7 @@ msgstr "反技能递增 %"
 msgid "Anti-perk initial"
 msgstr "反技能初始值"
 
-#: src/routes/playlist-workshop.tsx:4125
+#: src/routes/playlist-workshop.tsx:3903
 msgid "Anti-Perk Initial %"
 msgstr "反技能初始 %"
 
@@ -1190,7 +1205,7 @@ msgstr "在单人模式中不能对自己使用反技能物品。"
 msgid "Anti-perk max"
 msgstr "反技能最大值"
 
-#: src/routes/playlist-workshop.tsx:4158
+#: src/routes/playlist-workshop.tsx:3936
 msgid "Anti-Perk Max %"
 msgstr "反技能最大 %"
 
@@ -1261,7 +1276,7 @@ msgstr "反增益：移除一次暂停次数和一次跳过次数。"
 #: src/components/game/GameScene.tsx:5559
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1218
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1098
-#: src/routes/playlist-workshop.tsx:3828
+#: src/routes/playlist-workshop.tsx:3606
 msgid "Anti-Perks"
 msgstr "反技能"
 
@@ -1270,13 +1285,18 @@ msgstr "反技能"
 msgid "perk.name.antigravity"
 msgstr "反重力"
 
-#: src/routes/playlist-workshop.tsx:3277
+#: src/routes/playlist-workshop.tsx:4798
+#: src/routes/playlist-workshop.tsx:4810
 msgid "Any"
 msgstr "任意"
 
 #: src/features/map-editor/components/automation/ConditionGroupEditor.tsx:79
 msgid "Any (OR)"
 msgstr "任意 (或)"
+
+#: src/routes/playlist-workshop.tsx:4688
+msgid "Any duration"
+msgstr "任意时长"
 
 #: src/routes/settings.tsx:6310
 msgid "Any highscore you achieve will be permanently marked with 🎭"
@@ -1285,6 +1305,10 @@ msgstr "您取得的任何高分都将被永久标记为 🎭"
 #: src/features/converter/ConverterSourcePicker.tsx:447
 msgid "Any length"
 msgstr "任意时长"
+
+#: src/routes/playlist-workshop.tsx:4822
+msgid "Any time"
+msgstr "任意时间"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3315
 msgid "Any Time"
@@ -1343,7 +1367,7 @@ msgstr "已将播放列表解析应用到 \"{0}\"。"
 msgid "Applies to all haptics sync operations. Use this if the device is slightly ahead or behind the video."
 msgstr "适用于所有触觉同步操作。如果设备略微超前或落后于视频，请使用此选项。"
 
-#: src/routes/playlist-workshop.tsx:2751
+#: src/routes/playlist-workshop.tsx:2678
 msgid "Applies to solo play only. Multiplayer sessions ignore this requirement."
 msgstr "仅适用于单人游戏。多人游戏会话忽略此要求。"
 
@@ -1357,7 +1381,7 @@ msgstr "应用\"{0}\""
 msgid "Apply {0}"
 msgstr "应用 {0}"
 
-#: src/routes/playlist-workshop.tsx:2700
+#: src/routes/playlist-workshop.tsx:2627
 msgid "Apply 25/50/75 Preset"
 msgstr "应用 25/50/75 预设"
 
@@ -1395,7 +1419,7 @@ msgid "Apply progression override"
 msgstr "应用进度覆盖"
 
 #: src/routes/map-editor.tsx:2686
-#: src/routes/playlist-workshop.tsx:2259
+#: src/routes/playlist-workshop.tsx:2186
 msgid "Apply Progressive"
 msgstr "应用渐进"
 
@@ -1405,7 +1429,7 @@ msgid "Apply recommended settings for weak hardware"
 msgstr "应用弱性能硬件推荐设置"
 
 #: src/routes/map-editor.tsx:3915
-#: src/routes/playlist-workshop.tsx:4394
+#: src/routes/playlist-workshop.tsx:4172
 msgid "Apply Resolutions"
 msgstr "应用解析"
 
@@ -1533,7 +1557,7 @@ msgstr "认证失败。"
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:43
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:61
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3274
-#: src/routes/playlist-workshop.tsx:3268
+#: src/routes/playlist-workshop.tsx:4556
 msgid "Author"
 msgstr "作者"
 
@@ -1548,6 +1572,10 @@ msgstr "作者筛选"
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:824
 msgid "author-one, author-two"
 msgstr "作者一，作者二"
+
+#: src/routes/playlist-workshop.tsx:4761
+msgid "Authors"
+msgstr "作者"
 
 #: src/routes/settings.tsx:1893
 #: src/routes/settings.tsx:1911
@@ -1627,7 +1655,7 @@ msgstr "在后台自动计算关卡的视觉指纹。强烈推荐用于精确的
 msgid "Automatically estimate every installed round's difficulty from its primary funscript."
 msgstr "根据每个已安装回合的主 Funscript 自动估算其难度。"
 
-#: src/routes/playlist-workshop.tsx:2641
+#: src/routes/playlist-workshop.tsx:2568
 msgid "Automatically grows to fit the selected queue."
 msgstr "自动增长以适应所选队列。"
 
@@ -1659,12 +1687,12 @@ msgid "Available on"
 msgstr "可用平台"
 
 #. placeholder {0}: round.name
-#: src/routes/playlist-workshop.tsx:3435
-#: src/routes/playlist-workshop.tsx:3494
+#: src/routes/playlist-workshop.tsx:3204
+#: src/routes/playlist-workshop.tsx:3267
 msgid "Available round {0}"
 msgstr "可用关卡 {0}"
 
-#: src/routes/playlist-workshop.tsx:3137
+#: src/routes/playlist-workshop.tsx:3064
 msgid "Available Rounds"
 msgstr "可用关卡"
 
@@ -1674,7 +1702,7 @@ msgstr "可用关卡"
 #: src/routes/index.tsx:488
 #: src/routes/multiplayer-bans.tsx:86
 #: src/routes/multiplayer-lobby.tsx:588
-#: src/routes/playlist-workshop.tsx:4279
+#: src/routes/playlist-workshop.tsx:4057
 msgid "Back"
 msgstr "返回"
 
@@ -1766,7 +1794,7 @@ msgstr "封禁通过用户 ID 或硬件 ID 应用于您主持的房间。"
 msgid "Bar {0}"
 msgstr "进度条 {0}"
 
-#: src/routes/playlist-workshop.tsx:4063
+#: src/routes/playlist-workshop.tsx:3841
 msgid "Base chance to roll a random perk after each completed round. This does not stack per round; the same chance is checked again each time."
 msgstr "每完成一个关卡后获得随机技能的基础概率。此概率不会叠加；每次都会重新检查相同的概率。"
 
@@ -1788,6 +1816,10 @@ msgstr "由于这两种地图风格的工作方式不同，应用有两个编辑
 #: src/routes/progression.tsx:686
 msgid "Become completionist"
 msgstr "成为全收集玩家"
+
+#: src/routes/playlist-workshop.tsx:4824
+msgid "Before date"
+msgstr "日期之前"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3317
 msgid "Before Date"
@@ -1813,6 +1845,10 @@ msgstr "最佳"
 #: src/routes/highscores.tsx:679
 msgid "Best Score"
 msgstr "最佳分数"
+
+#: src/routes/playlist-workshop.tsx:4825
+msgid "Between dates"
+msgstr "日期之间"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3318
 msgid "Between Dates"
@@ -1872,7 +1908,7 @@ msgstr "板型"
 msgid "Body"
 msgstr "主体"
 
-#: src/routes/playlist-workshop.tsx:4257
+#: src/routes/playlist-workshop.tsx:4035
 msgid "Bonus score granted when a cum round is completed successfully. This affects scoring only and does not influence trigger probabilities."
 msgstr "成功完成高潮关卡时获得的奖励分数。这仅影响得分，不影响触发概率。"
 
@@ -1901,6 +1937,12 @@ msgstr "两种模式都以关卡作为核心内容。棋盘决定下一步发生
 msgid "BPM"
 msgstr "BPM"
 
+#. placeholder {0}: filters.bpmMin || "…"
+#. placeholder {1}: filters.bpmMax || "…"
+#: src/routes/playlist-workshop.tsx:4418
+msgid "BPM {0}–{1}"
+msgstr "BPM {0}–{1}"
+
 #: src/features/converter/SegmentCard.tsx:310
 msgid "BPM:"
 msgstr "BPM："
@@ -1927,7 +1969,7 @@ msgstr "浏览 1 条缓存的比赛结果并展开个人玩家排名。"
 msgid "Browse advertised lobbies and join with one click."
 msgstr "浏览公开的房间并一键加入。"
 
-#: src/routes/playlist-workshop.tsx:3117
+#: src/routes/playlist-workshop.tsx:3044
 msgid "Browse Library →"
 msgstr "浏览库 →"
 
@@ -2052,9 +2094,9 @@ msgstr "篝火"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:630
 #: src/features/rounds/library/ui/Modal.tsx:87
 #: src/routes/highscores.tsx:1085
-#: src/routes/playlist-workshop.tsx:4354
-#: src/routes/playlist-workshop.tsx:4919
-#: src/routes/playlist-workshop.tsx:5056
+#: src/routes/playlist-workshop.tsx:4132
+#: src/routes/playlist-workshop.tsx:5274
+#: src/routes/playlist-workshop.tsx:5411
 #: src/routes/settings.tsx:5624
 #: src/routes/settings.tsx:6043
 #: src/routes/settings.tsx:6336
@@ -2105,7 +2147,7 @@ msgstr "水泥靴"
 msgid "Center"
 msgstr "中心"
 
-#: src/routes/playlist-workshop.tsx:2443
+#: src/routes/playlist-workshop.tsx:2370
 msgid "Change Playlist"
 msgstr "更改播放列表"
 
@@ -2226,7 +2268,7 @@ msgstr "中文"
 msgid "first-start.step.booru.title"
 msgstr "选择 booru 搜索提示"
 
-#: src/routes/playlist-workshop.tsx:4890
+#: src/routes/playlist-workshop.tsx:5245
 msgid "Choose a new name for this playlist."
 msgstr "为此播放列表选择一个新名称。"
 
@@ -2294,7 +2336,7 @@ msgid "Choose which categories of information to wipe from this device."
 msgstr "选择要从此设备中清除的信息类别。"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:236
+#: src/routes/playlist-workshop.tsx:250
 msgid "playlist-workshop.section.cum-rounds.description"
 msgstr "选择哪些高潮关卡可用。"
 
@@ -2318,8 +2360,7 @@ msgstr "清除"
 #: src/components/GlobalMusicOverlay.tsx:698
 #: src/features/converter/MassTrimHeroesDialog.tsx:191
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3064
-#: src/routes/playlist-workshop.tsx:2260
-#: src/routes/playlist-workshop.tsx:3320
+#: src/routes/playlist-workshop.tsx:2187
 #: src/routes/progression.tsx:626
 #: src/routes/settings.tsx:5637
 #: src/routes/settings.tsx:6056
@@ -2327,6 +2368,7 @@ msgid "Clear"
 msgstr "清除"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:770
+#: src/routes/playlist-workshop.tsx:4633
 msgid "Clear all"
 msgstr "全部清除"
 
@@ -2381,7 +2423,11 @@ msgstr "清除音乐播放列表？"
 msgid "Clear Playlist"
 msgstr "清除播放列表"
 
-#: src/routes/playlist-workshop.tsx:2252
+#: src/routes/playlist-workshop.tsx:4543
+msgid "Clear search"
+msgstr "清除搜索"
+
+#: src/routes/playlist-workshop.tsx:2179
 msgid "Clear selected rounds?"
 msgstr "清空已选回合？"
 
@@ -2732,8 +2778,8 @@ msgid "Continue the saved run for this playlist"
 msgstr "继续此播放列表的已保存运行"
 
 #: src/routes/map-editor.tsx:3918
-#: src/routes/playlist-workshop.tsx:1661
-#: src/routes/playlist-workshop.tsx:4397
+#: src/routes/playlist-workshop.tsx:1588
+#: src/routes/playlist-workshop.tsx:4175
 msgid "Continue Unresolved"
 msgstr "继续未解析项"
 
@@ -2759,7 +2805,7 @@ msgstr "控制写入本地日志文件中的诊断信息量。"
 msgid "Controls the range of the dice used for movement."
 msgstr "控制用于移动的骰子范围。"
 
-#: src/routes/playlist-workshop.tsx:3987
+#: src/routes/playlist-workshop.tsx:3765
 msgid "Controls the range of the dice used for movement. Default is 1 to 6."
 msgstr "控制用于移动的骰子范围。默认为 1 到 6。"
 
@@ -2974,7 +3020,7 @@ msgstr "倒计时时长（秒）"
 msgid "perk.name.coupon-clipper"
 msgstr "优惠券剪刀"
 
-#: src/routes/playlist-workshop.tsx:5079
+#: src/routes/playlist-workshop.tsx:5434
 msgid "Create"
 msgstr "创建"
 
@@ -3057,11 +3103,11 @@ msgstr "创建纯文本设置文件"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:424
 #: src/features/playlist-picker/PlaylistPicker.tsx:440
-#: src/routes/playlist-workshop.tsx:4968
+#: src/routes/playlist-workshop.tsx:5323
 msgid "Create Playlist"
 msgstr "创建播放列表"
 
-#: src/routes/playlist-workshop.tsx:2961
+#: src/routes/playlist-workshop.tsx:2888
 msgid "Create Suggested Sections"
 msgstr "创建建议段落"
 
@@ -3077,7 +3123,7 @@ msgstr "已创建/已更新/已链接："
 msgid "Creating or resuming your multiplayer account on the selected server."
 msgstr "正在所选服务器上创建或恢复您的多人游戏账户。"
 
-#: src/routes/playlist-workshop.tsx:5079
+#: src/routes/playlist-workshop.tsx:5434
 #: src/routes/settings.tsx:7442
 msgid "Creating..."
 msgstr "正在创建..."
@@ -3092,7 +3138,7 @@ msgid "first-start.step.maps.eyebrow"
 msgstr "创作"
 
 #: src/routes/index.tsx:342
-#: src/routes/playlist-workshop.tsx:2305
+#: src/routes/playlist-workshop.tsx:2232
 msgid "Creation & Workshop"
 msgstr "创作与工坊"
 
@@ -3114,6 +3160,8 @@ msgstr "版权与许可"
 
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:56
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3241
+#: src/routes/playlist-workshop.tsx:4327
+#: src/routes/playlist-workshop.tsx:4374
 #: src/routes/settings.tsx:7035
 msgid "Cum"
 msgstr "高潮"
@@ -3148,7 +3196,7 @@ msgstr "CUM 回合"
 msgid "Cum round bonus score"
 msgstr "Cum 回合奖励分数"
 
-#: src/routes/playlist-workshop.tsx:4255
+#: src/routes/playlist-workshop.tsx:4033
 msgid "Cum Round Bonus Score"
 msgstr "Cum 回合奖励分数"
 
@@ -3157,7 +3205,7 @@ msgid "Cum Round Check"
 msgstr "Cum 回合检查"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:201
+#: src/routes/playlist-workshop.tsx:215
 msgid "playlist-workshop.section.cum-rounds.title"
 msgstr "Cum 回合"
 
@@ -3165,7 +3213,7 @@ msgstr "Cum 回合"
 msgid "Cum Rounds"
 msgstr "Cum 回合"
 
-#: src/routes/playlist-workshop.tsx:3620
+#: src/routes/playlist-workshop.tsx:3398
 msgid "Cum rounds play after the main playlist reaches the end. The rounds you enable here become a random selection pool, and one of them will be chosen when the run finishes."
 msgstr "Cum 回合在主播放列表播放结束后触发。你在此启用的回合将形成一个随机选择池，当运行结束时将从中选择一个。"
 
@@ -3250,9 +3298,9 @@ msgid "Cuts"
 msgstr "剪切"
 
 #. placeholder {0}: round.difficulty
-#: src/routes/playlist-workshop.tsx:3459
-#: src/routes/playlist-workshop.tsx:3517
-#: src/routes/playlist-workshop.tsx:4610
+#: src/routes/playlist-workshop.tsx:3232
+#: src/routes/playlist-workshop.tsx:3294
+#: src/routes/playlist-workshop.tsx:4965
 msgid "D{0}"
 msgstr "D{0}"
 
@@ -3298,11 +3346,11 @@ msgstr "停用{0}"
 msgid "Deactivate all"
 msgstr "全部停用"
 
-#: src/routes/playlist-workshop.tsx:3861
+#: src/routes/playlist-workshop.tsx:3639
 msgid "Deactivate all anti-perks"
 msgstr "停用所有负面增益"
 
-#: src/routes/playlist-workshop.tsx:3757
+#: src/routes/playlist-workshop.tsx:3535
 msgid "Deactivate all perks"
 msgstr "停用所有增益"
 
@@ -3362,10 +3410,10 @@ msgstr "将 phash 生成推迟到稍后进行。"
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2919
 #: src/routes/highscores.tsx:757
 #: src/routes/map-editor.tsx:3449
-#: src/routes/playlist-workshop.tsx:1626
-#: src/routes/playlist-workshop.tsx:2450
-#: src/routes/playlist-workshop.tsx:3046
-#: src/routes/playlist-workshop.tsx:4378
+#: src/routes/playlist-workshop.tsx:1553
+#: src/routes/playlist-workshop.tsx:2380
+#: src/routes/playlist-workshop.tsx:2973
+#: src/routes/playlist-workshop.tsx:4156
 #: src/routes/settings.tsx:7102
 msgid "Delete"
 msgstr "删除"
@@ -3378,7 +3426,7 @@ msgstr "删除\"{0}\""
 #. placeholder {0}: pickerTargetPlaylist.name
 #. placeholder {0}: playlistDeleteTarget.name
 #: src/routes/map-editor.tsx:3446
-#: src/routes/playlist-workshop.tsx:1625
+#: src/routes/playlist-workshop.tsx:1552
 msgid "Delete \"{0}\"? This cannot be undone."
 msgstr "删除 \"{0}\"？此操作无法撤销。"
 
@@ -3391,7 +3439,7 @@ msgid "Delete {deleteSelectedRoundCount} selected round entries from the databas
 msgstr "从数据库中删除 {deleteSelectedRoundCount} 个选中的轮次条目？"
 
 #. placeholder {0}: activePlaylist.name
-#: src/routes/playlist-workshop.tsx:4339
+#: src/routes/playlist-workshop.tsx:4117
 msgid "Delete <0>{0}</0>? This cannot be undone."
 msgstr "删除 <0>{0}</0>？此操作无法撤销。"
 
@@ -3435,8 +3483,8 @@ msgstr "删除高分记录？"
 msgid "Delete original files after successful migration"
 msgstr "迁移成功后删除原始文件"
 
-#: src/routes/playlist-workshop.tsx:1624
-#: src/routes/playlist-workshop.tsx:4336
+#: src/routes/playlist-workshop.tsx:1551
+#: src/routes/playlist-workshop.tsx:4114
 msgid "Delete Playlist"
 msgstr "删除播放列表"
 
@@ -3507,7 +3555,7 @@ msgstr "已删除 {0} 个轮次。"
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:39
 #: src/routes/highscores.tsx:757
 #: src/routes/highscores.tsx:1098
-#: src/routes/playlist-workshop.tsx:4378
+#: src/routes/playlist-workshop.tsx:4156
 msgid "Deleting..."
 msgstr "正在删除..."
 
@@ -3593,8 +3641,8 @@ msgstr "开发模式：中间片段提前结束。"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1210
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1247
-#: src/routes/playlist-workshop.tsx:3794
-#: src/routes/playlist-workshop.tsx:3898
+#: src/routes/playlist-workshop.tsx:3572
+#: src/routes/playlist-workshop.tsx:3676
 #: src/routes/settings.tsx:4661
 msgid "Device"
 msgstr "设备"
@@ -3641,7 +3689,7 @@ msgid "Device stopped"
 msgstr "设备已停止"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:779
-#: src/routes/playlist-workshop.tsx:3938
+#: src/routes/playlist-workshop.tsx:3716
 msgid "Dice Roll Limits"
 msgstr "骰子掷点限制"
 
@@ -3668,11 +3716,12 @@ msgstr "你完成了吗？"
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2513
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2854
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3344
+#: src/routes/playlist-workshop.tsx:4668
 msgid "Difficulty"
 msgstr "难度"
 
 #. placeholder {0}: round.difficulty
-#: src/routes/playlist-workshop.tsx:3663
+#: src/routes/playlist-workshop.tsx:3441
 msgid "Difficulty {0}"
 msgstr "难度 {0}"
 
@@ -3680,13 +3729,17 @@ msgstr "难度 {0}"
 msgid "Difficulty {value}"
 msgstr "难度 {value}"
 
-#: src/routes/playlist-workshop.tsx:2939
+#: src/routes/playlist-workshop.tsx:2866
 msgid "Difficulty Sections"
 msgstr "难度段落"
 
 #: src/features/converter/SegmentCard.tsx:334
 msgid "Difficulty:"
 msgstr "难度："
+
+#: src/routes/playlist-workshop.tsx:4398
+msgid "Difficulty: {label}"
+msgstr "难度：{label}"
 
 #: src/features/map-editor/components/automation/BackgroundPresetEditor.tsx:81
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:434
@@ -3723,12 +3776,12 @@ msgid "Disable dice animation"
 msgstr "禁用骰子动画"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:825
-#: src/routes/playlist-workshop.tsx:3995
+#: src/routes/playlist-workshop.tsx:3773
 msgid "Disable Dice Animation"
 msgstr "禁用骰子动画"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:4006
+#: src/routes/playlist-workshop.tsx:3784
 msgid "playlist-workshop.disable-dice-animation.toggle"
 msgstr "禁用骰子动画"
 
@@ -3771,11 +3824,11 @@ msgstr "已禁用"
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2499
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3132
 #: src/routes/first-start.tsx:1839
-#: src/routes/playlist-workshop.tsx:2679
-#: src/routes/playlist-workshop.tsx:3683
-#: src/routes/playlist-workshop.tsx:4025
-#: src/routes/playlist-workshop.tsx:4208
-#: src/routes/playlist-workshop.tsx:4249
+#: src/routes/playlist-workshop.tsx:2606
+#: src/routes/playlist-workshop.tsx:3461
+#: src/routes/playlist-workshop.tsx:3803
+#: src/routes/playlist-workshop.tsx:3986
+#: src/routes/playlist-workshop.tsx:4027
 msgid "Disabled"
 msgstr "已禁用"
 
@@ -3949,8 +4002,8 @@ msgstr "正在下载..."
 msgid "Draft"
 msgstr "草稿"
 
-#: src/routes/playlist-workshop.tsx:4579
-#: src/routes/playlist-workshop.tsx:4580
+#: src/routes/playlist-workshop.tsx:4934
+#: src/routes/playlist-workshop.tsx:4935
 msgid "Drag to reorder"
 msgstr "拖拽以重新排序"
 
@@ -3964,11 +4017,12 @@ msgid "perk.name.dry-spell"
 msgstr "枯竭期"
 
 #: src/features/map-editor/components/AutomationPanel.tsx:281
-#: src/routes/playlist-workshop.tsx:2447
+#: src/routes/playlist-workshop.tsx:2375
 msgid "Duplicate"
 msgstr "复制"
 
 #: src/components/game/RoundVideoOverlay.tsx:5166
+#: src/routes/playlist-workshop.tsx:4685
 msgid "Duration"
 msgstr "时长"
 
@@ -3980,7 +4034,7 @@ msgstr "每行保留分数进展、完成原因、播放列表引用和存活时
 msgid "Early Access"
 msgstr "抢先体验"
 
-#: src/routes/playlist-workshop.tsx:3269
+#: src/routes/playlist-workshop.tsx:4557
 msgid "Easiest"
 msgstr "最简单"
 
@@ -4052,6 +4106,10 @@ msgstr "编辑器"
 msgid "Effects {0}"
 msgstr "效果 {0}"
 
+#: src/routes/playlist-workshop.tsx:4811
+msgid "Eligible"
+msgstr "合格"
+
 #: src/routes/multiplayer.tsx:972
 msgid "Email Address"
 msgstr "电子邮箱"
@@ -4066,7 +4124,7 @@ msgid "Email Required"
 msgstr "需要邮箱"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:726
+#: src/routes/playlist-workshop.tsx:732
 msgid "playlist-workshop.empty-playlist.name"
 msgstr "空"
 
@@ -4104,11 +4162,11 @@ msgstr "已启用"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1093
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1127
 #: src/routes/first-start.tsx:1839
-#: src/routes/playlist-workshop.tsx:2679
-#: src/routes/playlist-workshop.tsx:3683
-#: src/routes/playlist-workshop.tsx:4023
-#: src/routes/playlist-workshop.tsx:4206
-#: src/routes/playlist-workshop.tsx:4247
+#: src/routes/playlist-workshop.tsx:2606
+#: src/routes/playlist-workshop.tsx:3461
+#: src/routes/playlist-workshop.tsx:3801
+#: src/routes/playlist-workshop.tsx:3984
+#: src/routes/playlist-workshop.tsx:4025
 msgid "Enabled"
 msgstr "已启用"
 
@@ -4123,7 +4181,7 @@ msgstr "编码器等待中"
 #: src/features/converter/SegmentCard.tsx:429
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:412
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2519
-#: src/routes/playlist-workshop.tsx:3014
+#: src/routes/playlist-workshop.tsx:2941
 msgid "End"
 msgstr "结束"
 
@@ -4145,7 +4203,7 @@ msgid "End Time (ms)"
 msgstr "结束时间 (ms)"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:248
-#: src/routes/playlist-workshop.tsx:5036
+#: src/routes/playlist-workshop.tsx:5391
 msgid "Endless"
 msgstr "无限"
 
@@ -4332,7 +4390,7 @@ msgid "Every shortcut currently wired into the app is listed here."
 msgstr "应用中当前绑定的所有快捷键都列在这里。"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:866
-#: src/routes/playlist-workshop.tsx:2765
+#: src/routes/playlist-workshop.tsx:2692
 msgid "Everywhere"
 msgstr "所有位置"
 
@@ -4356,8 +4414,13 @@ msgstr "从随机回合选择中排除"
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2500
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2858
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3348
+#: src/routes/playlist-workshop.tsx:4812
 msgid "Excluded"
 msgstr "已排除"
+
+#: src/routes/playlist-workshop.tsx:4440
+msgid "Excluded from random"
+msgstr "已从随机中排除"
 
 #: src/features/rounds/library/dialogs/LegacyPlaylistReviewDialog.tsx:112
 msgid "Excluded:"
@@ -4457,7 +4520,7 @@ msgid "Export"
 msgstr "导出"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:559
-#: src/routes/playlist-workshop.tsx:2606
+#: src/routes/playlist-workshop.tsx:2535
 msgid "Export .fplay"
 msgstr "导出 .fplay"
 
@@ -4487,7 +4550,7 @@ msgid "Export library"
 msgstr "导出库"
 
 #: src/routes/map-editor.tsx:3517
-#: src/routes/playlist-workshop.tsx:2563
+#: src/routes/playlist-workshop.tsx:2493
 msgid "Export Pack"
 msgstr "导出包"
 
@@ -4511,7 +4574,7 @@ msgstr "导出整个已安装的库。"
 msgid "Export the pack without reencoding. File size stays close to the original sources."
 msgstr "导出包而不重新编码。文件大小接近原始来源。"
 
-#: src/routes/playlist-workshop.tsx:2527
+#: src/routes/playlist-workshop.tsx:2457
 msgid "Export Your Creation"
 msgstr "导出你的作品"
 
@@ -4552,7 +4615,7 @@ msgstr "正在提取包 {0} / {1} 个文件"
 msgid "ey..."
 msgstr "ey..."
 
-#: src/routes/playlist-workshop.tsx:4615
+#: src/routes/playlist-workshop.tsx:4970
 msgid "F{fieldIndex}"
 msgstr "F{fieldIndex}"
 
@@ -4560,7 +4623,7 @@ msgstr "F{fieldIndex}"
 msgid "Failed instruction"
 msgstr "失败的指令"
 
-#: src/routes/playlist-workshop.tsx:1747
+#: src/routes/playlist-workshop.tsx:1674
 msgid "Failed to abort playlist export."
 msgstr "中止播放列表导出失败。"
 
@@ -4665,8 +4728,8 @@ msgstr "创建大厅失败。"
 msgid "Failed to create plaintext settings file."
 msgstr "创建纯文本设置文件失败。"
 
-#: src/routes/playlist-workshop.tsx:1586
-#: src/routes/playlist-workshop.tsx:4324
+#: src/routes/playlist-workshop.tsx:1513
+#: src/routes/playlist-workshop.tsx:4102
 msgid "Failed to create playlist."
 msgstr "创建播放列表失败。"
 
@@ -4678,8 +4741,8 @@ msgstr "创建来源失败。"
 msgid "Failed to delete hero."
 msgstr "删除 Hero 失败。"
 
-#: src/routes/playlist-workshop.tsx:1640
-#: src/routes/playlist-workshop.tsx:4370
+#: src/routes/playlist-workshop.tsx:1567
+#: src/routes/playlist-workshop.tsx:4148
 msgid "Failed to delete playlist."
 msgstr "删除播放列表失败。"
 
@@ -4707,7 +4770,7 @@ msgstr "直接发送负面增益失败。"
 msgid "Failed to download funscript."
 msgstr "无法下载 funscript。"
 
-#: src/routes/playlist-workshop.tsx:1549
+#: src/routes/playlist-workshop.tsx:1476
 msgid "Failed to duplicate playlist."
 msgstr "复制播放列表失败。"
 
@@ -4724,12 +4787,12 @@ msgstr "导出调试文件失败。"
 msgid "Failed to export library package."
 msgstr "导出库包失败。"
 
-#: src/routes/playlist-workshop.tsx:1927
-#: src/routes/playlist-workshop.tsx:1953
+#: src/routes/playlist-workshop.tsx:1854
+#: src/routes/playlist-workshop.tsx:1880
 msgid "Failed to export playlist pack."
 msgstr "导出播放列表包失败。"
 
-#: src/routes/playlist-workshop.tsx:1880
+#: src/routes/playlist-workshop.tsx:1807
 msgid "Failed to export playlist."
 msgstr "导出播放列表失败。"
 
@@ -4825,9 +4888,9 @@ msgstr "无法加载所选回合媒体。"
 msgid "Failed to load trusted sites."
 msgstr "加载受信任的站点失败。"
 
-#: src/routes/playlist-workshop.tsx:1362
-#: src/routes/playlist-workshop.tsx:1526
-#: src/routes/playlist-workshop.tsx:1902
+#: src/routes/playlist-workshop.tsx:1295
+#: src/routes/playlist-workshop.tsx:1453
+#: src/routes/playlist-workshop.tsx:1829
 msgid "Failed to open advanced map editor."
 msgstr "打开高级地图编辑器失败。"
 
@@ -4890,8 +4953,8 @@ msgstr "刷新结果失败。"
 msgid "Failed to remove server profile."
 msgstr "移除服务器配置失败。"
 
-#: src/routes/playlist-workshop.tsx:1613
-#: src/routes/playlist-workshop.tsx:4303
+#: src/routes/playlist-workshop.tsx:1540
+#: src/routes/playlist-workshop.tsx:4081
 msgid "Failed to rename playlist."
 msgstr "重命名播放列表失败。"
 
@@ -4936,7 +4999,7 @@ msgstr "保存偏移量到回合失败。"
 msgid "Failed to save palette"
 msgstr "保存调色板失败"
 
-#: src/routes/playlist-workshop.tsx:1974
+#: src/routes/playlist-workshop.tsx:1901
 msgid "Failed to save playlist."
 msgstr "保存播放列表失败。"
 
@@ -5098,19 +5161,17 @@ msgstr "文件名"
 msgid "Files on disk will be left untouched. This cannot be undone from inside the app."
 msgstr "磁盘上的文件将保持不变。此操作无法在应用内撤销。"
 
-#: src/routes/playlist-workshop.tsx:3291
-msgid "Filter by heroes or hero tags"
-msgstr "按主角或主角标签筛选"
-
 #: src/routes/settings.tsx:7836
 msgid "Filter domains"
 msgstr "筛选域名"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3173
+#: src/routes/playlist-workshop.tsx:4621
 msgid "Filter library"
 msgstr "过滤器库"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2826
+#: src/routes/playlist-workshop.tsx:4585
 msgid "Filters"
 msgstr "过滤器"
 
@@ -5302,6 +5363,7 @@ msgstr "法语"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3358
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3373
+#: src/routes/playlist-workshop.tsx:4845
 msgid "From"
 msgstr "从"
 
@@ -5339,12 +5401,13 @@ msgstr "全屏"
 msgid "command-palette.settings-general.description"
 msgstr "全屏、背景视频"
 
-#: src/routes/playlist-workshop.tsx:5001
+#: src/routes/playlist-workshop.tsx:5356
 msgid "Fully Random"
 msgstr "完全随机"
 
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:67
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:149
+#: src/routes/playlist-workshop.tsx:4795
 msgid "Funscript"
 msgstr "Funscript"
 
@@ -5507,13 +5570,13 @@ msgstr "赠送保证增益"
 msgid "Give Up"
 msgstr "放弃"
 
+#: src/features/map-editor/components/AutomationPanel.tsx:235
+msgid "Global"
+msgstr "全局"
+
 #. js-lingui-explicit-id
 #: src/routes/settings.tsx:310
 msgid "settings.help.shortcuts.global.title"
-msgstr "全局"
-
-#: src/features/map-editor/components/AutomationPanel.tsx:235
-msgid "Global"
 msgstr "全局"
 
 #: src/routes/settings.tsx:1538
@@ -5566,7 +5629,7 @@ msgid "GPU Preference (FFmpeg & Electron)"
 msgstr "GPU 偏好设置（FFmpeg 和 Electron）"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:247
-#: src/routes/playlist-workshop.tsx:2423
+#: src/routes/playlist-workshop.tsx:2350
 msgid "Graph"
 msgstr "图"
 
@@ -5579,7 +5642,7 @@ msgstr "图谱"
 msgid "Graph is valid"
 msgstr "图有效"
 
-#: src/routes/playlist-workshop.tsx:2467
+#: src/routes/playlist-workshop.tsx:2397
 msgid "Graph Playlist"
 msgstr "图播放列表"
 
@@ -5691,11 +5754,11 @@ msgstr "触觉行程已重置。"
 msgid "Haptics timing resynced."
 msgstr "触觉时间已重新同步。"
 
-#: src/routes/playlist-workshop.tsx:4159
+#: src/routes/playlist-workshop.tsx:3937
 msgid "Hard cap for anti-perk chance. Once reached, later rounds keep using this maximum instead of growing further."
 msgstr "负面增益概率的硬上限。达到后，后续回合将保持此最大值而不再增长。"
 
-#: src/routes/playlist-workshop.tsx:4108
+#: src/routes/playlist-workshop.tsx:3886
 msgid "Hard cap for intermediary chance. Scaling stops increasing once this value is reached, even if more rounds are completed."
 msgstr "中间片段概率的硬上限。达到此值后缩放停止增加，即使完成了更多回合。"
 
@@ -5711,6 +5774,10 @@ msgstr "困难模式已对该主角的 {0} 个回合生效。"
 #: src/components/game/RoundVideoOverlay.tsx:2161
 msgid "Hard mode is live for this round."
 msgstr "困难模式已对本回合生效。"
+
+#: src/routes/playlist-workshop.tsx:4558
+msgid "Hardest"
+msgstr "最难"
 
 #. js-lingui-explicit-id
 #: src/routes/first-start.tsx:165
@@ -5779,16 +5846,12 @@ msgstr "主角元数据"
 msgid "Hero name *"
 msgstr "主角名称 *"
 
-#: src/routes/playlist-workshop.tsx:3364
-msgid "Hero tags"
-msgstr "主角标签"
-
 #: src/components/LibraryExportOverlay.tsx:124
 #: src/features/map-editor/components/TileSidebar.tsx:305
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:222
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2842
-#: src/routes/playlist-workshop.tsx:3183
-#: src/routes/playlist-workshop.tsx:3325
+#: src/routes/playlist-workshop.tsx:3110
+#: src/routes/playlist-workshop.tsx:4743
 msgid "Heroes"
 msgstr "主角"
 
@@ -5835,6 +5898,10 @@ msgstr "豪赌客"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1061
 msgid "Highest anti-perk chance allowed."
 msgstr "允许的最高负面增益概率。"
+
+#: src/routes/playlist-workshop.tsx:4562
+msgid "Highest BPM"
+msgstr "最高 BPM"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1001
 msgid "Highest intermediary chance allowed."
@@ -5905,7 +5972,7 @@ msgstr "连胜"
 msgid "Hover, focus, or click a route to preview it on the board. You can also click the glowing destination tiles."
 msgstr "悬停、聚焦或点击路线以在棋盘上预览。你也可以点击发光的目标格子。"
 
-#: src/routes/playlist-workshop.tsx:3616
+#: src/routes/playlist-workshop.tsx:3394
 msgid "How cum rounds work"
 msgstr "Cum 回合如何运作"
 
@@ -5913,7 +5980,7 @@ msgstr "Cum 回合如何运作"
 msgid "How long the intermediary loading countdown runs before switching videos."
 msgstr "切换视频前中间加载倒计时的时长。"
 
-#: src/routes/playlist-workshop.tsx:3705
+#: src/routes/playlist-workshop.tsx:3483
 msgid "How the system works"
 msgstr "系统如何运作"
 
@@ -6002,7 +6069,7 @@ msgstr "如果你还没有账户，可以在EroScripts网站上免费创建一�
 msgid "first-start.step.handy.detail.2"
 msgstr "如果你没有 Handy，可以跳过此步骤。你仍然可以在没有硬件的情况下使用应用和玩游戏。"
 
-#: src/routes/playlist-workshop.tsx:3626
+#: src/routes/playlist-workshop.tsx:3404
 msgid "If you leave this list empty, the game falls back to a random installed cum round instead of ending without one."
 msgstr "如果你将此列表留空，游戏会退而使用随机安装的 Cum 回合，而不是在没有的情况下结束。"
 
@@ -6037,12 +6104,12 @@ msgstr "影响费用：₪{0}"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:363
 #: src/features/rounds/library/dialogs/LegacyPlaylistReviewDialog.tsx:126
-#: src/routes/playlist-workshop.tsx:2446
+#: src/routes/playlist-workshop.tsx:2373
 msgid "Import"
 msgstr "导入"
 
 #. placeholder {0}: analysis.metadata.name
-#: src/routes/playlist-workshop.tsx:1445
+#: src/routes/playlist-workshop.tsx:1378
 msgid "Import {0}"
 msgstr "导入 {0}"
 
@@ -6068,8 +6135,8 @@ msgid "Import Order Preview"
 msgstr "导入顺序预览"
 
 #: src/routes/map-editor.tsx:3914
-#: src/routes/playlist-workshop.tsx:1659
-#: src/routes/playlist-workshop.tsx:4393
+#: src/routes/playlist-workshop.tsx:1586
+#: src/routes/playlist-workshop.tsx:4171
 msgid "Import with Selected Resolutions"
 msgstr "以所选分辨率导入"
 
@@ -6135,8 +6202,8 @@ msgstr "游戏内 HUD、负面增益、中间片段行为和游戏修改器。"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1210
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1247
-#: src/routes/playlist-workshop.tsx:3806
-#: src/routes/playlist-workshop.tsx:3910
+#: src/routes/playlist-workshop.tsx:3584
+#: src/routes/playlist-workshop.tsx:3688
 msgid "Inactive"
 msgstr "未激活"
 
@@ -6144,6 +6211,10 @@ msgstr "未激活"
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:337
 msgid "Include Media Files"
 msgstr "包含媒体文件"
+
+#: src/routes/playlist-workshop.tsx:4727
+msgid "Include unknown BPM"
+msgstr "包含未知 BPM"
 
 #. js-lingui-explicit-id
 #: src/game/data/perks.ts:732
@@ -6209,7 +6280,7 @@ msgstr "在一轮内将回合播放速度提高到 1.2x。"
 msgid "Infinite Progression"
 msgstr "无限进步"
 
-#: src/routes/playlist-workshop.tsx:5039
+#: src/routes/playlist-workshop.tsx:5394
 msgid "Infinite run with random rounds. Dice locked to 1. No dice-related perks. Anti-perks can be toggled in the playlist settings."
 msgstr "随机回合的无限模式。骰子锁定为1。无骰子相关增益。反增益可在播放列表设置中切换。"
 
@@ -6293,9 +6364,14 @@ msgstr "安装网页视频"
 msgid "Install Website Round"
 msgstr "安装网站回合"
 
+#: src/routes/playlist-workshop.tsx:4778
+msgid "Installation"
+msgstr "安装"
+
 #: src/features/converter/SourcePanel.tsx:72
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2522
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3253
+#: src/routes/playlist-workshop.tsx:4799
 #: src/routes/settings.tsx:4154
 msgid "Installed"
 msgstr "已安装"
@@ -6320,7 +6396,7 @@ msgstr "已安装的库"
 msgid "Installed Library"
 msgstr "已安装库"
 
-#: src/routes/playlist-workshop.tsx:3140
+#: src/routes/playlist-workshop.tsx:3067
 msgid "Installed library · click Add to include in queue"
 msgstr "已安装库 · 点击添加以加入队列"
 
@@ -6387,6 +6463,8 @@ msgstr "强度 <="
 
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:55
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3240
+#: src/routes/playlist-workshop.tsx:4329
+#: src/routes/playlist-workshop.tsx:4376
 #: src/routes/settings.tsx:7034
 msgid "Interjection"
 msgstr "插入"
@@ -6409,7 +6487,7 @@ msgstr "中间环节片段已生成。"
 msgid "Intermediary increase"
 msgstr "中间环节增量"
 
-#: src/routes/playlist-workshop.tsx:4089
+#: src/routes/playlist-workshop.tsx:3867
 msgid "Intermediary Increase %"
 msgstr "中间环节增量 %"
 
@@ -6418,7 +6496,7 @@ msgstr "中间环节增量 %"
 msgid "Intermediary initial"
 msgstr "中间环节初始值"
 
-#: src/routes/playlist-workshop.tsx:4071
+#: src/routes/playlist-workshop.tsx:3849
 msgid "Intermediary Initial %"
 msgstr "中间环节初始值 %"
 
@@ -6435,7 +6513,7 @@ msgstr "中间环节加载提示"
 msgid "Intermediary max"
 msgstr "中间环节最大值"
 
-#: src/routes/playlist-workshop.tsx:4107
+#: src/routes/playlist-workshop.tsx:3885
 msgid "Intermediary Max %"
 msgstr "中间环节最大值 %"
 
@@ -6613,7 +6691,7 @@ msgstr "保留手动填写的回合名称，不链接到已安装的回合。"
 msgid "Keep the round playback progress bar visible even after the rest of the HUD fades out."
 msgstr "即使 HUD 的其余部分淡出，也保持回合播放进度条可见。"
 
-#: src/routes/playlist-workshop.tsx:5020
+#: src/routes/playlist-workshop.tsx:5375
 msgid "Keeps randomness, but later rounds increasingly favor longer and higher-difficulty entries."
 msgstr "保留随机性，但后续回合会越来越偏向更长且更高难度的条目。"
 
@@ -6818,6 +6896,10 @@ msgstr "库导出进行中"
 msgid "Library filter"
 msgstr "库筛选"
 
+#: src/routes/playlist-workshop.tsx:4767
+msgid "Library labels"
+msgstr "库标签"
+
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2929
 msgid "Library Snapshot"
 msgstr "库快照"
@@ -6858,7 +6940,7 @@ msgid "Limits how many missing video fingerprints are calculated during each aut
 msgstr "限制每次自动后台处理时计算多少缺失的视频指纹。手动扫描仍会处理全部积压任务。"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:246
-#: src/routes/playlist-workshop.tsx:2423
+#: src/routes/playlist-workshop.tsx:2350
 msgid "Linear"
 msgstr "线性"
 
@@ -7021,6 +7103,7 @@ msgstr "大厅："
 #: src/features/rounds/library/InstalledRoundsPage.tsx:961
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2523
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3304
+#: src/routes/playlist-workshop.tsx:4787
 msgid "Local"
 msgstr "本地"
 
@@ -7154,6 +7237,10 @@ msgstr "长间歇"
 msgid "perk.name.long-stride"
 msgstr "大步"
 
+#: src/routes/playlist-workshop.tsx:4560
+msgid "Longest"
+msgstr "最长"
+
 #: src/components/GlobalMusicOverlay.tsx:640
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:640
 msgid "Loop"
@@ -7177,6 +7264,10 @@ msgstr "低压缩"
 #: src/routes/first-start.tsx:2444
 msgid "Lower values reduce each automatic scan burst on weaker laptops. Higher values finish background matching faster on stronger systems."
 msgstr "较低的值会减少弱性能笔记本上每次自动扫描的突发工作量。较高的值会在更强的系统上更快完成后台匹配。"
+
+#: src/routes/playlist-workshop.tsx:4561
+msgid "Lowest BPM"
+msgstr "最低 BPM"
 
 #. js-lingui-explicit-id
 #: src/game/data/perks.ts:887
@@ -7342,7 +7433,11 @@ msgstr "最大"
 msgid "Max all skills"
 msgstr "升满所有技能"
 
-#: src/routes/playlist-workshop.tsx:3016
+#: src/routes/playlist-workshop.tsx:4711
+msgid "Max BPM"
+msgstr "最大 BPM"
+
+#: src/routes/playlist-workshop.tsx:2943
 msgid "Max D"
 msgstr "最大难度"
 
@@ -7352,7 +7447,7 @@ msgstr "最大日志文件大小 (MB)"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:805
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:808
-#: src/routes/playlist-workshop.tsx:3968
+#: src/routes/playlist-workshop.tsx:3746
 msgid "Maximum Roll"
 msgstr "最大掷骰"
 
@@ -7386,6 +7481,10 @@ msgstr "合并"
 #: src/features/converter/shortcuts.ts:339
 msgid "Merge the selected segment with the next segment."
 msgstr "将选中的片段与下一个片段合并。"
+
+#: src/routes/playlist-workshop.tsx:4733
+msgid "Metadata"
+msgstr "元数据"
 
 #: src/routes/settings.tsx:8508
 #: src/routes/settings.tsx:8595
@@ -7451,7 +7550,11 @@ msgstr "榨取序列"
 msgid "Min"
 msgstr "最小"
 
-#: src/routes/playlist-workshop.tsx:3015
+#: src/routes/playlist-workshop.tsx:4701
+msgid "Min BPM"
+msgstr "最小 BPM"
+
+#: src/routes/playlist-workshop.tsx:2942
 msgid "Min D"
 msgstr "最小难度"
 
@@ -7469,11 +7572,11 @@ msgstr "自动数据库和设置备份之间的最小天数。"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:788
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:791
-#: src/routes/playlist-workshop.tsx:3946
+#: src/routes/playlist-workshop.tsx:3724
 msgid "Minimum Roll"
 msgstr "最小掷骰"
 
-#: src/routes/playlist-workshop.tsx:2880
+#: src/routes/playlist-workshop.tsx:2807
 msgid "Minimum Round Count: {requiredNormalRoundCount}"
 msgstr "最少回合数：{requiredNormalRoundCount}"
 
@@ -7482,6 +7585,7 @@ msgid "Minimum video length in minutes"
 msgstr "视频最小时长（分钟）"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3254
+#: src/routes/playlist-workshop.tsx:4800
 msgid "Missing"
 msgstr "缺失"
 
@@ -7549,7 +7653,7 @@ msgstr "模式"
 msgid "hud.money"
 msgstr "金钱"
 
-#: src/routes/playlist-workshop.tsx:4035
+#: src/routes/playlist-workshop.tsx:3813
 msgid "Money available at the beginning of a new run from this playlist. Existing resumed runs keep their saved money."
 msgstr "从此播放列表开始新运行时可用的资金。已恢复的运行会保留其已保存的资金。"
 
@@ -7596,7 +7700,7 @@ msgstr "当你明确知道要查看什么时，直接进入详细分数视图。
 msgid "Move the player instantly after each roll instead of playing the dice and movement animation."
 msgstr "每次掷骰后立即移动玩家，而不是播放骰子和移动动画。"
 
-#: src/routes/playlist-workshop.tsx:3998
+#: src/routes/playlist-workshop.tsx:3776
 msgid "Move the player instantly after each roll instead of playing the dice and movement animation. Disabled by default."
 msgstr "每次掷骰后立即移动玩家，而不是播放骰子和移动动画。默认禁用。"
 
@@ -7807,7 +7911,7 @@ msgstr "导航"
 msgid "command-palette.category.navigation"
 msgstr "导航"
 
-#: src/routes/playlist-workshop.tsx:2445
+#: src/routes/playlist-workshop.tsx:2372
 msgid "New"
 msgstr "新的"
 
@@ -7829,7 +7933,7 @@ msgid "game.reward.newMoneyTotal"
 msgstr "新资金总额"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:350
-#: src/routes/playlist-workshop.tsx:4960
+#: src/routes/playlist-workshop.tsx:5315
 msgid "New Playlist"
 msgstr "新播放列表"
 
@@ -7849,6 +7953,7 @@ msgstr "新分数总额"
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1790
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2852
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3342
+#: src/routes/playlist-workshop.tsx:4563
 msgid "Newest"
 msgstr "最新"
 
@@ -7978,7 +8083,7 @@ msgstr "无连接密钥"
 msgid "No credentials required for this Stash instance."
 msgstr "此 Stash 实例无需凭证。"
 
-#: src/routes/playlist-workshop.tsx:3691
+#: src/routes/playlist-workshop.tsx:3469
 msgid "No cum rounds installed."
 msgstr "未安装高潮回合。"
 
@@ -7998,6 +8103,10 @@ msgstr "无描述"
 #: src/components/GlobalHandyOverlay.tsx:537
 msgid "No device connected"
 msgstr "未连接设备"
+
+#: src/routes/playlist-workshop.tsx:4392
+msgid "No difficulties"
+msgstr "无难度"
 
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:504
 msgid "No direct funscripts found."
@@ -8097,11 +8206,6 @@ msgstr "未配置音乐曲目。"
 msgid "No New Record Set"
 msgstr "未创下新纪录"
 
-#: src/routes/playlist-workshop.tsx:3102
-#: src/routes/playlist-workshop.tsx:3558
-msgid "No normal rounds installed."
-msgstr "未安装普通回合。"
-
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1208
 msgid "No perks available."
 msgstr "没有可用的增益。"
@@ -8135,7 +8239,7 @@ msgid "No preview"
 msgstr "无预览"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1522
-#: src/routes/playlist-workshop.tsx:4820
+#: src/routes/playlist-workshop.tsx:5175
 msgid "No Preview"
 msgstr "无预览"
 
@@ -8177,6 +8281,11 @@ msgstr "无轮散列"
 msgid "No rounds currently match the active search and filter state."
 msgstr "当前没有回合匹配已启用的搜索和筛选条件。"
 
+#: src/routes/playlist-workshop.tsx:3029
+#: src/routes/playlist-workshop.tsx:3335
+msgid "No rounds installed."
+msgstr "未安装任何回合。"
+
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3499
 msgid "No rounds match this filter"
 msgstr "没有回合匹配此筛选条件"
@@ -8186,12 +8295,12 @@ msgid "No rounds match your filters."
 msgstr "没有符合筛选条件的回合。"
 
 #: src/features/map-editor/components/TileSidebar.tsx:278
-#: src/routes/playlist-workshop.tsx:3562
+#: src/routes/playlist-workshop.tsx:3339
 msgid "No rounds match your search."
 msgstr "没有回合匹配你的搜索。"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:864
-#: src/routes/playlist-workshop.tsx:2763
+#: src/routes/playlist-workshop.tsx:2690
 msgid "No Saves"
 msgstr "无存档"
 
@@ -8219,6 +8328,10 @@ msgstr "未保存服务器"
 #: src/routes/highscores.tsx:708
 msgid "No single-player history yet."
 msgstr "尚无单人历史记录。"
+
+#: src/routes/playlist-workshop.tsx:4425
+msgid "No sources"
+msgstr "无来源"
 
 #: src/routes/settings.tsx:6913
 msgid "No sources configured yet."
@@ -8331,6 +8444,8 @@ msgstr "未选择"
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1539
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:54
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3239
+#: src/routes/playlist-workshop.tsx:4330
+#: src/routes/playlist-workshop.tsx:4377
 #: src/routes/settings.tsx:7033
 msgid "Normal"
 msgstr "普通"
@@ -8419,6 +8534,7 @@ msgstr "Y 偏移"
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1779
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2853
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3343
+#: src/routes/playlist-workshop.tsx:4564
 msgid "Oldest"
 msgstr "最旧"
 
@@ -8440,7 +8556,7 @@ msgid "Only affects vibration-only toys. Higher values map funscript stroke spee
 msgstr "仅影响纯振动玩具。值越高，funscript 行程速度会映射为更强的振动。"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:865
-#: src/routes/playlist-workshop.tsx:2764
+#: src/routes/playlist-workshop.tsx:2691
 msgid "Only Checkpoint"
 msgstr "仅检查点"
 
@@ -8475,7 +8591,7 @@ msgid "Open"
 msgstr "打开"
 
 #. placeholder {0}: round.name
-#: src/routes/playlist-workshop.tsx:4750
+#: src/routes/playlist-workshop.tsx:5105
 msgid "Open {0}"
 msgstr "打开 {0}"
 
@@ -8483,8 +8599,8 @@ msgstr "打开 {0}"
 msgid "Open a round or portable package"
 msgstr "打开圆形或便携式包装"
 
-#: src/routes/playlist-workshop.tsx:2363
-#: src/routes/playlist-workshop.tsx:2488
+#: src/routes/playlist-workshop.tsx:2290
+#: src/routes/playlist-workshop.tsx:2418
 msgid "Open Advanced Map Editor"
 msgstr "打开高级地图编辑器"
 
@@ -8613,7 +8729,7 @@ msgstr "打开主题"
 msgid "Opening Discord..."
 msgstr "正在打开 Discord..."
 
-#: src/routes/playlist-workshop.tsx:1726
+#: src/routes/playlist-workshop.tsx:1653
 msgid "Opening Graph Editor"
 msgstr "正在打开图形编辑器"
 
@@ -8683,6 +8799,11 @@ msgstr "已过期"
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:996
 msgid "Outgoing Paths"
 msgstr "出路径"
+
+#: src/routes/playlist-workshop.tsx:4406
+#: src/routes/playlist-workshop.tsx:4691
+msgid "Over 10 min"
+msgstr "超过 10 分钟"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:198
 msgid "Overline label"
@@ -8878,22 +8999,22 @@ msgstr "增益物品栏"
 msgid "Perk Rates"
 msgstr "增益概率"
 
-#: src/routes/playlist-workshop.tsx:4062
+#: src/routes/playlist-workshop.tsx:3840
 msgid "Perk Trigger Chance %"
 msgstr "增益触发概率 %"
 
 #: src/components/game/GameScene.tsx:5528
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1181
-#: src/routes/playlist-workshop.tsx:3727
+#: src/routes/playlist-workshop.tsx:3505
 msgid "Perks"
 msgstr "增益"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:206
+#: src/routes/playlist-workshop.tsx:220
 msgid "playlist-workshop.section.perks.title"
 msgstr "增益与反增益"
 
-#: src/routes/playlist-workshop.tsx:3708
+#: src/routes/playlist-workshop.tsx:3486
 msgid "Perks are beneficial choices offered between completed rounds. Anti-perks are harmful effects that can enter the same choice pool when enabled and can also stay active across multiple rounds."
 msgstr "增益是在完成回合之间提供的有利选项。启用后，反增益会作为有害效果进入同一选择池，并且也可以跨多个回合持续生效。"
 
@@ -9066,7 +9187,7 @@ msgid "Playlist"
 msgstr "播放列表"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:186
+#: src/routes/playlist-workshop.tsx:200
 msgid "playlist-workshop.section.playlist.title"
 msgstr "播放列表"
 
@@ -9074,17 +9195,17 @@ msgstr "播放列表"
 msgid "Playlist collection"
 msgstr "播放列表集合"
 
-#: src/routes/playlist-workshop.tsx:1583
-#: src/routes/playlist-workshop.tsx:4321
+#: src/routes/playlist-workshop.tsx:1510
+#: src/routes/playlist-workshop.tsx:4099
 msgid "Playlist created."
 msgstr "播放列表已创建。"
 
-#: src/routes/playlist-workshop.tsx:1637
-#: src/routes/playlist-workshop.tsx:4367
+#: src/routes/playlist-workshop.tsx:1564
+#: src/routes/playlist-workshop.tsx:4145
 msgid "Playlist deleted."
 msgstr "播放列表已删除。"
 
-#: src/routes/playlist-workshop.tsx:1545
+#: src/routes/playlist-workshop.tsx:1472
 msgid "Playlist duplicated."
 msgstr "播放列表重复。"
 
@@ -9092,28 +9213,28 @@ msgstr "播放列表重复。"
 msgid "Playlist Export Running"
 msgstr "播放列表导出进行中"
 
-#: src/routes/playlist-workshop.tsx:1876
+#: src/routes/playlist-workshop.tsx:1803
 msgid "Playlist exported."
 msgstr "播放列表已导出。"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:749
+#: src/routes/playlist-workshop.tsx:755
 msgid "playlist-workshop.import.auto-resolved"
 msgstr "播放列表已导入，其中 {count, plural, one {# 个回合引用已自动解析。} other {# 个回合引用已自动解析。}}"
 
-#: src/routes/playlist-workshop.tsx:1705
-#: src/routes/playlist-workshop.tsx:4461
+#: src/routes/playlist-workshop.tsx:1632
+#: src/routes/playlist-workshop.tsx:4239
 msgid "Playlist imported with unresolved refs preserved."
 msgstr "播放列表已导入，未解析的引用已被保留。"
 
-#: src/routes/playlist-workshop.tsx:1466
-#: src/routes/playlist-workshop.tsx:1685
-#: src/routes/playlist-workshop.tsx:4420
+#: src/routes/playlist-workshop.tsx:1399
+#: src/routes/playlist-workshop.tsx:1612
+#: src/routes/playlist-workshop.tsx:4198
 msgid "Playlist imported."
 msgstr "播放列表已导入。"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:776
+#: src/routes/playlist-workshop.tsx:782
 msgid "playlist-workshop.import.unresolved-summary"
 msgstr "播放列表已导入。{count, plural, one {# 个引用仍需手动匹配。} other {# 个引用仍需手动匹配。}}"
 
@@ -9135,15 +9256,15 @@ msgid "Playlist name"
 msgstr "播放列表名称"
 
 #: src/features/rounds/library/dialogs/LegacyPlaylistReviewDialog.tsx:76
-#: src/routes/playlist-workshop.tsx:4897
-#: src/routes/playlist-workshop.tsx:4978
+#: src/routes/playlist-workshop.tsx:5252
+#: src/routes/playlist-workshop.tsx:5333
 msgid "Playlist Name"
 msgstr "播放列表名称"
 
-#: src/routes/playlist-workshop.tsx:1590
-#: src/routes/playlist-workshop.tsx:1617
-#: src/routes/playlist-workshop.tsx:4307
-#: src/routes/playlist-workshop.tsx:4328
+#: src/routes/playlist-workshop.tsx:1517
+#: src/routes/playlist-workshop.tsx:1544
+#: src/routes/playlist-workshop.tsx:4085
+#: src/routes/playlist-workshop.tsx:4106
 msgid "Playlist name cannot be empty."
 msgstr "播放列表名称不能为空。"
 
@@ -9152,31 +9273,31 @@ msgid "Playlist Pack Export"
 msgstr "播放列表打包导出"
 
 #. placeholder {0}: result.fpackPath ?? result.exportDir
-#: src/routes/playlist-workshop.tsx:1949
+#: src/routes/playlist-workshop.tsx:1876
 msgid "Playlist pack exported to {0}."
 msgstr "播放列表包已导出到 {0}。"
 
-#: src/routes/playlist-workshop.tsx:1610
-#: src/routes/playlist-workshop.tsx:4300
+#: src/routes/playlist-workshop.tsx:1537
+#: src/routes/playlist-workshop.tsx:4078
 msgid "Playlist renamed."
 msgstr "播放列表已重命名。"
 
-#: src/routes/playlist-workshop.tsx:4444
+#: src/routes/playlist-workshop.tsx:4222
 msgid "Playlist resolutions applied."
 msgstr "播放列表解析结果已应用。"
 
-#: src/routes/playlist-workshop.tsx:1970
+#: src/routes/playlist-workshop.tsx:1897
 msgid "Playlist saved."
 msgstr "播放列表已保存。"
 
 #. placeholder {0}: activePlaylist.config.playlistVersion
-#: src/routes/playlist-workshop.tsx:2429
+#: src/routes/playlist-workshop.tsx:2356
 msgid "Playlist Version {0}"
 msgstr "播放列表版本 {0}"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:163
 #: src/routes/index.tsx:356
-#: src/routes/playlist-workshop.tsx:2308
+#: src/routes/playlist-workshop.tsx:2235
 msgid "Playlist Workshop"
 msgstr "播放列表工坊"
 
@@ -9249,7 +9370,7 @@ msgstr "准备中"
 msgid "Preparing Account..."
 msgstr "正在准备账户..."
 
-#: src/routes/playlist-workshop.tsx:3544
+#: src/routes/playlist-workshop.tsx:3321
 msgid "Preparing available rounds"
 msgstr "正在准备可用回合"
 
@@ -9414,7 +9535,7 @@ msgstr "进度和技能树"
 msgid "Progressive"
 msgstr "渐进"
 
-#: src/routes/playlist-workshop.tsx:5017
+#: src/routes/playlist-workshop.tsx:5372
 msgid "Progressive Random"
 msgstr "渐进随机"
 
@@ -9464,7 +9585,7 @@ msgstr "将远程比赛历史拉取到本地缓存，然后从多人游戏部分
 msgid "Queue"
 msgstr "队列"
 
-#: src/routes/playlist-workshop.tsx:2870
+#: src/routes/playlist-workshop.tsx:2797
 msgid "Queue · drag to reorder · fills repeats if shorter than session"
 msgstr "队列 · 拖动重新排序 · 若短于会话则用重复填充"
 
@@ -9498,6 +9619,10 @@ msgstr "轨道 B"
 msgid "Random"
 msgstr "随机"
 
+#: src/routes/playlist-workshop.tsx:4440
+msgid "Random eligible"
+msgstr "随机合格"
+
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:921
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:924
 msgid "Random perk selection chance"
@@ -9515,11 +9640,15 @@ msgstr "随机回合"
 msgid "Random round acquired"
 msgstr "获得随机回合"
 
+#: src/routes/playlist-workshop.tsx:4807
+msgid "Random selection"
+msgstr "随机选择"
+
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:230
 msgid "Random Selection"
 msgstr "随机选择"
 
-#: src/routes/playlist-workshop.tsx:2257
+#: src/routes/playlist-workshop.tsx:2184
 msgid "Randomize"
 msgstr "随机排列"
 
@@ -9566,7 +9695,7 @@ msgstr "准备就绪"
 msgid "Ready to scan"
 msgstr "准备扫描"
 
-#: src/routes/playlist-workshop.tsx:2530
+#: src/routes/playlist-workshop.tsx:2460
 msgid "Ready to share? Bundle this playlist along with all its associated media into a highly compressed, easily shareable format. Perfect for distribution."
 msgstr "准备好分享了吗？将此播放列表及其所有相关媒体打包为高度压缩、易于分享的格式。非常适合分发。"
 
@@ -9583,11 +9712,11 @@ msgstr "原因：{0}"
 msgid "Reattach Funscripts in Stash Rounds"
 msgstr "重新附加Stash回合中的Funscript"
 
-#: src/routes/playlist-workshop.tsx:3063
+#: src/routes/playlist-workshop.tsx:2990
 msgid "Rebuild Queue From Sections"
 msgstr "从段落重建队列"
 
-#: src/routes/playlist-workshop.tsx:2947
+#: src/routes/playlist-workshop.tsx:2874
 msgid "Rebuild the queue from index ranges and difficulty bands."
 msgstr "从索引范围和难度带重建队列。"
 
@@ -9659,7 +9788,7 @@ msgstr "正在重新连接触觉..."
 msgid "Records of your past games and sessions."
 msgstr "你过去游戏和会话的记录。"
 
-#: src/routes/playlist-workshop.tsx:1723
+#: src/routes/playlist-workshop.tsx:1650
 msgid "Redirecting"
 msgstr "重定向中"
 
@@ -9793,8 +9922,13 @@ msgstr "移除当前影响你的所有反增益。"
 msgid "Remove background"
 msgstr "移除背景"
 
-#: src/routes/playlist-workshop.tsx:4630
-#: src/routes/playlist-workshop.tsx:4631
+#. placeholder {0}: chip.label
+#: src/routes/playlist-workshop.tsx:4604
+msgid "Remove filter {0}"
+msgstr "移除筛选器 {0}"
+
+#: src/routes/playlist-workshop.tsx:4985
+#: src/routes/playlist-workshop.tsx:4986
 msgid "Remove from queue"
 msgstr "从队列中移除"
 
@@ -9819,16 +9953,16 @@ msgid "Remove video"
 msgstr "移除视频"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:557
-#: src/routes/playlist-workshop.tsx:2448
-#: src/routes/playlist-workshop.tsx:4942
+#: src/routes/playlist-workshop.tsx:2378
+#: src/routes/playlist-workshop.tsx:5297
 msgid "Rename"
 msgstr "重命名"
 
-#: src/routes/playlist-workshop.tsx:4887
+#: src/routes/playlist-workshop.tsx:5242
 msgid "Rename Playlist"
 msgstr "重命名播放列表"
 
-#: src/routes/playlist-workshop.tsx:4942
+#: src/routes/playlist-workshop.tsx:5297
 msgid "Renaming..."
 msgstr "重命名中..."
 
@@ -9836,7 +9970,7 @@ msgstr "重命名中..."
 msgid "Reorder rounds by difficulty?"
 msgstr "按难度重新排序回合？"
 
-#: src/routes/playlist-workshop.tsx:2252
+#: src/routes/playlist-workshop.tsx:2179
 msgid "Reorder selected rounds?"
 msgstr "重新排序已选回合？"
 
@@ -9885,7 +10019,7 @@ msgid "Repository:"
 msgstr "仓库："
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:887
-#: src/routes/playlist-workshop.tsx:2730
+#: src/routes/playlist-workshop.tsx:2657
 msgid "Required Player Level"
 msgstr "所需玩家等级"
 
@@ -9920,14 +10054,18 @@ msgid "Reset anti-perk chance after trigger"
 msgstr "触发后重置反增益概率"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1104
-#: src/routes/playlist-workshop.tsx:4217
+#: src/routes/playlist-workshop.tsx:3995
 msgid "Reset Anti-Perk Chance After Trigger"
 msgstr "触发后重置反增益概率"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:4228
+#: src/routes/playlist-workshop.tsx:4006
 msgid "playlist-workshop.reset-antiperk-chance.toggle"
 msgstr "触发后重置反增益概率"
+
+#: src/routes/playlist-workshop.tsx:4644
+msgid "Reset defaults"
+msgstr "恢复默认"
 
 #: src/features/map-editor/components/EditorToolbar.tsx:155
 #: src/routes/map-editor.tsx:4015
@@ -9947,12 +10085,12 @@ msgid "Reset intermediary chance after trigger"
 msgstr "触发后重置插入片段概率"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1068
-#: src/routes/playlist-workshop.tsx:4176
+#: src/routes/playlist-workshop.tsx:3954
 msgid "Reset Intermediary Chance After Trigger"
 msgstr "触发后重置插入片段概率"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:4187
+#: src/routes/playlist-workshop.tsx:3965
 msgid "playlist-workshop.reset-intermediary-chance.toggle"
 msgstr "触发后重置插入片段概率"
 
@@ -10034,12 +10172,12 @@ msgstr "在触发插入片段的回合后，将插入片段概率重置为初始
 #. placeholder {0}: selectedPlaylist.name
 #: src/routes/map-editor.tsx:3527
 #: src/routes/multiplayer-lobby.tsx:935
-#: src/routes/playlist-workshop.tsx:2577
+#: src/routes/playlist-workshop.tsx:2507
 msgid "Resolve {0}"
 msgstr "解决 {0}"
 
 #: src/routes/multiplayer-lobby.tsx:756
-#: src/routes/playlist-workshop.tsx:1395
+#: src/routes/playlist-workshop.tsx:1328
 msgid "Resolve Missing"
 msgstr "解决缺失"
 
@@ -10191,8 +10329,8 @@ msgid "Review {singleRunCount} stored runs, including survival time and playlist
 msgstr "查看 {singleRunCount} 条已存储的运行记录，包括存活时间和播放列表来源。"
 
 #: src/routes/multiplayer-lobby.tsx:756
-#: src/routes/playlist-workshop.tsx:1396
-#: src/routes/playlist-workshop.tsx:1398
+#: src/routes/playlist-workshop.tsx:1329
+#: src/routes/playlist-workshop.tsx:1331
 msgid "Review Auto-Resolve"
 msgstr "查看自动解决"
 
@@ -10283,12 +10421,12 @@ msgstr "回合转换器"
 msgid "command-palette.converter"
 msgstr "回合转换器"
 
-#: src/routes/playlist-workshop.tsx:2640
+#: src/routes/playlist-workshop.tsx:2567
 msgid "Round Count"
 msgstr "回合数量"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:226
+#: src/routes/playlist-workshop.tsx:240
 msgid "playlist-workshop.section.session.description"
 msgstr "回合数量、安全点和棋盘布局。"
 
@@ -10304,6 +10442,10 @@ msgstr "回合难度"
 #: src/features/rounds/library/InstalledRoundsPage.tsx:769
 msgid "Round fields must use valid numeric values."
 msgstr "回合字段必须使用有效的数值。"
+
+#: src/routes/playlist-workshop.tsx:4616
+msgid "Round filters"
+msgstr "回合筛选器"
 
 #: src/features/converter/SegmentCard.tsx:125
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:555
@@ -10324,6 +10466,10 @@ msgstr "回合包是游戏库。这是棋盘在回合开始时从中调用的内
 msgid "Round preview"
 msgstr "回合预览"
 
+#: src/routes/playlist-workshop.tsx:4652
+msgid "Round properties"
+msgstr "回合属性"
+
 #: src/components/game/RoundStartTransition.tsx:40
 msgid "Round rule"
 msgstr "回合规则"
@@ -10333,12 +10479,12 @@ msgstr "回合规则"
 msgid "Round Slot {0}"
 msgstr "回合槽位 {0}"
 
-#: src/routes/playlist-workshop.tsx:4048
+#: src/routes/playlist-workshop.tsx:3826
 msgid "Round Start Delay (sec)"
 msgstr "回合开始延迟（秒）"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:246
+#: src/routes/playlist-workshop.tsx:260
 msgid "playlist-workshop.section.timing.description"
 msgstr "回合开始延迟和概率缩放。"
 
@@ -10348,7 +10494,7 @@ msgstr "回合过渡"
 
 #: src/components/game/PlaylistLaunchTransition.tsx:35
 #: src/features/map-editor/components/TileSidebar.tsx:334
-#: src/routes/playlist-workshop.tsx:3217
+#: src/routes/playlist-workshop.tsx:3137
 msgid "rounds"
 msgstr "回合"
 
@@ -10361,13 +10507,13 @@ msgid "Rounds"
 msgstr "回合"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:196
-msgid "playlist-workshop.section.rounds.title"
+#: src/routes/first-start.tsx:155
+msgid "first-start.step.round-packs.shortLabel"
 msgstr "回合"
 
 #. js-lingui-explicit-id
-#: src/routes/first-start.tsx:155
-msgid "first-start.step.round-packs.shortLabel"
+#: src/routes/playlist-workshop.tsx:210
+msgid "playlist-workshop.section.rounds.title"
 msgstr "回合"
 
 #: src/routes/first-start.tsx:2441
@@ -10431,11 +10577,11 @@ msgstr "安全模式启动快捷键"
 msgid "Safe Point"
 msgstr "安全点"
 
-#: src/routes/playlist-workshop.tsx:2710
+#: src/routes/playlist-workshop.tsx:2637
 msgid "Safe Point Indices (comma-separated)"
 msgstr "安全点索引（逗号分隔）"
 
-#: src/routes/playlist-workshop.tsx:2658
+#: src/routes/playlist-workshop.tsx:2585
 #: src/routes/single-player-setup.tsx:944
 msgid "Safe Points"
 msgstr "安全点"
@@ -10443,7 +10589,7 @@ msgstr "安全点"
 #: src/features/converter/SegmentList.tsx:96
 #: src/features/map-editor/components/CustomPaletteManager.tsx:289
 #: src/features/map-editor/components/EditorToolbar.tsx:244
-#: src/routes/playlist-workshop.tsx:2344
+#: src/routes/playlist-workshop.tsx:2271
 #: src/routes/settings.tsx:7076
 #: src/routes/settings.tsx:8100
 #: src/routes/settings.tsx:8173
@@ -10451,7 +10597,7 @@ msgstr "安全点"
 msgid "Save"
 msgstr "保存"
 
-#: src/routes/playlist-workshop.tsx:2595
+#: src/routes/playlist-workshop.tsx:2525
 msgid "Save and Test"
 msgstr "保存并测试"
 
@@ -10488,7 +10634,7 @@ msgid "Save Hero"
 msgstr "保存主角"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:854
-#: src/routes/playlist-workshop.tsx:2759
+#: src/routes/playlist-workshop.tsx:2686
 msgid "Save Mode"
 msgstr "保存模式"
 
@@ -10514,7 +10660,7 @@ msgstr "保存回合到主角"
 msgid "settings.help.shortcuts.mapEditor.save"
 msgstr "保存当前播放列表。"
 
-#: src/routes/playlist-workshop.tsx:2586
+#: src/routes/playlist-workshop.tsx:2516
 msgid "Save Without Test"
 msgstr "保存（不测试）"
 
@@ -10539,10 +10685,10 @@ msgstr "正在保存检查点…"
 #: src/features/rounds/library/dialogs/BulkAndConversionDialogs.tsx:26
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:30
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:37
-#: src/routes/playlist-workshop.tsx:2344
-#: src/routes/playlist-workshop.tsx:2352
-#: src/routes/playlist-workshop.tsx:2586
-#: src/routes/playlist-workshop.tsx:2595
+#: src/routes/playlist-workshop.tsx:2271
+#: src/routes/playlist-workshop.tsx:2279
+#: src/routes/playlist-workshop.tsx:2516
+#: src/routes/playlist-workshop.tsx:2525
 #: src/routes/settings.tsx:4192
 msgid "Saving..."
 msgstr "保存中..."
@@ -10646,6 +10792,14 @@ msgstr "分数："
 msgid "Script"
 msgstr "脚本"
 
+#: src/routes/playlist-workshop.tsx:4432
+msgid "Script installed"
+msgstr "脚本已安装"
+
+#: src/routes/playlist-workshop.tsx:4432
+msgid "Script missing"
+msgstr "脚本缺失"
+
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2497
 msgid "Script ready"
 msgstr "脚本准备就绪"
@@ -10674,10 +10828,6 @@ msgstr "搜索 {0}..."
 msgid "Search by package, version, or license"
 msgstr "按包名、版本或许可证搜索"
 
-#: src/routes/playlist-workshop.tsx:3260
-msgid "Search by round or author…"
-msgstr "按回合或作者搜索…"
-
 #: src/components/PlaylistResolutionModal.tsx:303
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1294
 msgid "Search by round, author, or type"
@@ -10700,10 +10850,6 @@ msgstr "搜索 EroScripts"
 msgid "Search free EroScripts topics, attach direct funscripts, or install discovered videos with an optional downloaded copy."
 msgstr "搜索免费的 EroScripts 主题，附加直接 funscript，或安装发现的视频并可选择下载副本。"
 
-#: src/routes/playlist-workshop.tsx:3305
-msgid "Search heroes or tags…"
-msgstr "搜索主角或标签…"
-
 #: src/features/converter/MassTrimHeroesDialog.tsx:147
 msgid "Search heroes..."
 msgstr "搜索英雄..."
@@ -10712,6 +10858,10 @@ msgstr "搜索英雄..."
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3220
 msgid "Search installed rounds"
 msgstr "搜索已安装回合"
+
+#: src/routes/playlist-workshop.tsx:4739
+msgid "Search metadata options…"
+msgstr "搜索元数据选项…"
 
 #: src/components/CommandPalette.tsx:472
 msgid "Search pages, settings, actions..."
@@ -10734,11 +10884,12 @@ msgid "Search prompt used for loading-screen media from rule34/booru sites."
 msgstr "用于从 rule34/booru 站点获取加载屏幕媒体的搜索词。"
 
 #: src/features/map-editor/components/TileSidebar.tsx:237
-#: src/routes/playlist-workshop.tsx:3251
+#: src/routes/playlist-workshop.tsx:4529
 msgid "Search rounds"
 msgstr "搜索回合"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2817
+#: src/routes/playlist-workshop.tsx:4538
 msgid "Search rounds, heroes, authors…"
 msgstr "搜索回合、英雄、作者……"
 
@@ -10909,7 +11060,7 @@ msgid "Select an item first."
 msgstr "请先选择一个物品。"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:231
+#: src/routes/playlist-workshop.tsx:245
 msgid "playlist-workshop.section.rounds.description"
 msgstr "选择并重新排列普通回合。"
 
@@ -11011,7 +11162,7 @@ msgid "Select visible"
 msgstr "选择可见"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:221
+#: src/routes/playlist-workshop.tsx:235
 msgid "playlist-workshop.section.playlist.description"
 msgstr "选择、创建和管理播放列表。"
 
@@ -11047,16 +11198,16 @@ msgid "Selected Item"
 msgstr "已选物品"
 
 #. placeholder {0}: round.name
-#: src/routes/playlist-workshop.tsx:4570
+#: src/routes/playlist-workshop.tsx:4925
 msgid "Selected round {0}"
 msgstr "已选择回合 {0}"
 
-#: src/routes/playlist-workshop.tsx:2864
+#: src/routes/playlist-workshop.tsx:2791
 msgid "Selected Rounds"
 msgstr "已选回合"
 
 #. placeholder {0}: setup.normalRoundOrder.length
-#: src/routes/playlist-workshop.tsx:2877
+#: src/routes/playlist-workshop.tsx:2804
 msgid "Selected: {0}"
 msgstr "已选择：{0}"
 
@@ -11118,11 +11269,11 @@ msgid "Server selection and self-hosted setup for multiplayer."
 msgstr "多人游戏的服务器选择和自托管设置。"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:191
+#: src/routes/playlist-workshop.tsx:205
 msgid "playlist-workshop.section.session.title"
 msgstr "会话"
 
-#: src/routes/playlist-workshop.tsx:4971
+#: src/routes/playlist-workshop.tsx:5326
 msgid "Set a name and choose how rounds are generated."
 msgstr "设置名称并选择回合的生成方式。"
 
@@ -11262,7 +11413,7 @@ msgstr "SFW 模式"
 msgid "command-palette.settings-security.description"
 msgstr "SFW模式、安全域名"
 
-#: src/routes/playlist-workshop.tsx:2523
+#: src/routes/playlist-workshop.tsx:2453
 msgid "Shareable Pack"
 msgstr "可分享包"
 
@@ -11280,6 +11431,10 @@ msgstr "护盾"
 #: src/routes/settings.tsx:536
 msgid "settings.help.shortcuts.mapEditor.description"
 msgstr "用于图形编辑、布局和视图控制的快捷键。"
+
+#: src/routes/playlist-workshop.tsx:4559
+msgid "Shortest"
+msgstr "最短"
 
 #: src/routes/settings.tsx:1382
 msgid "Show Anti-Perk Beatbar"
@@ -11366,11 +11521,11 @@ msgstr "在硬件和同步中显示测试设备面板，用于使用生成的运
 msgid "Shuffle"
 msgstr "随机播放"
 
-#: src/routes/playlist-workshop.tsx:3000
+#: src/routes/playlist-workshop.tsx:2927
 msgid "Shuffle rounds within difficulty bands on each rebuild"
 msgstr "每次重建时在难度带内打乱回合"
 
-#: src/routes/playlist-workshop.tsx:5004
+#: src/routes/playlist-workshop.tsx:5359
 msgid "Shuffles normal rounds randomly without difficulty bias."
 msgstr "随机打乱普通回合，不带难度偏向。"
 
@@ -11406,6 +11561,10 @@ msgstr "注册"
 #: src/routes/settings.tsx:7796
 msgid "Silently blocking every remote URL that is not already whitelisted."
 msgstr "静默阻止所有未列入白名单的远程 URL。"
+
+#: src/routes/playlist-workshop.tsx:4823
+msgid "Since date"
+msgstr "日期之后"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3316
 msgid "Since Date"
@@ -11585,8 +11744,8 @@ msgid "Sort"
 msgstr "排序"
 
 #: src/routes/map-editor.tsx:2687
-#: src/routes/playlist-workshop.tsx:2255
-#: src/routes/playlist-workshop.tsx:2894
+#: src/routes/playlist-workshop.tsx:2182
+#: src/routes/playlist-workshop.tsx:2821
 msgid "Sort by Difficulty"
 msgstr "按难度排序"
 
@@ -11632,6 +11791,7 @@ msgstr "源视频大小"
 msgid "Source: {sourceLabel}"
 msgstr "来源：{sourceLabel}"
 
+#: src/routes/playlist-workshop.tsx:4781
 #: src/routes/settings.tsx:6791
 msgid "Sources"
 msgstr "来源"
@@ -11643,6 +11803,11 @@ msgstr "来源与库"
 #: src/routes/settings.tsx:6821
 msgid "Sources:"
 msgstr "来源："
+
+#. placeholder {0}: filters.sources.join(", ")
+#: src/routes/playlist-workshop.tsx:4425
+msgid "Sources: {0}"
+msgstr "来源：{0}"
 
 #. js-lingui-explicit-id
 #: src/routes/first-start.tsx:344
@@ -11691,7 +11856,7 @@ msgstr "待机"
 #: src/features/converter/SegmentCard.tsx:418
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:410
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2515
-#: src/routes/playlist-workshop.tsx:3013
+#: src/routes/playlist-workshop.tsx:2940
 msgid "Start"
 msgstr "开始"
 
@@ -11796,17 +11961,17 @@ msgstr "从触发器开始，添加可选条件，然后链接操作。"
 msgid "Start With Web Fallback"
 msgstr "使用 Web 回退开始"
 
-#: src/routes/playlist-workshop.tsx:4072
+#: src/routes/playlist-workshop.tsx:3850
 msgid "Starting chance for an intermediary event before round 1. The run begins at this value, then uses the increase and max settings below to scale over time."
 msgstr "第 1 回合之前中间事件的初始概率。运行从该值开始，然后使用下方的增加和最大设置随时间缩放。"
 
-#: src/routes/playlist-workshop.tsx:4126
+#: src/routes/playlist-workshop.tsx:3904
 msgid "Starting chance for anti-perks at the beginning of the run. This is the first value used before any round-based scaling happens."
 msgstr "运行开始时反增益的初始概率。这是在任何基于回合的缩放发生之前使用的第一个值。"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1136
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1139
-#: src/routes/playlist-workshop.tsx:4034
+#: src/routes/playlist-workshop.tsx:3812
 msgid "Starting Money"
 msgstr "起始资金"
 
@@ -11828,6 +11993,7 @@ msgstr "启动中..."
 #: src/features/rounds/library/components/RoundCard.tsx:74
 #: src/features/rounds/library/InstalledRoundsPage.tsx:961
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3302
+#: src/routes/playlist-workshop.tsx:4787
 msgid "Stash"
 msgstr "Stash"
 
@@ -12124,6 +12290,7 @@ msgstr "标签一，标签二"
 #: src/features/rounds/library/dialogs/BulkAndConversionDialogs.tsx:46
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:50
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:249
+#: src/routes/playlist-workshop.tsx:4752
 #: src/routes/settings.tsx:6980
 msgid "Tags"
 msgstr "标签"
@@ -12214,7 +12381,7 @@ msgstr "临时进度会被清楚标记，并在禁用作弊模式时移除"
 msgid "Temporary Standings"
 msgstr "临时排名"
 
-#: src/routes/playlist-workshop.tsx:2352
+#: src/routes/playlist-workshop.tsx:2279
 #: src/routes/settings.tsx:7084
 msgid "Test"
 msgstr "测试"
@@ -12436,7 +12603,7 @@ msgstr "安全模式激活时，此{mediaLabel}已被隐藏。"
 msgid "This changes every fixed round node in the current map. Continue?"
 msgstr "这会更改当前地图中的每个固定回合节点。继续？"
 
-#: src/routes/playlist-workshop.tsx:4489
+#: src/routes/playlist-workshop.tsx:4267
 msgid "This changes the order of the entire selected round list. Continue?"
 msgstr "这会更改整个已选回合列表的顺序。要继续吗？"
 
@@ -12493,15 +12660,15 @@ msgstr "这仅为此视图显示当前{mediaLabel}。安全模式仍全局启用
 msgid "This playlist requires at least {selectedPlaylistRequiredRounds} installed rounds. You have {installedRoundCount}."
 msgstr "此播放列表需要至少 {selectedPlaylistRequiredRounds} 个已安装的回合。你目前有 {installedRoundCount} 个。"
 
-#: src/routes/playlist-workshop.tsx:1729
+#: src/routes/playlist-workshop.tsx:1656
 msgid "This playlist uses a graph board, so it opens in the Advanced Map Editor instead."
 msgstr "此播放列表使用图谱棋盘，因此会在高级地图编辑器中打开。"
 
-#: src/routes/playlist-workshop.tsx:2473
+#: src/routes/playlist-workshop.tsx:2403
 msgid "This playlist uses a graph board, so Playlist Workshop cannot edit its layout. Open the Advanced Map Editor to change nodes, paths, and graph flow."
 msgstr "此播放列表使用图谱棋盘，因此播放列表工作坊无法编辑其布局。请打开高级地图编辑器来更改节点、路径和图谱流程。"
 
-#: src/routes/playlist-workshop.tsx:2625
+#: src/routes/playlist-workshop.tsx:2552
 msgid "This playlist uses graph board mode. Playlist Workshop only supports linear playlists. Open the Advanced Map Editor to edit this board."
 msgstr "此播放列表使用图谱棋盘模式。播放列表工作坊仅支持线性播放列表。请打开高级地图编辑器来编辑此棋盘。"
 
@@ -12510,7 +12677,7 @@ msgstr "此播放列表使用图谱棋盘模式。播放列表工作坊仅支持
 msgid "first-start.step.booru.detail.1"
 msgstr "此搜索词告诉应用在加载和中间事件期间应该寻找什么样的媒体。"
 
-#: src/routes/playlist-workshop.tsx:2868
+#: src/routes/playlist-workshop.tsx:2795
 msgid "This queue defines the order used first during the session. Remaining slots are filled with repeats."
 msgstr "此队列定义了会话期间首先使用的顺序。剩余槽位用重复项填充。"
 
@@ -12577,7 +12744,7 @@ msgstr "时间"
 msgid "hud.time"
 msgstr "时间"
 
-#: src/routes/playlist-workshop.tsx:4049
+#: src/routes/playlist-workshop.tsx:3827
 msgid "Time to wait before each round starts. Set to 0 for instant transitions. Default is 20 seconds."
 msgstr "每个回合开始前的等待时间。设为 0 表示即时转场。默认为 20 秒。"
 
@@ -12586,7 +12753,7 @@ msgid "Timeline zoom"
 msgstr "时间轴缩放"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:211
+#: src/routes/playlist-workshop.tsx:225
 msgid "playlist-workshop.section.timing.title"
 msgstr "时间与概率"
 
@@ -12600,6 +12767,7 @@ msgstr "称号"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3365
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3384
+#: src/routes/playlist-workshop.tsx:4864
 msgid "To"
 msgstr "到"
 
@@ -12635,7 +12803,7 @@ msgid "Toggle Handy"
 msgstr "切换 Handy"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:241
+#: src/routes/playlist-workshop.tsx:255
 msgid "playlist-workshop.section.perks.description"
 msgstr "切换单个增益和反增益。"
 
@@ -12736,7 +12904,7 @@ msgstr "触发一段 30 秒的 booru 序列，并生成 Handy 动作。"
 msgid "settings.help.shortcuts.gameDebug.triggerIntermediary"
 msgstr "立即触发测试中场。"
 
-#: src/routes/playlist-workshop.tsx:3715
+#: src/routes/playlist-workshop.tsx:3493
 msgid "Trigger chance controls how often a perk choice appears. In singleplayer, the computer can also randomly hit you with one of the enabled anti-perks based on the anti-perk chance settings. The enabled lists below define what can show up during a run."
 msgstr "触发概率控制增益选择出现的频率。在单人模式中，电脑还可以根据反增益概率设置随机对你施加已启用的反增益之一。下面的已启用列表定义了运行期间可能出现的内容。"
 
@@ -12815,6 +12983,10 @@ msgstr "类型"
 msgid "Type \"{0}\" to confirm"
 msgstr "输入\"{0}\"以确认"
 
+#: src/routes/playlist-workshop.tsx:4655
+msgid "Types"
+msgstr "类型"
+
 #: src/routes/progression.tsx:486
 msgid "Unauthorized progression console"
 msgstr "未经授权的进度控制台"
@@ -12830,6 +13002,11 @@ msgstr "不可用"
 #: src/routes/multiplayer-bans.tsx:140
 msgid "Unban"
 msgstr "解封"
+
+#: src/routes/playlist-workshop.tsx:4404
+#: src/routes/playlist-workshop.tsx:4689
+msgid "Under 3 min"
+msgstr "3 分钟以内"
 
 #: src/features/map-editor/components/EditorToolbar.tsx:142
 msgid "Undo"
@@ -12860,12 +13037,14 @@ msgstr "未知"
 #: src/routes/multiplayer-lobby.tsx:768
 #: src/routes/multiplayer-match.tsx:939
 #: src/routes/multiplayer.tsx:672
-#: src/routes/playlist-workshop.tsx:3281
+#: src/routes/playlist-workshop.tsx:4394
+#: src/routes/playlist-workshop.tsx:4674
+#: src/routes/playlist-workshop.tsx:4692
 msgid "Unknown"
 msgstr "未知"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:742
+#: src/routes/playlist-workshop.tsx:748
 msgid "playlist-workshop.fallback.unknown-author"
 msgstr "未知作者"
 
@@ -12878,6 +13057,10 @@ msgstr "未知作者"
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2457
 msgid "Unknown creator"
 msgstr "未知创作者"
+
+#: src/routes/playlist-workshop.tsx:4407
+msgid "Unknown duration"
+msgstr "时长未知"
 
 #: src/components/InstallConfirmationModalHost.tsx:52
 msgid "Unknown File"
@@ -12970,7 +13153,7 @@ msgstr "默认使用本地 funscript，或在设置中启用实验性的远程 f
 msgid "Use a website video URL like Pornhub, XVideos, or rule34video as the source."
 msgstr "使用网站视频 URL（如 Pornhub、XVideos 或 rule34video）作为来源。"
 
-#: src/routes/playlist-workshop.tsx:2985
+#: src/routes/playlist-workshop.tsx:2912
 msgid "Use all current library filters"
 msgstr "使用当前所有库筛选器"
 
@@ -13006,7 +13189,7 @@ msgstr "对自己使用增益，向对手发射反增益，或丢弃已存储的
 msgid "Use System Language"
 msgstr "使用系统语言"
 
-#: src/routes/playlist-workshop.tsx:2470
+#: src/routes/playlist-workshop.tsx:2400
 msgid "Use the Advanced Map Editor"
 msgstr "使用高级地图编辑器"
 
@@ -13139,8 +13322,8 @@ msgstr "视频和 Funscript 将被复制到导出包中，无需重新编码。"
 msgid "Videos will be packaged and reencoded to AV1 when needed. Funscripts remain attached."
 msgstr "视频将在需要时被打包并重新编码为 AV1。Funscript 保持附加。"
 
-#: src/routes/playlist-workshop.tsx:3575
-#: src/routes/playlist-workshop.tsx:3597
+#: src/routes/playlist-workshop.tsx:3353
+#: src/routes/playlist-workshop.tsx:3375
 msgid "View Queue →"
 msgstr "查看队列 →"
 
@@ -13204,7 +13387,7 @@ msgstr "警告"
 msgid "Warning"
 msgstr "警告"
 
-#: src/routes/playlist-workshop.tsx:2789
+#: src/routes/playlist-workshop.tsx:2716
 msgid "Warning: runs from this playlist are marked as assisted on the highscore and in run history."
 msgstr "警告：来自此播放列表的运行在高分和运行历史中会被标记为辅助。"
 
@@ -13219,6 +13402,7 @@ msgstr "弱性能硬件：如果启动或媒体库处理感觉吃力，请减少
 #: src/features/rounds/library/components/RoundCard.tsx:75
 #: src/features/rounds/library/InstalledRoundsPage.tsx:961
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3303
+#: src/routes/playlist-workshop.tsx:4787
 msgid "Web"
 msgstr "网页"
 
@@ -13305,11 +13489,11 @@ msgstr "启用时，在应用启动的前 5 秒内按住 'S' 将自动启用 SFW
 msgid "When enabled, perks (not anti-perks) are applied immediately when received instead of being stored in inventory."
 msgstr "启用时，增益（非反增益）在收到时会立即生效，而不是存入物品栏。"
 
-#: src/routes/playlist-workshop.tsx:4220
+#: src/routes/playlist-workshop.tsx:3998
 msgid "When enabled, the anti-perk chance resets to its initial value after a round where an anti-perk was triggered."
 msgstr "启用后，在触发反增益的回合后，反增益概率将重置为初始值。"
 
-#: src/routes/playlist-workshop.tsx:4179
+#: src/routes/playlist-workshop.tsx:3957
 msgid "When enabled, the intermediary chance resets to its initial value after a round where intermediaries were triggered."
 msgstr "启用后，在触发插入片段的回合后，插入片段概率将重置为初始值。"
 
@@ -13499,7 +13683,7 @@ msgstr "您的可播放媒体库"
 msgid "Your queue is empty"
 msgstr "你的队列为空"
 
-#: src/routes/playlist-workshop.tsx:3104
+#: src/routes/playlist-workshop.tsx:3031
 msgid "Your queue is empty."
 msgstr "你的队列为空。"
 
@@ -13511,7 +13695,7 @@ msgstr "yt-dlp 二进制文件来源"
 msgid "yt-dlp Domains"
 msgstr "yt-dlp 域名"
 
-#: src/routes/playlist-workshop.tsx:3267
+#: src/routes/playlist-workshop.tsx:4555
 msgid "Z-A"
 msgstr "Z-A（降序）"
 
