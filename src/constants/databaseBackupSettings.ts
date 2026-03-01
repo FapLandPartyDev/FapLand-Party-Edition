@@ -2,6 +2,7 @@ export const DATABASE_BACKUP_ENABLED_KEY = "database.backup.enabled";
 export const DATABASE_BACKUP_FREQUENCY_DAYS_KEY = "database.backup.frequencyDays";
 export const DATABASE_BACKUP_RETENTION_DAYS_KEY = "database.backup.retentionDays";
 export const DATABASE_BACKUP_LAST_BACKUP_AT_KEY = "database.backup.lastBackupAt";
+export const SETTINGS_BACKUP_LAST_BACKUP_AT_KEY = "settings.backup.lastBackupAt";
 
 export const DEFAULT_DATABASE_BACKUP_ENABLED = true;
 export const DEFAULT_DATABASE_BACKUP_FREQUENCY_DAYS = 1;

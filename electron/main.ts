@@ -54,6 +54,10 @@ import {
   startContinuousDatabaseBackup,
   stopContinuousDatabaseBackup,
 } from "./services/databaseBackup";
+import {
+  startContinuousSettingsBackup,
+  stopContinuousSettingsBackup,
+} from "./services/settingsBackup";
 import { debugLog, initializeDebugLogging } from "./services/debugLogging";
 import {
   downloadMusicFromUrl,
@@ -71,6 +75,8 @@ let mainWindowRef: BrowserWindow | null = null;
 let rendererDevToolsWindowRef: BrowserWindow | null = null;
 let trpcIpcHandler: { attachWindow: (window: BrowserWindow) => void } | null = null;
 let performanceSnapshotTimer: ReturnType<typeof setInterval> | null = null;
+let normalStartupPromise: Promise<void> | null = null;
+let gpuCrashHandlerRegistered = false;
 const WINDOW_ZOOM_STEP = 0.5;
 
 function getWindowZoomPercent(win: BrowserWindow): number {
@@ -1482,16 +1488,42 @@ function registerAuthCallbackIpc() {
   });
 }
 
-app
-  .whenReady()
-  .then(async () => {
-    if (remoteDebuggingPort !== null) {
-      console.log(
-        `Chrome DevTools remote debugging available on http://127.0.0.1:${remoteDebuggingPort}`
-      );
-    }
+function registerStartupRecoveryIpc() {
+  ipcMain.handle("startup-recovery:enter", () => undefined);
 
-    app.setAsDefaultProtocolClient("fland");
+  ipcMain.handle("startup-recovery:start-normal", async () => {
+    await runNormalStartupOnce();
+  });
+}
+
+function registerGpuCrashHandlerOnce(): void {
+  if (gpuCrashHandlerRegistered) return;
+  gpuCrashHandlerRegistered = true;
+
+  app.on("child-process-gone", (_event, details) => {
+    if (details.type === "GPU") {
+      const rendererRoute = getRendererRouteFromWindow(mainWindowRef);
+      const payload = {
+        details,
+        renderer: getRendererPerformanceState(),
+        rendererRoute,
+        gpuDiagnostics: getGpuDiagnosticsSnapshot(),
+      };
+      if (isGameRendererRoute(rendererRoute)) {
+        safeStoreSet(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY, true);
+      }
+      console.error("[GpuProcessGone]", payload);
+      debugLog.error("gpu", "GPU process gone", {
+        ...payload,
+      });
+    }
+  });
+}
+
+function runNormalStartupOnce(): Promise<void> {
+  if (normalStartupPromise) return normalStartupPromise;
+
+  normalStartupPromise = (async () => {
     await initStore();
     initializeDebugLogging();
     pendingGpuRecoveryHint = safeStoreGet(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY) === true;
@@ -1527,18 +1559,8 @@ app
     initializePortableStorageDefaults(getStore());
     await ensureAppDatabaseReady();
     debugLog.info("startup", "Database ready");
-    registerFileProtocol();
-    debugLog.info("startup", "File protocol registered");
-    registerWindowControlsIpc();
-    registerDialogIpc();
-    registerAppOpenIpc();
-    registerAuthCallbackIpc();
-    registerGpuRecoveryIpc();
     broadcastUpdateState();
     broadcastEroScriptsLoginStatus();
-    Menu.setApplicationMenu(null);
-    await createWindow();
-    debugLog.info("startup", "Window created");
     void initializeAppUpdater()
       .then(() => {
         debugLog.info("startup", "Updater initialized");
@@ -1558,26 +1580,37 @@ app
     startContinuousPhashScan();
     startContinuousWebsiteVideoScan();
     startContinuousDatabaseBackup();
+    startContinuousSettingsBackup();
+    registerGpuCrashHandlerOnce();
+    flushPendingGpuRecoveryHint();
     debugLog.info("startup", "Background services started");
+  })().catch((error) => {
+    normalStartupPromise = null;
+    throw error;
+  });
 
-    app.on("child-process-gone", (_event, details) => {
-      if (details.type === "GPU") {
-        const rendererRoute = getRendererRouteFromWindow(mainWindowRef);
-        const payload = {
-          details,
-          renderer: getRendererPerformanceState(),
-          rendererRoute,
-          gpuDiagnostics: getGpuDiagnosticsSnapshot(),
-        };
-        if (isGameRendererRoute(rendererRoute)) {
-          safeStoreSet(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY, true);
-        }
-        console.error("[GpuProcessGone]", payload);
-        debugLog.error("gpu", "GPU process gone", {
-          ...payload,
-        });
-      }
-    });
+  return normalStartupPromise;
+}
+
+app
+  .whenReady()
+  .then(async () => {
+    if (remoteDebuggingPort !== null) {
+      console.log(
+        `Chrome DevTools remote debugging available on http://127.0.0.1:${remoteDebuggingPort}`
+      );
+    }
+
+    app.setAsDefaultProtocolClient("fland");
+    registerFileProtocol();
+    registerWindowControlsIpc();
+    registerDialogIpc();
+    registerAppOpenIpc();
+    registerAuthCallbackIpc();
+    registerGpuRecoveryIpc();
+    registerStartupRecoveryIpc();
+    Menu.setApplicationMenu(null);
+    await createWindow();
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -1592,6 +1625,7 @@ app
 
 app.on("window-all-closed", () => {
   stopContinuousDatabaseBackup();
+  stopContinuousSettingsBackup();
   if (process.platform !== "darwin") {
     app.quit();
   }

@@ -85,6 +85,10 @@ declare global {
         consumeRecoveryHint: () => Promise<boolean>;
         subscribe: (callback: (pending: boolean) => void) => UpdateUnsubscribe;
       };
+      startupRecovery?: {
+        enterRecovery: () => Promise<void>;
+        startNormally: () => Promise<void>;
+      };
     };
   }
 }

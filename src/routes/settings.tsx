@@ -8,6 +8,11 @@ import { AnimatedBackground } from "../components/AnimatedBackground";
 import { AntiPerkBeatbar } from "../components/game/AntiPerkBeatbar";
 import { HandyStrokeRangeControl } from "../components/HandyStrokeRangeControl";
 import { MenuButton } from "../components/MenuButton";
+import {
+  ClearDataDialog,
+  DEFAULT_CLEAR_DATA_SELECTIONS,
+  type ClearDataSelections,
+} from "../components/ClearDataDialog";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { GameDropdown } from "../components/ui/GameDropdown";
 import { useToast } from "../components/ui/ToastHost";
@@ -832,7 +837,7 @@ export function SettingsPage() {
   const [ffmpegGpuPreference, setFfmpegGpuPreference] = useState<FfmpegGpuPreference>(
     DEFAULT_FFMPEG_GPU_PREFERENCE
   );
-  const [availableGpus, setAvailableGpus] = useState<Array<{ index: number; name: string }>>([])
+  const [availableGpus, setAvailableGpus] = useState<Array<{ index: number; name: string }>>([]);
   const [graphicsSafeModeEnabled, setGraphicsSafeModeEnabled] = useState(
     DEFAULT_GRAPHICS_SAFE_MODE_ENABLED
   );
@@ -852,10 +857,8 @@ export function SettingsPage() {
     graphicsDisableAcceleratedVideoDecodeEnabled,
     setGraphicsDisableAcceleratedVideoDecodeEnabled,
   ] = useState(DEFAULT_GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED);
-  const [
-    graphicsDisableGpuShaderDiskCacheEnabled,
-    setGraphicsDisableGpuShaderDiskCacheEnabled,
-  ] = useState(DEFAULT_GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED);
+  const [graphicsDisableGpuShaderDiskCacheEnabled, setGraphicsDisableGpuShaderDiskCacheEnabled] =
+    useState(DEFAULT_GRAPHICS_DISABLE_GPU_SHADER_DISK_CACHE_ENABLED);
   const [
     graphicsDisableAcceleratedVideoEncodeEnabled,
     setGraphicsDisableAcceleratedVideoEncodeEnabled,
@@ -895,18 +898,9 @@ export function SettingsPage() {
   const [isSkipRoundsCheckDialogOpen, setIsSkipRoundsCheckDialogOpen] = useState(false);
   const [isClearingData, setIsClearingData] = useState(false);
   const [clearDataError, setClearDataError] = useState<string | null>(null);
-  const [clearSelections, setClearSelections] = useState({
-    rounds: true,
-    playlists: true,
-    stats: true,
-    history: true,
-    cache: true,
-    videoCache: true,
-    musicCache: true,
-    fpackExtraction: true,
-    eroscriptsCache: true,
-    settings: true,
-  });
+  const [clearSelections, setClearSelections] = useState<ClearDataSelections>(
+    DEFAULT_CLEAR_DATA_SELECTIONS
+  );
 
   const refreshBinaryDiagnostics = useCallback(async () => {
     setIsRefreshingBinaryDiagnostics(true);
@@ -1071,8 +1065,7 @@ export function SettingsPage() {
           storeValues[GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED_KEY];
         const rawGraphicsForceAngleOpenGLEnabled =
           storeValues[GRAPHICS_FORCE_ANGLE_OPENGL_ENABLED_KEY];
-        const rawGraphicsDisableWebgl2Enabled =
-          storeValues[GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY];
+        const rawGraphicsDisableWebgl2Enabled = storeValues[GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY];
 
         setIsFullscreen(fullscreen);
         const nextPrompt =
@@ -1204,9 +1197,7 @@ export function SettingsPage() {
         setGraphicsForceAngleOpenGLEnabled(
           normalizeGraphicsBoolean(rawGraphicsForceAngleOpenGLEnabled)
         );
-        setGraphicsDisableWebgl2Enabled(
-          normalizeGraphicsBoolean(rawGraphicsDisableWebgl2Enabled)
-        );
+        setGraphicsDisableWebgl2Enabled(normalizeGraphicsBoolean(rawGraphicsDisableWebgl2Enabled));
         setApplyPerkDirectly(
           rawApplyPerkDirectly === true || rawApplyPerkDirectly === "true"
             ? true
@@ -1710,8 +1701,8 @@ export function SettingsPage() {
           {
             id: "database-backup-enabled",
             type: "toggle",
-            label: t`Automatic Database Backups`,
-            description: t`Create periodic local SQLite backups in the app data folder.`,
+            label: t`Automatic Local Backups`,
+            description: t`Create periodic local SQLite and settings backups in the app data folder.`,
             value: databaseBackupEnabled,
             onChange: async (next: boolean) => {
               await trpc.store.set.mutate({
@@ -1725,7 +1716,7 @@ export function SettingsPage() {
             id: "database-backup-frequency-days",
             type: "number",
             label: t`Backup Frequency (days)`,
-            description: t`Minimum number of days between automatic database backups.`,
+            description: t`Minimum number of days between automatic database and settings backups.`,
             value: databaseBackupFrequencyDays,
             min: MIN_DATABASE_BACKUP_FREQUENCY_DAYS,
             max: MAX_DATABASE_BACKUP_FREQUENCY_DAYS,
@@ -1742,7 +1733,7 @@ export function SettingsPage() {
             id: "database-backup-retention-days",
             type: "number",
             label: t`Backup Retention (days)`,
-            description: t`Delete automatic database backups once they are older than this many days.`,
+            description: t`Delete automatic database and settings backups once they are older than this many days.`,
             value: databaseBackupRetentionDays,
             min: MIN_DATABASE_BACKUP_RETENTION_DAYS,
             max: MAX_DATABASE_BACKUP_RETENTION_DAYS,
@@ -1774,6 +1765,29 @@ export function SettingsPage() {
                 label: t`Open Backup Folder`,
                 onClick: async () => {
                   await db.install.openDatabaseBackupFolder();
+                },
+              },
+            ],
+          },
+          {
+            id: "settings-backup-actions",
+            type: "actions",
+            label: t`Settings Backup Actions`,
+            description: t`Create a settings backup immediately or open the automatic settings backup folder. Restores are manual: close the app and replace the active f-land.json settings file with one of these backup files.`,
+            actions: [
+              {
+                id: "backup-settings-now",
+                label: t`Back Up Settings Now`,
+                onClick: async () => {
+                  await db.install.backupSettingsNow();
+                  showToast(t`Settings backup created.`, "success");
+                },
+              },
+              {
+                id: "open-settings-backup-folder",
+                label: t`Open Settings Backup Folder`,
+                onClick: async () => {
+                  await db.install.openSettingsBackupFolder();
                 },
               },
             ],
@@ -2969,7 +2983,7 @@ export function SettingsPage() {
         </div>
       </div>
 
-      <SelectiveClearDialog
+      <ClearDataDialog
         isOpen={isClearDataDialogOpen}
         isPending={isClearingData}
         selections={clearSelections}
@@ -5914,176 +5928,6 @@ function DangerZoneCard({
         {isPending ? t`Clearing...` : t`Manage & Clear Data`}
       </button>
     </section>
-  );
-}
-
-function SelectiveClearDialog({
-  isOpen,
-  isPending,
-  selections,
-  onSelectionChange,
-  onCancel,
-  onConfirm,
-}: {
-  isOpen: boolean;
-  isPending: boolean;
-  selections: {
-    rounds: boolean;
-    playlists: boolean;
-    stats: boolean;
-    history: boolean;
-    cache: boolean;
-    videoCache: boolean;
-    musicCache: boolean;
-    fpackExtraction: boolean;
-    eroscriptsCache: boolean;
-    settings: boolean;
-  };
-  onSelectionChange: (next: typeof selections) => void;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  const { t } = useLingui();
-  if (!isOpen) return null;
-
-  const categories = [
-    {
-      id: "rounds",
-      label: t`Installed Rounds & Heroes`,
-      description: t`All downloaded/imported game content.`,
-    },
-    { id: "playlists", label: t`Playlists`, description: t`Your custom and imported playlists.` },
-    {
-      id: "history",
-      label: t`Run History`,
-      description: t`Records of your past games and sessions.`,
-    },
-    {
-      id: "stats",
-      label: t`Global Stats`,
-      description: t`Highscores and overall career progress.`,
-    },
-    {
-      id: "cache",
-      label: t`Multiplayer Cache`,
-      description: t`Downloaded match results and sync queue.`,
-    },
-    {
-      id: "videoCache",
-      label: t`Video Cache`,
-      description: t`Downloaded website videos and generated playback transcodes.`,
-    },
-    {
-      id: "musicCache",
-      label: t`Music Cache`,
-      description: t`Downloaded menu music and imported YouTube audio.`,
-    },
-    {
-      id: "fpackExtraction",
-      label: t`.fpack Extractions`,
-      description: t`Extracted pack contents stored for installed portable packages.`,
-    },
-    {
-      id: "eroscriptsCache",
-      label: t`EroScripts Cache`,
-      description: t`Downloaded EroScripts funscripts and optional video copies.`,
-    },
-    {
-      id: "settings",
-      label: t`App Settings & Preference`,
-      description: t`Preferences, hardware keys, and window state.`,
-    },
-  ] as const;
-
-  const toggle = (id: keyof typeof selections) => {
-    onSelectionChange({ ...selections, [id]: !selections[id] });
-  };
-
-  const hasSelection = Object.values(selections).some(Boolean);
-
-  return (
-    <div className="fixed inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-4 backdrop-blur-sm sm:py-6">
-      <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-3xl border border-rose-300/35 bg-zinc-950/95 p-6 shadow-[0_0_60px_rgba(244,63,94,0.28)] sm:max-h-[calc(100vh-3rem)]">
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.35em] text-rose-200/80">
-          <Trans>Selective Maintenance</Trans>
-        </p>
-        <h2 className="mt-3 text-2xl font-black tracking-tight text-rose-50">
-          <Trans>Clear Data</Trans>
-        </h2>
-        <p className="mt-2 text-sm text-zinc-400">
-          <Trans>Choose which categories of information to wipe from this device.</Trans>
-        </p>
-
-        <div className="mt-6 space-y-3">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              disabled={isPending}
-              onClick={() => toggle(cat.id as keyof typeof selections)}
-              className={`flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition-all duration-200 ${
-                selections[cat.id as keyof typeof selections]
-                  ? "border-rose-400/40 bg-rose-500/10"
-                  : "border-zinc-800 bg-black/20 hover:border-zinc-700"
-              }`}
-            >
-              <div
-                className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${selections[cat.id as keyof typeof selections] ? "border-rose-400 bg-rose-500 text-white" : "border-zinc-700 bg-zinc-900"}`}
-              >
-                {selections[cat.id as keyof typeof selections] && (
-                  <svg
-                    className="h-3.5 w-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={4}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </div>
-              <div>
-                <div className="text-sm font-bold text-zinc-100">{cat.label}</div>
-                <div className="text-xs text-zinc-500">{cat.description}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <p className="mt-5 text-sm font-semibold text-rose-200">
-          <Trans>Warning: This cannot be undone.</Trans>
-        </p>
-
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            disabled={isPending}
-            onMouseEnter={playHoverSound}
-            onClick={onCancel}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-              isPending
-                ? "cursor-not-allowed border-zinc-700 bg-zinc-900 text-zinc-500"
-                : "border-zinc-600 bg-zinc-900/80 text-zinc-200 hover:border-zinc-400 hover:text-zinc-100"
-            }`}
-          >
-            <Trans>Cancel</Trans>
-          </button>
-          <button
-            type="button"
-            disabled={isPending || !hasSelection}
-            onMouseEnter={playHoverSound}
-            onClick={onConfirm}
-            className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-              isPending || !hasSelection
-                ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
-                : "border-rose-300/70 bg-rose-500/25 text-rose-100 hover:border-rose-200/90 hover:bg-rose-500/40"
-            }`}
-          >
-            {isPending ? t`Clearing...` : t`Confirm Deletion`}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 

@@ -109,6 +109,10 @@ export function getStore(): Store {
   return store;
 }
 
+export function resolveSettingsStorePath(): string {
+  return getStore().path;
+}
+
 export function safeStoreGet(key: string, fallback?: unknown): unknown {
   try {
     const value = getStore().get(key);

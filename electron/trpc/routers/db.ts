@@ -13,12 +13,13 @@ import {
   requestLibraryExportPackageAbort,
 } from "../../services/libraryExportPackage";
 import { resolveDatabaseBackupDir, runDatabaseBackup } from "../../services/databaseBackup";
+import { resolveSettingsBackupDir, runSettingsBackup } from "../../services/settingsBackup";
 import {
   createResourceUriResolver,
   getDisabledRoundIdSet,
   resolveResourceUris,
 } from "../../services/integrations";
-import { getStore } from "../../services/store";
+import { getStore, initStore } from "../../services/store";
 import { resolveVideoDurationMsForUri } from "../../services/videoDuration";
 import { calculateFunscriptDifficultyFromUri } from "../../services/funscript";
 import {
@@ -2405,6 +2406,38 @@ export const dbRouter = router({
     return { path: backupDir };
   }),
 
+  backupSettingsNow: publicProcedure.mutation(async () => {
+    try {
+      const result = await runSettingsBackup();
+      if (!result) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Settings backup could not be created because the settings file is unavailable.",
+        });
+      }
+      return result;
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: error instanceof Error ? error.message : "Failed to back up settings.",
+      });
+    }
+  }),
+
+  openSettingsBackupFolder: publicProcedure.mutation(async () => {
+    const backupDir = resolveSettingsBackupDir();
+    await fs.mkdir(backupDir, { recursive: true });
+    const openError = await shell.openPath(backupDir);
+    if (openError) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: openError,
+      });
+    }
+    return { path: backupDir };
+  }),
+
   openConfiguredPath: publicProcedure
     .input(
       z.object({
@@ -2475,6 +2508,16 @@ export const dbRouter = router({
         settings = true,
       } = input ?? {};
 
+      if (settings) {
+        const settingsBackupResult = await runSettingsBackup();
+        if (!settingsBackupResult) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cannot clear settings because a settings backup could not be created.",
+          });
+        }
+      }
+
       const websiteVideoCacheRoot = videoCache ? resolveWebsiteVideoCacheRoot() : null;
       const musicCacheRoot = musicCache ? resolveMusicCacheRoot() : null;
       const fpackExtractionRoot = fpackExtraction ? await getFpackExtractionRoot() : null;
@@ -2521,6 +2564,7 @@ export const dbRouter = router({
       await Promise.all(cacheClearTasks);
 
       if (settings) {
+        await initStore();
         getStore().clear();
       }
       return { cleared: true };

@@ -598,7 +598,8 @@ export async function collectDebugDiagnostics(): Promise<DebugDiagnostics> {
       retentionDays: normalizeDatabaseBackupRetentionDays(
         store.get(DATABASE_BACKUP_RETENTION_DAYS_KEY)
       ),
-      directory: path.join(resolveAppStorageBaseDir(), "database-backups"),
+      databaseDirectory: path.join(resolveAppStorageBaseDir(), "database-backups"),
+      settingsDirectory: path.join(resolveAppStorageBaseDir(), "settings-backups"),
     },
     cacheRoots: {
       websiteVideo: store.get(WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY),

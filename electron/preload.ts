@@ -197,4 +197,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
       };
     },
   },
+  startupRecovery: {
+    enterRecovery: () => ipcRenderer.invoke("startup-recovery:enter") as Promise<void>,
+    startNormally: () => ipcRenderer.invoke("startup-recovery:start-normal") as Promise<void>,
+  },
 } as const);

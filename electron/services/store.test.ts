@@ -8,6 +8,7 @@ import {
   __setStoreFactoryForTests,
   getStore,
   initStore,
+  resolveSettingsStorePath,
   safeStoreGet,
   safeStoreGetMany,
   safeStoreSet,
@@ -16,10 +17,12 @@ import {
 class FakeStore {
   data: Record<string, unknown>;
   readable: boolean;
+  path: string;
 
-  constructor(data: Record<string, unknown> = {}, readable = true) {
+  constructor(data: Record<string, unknown> = {}, readable = true, storePath = "/tmp/f-land.json") {
     this.data = { ...data };
     this.readable = readable;
+    this.path = storePath;
   }
 
   get(key: string): unknown {
@@ -113,5 +116,13 @@ describe("store initialization", () => {
     expect(safeStoreGet("one")).toBe(1);
     expect(safeStoreSet("two", 2)).toBe(true);
     expect(safeStoreGetMany(["one", "two"])).toEqual({ one: 1, two: 2 });
+  });
+
+  it("resolves the active settings store path", () => {
+    const writableStore = new FakeStore({}, true, "/settings/f-land.json");
+
+    __setStoreFactoryForTests(() => asStore(writableStore));
+
+    expect(resolveSettingsStorePath()).toBe("/settings/f-land.json");
   });
 });

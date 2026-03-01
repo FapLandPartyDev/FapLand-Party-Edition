@@ -136,6 +136,8 @@ vi.mock("../services/db", () => ({
     install: {
       getAutoScanFolders: vi.fn(async () => []),
       clearAllData: vi.fn(async () => {}),
+      backupSettingsNow: vi.fn(async () => {}),
+      openSettingsBackupFolder: vi.fn(async () => {}),
       addAutoScanFolderAndScan: vi.fn(),
       removeAutoScanFolder: vi.fn(),
     },

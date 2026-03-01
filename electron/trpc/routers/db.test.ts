@@ -27,8 +27,18 @@ const { runDatabaseBackupMock, resolveDatabaseBackupDirMock } = vi.hoisted(() =>
   resolveDatabaseBackupDirMock: vi.fn(() => "/tmp/database-backups"),
 }));
 
-const { getStoreMock } = vi.hoisted(() => ({
+const { runSettingsBackupMock, resolveSettingsBackupDirMock } = vi.hoisted(() => ({
+  runSettingsBackupMock: vi.fn(),
+  resolveSettingsBackupDirMock: vi.fn(() => "/tmp/settings-backups"),
+}));
+
+const { shellOpenPathMock } = vi.hoisted(() => ({
+  shellOpenPathMock: vi.fn(),
+}));
+
+const { getStoreMock, initStoreMock } = vi.hoisted(() => ({
   getStoreMock: vi.fn(),
+  initStoreMock: vi.fn(async () => {}),
 }));
 
 const { clearWebsiteVideoCacheMock, clearPlayableVideoCacheMock } = vi.hoisted(() => ({
@@ -93,8 +103,20 @@ vi.mock("../../services/databaseBackup", () => ({
   resolveDatabaseBackupDir: resolveDatabaseBackupDirMock,
 }));
 
+vi.mock("../../services/settingsBackup", () => ({
+  runSettingsBackup: runSettingsBackupMock,
+  resolveSettingsBackupDir: resolveSettingsBackupDirMock,
+}));
+
+vi.mock("electron", () => ({
+  shell: {
+    openPath: shellOpenPathMock,
+  },
+}));
+
 vi.mock("../../services/store", () => ({
   getStore: getStoreMock,
+  initStore: initStoreMock,
 }));
 
 vi.mock("../../services/webVideo", () => ({
@@ -479,6 +501,11 @@ describe("dbRouter local highscore and multiplayer cache", () => {
       backupPath: "/tmp/database-backups/f-land-db-backup-2026-04-21T12-00-00.000Z.db",
       deletedBackups: 0,
     });
+    runSettingsBackupMock.mockResolvedValue({
+      backupPath: "/tmp/settings-backups/f-land-settings-backup-2026-04-21T12-00-00.000Z.json",
+      deletedBackups: 0,
+    });
+    shellOpenPathMock.mockResolvedValue("");
 
     const cacheByLobby = new Map<string, CacheRow>();
     const queueByLobby = new Map<string, QueueRow>();
@@ -677,7 +704,9 @@ describe("dbRouter local highscore and multiplayer cache", () => {
                     ? ids
                         .map((id) => roundsByIdRef.get(id))
                         .filter((entry): entry is RoundRow => entry !== undefined)
-                    : [...roundsByIdRef.values()].filter((entry) => ids.includes(entry.heroId ?? ""));
+                    : [...roundsByIdRef.values()].filter((entry) =>
+                        ids.includes(entry.heroId ?? "")
+                      );
 
               if (!input.with?.resources) {
                 return baseRows;
@@ -1472,9 +1501,7 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     expect(resourcesByIdRef.get("resource-primary")?.funscriptUri).toBe(
       "file:///tmp/new.funscript"
     );
-    expect(resourcesByIdRef.get("resource-second")?.funscriptUri).toBe(
-      "file:///tmp/new.funscript"
-    );
+    expect(resourcesByIdRef.get("resource-second")?.funscriptUri).toBe("file:///tmp/new.funscript");
     expect(resourcesByIdRef.get("resource-late")?.funscriptUri).toBe(
       "file:///tmp/old-late.funscript"
     );
@@ -1645,9 +1672,7 @@ describe("dbRouter local highscore and multiplayer cache", () => {
       funscriptUri: "file:///tmp/new.funscript",
     });
 
-    expect(resourcesByIdRef.get("resource-hero-1")?.funscriptUri).toBe(
-      "file:///tmp/new.funscript"
-    );
+    expect(resourcesByIdRef.get("resource-hero-1")?.funscriptUri).toBe("file:///tmp/new.funscript");
     expect(resourcesByIdRef.get("resource-hero-2")?.funscriptUri).toBe(
       "file:///tmp/other.funscript"
     );
@@ -1892,6 +1917,36 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     expect(requestLibraryExportPackageAbortMock).toHaveBeenCalledTimes(1);
   });
 
+  it("backs up settings on demand", async () => {
+    const caller = createRendererCaller();
+
+    await expect(caller.backupSettingsNow()).resolves.toEqual({
+      backupPath: "/tmp/settings-backups/f-land-settings-backup-2026-04-21T12-00-00.000Z.json",
+      deletedBackups: 0,
+    });
+
+    expect(runSettingsBackupMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a readable error when settings backup cannot be created", async () => {
+    const caller = createRendererCaller();
+    runSettingsBackupMock.mockResolvedValueOnce(null);
+
+    await expect(caller.backupSettingsNow()).rejects.toThrow(
+      "Settings backup could not be created because the settings file is unavailable."
+    );
+  });
+
+  it("opens the settings backup folder", async () => {
+    const caller = createRendererCaller();
+
+    await expect(caller.openSettingsBackupFolder()).resolves.toEqual({
+      path: "/tmp/settings-backups",
+    });
+
+    expect(shellOpenPathMock).toHaveBeenCalledWith("/tmp/settings-backups");
+  });
+
   it("clears persisted database rows and store state", async () => {
     const caller = createRendererCaller();
 
@@ -1921,9 +1976,13 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     await expect(caller.clearAllData()).resolves.toEqual({ cleared: true });
 
     expect(runDatabaseBackupMock).toHaveBeenCalledTimes(1);
+    expect(runSettingsBackupMock).toHaveBeenCalledTimes(1);
     expect(dbMockRef.transaction).toHaveBeenCalledTimes(1);
     expect(runDatabaseBackupMock.mock.invocationCallOrder[0]).toBeLessThan(
       dbMockRef.transaction.mock.invocationCallOrder[0]!
+    );
+    expect(runSettingsBackupMock.mock.invocationCallOrder[0]).toBeLessThan(
+      storeMockRef.clear.mock.invocationCallOrder[0]!
     );
     expect(storeMockRef.clear).toHaveBeenCalledTimes(1);
     expect(clearWebsiteVideoCacheMock).toHaveBeenCalledWith("/tmp/web-video-cache");
@@ -1971,6 +2030,28 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     expect(clearPlayableVideoCacheMock).toHaveBeenCalledTimes(1);
     expect(clearMusicCacheMock).not.toHaveBeenCalled();
     expect(clearFpackExtractionCacheMock).not.toHaveBeenCalled();
+  });
+
+  it("does not clear settings when the settings backup fails", async () => {
+    const caller = createRendererCaller();
+    runSettingsBackupMock.mockResolvedValueOnce(null);
+
+    await expect(
+      caller.clearAllData({
+        rounds: false,
+        playlists: false,
+        stats: false,
+        history: false,
+        cache: false,
+        videoCache: false,
+        musicCache: false,
+        fpackExtraction: false,
+        eroscriptsCache: false,
+        settings: true,
+      })
+    ).rejects.toThrow("Cannot clear settings because a settings backup could not be created.");
+
+    expect(storeMockRef.clear).not.toHaveBeenCalled();
   });
 
   it("counts installed rounds using the same filtering semantics as getInstalledRounds", async () => {

@@ -162,6 +162,8 @@ vi.mock("../services/db", () => ({
     install: {
       getAutoScanFolders: vi.fn(async () => []),
       clearAllData: vi.fn(async () => {}),
+      backupSettingsNow: vi.fn(async () => {}),
+      openSettingsBackupFolder: vi.fn(async () => {}),
       addAutoScanFolderAndScan: vi.fn(),
       removeAutoScanFolder: vi.fn(),
     },
@@ -317,6 +319,7 @@ vi.mock("../hooks/useAppUpdate", () => ({
 }));
 
 import { trpc } from "../services/trpc";
+import { db } from "../services/db";
 import { getVisibleShortcutGroups, SettingsPage } from "./settings";
 
 const testI18n = {
@@ -341,6 +344,8 @@ describe("Settings music section", () => {
     mocks.handy.disconnect.mockClear();
     mocks.handy.forceStop.mockClear();
     mocks.handy.adjustOffset.mockClear();
+    vi.mocked(db.install.backupSettingsNow).mockClear();
+    vi.mocked(db.install.openSettingsBackupFolder).mockClear();
     mocks.handy.resetOffset.mockClear();
     mocks.handy.provider = "thehandy";
     mocks.handy.error = null;
@@ -542,6 +547,26 @@ describe("Settings music section", () => {
       ).toBeDefined();
       expect(screen.queryByText("Language / Language")).toBeNull();
     });
+  });
+
+  it("renders and uses settings backup actions in data storage settings", async () => {
+    mocks.search.section = "app";
+
+    render(<SettingsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Automatic Local Backups")).toBeDefined();
+      expect(screen.getByText("Settings Backup Actions")).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Back Up Settings Now" }));
+    await waitFor(() => {
+      expect(db.install.backupSettingsNow).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Settings Backup Folder" }));
+
+    await waitFor(() => expect(db.install.openSettingsBackupFolder).toHaveBeenCalledTimes(1));
   });
 
   it("renders and applies app zoom controls in general settings", async () => {

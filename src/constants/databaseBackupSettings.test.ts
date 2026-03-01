@@ -6,12 +6,17 @@ import {
   MAX_DATABASE_BACKUP_RETENTION_DAYS,
   MIN_DATABASE_BACKUP_FREQUENCY_DAYS,
   MIN_DATABASE_BACKUP_RETENTION_DAYS,
+  SETTINGS_BACKUP_LAST_BACKUP_AT_KEY,
   normalizeDatabaseBackupEnabled,
   normalizeDatabaseBackupFrequencyDays,
   normalizeDatabaseBackupRetentionDays,
 } from "./databaseBackupSettings";
 
 describe("database backup settings", () => {
+  it("exports the independent settings backup timestamp key", () => {
+    expect(SETTINGS_BACKUP_LAST_BACKUP_AT_KEY).toBe("settings.backup.lastBackupAt");
+  });
+
   it("normalizes backup enabled values", () => {
     expect(normalizeDatabaseBackupEnabled(true)).toBe(true);
     expect(normalizeDatabaseBackupEnabled(false)).toBe(false);
