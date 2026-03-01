@@ -1,5 +1,36 @@
 # What's New
 
+## v0.6.30
+
+### Added
+
+- **Script enhancement preview** — inspect original and enhanced stroke positions in Settings → Auto enhance script. Preview all enabled patterns together or compare Beat punch, Phrase variation, Range expansion, and Overshoot and rebound individually. Each pattern can be enabled or disabled globally.
+- **Device shopping links** — Hardware settings and first-time setup offer links to the Lovense store and selected devices, with an affiliate disclosure.
+
+### Changed
+
+- **Stroke range control** — drag the selected range to move both limits together and keep the same stroke width, or drag either handle to adjust that limit independently.
+- Refined enhanced stroke generation and speed limiting for synchronized playback.
+- Localized the new device dialog, motion preview, and this release’s in-app notes in English, German, Spanish, French, and Chinese.
+
+---
+
+## v0.6.29
+
+### Added
+
+- **Enhanced script engine** — create beat-focused phrases with Beat punch, Variation and Phrase length controls. Automatic engine selection uses Enhanced for MultiFunPlayer and Legacy for The Handy; engine and motion controls are saved per script.
+- **Device speed profiles** — choose Automatic, Balanced, Responsive, Powerful or a custom maximum speed. Profiles are saved per connection type and respect existing device limits.
+- **Stroke range expansion** — use Delimited and its intensity slider to expand narrow scripted movements during playback, within the device speed limit, while keeping original files unchanged.
+
+### Fixed
+
+- **Live MultiFunPlayer offset** — offset changes now update the primary script and every forwarded axis immediately, including while paused, without resetting the media. Playback keeps its video clock, avoiding smoothing of small clock corrections. Calibration is retained on reconnect and supports negative offsets and resetting to zero.
+- Preserved device calibration when synchronizing multiple haptics devices and when reloading edited scripts.
+- Completed and compiled all 3,373 messages in the English, German, Spanish, French and Chinese Lingui catalogs, including the new enhancement controls.
+
+---
+
 ## v0.6.28
 
 ### Added

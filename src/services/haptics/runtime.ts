@@ -1,6 +1,7 @@
 import { multifunplayerAdapter, type MultiFunPlayerSession } from "./multifunplayerAdapter";
 import type { FunscriptAction } from "../../game/media/playback";
 import { enhancedSourceId, getEnhancedTrajectory } from "./enhancedTrajectory";
+import { syncedHapticsTrajectories } from "./syncedTrajectory";
 import { intifaceAdapter, type IntifaceHapticsSession } from "./intifaceAdapter";
 import { tcodeAdapter, type TCodeHapticsSession } from "./tcodeAdapter";
 import { thehandyAdapter, type TheHandyHapticsSession } from "./thehandyAdapter";
@@ -102,13 +103,14 @@ function groupEntries(
   });
 }
 
-async function runGroup(
-  tasks: Array<Promise<void>>,
+async function runGroup<T>(
+  tasks: Array<Promise<T>>,
   emptyMessage = "No connected haptics devices."
-): Promise<void> {
+): Promise<T> {
   if (tasks.length === 0) throw new Error(emptyMessage);
   const results = await Promise.allSettled(tasks);
-  if (results.some((result) => result.status === "fulfilled")) return;
+  const first = results.find((result) => result.status === "fulfilled");
+  if (first) return first.value;
   throw new Error(settledErrors(results).join("; "));
 }
 
@@ -151,19 +153,25 @@ export async function sendHapticsSync(
   options?: HapticsSyncOptions
 ): Promise<void> {
   if (config.provider === "group" && session.provider === "group") {
-    await runGroup(
-      groupEntries(config, session).map(({ target, session: child }) =>
-        sendHapticsSync(
+    // The first successful device in the configured order drives the overlay.
+    const synced = await runGroup(
+      groupEntries(config, session).map(async ({ target, session: child }) => {
+        await sendHapticsSync(
           target.config,
           child,
           Math.max(0, timeMs + target.offsetMs),
           playbackRate,
           sourceId,
           actions,
-          options
-        )
-      )
+          options?.scriptOffsetMs === undefined
+            ? options
+            : { ...options, scriptOffsetMs: options.scriptOffsetMs + target.offsetMs }
+        );
+        const trajectory = syncedHapticsTrajectories.get(child);
+        return trajectory && { ...trajectory, deviceOffsetMs: target.offsetMs };
+      })
     );
+    if (synced) syncedHapticsTrajectories.set(session, synced);
     return;
   }
   if (config.provider === "group" || session.provider === "group") {
@@ -185,6 +193,24 @@ export async function sendHapticsSync(
       enhanced,
       options
     );
+  }
+
+  const processed =
+    session.provider === "thehandy" || session.provider === "intiface"
+      ? session.processedActions
+      : undefined;
+  const output = processed?.length ? processed : enhanced;
+  const previous = syncedHapticsTrajectories.get(session);
+  if (previous?.source !== actions || previous.timeline.actions !== output) {
+    syncedHapticsTrajectories.set(session, {
+      source: actions,
+      timeline: { actions: output },
+      modified:
+        output !== actions &&
+        (output.length !== actions.length ||
+          output.some((point, i) => point.at !== actions[i]!.at || point.pos !== actions[i]!.pos)),
+      deviceOffsetMs: 0,
+    });
   }
 }
 

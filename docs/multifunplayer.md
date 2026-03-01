@@ -38,6 +38,13 @@ scene.surge.funscript
 scene.sway.funscript
 ```
 
+Offset changes apply live to the primary script and all forwarded axes, including
+while paused. Positive values advance the script; negative values delay it.
+The bridge shifts script timestamps without resetting the media or changing the
+video clock, avoiding MultiFunPlayer's smoothing of small clock corrections.
+OFS does not expose MultiFunPlayer's native offset setting, so its displayed
+offset remains independent and adds to the calibration applied by F-Land.
+
 The suffixes `suck`, `vib`, `L1`–`L2`, `R0`–`R2`, and `A0`–`A2` are also forwarded;
 MultiFunPlayer's configured axis filename mappings determine how they are used.
 The primary timeline owns L0; an L0 sibling is skipped so it cannot bypass the

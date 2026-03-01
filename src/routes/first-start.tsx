@@ -2,6 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
+import { CompatibleDevices } from "../components/CompatibleDevices";
 import { BACKGROUND_VIDEO_ENABLED_KEY } from "../constants/backgroundSettings";
 import { DEFAULT_INTERMEDIARY_LOADING_PROMPT } from "../constants/booruSettings";
 import { EROSCRIPTS_CACHE_ROOT_PATH_KEY } from "../constants/eroscriptsSettings";
@@ -2601,6 +2602,10 @@ function FirstStartPage() {
                           Intiface, or TCode below.
                         </Trans>
                       </p>
+
+                      <div className="mt-3">
+                        <CompatibleDevices />
+                      </div>
 
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         <button

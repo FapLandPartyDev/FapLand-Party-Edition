@@ -34,6 +34,7 @@ export const multifunplayerRouter = router({
         duration: z.number().finite().min(0),
         speed: z.number().finite().positive(),
         playing: z.boolean(),
+        offsetMs: z.number().finite().optional(),
       })
     )
     .mutation(({ input }) => multifunplayerBridge.update(input)),

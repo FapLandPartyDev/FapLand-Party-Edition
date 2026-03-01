@@ -16,6 +16,7 @@ export type MultiFunPlayerSession = HapticsSession & {
   controlRevision: number;
   bridgeRunId: number | null;
   checkedAt: number;
+  offsetMs: number;
 };
 
 function configFor(config: HapticsConnectionConfig) {
@@ -31,6 +32,7 @@ async function frame(session: MultiFunPlayerSession, playing: boolean) {
     duration: session.duration / 1000,
     speed: session.speed,
     playing,
+    offsetMs: session.offsetMs,
   });
 }
 
@@ -65,6 +67,7 @@ export const multifunplayerAdapter: HapticsRuntimeAdapter<MultiFunPlayerSession>
       controlRevision: 0,
       bridgeRunId: null,
       checkedAt: 0,
+      offsetMs: 0,
     };
   },
   async preloadScript(config, session, source, actions) {
@@ -100,7 +103,8 @@ export const multifunplayerAdapter: HapticsRuntimeAdapter<MultiFunPlayerSession>
   async sendSync(config, session, time, speed, source, actions, options) {
     const revision = session.controlRevision;
     await multifunplayerAdapter.preloadScript(config, session, source, actions);
-    session.time = time;
+    session.offsetMs = options?.scriptOffsetMs ?? 0;
+    session.time = options?.mediaTimeMs ?? Math.max(0, time - session.offsetMs);
     session.speed = speed;
     await frame(session, revision === session.controlRevision && options?.playing !== false);
   },
@@ -117,7 +121,7 @@ export const multifunplayerAdapter: HapticsRuntimeAdapter<MultiFunPlayerSession>
     }
   },
   async resumePlayback(_config, session, time, speed = 1) {
-    session.time = time;
+    session.time = Math.max(0, time - session.offsetMs);
     session.speed = speed;
     await frame(session, true);
   },

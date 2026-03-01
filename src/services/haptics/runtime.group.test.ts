@@ -30,6 +30,7 @@ import {
   sendHapticsSync,
   type HapticsGroupConfig,
 } from "./runtime";
+import { syncedHapticsTrajectories } from "./syncedTrajectory";
 
 const handyConfig = {
   provider: "thehandy" as const,
@@ -96,6 +97,44 @@ describe("multi-device haptics runtime", () => {
       1,
       "script",
       expect.any(Array)
+    );
+    expect(syncedHapticsTrajectories.get(session)?.deviceOffsetMs).toBe(10);
+  });
+
+  it("previews the processed trajectory from the first successful device", async () => {
+    const processedActions = [{ at: 0, pos: 50 }];
+    mocks.handy.sendSync.mockRejectedValueOnce(new Error("Device unavailable"));
+    mocks.intiface.createSession.mockResolvedValueOnce({
+      provider: "intiface",
+      expiresAtMs: Date.now() + 60_000,
+      processedActions,
+    });
+    const session = await createHapticsSession(group);
+    const source = [{ at: 0, pos: 40 }];
+    await sendHapticsSync(group, session, 1_000, 1, "script", source);
+    expect(syncedHapticsTrajectories.get(session)).toEqual({
+      source,
+      timeline: { actions: processedActions },
+      modified: true,
+      deviceOffsetMs: -20,
+    });
+  });
+
+  it("adds device calibration to the external player's script offset without shifting its video clock", async () => {
+    const session = await createHapticsSession(group);
+    await sendHapticsSync(group, session, 1125, 1, "script", [], {
+      playing: true,
+      mediaTimeMs: 1000,
+      scriptOffsetMs: 125,
+    });
+    expect(mocks.intiface.sendSync).toHaveBeenCalledWith(
+      intifaceConfig,
+      expect.anything(),
+      1105,
+      1,
+      "script",
+      [],
+      { playing: true, mediaTimeMs: 1000, scriptOffsetMs: 105 }
     );
   });
 

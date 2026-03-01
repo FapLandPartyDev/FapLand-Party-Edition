@@ -451,6 +451,30 @@ describe("Settings music section", () => {
     });
   });
 
+  it("opens the enhancement settings and toggles a new pattern independently of its preview", async () => {
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Auto enhance script/ }));
+
+    const preview = screen.getByRole("button", { name: "Double rebound" });
+    expect(screen.getByRole("button", { name: "Stair-step rise" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Soft landing" })).toBeTruthy();
+    fireEvent.click(preview);
+    expect(preview.getAttribute("aria-pressed")).toBe("true");
+    expect(
+      screen.getByRole("img", { name: /Original and enhanced stroke positions/ })
+    ).toBeTruthy();
+
+    const toggle = screen.getByRole("switch", { name: "Toggle Double rebound" });
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    await waitFor(() => expect((toggle as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("true"));
+    expect(trpc.store.set.mutate).toHaveBeenCalledWith({
+      key: "game.funscript.enhancementPatterns",
+      value: expect.objectContaining({ beatPunch: true, overshoot: false, doubleRebound: true }),
+    });
+  });
+
   it("confirms before clearing the music playlist", async () => {
     render(<SettingsPage />);
 

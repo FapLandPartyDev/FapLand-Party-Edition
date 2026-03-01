@@ -85,7 +85,7 @@ import { clearFpackExtractionCache, getFpackExtractionRoot } from "../../service
 import { clearEroScriptsCache, resolveEroScriptsCacheRoot } from "../../services/eroscripts";
 import { clearAcquisitionDownloadData } from "../../services/acquisition";
 import { publicProcedure, router } from "../trpc";
-import { and, eq, desc, asc, inArray, isNull } from "drizzle-orm";
+import { and, count, eq, desc, asc, inArray, isNull } from "drizzle-orm";
 import {
   gameProfile,
   singlePlayerRunHistory,
@@ -899,6 +899,21 @@ export const dbRouter = router({
         .onConflictDoUpdate({ target: gameplayRoundPlay.id, set: values })
         .returning();
       return row;
+    }),
+
+  getRoundLossCount: publicProcedure
+    .input(z.object({ roundId: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const [result] = await getDb()
+        .select({ lossCount: count() })
+        .from(gameplayRoundPlay)
+        .where(
+          and(
+            eq(gameplayRoundPlay.roundId, input.roundId),
+            inArray(gameplayRoundPlay.cumOutcome, ["manual_loss", "failed_instruction"])
+          )
+        );
+      return result.lossCount;
     }),
 
   getGameplayStats: publicProcedure

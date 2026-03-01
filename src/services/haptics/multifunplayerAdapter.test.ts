@@ -53,6 +53,7 @@ it("applies range, timing and speed, and reloads the primary script when range c
     duration: 2,
     speed: 1.5,
     playing: true,
+    offsetMs: 0,
   });
   await adapter.sendSync(config, session, 600, 1.5, "scene", actions);
   expect(api.setMedia.mutate).toHaveBeenCalledTimes(1);
@@ -121,4 +122,35 @@ it("reloads the current scripts after the bridge restarts", async () => {
   session.checkedAt = 0;
   await adapter.sendSync(config, session, 600, 1, "scene", actions);
   expect(api.setMedia.mutate).toHaveBeenCalledTimes(2);
+});
+
+it("updates offsets live while keeping the video clock and loaded media stable", async () => {
+  const session = await adapter.createSession(config);
+  for (const offsetMs of [100, 200, -100, 0]) {
+    await adapter.sendSync(config, session, 5000 + offsetMs, 1.5, "scene", actions, {
+      playing: true,
+      mediaTimeMs: 5000,
+      scriptOffsetMs: offsetMs,
+    });
+    expect(api.update.mutate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ time: 5, offsetMs, speed: 1.5, playing: true })
+    );
+  }
+  expect(api.setMedia.mutate).toHaveBeenCalledTimes(1);
+});
+
+it("preserves a negative offset at the start and across pause/resume", async () => {
+  const session = await adapter.createSession(config);
+  await adapter.sendSync(config, session, 0, 1, "scene", actions, {
+    playing: false,
+    mediaTimeMs: 50,
+    scriptOffsetMs: -100,
+  });
+  expect(api.update.mutate).toHaveBeenLastCalledWith(
+    expect.objectContaining({ time: 0.05, offsetMs: -100, playing: false })
+  );
+  await adapter.resumePlayback(config, session, 900, 1);
+  expect(api.update.mutate).toHaveBeenLastCalledWith(
+    expect.objectContaining({ time: 1, offsetMs: -100, playing: true })
+  );
 });

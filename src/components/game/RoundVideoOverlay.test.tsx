@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
     isLocalVideoUriForFallback: vi.fn<(uri: string) => boolean>(() => true),
   },
   handy: {
+    provider: "thehandy" as "thehandy" | "multifunplayer",
     connectionKey: "",
     appApiKey: "",
     offsetMs: 0,
@@ -52,6 +53,7 @@ const mocks = vi.hoisted(() => ({
   playAntiPerkBeatSound: vi.fn(),
   sfwMode: false,
   db: {
+    getRoundLossCount: vi.fn<(roundId: string) => Promise<number>>(async () => 0),
     updateDifficulty: vi.fn(async ({ id, difficulty }: { id: string; difficulty: number }) => ({
       id,
       difficulty,
@@ -118,10 +120,12 @@ vi.mock("../../hooks/usePlayableVideoFallback", () => ({
 
 vi.mock("../../contexts/HandyContext", () => ({
   useHandy: () => mocks.handy,
+  useHaptics: () => mocks.handy,
 }));
 
 vi.mock("../../services/db", () => ({
   db: {
+    gameplayStats: { getRoundLossCount: mocks.db.getRoundLossCount },
     round: {
       updateDifficulty: mocks.db.updateDifficulty,
       updateResourceFunscriptOffset: mocks.db.updateResourceFunscriptOffset,
@@ -416,6 +420,7 @@ function renderOverlay({
 
 describe("RoundVideoOverlay", () => {
   beforeEach(() => {
+    mocks.db.getRoundLossCount.mockReset().mockResolvedValue(0);
     mocks.isGameDevelopmentMode.mockReturnValue(false);
     mocks.openGlobalHandyOverlay.mockClear();
     mocks.playAntiPerkBeatSound.mockClear();
@@ -429,6 +434,7 @@ describe("RoundVideoOverlay", () => {
     mocks.playableVideo.isLocalVideoUriForFallback.mockReturnValue(true);
     mocks.handy.connectionKey = "";
     mocks.handy.appApiKey = "";
+    mocks.handy.provider = "thehandy";
     mocks.handy.offsetMs = 0;
     mocks.handy.connected = false;
     mocks.handy.manuallyStopped = false;
@@ -528,6 +534,7 @@ describe("RoundVideoOverlay", () => {
       "0:00 / 0:00"
     );
     expect(screen.queryByText("Segment: Main")).toBeNull();
+    expect(mocks.db.getRoundLossCount).not.toHaveBeenCalled();
   });
 
   it("emits cumulative gameplay playback telemetry", async () => {
@@ -1510,9 +1517,15 @@ describe("RoundVideoOverlay", () => {
     }
   );
 
-  it.each([false, true])(
-    "applies live offset changes without waiting for a timer (request pending: %s)",
-    async (pending) => {
+  it.each([
+    [false, "thehandy"],
+    [true, "thehandy"],
+    [false, "multifunplayer"],
+    [true, "multifunplayer"],
+  ] as const)(
+    "applies live offset changes without waiting for a timer (request pending: %s, provider: %s)",
+    async (pending, provider) => {
+      mocks.handy.provider = provider;
       mocks.handy.connectionKey = "conn-key";
       mocks.handy.appApiKey = "app-key";
       mocks.handy.connected = true;
@@ -1550,6 +1563,8 @@ describe("RoundVideoOverlay", () => {
         expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({ synced: true, error: null });
       });
       await act(async () => {});
+      Object.defineProperty(video, "readyState", { configurable: true, value: 4 });
+      Object.defineProperty(video, "paused", { configurable: true, value: false });
       video.currentTime = 5;
       vi.useFakeTimers();
       vi.mocked(handyRuntime.sendHapticsSync).mockClear();
@@ -1574,7 +1589,13 @@ describe("RoundVideoOverlay", () => {
           1,
           "/video.mp4:main",
           actions,
-          { forceTimeSync: true, timeFilter: null }
+          {
+            forceTimeSync: true,
+            timeFilter: null,
+            ...(provider === "multifunplayer"
+              ? { playing: true, mediaTimeMs: 5000, scriptOffsetMs: 100 }
+              : {}),
+          }
         );
         mocks.handy.offsetMs = 200;
         await act(async () => {
@@ -1598,7 +1619,13 @@ describe("RoundVideoOverlay", () => {
           1,
           "/video.mp4:main",
           actions,
-          { forceTimeSync: true, timeFilter: null }
+          {
+            forceTimeSync: true,
+            timeFilter: null,
+            ...(provider === "multifunplayer"
+              ? { playing: true, mediaTimeMs: 5000, scriptOffsetMs: -100 }
+              : {}),
+          }
         );
       } finally {
         vi.useRealTimers();
@@ -2081,7 +2108,7 @@ describe("RoundVideoOverlay", () => {
     expect(screen.getByText("No Script")).not.toBeNull();
   });
 
-  it("shows the live preview orb using the offset-adjusted script position", async () => {
+  it("animates the original and adjusted script markers against the live video clock", async () => {
     mocks.handy.connectionKey = "conn-key";
     mocks.handy.appApiKey = "app-key";
     mocks.handy.connected = true;
@@ -2089,7 +2116,7 @@ describe("RoundVideoOverlay", () => {
     mocks.playback.loadFunscriptTimeline.mockResolvedValue({
       actions: [{ at: 0, pos: 10 }],
     });
-    mocks.playback.getFunscriptPositionAtMs.mockReturnValue(42);
+    mocks.playback.getFunscriptPositionAtMs.mockImplementation((_timeline, at) => at / 10);
     vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
 
     const { container } = renderOverlay({
@@ -2101,7 +2128,7 @@ describe("RoundVideoOverlay", () => {
       expect(candidate).not.toBeNull();
       return candidate as HTMLVideoElement;
     });
-    primeVideoElement(video, { duration: 30, currentTime: 0.25 });
+    primeVideoElement(video, { duration: 30, currentTime: 0 });
 
     fireEvent.loadedMetadata(video);
 
@@ -2111,7 +2138,19 @@ describe("RoundVideoOverlay", () => {
         expect.any(Number)
       );
       const orb = screen.getByTestId("thehandy-preview-orb");
-      expect(orb.getAttribute("style")).toContain("top: 58%");
+      const comparison = screen.getByTestId("thehandy-preview-comparison");
+      expect(orb.style.top).toBe("95%");
+      expect(comparison.style.visibility).toBe("visible");
+      expect(comparison.style.getPropertyValue("--original-top")).toBe("100%");
+      expect(comparison.style.getPropertyValue("--gap-height")).toBe("5%");
+    });
+
+    video.currentTime = 0.5;
+    await waitFor(() => {
+      expect(screen.getByTestId("thehandy-preview-orb").style.top).toBe("45%");
+      expect(
+        screen.getByTestId("thehandy-preview-comparison").style.getPropertyValue("--original-top")
+      ).toBe("50%");
     });
   });
 
@@ -2457,6 +2496,9 @@ describe("RoundVideoOverlay", () => {
 
   it("advances to the next playlist video from the dev button without finishing the round", async () => {
     const onFinishRound = vi.fn();
+    mocks.db.getRoundLossCount.mockImplementation(async (roundId) =>
+      roundId === "round-1" ? 3 : 0
+    );
     const activeRound = {
       ...createActiveRound("round-1"),
       playlistRoundIds: ["round-1", "round-2"],
@@ -2469,15 +2511,20 @@ describe("RoundVideoOverlay", () => {
       ],
       allowDebugRoundControls: true,
       onFinishRound,
+      onPlaybackTelemetry: vi.fn(),
     });
 
     const nextButton = await screen.findByRole("button", { name: "Next Video" });
+    expect(await screen.findByText("Losses 3")).not.toBeNull();
     expect((nextButton as HTMLButtonElement).disabled).toBe(false);
     expect(screen.getByText("Video queue: 1/2")).not.toBeNull();
 
     fireEvent.click(nextButton);
 
     expect(onFinishRound).not.toHaveBeenCalled();
+    expect(screen.queryByText("Losses 3")).toBeNull();
+    expect(await screen.findByText("Losses 0")).not.toBeNull();
+    expect(mocks.db.getRoundLossCount.mock.calls).toEqual([["round-1"], ["round-2"]]);
     await waitFor(() => {
       expect(container.querySelector("video")?.getAttribute("src")).toBe("/main.mp4");
       expect(screen.getByText("Video queue: 2/2")).not.toBeNull();

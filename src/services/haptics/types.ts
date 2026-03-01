@@ -72,6 +72,9 @@ export type HapticsSession = {
 };
 
 export type HapticsSyncOptions = {
+  /** Unadjusted video clock and script calibration for external media players. */
+  mediaTimeMs?: number;
+  scriptOffsetMs?: number;
   /** Actual media state for players that extrapolate between sync frames. */
   playing?: boolean;
   forceTimeSync?: boolean;

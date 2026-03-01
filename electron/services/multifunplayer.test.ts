@@ -38,6 +38,70 @@ async function start() {
 }
 
 describe("MultiFunPlayer OFS bridge", () => {
+  it("updates every axis live without resetting media, and retains the offset on reconnect", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "fland-mfp-"));
+    directories.push(directory);
+    const actions = [
+      { at: 0, pos: 0 },
+      { at: 1000, pos: 100 },
+    ];
+    await writeFile(path.join(directory, "clip.roll.funscript"), JSON.stringify({ actions }));
+    const bridge = await start();
+    const { messages } = await connect(bridge);
+    await bridge.setMedia({
+      key: "round",
+      videoUri: "clip.mp4",
+      scriptUri: pathToFileURL(path.join(directory, "clip.funscript")).href,
+      actions,
+    });
+    bridge.update({ key: "round", time: 0.5, duration: 10, speed: 1.5, playing: true });
+    await vi.waitFor(() => expect(messages.at(-1)?.name).toBe("play_change"));
+    messages.length = 0;
+
+    for (const offsetMs of [100, -100, 0]) {
+      bridge.update({ key: "round", time: 0.5, duration: 10, speed: 1.5, playing: true, offsetMs });
+      await vi.waitFor(() => expect(messages.at(-1)?.name).toBe("play_change"));
+      const scripts = messages.filter((message) => message.name === "funscript_change");
+      expect(scripts).toHaveLength(2);
+      const expected =
+        offsetMs > 0
+          ? [
+              { at: 0, pos: 10 },
+              { at: 900, pos: 100 },
+            ]
+          : offsetMs < 0
+            ? [
+                { at: 0, pos: 0 },
+                { at: 100, pos: 0 },
+                { at: 1100, pos: 100 },
+              ]
+            : actions;
+      for (const script of scripts)
+        expect(script.data.funscript).toMatchObject({ actions: expected });
+      expect(
+        messages.some((message) => ["project_change", "media_change"].includes(message.name))
+      ).toBe(false);
+      expect(messages.find((message) => message.name === "time_change")?.data.time).toBe(0.5);
+      messages.length = 0;
+    }
+    bridge.update({
+      key: "round",
+      time: 0.5,
+      duration: 10,
+      speed: 1,
+      playing: false,
+      offsetMs: 2000,
+    });
+    const reconnected = await connect(bridge);
+    await vi.waitFor(() => expect(reconnected.messages.at(-1)?.name).toBe("play_change"));
+    for (const script of reconnected.messages.filter(
+      (message) => message.name === "funscript_change"
+    )) {
+      expect(script.data.funscript).toMatchObject({ actions: [{ at: 0, pos: 100 }] });
+    }
+    expect(reconnected.messages.at(-1)?.data.playing).toBe(false);
+  });
+
   it("discovers only matching axis scripts and skips invalid files", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "fland-mfp-"));
     directories.push(directory);

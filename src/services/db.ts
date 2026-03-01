@@ -383,6 +383,7 @@ export const db = {
       trpc.db.finishGameplaySession.mutate(input),
     upsertRoundPlay: (input: Parameters<typeof trpc.db.upsertGameplayRoundPlay.mutate>[0]) =>
       trpc.db.upsertGameplayRoundPlay.mutate(input),
+    getRoundLossCount: (roundId: string) => trpc.db.getRoundLossCount.query({ roundId }),
     getStats: (mode?: "single_player" | "multiplayer") =>
       trpc.db.getGameplayStats.query(mode ? { mode } : {}),
     listSessions: (input?: {

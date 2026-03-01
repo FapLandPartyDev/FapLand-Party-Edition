@@ -2,9 +2,10 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { I18n } from "@lingui/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import changelogMarkdown from "../content/changelog.md?raw";
 import { AnimatedBackground } from "../components/AnimatedBackground";
+import { CompatibleDevices } from "../components/CompatibleDevices";
 import { McpSettingsCard } from "../components/McpSettingsCard";
 import { MCP_CHANGED_EVENT } from "../mcp/types";
 import { AntiPerkBeatbar } from "../components/game/AntiPerkBeatbar";
@@ -21,10 +22,18 @@ import { GameDropdown } from "../components/ui/GameDropdown";
 import { useToast } from "../components/ui/ToastHost";
 import {
   SCRIPT_ENHANCEMENT_ENABLED_KEY,
+  SCRIPT_ENHANCEMENT_PATTERNS_KEY,
   DEFAULT_SCRIPT_ENHANCEMENT_ENABLED,
   normalizeScriptEnhancementEnabled,
   saveGlobalScriptEnhancementEnabled,
+  saveEnhancementPattern,
 } from "../services/scriptEnhancementSettings";
+import {
+  DEFAULT_ENHANCEMENT_PATTERNS,
+  normalizeEnhancementPatterns,
+  type EnhancementPatterns,
+} from "../services/haptics/enhancementPatterns";
+import { ScriptEnhancementPreview } from "../components/ScriptEnhancementPreview";
 import { useControllerSurface } from "../controller";
 import {
   DEFAULT_THEHANDY_APP_API_KEY,
@@ -293,6 +302,7 @@ const SETTINGS_SECTION_IDS = [
   "gameplay",
   "audio",
   "hardware",
+  "script-enhancement",
   "sources",
   "security-privacy",
   "app",
@@ -797,6 +807,7 @@ export function SettingsPage() {
   const [scriptEnhancementEnabled, setScriptEnhancementEnabled] = useState(
     DEFAULT_SCRIPT_ENHANCEMENT_ENABLED
   );
+  const [enhancementPatterns, setEnhancementPatterns] = useState(DEFAULT_ENHANCEMENT_PATTERNS);
   const [stashReattachFunscriptsMode, setStashReattachFunscriptsMode] =
     useState<StashReattachFunscriptsMode>(DEFAULT_STASH_REATTACH_FUNSCRIPTS_MODE);
   const [roundProgressBarAlwaysVisible, setRoundProgressBarAlwaysVisible] = useState(
@@ -1000,6 +1011,7 @@ export function SettingsPage() {
         MENU_THEME_KEY,
         AUTOFIX_BROKEN_FUNSCRIPTS_KEY,
         SCRIPT_ENHANCEMENT_ENABLED_KEY,
+        SCRIPT_ENHANCEMENT_PATTERNS_KEY,
         STASH_REATTACH_FUNSCRIPTS_ENABLED_KEY,
         ROUND_PROGRESS_BAR_ALWAYS_VISIBLE_KEY,
         ANTI_PERK_BEATBAR_ENABLED_KEY,
@@ -1063,6 +1075,9 @@ export function SettingsPage() {
         const rawAutofixBrokenFunscripts = storeValues[AUTOFIX_BROKEN_FUNSCRIPTS_KEY];
         setScriptEnhancementEnabled(
           normalizeScriptEnhancementEnabled(storeValues[SCRIPT_ENHANCEMENT_ENABLED_KEY])
+        );
+        setEnhancementPatterns(
+          normalizeEnhancementPatterns(storeValues[SCRIPT_ENHANCEMENT_PATTERNS_KEY])
         );
         const rawStashReattachFunscriptsEnabled =
           storeValues[STASH_REATTACH_FUNSCRIPTS_ENABLED_KEY];
@@ -1587,17 +1602,78 @@ export function SettingsPage() {
               setAutofixBrokenFunscripts(next);
             },
           },
+        ],
+      },
+      {
+        id: "script-enhancement",
+        icon: "🎛️",
+        title: t`Auto enhance script`,
+        description: t`Choose which playback patterns can run on scripts with enhancement enabled.`,
+        settings: [
           {
             id: "auto-enhance-scripts",
             type: "toggle",
             label: t`Auto enhance scripts`,
-            description: t`Master switch for script enhancement. Only scripts enabled individually are enhanced, using their saved Wildness. Turning this off preserves all per-script settings.`,
+            description: t`Apply enhancement during playback for scripts with Enhance this script turned on.`,
             value: scriptEnhancementEnabled,
             onChange: async (next: boolean) => {
               await saveGlobalScriptEnhancementEnabled(next);
               setScriptEnhancementEnabled(next);
             },
           },
+          ...(
+            [
+              {
+                id: "beatPunch",
+                label: t`Beat punch`,
+                description: t`Hold near the peak longer before a quicker descent into the next beat.`,
+              },
+              {
+                id: "variation",
+                label: t`Phrase variation`,
+                description: t`Vary stroke depths in repeated passages while keeping full-depth accents.`,
+              },
+              {
+                id: "delimited",
+                label: t`Range expansion`,
+                description: t`Allow wider strokes on scripts with Delimited enabled.`,
+              },
+              {
+                id: "overshoot",
+                label: t`Overshoot and rebound`,
+                description: t`Add a short rebound on some slow descents when the device speed limit allows it.`,
+              },
+              {
+                id: "staircase",
+                label: t`Stair-step rise`,
+                description: t`Climb to the peak in three steps with two short holds along the way.`,
+              },
+              {
+                id: "doubleRebound",
+                label: t`Double rebound`,
+                description: t`Add two short bounce-backs before finishing the descent.`,
+              },
+              {
+                id: "softLanding",
+                label: t`Soft landing`,
+                description: t`Start the descent quickly, then slow down as it reaches the bottom.`,
+              },
+            ] satisfies Array<{
+              id: keyof EnhancementPatterns;
+              label: string;
+              description: string;
+            }>
+          ).map(({ id, label, description }): ToggleSetting => ({
+            id,
+            type: "toggle",
+            label,
+            description,
+            value: enhancementPatterns[id],
+            onChange: async (next) => {
+              await saveEnhancementPattern(id, next);
+              setEnhancementPatterns((current) => ({ ...current, [id]: next }));
+            },
+          })),
         ],
       },
       {
@@ -2374,6 +2450,7 @@ export function SettingsPage() {
       applyPerkDirectly,
       autofixBrokenFunscripts,
       scriptEnhancementEnabled,
+      enhancementPatterns,
       stashReattachFunscriptsMode,
       intermediaryLoadingDurationSec,
       intermediaryLoadingPrompt,
@@ -3087,6 +3164,18 @@ export function SettingsPage() {
                     section={activeSection}
                     loading={isInitialLoading}
                     deviceAnimationTestEnabled={deviceAnimationTestEnabled}
+                  />
+                </>
+              ) : activeSection && activeSection.id === "script-enhancement" ? (
+                <>
+                  <ScriptEnhancementPreview
+                    enabled={scriptEnhancementEnabled}
+                    patterns={enhancementPatterns}
+                  />
+                  <SettingsSectionCard
+                    section={activeSection}
+                    loading={isInitialLoading}
+                    showHeading={false}
                   />
                 </>
               ) : activeSection && activeSection.id === "advanced" ? (
@@ -4605,6 +4694,7 @@ function HardwareSettingsCard({
           </div>
 
           <div className="space-y-4 text-left">
+            <CompatibleDevices />
             <p className="rounded-lg border border-cyan-300/15 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-100/80">
               <Trans>
                 Every device category can be driven and tuned individually, even while all devices
@@ -7813,16 +7903,26 @@ function AcquisitionSourcesCard() {
   );
 }
 
-function SettingsSectionCard({ section, loading }: { section: SettingsSection; loading: boolean }) {
+function SettingsSectionCard({
+  section,
+  loading,
+  showHeading = true,
+}: {
+  section: SettingsSection;
+  loading: boolean;
+  showHeading?: boolean;
+}) {
   return (
     <section
       className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl"
       style={{ animationDelay: "0.08s" }}
     >
-      <div className="mb-4">
-        <h2 className="text-lg font-extrabold tracking-tight text-violet-100">{section.title}</h2>
-        <p className="mt-1 text-sm text-zinc-300">{section.description}</p>
-      </div>
+      {showHeading && (
+        <div className="mb-4">
+          <h2 className="text-lg font-extrabold tracking-tight text-violet-100">{section.title}</h2>
+          <p className="mt-1 text-sm text-zinc-300">{section.description}</p>
+        </div>
+      )}
 
       <div className="space-y-3">
         {section.settings.map((setting) => (
@@ -8343,8 +8443,28 @@ function HelpShortcutsCard({ cheatModeEnabled }: { cheatModeEnabled: boolean }) 
   );
 }
 
+const localizedReleaseNotes = import.meta.glob<string>("../content/changelog/*.md", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+});
+const archivedReleaseNotes = changelogMarkdown
+  .split(/(?=^## v)/m)
+  .slice(2)
+  .join("");
+const changelogComponents: Components = {
+  a: ({ href, children, ...props }) => (
+    <a href={href} rel="noreferrer" target="_blank" {...props}>
+      {children}
+    </a>
+  ),
+};
+
 function ChangelogCard() {
+  const { locale } = useLocale();
   const currentVersion = import.meta.env.VITE_APP_VERSION;
+  const translatedNotes =
+    localizedReleaseNotes[`../content/changelog/${currentVersion}.${locale}.md`];
 
   return (
     <section
@@ -8373,17 +8493,16 @@ function ChangelogCard() {
 
       <div className="px-5 py-5 sm:px-6 sm:py-6">
         <div className="settings-changelog">
-          <ReactMarkdown
-            components={{
-              a: ({ href, children, ...props }) => (
-                <a href={href} rel="noreferrer" target="_blank" {...props}>
-                  {children}
-                </a>
-              ),
-            }}
-          >
-            {changelogMarkdown}
+          <ReactMarkdown components={changelogComponents}>
+            {translatedNotes || changelogMarkdown}
           </ReactMarkdown>
+          {translatedNotes && (
+            <div lang="en">
+              <ReactMarkdown components={changelogComponents}>
+                {`---\n\n${archivedReleaseNotes}`}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
       </div>
     </section>

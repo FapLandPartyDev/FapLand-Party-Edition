@@ -1,5 +1,7 @@
 // @vitest-environment node
 
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getDbMock } = vi.hoisted(() => ({
@@ -213,6 +215,28 @@ function createRendererCaller() {
     },
   } as never);
 }
+
+it("counts only recorded losses for the requested round", async () => {
+  const client = createClient({ url: "file::memory:" });
+  try {
+    await client.execute('CREATE TABLE "GameplayRoundPlay" ("roundId" TEXT, "cumOutcome" TEXT)');
+    await client.execute(`INSERT INTO "GameplayRoundPlay" VALUES
+      ('round-1', 'manual_loss'),
+      ('round-1', 'failed_instruction'),
+      ('round-1', 'came_as_told'),
+      ('round-1', 'did_not_cum'),
+      ('round-1', NULL),
+      ('round-2', 'manual_loss')`);
+    const db = drizzle(client);
+    getDbMock.mockReturnValueOnce(db).mockReturnValueOnce(db);
+    const caller = createRendererCaller();
+
+    await expect(caller.getRoundLossCount({ roundId: "round-1" })).resolves.toBe(2);
+    await expect(caller.getRoundLossCount({ roundId: "unplayed-round" })).resolves.toBe(0);
+  } finally {
+    client.close();
+  }
+});
 
 function createSinglePlayerRunSaveInput() {
   const playlistConfig = {

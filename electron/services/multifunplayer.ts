@@ -9,6 +9,7 @@ export type MfpFrame = {
   duration: number;
   speed: number;
   playing: boolean;
+  offsetMs?: number;
 };
 export type MfpMedia = {
   key: string;
@@ -17,6 +18,27 @@ export type MfpMedia = {
   actions: { at: number; pos: number }[];
 };
 type Script = { name: string; funscript: Record<string, unknown> };
+
+// OFS cannot set MFP's native offset. Shift every axis instead of changing its
+// clock: MFP smooths small time_change corrections rather than seeking to them.
+function offsetScript(script: Script, offsetMs: number): Script {
+  if (!offsetMs) return script;
+  const actions = script.funscript.actions as { at: number; pos: number }[];
+  const firstFuture = actions.findIndex((action) => action.at > offsetMs);
+  const shifted = actions
+    .filter((action) => action.at >= offsetMs)
+    .map((action) => ({ ...action, at: action.at - offsetMs }));
+  if (actions.length && shifted[0]?.at !== 0) {
+    // Preserve the interpolated position at zero when advancing into a stroke,
+    // and hold the first/last position outside the script's time range.
+    const next = firstFuture < 0 ? actions.at(-1)! : actions[firstFuture]!;
+    const previous = firstFuture > 0 ? actions[firstFuture - 1]! : next;
+    const fraction =
+      next.at === previous.at ? 0 : (offsetMs - previous.at) / (next.at - previous.at);
+    shifted.unshift({ at: 0, pos: previous.pos + (next.pos - previous.pos) * fraction });
+  }
+  return { ...script, funscript: { ...script.funscript, actions: shifted } };
+}
 
 // OFS events are consumed directly by MultiFunPlayer's OfsMediaSource.
 function event(name: string, data: object) {
@@ -161,8 +183,12 @@ export class MultiFunPlayerBridge {
 
   update(frame: MfpFrame) {
     if (frame.key !== this.media?.key) return;
+    const offsetChanged = (frame.offsetMs ?? 0) !== (this.frame?.offsetMs ?? 0);
     this.frame = frame;
     this.updatedAt = Date.now();
+    if (offsetChanged) {
+      for (const client of this.server?.clients ?? []) this.sendScripts(client);
+    }
     this.broadcastFrame();
   }
 
@@ -196,7 +222,13 @@ export class MultiFunPlayerBridge {
       client,
       event("media_change", { path: fromLocalMediaUri(this.media.videoUri) ?? this.media.videoUri })
     );
-    for (const script of this.scripts) this.send(client, event("funscript_change", script));
+    this.sendScripts(client);
+  }
+
+  private sendScripts(client: WebSocket) {
+    for (const script of this.scripts) {
+      this.send(client, event("funscript_change", offsetScript(script, this.frame?.offsetMs ?? 0)));
+    }
   }
 
   private sendFrame(client: WebSocket) {

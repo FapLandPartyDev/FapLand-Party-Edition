@@ -91,6 +91,7 @@ import {
 } from "../../game/gameplayTelemetry";
 import { chooseIntermediaryCount } from "./intermediarySelection";
 import { inheritScriptIdentity } from "../../services/haptics/scriptEnhancement";
+import { syncedHapticsTrajectories } from "../../services/haptics/syncedTrajectory";
 import { ScriptEnhancementControl } from "../ScriptEnhancementControl";
 
 const DEFAULT_INTERMEDIARY_SELECTION = {
@@ -243,13 +244,21 @@ function getHapticsSessionTopologyKey(config: HapticsTargetConfig): string {
     : `tcode:websocket:${config.websocketUrl.trim()}`;
 }
 
-function getPlayerPlaybackState(config: HapticsTargetConfig, video: HTMLVideoElement) {
+function getPlayerPlaybackState(
+  config: HapticsTargetConfig,
+  video: HTMLVideoElement,
+  offsetMs: number
+) {
   const hasPlayer =
     config.provider === "multifunplayer" ||
     (config.provider === "group" &&
       config.devices.some((device) => device.config.provider === "multifunplayer"));
   return hasPlayer
-    ? { playing: !video.paused && !video.ended && !video.seeking && video.readyState >= 3 }
+    ? {
+        playing: !video.paused && !video.ended && !video.seeking && video.readyState >= 3,
+        mediaTimeMs: Math.max(0, video.currentTime * 1000),
+        scriptOffsetMs: offsetMs,
+      }
     : {};
 }
 
@@ -363,6 +372,31 @@ function invertTimeline(
       }))
     ),
   };
+}
+
+function RoundLossCount({ roundId }: { roundId: string }) {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void db.gameplayStats
+      .getRoundLossCount(roundId)
+      .then((count) => {
+        if (!cancelled) setCount(count);
+      })
+      .catch((error) => {
+        if (!cancelled) console.warn("Failed to load round loss count", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [roundId]);
+
+  if (count === null) return null;
+  return (
+    <span className="whitespace-nowrap text-fuchsia-100/80 tabular-nums">
+      <Trans>Losses</Trans> {count}
+    </span>
+  );
 }
 
 export function RoundVideoOverlay({
@@ -568,22 +602,44 @@ export function RoundVideoOverlay({
   const funscriptPositionRef = useRef<number | null>(null);
   const handyPreviewRef = useRef<HTMLDivElement | null>(null);
   const handyPreviewOrbRef = useRef<HTMLDivElement | null>(null);
+  const handyPreviewComparisonRef = useRef<HTMLDivElement | null>(null);
+  const handyPreviewPositionsRef = useRef<{
+    adjusted: number | null;
+    original: number | null;
+  }>({ adjusted: null, original: null });
   const funscriptDebugValueRef = useRef<HTMLSpanElement | null>(null);
-  const setFunscriptPosition = useCallback((position: number | null) => {
-    funscriptPositionRef.current = position;
-    if (handyPreviewRef.current) {
-      handyPreviewRef.current.style.visibility =
-        typeof position === "number" ? "visible" : "hidden";
+  const updateHandyPreview = useCallback((adjusted: number | null, original: number | null) => {
+    handyPreviewPositionsRef.current = { adjusted, original };
+    const rail = handyPreviewRef.current;
+    if (!rail) return;
+    rail.style.visibility = adjusted === null ? "hidden" : "visible";
+    const comparison = handyPreviewComparisonRef.current;
+    if (comparison) {
+      comparison.style.visibility = adjusted === null || original === null ? "hidden" : "visible";
     }
-    if (handyPreviewOrbRef.current && typeof position === "number") {
-      const clampedPosition = Math.max(0, Math.min(100, position));
-      handyPreviewOrbRef.current.style.top = `${100 - clampedPosition}%`;
-    }
-    if (funscriptDebugValueRef.current) {
-      funscriptDebugValueRef.current.textContent =
-        typeof position === "number" ? String(Math.trunc(position)) : "-";
-    }
+    if (adjusted === null) return;
+
+    const adjustedTop = 100 - Math.max(0, Math.min(100, adjusted));
+    if (handyPreviewOrbRef.current) handyPreviewOrbRef.current.style.top = `${adjustedTop}%`;
+    if (!comparison || original === null) return;
+
+    const originalTop = 100 - Math.max(0, Math.min(100, original));
+    comparison.style.setProperty("--original-top", `${originalTop}%`);
+    comparison.style.setProperty("--gap-top", `${Math.min(adjustedTop, originalTop)}%`);
+    comparison.style.setProperty("--gap-height", `${Math.abs(adjustedTop - originalTop)}%`);
+    comparison.style.setProperty("--gap-direction", adjustedTop < originalTop ? "180deg" : "0deg");
   }, []);
+  const setFunscriptPosition = useCallback(
+    (position: number | null) => {
+      funscriptPositionRef.current = position;
+      if (position === null) updateHandyPreview(null, null);
+      if (funscriptDebugValueRef.current) {
+        funscriptDebugValueRef.current.textContent =
+          typeof position === "number" ? String(Math.trunc(position)) : "-";
+      }
+    },
+    [updateHandyPreview]
+  );
   const setPlaybackProgress = useCallback((progress: number) => {
     const clampedProgress = Math.max(0, Math.min(1, progress));
     if (Math.abs(playbackProgressRef.current - clampedProgress) < 0.002) return;
@@ -641,7 +697,9 @@ export function RoundVideoOverlay({
 
   useEffect(() => {
     setFunscriptPosition(funscriptPositionRef.current);
-  }, [setFunscriptPosition, timeline]);
+    const { adjusted, original } = handyPreviewPositionsRef.current;
+    updateHandyPreview(adjusted, original);
+  }, [handyConnected, setFunscriptPosition, timeline, updateHandyPreview]);
 
   useEffect(() => {
     handyManuallyStoppedRef.current = handyManuallyStopped;
@@ -794,6 +852,7 @@ export function RoundVideoOverlay({
     if (!activeRound) return null;
     return installedRounds.find((round) => round.id === activePlaylistRoundId) ?? null;
   }, [activePlaylistRoundId, activeRound, installedRounds]);
+  const displayedRoundId = resolvedRound?.id ?? activeRound?.roundId;
 
   useEffect(() => {
     let cancelled = false;
@@ -2425,7 +2484,7 @@ export function RoundVideoOverlay({
           forceTimeSync: true,
           forceClockSync: true,
           timeFilter: null,
-          ...getPlayerPlaybackState(hapticsConfig, video),
+          ...getPlayerPlaybackState(hapticsConfig, video, offsetMs),
         }
       );
       if (handyManuallyStoppedRef.current) return;
@@ -2454,6 +2513,7 @@ export function RoundVideoOverlay({
     ensureHandySession,
     hapticsConfig,
     hasRequiredHapticsConnection,
+    offsetMs,
     segment.kind,
     setSyncStatus,
     shouldUseHandySync,
@@ -2536,7 +2596,8 @@ export function RoundVideoOverlay({
               effectiveTimeMs,
               video?.playbackRate ?? 1,
               scriptId,
-              nextTimeline.actions
+              nextTimeline.actions,
+              video ? getPlayerPlaybackState(hapticsConfig, video, offsetMs) : undefined
             );
             handyBootstrapKeyRef.current = null;
             setHandySyncState("synced");
@@ -2572,6 +2633,7 @@ export function RoundVideoOverlay({
     },
     [
       applyHandyOffsetMs,
+      offsetMs,
       currentPlayer,
       disconnectHandy,
       disconnectHandySessionIfNeeded,
@@ -2660,7 +2722,8 @@ export function RoundVideoOverlay({
             effectiveTimeMs,
             video?.playbackRate ?? 1,
             scriptId,
-            nextTimeline.actions
+            nextTimeline.actions,
+            video ? getPlayerPlaybackState(hapticsConfig, video, offsetMs) : undefined
           );
           setHandySyncState("synced");
           setHandySyncError(null);
@@ -2691,6 +2754,7 @@ export function RoundVideoOverlay({
     }
   }, [
     applyHandyOffsetMs,
+    offsetMs,
     currentPlayer,
     disconnectHandySessionIfNeeded,
     ensureHandySession,
@@ -2783,7 +2847,8 @@ export function RoundVideoOverlay({
             effectiveTimeMs,
             video?.playbackRate ?? 1,
             scriptId,
-            nextTimeline.actions
+            nextTimeline.actions,
+            video ? getPlayerPlaybackState(hapticsConfig, video, offsetMs) : undefined
           );
           handyBootstrapKeyRef.current = null;
           setHandySyncState("synced");
@@ -2824,6 +2889,7 @@ export function RoundVideoOverlay({
     }
   }, [
     applyHandyOffsetMs,
+    offsetMs,
     currentPlayer,
     disconnectHandy,
     disconnectHandySessionIfNeeded,
@@ -2988,7 +3054,11 @@ export function RoundVideoOverlay({
         playbackRate,
         `${activeVideoUri}:${segment.kind}`,
         actions,
-        { forceTimeSync: true, timeFilter: null, ...getPlayerPlaybackState(hapticsConfig, video) }
+        {
+          forceTimeSync: true,
+          timeFilter: null,
+          ...getPlayerPlaybackState(hapticsConfig, video, offsetMs),
+        }
       );
       if (handyManuallyStoppedRef.current || !isCurrentBootstrap()) return false;
 
@@ -3025,6 +3095,7 @@ export function RoundVideoOverlay({
     hasRequiredHapticsConnection,
     isIntermediaryScreenActive,
     resolveMainWindowForDuration,
+    offsetMs,
     segment.kind,
     setSyncStatus,
     shouldUseHandySync,
@@ -3614,6 +3685,28 @@ export function RoundVideoOverlay({
         onFunscriptFrame?.({ timeMs: effectiveTimeMs, position });
       }
 
+      if (timeline && handyPreviewRef.current) {
+        const session = handySessionRef.current;
+        const synced = session ? syncedHapticsTrajectories.get(session) : undefined;
+        const deviceMotion = synced?.source === timeline.actions ? synced : undefined;
+        const deviceOffsetMs = deviceMotion?.deviceOffsetMs ?? 0;
+        const source = (timelineUri ? timelineCacheRef.current.get(timelineUri) : null) ?? timeline;
+        const comparing =
+          source !== timeline || offsetMs + deviceOffsetMs !== 0 || deviceMotion?.modified;
+        const original = comparing ? getFunscriptPositionAtMs(source, timeMs) : null;
+        const adjusted =
+          deviceMotion?.modified || deviceOffsetMs !== 0
+            ? getFunscriptPositionAtMs(
+                deviceMotion?.timeline ?? timeline,
+                Math.max(0, effectiveTimeMs + deviceOffsetMs)
+              )
+            : position;
+        const previous = handyPreviewPositionsRef.current;
+        if (previous.adjusted !== adjusted || previous.original !== original) {
+          updateHandyPreview(adjusted, original);
+        }
+      }
+
       if (segment.kind === "main") {
         const knownDurationSec =
           Number.isFinite(video.duration) && video.duration > 0
@@ -3764,6 +3857,7 @@ export function RoundVideoOverlay({
     endIntermediaryAndResume,
     fullIntermediaryQueue,
     isIntermediaryScreenActive,
+    offsetMs,
     onFunscriptFrame,
     segment.kind,
     sessionModifiers,
@@ -3772,6 +3866,8 @@ export function RoundVideoOverlay({
     resolveMainWindowForDuration,
     startIntermediary,
     timeline,
+    timelineUri,
+    updateHandyPreview,
   ]);
 
   useEffect(() => {
@@ -4052,7 +4148,7 @@ export function RoundVideoOverlay({
             actions,
             {
               ...(shouldForceTimeSync ? { forceTimeSync: true, timeFilter: null } : {}),
-              ...getPlayerPlaybackState(hapticsConfig, video),
+              ...getPlayerPlaybackState(hapticsConfig, video, offsetMs),
             }
           );
           if (handyManuallyStoppedRef.current) return;
@@ -4115,6 +4211,7 @@ export function RoundVideoOverlay({
     hapticsPushIntervalMs,
     hasRequiredHapticsConnection,
     isIntermediaryScreenActive,
+    offsetMs,
     segment.kind,
     setSyncStatus,
     shouldUseHandySync,
@@ -4786,7 +4883,15 @@ export function RoundVideoOverlay({
         <div
           className={`pointer-events-auto absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-3 px-4 py-3 text-xs tracking-wide text-fuchsia-100 transition-opacity duration-250 ${isUiVisible ? "opacity-100" : "opacity-0"}`}
         >
-          <span>{resolvedRound?.name ?? activeRound?.roundName ?? t`Round`}</span>
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span>{resolvedRound?.name ?? activeRound?.roundName ?? t`Round`}</span>
+            {onPlaybackTelemetry && displayedRoundId && (
+              <RoundLossCount
+                key={JSON.stringify([activeRound?.fieldId, displayedRoundId])}
+                roundId={displayedRoundId}
+              />
+            )}
+          </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <span>{status}</span>
 
@@ -5720,6 +5825,40 @@ export function RoundVideoOverlay({
                     className="relative h-24 w-0.5 rounded-full bg-cyan-200/20"
                     style={{ visibility: "hidden" }}
                   >
+                    <div
+                      ref={handyPreviewComparisonRef}
+                      className="invisible absolute inset-0"
+                      data-testid="thehandy-preview-comparison"
+                    >
+                      <div
+                        className="absolute left-1/2 w-0.5 -translate-x-1/2 rounded-full shadow-[0_0_8px_rgba(196,181,253,0.65)]"
+                        style={{
+                          top: "var(--gap-top)",
+                          height: "var(--gap-height)",
+                          background: "linear-gradient(var(--gap-direction), #67e8f9, #c4b5fd)",
+                        }}
+                      />
+                      <div
+                        className="absolute left-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-300 bg-violet-300/25 shadow-[0_0_10px_rgba(196,181,253,0.7)]"
+                        style={{ top: "var(--original-top)" }}
+                      />
+                      <div className="absolute -right-1 bottom-full mb-2 flex items-center gap-2 whitespace-nowrap rounded bg-black/55 px-1.5 py-1 text-[9px] text-zinc-200">
+                        <span className="flex items-center gap-1">
+                          <span
+                            className="h-2 w-2 rounded-full border border-violet-300"
+                            aria-hidden="true"
+                          />
+                          <Trans>Original</Trans>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span
+                            className="h-1.5 w-1.5 rounded-full bg-cyan-300"
+                            aria-hidden="true"
+                          />
+                          <Trans>Adjusted</Trans>
+                        </span>
+                      </div>
+                    </div>
                     <div
                       ref={handyPreviewOrbRef}
                       className="absolute left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/90 shadow-[0_0_10px_rgba(34,211,238,0.5)]"

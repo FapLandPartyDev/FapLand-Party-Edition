@@ -75,6 +75,35 @@ describe("GlobalHandyOverlay", () => {
     expect(screen.getByText("Current stroke: 12% - 88%")).toBeTruthy();
   });
 
+  it("drags the whole stroke range and keeps its width at both limits", () => {
+    const { container } = render(<GlobalHandyOverlay />);
+    fireEvent.keyDown(window, { key: "h", ctrlKey: true });
+
+    const track = container.querySelector(".cursor-grab")!;
+    const geometry = vi.spyOn(track.parentElement!, "getBoundingClientRect");
+    geometry.mockReturnValue(new DOMRect(40, 0, 200, 8));
+
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: 140 });
+    expect(screen.getByText("Min: 12%")).toBeTruthy();
+    expect(screen.getByText("Max: 88%")).toBeTruthy();
+
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 0 });
+    expect(screen.getByText("Min: 0%")).toBeTruthy();
+    expect(screen.getByText("Max: 76%")).toBeTruthy();
+
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 150 });
+    expect(screen.getByText("Min: 17%")).toBeTruthy();
+    expect(screen.getByText("Max: 93%")).toBeTruthy();
+
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 280 });
+    expect(screen.getByText("Min: 24%")).toBeTruthy();
+    expect(screen.getByText("Max: 100%")).toBeTruthy();
+    expect(mocks.handy.setStrokeBounds).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: 280 });
+    expect(mocks.handy.setStrokeBounds).toHaveBeenCalledExactlyOnceWith(24, 100);
+  });
+
   it("closes when Ctrl+H is pressed again", async () => {
     render(<GlobalHandyOverlay />);
 
