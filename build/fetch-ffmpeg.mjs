@@ -219,12 +219,10 @@ async function extractArchive(archivePath, archiveType, destinationDir) {
 
   if (archiveType === "zip") {
     if (isWindows) {
-      // Uses native PowerShell to expand the zip archive cleanly
-      await runCommand("powershell", [
-        "-NoProfile",
-        "-Command",
-        `Expand-Archive -Path '${archivePath}' -DestinationPath '${destinationDir}' -Force`,
-      ]);
+      // Uses the native Windows archive tool to expand the ZIP archive cleanly.
+      // bsdtar also supports ZIP and reports extraction failures through its
+      // exit code; PowerShell can report success after a non-terminating error.
+      await runCommand("tar.exe", ["-xf", archivePath, "-C", destinationDir]);
     } else {
       await runCommand("unzip", ["-qq", archivePath, "-d", destinationDir]);
     }
