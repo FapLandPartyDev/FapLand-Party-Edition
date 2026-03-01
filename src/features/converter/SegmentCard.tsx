@@ -104,8 +104,8 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
         className={`group border-l-[3px] py-2 pl-3 transition-all duration-150 ${TYPE_ACCENT[segment.type]} ${isSelected ? "bg-violet-500/10" : "hover:bg-white/[0.02]"}`}
         onClick={onSelect}
       >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex min-w-0 basis-full items-center gap-3">
             <button
               type="button"
               onClick={(e) => {
@@ -122,6 +122,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
             <input
               type="text"
               value={segment.customName ?? ""}
+              aria-label={t`Round name`}
               onClick={(e) => e.stopPropagation()}
               onChange={(e) => onSetCustomName(e.target.value)}
               placeholder={
@@ -129,10 +130,10 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
                   ? t`Custom round name`
                   : t`${heroName.trim() || "Hero"} - round ${ordinal}`
               }
-              className="min-w-0 flex-1 bg-transparent text-xs text-zinc-100 outline-none border-b border-transparent focus:border-violet-400/50"
+              className="min-w-0 flex-1 rounded-md border border-zinc-700/70 bg-zinc-950/45 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors placeholder:text-zinc-500 hover:border-zinc-600 focus:border-violet-400 focus:bg-zinc-950/80 focus:ring-2 focus:ring-violet-400/20"
             />
           </div>
-          <label className="mt-2 flex cursor-pointer items-center gap-2 pl-5 text-[10px] text-zinc-300">
+          <label className="ml-5 flex cursor-pointer items-center gap-2 text-[10px] text-zinc-300">
             <input
               type="checkbox"
               checked={segment.excludeFromNumbering}
