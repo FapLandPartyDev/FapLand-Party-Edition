@@ -60,5 +60,6 @@ VideoInfo.json
 /TODO.md
 /dev.db-shm
 /dev.db-wal
+/database-backups/
 /bun.lock
 /tsconfig.node.tsbuildinfo

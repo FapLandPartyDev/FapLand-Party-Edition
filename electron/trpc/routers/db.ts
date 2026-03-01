@@ -12,6 +12,7 @@ import {
   getLibraryExportPackageStatus,
   requestLibraryExportPackageAbort,
 } from "../../services/libraryExportPackage";
+import { resolveDatabaseBackupDir, runDatabaseBackup } from "../../services/databaseBackup";
 import {
   createResourceUriResolver,
   getDisabledRoundIdSet,
@@ -1821,6 +1822,38 @@ export const dbRouter = router({
     return { path: exportBaseDir };
   }),
 
+  backupDatabaseNow: publicProcedure.mutation(async () => {
+    try {
+      const result = await runDatabaseBackup();
+      if (!result) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Automatic database backups require a local file SQLite database.",
+        });
+      }
+      return result;
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: error instanceof Error ? error.message : "Failed to back up database.",
+      });
+    }
+  }),
+
+  openDatabaseBackupFolder: publicProcedure.mutation(async () => {
+    const backupDir = resolveDatabaseBackupDir();
+    await fs.mkdir(backupDir, { recursive: true });
+    const openError = await shell.openPath(backupDir);
+    if (openError) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: openError,
+      });
+    }
+    return { path: backupDir };
+  }),
+
   openConfiguredPath: publicProcedure
     .input(
       z.object({
@@ -1871,6 +1904,13 @@ export const dbRouter = router({
     )
     .mutation(async ({ input }) => {
       const db = getDb();
+      const backupResult = await runDatabaseBackup();
+      if (!backupResult) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot clear data because a local database backup could not be created.",
+        });
+      }
       const {
         rounds = true,
         playlists = true,

@@ -38,6 +38,10 @@ import { createMediaResponse } from "./services/protocol/mediaResponse";
 import { initializeAppUpdater, subscribeToUpdateState } from "./services/updater";
 import { subscribeToEroScriptsLoginStatus } from "./services/eroscripts";
 import {
+  startContinuousDatabaseBackup,
+  stopContinuousDatabaseBackup,
+} from "./services/databaseBackup";
+import {
   downloadMusicFromUrl,
   downloadPlaylistFromUrl,
   isSupportedMusicUrl,
@@ -1220,6 +1224,7 @@ app
     });
     startContinuousPhashScan();
     startContinuousWebsiteVideoScan();
+    startContinuousDatabaseBackup();
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -1233,6 +1238,7 @@ app
   });
 
 app.on("window-all-closed", () => {
+  stopContinuousDatabaseBackup();
   if (process.platform !== "darwin") {
     app.quit();
   }

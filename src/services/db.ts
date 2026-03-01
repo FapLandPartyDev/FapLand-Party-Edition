@@ -204,6 +204,8 @@ export const db = {
     getExportPackageStatus: () => trpc.db.getLibraryExportPackageStatus.query(),
     abortExportPackage: () => trpc.db.abortLibraryExportPackage.mutate(),
     openExportFolder: () => trpc.db.openInstallExportFolder.mutate(),
+    backupDatabaseNow: () => trpc.db.backupDatabaseNow.mutate(),
+    openDatabaseBackupFolder: () => trpc.db.openDatabaseBackupFolder.mutate(),
     clearAllData: (input?: ClearAllDataOptions) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.clearAllData.mutate(input)),
   },

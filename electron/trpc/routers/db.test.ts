@@ -22,6 +22,11 @@ const {
   requestLibraryExportPackageAbortMock: vi.fn(),
 }));
 
+const { runDatabaseBackupMock, resolveDatabaseBackupDirMock } = vi.hoisted(() => ({
+  runDatabaseBackupMock: vi.fn(),
+  resolveDatabaseBackupDirMock: vi.fn(() => "/tmp/database-backups"),
+}));
+
 const { getStoreMock } = vi.hoisted(() => ({
   getStoreMock: vi.fn(),
 }));
@@ -75,6 +80,11 @@ vi.mock("../../services/libraryExportPackage", () => ({
   analyzeLibraryExportPackage: analyzeLibraryExportPackageMock,
   getLibraryExportPackageStatus: getLibraryExportPackageStatusMock,
   requestLibraryExportPackageAbort: requestLibraryExportPackageAbortMock,
+}));
+
+vi.mock("../../services/databaseBackup", () => ({
+  runDatabaseBackup: runDatabaseBackupMock,
+  resolveDatabaseBackupDir: resolveDatabaseBackupDirMock,
 }));
 
 vi.mock("../../services/store", () => ({
@@ -456,6 +466,10 @@ describe("dbRouter local highscore and multiplayer cache", () => {
       progress: { completed: 1, total: 2 },
       stats: { heroFiles: 0, roundFiles: 0, videoFiles: 1, funscriptFiles: 0 },
       compression: null,
+    });
+    runDatabaseBackupMock.mockResolvedValue({
+      backupPath: "/tmp/database-backups/f-land-db-backup-2026-04-21T12-00-00.000Z.db",
+      deletedBackups: 0,
     });
 
     const cacheByLobby = new Map<string, CacheRow>();
@@ -1586,7 +1600,11 @@ describe("dbRouter local highscore and multiplayer cache", () => {
 
     await expect(caller.clearAllData()).resolves.toEqual({ cleared: true });
 
+    expect(runDatabaseBackupMock).toHaveBeenCalledTimes(1);
     expect(dbMockRef.transaction).toHaveBeenCalledTimes(1);
+    expect(runDatabaseBackupMock.mock.invocationCallOrder[0]).toBeLessThan(
+      dbMockRef.transaction.mock.invocationCallOrder[0]!
+    );
     expect(storeMockRef.clear).toHaveBeenCalledTimes(1);
     expect(clearWebsiteVideoCacheMock).toHaveBeenCalledWith("/tmp/web-video-cache");
     expect(clearPlayableVideoCacheMock).toHaveBeenCalledTimes(1);

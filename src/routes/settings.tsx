@@ -6,6 +6,7 @@ import { AnimatedBackground } from "../components/AnimatedBackground";
 import { MenuButton } from "../components/MenuButton";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { GameDropdown } from "../components/ui/GameDropdown";
+import { useToast } from "../components/ui/ToastHost";
 import { useControllerSurface } from "../controller";
 import {
   DEFAULT_THEHANDY_APP_API_KEY,
@@ -117,6 +118,21 @@ import {
   normalizePreviewFfmpegSingleThreadEnabled,
   PREVIEW_FFMPEG_SINGLE_THREAD_ENABLED_KEY,
 } from "../constants/phashSettings";
+import {
+  DATABASE_BACKUP_ENABLED_KEY,
+  DATABASE_BACKUP_FREQUENCY_DAYS_KEY,
+  DATABASE_BACKUP_RETENTION_DAYS_KEY,
+  DEFAULT_DATABASE_BACKUP_ENABLED,
+  DEFAULT_DATABASE_BACKUP_FREQUENCY_DAYS,
+  DEFAULT_DATABASE_BACKUP_RETENTION_DAYS,
+  MAX_DATABASE_BACKUP_FREQUENCY_DAYS,
+  MAX_DATABASE_BACKUP_RETENTION_DAYS,
+  MIN_DATABASE_BACKUP_FREQUENCY_DAYS,
+  MIN_DATABASE_BACKUP_RETENTION_DAYS,
+  normalizeDatabaseBackupEnabled,
+  normalizeDatabaseBackupFrequencyDays,
+  normalizeDatabaseBackupRetentionDays,
+} from "../constants/databaseBackupSettings";
 import { WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY } from "../constants/websiteVideoCacheSettings";
 import { EROSCRIPTS_CACHE_ROOT_PATH_KEY } from "../constants/eroscriptsSettings";
 import { MUSIC_CACHE_ROOT_PATH_KEY } from "../constants/musicSettings";
@@ -355,7 +371,8 @@ export function getVisibleShortcutGroups(
       title: i18n._({ id: "settings.help.shortcuts.gameDebug.title", message: "Game Debug" }),
       description: i18n._({
         id: "settings.help.shortcuts.gameDebug.description",
-        message: "Development-only shortcuts that are only active when round debug controls are enabled.",
+        message:
+          "Development-only shortcuts that are only active when round debug controls are enabled.",
       }),
       shortcuts: [
         {
@@ -611,6 +628,7 @@ export const Route = createFileRoute("/settings")({
 
 export function SettingsPage() {
   const { t } = useLingui();
+  const { showToast } = useToast();
   const { locale, locales, setLocale } = useLocale();
   const search = Route.useSearch();
   const navigate = useNavigate();
@@ -674,6 +692,15 @@ export function SettingsPage() {
   const [previewFfmpegSingleThreadEnabled, setPreviewFfmpegSingleThreadEnabled] = useState(
     DEFAULT_PREVIEW_FFMPEG_SINGLE_THREAD_ENABLED
   );
+  const [databaseBackupEnabled, setDatabaseBackupEnabled] = useState(
+    DEFAULT_DATABASE_BACKUP_ENABLED
+  );
+  const [databaseBackupFrequencyDays, setDatabaseBackupFrequencyDays] = useState(
+    DEFAULT_DATABASE_BACKUP_FREQUENCY_DAYS
+  );
+  const [databaseBackupRetentionDays, setDatabaseBackupRetentionDays] = useState(
+    DEFAULT_DATABASE_BACKUP_RETENTION_DAYS
+  );
   const [websiteVideoCacheRootPath, setWebsiteVideoCacheRootPath] = useState<string | null>(null);
   const [eroscriptsCacheRootPath, setEroScriptsCacheRootPath] = useState<string | null>(null);
   const [eroscriptsLoginStatus, setEroScriptsLoginStatus] = useState<EroScriptsLoginStatus | null>(
@@ -699,6 +726,11 @@ export function SettingsPage() {
   const [isLoadingBackgroundPhashRoundsPerPass, setIsLoadingBackgroundPhashRoundsPerPass] =
     useState(true);
   const [isLoadingPreviewFfmpegSingleThreadEnabled, setIsLoadingPreviewFfmpegSingleThreadEnabled] =
+    useState(true);
+  const [isLoadingDatabaseBackupEnabled, setIsLoadingDatabaseBackupEnabled] = useState(true);
+  const [isLoadingDatabaseBackupFrequencyDays, setIsLoadingDatabaseBackupFrequencyDays] =
+    useState(true);
+  const [isLoadingDatabaseBackupRetentionDays, setIsLoadingDatabaseBackupRetentionDays] =
     useState(true);
   const [isLoadingWebsiteVideoCacheRootPath, setIsLoadingWebsiteVideoCacheRootPath] =
     useState(true);
@@ -756,6 +788,9 @@ export function SettingsPage() {
         BACKGROUND_PHASH_SCANNING_ENABLED_KEY,
         BACKGROUND_PHASH_ROUNDS_PER_PASS_KEY,
         PREVIEW_FFMPEG_SINGLE_THREAD_ENABLED_KEY,
+        DATABASE_BACKUP_ENABLED_KEY,
+        DATABASE_BACKUP_FREQUENCY_DAYS_KEY,
+        DATABASE_BACKUP_RETENTION_DAYS_KEY,
         APPLY_PERK_DIRECTLY_KEY,
         MULTIPLAYER_SKIP_ROUNDS_CHECK_KEY,
         INSTALL_WEB_FUNSCRIPT_URL_ENABLED_KEY,
@@ -795,6 +830,9 @@ export function SettingsPage() {
         const rawBackgroundPhashRoundsPerPass = storeValues[BACKGROUND_PHASH_ROUNDS_PER_PASS_KEY];
         const rawPreviewFfmpegSingleThreadEnabled =
           storeValues[PREVIEW_FFMPEG_SINGLE_THREAD_ENABLED_KEY];
+        const rawDatabaseBackupEnabled = storeValues[DATABASE_BACKUP_ENABLED_KEY];
+        const rawDatabaseBackupFrequencyDays = storeValues[DATABASE_BACKUP_FREQUENCY_DAYS_KEY];
+        const rawDatabaseBackupRetentionDays = storeValues[DATABASE_BACKUP_RETENTION_DAYS_KEY];
         const rawApplyPerkDirectly = storeValues[APPLY_PERK_DIRECTLY_KEY];
         const rawMultiplayerSkipRoundsCheck = storeValues[MULTIPLAYER_SKIP_ROUNDS_CHECK_KEY];
         const rawInstallWebFunscriptUrlEnabled = storeValues[INSTALL_WEB_FUNSCRIPT_URL_ENABLED_KEY];
@@ -863,6 +901,13 @@ export function SettingsPage() {
         setPreviewFfmpegSingleThreadEnabled(
           normalizePreviewFfmpegSingleThreadEnabled(rawPreviewFfmpegSingleThreadEnabled)
         );
+        setDatabaseBackupEnabled(normalizeDatabaseBackupEnabled(rawDatabaseBackupEnabled));
+        setDatabaseBackupFrequencyDays(
+          normalizeDatabaseBackupFrequencyDays(rawDatabaseBackupFrequencyDays)
+        );
+        setDatabaseBackupRetentionDays(
+          normalizeDatabaseBackupRetentionDays(rawDatabaseBackupRetentionDays)
+        );
         setStartupSafeModeShortcutEnabled(
           normalizeStartupSafeModeShortcutEnabled(rawStartupSafeModeShortcutEnabled)
         );
@@ -916,6 +961,9 @@ export function SettingsPage() {
           setIsLoadingBackgroundPhashScanningEnabled(false);
           setIsLoadingBackgroundPhashRoundsPerPass(false);
           setIsLoadingPreviewFfmpegSingleThreadEnabled(false);
+          setIsLoadingDatabaseBackupEnabled(false);
+          setIsLoadingDatabaseBackupFrequencyDays(false);
+          setIsLoadingDatabaseBackupRetentionDays(false);
           setIsLoadingWebsiteVideoCacheRootPath(false);
           setIsLoadingEroScriptsCacheRootPath(false);
           setIsLoadingEroScriptsAuth(false);
@@ -1323,9 +1371,7 @@ export function SettingsPage() {
                   setBackgroundVideoEnabled(DEFAULT_BACKGROUND_VIDEO_ENABLED);
                   setBackgroundPhashScanningEnabled(DEFAULT_BACKGROUND_PHASH_SCANNING_ENABLED);
                   setBackgroundPhashRoundsPerPass(DEFAULT_BACKGROUND_PHASH_ROUNDS_PER_PASS);
-                  setPreviewFfmpegSingleThreadEnabled(
-                    DEFAULT_PREVIEW_FFMPEG_SINGLE_THREAD_ENABLED
-                  );
+                  setPreviewFfmpegSingleThreadEnabled(DEFAULT_PREVIEW_FFMPEG_SINGLE_THREAD_ENABLED);
                   window.dispatchEvent(
                     new CustomEvent<boolean>(BACKGROUND_VIDEO_ENABLED_EVENT, {
                       detail: DEFAULT_BACKGROUND_VIDEO_ENABLED,
@@ -1379,6 +1425,77 @@ export function SettingsPage() {
               });
               setPreviewFfmpegSingleThreadEnabled(next);
             },
+          },
+          {
+            id: "database-backup-enabled",
+            type: "toggle",
+            label: t`Automatic Database Backups`,
+            description: t`Create periodic local SQLite backups in the app data folder.`,
+            value: databaseBackupEnabled,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: DATABASE_BACKUP_ENABLED_KEY,
+                value: next,
+              });
+              setDatabaseBackupEnabled(next);
+            },
+          },
+          {
+            id: "database-backup-frequency-days",
+            type: "number",
+            label: t`Backup Frequency (days)`,
+            description: t`Minimum number of days between automatic database backups.`,
+            value: databaseBackupFrequencyDays,
+            min: MIN_DATABASE_BACKUP_FREQUENCY_DAYS,
+            max: MAX_DATABASE_BACKUP_FREQUENCY_DAYS,
+            onChange: async (next: number) => {
+              const normalized = normalizeDatabaseBackupFrequencyDays(next);
+              await trpc.store.set.mutate({
+                key: DATABASE_BACKUP_FREQUENCY_DAYS_KEY,
+                value: normalized,
+              });
+              setDatabaseBackupFrequencyDays(normalized);
+            },
+          },
+          {
+            id: "database-backup-retention-days",
+            type: "number",
+            label: t`Backup Retention (days)`,
+            description: t`Delete automatic database backups once they are older than this many days.`,
+            value: databaseBackupRetentionDays,
+            min: MIN_DATABASE_BACKUP_RETENTION_DAYS,
+            max: MAX_DATABASE_BACKUP_RETENTION_DAYS,
+            onChange: async (next: number) => {
+              const normalized = normalizeDatabaseBackupRetentionDays(next);
+              await trpc.store.set.mutate({
+                key: DATABASE_BACKUP_RETENTION_DAYS_KEY,
+                value: normalized,
+              });
+              setDatabaseBackupRetentionDays(normalized);
+            },
+          },
+          {
+            id: "database-backup-actions",
+            type: "actions",
+            label: t`Database Backup Actions`,
+            description: t`Create a backup immediately or open the automatic backup folder. Restores are manual: close the app and replace the active database file with one of these backup files. This is not automated to avoid accidental data loss.`,
+            actions: [
+              {
+                id: "backup-now",
+                label: t`Back Up Now`,
+                onClick: async () => {
+                  await db.install.backupDatabaseNow();
+                  showToast(t`Database backup created.`, "success");
+                },
+              },
+              {
+                id: "open-backup-folder",
+                label: t`Open Backup Folder`,
+                onClick: async () => {
+                  await db.install.openDatabaseBackupFolder();
+                },
+              },
+            ],
           },
         ],
       },
@@ -1525,10 +1642,14 @@ export function SettingsPage() {
       backgroundPhashScanningEnabled,
       backgroundPhashRoundsPerPass,
       previewFfmpegSingleThreadEnabled,
+      databaseBackupEnabled,
+      databaseBackupFrequencyDays,
+      databaseBackupRetentionDays,
       startupSafeModeShortcutEnabled,
       locale,
       locales,
       setLocale,
+      showToast,
       t,
     ]
   );
@@ -2009,7 +2130,17 @@ export function SettingsPage() {
               ) : activeSection && activeSection.id === "app" ? (
                 <>
                   <AppUpdateCard appUpdate={appUpdate} />
-                  <SettingsSectionCard section={activeSection} loading={false} />
+                  <SettingsSectionCard
+                    section={activeSection}
+                    loading={
+                      isLoadingBackgroundPhashScanningEnabled ||
+                      isLoadingBackgroundPhashRoundsPerPass ||
+                      isLoadingPreviewFfmpegSingleThreadEnabled ||
+                      isLoadingDatabaseBackupEnabled ||
+                      isLoadingDatabaseBackupFrequencyDays ||
+                      isLoadingDatabaseBackupRetentionDays
+                    }
+                  />
                   <MusicCacheLocationCard
                     configuredPath={musicCacheRootPath}
                     isLoading={isLoadingMusicCacheRootPath}
@@ -4552,8 +4683,8 @@ function SelectiveClearDialog({
   const hasSelection = Object.values(selections).some(Boolean);
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-3xl border border-rose-300/35 bg-zinc-950/95 p-6 shadow-[0_0_60px_rgba(244,63,94,0.28)]">
+    <div className="fixed inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-4 backdrop-blur-sm sm:py-6">
+      <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-3xl border border-rose-300/35 bg-zinc-950/95 p-6 shadow-[0_0_60px_rgba(244,63,94,0.28)] sm:max-h-[calc(100vh-3rem)]">
         <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.35em] text-rose-200/80">
           <Trans>Selective Maintenance</Trans>
         </p>
