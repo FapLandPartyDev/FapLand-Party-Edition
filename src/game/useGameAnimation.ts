@@ -88,7 +88,7 @@ const DICE_ROLL_DURATION = 1.05;
 const STEP_DURATION = 0.38;
 export const LANDING_DURATION = 0.9;
 export const PERK_REVEAL_DURATION = 0.65;
-export const NORMAL_ROUND_COUNTDOWN_DURATION = 2.1;
+export const NORMAL_ROUND_COUNTDOWN_DURATION = 3.0;
 export const CUM_ROUND_COUNTDOWN_DURATION = 4.0;
 export const DICE_RESULT_REVEAL_DURATION = 0.95;
 
@@ -120,6 +120,9 @@ export function resolveRoundCountdownDuration(
   queuedRound: GameState["queuedRound"]
 ): number {
   if (isTechnicalQueuedRound(config, queuedRound)) return 0;
+  if (typeof queuedRound?.roundCountdownDurationSec === "number") {
+    return queuedRound.roundCountdownDurationSec;
+  }
   return queuedRound?.phaseKind === "cum"
     ? CUM_ROUND_COUNTDOWN_DURATION
     : NORMAL_ROUND_COUNTDOWN_DURATION;

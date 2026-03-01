@@ -19,6 +19,7 @@ type RoundVideoOverlayPlaybackConfig = Pick<
   | "allowAutomaticIntermediaries"
   | "initialShowProgressBarAlways"
   | "initialShowAntiPerkBeatbar"
+  | "initialShowDisconnectedHapticsStatus"
 >;
 
 type RoundVideoOverlaySessionConfig = Pick<
@@ -69,6 +70,7 @@ export function buildRoundVideoOverlayProps({
     allowAutomaticIntermediaries: playback.allowAutomaticIntermediaries,
     initialShowProgressBarAlways: playback.initialShowProgressBarAlways,
     initialShowAntiPerkBeatbar: playback.initialShowAntiPerkBeatbar,
+    initialShowDisconnectedHapticsStatus: playback.initialShowDisconnectedHapticsStatus,
     showCloseButton: shell.showCloseButton,
     onClose: shell.onClose,
     onFinishRound: shell.onFinishRound,
@@ -102,6 +104,7 @@ export type PreviewRoundVideoOverlayLaunchConfig = {
   allowAutomaticIntermediaries?: boolean;
   initialShowProgressBarAlways?: boolean;
   initialShowAntiPerkBeatbar?: boolean;
+  initialShowDisconnectedHapticsStatus?: boolean;
   onClose: () => void;
   onFinishRound: (summary?: CompletedRoundSummary) => void;
 };
@@ -120,6 +123,7 @@ export function buildPreviewRoundVideoOverlayProps(
       allowAutomaticIntermediaries: config.allowAutomaticIntermediaries ?? false,
       initialShowProgressBarAlways: config.initialShowProgressBarAlways,
       initialShowAntiPerkBeatbar: config.initialShowAntiPerkBeatbar,
+      initialShowDisconnectedHapticsStatus: config.initialShowDisconnectedHapticsStatus,
     },
     shell: {
       showCloseButton: true,
@@ -147,6 +151,7 @@ export type GameplayRoundVideoOverlayLaunchConfig = {
   onPreviewStateChange?: (state: { active: boolean; loading: boolean }) => void;
   initialShowProgressBarAlways?: boolean;
   initialShowAntiPerkBeatbar?: boolean;
+  initialShowDisconnectedHapticsStatus?: boolean;
   allowDebugRoundControls?: boolean;
   lastLogMessage?: string;
   boardSequence?: "milker" | "jackhammer" | null;
@@ -172,6 +177,7 @@ export function buildGameplayRoundVideoOverlayProps(
       allowAutomaticIntermediaries: true,
       initialShowProgressBarAlways: config.initialShowProgressBarAlways,
       initialShowAntiPerkBeatbar: config.initialShowAntiPerkBeatbar,
+      initialShowDisconnectedHapticsStatus: config.initialShowDisconnectedHapticsStatus,
     },
     shell: {
       showCloseButton: false,

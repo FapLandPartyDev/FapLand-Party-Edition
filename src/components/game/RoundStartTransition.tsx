@@ -31,8 +31,12 @@ export function RoundStartTransition({
         )
       : null;
   const title = abbreviateNsfwText(queuedRound.roundName, sfwMode);
+  const defaultOverline =
+    queuedRound.phaseKind === "cum" ? t`CUM ROUND` : t`NORMAL ROUND`;
   const overline = abbreviateNsfwText(
-    queuedRound.phaseKind === "cum" ? t`CUM ROUND` : t`NORMAL ROUND`,
+    queuedRound.roundOverlineLabel?.trim()
+      ? queuedRound.roundOverlineLabel
+      : defaultOverline,
     sfwMode
   );
 

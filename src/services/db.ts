@@ -152,6 +152,11 @@ export const db = {
       excludeFromRandom?: boolean;
       libraryLabel?: string | null;
     }) => withInstalledRoundCacheInvalidation(() => trpc.db.updateRound.mutate(input)),
+    bulkUpdateTags: (input: {
+      roundIds: string[];
+      mode: "replace" | "add" | "remove";
+      tags?: string[];
+    }) => withInstalledRoundCacheInvalidation(() => trpc.db.bulkUpdateRoundTags.mutate(input)),
     updateResourceFunscriptOffset: (input: {
       resourceId: string;
       roundId?: string;

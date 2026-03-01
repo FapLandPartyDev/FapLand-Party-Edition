@@ -200,6 +200,10 @@ type InstalledDatabaseExportDialogState = {
   result: LibraryPackageExportResult | null;
   error: string | null;
 };
+type BulkTagsDialogState = {
+  mode: "add" | "remove" | "replace";
+  tagsText: string;
+};
 type RoundSectionId = "library" | "transfer";
 type RoundSection = {
   id: RoundSectionId;
@@ -604,6 +608,8 @@ function toLegacyPlaylistConfig(orderedSlots: LegacyImportedSlot[]): PlaylistCon
       antiPerkIncreasePerRound: 0.015,
       maxIntermediaryProbability: 1,
       maxAntiPerkProbability: 0.75,
+      resetIntermediaryProbabilityAfterTrigger: false,
+      resetAntiPerkProbabilityAfterTrigger: false,
     },
     roundStartDelayMs: 20000,
     disableDiceAnimation: false,
@@ -847,6 +853,7 @@ export function InstalledRoundsPage() {
   const [deleteRoundDialog, setDeleteRoundDialog] = useState<DeleteRoundDialogState | null>(null);
   const [deleteSelectedRoundsDialog, setDeleteSelectedRoundsDialog] =
     useState<DeleteSelectedRoundsDialogState | null>(null);
+  const [bulkTagsDialog, setBulkTagsDialog] = useState<BulkTagsDialogState | null>(null);
   const [deleteHeroDialog, setDeleteHeroDialog] = useState<DeleteHeroDialogState | null>(null);
   const [showDisabledRounds, setShowDisabledRounds] = useState(false);
   const [roundsResource, setRoundsResource] = useState<AsyncResource<InstalledRoundCatalogEntry[]>>(
@@ -2591,6 +2598,40 @@ export function InstalledRoundsPage() {
     });
   }, [buildActiveFilterContext, isSavingEdit, rounds, selectedRoundIds]);
 
+  const openBulkTagsDialog = useCallback(() => {
+    if (selectedRoundIds.size === 0 || isSavingEdit) return;
+    setBulkTagsDialog({ mode: "add", tagsText: "" });
+  }, [isSavingEdit, selectedRoundIds.size]);
+
+  const confirmBulkTagsEdit = useCallback(async () => {
+    if (!bulkTagsDialog || selectedRoundIds.size === 0 || isSavingEdit) return;
+    const tags = parseTagsInput(bulkTagsDialog.tagsText);
+    if (tags.length === 0) {
+      showToast(t`Enter at least one tag.`, "error");
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      const result = await db.round.bulkUpdateTags({
+        roundIds: Array.from(selectedRoundIds),
+        mode: bulkTagsDialog.mode,
+        tags,
+      });
+      setBulkTagsDialog(null);
+      await refreshInstalledRounds();
+      showToast(t`Updated tags for ${result.updatedCount} rounds.`, "success");
+    } catch (error) {
+      console.error("Failed to update selected round tags", error);
+      showToast(
+        error instanceof Error ? error.message : t`Failed to update selected round tags.`,
+        "error"
+      );
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }, [bulkTagsDialog, isSavingEdit, refreshInstalledRounds, selectedRoundIds, showToast, t]);
+
   const confirmDeleteSelectedRounds = useCallback(async () => {
     if (!deleteSelectedRoundsDialog || isSavingEdit) return;
     const idsToDelete = deleteSelectedRoundsDialog.ids;
@@ -3076,7 +3117,7 @@ export function InstalledRoundsPage() {
                                   : "cursor-not-allowed border-zinc-700 bg-zinc-900/70 text-zinc-500"
                               }`}
                             >
-                              <Trans>Select Visible Rounds</Trans>
+                              <Trans>Select Matching Rounds</Trans>
                             </button>
                           )}
                           {(selectedRoundIds.size > 0 || selectedHeroIds.size > 0) && (
@@ -3106,6 +3147,22 @@ export function InstalledRoundsPage() {
                                 className="rounded-xl border border-cyan-300/50 bg-cyan-500/20 px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] text-cyan-100 hover:border-cyan-200/75"
                               >
                                 <Trans>Export Selected</Trans>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={selectedRoundIds.size === 0 || isSavingEdit}
+                                onMouseEnter={handleHoverSfx}
+                                onClick={() => {
+                                  handleSelectSfx();
+                                  openBulkTagsDialog();
+                                }}
+                                className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${
+                                  selectedRoundIds.size > 0 && !isSavingEdit
+                                    ? "border-emerald-300/55 bg-emerald-500/20 text-emerald-100 hover:border-emerald-200/80"
+                                    : "cursor-not-allowed border-zinc-700 bg-zinc-900/70 text-zinc-500"
+                                }`}
+                              >
+                                <Trans>Edit Tags</Trans>
                               </button>
                               <button
                                 type="button"
@@ -4298,6 +4355,59 @@ export function InstalledRoundsPage() {
                 className="min-h-28 w-full rounded-xl border border-violet-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-200/70"
               />
             </ModalField>
+          </div>
+        </EditDialog>
+      )}
+      {bulkTagsDialog && (
+        <EditDialog
+          title={t`Edit Tags for ${selectedRoundIds.size} Rounds`}
+          onClose={() => setBulkTagsDialog(null)}
+          onSubmit={() => {
+            void confirmBulkTagsEdit();
+          }}
+          submitLabel={isSavingEdit ? t`Saving...` : t`Apply Tags`}
+          disabled={isSavingEdit}
+        >
+          <div className="grid gap-4">
+            <ModalField label={t`Mode`}>
+              <select
+                value={bulkTagsDialog.mode}
+                onChange={(event) =>
+                  setBulkTagsDialog((previous) =>
+                    previous
+                      ? {
+                          ...previous,
+                          mode: event.target.value as BulkTagsDialogState["mode"],
+                        }
+                      : previous
+                  )
+                }
+                className="w-full rounded-xl border border-violet-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-200/70"
+              >
+                <option value="add">{t`Add tags`}</option>
+                <option value="remove">{t`Remove tags`}</option>
+                <option value="replace">{t`Replace tags`}</option>
+              </select>
+            </ModalField>
+            <ModalField label={t`Tags`}>
+              <input
+                value={bulkTagsDialog.tagsText}
+                onChange={(event) =>
+                  setBulkTagsDialog((previous) =>
+                    previous ? { ...previous, tagsText: event.target.value } : previous
+                  )
+                }
+                placeholder={t`tag-one, tag-two`}
+                className="w-full rounded-xl border border-violet-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-200/70"
+              />
+            </ModalField>
+            <p className="text-sm text-zinc-400">
+              {bulkTagsDialog.mode === "replace"
+                ? t`Replace all tags on ${selectedRoundIds.size} selected rounds.`
+                : bulkTagsDialog.mode === "remove"
+                  ? t`Remove matching tags from ${selectedRoundIds.size} selected rounds.`
+                  : t`Add tags to ${selectedRoundIds.size} selected rounds.`}
+            </p>
           </div>
         </EditDialog>
       )}

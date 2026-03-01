@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import os from "node:os";
 import type { NormalizedVideoHashRange } from "./types";
 import { SPRITE_COLUMNS, SPRITE_ROWS, SPRITE_SCREENSHOT_WIDTH, SPRITE_FRAME_COUNT } from "./sample";
+import { debugLog } from "../debugLogging";
 
 type CommandResult = {
   stdout: Buffer;
@@ -20,7 +21,7 @@ export async function runCommand(
 ): Promise<CommandResult> {
   return new Promise((resolve, reject) => {
     const cmdStr = `${command} ${args.join(" ")}`;
-    // console.log(`[runCommand] Executing: ${cmdStr}`); // Too verbose for general logs
+    debugLog.debug("ffmpeg-command", "Executing command", { command, args });
 
     const child = spawn(command, args, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -34,9 +35,11 @@ export async function runCommand(
     if (options?.timeoutMs) {
       timeoutTimer = setTimeout(() => {
         timedOut = true;
-        console.error(`[runCommand] Command timed out after ${options.timeoutMs}ms: ${cmdStr}`);
+        const msg = `Command timed out after ${options.timeoutMs}ms: ${cmdStr}`;
+        console.error(`[runCommand] ${msg}`);
+        debugLog.error("ffmpeg-command", msg, { command, args });
         child.kill("SIGKILL");
-        reject(new Error(`Command timed out after ${options.timeoutMs}ms: ${cmdStr}`));
+        reject(new Error(msg));
       }, options.timeoutMs);
     }
 
@@ -68,6 +71,7 @@ export async function runCommand(
 
     child.on("error", (error) => {
       console.error(`[runCommand] Child process error: ${error.message}`);
+      debugLog.error("ffmpeg-command", `Child process error: ${error.message}`, { command, args, error });
       if (timeoutTimer) clearTimeout(timeoutTimer);
       if (timedOut) return;
       reject(error);
@@ -84,6 +88,7 @@ export async function runCommand(
       const stdout = Buffer.concat(stdoutChunks);
       const stderr = Buffer.concat(stderrChunks);
       if (code === 0) {
+        debugLog.debug("ffmpeg-command", "Command completed successfully", { command });
         resolve({ stdout, stderr });
         return;
       }
@@ -92,6 +97,7 @@ export async function runCommand(
       const signalText = signal ? `, signal ${signal}` : "";
       const errorMsg = `Command failed with exit code ${code}${signalText}: ${stderrText}`;
       console.error(`[runCommand] ${errorMsg}`);
+      debugLog.error("ffmpeg-command", `Command failed: ${errorMsg}`, { command, args });
       reject(new Error(errorMsg));
     });
   });

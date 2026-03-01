@@ -204,30 +204,50 @@ async function transcodeToPlayableMp4(input: {
 }): Promise<void> {
   const tempPath = `${input.outputPath}.tmp`;
   await fs.rm(tempPath, { force: true });
+  const startTime = Date.now();
 
   // Try NVDEC (hevc_cuvid) + NVENC for Nvidia GPUs to speed up 4K H.265 transcoding.
   // Falls back to software libx264 ultrafast if hardware codecs aren't available.
   const buildArgs = (useHardware: boolean): string[] => {
-    const args = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"];
+    const args = ["-hide_banner", "-loglevel", "warning", "-nostdin", "-y"];
     if (useHardware) {
       args.push("-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-c:v", "hevc_cuvid");
     }
     args.push("-i", input.sourcePath, "-map", "0:v:0", "-map", "0:a?");
     if (useHardware) {
       args.push("-c:v", "h264_nvenc", "-preset", "p4", "-b:v", "0");
-    } else {
+    }
+    if (!useHardware) {
       args.push("-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "ultrafast");
     }
     args.push("-movflags", "+faststart", "-c:a", "aac", "-b:a", "192k", tempPath);
     return args;
   };
 
+  debugLog.info("playableVideo", "Starting background transcode to MP4", {
+    sourcePath: input.sourcePath,
+    outputPath: input.outputPath,
+  });
+
+  let success = false;
   try {
-    await runCommand(input.ffmpegPath, buildArgs(true));
-  } catch {
-    // Hardware transcode failed (NVDEC/NVENC not available); retry with software.
+    const args = buildArgs(true);
+    debugLog.debug("playableVideo", "Attempting hardware background transcode", { args });
+    await runCommand(input.ffmpegPath, args);
+    success = true;
+  } catch (error) {
+    debugLog.warn("playableVideo", "Hardware background transcode failed. Retrying with software decode", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     await fs.rm(tempPath, { force: true });
-    await runCommand(input.ffmpegPath, buildArgs(false));
+    const args = buildArgs(false);
+    debugLog.debug("playableVideo", "Attempting software background transcode", { args });
+    await runCommand(input.ffmpegPath, args);
+    success = true;
+  }
+
+  if (!success) {
+    throw new Error("Transcode process completed but failed to finish.");
   }
 
   if (!(await isNonEmptyFile(tempPath))) {
@@ -235,6 +255,11 @@ async function transcodeToPlayableMp4(input: {
   }
 
   await fs.rename(tempPath, input.outputPath);
+  debugLog.info("playableVideo", "Background transcode completed successfully", {
+    sourcePath: input.sourcePath,
+    outputPath: input.outputPath,
+    elapsedMs: Date.now() - startTime,
+  });
 }
 
 export async function resolvePlayableVideoUri(

@@ -8,6 +8,9 @@ import type { EditorGraphConfig } from "../EditorState";
 import { normalizeRoadPalette, ROAD_PALETTE_PRESETS } from "../EditorState";
 import { resolvePortableRoundRef } from "../../../game/playlistRuntime";
 import type { PerkDefinition } from "../../../game/types";
+import type { CustomRoadPalette } from "../../../constants/customPaletteSettings";
+import type { GraphRoadPalette } from "../../../game/playlistSchema";
+import { CustomPaletteManager } from "./CustomPaletteManager";
 
 interface GraphSettingsPanelProps {
   perkSelection: EditorGraphConfig["perkSelection"];
@@ -48,6 +51,14 @@ interface GraphSettingsPanelProps {
     patch: Partial<NonNullable<EditorGraphConfig["style"]["roadPalette"]>>
   ) => void;
   onResetRoadPalette: () => void;
+  customPalettes: CustomRoadPalette[];
+  isLoadingCustomPalettes: boolean;
+  onSaveCustomPalette: (name: string, palette: GraphRoadPalette) => Promise<void>;
+  onUpdateCustomPalette: (
+    id: string,
+    patch: { name?: string; palette?: GraphRoadPalette }
+  ) => Promise<void>;
+  onDeleteCustomPalette: (id: string) => Promise<void>;
   onTogglePerk: (perkId: string) => void;
   onToggleAntiPerk: (perkId: string) => void;
   onSetAllPerksEnabled: (enabled: boolean) => void;
@@ -225,6 +236,11 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
     onSetRoadPalette,
     onPatchRoadPalette,
     onResetRoadPalette,
+    customPalettes,
+    isLoadingCustomPalettes,
+    onSaveCustomPalette,
+    onUpdateCustomPalette,
+    onDeleteCustomPalette,
     onTogglePerk,
     onToggleAntiPerk,
     onSetAllPerksEnabled,
@@ -552,6 +568,20 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
                   />
                 </label>
               ))}
+            </div>
+            <div className="border-t border-zinc-800/60 pt-2">
+              <p className="mb-2 text-[10px] uppercase tracking-[0.08em] text-zinc-600">
+                <Trans>Custom palettes</Trans>
+              </p>
+              <CustomPaletteManager
+                currentPalette={roadPalette}
+                customPalettes={customPalettes}
+                isLoading={isLoadingCustomPalettes}
+                onApplyPalette={onSetRoadPalette}
+                onSave={onSaveCustomPalette}
+                onUpdate={onUpdateCustomPalette}
+                onDelete={onDeleteCustomPalette}
+              />
             </div>
           </div>
         </div>

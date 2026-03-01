@@ -869,6 +869,9 @@ function queueRoundFromNode(
         poolId,
         phaseKind: "normal",
         campaignIndex: typeof nodeIndex === "number" ? nodeIndex : null,
+        roundCountdownDurationSec: field?.roundCountdownDurationSec,
+        roundOverlineLabel: field?.roundOverlineLabel,
+        roundTransitionPalette: field?.roundTransitionPalette,
       },
       log: [
         `${state.players[state.currentPlayerIndex]?.name ?? "Player"} landed on ${field?.name ?? nodeId}. ${round?.name ?? field?.name ?? roundId} starts after countdown.`,

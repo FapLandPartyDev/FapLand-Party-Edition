@@ -159,14 +159,14 @@ async function createDefaultConfigFromInstalledRounds(): Promise<PlaylistConfig>
   });
 
   const normalRoundOrder = rounds
-    .filter((round) => round.type === "Normal")
+    .filter((round) => round.type !== "Interjection")
     .map((round) => ({
       idHint: round.id,
       installSourceKeyHint: round.installSourceKey ?? undefined,
       phash: resolveRoundPhash(round) ?? undefined,
       name: round.name,
       author: round.author ?? undefined,
-      type: "Normal" as const,
+      type: round.type === "Cum" ? ("Cum" as const) : ("Normal" as const),
     }));
 
   const cumRoundRefs = rounds

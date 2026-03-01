@@ -44,6 +44,17 @@ const ZGameEffect = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("setPendingIntensityCap"), cap: z.number() }),
 ]);
 
+const ZRoadPalette = z.object({
+  presetId: z.string().optional(),
+  body: z.string(),
+  railA: z.string(),
+  railB: z.string(),
+  glow: z.string(),
+  center: z.string(),
+  gate: z.string(),
+  marker: z.string(),
+});
+
 const ZBoardField = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -79,6 +90,9 @@ const ZBoardField = z.object({
   giftGuaranteedPerk: z.boolean().optional(),
   catapultForward: z.number().int().optional(),
   catapultLandingOnly: z.boolean().optional(),
+  roundCountdownDurationSec: z.number().positive().max(15).optional(),
+  roundOverlineLabel: z.string().optional(),
+  roundTransitionPalette: ZRoadPalette.optional(),
   styleHint: z
     .object({
       x: z.number().optional(),
@@ -120,17 +134,6 @@ const ZMapBackgroundMedia = z.object({
   offsetY: z.number(),
   motion: z.enum(["fixed", "parallax"]).optional(),
   parallaxStrength: z.number().optional(),
-});
-
-const ZRoadPalette = z.object({
-  presetId: z.string().optional(),
-  body: z.string(),
-  railA: z.string(),
-  railB: z.string(),
-  glow: z.string(),
-  center: z.string(),
-  gate: z.string(),
-  marker: z.string(),
 });
 
 const ZMapStyle = z.object({
@@ -273,6 +276,9 @@ const ZActiveRound = z.object({
   poolId: z.string().nullable(),
   phaseKind: z.enum(["normal", "cum"]),
   campaignIndex: z.number().int().nullable(),
+  roundCountdownDurationSec: z.number().positive().max(15).optional(),
+  roundOverlineLabel: z.string().optional(),
+  roundTransitionPalette: ZRoadPalette.optional(),
 });
 
 const ZRoundAudioEffect = z.object({

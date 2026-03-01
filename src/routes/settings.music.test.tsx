@@ -154,6 +154,7 @@ vi.mock("../utils/audio", () => ({
 
 vi.mock("../services/booru", () => ({
   ensureBooruMediaCache: vi.fn(),
+  clearBooruMediaCache: vi.fn(),
 }));
 
 vi.mock("../services/db", () => ({
@@ -251,7 +252,7 @@ vi.mock("../services/trpc", () => ({
             else if (key === "experimental.systemLanguageEnabled") values[key] = false;
             else if (key === "experimental.playlistCacheOngoingRestrictionDisabled")
               values[key] = false;
-            else if (key === "experimental.deviceAnimationTestEnabled") values[key] = false;
+            else if (key === "experimental.deviceAnimationTestEnabled") values[key] = true;
             else if (key === "round.video.progressBarAlwaysVisible") values[key] = false;
             else values[key] = null;
           }
@@ -260,6 +261,28 @@ vi.mock("../services/trpc", () => ({
       },
       set: {
         mutate: vi.fn(async () => {}),
+      },
+    },
+    debug: {
+      getState: {
+        query: vi.fn(async () => ({
+          logLevel: "off",
+          anonymizedLogFilePath: "/logs/app.log",
+          logFileSizeBytes: 0,
+        })),
+      },
+      getDiagnostics: {
+        query: vi.fn(async () => ({
+          app: {},
+          storage: {},
+          hardware: {},
+          database: {},
+          runtime: {},
+          collectionErrors: [],
+        })),
+      },
+      getAllSettings: {
+        query: vi.fn(async () => ({})),
       },
     },
   },
@@ -633,6 +656,10 @@ describe("Settings music section", () => {
   it("renders hardware connection controls inline in settings", async () => {
     render(<SettingsPage />);
 
+    await waitFor(() => {
+      expect(screen.queryByText("Loading...")).toBeNull();
+    });
+
     fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);
     expect(screen.getByTestId("haptics-test-device-layer")).toBeDefined();
     expect(screen.queryByTestId("anti-perk-beat-note")).toBeNull();
@@ -666,6 +693,10 @@ describe("Settings music section", () => {
       }
     );
     render(<SettingsPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Loading...")).toBeNull();
+    });
 
     fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);
     fireEvent.click(screen.getByRole("button", { name: "Start Test" }));
@@ -813,6 +844,10 @@ describe("Settings music section", () => {
   it("renders a dedicated changelog section from bundled markdown", async () => {
     render(<SettingsPage />);
 
+    await waitFor(() => {
+      expect(screen.queryByText("Loading...")).toBeNull();
+    });
+
     const helpButton = screen.getAllByRole("button", { name: /Help/ })[0]!;
     const changelogButton = screen.getByRole("button", { name: /What's New/ });
     const creditsButton = screen.getByRole("button", { name: /Credits \/ License/ });
@@ -830,7 +865,7 @@ describe("Settings music section", () => {
 
     expect(await screen.findByText("Release Notes")).toBeDefined();
     expect(screen.getAllByText("What's New").length).toBeGreaterThan(0);
-    expect(screen.getByText("v0.2.8-beta")).toBeDefined();
+    expect(screen.getByText("v0.2.9-beta")).toBeDefined();
     expect(
       screen.getByText("In-app release notes are now available directly from Settings.")
     ).toBeDefined();
@@ -847,7 +882,11 @@ describe("Settings music section", () => {
 
     render(<SettingsPage />);
 
-    expect(await screen.findByText("v0.2.8-beta")).toBeDefined();
+    await waitFor(() => {
+      expect(screen.queryByText("Loading...")).toBeNull();
+    });
+
+    expect(await screen.findByText("v0.2.9-beta")).toBeDefined();
     expect(
       screen.getByText("Release notes and shipped improvements bundled directly into the app.")
     ).toBeDefined();
@@ -865,6 +904,10 @@ describe("Settings music section", () => {
   it("shows live program versions in Advanced and refreshes after source changes", async () => {
     render(<SettingsPage />);
 
+    await waitFor(() => {
+      expect(screen.queryByText("Loading...")).toBeNull();
+    });
+
     fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
 
     await screen.findByText("Program Versions");
@@ -878,7 +921,7 @@ describe("Settings music section", () => {
       expect(vi.mocked(trpc.binaries.getResolvedVersions.query)).toHaveBeenCalledTimes(2);
     });
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Auto (Default)" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: /Auto \(Default\)/ })[0]!);
     fireEvent.click(screen.getByRole("option", { name: "System Only" }));
     fireEvent.click(screen.getAllByRole("button", { name: "Save" })[0]!);
     await waitFor(() => {
@@ -889,7 +932,7 @@ describe("Settings music section", () => {
       expect(vi.mocked(trpc.binaries.getResolvedVersions.query)).toHaveBeenCalledTimes(3);
     });
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Auto (Default)" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: /Auto \(Default\)/ })[0]!);
     fireEvent.click(screen.getByRole("option", { name: "System Only" }));
     fireEvent.click(screen.getAllByRole("button", { name: "Save" })[1]!);
     await waitFor(() => {
@@ -934,7 +977,7 @@ describe("Settings music section", () => {
     fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
 
     await screen.findAllByText("Unavailable");
-    expect(screen.getByText("ffmpeg missing")).toBeDefined();
+    expect(screen.getAllByText("ffmpeg missing")[0]).toBeDefined();
     expect(screen.getByText("/bundle/yt-dlp")).toBeDefined();
   });
 });

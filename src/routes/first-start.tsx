@@ -15,6 +15,14 @@ import {
 import { normalizeTCodeWebSocketInput } from "../services/haptics/tcodeConfig";
 import type { TCodePrecision, TCodeTransportKind } from "../services/haptics/types";
 import { FPACK_EXTRACTION_PATH_KEY } from "../constants/fpackSettings";
+import {
+  DEFAULT_MENU_THEME_ID,
+  MAIN_MENU_THEMES,
+  MENU_THEME_CHANGED_EVENT,
+  MENU_THEME_KEY,
+  normalizeMainMenuThemeId,
+  type MainMenuThemeId,
+} from "../constants/menuThemeSettings";
 import { MUSIC_CACHE_ROOT_PATH_KEY } from "../constants/musicSettings";
 import {
   BACKGROUND_PHASH_ROUNDS_PER_PASS_KEY,
@@ -638,6 +646,7 @@ function FirstStartPage() {
   const [moaningUrlInput, setMoaningUrlInput] = useState("");
   const [moaningUrlError, setMoaningUrlError] = useState<string | null>(null);
   const [moaningUrlMode, setMoaningUrlMode] = useState<"track" | "playlist">("track");
+  const [mainMenuThemeId, setMainMenuThemeId] = useState<MainMenuThemeId>(DEFAULT_MENU_THEME_ID);
   const [booruPrompt, setBooruPrompt] = useState(DEFAULT_INTERMEDIARY_LOADING_PROMPT);
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(true);
   const [backgroundPhashScanningEnabled, setBackgroundPhashScanningEnabled] = useState(
@@ -705,6 +714,24 @@ function FirstStartPage() {
     (currentStep.id === "storage" && isLoadingStorageSettings) ||
     (currentStep.id === "eroscripts" && isEroScriptsAuthLoading);
   const progressPercent = ((stepIndex + 1) / STEPS.length) * 100;
+
+  useEffect(() => {
+    let cancelled = false;
+    void trpc.store.get
+      .query({ key: MENU_THEME_KEY })
+      .then((value) => {
+        if (!cancelled) {
+          setMainMenuThemeId(normalizeMainMenuThemeId(value));
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load onboarding app theme", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1196,6 +1223,20 @@ function FirstStartPage() {
     }
   };
 
+  const updateMainMenuTheme = async (next: unknown) => {
+    const value = normalizeMainMenuThemeId(next);
+    playSelectSound();
+    setMainMenuThemeId(value);
+    try {
+      await trpc.store.set.mutate({ key: MENU_THEME_KEY, value });
+      window.dispatchEvent(
+        new CustomEvent<MainMenuThemeId>(MENU_THEME_CHANGED_EVENT, { detail: value })
+      );
+    } catch (error) {
+      console.error("Failed to update onboarding app theme", error);
+    }
+  };
+
   const updateStoragePath = async (
     target: "music-cache" | "website-video-cache" | "fpack-extraction" | "eroscripts-cache"
   ) => {
@@ -1514,53 +1555,102 @@ function FirstStartPage() {
 
                   {currentStep.interactive === "language" && (
                     <div
-                      className="fs-interactive-panel mt-3 rounded-2xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-cyan-500/10 p-4 animate-entrance"
+                      className="fs-interactive-panel mt-3 space-y-4 rounded-2xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-cyan-500/10 p-4 animate-entrance"
                       style={{ animationDelay: "0.3s" }}
                     >
-                      <div className="mb-2 flex items-center gap-2">
-                        <span className="text-emerald-300">🌐</span>
-                        <p className="text-sm font-semibold text-emerald-100">
-                          <Trans>Language</Trans> / Language
+                      <div>
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="text-emerald-300">🌐</span>
+                          <p className="text-sm font-semibold text-emerald-100">
+                            <Trans>Language</Trans> / Language
+                          </p>
+                        </div>
+                        <p className="text-sm text-zinc-400">
+                          <Trans>
+                            Choose the language used on this page and across the app. Changes apply
+                            immediately.
+                          </Trans>
                         </p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                          {locales.map((entry) => {
+                            const selected = entry.code === locale;
+                            return (
+                              <button
+                                key={entry.code}
+                                type="button"
+                                onMouseEnter={playHoverSound}
+                                onClick={() => {
+                                  playSelectSound();
+                                  void setLocale(entry.code);
+                                }}
+                                className={`rounded-xl border px-4 py-3 text-left transition-all ${
+                                  selected
+                                    ? "border-emerald-300/70 bg-emerald-500/20 text-emerald-50 shadow-[0_0_20px_rgba(52,211,153,0.18)]"
+                                    : "border-white/10 bg-black/20 text-zinc-200 hover:border-emerald-400/40 hover:bg-emerald-500/10"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold">{entry.label}</span>
+                                  {selected && (
+                                    <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
+                                      <Trans>Selected</Trans>
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="mt-1 text-xs text-zinc-400">
+                                  {getLocaleCardDescription(entry.code)}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <p className="text-sm text-zinc-400">
-                        <Trans>
-                          Choose the language used on this page and across the app. Changes apply
-                          immediately.
-                        </Trans>
-                      </p>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                        {locales.map((entry) => {
-                          const selected = entry.code === locale;
-                          return (
-                            <button
-                              key={entry.code}
-                              type="button"
-                              onMouseEnter={playHoverSound}
-                              onClick={() => {
-                                playSelectSound();
-                                void setLocale(entry.code);
-                              }}
-                              className={`rounded-xl border px-4 py-3 text-left transition-all ${
-                                selected
-                                  ? "border-emerald-300/70 bg-emerald-500/20 text-emerald-50 shadow-[0_0_20px_rgba(52,211,153,0.18)]"
-                                  : "border-white/10 bg-black/20 text-zinc-200 hover:border-emerald-400/40 hover:bg-emerald-500/10"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold">{entry.label}</span>
-                                {selected && (
-                                  <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
-                                    <Trans>Selected</Trans>
-                                  </span>
-                                )}
-                              </div>
-                              <p className="mt-1 text-xs text-zinc-400">
-                                {getLocaleCardDescription(entry.code)}
-                              </p>
-                            </button>
-                          );
-                        })}
+
+                      <div className="border-t border-white/10 pt-4">
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="text-cyan-300">🎨</span>
+                          <p className="text-sm font-semibold text-cyan-100">
+                            <Trans>Theme</Trans>
+                          </p>
+                        </div>
+                        <p className="text-sm text-zinc-400">
+                          <Trans>Choose the app color theme used by menus and setup screens.</Trans>
+                        </p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                          {MAIN_MENU_THEMES.map((theme) => {
+                            const selected = theme.id === mainMenuThemeId;
+                            const previewGradient = `linear-gradient(135deg, ${theme.preview.from}, ${theme.preview.via}, ${theme.preview.to})`;
+                            return (
+                              <button
+                                key={theme.id}
+                                type="button"
+                                onMouseEnter={playHoverSound}
+                                onClick={() => void updateMainMenuTheme(theme.id)}
+                                className={`overflow-hidden rounded-xl border text-left transition-all ${
+                                  selected
+                                    ? "border-cyan-300/70 bg-cyan-500/20 text-cyan-50 shadow-[0_0_20px_rgba(34,211,238,0.18)]"
+                                    : "border-white/10 bg-black/20 text-zinc-200 hover:border-cyan-400/40 hover:bg-cyan-500/10"
+                                }`}
+                              >
+                                <div
+                                  className="h-2 w-full"
+                                  style={{ background: previewGradient }}
+                                />
+                                <div className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold">{theme.label}</span>
+                                    {selected && (
+                                      <span className="rounded-full bg-cyan-400/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cyan-200">
+                                        <Trans>Selected</Trans>
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="mt-1 text-xs text-zinc-400">{theme.description}</p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   )}

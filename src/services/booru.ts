@@ -283,9 +283,24 @@ export function isVideoMedia(url: string): boolean {
   return isLikelyVideoUrl(url);
 }
 
+export async function clearBooruMediaCache(): Promise<void> {
+  try {
+    const emptyStore = createEmptyBooruMediaCacheStore();
+    await writeBooruMediaCacheStore(emptyStore);
+    inFlightRefreshByPrompt.clear();
+    viewedCacheGenerations.clear();
+    warmedMediaUrls.clear();
+    startupCacheRefreshPromise = null;
+  } catch (error) {
+    console.warn("Failed to clear booru media cache", error);
+    throw error;
+  }
+}
+
 export function __resetBooruCachesForTests(): void {
   inFlightRefreshByPrompt.clear();
   viewedCacheGenerations.clear();
   warmedMediaUrls.clear();
   startupCacheRefreshPromise = null;
 }
+

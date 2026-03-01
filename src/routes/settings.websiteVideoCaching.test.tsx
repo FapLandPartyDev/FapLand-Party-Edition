@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY } from "../constants/websiteVideoCacheSettings";
 
@@ -128,6 +128,7 @@ vi.mock("../utils/audio", () => ({
 
 vi.mock("../services/booru", () => ({
   ensureBooruMediaCache: vi.fn(),
+  clearBooruMediaCache: vi.fn(),
 }));
 
 vi.mock("../services/db", () => ({
@@ -214,6 +215,9 @@ vi.mock("../services/trpc", () => ({
       },
     },
     store: {
+      get: {
+        query: vi.fn(async () => null),
+      },
       getMany: {
         query: vi.fn(async ({ keys }: { keys: string[] }) => {
           const values: Record<string, unknown> = {};
@@ -237,6 +241,28 @@ vi.mock("../services/trpc", () => ({
       },
       set: {
         mutate: vi.fn(async () => {}),
+      },
+    },
+    debug: {
+      getState: {
+        query: vi.fn(async () => ({
+          logLevel: "off",
+          anonymizedLogFilePath: "/logs/app.log",
+          logFileSizeBytes: 0,
+        })),
+      },
+      getDiagnostics: {
+        query: vi.fn(async () => ({
+          app: {},
+          storage: {},
+          hardware: {},
+          database: {},
+          runtime: {},
+          collectionErrors: [],
+        })),
+      },
+      getAllSettings: {
+        query: vi.fn(async () => ({})),
       },
     },
   },
@@ -281,12 +307,17 @@ vi.mock("../hooks/useAppUpdate", () => ({
   useAppUpdate: () => mocks.appUpdate,
 }));
 
+vi.mock("../components/ui/ToastHost", () => ({
+  useToast: () => ({ showToast: vi.fn() }),
+}));
+
 import { SettingsPage } from "./settings";
 import { db } from "../services/db";
 import { trpc } from "../services/trpc";
 
 describe("Settings website video caching", () => {
   beforeEach(() => {
+    cleanup();
     vi.clearAllMocks();
 
     window.electronAPI = {
@@ -353,6 +384,10 @@ describe("Settings website video caching", () => {
 
     render(<SettingsPage />);
 
+    await waitFor(() => {
+      expect(screen.queryByText("Loading...")).toBeNull();
+    });
+
     fireEvent.click(screen.getAllByRole("button", { name: /Data & Storage/ })[0]!);
     fireEvent.click(screen.getByRole("button", { name: "Manage & Clear Data" }));
 
@@ -380,6 +415,7 @@ describe("Settings website video caching", () => {
         videoCache: false,
         musicCache: true,
         fpackExtraction: true,
+        eroscriptsCache: true,
         settings: true,
       });
     });
@@ -389,6 +425,10 @@ describe("Settings website video caching", () => {
     const clearAllData = vi.mocked(db.install.clearAllData);
 
     render(<SettingsPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Loading...")).toBeNull();
+    });
 
     fireEvent.click(screen.getAllByRole("button", { name: /Data & Storage/ })[0]!);
     fireEvent.click(screen.getByRole("button", { name: "Manage & Clear Data" }));
@@ -406,6 +446,7 @@ describe("Settings website video caching", () => {
         videoCache: true,
         musicCache: false,
         fpackExtraction: false,
+        eroscriptsCache: true,
         settings: true,
       });
     });
@@ -418,6 +459,10 @@ describe("Settings website video caching", () => {
     );
 
     render(<SettingsPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Loading...")).toBeNull();
+    });
 
     fireEvent.click(screen.getAllByRole("button", { name: /Data & Storage/ })[0]!);
     fireEvent.click(screen.getAllByRole("button", { name: "Choose Folder" })[1]!);
@@ -432,13 +477,24 @@ describe("Settings website video caching", () => {
   });
 
   it("can reset the website video cache folder back to the default location", async () => {
-    vi.mocked(trpc.store.get.query).mockImplementation(async ({ key }: { key: string }) => {
-      if (key === WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY) return "/tmp/custom-web-cache";
-      return null;
+    vi.mocked(trpc.store.getMany.query).mockImplementation(async ({ keys }: { keys: string[] }) => {
+      const values: Record<string, unknown> = {};
+      for (const key of keys) {
+        if (key === WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY) {
+          values[key] = "/tmp/custom-web-cache";
+        } else {
+          values[key] = null;
+        }
+      }
+      return values;
     });
     const setMutate = vi.mocked(trpc.store.set.mutate);
 
     render(<SettingsPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Loading...")).toBeNull();
+    });
 
     fireEvent.click(screen.getAllByRole("button", { name: /Data & Storage/ })[0]!);
     fireEvent.click(screen.getAllByRole("button", { name: "Use Default" })[1]!);
@@ -455,6 +511,10 @@ describe("Settings website video caching", () => {
     const openConfiguredPathMutate = vi.mocked(trpc.db.openConfiguredPath.mutate);
 
     render(<SettingsPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Loading...")).toBeNull();
+    });
 
     fireEvent.click(screen.getAllByRole("button", { name: /Data & Storage/ })[0]!);
     await waitFor(() => {

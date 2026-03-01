@@ -32,6 +32,7 @@ vi.mock("./trpc", () => ({
 import {
   __resetBooruCachesForTests,
   appendRandomSortTagForBooruSearch,
+  clearBooruMediaCache,
   ensureBooruMediaCache,
   getCachedBooruMediaForDisplay,
   refreshBooruMediaCache,
@@ -215,9 +216,29 @@ describe("booru service cache behavior", () => {
     await getCachedBooruMediaForDisplay("animated gif webm", 18);
     await waitFor(() => expect(mocks.searchMediaQuery).toHaveBeenCalledTimes(1));
 
-    vi.spyOn(Date, "now").mockReturnValue(initialNow + 10_000);
-    await getCachedBooruMediaForDisplay("animated gif webm", 18);
+    // Wait for the background refresh to completely finish and write to store.
+    await waitFor(() => expect(mocks.storeSetMutate).toHaveBeenCalledTimes(1));
 
+    // Simulate a newer cache generation written to the store
+    storedValues[BOORU_MEDIA_CACHE_KEY] = createCacheStore({
+      updatedAtMs: initialNow + 10_000,
+      media: [createMedia("fresh-a")],
+    });
+
+    await getCachedBooruMediaForDisplay("animated gif webm", 18);
     await waitFor(() => expect(mocks.searchMediaQuery).toHaveBeenCalledTimes(2));
+  });
+
+
+  it("clears cached media entries", async () => {
+    const cachedMedia = [createMedia("cached-a")];
+    storedValues[BOORU_MEDIA_CACHE_KEY] = createCacheStore({
+      updatedAtMs: Date.now(),
+      media: cachedMedia,
+    });
+
+    await clearBooruMediaCache();
+
+    expect(storedValues[BOORU_MEDIA_CACHE_KEY]).toEqual(createCacheStore());
   });
 });

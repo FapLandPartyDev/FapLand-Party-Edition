@@ -24,6 +24,7 @@ import type {
   BoardFieldKind,
   EndlessGenerationConfig,
   GameConfig,
+  RoadPalette,
   RuntimeGraphConfig,
   RuntimeGraphEdge,
   RuntimeGraphRandomPool,
@@ -314,6 +315,18 @@ function buildGraphConfig(
     randomSelectionMode:
       node.kind === "randomRound" ? (node.selectionMode ?? "installed") : undefined,
     randomFilter: node.kind === "randomRound" ? node.filter : undefined,
+    roundCountdownDurationSec:
+      node.kind === "round" || node.kind === "randomRound"
+        ? (node as { roundCountdownDurationSec?: number }).roundCountdownDurationSec
+        : undefined,
+    roundOverlineLabel:
+      node.kind === "round" || node.kind === "randomRound"
+        ? (node as { roundOverlineLabel?: string }).roundOverlineLabel
+        : undefined,
+    roundTransitionPalette:
+      node.kind === "round" || node.kind === "randomRound"
+        ? (node as { roundTransitionPalette?: RoadPalette }).roundTransitionPalette
+        : undefined,
   }));
 
   const edges: RuntimeGraphEdge[] = config.edges.map((edge) => ({

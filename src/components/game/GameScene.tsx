@@ -64,6 +64,13 @@ import { resolveEffectiveRestPauseMs } from "../../game/restPause";
 import { MapBackgroundMedia } from "../MapBackgroundMedia";
 import ControllerHints from "./ControllerHints";
 
+// ─── Map zoom ─────────────────────────────────────────────────────────────────
+const MAP_ZOOM_STORE_KEY = "game.board.mapZoom";
+const MAP_ZOOM_MIN = 0.5;
+const MAP_ZOOM_MAX = 2.0;
+const MAP_ZOOM_STEP = 0.1;
+const MAP_ZOOM_DEFAULT = 1.0;
+
 // ─── Board layout strategy ────────────────────────────────────────────────────
 // Switch ACTIVE_LAYOUT to change how the board positions tiles.
 // "vertical" = single column, tile 0 at bottom, ascending upward.
@@ -1687,6 +1694,7 @@ interface GameSceneProps {
   intermediaryReturnPauseSec: number;
   initialShowProgressBarAlways?: boolean;
   initialShowAntiPerkBeatbar?: boolean;
+  initialShowDisconnectedHapticsStatus?: boolean;
   hideInventoryButton?: boolean;
   controllerSupportEnabled?: boolean;
   endlessMode?: boolean;
@@ -1722,6 +1730,7 @@ export const GameScene = memo(function GameScene({
   intermediaryReturnPauseSec,
   initialShowProgressBarAlways = false,
   initialShowAntiPerkBeatbar = true,
+  initialShowDisconnectedHapticsStatus = true,
   showMultiplayerPlayerNames = false,
   hideInventoryButton = false,
   controllerSupportEnabled: initialControllerSupportEnabled = false,
@@ -1796,6 +1805,9 @@ export const GameScene = memo(function GameScene({
   showMultiplayerPlayerNamesRef.current = showMultiplayerPlayerNames;
   const applyPerkDirectlyRef = useRef(applyPerkDirectly);
   applyPerkDirectlyRef.current = applyPerkDirectly;
+  const [mapZoomMultiplier, setMapZoomMultiplier] = useState(MAP_ZOOM_DEFAULT);
+  const mapZoomMultiplierRef = useRef(MAP_ZOOM_DEFAULT);
+  mapZoomMultiplierRef.current = mapZoomMultiplier;
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [showPerkInventoryMenu, setShowPerkInventoryMenu] = useState(false);
   const [showDevPerkMenuModal, setShowDevPerkMenuModal] = useState(false);
@@ -1937,6 +1949,25 @@ export const GameScene = memo(function GameScene({
   useEffect(() => {
     setControllerSupportEnabled(initialControllerSupportEnabled);
   }, [initialControllerSupportEnabled]);
+
+  useEffect(() => {
+    let mounted = true;
+    void trpc.store.get
+      .query({ key: MAP_ZOOM_STORE_KEY })
+      .then((stored) => {
+        if (!mounted) return;
+        const parsed = typeof stored === "number" ? stored : Number(stored);
+        if (Number.isFinite(parsed) && parsed >= MAP_ZOOM_MIN && parsed <= MAP_ZOOM_MAX) {
+          setMapZoomMultiplier(parsed);
+        }
+      })
+      .catch((error) => {
+        console.warn("Failed to read map zoom from store", error);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -2628,8 +2659,9 @@ export const GameScene = memo(function GameScene({
         });
 
         // Board area — centred in the full viewport, scaled up
-        const scaledBoardW = rawBoardW * boardScale;
-        const scaledBoardH = rawBoardH * boardScale;
+        const effectiveScale = () => boardScale * mapZoomMultiplierRef.current;
+        const scaledBoardW = rawBoardW * effectiveScale();
+        const scaledBoardH = rawBoardH * effectiveScale();
         // True centre: leave 30px margin on each side for the HUD floating overlay
         const boardOffsetX = (W - scaledBoardW) / 2;
         const boardOffsetY = (H - 80 - scaledBoardH) / 2 + 20;
@@ -2637,7 +2669,7 @@ export const GameScene = memo(function GameScene({
         const boardContainer = new Container();
         boardContainer.x = boardOffsetX;
         boardContainer.y = boardOffsetY;
-        boardContainer.scale.set(boardScale);
+        boardContainer.scale.set(effectiveScale());
         stage.addChild(boardContainer);
 
         // ── Camera state (smooth follow) ────────────────────────────────
@@ -2648,14 +2680,14 @@ export const GameScene = memo(function GameScene({
         const initTile = tileCentre(boardLayout, initPlayerPos);
         let camX = clampBoardOffset(
           W,
-          scaledBoardW,
-          W / 2 - initTile.x * boardScale,
+          rawBoardW * effectiveScale(),
+          W / 2 - initTile.x * effectiveScale(),
           CAMERA_MARGIN_X
         );
         let camY = clampBoardOffset(
           H,
-          scaledBoardH,
-          H / 2 - initTile.y * boardScale + 30,
+          rawBoardH * effectiveScale(),
+          H / 2 - initTile.y * effectiveScale() + 30,
           CAMERA_MARGIN_Y
         );
         boardContainer.x = camX;
@@ -2676,9 +2708,9 @@ export const GameScene = memo(function GameScene({
             MIN_BOARD_ZOOM,
             MAX_BOARD_ZOOM
           );
-          boardContainer.scale.set(boardScale);
-          const scaledWidth = rawBoardW * boardScale;
-          const scaledHeight = rawBoardH * boardScale;
+          boardContainer.scale.set(effectiveScale());
+          const scaledWidth = rawBoardW * effectiveScale();
+          const scaledHeight = rawBoardH * effectiveScale();
           camX = clampBoardOffset(W, scaledWidth, camX, CAMERA_MARGIN_X);
           camY = clampBoardOffset(H, scaledHeight, camY, CAMERA_MARGIN_Y);
           boardContainer.x = camX;
@@ -3745,18 +3777,19 @@ export const GameScene = memo(function GameScene({
 
             // ── Camera follow — lerp toward player tile (or mid-hop pos) ───
             const targetScenePos = tokenDisplayPos; // already board-local
-            const scaledWidth = rawBoardW * boardScale;
-            const scaledHeight = rawBoardH * boardScale;
+            const curEffectiveScale = effectiveScale();
+            const scaledWidth = rawBoardW * curEffectiveScale;
+            const scaledHeight = rawBoardH * curEffectiveScale;
             const targetCamX = clampBoardOffset(
               W,
               scaledWidth,
-              W / 2 - targetScenePos.x * boardScale,
+              W / 2 - targetScenePos.x * curEffectiveScale,
               CAMERA_MARGIN_X
             );
             const targetCamY = clampBoardOffset(
               H,
               scaledHeight,
-              H / 2 - targetScenePos.y * boardScale + 30,
+              H / 2 - targetScenePos.y * curEffectiveScale + 30,
               CAMERA_MARGIN_Y
             );
             // Fast during hop, slow gentle drift otherwise
@@ -3790,7 +3823,7 @@ export const GameScene = memo(function GameScene({
               updateBackgroundParallaxOffset({ x: 0, y: 0 });
             }
             const ambientScale = 1 + Math.sin(t * 0.55) * 0.008;
-            boardContainer.scale.set(boardScale * ambientScale);
+            boardContainer.scale.set(curEffectiveScale * ambientScale);
             boardContainer.rotation = Math.sin(t * 0.22) * 0.008;
 
             // ── BG ──────────────────────────────────────────────────────────
@@ -4741,7 +4774,7 @@ export const GameScene = memo(function GameScene({
           queuedRound={state.queuedRound}
           remaining={animPhase.remaining}
           duration={animPhase.duration}
-          roadPalette={state.config.mapStyle?.roadPalette}
+          roadPalette={state.queuedRound?.roundTransitionPalette ?? state.config.mapStyle?.roadPalette}
         />
       )}
       <RoundVideoOverlay
@@ -4762,6 +4795,7 @@ export const GameScene = memo(function GameScene({
           onPreviewStateChange: handleRoundPreviewStateChange,
           initialShowProgressBarAlways,
           initialShowAntiPerkBeatbar,
+          initialShowDisconnectedHapticsStatus,
           allowDebugRoundControls,
           lastLogMessage: state.log[0],
           roadPalette: state.config.mapStyle?.roadPalette,
@@ -5057,7 +5091,69 @@ export const GameScene = memo(function GameScene({
           <div className="pointer-events-auto w-full max-w-sm rounded-2xl border border-indigo-300/45 bg-zinc-950/95 p-5 shadow-2xl">
             <h2 className="text-lg font-bold text-indigo-100">{t`Options`}</h2>
             <p className="mt-2 text-sm text-zinc-200">{t`The game keeps running in the background.`}</p>
-            <div className="mt-4 space-y-2">
+
+            {/* ── Map Zoom ─────────────────────────────────────────── */}
+            <div className="mt-4 rounded-xl border border-indigo-400/30 bg-indigo-950/40 px-4 py-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-indigo-300">
+                {t`Map Zoom`}
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  id="game-options-zoom-out"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-400/50 bg-indigo-900/50 text-lg font-bold text-indigo-100 hover:bg-indigo-800/70 disabled:opacity-40"
+                  disabled={mapZoomMultiplier <= MAP_ZOOM_MIN}
+                  onClick={() => {
+                    const next = Math.max(MAP_ZOOM_MIN, Math.round((mapZoomMultiplier - MAP_ZOOM_STEP) * 10) / 10);
+                    setMapZoomMultiplier(next);
+                    void trpc.store.set.mutate({ key: MAP_ZOOM_STORE_KEY, value: next }).catch((err) => {
+                      console.warn("Failed to persist map zoom", err);
+                    });
+                  }}
+                  aria-label={t`Zoom out`}
+                >
+                  −
+                </button>
+                <div className="flex-1 text-center">
+                  <span className="text-sm font-bold text-white">
+                    {mapZoomMultiplier.toFixed(1)}×
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  id="game-options-zoom-in"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-400/50 bg-indigo-900/50 text-lg font-bold text-indigo-100 hover:bg-indigo-800/70 disabled:opacity-40"
+                  disabled={mapZoomMultiplier >= MAP_ZOOM_MAX}
+                  onClick={() => {
+                    const next = Math.min(MAP_ZOOM_MAX, Math.round((mapZoomMultiplier + MAP_ZOOM_STEP) * 10) / 10);
+                    setMapZoomMultiplier(next);
+                    void trpc.store.set.mutate({ key: MAP_ZOOM_STORE_KEY, value: next }).catch((err) => {
+                      console.warn("Failed to persist map zoom", err);
+                    });
+                  }}
+                  aria-label={t`Zoom in`}
+                >
+                  +
+                </button>
+                {mapZoomMultiplier !== MAP_ZOOM_DEFAULT && (
+                  <button
+                    type="button"
+                    id="game-options-zoom-reset"
+                    className="rounded-lg border border-zinc-500/60 bg-zinc-800/50 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-700/60"
+                    onClick={() => {
+                      setMapZoomMultiplier(MAP_ZOOM_DEFAULT);
+                      void trpc.store.set.mutate({ key: MAP_ZOOM_STORE_KEY, value: MAP_ZOOM_DEFAULT }).catch((err) => {
+                        console.warn("Failed to persist map zoom", err);
+                      });
+                    }}
+                  >
+                    {t`Reset`}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-2">
               <button
                 type="button"
                 className="w-full rounded-lg border border-zinc-500 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 hover:border-zinc-300"

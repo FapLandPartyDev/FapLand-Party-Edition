@@ -52,6 +52,10 @@ function makeConfig(): GameConfig {
         "treasure-magnet",
         "lucky-star",
         "coupon-clipper",
+        "long-stride",
+        "hot-streak",
+        "breather",
+        "lucky-momentum",
       ],
       enabledAntiPerkIds: [
         "jammed-dice",
@@ -223,6 +227,43 @@ describe("engine new perks", () => {
     expect(player.stats.diceMax).toBe(6);
   });
 
+  it("applies permanent max-roll increase and decrease perks", () => {
+    const base = createInitialGameState(makeConfig());
+    const playerId = base.players[base.currentPlayerIndex]!.id;
+    const withHighRoller = applyPerkByIdToPlayer(base, {
+      targetPlayerId: playerId,
+      perkId: "high-roller",
+      sourceLabel: "test",
+    });
+    expect(withHighRoller.players[withHighRoller.currentPlayerIndex]!.stats.diceMax).toBe(7);
+
+    const withLowCeiling = applyPerkByIdToPlayer(withHighRoller, {
+      targetPlayerId: playerId,
+      perkId: "low-ceiling",
+      sourceLabel: "test",
+    });
+    expect(withLowCeiling.players[withLowCeiling.currentPlayerIndex]!.stats.diceMax).toBe(6);
+  });
+
+  it("clamps dice minimum when a permanent max-roll decrease drops below it", () => {
+    const prepared: GameState = {
+      ...createInitialGameState(makeConfig()),
+      players: createInitialGameState(makeConfig()).players.map((player) => ({
+        ...player,
+        stats: { ...player.stats, diceMin: 6, diceMax: 6 },
+      })),
+    };
+    const playerId = prepared.players[prepared.currentPlayerIndex]!.id;
+    const withLowCeiling = applyPerkByIdToPlayer(prepared, {
+      targetPlayerId: playerId,
+      perkId: "low-ceiling",
+      sourceLabel: "test",
+    });
+    const player = withLowCeiling.players[withLowCeiling.currentPlayerIndex]!;
+    expect(player.stats.diceMax).toBe(5);
+    expect(player.stats.diceMin).toBe(5);
+  });
+
   it("applies lazy hero permanently and clears be-gentle after a completed round", () => {
     const lazy = selectPerk(
       withPendingSelection(createInitialGameState(makeConfig()), "lazy-hero"),
@@ -328,6 +369,22 @@ describe("engine new perks", () => {
         moaningAvailable: true,
       })
     ).toEqual(["moaning-loop", "panic-loop"]);
+  });
+
+  it("can keep haptics-themed perks available without a connected device", () => {
+    expect(
+      filterPerkIdsByGameplayCapabilities(["be-gentle", "panic-loop"], {
+        handyConnected: false,
+        moaningAvailable: true,
+      })
+    ).toEqual(["panic-loop"]);
+    expect(
+      filterPerkIdsByGameplayCapabilities(["be-gentle", "panic-loop"], {
+        handyConnected: false,
+        moaningAvailable: true,
+        allowHapticsWithoutDevice: true,
+      })
+    ).toEqual(["be-gentle", "panic-loop"]);
   });
 
   it("keeps highspeed active after one turn advance", () => {
@@ -696,5 +753,91 @@ describe("engine new perks", () => {
     expect(afterRound.pendingPerkSelection).toBeNull();
     // And it should advance the turn because no perk was triggered
     expect(afterRound.turn).toBe(base.turn + 1);
+  });
+
+  function makeBidirectionalConfig(): GameConfig {
+    const config = makeConfig();
+    config.runtimeGraph.edges = [
+      { id: "e1", fromNodeId: "start", toNodeId: "path-1", gateCost: 0, weight: 1 },
+      { id: "e2", fromNodeId: "path-1", toNodeId: "start", gateCost: 0, weight: 1 },
+    ];
+    config.runtimeGraph.edgesById = {
+      e1: { id: "e1", fromNodeId: "start", toNodeId: "path-1", gateCost: 0, weight: 1 },
+      e2: { id: "e2", fromNodeId: "path-1", toNodeId: "start", gateCost: 0, weight: 1 },
+    };
+    config.runtimeGraph.outgoingEdgeIdsByNodeId = {
+      start: ["e1"],
+      "path-1": ["e2"],
+    };
+    return config;
+  }
+
+  it("applies long-stride and restores diceMax after expiration", () => {
+    const base = createInitialGameState(makeBidirectionalConfig());
+    const playerId = base.players[base.currentPlayerIndex]!.id;
+    const applied = applyPerkByIdToPlayer(base, {
+      targetPlayerId: playerId,
+      perkId: "long-stride",
+      sourceLabel: "test",
+    });
+    expect(applied.players[applied.currentPlayerIndex]!.stats.diceMax).toBe(7);
+
+    let state = applied;
+    for (let i = 0; i < 5; i++) {
+      state = rollTurn(state, [], 1);
+    }
+    expect(state.players[state.currentPlayerIndex]!.stats.diceMax).toBe(6);
+    expect(state.players[state.currentPlayerIndex]!.perks).not.toContain("long-stride");
+  });
+
+  it("applies hot-streak and restores diceMax and perkLuck after expiration", () => {
+    const base = createInitialGameState(makeBidirectionalConfig());
+    const playerId = base.players[base.currentPlayerIndex]!.id;
+    const applied = applyPerkByIdToPlayer(base, {
+      targetPlayerId: playerId,
+      perkId: "hot-streak",
+      sourceLabel: "test",
+    });
+    expect(applied.players[applied.currentPlayerIndex]!.stats.diceMax).toBe(8);
+    expect(applied.players[applied.currentPlayerIndex]!.stats.perkLuck).toBeCloseTo(0.2);
+
+    let state = applied;
+    for (let i = 0; i < 2; i++) {
+      state = rollTurn(state, [], 1);
+    }
+    expect(state.players[state.currentPlayerIndex]!.stats.diceMax).toBe(6);
+    expect(state.players[state.currentPlayerIndex]!.stats.perkLuck).toBeCloseTo(0);
+    expect(state.players[state.currentPlayerIndex]!.perks).not.toContain("hot-streak");
+  });
+
+  it("applies breather reducing intermediary probability and granting a pause charge", () => {
+    const applied = selectPerk(
+      withPendingSelection(createInitialGameState(makeConfig()), "breather"),
+      "breather",
+      { applyDirectly: true }
+    );
+    expect(applied.intermediaryProbability).toBeCloseTo(0.35);
+    const player = applied.players[applied.currentPlayerIndex]!;
+    expect(player.roundControl?.pauseCharges ?? 0).toBe(1);
+  });
+
+  it("applies lucky-momentum and restores perkFrequency and perkLuck after expiration", () => {
+    const base = createInitialGameState(makeBidirectionalConfig());
+    const playerId = base.players[base.currentPlayerIndex]!.id;
+    const applied = applyPerkByIdToPlayer(base, {
+      targetPlayerId: playerId,
+      perkId: "lucky-momentum",
+      sourceLabel: "test",
+    });
+    expect(applied.players[applied.currentPlayerIndex]!.stats.perkFrequency).toBeCloseTo(0.1);
+    expect(applied.players[applied.currentPlayerIndex]!.stats.perkLuck).toBeCloseTo(0.2);
+
+    let state = applied;
+    for (let i = 0; i < 3; i++) {
+      state = rollTurn(state, [], 1);
+    }
+    expect(state.players[state.currentPlayerIndex]!.stats.perkFrequency).toBeCloseTo(0);
+    expect(state.players[state.currentPlayerIndex]!.stats.perkLuck).toBeCloseTo(0);
+    expect(state.players[state.currentPlayerIndex]!.perks).not.toContain("lucky-momentum");
   });
 });

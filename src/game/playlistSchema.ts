@@ -114,6 +114,31 @@ export const ZRandomRoundFilter = z
   })
   .strict();
 
+export const ZDifficultySection = z
+  .object({
+    startIndex: z.number().int().min(1).max(500),
+    endIndex: z.number().int().min(1).max(500),
+    minDifficulty: z.number().int().min(1).max(5),
+    maxDifficulty: z.number().int().min(1).max(5),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.startIndex > value.endIndex) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Difficulty section startIndex must be less than or equal to endIndex.",
+        path: ["startIndex"],
+      });
+    }
+    if (value.minDifficulty > value.maxDifficulty) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Difficulty section minDifficulty must be less than or equal to maxDifficulty.",
+        path: ["minDifficulty"],
+      });
+    }
+  });
+
 export const ZLinearBoardConfig = z
   .object({
     mode: z.literal("linear").default("linear"),
@@ -123,6 +148,7 @@ export const ZLinearBoardConfig = z
     normalRoundRefsByIndex: z.record(z.string(), ZPortableRoundRef).default({}),
     normalRoundOrder: z.array(ZPortableRoundRef).default([]),
     cumRoundRefs: z.array(ZPortableRoundRef).default([]),
+    difficultySections: z.array(ZDifficultySection).optional(),
   })
   .strict()
   .superRefine((value, context) => {
@@ -142,6 +168,18 @@ export const ZLinearBoardConfig = z
           code: z.ZodIssueCode.custom,
           message: `safePointRestMsByIndex index ${key} is not a safe point`,
           path: ["safePointRestMsByIndex", key],
+        });
+      }
+    }
+    const difficultySections = value.difficultySections ?? [];
+    for (let sectionIndex = 0; sectionIndex < difficultySections.length; sectionIndex += 1) {
+      const section = difficultySections[sectionIndex];
+      if (!section) continue;
+      if (section.startIndex > value.totalIndices || section.endIndex > value.totalIndices) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `difficultySections[${sectionIndex}] exceeds totalIndices`,
+          path: ["difficultySections", sectionIndex],
         });
       }
     }
@@ -180,6 +218,9 @@ export const ZGraphNode = z
     giftGuaranteedPerk: z.boolean().optional(),
     catapultForward: z.number().int().min(1).optional(),
     catapultLandingOnly: z.boolean().optional(),
+    roundCountdownDurationSec: z.number().finite().positive().max(15).optional(),
+    roundOverlineLabel: z.string().trim().max(50).optional(),
+    roundTransitionPalette: ZGraphRoadPalette.optional(),
     styleHint: z
       .object({
         x: z.number().finite().optional(),
@@ -341,6 +382,42 @@ export const ZGraphBoardConfig = z
         context.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Only randomRound nodes may define filter ("${node.name}" (${node.id}))`,
+          path: ["nodes"],
+        });
+      }
+
+      if (
+        node.kind !== "round" &&
+        node.kind !== "randomRound" &&
+        typeof node.roundCountdownDurationSec === "number"
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only round and randomRound nodes may define roundCountdownDurationSec ("${node.name}" (${node.id}))`,
+          path: ["nodes"],
+        });
+      }
+
+      if (
+        node.kind !== "round" &&
+        node.kind !== "randomRound" &&
+        typeof node.roundOverlineLabel === "string"
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only round and randomRound nodes may define roundOverlineLabel ("${node.name}" (${node.id}))`,
+          path: ["nodes"],
+        });
+      }
+
+      if (
+        node.kind !== "round" &&
+        node.kind !== "randomRound" &&
+        node.roundTransitionPalette
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only round and randomRound nodes may define roundTransitionPalette ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -604,16 +681,21 @@ function normalizeLegacyPlaylistConfigInput(input: unknown): unknown {
   if (!isRecord(input)) return input;
   if (!isRecord(input.boardConfig)) return input;
 
-  const playlistVersion =
+  const explicitPlaylistVersion =
     typeof input.playlistVersion === "number" && Number.isFinite(input.playlistVersion)
       ? input.playlistVersion
-      : CURRENT_PLAYLIST_VERSION;
+      : null;
+  const playlistVersion =
+    explicitPlaylistVersion === null ? CURRENT_PLAYLIST_VERSION : explicitPlaylistVersion;
 
   return {
     ...input,
     playlistVersion:
       playlistVersion < CURRENT_PLAYLIST_VERSION ? CURRENT_PLAYLIST_VERSION : playlistVersion,
-    boardConfig: normalizeLegacyGraphBoardConfig(input.boardConfig),
+    boardConfig:
+      explicitPlaylistVersion !== null && explicitPlaylistVersion < CURRENT_PLAYLIST_VERSION
+        ? normalizeLegacyGraphBoardConfig(input.boardConfig)
+        : input.boardConfig,
   };
 }
 

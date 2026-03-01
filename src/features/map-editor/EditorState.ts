@@ -138,6 +138,9 @@ export interface EditorNode {
   giftGuaranteedPerk?: boolean;
   catapultForward?: number;
   catapultLandingOnly?: boolean;
+  roundCountdownDurationSec?: number;
+  roundOverlineLabel?: string;
+  roundTransitionPalette?: GraphRoadPalette;
   styleHint?: EditorStyleHint;
 }
 
@@ -459,6 +462,18 @@ export const toEditorGraphConfig = (input: GraphBoardConfig): EditorGraphConfig 
     catapultLandingOnly:
       typeof (node as { catapultLandingOnly?: unknown }).catapultLandingOnly === "boolean"
         ? (node as { catapultLandingOnly: boolean }).catapultLandingOnly
+        : undefined,
+    roundCountdownDurationSec:
+      typeof (node as { roundCountdownDurationSec?: unknown }).roundCountdownDurationSec === "number"
+        ? (node as { roundCountdownDurationSec: number }).roundCountdownDurationSec
+        : undefined,
+    roundOverlineLabel:
+      typeof (node as { roundOverlineLabel?: unknown }).roundOverlineLabel === "string"
+        ? (node as { roundOverlineLabel: string }).roundOverlineLabel
+        : undefined,
+    roundTransitionPalette:
+      (node as { roundTransitionPalette?: GraphRoadPalette }).roundTransitionPalette
+        ? { ...(node as { roundTransitionPalette: GraphRoadPalette }).roundTransitionPalette }
         : undefined,
     styleHint: {
       x: toFiniteNumber(node.styleHint?.x) ?? index * 220,
@@ -828,6 +843,20 @@ export const toGraphBoardConfig = (input: EditorGraphConfig): GraphBoardConfig =
             : undefined
           : undefined,
       catapultLandingOnly: node.kind === "catapult" ? node.catapultLandingOnly : undefined,
+      roundCountdownDurationSec:
+        node.kind === "round" || node.kind === "randomRound"
+          ? node.roundCountdownDurationSec
+          : undefined,
+      roundOverlineLabel:
+        node.kind === "round" || node.kind === "randomRound"
+          ? node.roundOverlineLabel
+          : undefined,
+      roundTransitionPalette:
+        node.kind === "round" || node.kind === "randomRound"
+          ? node.roundTransitionPalette
+            ? { ...node.roundTransitionPalette }
+            : undefined
+          : undefined,
       styleHint: normalizeStyleHint(node.styleHint),
     })),
     edges: input.edges.map((edge) => ({

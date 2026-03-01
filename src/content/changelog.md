@@ -1,5 +1,36 @@
 # What's New
 
+## v0.5.0-beta
+
+### Added
+
+- **"High Roller" perk** — permanently increases maximum dice roll by 1.
+- **"Long Stride" perk** — increases maximum dice roll by 1 for 5 rounds.
+- **"Hot Streak" perk** — increases maximum dice roll by 2 and luck for 2 rounds.
+- **"Breather" perk** — reduces intermediary chance by 5% and grants one pause charge.
+- **"Lucky Momentum" perk** — increases perk offer chance and luck for 3 rounds.
+- **"Low Ceiling" anti-perk** — permanently reduces maximum dice roll by 1.
+- **Bulk tag editing** — add, remove, or replace tags across multiple selected rounds at once from the round library's bulk actions menu.
+- **"Select Matching Rounds"** — renamed from "Select Visible Rounds"; now selects only rounds that match the active search, tag, and library filters.
+- **Custom road palettes in the Map Editor** — save, edit, reuse, and delete custom road color palettes from a new palette manager in the Graph Settings panel.
+- **Difficulty Sections in the Playlist Workshop** — define index ranges with min/max difficulty bands to auto-generate round queues; includes a suggested-sections preset and an option to filter by current search and duration settings.
+- **Graph node round transition settings** — round and random-round nodes in the Map Editor can now configure a per-node countdown duration, overline label, and custom transition palette.
+- **Clear Booru Cache** — a new action in Settings under Data & Storage to clear the local booru (Rule34/Gelbooru/Danbooru) media cache.
+- **Show Disconnected Haptics Status** toggle — show or hide the disconnected haptics status pill during round playback when no device is connected.
+- **Allow Haptics Anti-Perks Without Device** toggle — keep haptics-themed anti-perks available for their visual effects even when no haptics device is connected.
+- **Map zoom on the gameboard** — zoom in or out on the game board (0.5×–2.0×) with new zoom controls; setting is persisted across sessions.
+- **Menu theme selector in the First-Start wizard** — pick a main menu theme during onboarding.
+
+### Changed
+
+- TCode serial transport now serializes concurrent connect/disconnect operations and properly manages reader/writer locks for reliable reconnection.
+- Booru cache refresh now tracks cache generations for more reliable background updates.
+- Media transcoding pipeline now emits structured debug log entries with timing, retry, and error diagnostics.
+- The Playlist Workshop round picker now includes all non-interjection round types instead of only "Normal" rounds.
+- Various test improvements across settings, rounds, haptics, and playlist modules.
+
+---
+
 ## v0.4.4-beta
 
 ### Added

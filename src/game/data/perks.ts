@@ -9,14 +9,18 @@ import { i18n } from "../../i18n";
 export const DICE_PERK_IDS: ReadonlySet<string> = new Set([
   "loaded-dice",
   "steady-steps",
+  "high-roller",
   "doubler",
   "im-close",
+  "long-stride",
+  "hot-streak",
 ]);
 
 export const DICE_ANTIPERK_IDS: ReadonlySet<string> = new Set([
   "cold-streak",
   "jammed-dice",
   "cement-boots",
+  "low-ceiling",
   "snake-eyes",
 ]);
 
@@ -63,6 +67,19 @@ export const PERK_LIBRARY: PerkDefinition[] = [
     durationRounds: 2,
     application: "persistent",
     effects: [{ kind: "numericDelta", stat: "roundPauseMs", amount: 1500, min: 500, max: 12000 }],
+  },
+  {
+    id: "high-roller",
+    name: "High Roller",
+    description: "Increase maximum dice roll by 1 permanently.",
+    iconKey: "loadedDice",
+    cost: 220,
+    rarity: "rare",
+    kind: "perk",
+    target: "self",
+    durationRounds: null,
+    application: "persistent",
+    effects: [{ kind: "numericDelta", stat: "diceMax", amount: 1, min: 1, max: 20 }],
   },
   {
     id: "pause",
@@ -377,6 +394,19 @@ export const PERK_LIBRARY: PerkDefinition[] = [
     effects: [{ kind: "numericDelta", stat: "diceMax", amount: -2, min: 1, max: 12 }],
   },
   {
+    id: "low-ceiling",
+    name: "Low Ceiling",
+    description: "Anti-perk: reduce maximum dice roll by 1 permanently.",
+    iconKey: "cementBoots",
+    cost: 250,
+    rarity: "rare",
+    kind: "antiPerk",
+    target: "self",
+    durationRounds: null,
+    application: "persistent",
+    effects: [{ kind: "numericDelta", stat: "diceMax", amount: -1, min: 1, max: 20 }],
+  },
+  {
     id: "panic-loop",
     name: "Panic Loop",
     description: "Anti-perk: increase interjection probability by 20%.",
@@ -501,6 +531,66 @@ export const PERK_LIBRARY: PerkDefinition[] = [
       { kind: "probabilityDelta", stat: "antiPerkProbability", amount: -1, min: 0, max: 0 },
     ],
   },
+  {
+    id: "long-stride",
+    name: "Long Stride",
+    description: "Increase maximum dice roll by 1 for 5 rounds.",
+    iconKey: "highRoller",
+    cost: 150,
+    rarity: "common",
+    kind: "perk",
+    target: "self",
+    durationRounds: 5,
+    application: "persistent",
+    effects: [{ kind: "numericDelta", stat: "diceMax", amount: 1, min: 1, max: 20 }],
+  },
+  {
+    id: "hot-streak",
+    name: "Hot Streak",
+    description: "Increase maximum dice roll by 2 and luck for 2 rounds.",
+    iconKey: "luckyStar",
+    cost: 240,
+    rarity: "epic",
+    kind: "perk",
+    target: "self",
+    durationRounds: 2,
+    application: "persistent",
+    effects: [
+      { kind: "numericDelta", stat: "diceMax", amount: 2, min: 1, max: 20 },
+      { kind: "numericDelta", stat: "perkLuck", amount: 0.2, min: -1, max: 1 },
+    ],
+  },
+  {
+    id: "breather",
+    name: "Breather",
+    description: "Reduce intermediary chance by 5% and gain one pause charge.",
+    iconKey: "pause",
+    cost: 160,
+    rarity: "common",
+    kind: "perk",
+    target: "self",
+    application: "immediate",
+    effects: [
+      { kind: "probabilityDelta", stat: "intermediaryProbability", amount: -0.05, min: 0, max: 1 },
+      { kind: "grantRoundControl", control: "pause", amount: 1 },
+    ],
+  },
+  {
+    id: "lucky-momentum",
+    name: "Lucky Momentum",
+    description: "Increase perk offer chance and luck for 3 rounds.",
+    iconKey: "treasureMagnet",
+    cost: 170,
+    rarity: "rare",
+    kind: "perk",
+    target: "self",
+    durationRounds: 3,
+    application: "persistent",
+    effects: [
+      { kind: "numericDelta", stat: "perkFrequency", amount: 0.1, min: -0.5, max: 0.5 },
+      { kind: "numericDelta", stat: "perkLuck", amount: 0.2, min: -1, max: 1 },
+    ],
+  },
 ];
 
 type PerkMessageDescriptors = {
@@ -521,6 +611,13 @@ const PERK_MESSAGES: Record<string, PerkMessageDescriptors> = {
     description: msg({
       id: "perk.description.steady-steps",
       message: "Increase minimum dice roll by 1 permanently.",
+    }),
+  },
+  "high-roller": {
+    name: msg({ id: "perk.name.high-roller", message: "High Roller" }),
+    description: msg({
+      id: "perk.description.high-roller",
+      message: "Increase maximum dice roll by 1 permanently.",
     }),
   },
   "long-interlude": {
@@ -694,6 +791,13 @@ const PERK_MESSAGES: Record<string, PerkMessageDescriptors> = {
       message: "Anti-perk: reduce max dice roll by 2 for 3 rounds.",
     }),
   },
+  "low-ceiling": {
+    name: msg({ id: "perk.name.low-ceiling", message: "Low Ceiling" }),
+    description: msg({
+      id: "perk.description.low-ceiling",
+      message: "Anti-perk: reduce maximum dice roll by 1 permanently.",
+    }),
+  },
   "panic-loop": {
     name: msg({ id: "perk.name.panic-loop", message: "Panic Loop" }),
     description: msg({
@@ -758,6 +862,34 @@ const PERK_MESSAGES: Record<string, PerkMessageDescriptors> = {
       message: "Reset intermediary chance and anti-perk chance to 0.",
     }),
   },
+  "long-stride": {
+    name: msg({ id: "perk.name.long-stride", message: "Long Stride" }),
+    description: msg({
+      id: "perk.description.long-stride",
+      message: "Increase maximum dice roll by 1 for 5 rounds.",
+    }),
+  },
+  "hot-streak": {
+    name: msg({ id: "perk.name.hot-streak", message: "Hot Streak" }),
+    description: msg({
+      id: "perk.description.hot-streak",
+      message: "Increase maximum dice roll by 2 and luck for 2 rounds.",
+    }),
+  },
+  breather: {
+    name: msg({ id: "perk.name.breather", message: "Breather" }),
+    description: msg({
+      id: "perk.description.breather",
+      message: "Reduce intermediary chance by 5% and gain one pause charge.",
+    }),
+  },
+  "lucky-momentum": {
+    name: msg({ id: "perk.name.lucky-momentum", message: "Lucky Momentum" }),
+    description: msg({
+      id: "perk.description.lucky-momentum",
+      message: "Increase perk offer chance and luck for 3 rounds.",
+    }),
+  },
 };
 
 export function getPerkPool(includeAntiPerks = false): PerkDefinition[] {
@@ -818,9 +950,11 @@ export function filterPerkIdsByHandyConnection(
 
 export function filterPerkIdsByGameplayCapabilities(
   perkIds: string[],
-  input: { handyConnected: boolean; moaningAvailable: boolean }
+  input: { handyConnected: boolean; moaningAvailable: boolean; allowHapticsWithoutDevice?: boolean }
 ): string[] {
-  const afterHandy = filterPerkIdsByHandyConnection(perkIds, input.handyConnected);
+  const afterHandy = input.allowHapticsWithoutDevice
+    ? perkIds
+    : filterPerkIdsByHandyConnection(perkIds, input.handyConnected);
   if (input.moaningAvailable) return afterHandy;
   const requiresMoaning = getPerksRequiringMoaning();
   return afterHandy.filter((id) => !requiresMoaning.has(id));

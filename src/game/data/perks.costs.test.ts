@@ -7,6 +7,7 @@ const EXPECTED_COSTS: Record<string, number> = {
   "loaded-dice": 120,
   "steady-steps": 180,
   "long-interlude": 120,
+  "high-roller": 220,
   pause: 150,
   skip: 210,
   heal: 220,
@@ -30,6 +31,7 @@ const EXPECTED_COSTS: Record<string, number> = {
   "jammed-dice": 240,
   "score-leech": 240,
   "cement-boots": 260,
+  "low-ceiling": 250,
   "panic-loop": 270,
   "dry-spell": 230,
   "bad-omen": 240,
@@ -37,12 +39,17 @@ const EXPECTED_COSTS: Record<string, number> = {
   "snake-eyes": 320,
   "im-close": 690,
   "full-heal": 350,
+  "long-stride": 150,
+  "hot-streak": 240,
+  breather: 160,
+  "lucky-momentum": 170,
 };
 
 const EXPECTED_RARITIES: Record<string, PerkRarity> = {
   "loaded-dice": "common",
   "steady-steps": "rare",
   "long-interlude": "common",
+  "high-roller": "rare",
   pause: "common",
   skip: "rare",
   heal: "rare",
@@ -66,6 +73,7 @@ const EXPECTED_RARITIES: Record<string, PerkRarity> = {
   "jammed-dice": "epic",
   "score-leech": "epic",
   "cement-boots": "epic",
+  "low-ceiling": "rare",
   "panic-loop": "epic",
   "dry-spell": "rare",
   "bad-omen": "epic",
@@ -73,6 +81,10 @@ const EXPECTED_RARITIES: Record<string, PerkRarity> = {
   "snake-eyes": "legendary",
   "im-close": "legendary",
   "full-heal": "epic",
+  "long-stride": "common",
+  "hot-streak": "epic",
+  breather: "common",
+  "lucky-momentum": "rare",
 };
 
 describe("perk cost balance", () => {
@@ -107,6 +119,7 @@ describe("perk cost balance", () => {
       "sticky-fingers",
       "snake-eyes",
       "im-close",
+      "hot-streak",
     ];
     for (const perkId of extremeIds) {
       const perk = getPerkById(perkId);

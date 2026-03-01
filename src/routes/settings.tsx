@@ -49,7 +49,7 @@ import { useAppUpdate } from "../hooks/useAppUpdate";
 import { useIdleScreenPerformance } from "../hooks/useIdleScreenPerformance";
 import { useSfwMode } from "../hooks/useSfwMode";
 import { formatHandyStrokeBoundPercent } from "../services/theHandyConfig";
-import { ensureBooruMediaCache } from "../services/booru";
+import { clearBooruMediaCache, ensureBooruMediaCache } from "../services/booru";
 import { db, type PhashScanStatus, type WebsiteVideoScanStatus } from "../services/db";
 import {
   integrations,
@@ -94,9 +94,15 @@ import {
 import {
   ANTI_PERK_BEATBAR_ENABLED_KEY,
   DEFAULT_ANTI_PERK_BEATBAR_ENABLED,
+  DEFAULT_GAMEPLAY_HAPTICS_PERKS_WITHOUT_DEVICE,
+  DEFAULT_HAPTICS_DISCONNECTED_STATUS_VISIBLE,
   DEFAULT_ROUND_PROGRESS_BAR_ALWAYS_VISIBLE,
+  GAMEPLAY_HAPTICS_PERKS_WITHOUT_DEVICE_KEY,
+  HAPTICS_DISCONNECTED_STATUS_VISIBLE_KEY,
   ROUND_PROGRESS_BAR_ALWAYS_VISIBLE_KEY,
   normalizeAntiPerkBeatbarEnabled,
+  normalizeGameplayHapticsPerksWithoutDevice,
+  normalizeHapticsDisconnectedStatusVisible,
   normalizeRoundProgressBarAlwaysVisible,
 } from "../constants/roundVideoOverlaySettings";
 import { DEFAULT_INTERMEDIARY_LOADING_PROMPT } from "../constants/booruSettings";
@@ -729,6 +735,12 @@ export function SettingsPage() {
   const [antiPerkBeatbarEnabled, setAntiPerkBeatbarEnabled] = useState(
     DEFAULT_ANTI_PERK_BEATBAR_ENABLED
   );
+  const [hapticsDisconnectedStatusVisible, setHapticsDisconnectedStatusVisible] = useState(
+    DEFAULT_HAPTICS_DISCONNECTED_STATUS_VISIBLE
+  );
+  const [gameplayHapticsPerksWithoutDevice, setGameplayHapticsPerksWithoutDevice] = useState(
+    DEFAULT_GAMEPLAY_HAPTICS_PERKS_WITHOUT_DEVICE
+  );
   const [applyPerkDirectly, setApplyPerkDirectly] = useState(DEFAULT_APPLY_PERK_DIRECTLY);
   const [controllerSupportEnabled, setControllerSupportEnabled] = useState(
     DEFAULT_CONTROLLER_SUPPORT_ENABLED
@@ -842,7 +854,7 @@ export function SettingsPage() {
       setIsLoadingBinaryDiagnostics(false);
       setIsRefreshingBinaryDiagnostics(false);
     }
-  }, [t]);
+  }, []);
 
   const refreshDebugInfo = useCallback(async () => {
     setIsRefreshingDebug(true);
@@ -864,7 +876,7 @@ export function SettingsPage() {
       setIsLoadingDebug(false);
       setIsRefreshingDebug(false);
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -880,6 +892,8 @@ export function SettingsPage() {
         AUTOFIX_BROKEN_FUNSCRIPTS_KEY,
         ROUND_PROGRESS_BAR_ALWAYS_VISIBLE_KEY,
         ANTI_PERK_BEATBAR_ENABLED_KEY,
+        HAPTICS_DISCONNECTED_STATUS_VISIBLE_KEY,
+        GAMEPLAY_HAPTICS_PERKS_WITHOUT_DEVICE_KEY,
         CONTROLLER_SUPPORT_ENABLED_KEY,
         FPS_COUNTER_ENABLED_KEY,
         CHEAT_MODE_ENABLED_KEY,
@@ -924,6 +938,10 @@ export function SettingsPage() {
         const rawAutofixBrokenFunscripts = storeValues[AUTOFIX_BROKEN_FUNSCRIPTS_KEY];
         const rawRoundProgressBarAlwaysVisible = storeValues[ROUND_PROGRESS_BAR_ALWAYS_VISIBLE_KEY];
         const rawAntiPerkBeatbarEnabled = storeValues[ANTI_PERK_BEATBAR_ENABLED_KEY];
+        const rawHapticsDisconnectedStatusVisible =
+          storeValues[HAPTICS_DISCONNECTED_STATUS_VISIBLE_KEY];
+        const rawGameplayHapticsPerksWithoutDevice =
+          storeValues[GAMEPLAY_HAPTICS_PERKS_WITHOUT_DEVICE_KEY];
         const rawControllerSupportEnabled = storeValues[CONTROLLER_SUPPORT_ENABLED_KEY];
         const rawFpsCounterEnabled = storeValues[FPS_COUNTER_ENABLED_KEY];
         const rawCheatModeEnabled = storeValues[CHEAT_MODE_ENABLED_KEY];
@@ -983,6 +1001,12 @@ export function SettingsPage() {
           normalizeRoundProgressBarAlwaysVisible(rawRoundProgressBarAlwaysVisible)
         );
         setAntiPerkBeatbarEnabled(normalizeAntiPerkBeatbarEnabled(rawAntiPerkBeatbarEnabled));
+        setHapticsDisconnectedStatusVisible(
+          normalizeHapticsDisconnectedStatusVisible(rawHapticsDisconnectedStatusVisible)
+        );
+        setGameplayHapticsPerksWithoutDevice(
+          normalizeGameplayHapticsPerksWithoutDevice(rawGameplayHapticsPerksWithoutDevice)
+        );
         setControllerSupportEnabled(normalizeControllerSupportEnabled(rawControllerSupportEnabled));
         setFpsCounterEnabled(normalizeFpsCounterEnabled(rawFpsCounterEnabled));
         setCheatModeEnabled(normalizeCheatModeEnabled(rawCheatModeEnabled));
@@ -1218,6 +1242,20 @@ export function SettingsPage() {
                 value: next,
               });
               setRoundProgressBarAlwaysVisible(next);
+            },
+          },
+          {
+            id: "haptics-disconnected-status-visible",
+            type: "toggle",
+            label: t`Show Disconnected Haptics Status`,
+            description: t`Show the disconnected haptics status pill during round playback when no device is connected.`,
+            value: hapticsDisconnectedStatusVisible,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: HAPTICS_DISCONNECTED_STATUS_VISIBLE_KEY,
+                value: next,
+              });
+              setHapticsDisconnectedStatusVisible(next);
             },
           },
           {
@@ -1582,6 +1620,26 @@ export function SettingsPage() {
               },
             ],
           },
+          {
+            id: "booru-cache-actions",
+            type: "actions",
+            label: t`Booru Cache`,
+            description: t`Clear the local cache of booru (Rule34/Gelbooru/Danbooru) media items and thumbnails.`,
+            actions: [
+              {
+                id: "clear-booru-cache",
+                label: t`Clear Booru Cache`,
+                onClick: async () => {
+                  try {
+                    await clearBooruMediaCache();
+                    showToast(t`Booru cache cleared.`, "success");
+                  } catch (error) {
+                    showToast(t`Failed to clear booru cache.`, "error");
+                  }
+                },
+              },
+            ],
+          },
         ],
       },
       {
@@ -1768,6 +1826,20 @@ export function SettingsPage() {
               setDeviceAnimationTestEnabled(next);
             },
           },
+          {
+            id: "gameplay-haptics-perks-without-device",
+            type: "toggle",
+            label: t`Allow Haptics Anti-Perks Without Device`,
+            description: t`Keep haptics-themed anti-perks available for their visual effects even when no haptics device is connected.`,
+            value: gameplayHapticsPerksWithoutDevice,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: GAMEPLAY_HAPTICS_PERKS_WITHOUT_DEVICE_KEY,
+                value: next,
+              });
+              setGameplayHapticsPerksWithoutDevice(next);
+            },
+          },
         ],
       },
       {
@@ -1796,6 +1868,8 @@ export function SettingsPage() {
       backgroundVideoEnabled,
       mainMenuThemeId,
       antiPerkBeatbarEnabled,
+      gameplayHapticsPerksWithoutDevice,
+      hapticsDisconnectedStatusVisible,
       applyPerkDirectly,
       autofixBrokenFunscripts,
       intermediaryLoadingDurationSec,

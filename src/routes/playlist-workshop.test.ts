@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDifficultySectionRoundOrder,
   ensureLinearSetupCapacity,
   getRequiredLinearRoundCount,
   sortSelectedRoundsByDifficulty,
@@ -12,6 +13,7 @@ function makeSetup(
     roundCount: 10,
     safePointsEnabled: false,
     safePointIndices: [],
+    difficultySections: [],
     saveMode: "none",
     normalRoundOrder: [],
     enabledCumRoundIds: [],
@@ -126,5 +128,25 @@ describe("sortSelectedRoundsByDifficulty", () => {
       "round-1",
       "hard",
     ]);
+  });
+});
+
+describe("buildDifficultySectionRoundOrder", () => {
+  it("avoids duplicates until the matching pool is exhausted", () => {
+    const order = buildDifficultySectionRoundOrder({
+      sections: [{ startIndex: 1, endIndex: 3, minDifficulty: 1, maxDifficulty: 1 }],
+      rounds: [makeRound("easy-a", "Easy A", 1), makeRound("easy-b", "Easy B", 1)],
+    });
+
+    expect(order).toEqual(["easy-a", "easy-b", "easy-a"]);
+  });
+
+  it("falls back to the nearest difficulty when a section has no exact match", () => {
+    const order = buildDifficultySectionRoundOrder({
+      sections: [{ startIndex: 1, endIndex: 1, minDifficulty: 5, maxDifficulty: 5 }],
+      rounds: [makeRound("medium", "Medium", 3), makeRound("easy", "Easy", 1)],
+    });
+
+    expect(order).toEqual(["medium"]);
   });
 });

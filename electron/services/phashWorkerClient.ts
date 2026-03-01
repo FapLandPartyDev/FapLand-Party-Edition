@@ -3,6 +3,7 @@ import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import type { NormalizedVideoHashRange } from "./phash/types";
+import { debugLog as logToApp } from "./debugLogging";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -85,14 +86,18 @@ function ensureWorker(): Promise<UtilityProcess> {
       if (type === "worker-log" && msgPayload) {
         if (msgPayload.isError) {
           console.error(msgPayload.message);
-        } else {
+          logToApp.error("phash-worker", String(msgPayload.message));
+        }
+        if (!msgPayload.isError) {
           console.log(msgPayload.message);
+          logToApp.info("phash-worker", String(msgPayload.message));
         }
         return;
       }
 
       if (type === "worker-ready") {
         debugLog(`[PhashWorkerClient] Worker reported ready`);
+        logToApp.info("phash-worker-client", "Worker process reported ready");
         clearTimeout(startTimeout);
         resolve(w);
         return;
@@ -103,14 +108,20 @@ function ensureWorker(): Promise<UtilityProcess> {
 
       if (type === "phash-result" && msgPayload) {
         debugLog(`[PhashWorkerClient] [${taskId}] Received result`);
+        logToApp.info("phash-worker-client", `Task ${taskId} completed successfully`);
         pendingTasks.delete(taskId as string);
         task.resolve(msgPayload.phash as string);
-      } else if (type === "phash-error" && msgPayload) {
+        return;
+      }
+
+      if (type === "phash-error" && msgPayload) {
         debugError(`[PhashWorkerClient] [${taskId}] Received error: ${msgPayload.message}`);
+        logToApp.error("phash-worker-client", `Task ${taskId} failed: ${msgPayload.message}`);
         pendingTasks.delete(taskId as string);
         const error = new Error(msgPayload.message as string);
         error.stack = msgPayload.stack as string | undefined;
         task.reject(error);
+        return;
       }
     });
 

@@ -1,27 +1,89 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockWriter = { write: vi.fn(), releaseLock: vi.fn() };
-const mockReader = {
-  read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
-  releaseLock: vi.fn(),
+type MockSerialPort = Record<string, unknown> & {
+  open: ReturnType<typeof vi.fn>;
+  close: ReturnType<typeof vi.fn>;
+  writer: {
+    write: ReturnType<typeof vi.fn>;
+    releaseLock: ReturnType<typeof vi.fn>;
+  };
+  reader: {
+    read: ReturnType<typeof vi.fn>;
+    cancel: ReturnType<typeof vi.fn>;
+    releaseLock: ReturnType<typeof vi.fn>;
+  };
+  isOpen: () => boolean;
 };
-const mockWritable = { getWriter: vi.fn(() => mockWriter) };
-const mockReadable = { getReader: vi.fn(() => mockReader) };
 
-const storedPorts: Array<Record<string, unknown>> = [];
+const storedPorts: MockSerialPort[] = [];
 
 function createMockSerialPort(
   options: { productId?: number; openFails?: boolean } = {}
-): Record<string, unknown> {
+): MockSerialPort {
+  let open = false;
+  let readerLocked = false;
+  let writerLocked = false;
+  let pendingReadResolve: ((result: ReadableStreamReadResult<Uint8Array>) => void) | null = null;
+
+  const writer = {
+    write: vi.fn(async () => {}),
+    releaseLock: vi.fn(() => {
+      writerLocked = false;
+    }),
+  };
+  const reader = {
+    read: vi.fn(
+      () =>
+        new Promise<ReadableStreamReadResult<Uint8Array>>((resolve) => {
+          pendingReadResolve = resolve;
+        })
+    ),
+    cancel: vi.fn(async () => {
+      pendingReadResolve?.({ done: true, value: undefined });
+      pendingReadResolve = null;
+    }),
+    releaseLock: vi.fn(() => {
+      readerLocked = false;
+    }),
+  };
+  const writable = {
+    getWriter: vi.fn(() => {
+      if (writerLocked) throw new Error("Writable stream is already locked.");
+      writerLocked = true;
+      return writer;
+    }),
+  };
+  const readable = {
+    getReader: vi.fn(() => {
+      if (readerLocked) throw new Error("Readable stream is already locked.");
+      readerLocked = true;
+      return reader;
+    }),
+  };
+
   return {
     open: vi.fn(async () => {
       if (options.openFails) throw new Error("Port busy");
+      if (open) {
+        throw new Error(
+          "Failed to execute 'open' on 'SerialPort': The port is already open."
+        );
+      }
+      open = true;
     }),
-    close: vi.fn(async () => {}),
-    readable: mockReadable as unknown as ReadableStream<Uint8Array>,
-    writable: mockWritable as unknown as WritableStream<Uint8Array>,
+    close: vi.fn(async () => {
+      if (readerLocked || writerLocked) {
+        throw new Error("Cannot close a serial port while streams are locked.");
+      }
+      open = false;
+    }),
+    readable: readable as unknown as ReadableStream<Uint8Array>,
+    writable: writable as unknown as WritableStream<Uint8Array>,
     getInfo: vi.fn(() => ({ usbVendorId: 0x2341, usbProductId: options.productId ?? 0x0043 })),
-  } as Record<string, unknown>;
+    writer,
+    reader,
+    isOpen: () => open,
+  } as MockSerialPort;
 }
 
 function mockNavigatorSerial(options: { granted?: boolean } = {}) {
@@ -98,7 +160,7 @@ describe("tcodeTransportRenderer", () => {
   });
 
   it("connects and sends over serial", async () => {
-    mockNavigatorSerial();
+    const serial = mockNavigatorSerial();
     const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
     await tcodeTransportRenderer.listPorts();
     const result = await tcodeTransportRenderer.connect({
@@ -108,7 +170,62 @@ describe("tcodeTransportRenderer", () => {
     });
     expect(result.success).toBe(true);
     expect(tcodeTransportRenderer.send("L05000\n")).toBe(true);
-    expect(mockWriter.write).toHaveBeenCalledWith(new TextEncoder().encode("L05000\n"));
+    expect(serial.port.writer.write).toHaveBeenCalledWith(new TextEncoder().encode("L05000\n"));
+    await tcodeTransportRenderer.disconnect();
+    expect(serial.port.isOpen()).toBe(false);
+  });
+
+  it("reconnects the same serial port after disconnecting", async () => {
+    const serial = mockNavigatorSerial();
+    const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
+    await tcodeTransportRenderer.listPorts();
+
+    const first = await tcodeTransportRenderer.connect({
+      transport: "serial",
+      serialPath: "USB 2341:0043",
+      baudRate: 115200,
+    });
+    expect(first.success).toBe(true);
+
+    await tcodeTransportRenderer.disconnect();
+    expect(serial.port.isOpen()).toBe(false);
+
+    const second = await tcodeTransportRenderer.connect({
+      transport: "serial",
+      serialPath: "USB 2341:0043",
+      baudRate: 115200,
+    });
+    expect(second.success).toBe(true);
+    expect(serial.port.open).toHaveBeenCalledTimes(2);
+    expect(second.error).toBeUndefined();
+
+    await tcodeTransportRenderer.disconnect();
+  });
+
+  it("serializes concurrent serial connect attempts", async () => {
+    const serial = mockNavigatorSerial();
+    const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
+    await tcodeTransportRenderer.listPorts();
+
+    const [first, second] = await Promise.all([
+      tcodeTransportRenderer.connect({
+        transport: "serial",
+        serialPath: "USB 2341:0043",
+        baudRate: 115200,
+      }),
+      tcodeTransportRenderer.connect({
+        transport: "serial",
+        serialPath: "USB 2341:0043",
+        baudRate: 115200,
+      }),
+    ]);
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(true);
+    expect(first.error).toBeUndefined();
+    expect(second.error).toBeUndefined();
+    expect(serial.port.open).toHaveBeenCalledTimes(2);
+
     await tcodeTransportRenderer.disconnect();
   });
 
@@ -130,7 +247,10 @@ describe("tcodeTransportRenderer", () => {
     const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
     const result = await tcodeTransportRenderer.autoDetectSerialPort({ baudRate: 115200 });
     expect(result.port?.path).toBe("USB 2341:0002");
-    expect(mockWriter.write).toHaveBeenCalledWith(new TextEncoder().encode("L05000\n"));
+    expect(storedPorts[1]!.writer.write).toHaveBeenCalledWith(
+      new TextEncoder().encode("L05000\n")
+    );
+    expect(storedPorts.every((port) => !port.isOpen())).toBe(true);
     await tcodeTransportRenderer.disconnect();
   });
 
@@ -141,7 +261,9 @@ describe("tcodeTransportRenderer", () => {
       transport: "websocket",
       websocketUrl: "ws://192.168.1.42/ws",
     });
-    await Promise.resolve();
+    await vi.waitFor(() => {
+      expect(wsInstances).toHaveLength(1);
+    });
     const ws = wsInstances[0]!;
     ws.readyState = 1;
     ws.onopen?.();

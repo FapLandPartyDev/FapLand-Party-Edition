@@ -8,6 +8,7 @@ import {
   isVideoExtension,
 } from "../../../src/constants/videoFormats";
 import { resolvePhashBinaries } from "../phash/binaries";
+import { debugLog } from "../debugLogging";
 
 function resolveMediaContentType(filePath: string): string {
   const extension = path.extname(filePath).toLowerCase();
@@ -75,12 +76,15 @@ export async function createMediaResponse(
     const binaries = await resolvePhashBinaries();
     const ffmpegPath = binaries.ffmpegPath;
 
-    // Try Nvidia NVDEC hardware-accelerated H.265 decode first; fall back to software.
-    // Output as H.264 ultrafast — dramatically faster than VP9 realtime for 4K content.
-    // The bundled FFmpeg (BtbN GPL build) includes --enable-ffnvcodec and --enable-cuda-llvm,
-    // so hevc_cuvid and h264_nvenc are available when the Nvidia driver is present.
+    debugLog.info("media-transcode", "Initiating live transcode request", {
+      filePath,
+      seekTimeSec,
+      startAtMs,
+      ffmpegPath,
+    });
+
     const tryNvdecArgs = (useNvdec: boolean): string[] => {
-      const args: string[] = ["-hide_banner", "-loglevel", "error", "-nostdin"];
+      const args: string[] = ["-hide_banner", "-loglevel", "warning", "-nostdin"];
 
       if (seekTimeSec || startAtMs) {
         const timeOffset = seekTimeSec ? parseFloat(seekTimeSec) : parseInt(startAtMs!) / 1000;
@@ -90,7 +94,6 @@ export async function createMediaResponse(
       }
 
       if (useNvdec) {
-        // hevc_cuvid decodes H.265 via NVDEC; keep frames in CUDA memory for NVENC to consume.
         args.push("-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-c:v", "hevc_cuvid");
       }
 
@@ -102,13 +105,15 @@ export async function createMediaResponse(
           "-preset", "p1",          // fastest NVENC preset
           "-tune", "ull",           // ultra low latency — disables B-frame look-ahead
           "-zerolatency", "1",      // no reorder buffer; first frame out immediately
-          "-pix_fmt", "yuv420p",    // Chromium requires 8-bit 4:2:0
+          "-pix_fmt", "yuv420p"     // Chromium requires 8-bit 4:2:0
         );
-      } else {
+      }
+
+      if (!useNvdec) {
         args.push(
           "-c:v", "libx264",
           "-preset", "ultrafast",
-          "-pix_fmt", "yuv420p",
+          "-pix_fmt", "yuv420p"
         );
       }
 
@@ -121,13 +126,16 @@ export async function createMediaResponse(
       return args;
     };
 
-    // Attempt NVDEC+NVENC first; on error restart with software decode.
-    let ffmpeg = spawn(ffmpegPath, tryNvdecArgs(true));
-    let useNvdecAttempt = true;
+    const initialArgs = tryNvdecArgs(true);
+    debugLog.debug("media-transcode", "Spawning initial FFmpeg process (NVDEC attempt)", {
+      args: initialArgs,
+    });
 
-    // We don't read from stderr here to avoid buffering issues.
-    // Guard the stream controller so request cancellation and FFmpeg teardown
-    // cannot race each other into double close/error calls.
+    let ffmpeg = spawn(ffmpegPath, initialArgs);
+    let useNvdecAttempt = true;
+    const spawnTime = Date.now();
+    let totalBytesSent = 0;
+
     let settled = false;
     let cancelled = false;
     let receivedAnyData = false;
@@ -138,6 +146,7 @@ export async function createMediaResponse(
         cleanup = () => {
           ffmpeg.stdout.off("data", handleData);
           ffmpeg.stdout.off("end", handleEnd);
+          ffmpeg.stderr.off("data", handleStderr);
           ffmpeg.off("error", handleError);
           ffmpeg.off("close", handleClose);
         };
@@ -158,55 +167,114 @@ export async function createMediaResponse(
 
         const handleData = (chunk: Buffer) => {
           if (settled) return;
-          receivedAnyData = true;
+          if (!receivedAnyData) {
+            receivedAnyData = true;
+            const elapsed = Date.now() - spawnTime;
+            debugLog.info("media-transcode", "FFmpeg first stdout chunk received", {
+              elapsedMs: elapsed,
+              chunkLength: chunk.length,
+              useNvdecAttempt,
+            });
+          }
+          totalBytesSent += chunk.length;
           controller.enqueue(new Uint8Array(chunk));
         };
 
+        const handleStderr = (chunk: Buffer) => {
+          const text = chunk.toString("utf8").trim();
+          if (text) {
+            debugLog.warn("media-transcode-ffmpeg", `FFmpeg stderr: ${text}`, {
+              useNvdecAttempt,
+              filePath,
+            });
+          }
+        };
+
         const handleEnd = () => {
+          debugLog.debug("media-transcode", "FFmpeg stdout stream end reached", {
+            totalBytesSent,
+            elapsedMs: Date.now() - spawnTime,
+            useNvdecAttempt,
+          });
           settleClose();
         };
 
         const handleError = (error: Error) => {
+          debugLog.error("media-transcode", "FFmpeg process encountered error", {
+            error: error.message,
+            stack: error.stack,
+            totalBytesSent,
+            elapsedMs: Date.now() - spawnTime,
+            useNvdecAttempt,
+          });
           settleError(error);
         };
 
         const handleClose = (code: number | null, signal: NodeJS.Signals | null) => {
           if (settled) return;
           if (cancelled) {
+            debugLog.info("media-transcode", "FFmpeg process closed after cancellation", {
+              code,
+              signal,
+              totalBytesSent,
+              elapsedMs: Date.now() - spawnTime,
+              useNvdecAttempt,
+            });
             settled = true;
             cleanup();
             return;
           }
           if (code === 0) {
+            debugLog.info("media-transcode", "FFmpeg process exited successfully", {
+              code,
+              signal,
+              totalBytesSent,
+              elapsedMs: Date.now() - spawnTime,
+              useNvdecAttempt,
+            });
             settleClose();
             return;
           }
-          // If NVDEC failed before producing any data, transparently retry with software decode.
+
           if (useNvdecAttempt && !receivedAnyData) {
+            debugLog.warn("media-transcode", "NVDEC attempt failed before any data was produced. Retrying with software decode", {
+              code,
+              signal,
+              elapsedMs: Date.now() - spawnTime,
+            });
             cleanup();
             useNvdecAttempt = false;
-            ffmpeg = spawn(ffmpegPath, tryNvdecArgs(false));
+            const fallbackArgs = tryNvdecArgs(false);
+            debugLog.info("media-transcode", "Spawning fallback FFmpeg process (Software decode)", {
+              args: fallbackArgs,
+            });
+            ffmpeg = spawn(ffmpegPath, fallbackArgs);
             ffmpeg.stdout.on("data", handleData);
             ffmpeg.stdout.on("end", handleEnd);
+            ffmpeg.stderr.on("data", handleStderr);
             ffmpeg.on("error", handleError);
             ffmpeg.on("close", handleClose);
             cleanup = () => {
               ffmpeg.stdout.off("data", handleData);
               ffmpeg.stdout.off("end", handleEnd);
+              ffmpeg.stderr.off("data", handleStderr);
               ffmpeg.off("error", handleError);
               ffmpeg.off("close", handleClose);
             };
             return;
           }
-          settleError(
-            new Error(
-              `FFmpeg live transcode exited unexpectedly (code=${code ?? "null"}, signal=${signal ?? "null"}).`
-            )
-          );
+          const exitErrorMsg = `FFmpeg live transcode exited unexpectedly (code=${code ?? "null"}, signal=${signal ?? "null"}).`;
+          debugLog.error("media-transcode", exitErrorMsg, {
+            useNvdecAttempt,
+            totalBytesSent,
+            elapsedMs: Date.now() - spawnTime,
+          });
+          settleError(new Error(exitErrorMsg));
         };
 
         ffmpeg.stdout.on("data", handleData);
         ffmpeg.stdout.on("end", handleEnd);
+        ffmpeg.stderr.on("data", handleStderr);
         ffmpeg.on("error", handleError);
         ffmpeg.on("close", handleClose);
       },
@@ -214,6 +282,11 @@ export async function createMediaResponse(
         if (settled) return;
         cancelled = true;
         settled = true;
+        debugLog.info("media-transcode", "ReadableStream cancelled by client. Killing FFmpeg process", {
+          totalBytesSent,
+          elapsedMs: Date.now() - spawnTime,
+          useNvdecAttempt,
+        });
         cleanup();
         ffmpeg.kill("SIGKILL");
       },
@@ -234,10 +307,12 @@ export async function createMediaResponse(
   try {
     fileStats = await stat(filePath);
   } catch {
+    debugLog.warn("media-response", "Direct file serve target not found", { filePath });
     return new Response("Not found", { status: 404 });
   }
 
   if (!fileStats.isFile()) {
+    debugLog.warn("media-response", "Direct file serve target is not a file", { filePath });
     return new Response("Not found", { status: 404 });
   }
 
@@ -246,6 +321,10 @@ export async function createMediaResponse(
   const contentType = resolveMediaContentType(filePath);
 
   if (range === "invalid") {
+    debugLog.warn("media-response", "Invalid range header received", {
+      filePath,
+      rangeHeader: request.headers.get("range"),
+    });
     return new Response(null, {
       status: 416,
       headers: {
@@ -256,6 +335,12 @@ export async function createMediaResponse(
   }
 
   if (!range) {
+    debugLog.debug("media-response", "Serving full file (non-range request)", {
+      filePath,
+      totalSize,
+      contentType,
+    });
+
     const headers = new Headers({
       "Accept-Ranges": "bytes",
       "Content-Length": `${totalSize}`,
@@ -274,6 +359,15 @@ export async function createMediaResponse(
   }
 
   const contentLength = Math.max(0, range.end - range.start + 1);
+  debugLog.debug("media-response", "Serving file range", {
+    filePath,
+    totalSize,
+    rangeStart: range.start,
+    rangeEnd: range.end,
+    contentLength,
+    contentType,
+  });
+
   const headers = new Headers({
     "Accept-Ranges": "bytes",
     "Content-Length": `${contentLength}`,

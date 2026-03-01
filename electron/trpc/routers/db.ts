@@ -1051,6 +1051,52 @@ export const dbRouter = router({
       return { ...updated, tags: parseTagsJson(updated.tagsJson) };
     }),
 
+  bulkUpdateRoundTags: publicProcedure
+    .input(
+      z.object({
+        roundIds: z.array(z.string().min(1)).min(1),
+        mode: z.enum(["replace", "add", "remove"]),
+        tags: ZTagList,
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const roundIds = [...new Set(input.roundIds.map((id) => id.trim()).filter(Boolean))];
+      const tags = normalizeTags(input.tags);
+      if (roundIds.length === 0) return { updatedCount: 0 };
+
+      const entries = await withInstalledLibrarySchemaRepair(() =>
+        db.query.round.findMany({
+          where: inArray(round.id, roundIds),
+          columns: { id: true, tagsJson: true },
+        })
+      );
+
+      let updatedCount = 0;
+      await db.transaction(async (tx) => {
+        for (const entry of entries) {
+          const existingTags = parseTagsJson(entry.tagsJson);
+          const nextTags =
+            input.mode === "replace"
+              ? tags
+              : input.mode === "add"
+                ? normalizeTags([...existingTags, ...tags])
+                : normalizeTags(existingTags.filter((tag) => !tags.includes(tag)));
+
+          await tx
+            .update(round)
+            .set({
+              tagsJson: JSON.stringify(nextTags),
+              updatedAt: new Date(),
+            })
+            .where(eq(round.id, entry.id));
+          updatedCount += 1;
+        }
+      });
+
+      return { updatedCount };
+    }),
+
   calculateDifficultyFromFunscript: publicProcedure
     .input(z.object({ funscriptUri: z.string() }))
     .query(async ({ input }) => {

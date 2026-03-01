@@ -10,6 +10,9 @@ import { GameDropdown } from "../../../components/ui/GameDropdown";
 import type { InstalledRound, InstalledRoundCatalogEntry } from "../../../services/db";
 import type { EditorEdge, EditorNode, EditorSelectionState } from "../EditorState";
 import { getNodeKindColor, toColorInputValue } from "../nodeVisuals";
+import { normalizeRoadPalette, ROAD_PALETTE_PRESETS } from "../EditorState";
+import type { GraphRoadPalette } from "../../../game/playlistSchema";
+import type { CustomRoadPalette } from "../../../constants/customPaletteSettings";
 
 interface PerkOption {
   id: string;
@@ -36,6 +39,7 @@ interface NodeInspectorPanelProps {
   randomPoolIds: ReadonlyArray<string>;
   perkOptions: ReadonlyArray<PerkOption>;
   antiPerkOptions: ReadonlyArray<PerkOption>;
+  customPalettes: ReadonlyArray<CustomRoadPalette>;
   onPatchNode: (nodeId: string, patch: Partial<EditorNode>) => void;
   onCommitSelection: (selection: EditorSelectionState) => void;
   onSetTool: (tool: "connect") => void;
@@ -124,6 +128,217 @@ function toPortableRoundRefFromInstalledRound(
   };
 }
 
+type TransitionPaletteColorKey = "body" | "railA" | "railB" | "glow" | "center" | "gate" | "marker";
+
+function RoundTransitionSettings({
+  countdownDurationSec,
+  overlineLabel,
+  transitionPalette,
+  customPalettes,
+  onPatchNode,
+  nodeId,
+}: {
+  countdownDurationSec?: number;
+  overlineLabel?: string;
+  transitionPalette?: GraphRoadPalette;
+  customPalettes: ReadonlyArray<CustomRoadPalette>;
+  onPatchNode: (nodeId: string, patch: Partial<EditorNode>) => void;
+  nodeId: string;
+}) {
+  const { t } = useLingui();
+  const [paletteExpanded, setPaletteExpanded] = React.useState(false);
+  const [overlineDraft, setOverlineDraft] = React.useState(() => overlineLabel ?? "");
+  const isEditingOverlineRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isEditingOverlineRef.current) {
+      setOverlineDraft(overlineLabel ?? "");
+    }
+  }, [overlineLabel]);
+
+  const currentPalette = transitionPalette ? normalizeRoadPalette(transitionPalette) : null;
+
+  return (
+    <div className="space-y-2 rounded-lg border border-zinc-700/30 bg-zinc-900/40 p-2.5">
+      <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+        <Trans>Round Transition</Trans>
+      </p>
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-[0.08em] text-zinc-500">
+          <Trans>Countdown duration (seconds)</Trans>
+        </span>
+        <input
+          type="number"
+          min="0.5"
+          max="15"
+          step="0.5"
+          value={typeof countdownDurationSec === "number" ? String(countdownDurationSec) : ""}
+          placeholder="3"
+          onKeyDown={(e) => e.stopPropagation()}
+          onChange={(event) => {
+            const raw = event.target.value.trim();
+            const value = Number.parseFloat(raw);
+            onPatchNode(nodeId, {
+              roundCountdownDurationSec:
+                raw.length > 0 && Number.isFinite(value) && value > 0 ? value : undefined,
+            });
+          }}
+          className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
+        />
+      </label>
+      <label className="block">
+        <span className="text-[10px] uppercase tracking-[0.08em] text-zinc-500">
+          <Trans>Overline label</Trans>
+        </span>
+        <input
+          type="text"
+          maxLength={50}
+          value={overlineDraft}
+          placeholder={t`NORMAL ROUND`}
+          onKeyDown={(e) => e.stopPropagation()}
+          onFocus={() => {
+            isEditingOverlineRef.current = true;
+          }}
+          onChange={(event) => {
+            const value = event.target.value;
+            setOverlineDraft(value);
+            const trimmed = value.trim();
+            onPatchNode(nodeId, {
+              roundOverlineLabel: trimmed.length > 0 ? trimmed : undefined,
+            });
+          }}
+          onBlur={(event) => {
+            isEditingOverlineRef.current = false;
+            const trimmed = event.target.value.trim();
+            setOverlineDraft(trimmed);
+            onPatchNode(nodeId, {
+              roundOverlineLabel: trimmed.length > 0 ? trimmed : undefined,
+            });
+          }}
+          className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
+        />
+      </label>
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setPaletteExpanded((prev) => !prev)}
+          className="flex w-full items-center justify-between text-[10px] uppercase tracking-[0.08em] text-zinc-500 transition hover:text-zinc-300"
+        >
+          <span>
+            <Trans>Transition palette</Trans>
+          </span>
+          <span className="text-[9px]">{paletteExpanded ? "▾" : "▸"}</span>
+        </button>
+        {paletteExpanded && (
+          <>
+            <p className="text-[10px] text-zinc-600">
+              <Trans>
+                You can add custom palettes in the settings panel.
+              </Trans>
+            </p>
+            {currentPalette && (
+              <button
+                type="button"
+                onMouseEnter={playHoverSound}
+                onClick={() => onPatchNode(nodeId, { roundTransitionPalette: undefined })}
+                className="w-full rounded-lg border border-zinc-700/50 px-2.5 py-1.5 text-[11px] text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200"
+              >
+                <Trans>Reset to map palette</Trans>
+              </button>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              {ROAD_PALETTE_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onMouseEnter={playHoverSound}
+                  onClick={() =>
+                    onPatchNode(nodeId, { roundTransitionPalette: { ...preset.palette } })
+                  }
+                  className={`rounded-lg border px-2 py-1.5 text-left text-[11px] transition ${
+                    currentPalette?.presetId === preset.id
+                      ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-100"
+                      : "border-zinc-700/50 text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  <span className="mb-1 flex gap-1">
+                    {(["railA", "railB", "glow"] as const).map((key) => (
+                      <span
+                        key={key}
+                        className="h-2.5 w-5 rounded-sm border border-white/10"
+                        style={{ backgroundColor: preset.palette[key] }}
+                      />
+                    ))}
+                  </span>
+                  {preset.name}
+                </button>
+              ))}
+              {customPalettes.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onMouseEnter={playHoverSound}
+                  onClick={() =>
+                    onPatchNode(nodeId, {
+                      roundTransitionPalette: { ...entry.palette, presetId: entry.id },
+                    })
+                  }
+                  className={`rounded-lg border px-2 py-1.5 text-left text-[11px] transition ${
+                    currentPalette?.presetId === entry.id
+                      ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-100"
+                      : "border-zinc-700/50 text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  <span className="mb-1 flex gap-1">
+                    {(["railA", "railB", "glow"] as const).map((key) => (
+                      <span
+                        key={key}
+                        className="h-2.5 w-5 rounded-sm border border-white/10"
+                        style={{ backgroundColor: entry.palette[key] }}
+                      />
+                    ))}
+                  </span>
+                  <span className="truncate">{entry.name}</span>
+                </button>
+              ))}
+            </div>
+            {currentPalette && (
+              <div className="grid gap-2">
+                {(
+                  [
+                    ["body", t`Body`],
+                    ["railA", t`Rail A`],
+                    ["railB", t`Rail B`],
+                    ["glow", t`Glow`],
+                    ["center", t`Center`],
+                    ["gate", t`Gate`],
+                    ["marker", t`Markers`],
+                  ] as Array<[TransitionPaletteColorKey, string]>
+                ).map(([key, label]) => (
+                  <label key={key} className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] uppercase tracking-[0.08em] text-zinc-500">
+                      {label}
+                    </span>
+                    <input
+                      type="color"
+                      value={currentPalette[key]}
+                      onChange={(event) => {
+                        const updated = { ...currentPalette, [key]: event.target.value, presetId: "custom" as const };
+                        onPatchNode(nodeId, { roundTransitionPalette: updated });
+                      }}
+                      className="h-8 w-12 rounded border border-zinc-700/60 bg-zinc-950 p-1"
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
   ({
     selectedNode,
@@ -132,6 +347,7 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
     randomPoolIds,
     perkOptions,
     antiPerkOptions,
+    customPalettes,
     onPatchNode,
     onCommitSelection,
     onSetTool,
@@ -429,6 +645,14 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                 </span>
               </label>
             </label>
+            <RoundTransitionSettings
+              countdownDurationSec={selectedNode.roundCountdownDurationSec}
+              overlineLabel={selectedNode.roundOverlineLabel}
+              transitionPalette={selectedNode.roundTransitionPalette}
+              customPalettes={customPalettes}
+              onPatchNode={onPatchNode}
+              nodeId={selectedNode.id}
+            />
             <SelectedRoundPreview
               round={
                 selectedNode.roundRef
@@ -580,6 +804,14 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                 </span>
               </label>
             </label>
+            <RoundTransitionSettings
+              countdownDurationSec={selectedNode.roundCountdownDurationSec}
+              overlineLabel={selectedNode.roundOverlineLabel}
+              transitionPalette={selectedNode.roundTransitionPalette}
+              customPalettes={customPalettes}
+              onPatchNode={onPatchNode}
+              nodeId={selectedNode.id}
+            />
           </div>
         )}
 

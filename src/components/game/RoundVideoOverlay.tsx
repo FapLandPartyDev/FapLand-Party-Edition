@@ -9,6 +9,7 @@ import type {
   PlayerState,
 } from "../../game/types";
 import { db, type InstalledRound } from "../../services/db";
+import { trpc } from "../../services/trpc";
 import { useToast } from "../ui/ToastHost";
 import { AntiPerkBeatbar } from "./AntiPerkBeatbar";
 import ControllerHints from "./ControllerHints";
@@ -39,6 +40,7 @@ import {
 } from "../../game/media/playback";
 import {
   createHapticsSession,
+  disconnectHapticsSession,
   pauseHapticsPlayback,
   preloadHapticsScript,
   resumeHapticsPlayback,
@@ -62,7 +64,9 @@ import {
 } from "../../utils/roundCuts";
 import {
   DEFAULT_ANTI_PERK_BEATBAR_ENABLED,
+  DEFAULT_HAPTICS_DISCONNECTED_STATUS_VISIBLE,
   DEFAULT_ROUND_PROGRESS_BAR_ALWAYS_VISIBLE,
+  HAPTICS_DISCONNECTED_STATUS_VISIBLE_KEY,
 } from "../../constants/roundVideoOverlaySettings";
 import { formatDurationLabel } from "../../utils/duration";
 import { isGameDevelopmentMode } from "../../utils/devFeatures";
@@ -113,6 +117,7 @@ export type RoundVideoOverlayProps = {
   onPreviewStateChange?: (state: { active: boolean; loading: boolean }) => void;
   initialShowProgressBarAlways?: boolean;
   initialShowAntiPerkBeatbar?: boolean;
+  initialShowDisconnectedHapticsStatus?: boolean;
   lastLogMessage?: string;
   roadPalette?: RoadPalette;
 };
@@ -302,6 +307,7 @@ export function RoundVideoOverlay({
   onPreviewStateChange,
   initialShowProgressBarAlways = DEFAULT_ROUND_PROGRESS_BAR_ALWAYS_VISIBLE,
   initialShowAntiPerkBeatbar = DEFAULT_ANTI_PERK_BEATBAR_ENABLED,
+  initialShowDisconnectedHapticsStatus = DEFAULT_HAPTICS_DISCONNECTED_STATUS_VISIBLE,
   lastLogMessage,
   roadPalette,
 }: RoundVideoOverlayProps) {
@@ -413,7 +419,9 @@ export function RoundVideoOverlay({
   const missingMediaCloseHandledRef = useRef(false);
 
   const handySessionRef = useRef<AnyHapticsSession | null>(null);
+  const handySessionConfigRef = useRef<HapticsConnectionConfig | null>(null);
   const handyInitPromiseRef = useRef<Promise<AnyHapticsSession | null> | null>(null);
+  const disconnectHandySessionRef = useRef<() => Promise<void>>(async () => undefined);
   const handyPushInFlightRef = useRef(false);
   const handyLastPushAtRef = useRef(0);
   const handyLastPushPosRef = useRef<number | null>(null);
@@ -440,6 +448,9 @@ export function RoundVideoOverlay({
   const [isUiVisible, setIsUiVisible] = useState(true);
   const [showProgressBarAlways, setShowProgressBarAlways] = useState(initialShowProgressBarAlways);
   const [showAntiPerkBeatbar, setShowAntiPerkBeatbar] = useState(initialShowAntiPerkBeatbar);
+  const [showDisconnectedHapticsStatus, setShowDisconnectedHapticsStatus] = useState(
+    initialShowDisconnectedHapticsStatus
+  );
   const [isRemoteVideoLoading, setIsRemoteVideoLoading] = useState(false);
   const [allowUnsafeMediaOnce, setAllowUnsafeMediaOnce] = useState(false);
   const [pendingCumRoundSummary, setPendingCumRoundSummary] =
@@ -760,6 +771,19 @@ export function RoundVideoOverlay({
     setIsRemoteVideoLoading(false);
   }, [activeResolvedVideoSrc, isActiveResolvedVideoRemote]);
 
+  const handlePlayableVideoError = useCallback(
+    async (originalUri: string | null | undefined, failedSrc: string | null | undefined) => {
+      if (!originalUri) return;
+      const fallback = await handleVideoError(originalUri);
+      if (fallback) {
+        setFailedVideoUri(null);
+        return;
+      }
+      setFailedVideoUri(failedSrc || originalUri);
+    },
+    [handleVideoError]
+  );
+
   const hasUsableActiveTimeline =
     Boolean(activeSegmentResource?.funscriptUri) &&
     timelineUri === activeSegmentResource?.funscriptUri &&
@@ -860,10 +884,10 @@ export function RoundVideoOverlay({
       intermediaryResourcePool.slice(0, 24).map((resource, index) => ({
         id: `fallback-${index}-${resource.videoUri}`,
         source: "fallback",
-        url: resource.videoUri,
+        url: getVideoSrc(resource.videoUri) ?? resource.videoUri,
         previewUrl: null,
       })),
-    [intermediaryResourcePool]
+    [getVideoSrc, intermediaryResourcePool]
   );
 
   useEffect(() => {
@@ -976,6 +1000,7 @@ export function RoundVideoOverlay({
   const resetHandySync = useCallback(
     (nextState: HandySyncState, message: string | null = null) => {
       handySessionRef.current = null;
+      handySessionConfigRef.current = null;
       handyInitPromiseRef.current = null;
       handyPushInFlightRef.current = false;
       handyLastPushAtRef.current = 0;
@@ -987,6 +1012,20 @@ export function RoundVideoOverlay({
     },
     [setSyncStatus]
   );
+
+  const disconnectHandySessionIfNeeded = useCallback(async () => {
+    const session = handySessionRef.current;
+    if (!session) return;
+    const config = handySessionConfigRef.current ?? hapticsConfig;
+    handySessionRef.current = null;
+    handySessionConfigRef.current = null;
+    try {
+      await disconnectHapticsSession(config, session);
+    } catch {
+      // ignore teardown failures
+    }
+  }, [hapticsConfig]);
+  disconnectHandySessionRef.current = disconnectHandySessionIfNeeded;
 
   const abortHandySyncLocally = useCallback(() => {
     handyManuallyStoppedRef.current = true;
@@ -1070,6 +1109,7 @@ export function RoundVideoOverlay({
     const initPromise = createHapticsSession(hapticsConfig)
       .then((session) => {
         handySessionRef.current = session;
+        handySessionConfigRef.current = hapticsConfig;
         return session;
       })
       .catch((error) => {
@@ -1371,7 +1411,7 @@ export function RoundVideoOverlay({
       !video.currentSrc &&
       originalUri
     ) {
-      void handleVideoError(originalUri);
+      void handlePlayableVideoError(originalUri, video.currentSrc);
       return;
     }
     if (isIntermediaryScreenActive) {
@@ -1434,7 +1474,7 @@ export function RoundVideoOverlay({
   }, [
     activeSegmentResource?.videoUri,
     activeVideoUri,
-    handleVideoError,
+    handlePlayableVideoError,
     isIntermediaryScreenActive,
     shouldGatePlaybackForHandyStart,
     resolvedMainResource?.videoUri,
@@ -1969,6 +2009,10 @@ export function RoundVideoOverlay({
   useEffect(() => {
     setShowAntiPerkBeatbar(initialShowAntiPerkBeatbar);
   }, [initialShowAntiPerkBeatbar]);
+
+  useEffect(() => {
+    setShowDisconnectedHapticsStatus(initialShowDisconnectedHapticsStatus);
+  }, [initialShowDisconnectedHapticsStatus]);
 
   useEffect(() => {
     if (!activeAntiPerkSequence) {
@@ -2696,19 +2740,34 @@ export function RoundVideoOverlay({
     if (!handyConnected) {
       handyBootstrapKeyRef.current = null;
       handyBootstrapInFlightRef.current = null;
+      void disconnectHandySessionIfNeeded();
       resetHandySync("disconnected", null);
       return;
     }
     if (!hasRequiredHapticsConnection) {
       handyBootstrapKeyRef.current = null;
       handyBootstrapInFlightRef.current = null;
+      void disconnectHandySessionIfNeeded();
       resetHandySync("missing-key", t`Missing haptics connection settings.`);
       return;
     }
     setHandySyncState("connecting");
     setHandySyncError(null);
     setSyncStatus({ synced: false, error: null });
-  }, [handyConnected, hasRequiredHapticsConnection, resetHandySync, setSyncStatus]);
+  }, [
+    disconnectHandySessionIfNeeded,
+    handyConnected,
+    hasRequiredHapticsConnection,
+    resetHandySync,
+    setSyncStatus,
+  ]);
+
+  useEffect(
+    () => () => {
+      void disconnectHandySessionRef.current();
+    },
+    []
+  );
 
   useEffect(() => {
     if (!handyManuallyStopped) return;
@@ -3584,8 +3643,14 @@ export function RoundVideoOverlay({
       <div
         className={`relative h-full w-full overflow-hidden ${isOnlyNoRest ? "bg-transparent" : "bg-black"}`}
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-24 bg-gradient-to-b from-black/70 via-black/25 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-36 bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
+        <div
+          className={`pointer-events-none absolute inset-x-0 top-0 z-20 h-24 bg-gradient-to-b from-black/70 via-black/25 to-transparent transition-opacity duration-250 ${isUiVisible ? "opacity-100" : "opacity-0"}`}
+          data-testid="round-overlay-top-shade"
+        />
+        <div
+          className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 h-36 bg-gradient-to-t from-black/75 via-black/30 to-transparent transition-opacity duration-250 ${isUiVisible ? "opacity-100" : "opacity-0"}`}
+          data-testid="round-overlay-bottom-shade"
+        />
 
         <div
           className={`pointer-events-auto absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-3 px-4 py-3 text-xs tracking-wide text-fuchsia-100 transition-opacity duration-250 ${isUiVisible ? "opacity-100" : "opacity-0"}`}
@@ -3622,6 +3687,30 @@ export function RoundVideoOverlay({
               data-controller-focus-id="round-overlay-handy-menu"
             >
               {t`Haptics Menu`}
+            </button>
+            <button
+              className={`pointer-events-auto rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+                showDisconnectedHapticsStatus
+                  ? "border-cyan-300/45 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/30"
+                  : "border-zinc-500/40 bg-zinc-700/20 text-zinc-300 hover:bg-zinc-700/35"
+              }`}
+              onClick={() => {
+                playSelectSound();
+                setShowDisconnectedHapticsStatus((current) => {
+                  const next = !current;
+                  void trpc.store.set
+                    .mutate({ key: HAPTICS_DISCONNECTED_STATUS_VISIBLE_KEY, value: next })
+                    .catch((error) => {
+                      console.warn("Failed to save haptics status visibility", error);
+                    });
+                  return next;
+                });
+              }}
+              onMouseEnter={() => playHoverSound()}
+              type="button"
+              data-controller-focus-id="round-overlay-haptics-status"
+            >
+              {showDisconnectedHapticsStatus ? t`Haptics Status On` : t`Haptics Status Off`}
             </button>
             {canUseRoundControls && (
               <>
@@ -3834,10 +3923,10 @@ export function RoundVideoOverlay({
               src={resolvedMainVideoSrc}
               onContextMenu={(event) => event.preventDefault()}
               onError={() => {
-                setFailedVideoUri(
-                  mainVideoRef.current?.currentSrc || resolvedMainResource.videoUri
+                void handlePlayableVideoError(
+                  resolvedMainResource.videoUri,
+                  mainVideoRef.current?.currentSrc
                 );
-                void handleVideoError(resolvedMainResource.videoUri);
               }}
               onEmptied={() => {
                 foregroundMainVideo.handlePause();
@@ -3955,10 +4044,10 @@ export function RoundVideoOverlay({
               src={resolvedIntermediaryVideoSrc}
               onContextMenu={(event) => event.preventDefault()}
               onError={() => {
-                setFailedVideoUri(
-                  intermediaryVideoRef.current?.currentSrc || segment.trigger.resource.videoUri
+                void handlePlayableVideoError(
+                  segment.trigger.resource.videoUri,
+                  intermediaryVideoRef.current?.currentSrc
                 );
-                void handleVideoError(segment.trigger.resource.videoUri);
               }}
               onEmptied={() => {
                 foregroundIntermediaryVideo.handlePause();
@@ -4418,13 +4507,15 @@ export function RoundVideoOverlay({
                 </div>
               )}
             </>
-          ) : (
+          ) : !showDisconnectedHapticsStatus && !handySyncError ? null : (
             <>
-              <div
-                className={`pointer-events-none absolute bottom-3 right-3 z-40 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] backdrop-blur transition-opacity duration-250 ${handyStatusTone} ${isUiVisible ? "opacity-100" : "opacity-0"}`}
-              >
-                {hapticsProviderLabel} {handyStatusLabel}
-              </div>
+              {showDisconnectedHapticsStatus && (
+                <div
+                  className={`pointer-events-none absolute bottom-3 right-3 z-40 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] backdrop-blur transition-opacity duration-250 ${handyStatusTone} ${isUiVisible ? "opacity-100" : "opacity-0"}`}
+                >
+                  {hapticsProviderLabel} {handyStatusLabel}
+                </div>
+              )}
               {handySyncError && (
                 <div
                   className={`pointer-events-none absolute bottom-12 right-3 z-40 max-w-xs rounded-lg border border-amber-300/40 bg-black/65 px-3 py-2 text-[11px] text-amber-100 backdrop-blur transition-opacity duration-250 ${isUiVisible ? "opacity-100" : "opacity-0"}`}

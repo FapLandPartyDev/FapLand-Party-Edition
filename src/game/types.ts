@@ -129,6 +129,9 @@ export type BoardField = {
   giftGuaranteedPerk?: boolean;
   catapultForward?: number;
   catapultLandingOnly?: boolean;
+  roundCountdownDurationSec?: number;
+  roundOverlineLabel?: string;
+  roundTransitionPalette?: RoadPalette;
   styleHint?: {
     x?: number;
     y?: number;
@@ -462,6 +465,9 @@ export type ActiveRound = {
   poolId: string | null;
   phaseKind: "normal" | "cum";
   campaignIndex: number | null;
+  roundCountdownDurationSec?: number;
+  roundOverlineLabel?: string;
+  roundTransitionPalette?: RoadPalette;
 };
 
 export type PathChoiceOption = {

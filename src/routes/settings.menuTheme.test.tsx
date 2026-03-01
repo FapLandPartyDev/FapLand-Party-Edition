@@ -96,6 +96,7 @@ vi.mock("../i18n", () => ({
 
 vi.mock("../services/booru", () => ({
   ensureBooruMediaCache: vi.fn(),
+  clearBooruMediaCache: vi.fn(),
 }));
 
 vi.mock("../services/db", () => ({

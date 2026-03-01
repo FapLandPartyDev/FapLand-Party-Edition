@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "../game/data/perks";
 import type { InstalledRound, InstalledRoundCatalogEntry } from "../services/db";
@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => ({
       checkWebsiteVideoSupport: vi.fn(),
       delete: vi.fn(),
       deleteMany: vi.fn(),
+      bulkUpdateTags: vi.fn(),
       repairTemplate: vi.fn(),
       retryTemplateLinking: vi.fn(),
       convertHeroGroupToRound: vi.fn(),
@@ -223,6 +224,8 @@ function makeRound({
   previewImage = null,
   websiteVideoCacheStatus = "not_applicable",
   videoUri = null,
+  tags = [],
+  libraryLabel = null,
 }: {
   id: string;
   name: string;
@@ -238,6 +241,8 @@ function makeRound({
   previewImage?: string | null;
   websiteVideoCacheStatus?: "not_applicable" | "cached" | "pending";
   videoUri?: string | null;
+  tags?: string[];
+  libraryLabel?: string | null;
 }): InstalledRound {
   const heroId = hero?.id ?? (hero?.name ? `hero-${hero.name}` : null);
   return {
@@ -280,10 +285,12 @@ function makeRound({
           },
         ],
     installSourceKey,
+    libraryLabel,
     phash: null,
     previewImage,
     heroSourceType: null,
     sourceType: null,
+    tags,
     updatedAt: createdAt,
   } as unknown as InstalledRound;
 }
@@ -328,6 +335,8 @@ function makePlaylist(id: string, name: string, roundIds: string[]): StoredPlayl
         antiPerkIncreasePerRound: 0.015,
         maxIntermediaryProbability: 1,
         maxAntiPerkProbability: 0.75,
+        resetIntermediaryProbabilityAfterTrigger: false,
+        resetAntiPerkProbabilityAfterTrigger: false,
       },
       economy: {
         startingMoney: 120,
@@ -346,14 +355,16 @@ function makePlaylist(id: string, name: string, roundIds: string[]): StoredPlayl
 }
 
 function openDropdown(label: string): HTMLElement {
-  const labelElement = screen.getByText(label);
-  const container = labelElement.parentElement;
-  if (!container) {
-    throw new Error(`Missing dropdown container for ${label}`);
+  for (const labelElement of screen.getAllByText(label)) {
+    const button = labelElement.parentElement?.querySelector(
+      'button[aria-haspopup="listbox"]'
+    ) as HTMLElement | null;
+    if (button) {
+      fireEvent.click(button);
+      return button;
+    }
   }
-  const button = within(container).getByRole("button");
-  fireEvent.click(button);
-  return button;
+  throw new Error(`Missing dropdown container for ${label}`);
 }
 
 beforeEach(() => {
@@ -454,6 +465,7 @@ beforeEach(() => {
     requestedCount: 0,
     missingIds: [],
   });
+  mocks.db.round.bulkUpdateTags.mockResolvedValue({ updatedCount: 0 });
   mocks.db.round.convertHeroGroupToRound.mockResolvedValue({
     keptRoundId: "kept",
     removedRoundCount: 0,
@@ -1162,7 +1174,7 @@ describe("InstalledRoundsPage hero grouping", () => {
     expect(screen.queryByRole("heading", { name: "Older Added Round" })).toBeNull();
   });
 
-  it("selects visible rounds and confirms bulk deletion", async () => {
+  it("selects matching rounds and confirms bulk deletion", async () => {
     mocks.loaderData.rounds = [
       makeRound({
         id: "stash-round",
@@ -1188,7 +1200,7 @@ describe("InstalledRoundsPage hero grouping", () => {
     openDropdown("Source");
     fireEvent.click(screen.getByRole("option", { name: /Stash/ }));
     fireEvent.click(screen.getByRole("button", { name: "Select Items" }));
-    fireEvent.click(screen.getByRole("button", { name: "Select Visible Rounds" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Matching Rounds" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete Selected" }));
 
     expect(screen.getByRole("dialog", { name: "Delete Selected Rounds?" })).toBeDefined();
@@ -1203,6 +1215,67 @@ describe("InstalledRoundsPage hero grouping", () => {
 
     await waitFor(() => {
       expect(mocks.db.round.deleteMany).toHaveBeenCalledWith(["stash-round"]);
+    });
+    expect(mocks.db.round.findInstalledCatalog).toHaveBeenCalledTimes(2);
+  });
+
+  it("selects all rounds matching search tag and library filters for bulk tag edits", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "target-a",
+        name: "Target Alpha",
+        createdAt: "2026-03-03T12:00:00.000Z",
+        tags: ["tempo"],
+        libraryLabel: "Pack A",
+      }),
+      makeRound({
+        id: "target-b",
+        name: "Target Beta",
+        createdAt: "2026-03-03T11:00:00.000Z",
+        tags: ["tempo"],
+        libraryLabel: "Pack A",
+      }),
+      makeRound({
+        id: "wrong-library",
+        name: "Target Other Pack",
+        createdAt: "2026-03-03T10:00:00.000Z",
+        tags: ["tempo"],
+        libraryLabel: "Pack B",
+      }),
+      makeRound({
+        id: "wrong-tag",
+        name: "Target Missing Tag",
+        createdAt: "2026-03-03T09:00:00.000Z",
+        tags: ["slow"],
+        libraryLabel: "Pack A",
+      }),
+    ];
+    mocks.db.round.bulkUpdateTags.mockResolvedValue({ updatedCount: 2 });
+
+    await renderInstalledRoundsPage();
+
+    fireEvent.change(screen.getByPlaceholderText("Search title, hero, author"), {
+      target: { value: "Target" },
+    });
+    openDropdown("Tag");
+    fireEvent.click(screen.getByRole("option", { name: "tempo" }));
+    openDropdown("Library");
+    fireEvent.click(screen.getByRole("option", { name: "Pack A" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Items" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Matching Rounds" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Tags" }));
+
+    expect(screen.getByRole("heading", { name: "Edit Tags for 2 Rounds" })).toBeDefined();
+
+    fireEvent.change(screen.getByLabelText("Tags"), { target: { value: "featured, tempo" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply Tags" }));
+
+    await waitFor(() => {
+      expect(mocks.db.round.bulkUpdateTags).toHaveBeenCalledWith({
+        roundIds: ["target-a", "target-b"],
+        mode: "add",
+        tags: ["featured", "tempo"],
+      });
     });
     expect(mocks.db.round.findInstalledCatalog).toHaveBeenCalledTimes(2);
   });

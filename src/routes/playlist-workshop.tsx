@@ -69,6 +69,7 @@ type EditableLinearSetup = {
   roundCount: number;
   safePointsEnabled: boolean;
   safePointIndices: number[];
+  difficultySections: DifficultySection[];
   saveMode: "none" | "checkpoint" | "everywhere";
   normalRoundOrder: string[];
   enabledCumRoundIds: string[];
@@ -95,6 +96,13 @@ type EditableLinearSetup = {
   diceMin: number;
   diceMax: number;
   disableDiceAnimation: boolean;
+};
+
+type DifficultySection = {
+  startIndex: number;
+  endIndex: number;
+  minDifficulty: number;
+  maxDifficulty: number;
 };
 
 const DEFAULT_SAFE_PRESET = [25, 50, 75];
@@ -345,11 +353,25 @@ export function ensureLinearSetupCapacity(setup: EditableLinearSetup): EditableL
   );
   const nextRoundCount = Math.max(normalizedRoundCount, requiredRoundCount);
   const safePointIndices = filterIndicesWithinTotal(setup.safePointIndices, nextRoundCount);
+  const difficultySections = setup.difficultySections
+    .map((section) => ({
+      ...section,
+      startIndex: Math.max(1, Math.min(nextRoundCount, Math.floor(section.startIndex))),
+      endIndex: Math.max(1, Math.min(nextRoundCount, Math.floor(section.endIndex))),
+      minDifficulty: Math.max(1, Math.min(5, Math.floor(section.minDifficulty))),
+      maxDifficulty: Math.max(1, Math.min(5, Math.floor(section.maxDifficulty))),
+    }))
+    .filter((section) => section.startIndex <= section.endIndex)
+    .map((section) => ({
+      ...section,
+      maxDifficulty: Math.max(section.minDifficulty, section.maxDifficulty),
+    }));
 
   return {
     ...setup,
     roundCount: nextRoundCount,
     safePointIndices,
+    difficultySections,
   };
 }
 
@@ -384,6 +406,46 @@ export function sortSelectedRoundsByDifficulty(
       return a.index - b.index;
     })
     .map(({ round }) => round);
+}
+
+export function buildDifficultySectionRoundOrder(input: {
+  sections: DifficultySection[];
+  rounds: WorkshopInstalledRound[];
+}): string[] {
+  const usedIds = new Set<string>();
+  const output: string[] = [];
+  const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+  const sortedRounds = [...input.rounds].sort((a, b) => collator.compare(a.name, b.name));
+
+  for (const section of input.sections) {
+    const slots = Math.max(0, section.endIndex - section.startIndex + 1);
+    for (let slot = 0; slot < slots; slot += 1) {
+      const candidates = sortedRounds
+        .map((round) => {
+          const difficulty = round.difficulty ?? 1;
+          const inRange =
+            difficulty >= section.minDifficulty && difficulty <= section.maxDifficulty;
+          const distance = inRange
+            ? 0
+            : Math.min(
+                Math.abs(difficulty - section.minDifficulty),
+                Math.abs(difficulty - section.maxDifficulty)
+              );
+          return { round, distance, used: usedIds.has(round.id) };
+        })
+        .sort((a, b) => {
+          if (a.used !== b.used) return a.used ? 1 : -1;
+          if (a.distance !== b.distance) return a.distance - b.distance;
+          return collator.compare(a.round.name, b.round.name);
+        });
+      const picked = candidates[0]?.round;
+      if (!picked) break;
+      output.push(picked.id);
+      usedIds.add(picked.id);
+    }
+  }
+
+  return output;
 }
 
 function matchesDurationFilter(durationSec: number, filter: DurationFilter): boolean {
@@ -521,6 +583,7 @@ function toEditableSetup(
       roundCount: 100,
       safePointsEnabled: true,
       safePointIndices: [...DEFAULT_SAFE_PRESET],
+      difficultySections: [],
       saveMode: config.saveMode ?? "none",
       normalRoundOrder: [],
       enabledCumRoundIds: [],
@@ -570,6 +633,7 @@ function toEditableSetup(
     roundCount: board.totalIndices,
     safePointsEnabled: board.safePointIndices.length > 0,
     safePointIndices: [...board.safePointIndices],
+    difficultySections: [...(board.difficultySections ?? [])],
     saveMode: config.saveMode ?? "none",
     normalRoundOrder,
     enabledCumRoundIds,
@@ -630,6 +694,7 @@ function toLinearBoardConfig(
     normalRoundRefsByIndex: {},
     normalRoundOrder,
     cumRoundRefs,
+    difficultySections: setup.difficultySections,
   };
 }
 
@@ -844,6 +909,8 @@ function PlaylistWorkshopPage() {
   const [normalRoundSearch, setNormalRoundSearch] = useState("");
   const [normalRoundSort, setNormalRoundSort] = useState<NormalRoundSort>("name-asc");
   const [normalRoundDurationFilter, setNormalRoundDurationFilter] = useState<DurationFilter>("any");
+  const [difficultySectionsUseCurrentFilters, setDifficultySectionsUseCurrentFilters] =
+    useState(false);
   const [activePreviewRound, setActivePreviewRound] = useState<InstalledRound | null>(null);
   const [previewInstalledRounds, setPreviewInstalledRounds] = useState<InstalledRound[] | null>(
     null
@@ -1037,7 +1104,7 @@ function PlaylistWorkshopPage() {
   const normalRounds = useMemo(
     () =>
       installedRounds.filter(
-        (round: WorkshopInstalledRound) => (round.type ?? "Normal") === "Normal"
+        (round: WorkshopInstalledRound) => (round.type ?? "Normal") !== "Interjection"
       ),
     [installedRounds]
   );
@@ -1124,6 +1191,22 @@ function PlaylistWorkshopPage() {
       return compareByName(a, b);
     });
   }, [availableNormalRounds, normalRoundDurationFilter, normalRoundSearch, normalRoundSort]);
+
+  const difficultySectionSourceRounds = useMemo(() => {
+    if (!difficultySectionsUseCurrentFilters) return normalRounds;
+    const query = normalRoundSearch.trim().toLowerCase();
+    return normalRounds.filter((round) => {
+      const matchesQuery =
+        query.length === 0 ||
+        `${round.name} ${round.author ?? ""}`.toLowerCase().includes(query);
+      return matchesQuery && matchesDurationFilter(getRoundDurationSec(round), normalRoundDurationFilter);
+    });
+  }, [
+    difficultySectionsUseCurrentFilters,
+    normalRoundDurationFilter,
+    normalRoundSearch,
+    normalRounds,
+  ]);
 
   const shouldVirtualizeAvailableRounds =
     visibleAvailableNormalRounds.length > LARGE_AVAILABLE_LIST_THRESHOLD;
@@ -1257,7 +1340,7 @@ function PlaylistWorkshopPage() {
 
     const base = createDefaultPlaylistConfig(installedRounds);
     const normalRounds = installedRounds.filter(
-      (round: WorkshopInstalledRound) => (round.type ?? "Normal") === "Normal"
+      (round: WorkshopInstalledRound) => (round.type ?? "Normal") !== "Interjection"
     );
     const ordered =
       mode === "fully-random"
@@ -1895,6 +1978,84 @@ function PlaylistWorkshopPage() {
 
   const clearNormalRounds = () => {
     setSetup((prev) => ({ ...prev, normalRoundOrder: [] }));
+  };
+
+  const createSuggestedDifficultySections = () => {
+    setSetup((prev) => ({
+      ...prev,
+      difficultySections: [
+        { startIndex: 1, endIndex: Math.min(25, prev.roundCount), minDifficulty: 1, maxDifficulty: 1 },
+        {
+          startIndex: Math.min(26, prev.roundCount),
+          endIndex: Math.min(50, prev.roundCount),
+          minDifficulty: 5,
+          maxDifficulty: 5,
+        },
+        {
+          startIndex: Math.min(51, prev.roundCount),
+          endIndex: Math.min(75, prev.roundCount),
+          minDifficulty: 3,
+          maxDifficulty: 3,
+        },
+        {
+          startIndex: Math.min(76, prev.roundCount),
+          endIndex: prev.roundCount,
+          minDifficulty: 1,
+          maxDifficulty: 5,
+        },
+      ].filter((section) => section.startIndex <= section.endIndex),
+    }));
+  };
+
+  const addDifficultySection = () => {
+    setSetup((prev) => ({
+      ...prev,
+      difficultySections: [
+        ...prev.difficultySections,
+        {
+          startIndex: 1,
+          endIndex: prev.roundCount,
+          minDifficulty: 1,
+          maxDifficulty: 5,
+        },
+      ],
+    }));
+  };
+
+  const updateDifficultySection = (
+    sectionIndex: number,
+    patch: Partial<DifficultySection>
+  ) => {
+    setSetup((prev) =>
+      ensureLinearSetupCapacity({
+        ...prev,
+        difficultySections: prev.difficultySections.map((section, index) =>
+          index === sectionIndex ? { ...section, ...patch } : section
+        ),
+      })
+    );
+  };
+
+  const deleteDifficultySection = (sectionIndex: number) => {
+    setSetup((prev) => ({
+      ...prev,
+      difficultySections: prev.difficultySections.filter((_, index) => index !== sectionIndex),
+    }));
+  };
+
+  const rebuildQueueFromDifficultySections = () => {
+    setSetup((prev) => {
+      if (prev.difficultySections.length === 0 || difficultySectionSourceRounds.length === 0) {
+        return prev;
+      }
+      return ensureLinearSetupCapacity({
+        ...prev,
+        normalRoundOrder: buildDifficultySectionRoundOrder({
+          sections: prev.difficultySections,
+          rounds: difficultySectionSourceRounds,
+        }),
+      });
+    });
   };
 
   const applyNormalRoundOrdering = (mode: NewPlaylistMode) => {
@@ -2657,6 +2818,108 @@ function PlaylistWorkshopPage() {
                             className="rounded-lg border border-rose-300/40 bg-rose-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Trans>✕ Clear</Trans>
+                          </button>
+                        </div>
+
+                        <div className="mt-3 shrink-0 rounded-xl border border-cyan-300/20 bg-cyan-500/10 p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <h4 className="text-sm font-bold text-cyan-50">
+                                <Trans>Difficulty Sections</Trans>
+                              </h4>
+                              <p className="mt-0.5 text-xs text-cyan-50/60">
+                                <Trans>Rebuild the queue from index ranges and difficulty bands.</Trans>
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              <button
+                                type="button"
+                                disabled={!isLinearEditable}
+                                onMouseEnter={playHoverSound}
+                                onClick={createSuggestedDifficultySections}
+                                className="rounded-lg border border-cyan-300/40 bg-cyan-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-cyan-100 hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <Trans>Create Suggested Sections</Trans>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!isLinearEditable}
+                                onMouseEnter={playHoverSound}
+                                onClick={addDifficultySection}
+                                className="rounded-lg border border-emerald-300/40 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-emerald-100 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <Trans>Add Section</Trans>
+                              </button>
+                            </div>
+                          </div>
+                          <label className="mt-3 flex items-center gap-2 text-xs text-cyan-50/75">
+                            <input
+                              type="checkbox"
+                              checked={difficultySectionsUseCurrentFilters}
+                              onChange={(event) =>
+                                setDifficultySectionsUseCurrentFilters(event.target.checked)
+                              }
+                              className="h-4 w-4 rounded border-cyan-300/40 bg-black/45 text-cyan-400 focus:ring-cyan-400/60"
+                            />
+                            <Trans>Use current search and duration filters</Trans>
+                          </label>
+                          {setup.difficultySections.length > 0 && (
+                            <div className="mt-3 grid gap-2">
+                              {setup.difficultySections.map((section, sectionIndex) => (
+                                <div
+                                  key={`difficulty-section:${sectionIndex}`}
+                                  className="grid gap-2 rounded-lg border border-white/10 bg-black/30 p-2 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto]"
+                                >
+                                  {(
+                                    [
+                                      ["startIndex", t`Start`],
+                                      ["endIndex", t`End`],
+                                      ["minDifficulty", t`Min D`],
+                                      ["maxDifficulty", t`Max D`],
+                                    ] as const
+                                  ).map(([field, label]) => (
+                                    <label key={field} className="text-[10px] uppercase tracking-[0.16em] text-cyan-50/60">
+                                      {label}
+                                      <input
+                                        type="number"
+                                        min={field.includes("Difficulty") ? 1 : 1}
+                                        max={field.includes("Difficulty") ? 5 : setup.roundCount}
+                                        value={section[field]}
+                                        disabled={!isLinearEditable}
+                                        onChange={(event) =>
+                                          updateDifficultySection(sectionIndex, {
+                                            [field]: Number(event.target.value),
+                                          })
+                                        }
+                                        className="mt-1 w-full rounded-md border border-cyan-300/25 bg-black/45 px-2 py-1 text-sm text-zinc-100 outline-none focus:border-cyan-200/70 disabled:cursor-not-allowed disabled:opacity-50"
+                                      />
+                                    </label>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    disabled={!isLinearEditable}
+                                    onMouseEnter={playHoverSound}
+                                    onClick={() => deleteDifficultySection(sectionIndex)}
+                                    className="rounded-md border border-rose-300/40 bg-rose-500/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <Trans>Delete</Trans>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            disabled={
+                              !isLinearEditable ||
+                              setup.difficultySections.length === 0 ||
+                              difficultySectionSourceRounds.length === 0
+                            }
+                            onMouseEnter={playHoverSound}
+                            onClick={rebuildQueueFromDifficultySections}
+                            className="mt-3 rounded-lg border border-violet-300/40 bg-violet-500/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-violet-100 hover:bg-violet-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Trans>Rebuild Queue From Sections</Trans>
                           </button>
                         </div>
 

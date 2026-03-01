@@ -94,6 +94,7 @@ import { realignGraph, type GraphAlignmentStrategy } from "../features/map-edito
 import { useControllerSurface } from "../controller";
 import type { ActionKind } from "../game/automation/registry";
 import type { AutomationCondition } from "../game/automation/schema";
+import { useCustomRoadPalettes } from "../features/map-editor/useCustomRoadPalettes";
 
 const DEFAULT_TILE_CATALOG: TileCatalog = {
   version: 1,
@@ -300,7 +301,11 @@ const makeStartingConfig = (): EditorGraphConfig => ({
     antiPerkIncreasePerRound: 0.015,
     maxIntermediaryProbability: 1,
     maxAntiPerkProbability: 0.75,
+    resetIntermediaryProbabilityAfterTrigger: false,
+    resetAntiPerkProbabilityAfterTrigger: false,
   },
+  resetIntermediaryProbabilityAfterTrigger: false,
+  resetAntiPerkProbabilityAfterTrigger: false,
   economy: {
     startingMoney: 120,
     scorePerCumRoundSuccess: 120,
@@ -566,6 +571,14 @@ function MapEditorPage() {
     active: false,
     moved: false,
   });
+
+  const {
+    customPalettes,
+    isLoading: isLoadingCustomPalettes,
+    saveCurrentAsCustom: saveCustomPalette,
+    updateCustomPalette,
+    deleteCustomPalette,
+  } = useCustomRoadPalettes();
 
   const syncHistoryState = useCallback(() => {
     const manager = undoManagerRef.current;
@@ -3313,6 +3326,7 @@ function MapEditorPage() {
                       randomPoolIds={config.randomRoundPools.map((pool) => pool.id)}
                       perkOptions={perkOptions}
                       antiPerkOptions={antiPerkOptions}
+                      customPalettes={customPalettes}
                       onPatchNode={patchNode}
                       onCommitSelection={commitSelection}
                       onSetTool={handleSetConnectTool}
@@ -3375,6 +3389,11 @@ function MapEditorPage() {
                       onSetRoadPalette={setRoadPalette}
                       onPatchRoadPalette={patchRoadPalette}
                       onResetRoadPalette={resetRoadPalette}
+                      customPalettes={customPalettes}
+                      isLoadingCustomPalettes={isLoadingCustomPalettes}
+                      onSaveCustomPalette={saveCustomPalette}
+                      onUpdateCustomPalette={updateCustomPalette}
+                      onDeleteCustomPalette={deleteCustomPalette}
                       onTogglePerk={togglePerkEnabled}
                       onToggleAntiPerk={toggleAntiPerkEnabled}
                       onSetAllPerksEnabled={setAllPerksEnabled}

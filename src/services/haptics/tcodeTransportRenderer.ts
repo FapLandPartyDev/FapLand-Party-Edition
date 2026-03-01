@@ -32,8 +32,8 @@ type WebSerialPortInfo = {
 };
 
 type WebSerialPort = {
-  readable: ReadableStream<Uint8Array>;
-  writable: WritableStream<Uint8Array>;
+  readable: ReadableStream<Uint8Array> | null;
+  writable: WritableStream<Uint8Array> | null;
   getInfo: () => WebSerialPortInfo;
   open: (options: { baudRate: number }) => Promise<void>;
   close: () => Promise<void>;
@@ -67,7 +67,10 @@ function getPortLabel(port: WebSerialPort, index: number): string {
 class TCodeTransportRenderer {
   private knownPorts: Map<string, PortEntry> = new Map();
   private activeSerialPort: WebSerialPort | null = null;
+  private serialReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   private serialWriter: WritableStreamDefaultWriter<Uint8Array> | null = null;
+  private readLoopPromise: Promise<void> | null = null;
+  private operationQueue: Promise<void> = Promise.resolve();
   private readLoopActive = false;
   private ws: WebSocket | null = null;
 
@@ -93,9 +96,19 @@ class TCodeTransportRenderer {
   }
 
   async connect(input: TCodeConnectInput): Promise<TCodeConnectResult> {
-    await this.disconnect();
-    if (input.transport === "serial") return this.connectSerial(input);
-    return this.connectWebSocket(input);
+    return this.enqueue(async () => {
+      try {
+        await this.disconnectNow();
+      } catch (error) {
+        return {
+          success: false,
+          error:
+            error instanceof Error ? error.message : "Failed to disconnect TCode transport.",
+        };
+      }
+      if (input.transport === "serial") return this.connectSerial(input);
+      return this.connectWebSocket(input);
+    });
   }
 
   async autoDetectSerialPort(
@@ -144,7 +157,32 @@ class TCodeTransportRenderer {
   }
 
   async disconnect(): Promise<void> {
+    await this.enqueue(() => this.disconnectNow());
+  }
+
+  isConnected(): boolean {
+    return this.readLoopActive || this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const run = this.operationQueue.catch(() => undefined).then(operation);
+    this.operationQueue = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
+  }
+
+  private async disconnectNow(): Promise<void> {
     this.readLoopActive = false;
+    const reader = this.serialReader;
+    if (reader) {
+      try {
+        await reader.cancel();
+      } catch {
+        // already cancelled or disconnected
+      }
+    }
     if (this.serialWriter) {
       try {
         this.serialWriter.releaseLock();
@@ -153,13 +191,19 @@ class TCodeTransportRenderer {
       }
       this.serialWriter = null;
     }
+    if (this.readLoopPromise) {
+      await this.readLoopPromise.catch(() => undefined);
+      this.readLoopPromise = null;
+    }
     if (this.activeSerialPort) {
+      const port = this.activeSerialPort;
       try {
-        await this.activeSerialPort.close();
+        await port.close();
+        this.activeSerialPort = null;
       } catch {
-        // ignore close errors
+        this.activeSerialPort = port;
+        throw new Error("Failed to close TCode serial port.");
       }
-      this.activeSerialPort = null;
     }
     if (this.ws) {
       try {
@@ -169,10 +213,6 @@ class TCodeTransportRenderer {
       }
       this.ws = null;
     }
-  }
-
-  isConnected(): boolean {
-    return this.readLoopActive || this.ws?.readyState === WebSocket.OPEN;
   }
 
   private async connectSerial(input: TCodeConnectInput): Promise<TCodeConnectResult> {
@@ -186,12 +226,14 @@ class TCodeTransportRenderer {
     try {
       await entry.port.open({ baudRate });
       this.activeSerialPort = entry.port;
+      if (!entry.port.writable) {
+        throw new Error("TCode serial port is not writable.");
+      }
       this.serialWriter = entry.port.writable.getWriter();
       this.startReadLoop(entry.port);
       return { success: true };
     } catch (error) {
-      this.activeSerialPort = null;
-      this.serialWriter = null;
+      await this.disconnectNow().catch(() => undefined);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Failed to connect to TCode serial port.",
@@ -201,8 +243,13 @@ class TCodeTransportRenderer {
 
   private startReadLoop(port: WebSerialPort): void {
     this.readLoopActive = true;
-    (async () => {
+    this.readLoopPromise = (async () => {
+      if (!port.readable) {
+        this.readLoopActive = false;
+        return;
+      }
       const reader = port.readable.getReader();
+      this.serialReader = reader;
       try {
         while (this.readLoopActive) {
           const { done } = await reader.read();
@@ -211,19 +258,15 @@ class TCodeTransportRenderer {
       } catch {
         // port disconnected or read error
       } finally {
-        reader.releaseLock();
-        if (this.activeSerialPort === port) {
-          this.readLoopActive = false;
-          this.activeSerialPort = null;
-          if (this.serialWriter) {
-            try {
-              this.serialWriter.releaseLock();
-            } catch {
-              // already released
-            }
-            this.serialWriter = null;
-          }
+        try {
+          reader.releaseLock();
+        } catch {
+          // already released
         }
+        if (this.serialReader === reader) {
+          this.serialReader = null;
+        }
+        this.readLoopActive = false;
       }
     })();
   }

@@ -19,9 +19,15 @@ import { isAssistedSaveMode } from "../game/saveMode";
 import {
   ANTI_PERK_BEATBAR_ENABLED_KEY,
   DEFAULT_ANTI_PERK_BEATBAR_ENABLED,
+  DEFAULT_GAMEPLAY_HAPTICS_PERKS_WITHOUT_DEVICE,
+  DEFAULT_HAPTICS_DISCONNECTED_STATUS_VISIBLE,
+  GAMEPLAY_HAPTICS_PERKS_WITHOUT_DEVICE_KEY,
+  HAPTICS_DISCONNECTED_STATUS_VISIBLE_KEY,
   DEFAULT_ROUND_PROGRESS_BAR_ALWAYS_VISIBLE,
   ROUND_PROGRESS_BAR_ALWAYS_VISIBLE_KEY,
   normalizeAntiPerkBeatbarEnabled,
+  normalizeGameplayHapticsPerksWithoutDevice,
+  normalizeHapticsDisconnectedStatusVisible,
   normalizeRoundProgressBarAlwaysVisible,
 } from "../constants/roundVideoOverlaySettings";
 import { db, type InstalledRound } from "../services/db";
@@ -181,6 +187,26 @@ const getAntiPerkBeatbarEnabled = async (): Promise<boolean> => {
   }
 };
 
+const getHapticsDisconnectedStatusVisible = async (): Promise<boolean> => {
+  try {
+    const stored = await trpc.store.get.query({ key: HAPTICS_DISCONNECTED_STATUS_VISIBLE_KEY });
+    return normalizeHapticsDisconnectedStatusVisible(stored);
+  } catch (error) {
+    console.warn("Failed to read haptics disconnected status visibility from store", error);
+    return DEFAULT_HAPTICS_DISCONNECTED_STATUS_VISIBLE;
+  }
+};
+
+const getGameplayHapticsPerksWithoutDevice = async (): Promise<boolean> => {
+  try {
+    const stored = await trpc.store.get.query({ key: GAMEPLAY_HAPTICS_PERKS_WITHOUT_DEVICE_KEY });
+    return normalizeGameplayHapticsPerksWithoutDevice(stored);
+  } catch (error) {
+    console.warn("Failed to read haptics anti-perk capability setting from store", error);
+    return DEFAULT_GAMEPLAY_HAPTICS_PERKS_WITHOUT_DEVICE;
+  }
+};
+
 const getCheatModeEnabled = async (): Promise<boolean> => {
   try {
     const stored = await trpc.store.get.query({ key: CHEAT_MODE_ENABLED_KEY });
@@ -271,6 +297,8 @@ export const Route = createFileRoute("/game")({
       intermediaryReturnPauseSec,
       roundProgressBarAlwaysVisible,
       antiPerkBeatbarEnabled,
+      hapticsDisconnectedStatusVisible,
+      allowHapticsPerksWithoutDevice,
       cheatModeEnabled,
       initialApplyPerkDirectly,
       moaningAvailable,
@@ -284,6 +312,8 @@ export const Route = createFileRoute("/game")({
       getIntermediaryReturnPauseSec(),
       getRoundProgressBarAlwaysVisible(),
       getAntiPerkBeatbarEnabled(),
+      getHapticsDisconnectedStatusVisible(),
+      getGameplayHapticsPerksWithoutDevice(),
       getCheatModeEnabled(),
       getApplyPerkDirectly(),
       getMoaningAvailability(),
@@ -333,6 +363,8 @@ export const Route = createFileRoute("/game")({
       intermediaryReturnPauseSec,
       roundProgressBarAlwaysVisible,
       antiPerkBeatbarEnabled,
+      hapticsDisconnectedStatusVisible,
+      allowHapticsPerksWithoutDevice,
       cheatModeEnabled,
       initialApplyPerkDirectly,
       moaningAvailable,
@@ -357,6 +389,8 @@ function GameRoute() {
     intermediaryReturnPauseSec,
     roundProgressBarAlwaysVisible,
     antiPerkBeatbarEnabled,
+    hapticsDisconnectedStatusVisible,
+    allowHapticsPerksWithoutDevice,
     cheatModeEnabled,
     initialApplyPerkDirectly,
     moaningAvailable,
@@ -407,14 +441,22 @@ function GameRoute() {
         enabledPerkIds: filterPerkIdsByGameplayCapabilities(baseConfig.perkPool.enabledPerkIds, {
           handyConnected,
           moaningAvailable,
+          allowHapticsWithoutDevice: allowHapticsPerksWithoutDevice,
         }),
         enabledAntiPerkIds: filterPerkIdsByGameplayCapabilities(
           baseConfig.perkPool.enabledAntiPerkIds,
-          { handyConnected, moaningAvailable }
+          { handyConnected, moaningAvailable, allowHapticsWithoutDevice: allowHapticsPerksWithoutDevice }
         ),
       },
     };
-  }, [activePlaylist.config, economyOverrides, handyConnected, installedRounds, moaningAvailable]);
+  }, [
+    activePlaylist.config,
+    allowHapticsPerksWithoutDevice,
+    economyOverrides,
+    handyConnected,
+    installedRounds,
+    moaningAvailable,
+  ]);
 
   const initialState = useMemo(
     () =>
@@ -736,6 +778,7 @@ function GameRoute() {
         intermediaryReturnPauseSec={intermediaryReturnPauseSec}
         initialShowProgressBarAlways={roundProgressBarAlwaysVisible}
         initialShowAntiPerkBeatbar={antiPerkBeatbarEnabled}
+        initialShowDisconnectedHapticsStatus={hapticsDisconnectedStatusVisible}
         applyPerkDirectly={applyPerkDirectly}
         onApplyPerkDirectlyChange={handleApplyPerkDirectlyChange}
         endlessMode={isEndlessMode(initialState)}

@@ -121,6 +121,44 @@ describe("playlistSchema", () => {
     expect(parsed.probabilityScaling.resetAntiPerkProbabilityAfterTrigger).toBe(true);
   });
 
+  it("preserves and validates linear difficulty sections", () => {
+    const parsed = ZPlaylistConfig.parse(
+      buildConfig({
+        mode: "linear",
+        totalIndices: 100,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+        difficultySections: [
+          { startIndex: 1, endIndex: 25, minDifficulty: 1, maxDifficulty: 2 },
+        ],
+      })
+    );
+
+    expect(parsed.boardConfig.mode).toBe("linear");
+    if (parsed.boardConfig.mode === "linear") {
+      expect(parsed.boardConfig.difficultySections).toEqual([
+        { startIndex: 1, endIndex: 25, minDifficulty: 1, maxDifficulty: 2 },
+      ]);
+    }
+
+    const invalid = ZPlaylistConfig.safeParse(
+      buildConfig({
+        mode: "linear",
+        totalIndices: 10,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+        difficultySections: [
+          { startIndex: 8, endIndex: 12, minDifficulty: 4, maxDifficulty: 2 },
+        ],
+      })
+    );
+    expect(invalid.success).toBe(false);
+  });
+
   it("rejects unsupported future playlistVersion", () => {
     const result = ZPlaylistConfig.safeParse({
       ...buildConfig({
@@ -408,6 +446,25 @@ describe("playlistSchema", () => {
     expect(config.board.at(-1)?.kind).toBe("end");
     expect(config.runtimeGraph.edges.at(-1)?.toNodeId).toBe("end");
     expect(config.singlePlayer.totalIndices).toBe(3);
+  });
+
+  it("allows cum typed rounds in the normal linear queue", () => {
+    const parsed = ZPlaylistConfig.parse(
+      buildConfig({
+        mode: "linear",
+        totalIndices: 2,
+        safePointIndices: [],
+        safePointRestMsByIndex: {},
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [{ idHint: "cum-1", name: "Cum 1", type: "Cum" }],
+        cumRoundRefs: [{ idHint: "cum-1", name: "Cum 1", type: "Cum" }],
+      })
+    );
+
+    const config = toGameConfigFromPlaylist(parsed, [makeRound("cum-1", "Cum 1", "Cum")]);
+    expect(config.singlePlayer.normalRoundIdsByIndex[1]).toBe("cum-1");
+    expect(config.singlePlayer.cumRoundIds).toEqual(["cum-1"]);
+    expect(config.board[1]?.kind).toBe("round");
   });
 
   it("defaults cum bonus score when omitted", () => {
