@@ -29,6 +29,7 @@ export type SaveConvertedRoundsInput = {
     videoUri: string;
     funscriptUri?: string | null;
     sourceRoundId?: string | null;
+    sourceRoundIds?: string[] | null;
     removeSourceRound?: boolean;
   };
   segments: ConverterSegmentInput[];
@@ -40,7 +41,9 @@ export type SaveConvertedRoundsResult = {
   stats: {
     created: number;
     updated: number;
+    removedSources: number;
   };
+  removedSourceRoundIds: string[];
   rounds: Array<{
     id: string;
     name: string;
@@ -260,6 +263,24 @@ async function ensureHero(
   return existing.id;
 }
 
+function normalizeSourceRoundIds(input: SaveConvertedRoundsInput["source"]): string[] {
+  const sourceRoundIds = Array.isArray(input.sourceRoundIds)
+    ? input.sourceRoundIds
+    : [];
+  const candidates = sourceRoundIds.length > 0 ? sourceRoundIds : [input.sourceRoundId];
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const candidate of candidates) {
+    const id = normalizeNullableText(candidate);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    normalized.push(id);
+  }
+
+  return normalized;
+}
+
 export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Promise<SaveConvertedRoundsResult> {
   const heroName = normalizeRequiredText(input.hero.name, "Hero name");
   const heroAuthor = normalizeNullableText(input.hero.author);
@@ -267,8 +288,8 @@ export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Prom
 
   const videoUri = normalizeRequiredText(input.source.videoUri, "Video URI");
   const funscriptUri = normalizeNullableText(input.source.funscriptUri);
-  const sourceRoundId = normalizeNullableText(input.source.sourceRoundId);
-  const removeSourceRound = Boolean(input.source.removeSourceRound && sourceRoundId);
+  const sourceRoundIds = normalizeSourceRoundIds(input.source);
+  const removeSourceRounds = Boolean(input.source.removeSourceRound && sourceRoundIds.length > 0);
 
   const normalizedSegments = validateAndNormalizeSegments(input.segments);
 
@@ -295,13 +316,6 @@ export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Prom
   );
 
   const result = await getDb().transaction(async (tx) => {
-    let removedSourceRound = false;
-    if (removeSourceRound && sourceRoundId) {
-      await tx.delete(resource).where(eq(resource.roundId, sourceRoundId));
-      const removed = await tx.delete(round).where(eq(round.id, sourceRoundId)).returning();
-      removedSourceRound = removed.length > 0;
-    }
-
     const heroId = await ensureHero(tx, {
       name: heroName,
       author: heroAuthor,
@@ -310,6 +324,7 @@ export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Prom
 
     let created = 0;
     let updated = 0;
+    const savedRoundIds = new Set<string>();
     const persistedRounds: SaveConvertedRoundsResult["rounds"] = [];
 
     for (let index = 0; index < normalizedSegments.length; index += 1) {
@@ -351,11 +366,13 @@ export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Prom
         const [updatedRow] = await tx.update(round).set({ ...roundPayload, updatedAt: new Date() })
           .where(eq(round.id, existing.id)).returning({ id: round.id });
         savedRoundId = updatedRow.id;
+        savedRoundIds.add(savedRoundId);
         updated += 1;
       } else {
         const [createdRow] = await tx.insert(round).values({ ...roundPayload, installSourceKey })
           .returning({ id: round.id });
         savedRoundId = createdRow.id;
+        savedRoundIds.add(savedRoundId);
         created += 1;
       }
 
@@ -379,10 +396,25 @@ export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Prom
       });
     }
 
+    const removedSourceRoundIds: string[] = [];
+    if (removeSourceRounds) {
+      const staleSourceRoundIds = sourceRoundIds.filter((id) => !savedRoundIds.has(id));
+      for (const staleSourceRoundId of staleSourceRoundIds) {
+        await tx.delete(resource).where(eq(resource.roundId, staleSourceRoundId));
+        const removed = await tx.delete(round).where(eq(round.id, staleSourceRoundId)).returning({
+          id: round.id,
+        });
+        if (removed[0]?.id) {
+          removedSourceRoundIds.push(removed[0].id);
+        }
+      }
+    }
+
     return {
       heroId,
-      removedSourceRound,
-      stats: { created, updated },
+      removedSourceRound: removedSourceRoundIds.length > 0,
+      removedSourceRoundIds,
+      stats: { created, updated, removedSources: removedSourceRoundIds.length },
       rounds: persistedRounds,
     } satisfies SaveConvertedRoundsResult;
   });

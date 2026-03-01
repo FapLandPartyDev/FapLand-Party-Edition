@@ -10,6 +10,7 @@ export type SaveConverterSegmentsInput = {
     videoUri: string;
     funscriptUri?: string | null;
     sourceRoundId?: string | null;
+    sourceRoundIds?: string[] | null;
     removeSourceRound?: boolean;
   };
   segments: Array<{

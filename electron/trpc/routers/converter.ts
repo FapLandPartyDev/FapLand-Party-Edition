@@ -18,6 +18,7 @@ export const converterRouter = router({
           videoUri: z.string().trim().min(1),
           funscriptUri: z.string().optional().nullable(),
           sourceRoundId: z.string().trim().min(1).optional().nullable(),
+          sourceRoundIds: z.array(z.string().trim().min(1)).optional().nullable(),
           removeSourceRound: z.boolean().optional(),
         }),
         segments: z

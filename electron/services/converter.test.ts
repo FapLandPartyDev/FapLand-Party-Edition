@@ -15,10 +15,18 @@ import {
 const mocks = vi.hoisted(() => {
   const savedRounds: Array<{ id: string; phash: string | null; startTime: number; endTime: number }> = [];
   const savedResources: Array<{ roundId: string; videoUri: string; phash: string | null }> = [];
+  const deletedRoundIds: string[] = [];
+  const deletedResourceRoundIds: string[] = [];
+  const existingRoundFindResults: Array<{ id: string } | null> = [];
+  const deleteRoundReturningIds: string[] = [];
 
   return {
     savedRounds,
     savedResources,
+    deletedRoundIds,
+    deletedResourceRoundIds,
+    existingRoundFindResults,
+    deleteRoundReturningIds,
     generateVideoPhash: vi.fn(),
     generateRoundPreviewImageDataUri: vi.fn(async () => null),
   };
@@ -45,7 +53,7 @@ function createMockTx() {
         findFirst: vi.fn(async () => null),
       },
       round: {
-        findFirst: vi.fn(async () => null),
+        findFirst: vi.fn(async () => mocks.existingRoundFindResults.shift() ?? null),
       },
     },
     insert: vi.fn(() => ({
@@ -77,17 +85,48 @@ function createMockTx() {
     })),
     update: vi.fn(() => ({
       set: vi.fn(() => ({
-        where: vi.fn(() => ({
-          returning: vi.fn(async () => [{ id: "round-updated" }]),
+        where: vi.fn((input: unknown) => ({
+          returning: vi.fn(async () => [{ id: String(extractFirstSqlParam(input) ?? "round-updated") }]),
         })),
       })),
     })),
     delete: vi.fn(() => ({
-      where: vi.fn(() => ({
-        returning: vi.fn(async () => []),
-      })),
+      where: vi.fn((input: unknown) => {
+        const id = extractFirstSqlParam(input);
+        if (typeof id === "string") {
+          mocks.deletedResourceRoundIds.push(id);
+        }
+
+        return {
+          returning: vi.fn(async () => {
+            const returnedId = mocks.deleteRoundReturningIds.shift();
+            if (returnedId) {
+              mocks.deletedRoundIds.push(returnedId);
+              return [{ id: returnedId }];
+            }
+            return [];
+          }),
+        };
+      }),
     })),
   };
+}
+
+function extractFirstSqlParam(input: unknown): unknown {
+  const values: unknown[] = [];
+  const visit = (node: unknown) => {
+    if (!node) return;
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+      return;
+    }
+    if (typeof node !== "object") return;
+    if ("value" in node) values.push(node.value);
+    if ("queryChunks" in node && Array.isArray(node.queryChunks)) node.queryChunks.forEach(visit);
+    if ("where" in node) visit(node.where);
+  };
+  visit(input);
+  return values[0];
 }
 
 function toAppMediaUri(filePath: string): string {
@@ -99,6 +138,10 @@ let tempDirs: string[] = [];
 beforeEach(() => {
   mocks.savedRounds.length = 0;
   mocks.savedResources.length = 0;
+  mocks.deletedRoundIds.length = 0;
+  mocks.deletedResourceRoundIds.length = 0;
+  mocks.existingRoundFindResults.length = 0;
+  mocks.deleteRoundReturningIds.length = 0;
   mocks.generateVideoPhash.mockReset();
   mocks.generateRoundPreviewImageDataUri.mockClear();
 });
@@ -274,5 +317,88 @@ describe("saveConvertedRounds phash fallback", () => {
 
     expect(result.rounds[0]?.phash).toBe("phash-1");
     expect(mocks.savedRounds[0]?.phash).toBe("phash-1");
+  });
+});
+
+describe("saveConvertedRounds source replacement", () => {
+  it("removes all stale imported hero source rounds after saving edited segments", async () => {
+    mocks.generateVideoPhash.mockResolvedValue("phash");
+    mocks.deleteRoundReturningIds.push("source-1", "source-2", "source-3", "source-4");
+    const filePath = await writeTempVideo("hero-video-data");
+
+    const result = await saveConvertedRounds({
+      hero: { name: "Imported Hero" },
+      source: {
+        videoUri: toAppMediaUri(filePath),
+        sourceRoundIds: ["source-1", "source-2", "source-3", "source-4"],
+        removeSourceRound: true,
+      },
+      segments: [
+        { startTimeMs: 0, endTimeMs: 2000, type: "Normal" },
+        { startTimeMs: 2000, endTimeMs: 3000, type: "Normal" },
+        { startTimeMs: 3000, endTimeMs: 4000, type: "Cum" },
+      ],
+    });
+
+    expect(result.rounds).toHaveLength(3);
+    expect(result.stats).toMatchObject({ created: 3, updated: 0, removedSources: 4 });
+    expect(result.removedSourceRound).toBe(true);
+    expect(result.removedSourceRoundIds).toEqual([
+      "source-1",
+      "source-2",
+      "source-3",
+      "source-4",
+    ]);
+    expect(mocks.deletedRoundIds).toEqual(["source-1", "source-2", "source-3", "source-4"]);
+  });
+
+  it("keeps converter-created source rounds that are updated in place", async () => {
+    mocks.generateVideoPhash.mockResolvedValue("phash");
+    mocks.deleteRoundReturningIds.push("source-1", "source-2");
+    const filePath = await writeTempVideo("converter-video-data");
+    const videoUri = toAppMediaUri(filePath);
+
+    mocks.existingRoundFindResults.push(null, { id: "source-3" }, { id: "source-4" });
+
+    const result = await saveConvertedRounds({
+      hero: { name: "Converter Hero" },
+      source: {
+        videoUri,
+        sourceRoundIds: ["source-1", "source-2", "source-3", "source-4"],
+        removeSourceRound: true,
+      },
+      segments: [
+        { startTimeMs: 0, endTimeMs: 2000, type: "Normal" },
+        { startTimeMs: 2000, endTimeMs: 3000, type: "Normal" },
+        { startTimeMs: 3000, endTimeMs: 4000, type: "Cum" },
+      ],
+    });
+
+    expect(result.stats).toMatchObject({ created: 1, updated: 2, removedSources: 2 });
+    expect(result.removedSourceRoundIds).toEqual(["source-1", "source-2"]);
+    expect(mocks.deletedRoundIds).toEqual(["source-1", "source-2"]);
+    expect(mocks.deletedRoundIds).not.toContain("source-3");
+    expect(mocks.deletedRoundIds).not.toContain("source-4");
+  });
+
+  it("keeps backwards compatibility with singular sourceRoundId replacement", async () => {
+    mocks.generateVideoPhash.mockResolvedValue("phash");
+    mocks.deleteRoundReturningIds.push("source-round");
+    const filePath = await writeTempVideo("single-source-video-data");
+
+    const result = await saveConvertedRounds({
+      hero: { name: "Single Source Hero" },
+      source: {
+        videoUri: toAppMediaUri(filePath),
+        sourceRoundId: "source-round",
+        removeSourceRound: true,
+      },
+      segments: [{ startTimeMs: 0, endTimeMs: 2000, type: "Normal" }],
+    });
+
+    expect(result.stats.removedSources).toBe(1);
+    expect(result.removedSourceRound).toBe(true);
+    expect(result.removedSourceRoundIds).toEqual(["source-round"]);
+    expect(mocks.deletedRoundIds).toEqual(["source-round"]);
   });
 });

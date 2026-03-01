@@ -80,6 +80,37 @@ vi.mock("../../hooks/usePlayableVideoFallback", () => ({
 
 import { useConverterState } from "./useConverterState";
 
+function makeInstalledRound(
+  id: string,
+  overrides: Partial<Record<string, unknown>> = {}
+): Record<string, unknown> {
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  return {
+    id,
+    name: `Round ${id}`,
+    author: null,
+    description: null,
+    type: "Normal",
+    bpm: null,
+    difficulty: null,
+    startTime: 0,
+    endTime: 1_000,
+    heroId: null,
+    hero: null,
+    resources: [
+      {
+        id: `resource-${id}`,
+        videoUri: "file:///tmp/source.mp4",
+        funscriptUri: null,
+        disabled: false,
+      },
+    ],
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
 describe("useConverterState", () => {
   beforeEach(() => {
     mocks.db.hero.findMany.mockResolvedValue([]);
@@ -407,6 +438,133 @@ describe("useConverterState", () => {
     await waitFor(() => {
       expect(mocks.converterSaveSegments).toHaveBeenCalled();
     });
+  });
+
+  it("sends every loaded hero source round when saving a merged hero edit", async () => {
+    mocks.db.hero.findMany.mockResolvedValue([
+      { id: "hero-1", name: "Millionaire", author: "Host", description: "Quiz" },
+    ]);
+    mocks.db.round.findInstalled.mockResolvedValue([
+      makeInstalledRound("round-1", {
+        heroId: "hero-1",
+        hero: { id: "hero-1", name: "Millionaire", author: "Host", description: "Quiz" },
+        name: "Round 1",
+        startTime: 0,
+        endTime: 1_000,
+      }),
+      makeInstalledRound("round-2", {
+        heroId: "hero-1",
+        hero: { id: "hero-1", name: "Millionaire", author: "Host", description: "Quiz" },
+        name: "Round 2",
+        startTime: 1_000,
+        endTime: 2_000,
+      }),
+      makeInstalledRound("round-3", {
+        heroId: "hero-1",
+        hero: { id: "hero-1", name: "Millionaire", author: "Host", description: "Quiz" },
+        name: "Round 3",
+        startTime: 2_000,
+        endTime: 3_000,
+      }),
+      makeInstalledRound("round-4", {
+        heroId: "hero-1",
+        hero: { id: "hero-1", name: "Millionaire", author: "Host", description: "Quiz" },
+        name: "Round 4",
+        startTime: 3_000,
+        endTime: 4_000,
+      }),
+    ]);
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    await act(async () => {
+      await result.current.selectHeroAndEdit("hero-1");
+    });
+
+    act(() => {
+      result.current.setDurationMs(4_000);
+    });
+
+    act(() => {
+      result.current.mergeSegmentWithNext(result.current.sortedSegments[0]?.id ?? "");
+    });
+
+    await act(async () => {
+      await result.current.saveConvertedRounds();
+    });
+
+    await waitFor(() => {
+      expect(mocks.converterSaveSegments).toHaveBeenCalled();
+    });
+    const input = mocks.converterSaveSegments.mock.calls.at(-1)?.[0];
+    expect(input.source.sourceRoundIds).toEqual(["round-1", "round-2", "round-3", "round-4"]);
+    expect(input.source.removeSourceRound).toBe(true);
+    expect(input.segments).toHaveLength(3);
+  });
+
+  it("sends the selected source round when saving a single installed round edit", async () => {
+    mocks.db.round.findInstalled.mockResolvedValue([
+      makeInstalledRound("round-1", {
+        name: "Standalone Round",
+        startTime: 1_000,
+        endTime: 3_000,
+      }),
+    ]);
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    await act(async () => {
+      await result.current.selectRoundAndEdit("round-1");
+    });
+
+    act(() => {
+      result.current.setDurationMs(3_000);
+    });
+
+    await act(async () => {
+      await result.current.saveConvertedRounds();
+    });
+
+    const input = mocks.converterSaveSegments.mock.calls.at(-1)?.[0];
+    expect(input.source.sourceRoundIds).toEqual(["round-1"]);
+    expect(input.source.removeSourceRound).toBe(true);
+  });
+
+  it("does not send replacement source rounds for local saves", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setSourceMode("local");
+      result.current.setDurationMs(10_000);
+      result.current.setHeroName("Local Hero");
+      result.current.setVideoUri("file:///tmp/local.mp4");
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(3_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    await act(async () => {
+      await result.current.saveConvertedRounds();
+    });
+
+    const input = mocks.converterSaveSegments.mock.calls.at(-1)?.[0];
+    expect(input.source.sourceRoundIds).toEqual([]);
+    expect(input.source.removeSourceRound).toBe(false);
   });
 
   it("clears overlay, marks, then selection with escape", async () => {

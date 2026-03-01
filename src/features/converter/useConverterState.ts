@@ -140,6 +140,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
   const [heroAuthor, setHeroAuthor] = useState("");
   const [heroDescription, setHeroDescription] = useState("");
   const [deleteSourceRound, setDeleteSourceRound] = useState(true);
+  const [sourceRoundIdsToReplace, setSourceRoundIdsToReplace] = useState<string[]>([]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -165,6 +166,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setVideoUri("");
     setFunscriptUri(null);
     setSelectedInstalledId("");
+    setSourceRoundIdsToReplace([]);
     setSegments([]);
     setSelectedSegmentId(null);
     setDetectedSegments([]);
@@ -202,6 +204,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
       setSourceMode("installed");
       setDeleteSourceRound(true);
       setSelectedInstalledId(roundId);
+      setSourceRoundIdsToReplace([roundId]);
       setVideoUri(resource.videoUri);
       setFunscriptUri(resource.funscriptUri ?? null);
       setHeroName(round.hero?.name ?? round.name);
@@ -277,6 +280,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
       setSourceMode("installed");
       setDeleteSourceRound(true);
       setSelectedInstalledId(firstRound.id);
+      setSourceRoundIdsToReplace(heroRounds.map((round) => round.id));
       setVideoUri(resource.videoUri);
       setFunscriptUri(resource.funscriptUri ?? null);
       setHeroName(hero.name);
@@ -330,6 +334,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setSourceMode("local");
     setDeleteSourceRound(false);
     setSelectedInstalledId("");
+    setSourceRoundIdsToReplace([]);
     setVideoUri(converted);
     setFunscriptUri(null);
     setHeroName("");
@@ -375,6 +380,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
       setSourceMode("local");
       setDeleteSourceRound(false);
       setSelectedInstalledId("");
+      setSourceRoundIdsToReplace([]);
       setVideoUri(normalizedVideoUri);
       setFunscriptUri(normalizedFunscriptUri);
       setHeroName("");
@@ -465,6 +471,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setVideoUri("");
     setFunscriptUri(null);
     setSelectedInstalledId("");
+    setSourceRoundIdsToReplace([]);
     setSegments([]);
     setSelectedSegmentId(null);
     setDetectedSegments([]);
@@ -1446,6 +1453,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setSourceMode("local");
     setDeleteSourceRound(false);
     setSelectedInstalledId("");
+    setSourceRoundIdsToReplace([]);
     setVideoUri(converted);
     setFunscriptUri(null);
     setCurrentTimeMs(0);
@@ -1464,6 +1472,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     const converted = window.electronAPI.file.convertFileSrc(path);
     setSourceMode("local");
     setDeleteSourceRound(false);
+    setSourceRoundIdsToReplace([]);
     setFunscriptUri(converted);
     setMessage("Funscript attached.");
     setError(null);
@@ -1504,9 +1513,10 @@ export function useConverterState(searchParams: ConverterSearchParams) {
           videoUri,
           funscriptUri,
           sourceRoundId: sourceMode === "installed" ? selectedInstalledId || null : null,
+          sourceRoundIds: sourceMode === "installed" ? sourceRoundIdsToReplace : [],
           removeSourceRound:
             sourceMode === "installed" &&
-            selectedInstalledId.trim().length > 0 &&
+            sourceRoundIdsToReplace.length > 0 &&
             deleteSourceRound,
         },
         segments: segmentsToSave.map((segment) => ({
@@ -1519,13 +1529,20 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         })),
       });
 
+      const removedSourceCount =
+        result.stats.removedSources ?? (result.removedSourceRound ? 1 : 0);
+      const removedSourceText =
+        removedSourceCount === 0
+          ? "."
+          : `, ${removedSourceCount} source round${removedSourceCount === 1 ? "" : "s"} removed.`;
       setMessage(
-        `Saved ${result.stats.created} new and ${result.stats.updated} updated rounds${result.removedSourceRound ? ", source round removed." : "."}`
+        `Saved ${result.stats.created} new and ${result.stats.updated} updated rounds${removedSourceText}`
       );
       playConverterSaveSuccessSound();
       await Promise.all([loadInstalledSources(), loadHeroes()]);
       if (result.removedSourceRound) {
         setSelectedInstalledId("");
+        setSourceRoundIdsToReplace([]);
       }
     } catch (saveError) {
       console.error("Failed to save converted rounds", saveError);
@@ -1544,6 +1561,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     loadInstalledSources,
     deleteSourceRound,
     selectedInstalledId,
+    sourceRoundIdsToReplace,
     segments,
     sourceMode,
     funscriptActions,
@@ -1666,12 +1684,25 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setSourceMode("installed");
     setDeleteSourceRound(true);
     setSelectedInstalledId(sourceOption.id);
+    setSourceRoundIdsToReplace(candidateSources.map((option) => option.id));
     setHeroName(selectedHeroOption.name);
     setHeroAuthor(selectedHeroOption.author ?? "");
     setHeroDescription(selectedHeroOption.description ?? "");
     setError(null);
     playSelectSound();
   }, [allInstalledSourceOptions, createDraftFromInstalledRound, selectedHeroOption]);
+
+  const setSelectedInstalledIdForReplacement = useCallback((id: string) => {
+    setSelectedInstalledId(id);
+    setSourceRoundIdsToReplace(id.trim().length > 0 ? [id] : []);
+  }, []);
+
+  const setSourceModeForReplacement = useCallback((mode: "local" | "installed") => {
+    setSourceMode(mode);
+    if (mode === "local") {
+      setSourceRoundIdsToReplace([]);
+    }
+  }, []);
 
   /* ─── Preselect from search params ─────────────────────────────── */
 
@@ -1826,14 +1857,14 @@ export function useConverterState(searchParams: ConverterSearchParams) {
 
     // Source
     sourceMode,
-    setSourceMode,
+    setSourceMode: setSourceModeForReplacement,
     videoUri,
     funscriptUri,
     setVideoUri,
     setFunscriptUri,
     installedSourceOptions,
     selectedInstalledId,
-    setSelectedInstalledId,
+    setSelectedInstalledId: setSelectedInstalledIdForReplacement,
     selectedInstalledOption,
     deleteSourceRound,
     setDeleteSourceRound,
