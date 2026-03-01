@@ -42,9 +42,12 @@ import { importOpenedFile } from "@/services/openedFiles";
 import { getInstalledRoundPlaybackEntryCached } from "@/services/installedRoundsCache";
 import { buildRoundRenderRowsWithOptions, type RoundRenderRow } from "@/routes/roundRows";
 import {
+  buildDownloadProgressByUri,
   buildPlaylistGroupingData,
   buildRoundLibraryIndex,
   filterAndSortRounds,
+  getDownloadProgressForPlaybackUri,
+  getWebsiteVideoTargetFromPlaybackUri,
   type AddedDateFilter,
   type MetadataFilter,
   type ScriptFilter,
@@ -121,14 +124,6 @@ import { LegacyPlaylistReviewDialog } from "./dialogs/LegacyPlaylistReviewDialog
 import { WebsiteRoundInstallDialog } from "./dialogs/WebsiteRoundInstallDialog";
 import { LibraryExportDialog } from "./dialogs/LibraryExportDialog";
 import { InstallImportOverlay } from "./overlays/InstallImportOverlay";
-
-const buildDownloadProgressByUri = (
-  progresses: Awaited<ReturnType<typeof db.webVideoCache.getDownloadProgresses>>
-): Map<string, (typeof progresses)[number]> => {
-  const map = new Map<string, (typeof progresses)[number]>();
-  for (const progress of progresses) map.set(progress.url, progress);
-  return map;
-};
 
 function toLegacyPlaylistConfig(
   orderedSlots: NonNullable<LegacyReviewedImportResult["legacyImport"]>["orderedSlots"]
@@ -419,7 +414,7 @@ export function InstalledRoundsPage({
   const [activePreviewRound, setActivePreviewRound] = useState<InstalledRoundPlaybackEntry | null>(
     null
   );
-  const cardAssetsByRoundId = useVisibleRoundAssets({
+  const { cardAssetsByRoundId, refreshRoundAssets } = useVisibleRoundAssets({
     visibleRoundIds,
     selectedRoundId: activePreviewRound?.id ?? inspectedRoundId,
     includeDisabled: showDisabledRounds,
@@ -432,14 +427,40 @@ export function InstalledRoundsPage({
   );
   const webVideoCacheQuery = useWebVideoCacheStatus(hasWebsiteRounds && !isStartingScan);
   const websiteVideoScanStatus = webVideoCacheQuery.data?.scanStatus ?? null;
-  const downloadProgressByUri = useMemo(
-    () => buildDownloadProgressByUri(webVideoCacheQuery.data?.downloadProgresses ?? []),
+  const websiteVideoDownloadProgresses = useMemo(
+    () => webVideoCacheQuery.data?.downloadProgresses ?? [],
     [webVideoCacheQuery.data?.downloadProgresses]
   );
+  const isWebsiteVideoCaching =
+    websiteVideoScanStatus?.state === "running" || websiteVideoDownloadProgresses.length > 0;
+  const downloadProgressByUri = useMemo(
+    () => buildDownloadProgressByUri(websiteVideoDownloadProgresses),
+    [websiteVideoDownloadProgresses]
+  );
   const getDownloadProgressForVideoUri = useCallback(
-    (uri: string | null | undefined) => (uri ? (downloadProgressByUri.get(uri) ?? null) : null),
+    (uri: string | null | undefined) =>
+      getDownloadProgressForPlaybackUri(downloadProgressByUri, uri),
     [downloadProgressByUri]
   );
+  const previousDownloadUrlsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const currentUrls = new Set(websiteVideoDownloadProgresses.map((progress) => progress.url));
+    const completedUrls = [...previousDownloadUrlsRef.current].filter(
+      (url) => !currentUrls.has(url)
+    );
+    previousDownloadUrlsRef.current = currentUrls;
+    if (completedUrls.length === 0) return;
+
+    const completedUrlSet = new Set(completedUrls);
+    const affectedVisibleRoundIds = visibleRoundIds.filter((roundId) => {
+      const previewVideoUri = cardAssetsByRoundId.get(roundId)?.previewVideoUri;
+      const targetUrl = previewVideoUri
+        ? getWebsiteVideoTargetFromPlaybackUri(previewVideoUri)
+        : null;
+      return targetUrl ? completedUrlSet.has(targetUrl) : false;
+    });
+    refreshRoundAssets(affectedVisibleRoundIds);
+  }, [cardAssetsByRoundId, refreshRoundAssets, visibleRoundIds, websiteVideoDownloadProgresses]);
 
   // ─── Export state ───────────────────────────────────────────────────────────
   const [exportDialog, setExportDialog] = useState<LibraryExportDialogState | null>(null);
@@ -1901,7 +1922,7 @@ export function InstalledRoundsPage({
                   onLibraryScrollingChange={setIsLibraryScrolling}
                   cardAssetsByRoundId={cardAssetsByRoundId}
                   handlePlayRound={handlePlayRound}
-                  websiteVideoScanStatusRunning={websiteVideoScanStatus?.state === "running"}
+                  websiteVideoScanStatusRunning={isWebsiteVideoCaching}
                   getDownloadProgressForVideoUri={getDownloadProgressForVideoUri}
                   disabledRoundIds={disabledRoundIds}
                   selectionToggle={(round) => {
@@ -1920,7 +1941,7 @@ export function InstalledRoundsPage({
                       setExpandedHeroGroups={setExpandedHeroGroups}
                       convertingHeroGroupKey={convertingHeroGroupKey}
                       cardAssetsByRoundId={cardAssetsByRoundId}
-                      websiteVideoScanStatusRunning={websiteVideoScanStatus?.state === "running"}
+                      websiteVideoScanStatusRunning={isWebsiteVideoCaching}
                       selectionMode={selectionMode}
                       selectedRoundIds={selectedRoundIds}
                       selectedHeroIds={selectedHeroIds}
@@ -1940,7 +1961,7 @@ export function InstalledRoundsPage({
                       expandedGroupKeySet={expandedGroupKeySet}
                       setExpandedHeroGroups={setExpandedHeroGroups}
                       cardAssetsByRoundId={cardAssetsByRoundId}
-                      websiteVideoScanStatusRunning={websiteVideoScanStatus?.state === "running"}
+                      websiteVideoScanStatusRunning={isWebsiteVideoCaching}
                       handleHoverSfx={handleHoverSfx}
                       handleSelectSfx={handleSelectSfx}
                     />

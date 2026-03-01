@@ -174,6 +174,34 @@ export function buildDownloadProgressByUri(
   return map;
 }
 
+export function getWebsiteVideoTargetFromPlaybackUri(uri: string): string | null {
+  if (uri.startsWith("http://") || uri.startsWith("https://")) {
+    try {
+      return new URL(uri).toString();
+    } catch {
+      return null;
+    }
+  }
+
+  if (!uri.startsWith("app://external/web-url?")) return null;
+  try {
+    const target = new URL(uri).searchParams.get("target");
+    if (!target || !(target.startsWith("http://") || target.startsWith("https://"))) return null;
+    return new URL(target).toString();
+  } catch {
+    return null;
+  }
+}
+
+export function getDownloadProgressForPlaybackUri(
+  downloadProgressByUri: ReadonlyMap<string, VideoDownloadProgress>,
+  uri: string | null | undefined
+): VideoDownloadProgress | null {
+  if (!uri) return null;
+  const targetUrl = getWebsiteVideoTargetFromPlaybackUri(uri);
+  return targetUrl ? (downloadProgressByUri.get(targetUrl) ?? null) : null;
+}
+
 export function buildAggregateDownloadProgress(downloadProgresses: VideoDownloadProgress[]) {
   if (downloadProgresses.length === 0) return null;
 

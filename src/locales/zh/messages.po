@@ -148,7 +148,7 @@ msgid "{0} hashed"
 msgstr "{0} 已哈希"
 
 #. placeholder {0}: filteredRounds.length
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3209
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3230
 msgid "{0} matching rounds are currently available."
 msgstr "当前有 {0} 个匹配的关卡可用。"
 
@@ -212,7 +212,7 @@ msgstr "{0} 有可恢复的存档"
 #. placeholder {0}: effect.remainingRounds
 #. placeholder {0}: filteredRounds.length
 #: src/components/game/PerkInventoryPanel.tsx:342
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3204
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3225
 #: src/routes/single-player-setup.tsx:620
 #: src/routes/single-player-setup.tsx:691
 msgid "{0} rounds"
@@ -222,7 +222,7 @@ msgstr "{0} 个关卡"
 #. placeholder {1}: stats.playlistsImported
 #. placeholder {2}: stats.updated
 #. placeholder {3}: stats.failed
-#: src/features/rounds/library/InstalledRoundsPage.tsx:205
+#: src/features/rounds/library/InstalledRoundsPage.tsx:200
 msgid "{0} rounds / {1} playlists / {2} updated / {3} failed{progressText}"
 msgstr "{0} 个关卡 / {1} 个播放列表 / {2} 个已更新 / {3} 个失败{progressText}"
 
@@ -245,8 +245,8 @@ msgstr "{0} 个关卡，{1} 个角色"
 
 #. placeholder {0}: selectedRoundIds.size
 #. placeholder {1}: selectedHeroIds.size
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2656
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2816
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2677
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2837
 msgid "{0} rounds, {1} heroes selected"
 msgstr "已选择 {0} 个关卡，{1} 个角色"
 
@@ -305,7 +305,7 @@ msgstr "{0} 个网络关卡{1} 缓存中"
 msgid "{0}/{1} active"
 msgstr "{0}/{1} 已激活"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3165
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3186
 msgid "{activeFilterCount} Active Filters"
 msgstr "{activeFilterCount} 个活跃过滤器"
 
@@ -812,7 +812,7 @@ msgstr "添加信任站点"
 msgid "Add Visible"
 msgstr "添加可见项"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3076
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3097
 #: src/routes/first-start.tsx:705
 #: src/routes/first-start.tsx:706
 msgid "Added"
@@ -893,17 +893,17 @@ msgstr "已添加播放列表：{0} 首曲目{1} 已添加{2}。"
 
 #. placeholder {0}: formatDate(addedDateFilter.fromDate)
 #. placeholder {1}: formatDate(addedDateFilter.toDate)
-#: src/features/rounds/library/InstalledRoundsPage.tsx:944
+#: src/features/rounds/library/InstalledRoundsPage.tsx:965
 msgid "Added: {0} to {1}"
 msgstr "添加时间：{0} 至 {1}"
 
 #. placeholder {0}: formatDate(addedDateFilter.toDate)
-#: src/features/rounds/library/InstalledRoundsPage.tsx:937
+#: src/features/rounds/library/InstalledRoundsPage.tsx:958
 msgid "Added: before {0}"
 msgstr "添加时间：{0} 之前"
 
 #. placeholder {0}: formatDate(addedDateFilter.fromDate)
-#: src/features/rounds/library/InstalledRoundsPage.tsx:935
+#: src/features/rounds/library/InstalledRoundsPage.tsx:956
 msgid "Added: since {0}"
 msgstr "添加时间：{0} 之后"
 
@@ -958,7 +958,7 @@ msgstr "调整全局 TheHandy 偏移；按住 Shift 可进行 1ms 微调。"
 msgid "Adjust the window zoom level used by the whole app."
 msgstr "调整整个应用使用的窗口缩放级别。"
 
-#: src/routes/settings.tsx:1845
+#: src/routes/settings.tsx:1864
 msgid "Advanced"
 msgstr "高级"
 
@@ -970,18 +970,18 @@ msgstr "在公开列表中广播"
 msgid "After:"
 msgstr "之后："
 
-#: src/components/game/RoundVideoOverlay.tsx:978
+#: src/components/game/RoundVideoOverlay.tsx:1046
 msgid "Aligning timeline with haptics before playback starts."
 msgstr "在播放开始前将时间轴与触觉对齐。"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:245
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:277
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3002
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3016
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3029
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3041
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3053
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3065
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3023
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3037
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3050
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3062
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3074
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3086
 #: src/routes/map-editor.tsx:3339
 msgid "All"
 msgstr "全部"
@@ -1042,7 +1042,7 @@ msgstr "无论全局最低要求和播放列表特定的关卡要求如何，都
 msgid "Allow overlaps"
 msgstr "允许重叠"
 
-#: src/routes/settings.tsx:2210
+#: src/routes/settings.tsx:2229
 msgid "Allow Playlist Start During Cache Ongoing"
 msgstr "允许在缓存进行中开始播放列表"
 
@@ -1050,7 +1050,7 @@ msgstr "允许在缓存进行中开始播放列表"
 msgid "Allowing only configured Stash source URLs and blocking yt-dlp and user-whitelisted domains."
 msgstr "仅允许配置的 Stash 来源 URL，并阻止 yt-dlp 和用户白名单域名。"
 
-#: src/routes/settings.tsx:2225
+#: src/routes/settings.tsx:1513
 msgid "Allows locked solo playlists to start for testing. Runs started through this bypass do not award XP."
 msgstr "允许锁定的独奏播放列表开始进行测试。通过此旁路启动的运行不会奖励 XP。"
 
@@ -1061,19 +1061,19 @@ msgstr "允许锁定的独奏播放列表开始进行测试。通过此旁路启
 msgid "Already AV1"
 msgstr "已是 AV1"
 
-#: src/components/game/RoundVideoOverlay.tsx:1836
+#: src/components/game/RoundVideoOverlay.tsx:1904
 msgid "Already inside an intermediary segment."
 msgstr "已在中间片段内。"
 
-#: src/routes/settings.tsx:1552
+#: src/routes/settings.tsx:1571
 msgid "Always Override"
 msgstr "始终覆盖"
 
-#: src/routes/settings.tsx:1922
+#: src/routes/settings.tsx:1941
 msgid "Always Start in Recovery Mode"
 msgstr "始终以恢复模式启动"
 
-#: src/routes/settings.tsx:1931
+#: src/routes/settings.tsx:1950
 msgid "Always start in recovery mode disabled."
 msgstr "始终以禁用的恢复模式启动。"
 
@@ -1172,7 +1172,7 @@ msgstr "反技能最大值"
 msgid "Anti-Perk Max %"
 msgstr "反技能最大 %"
 
-#: src/components/game/RoundVideoOverlay.tsx:3584
+#: src/components/game/RoundVideoOverlay.tsx:3652
 msgid "Anti-perk sequence"
 msgstr "反技能序列"
 
@@ -1260,7 +1260,7 @@ msgstr "任意 (或)"
 msgid "Any highscore you achieve will be permanently marked with 🎭"
 msgstr "您取得的任何高分都将被永久标记为 🎭"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3079
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3100
 msgid "Any Time"
 msgstr "任何时间"
 
@@ -1300,7 +1300,7 @@ msgstr "应用缩放"
 msgid "Appearance"
 msgstr "外观"
 
-#: src/routes/settings.tsx:1607
+#: src/routes/settings.tsx:1626
 msgid "Application data maintenance and destructive actions."
 msgstr "应用数据维护和破坏性操作。"
 
@@ -1335,7 +1335,7 @@ msgstr "应用 {0}"
 msgid "Apply 25/50/75 Preset"
 msgstr "应用 25/50/75 预设"
 
-#: src/routes/settings.tsx:1613
+#: src/routes/settings.tsx:1632
 msgid "Apply a quick profile for background hashing and preview generation. You can still fine tune each setting below."
 msgstr "为后台哈希计算和预览生成应用快速配置。你仍然可以在下方微调每项设置。"
 
@@ -1343,7 +1343,7 @@ msgstr "为后台哈希计算和预览生成应用快速配置。你仍然可以
 msgid "Apply boost only when landing directly on this tile (not when passing over it)."
 msgstr "仅在直接落到此格时应用推进效果（经过时不触发）。"
 
-#: src/routes/settings.tsx:1648
+#: src/routes/settings.tsx:1667
 msgid "Apply defaults"
 msgstr "应用默认值"
 
@@ -1374,7 +1374,7 @@ msgid "Apply Progressive"
 msgstr "应用渐进"
 
 #: src/routes/first-start.tsx:2400
-#: src/routes/settings.tsx:1617
+#: src/routes/settings.tsx:1636
 msgid "Apply recommended settings for weak hardware"
 msgstr "应用弱性能硬件推荐设置"
 
@@ -1426,7 +1426,7 @@ msgstr "准备放置前九个可见图块类型之一。"
 msgid "Asking during manual sidecar imports before trusting unknown remote URLs."
 msgstr "在信任未知远程 URL 之前，在手动 sidecar 导入时询问。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1512
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1533
 msgid "Assign every unresolved hero round before saving."
 msgstr "在保存前为每个未解析的角色关卡分配来源。"
 
@@ -1470,7 +1470,7 @@ msgstr "附加到当前视频"
 msgid "Attaching..."
 msgstr "正在附加..."
 
-#: src/routes/settings.tsx:1514
+#: src/routes/settings.tsx:1533
 msgid "Audio"
 msgstr "音频"
 
@@ -1492,7 +1492,7 @@ msgstr "认证失败。"
 
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:43
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:61
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3038
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3059
 #: src/routes/playlist-workshop.tsx:3245
 msgid "Author"
 msgstr "作者"
@@ -1509,8 +1509,8 @@ msgstr "作者筛选"
 msgid "author-one, author-two"
 msgstr "作者一，作者二"
 
-#: src/routes/settings.tsx:1855
-#: src/routes/settings.tsx:1873
+#: src/routes/settings.tsx:1874
+#: src/routes/settings.tsx:1892
 #: src/routes/settings.tsx:7141
 msgid "Auto (Default)"
 msgstr "自动（默认）"
@@ -1527,11 +1527,11 @@ msgstr "自动检测"
 msgid "Auto from funscript"
 msgstr "从funscript自动"
 
-#: src/routes/settings.tsx:1852
+#: src/routes/settings.tsx:1871
 msgid "Auto keeps current behavior (prefer newer system binaries). Use Bundled/System to force source selection."
 msgstr "自动保持当前行为（优先使用较新的系统二进制文件）。使用 内置/系统 强制选择来源。"
 
-#: src/routes/settings.tsx:1870
+#: src/routes/settings.tsx:1889
 msgid "Auto keeps current behavior (prefer the bundled local binary). Use Local/System to force source selection."
 msgstr "自动保持当前行为（优先使用内置本地二进制文件）。使用 本地/系统 强制选择来源。"
 
@@ -1563,15 +1563,15 @@ msgstr "等待自动选择"
 msgid "Auto-select"
 msgstr "自动选择"
 
-#: src/routes/settings.tsx:1527
+#: src/routes/settings.tsx:1546
 msgid "Autofix Broken Funscripts"
 msgstr "自动修复损坏的 Funscript"
 
-#: src/routes/settings.tsx:1729
+#: src/routes/settings.tsx:1748
 msgid "Automatic Local Backups"
 msgstr "自动本地备份"
 
-#: src/routes/settings.tsx:1685
+#: src/routes/settings.tsx:1704
 msgid "Automatically compute visual fingerprints for rounds in the background. Highly recommended for accurate similarity matching."
 msgstr "在后台自动计算关卡的视觉指纹。强烈推荐用于精确的相似度匹配。"
 
@@ -1617,7 +1617,7 @@ msgid "Available Rounds"
 msgstr "可用关卡"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:296
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1715
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1736
 #: src/routes/first-start.tsx:2870
 #: src/routes/index.tsx:468
 #: src/routes/multiplayer-bans.tsx:86
@@ -1646,11 +1646,11 @@ msgstr "返回菜单"
 msgid "Back to settings"
 msgstr "返回设置"
 
-#: src/routes/settings.tsx:1782
+#: src/routes/settings.tsx:1801
 msgid "Back Up Now"
 msgstr "立即备份"
 
-#: src/routes/settings.tsx:1805
+#: src/routes/settings.tsx:1824
 msgid "Back Up Settings Now"
 msgstr "立即备份设置"
 
@@ -1667,7 +1667,7 @@ msgstr "后台哈希"
 msgid "Background Jobs"
 msgstr "后台任务"
 
-#: src/routes/settings.tsx:1684
+#: src/routes/settings.tsx:1703
 msgid "Background Phash Scanning"
 msgstr "后台 Phash 扫描"
 
@@ -1676,11 +1676,11 @@ msgstr "后台 Phash 扫描"
 msgid "first-start.step.phash.detail.1"
 msgstr "后台 pHash 扫描帮助应用更准确地识别视觉相似的关卡和导入内容。"
 
-#: src/routes/settings.tsx:1743
+#: src/routes/settings.tsx:1762
 msgid "Backup Frequency (days)"
 msgstr "备份频率（天）"
 
-#: src/routes/settings.tsx:1760
+#: src/routes/settings.tsx:1779
 msgid "Backup Retention (days)"
 msgstr "备份保留（天）"
 
@@ -1710,7 +1710,7 @@ msgid "Bans apply to your hosted lobbies by user ID or hardware ID."
 msgstr "封禁通过用户 ID 或硬件 ID 应用于您主持的房间。"
 
 #. placeholder {0}: showProgressBarAlways ? "Pinned" : "Auto"
-#: src/components/game/RoundVideoOverlay.tsx:3924
+#: src/components/game/RoundVideoOverlay.tsx:3992
 msgid "Bar {0}"
 msgstr "进度条 {0}"
 
@@ -1737,7 +1737,7 @@ msgstr "由于这两种地图风格的工作方式不同，应用有两个编辑
 msgid "Become completionist"
 msgstr "成为全收集玩家"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3081
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3102
 msgid "Before Date"
 msgstr "日期之前"
 
@@ -1762,7 +1762,7 @@ msgstr "最佳"
 msgid "Best Score"
 msgstr "最佳分数"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3082
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3103
 msgid "Between Dates"
 msgstr "日期之间"
 
@@ -1806,7 +1806,7 @@ msgstr "棋盘进度"
 msgid "hud.boardProgress"
 msgstr "棋盘进度"
 
-#: src/components/game/RoundVideoOverlay.tsx:2266
+#: src/components/game/RoundVideoOverlay.tsx:2334
 msgid "Board sequence completed."
 msgstr "棋盘序列已完成。"
 
@@ -1824,15 +1824,15 @@ msgstr "主体"
 msgid "Bonus score granted when a cum round is completed successfully. This affects scoring only and does not influence trigger probabilities."
 msgstr "成功完成高潮关卡时获得的奖励分数。这仅影响得分，不影响触发概率。"
 
-#: src/routes/settings.tsx:1823
+#: src/routes/settings.tsx:1842
 msgid "Booru Cache"
 msgstr "Booru缓存"
 
-#: src/routes/settings.tsx:1832
+#: src/routes/settings.tsx:1851
 msgid "Booru cache cleared."
 msgstr "Booru缓存已清除。"
 
-#: src/routes/settings.tsx:1923
+#: src/routes/settings.tsx:1942
 msgid "Boot directly into recovery mode on every app launch. Use this when normal startup keeps failing. “Start Normally” in recovery still opens the app once; a full restart returns to recovery until disabled."
 msgstr "每次启动应用程序时直接启动进入恢复模式。当正常启动始终失败时使用此选项。恢复中的“正常启动”仍会打开应用程序一次；完全重新启动将返回恢复状态，直到禁用为止。"
 
@@ -1842,10 +1842,10 @@ msgid "first-start.step.welcome.detail.4"
 msgstr "两种模式都以关卡作为核心内容。棋盘决定下一步发生什么，您的选择会改变运行的风险和回报。"
 
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:68
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1654
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2299
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2619
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3109
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1675
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2320
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2640
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3130
 msgid "BPM"
 msgstr "BPM"
 
@@ -1911,7 +1911,7 @@ msgstr "内置服务器无法加载到编辑器中。"
 msgid "Bundled"
 msgstr "内置"
 
-#: src/routes/settings.tsx:1856
+#: src/routes/settings.tsx:1875
 #: src/routes/settings.tsx:7138
 msgid "Bundled Only"
 msgstr "仅内置"
@@ -1967,11 +1967,11 @@ msgstr "正在计算预计时间..."
 msgid "Calculating…"
 msgstr "计算中…"
 
-#: src/components/game/RoundVideoOverlay.tsx:4632
+#: src/components/game/RoundVideoOverlay.tsx:4717
 msgid "Came as told"
 msgstr "按要求完成"
 
-#: src/components/game/RoundVideoOverlay.tsx:4816
+#: src/components/game/RoundVideoOverlay.tsx:4901
 msgid "Came as Told"
 msgstr "按要求完成"
 
@@ -2013,12 +2013,12 @@ msgstr "篝火"
 msgid "Cancel"
 msgstr "取消"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2753
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2792
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2774
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2813
 msgid "Cancel Selection"
 msgstr "取消选择"
 
-#: src/components/game/RoundVideoOverlay.tsx:1908
+#: src/components/game/RoundVideoOverlay.tsx:1976
 msgid "Cannot resync: missing haptics connection settings."
 msgstr "无法重新同步：缺少触觉连接设置。"
 
@@ -2140,7 +2140,7 @@ msgstr "检查中"
 msgid "Checking login..."
 msgstr "正在检查登录..."
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:597
+#: src/features/rounds/library/InstalledRoundsPage.tsx:618
 msgid "Checking website support..."
 msgstr "正在检查网站支持..."
 
@@ -2246,7 +2246,7 @@ msgstr "选择要从此设备中清除的信息类别。"
 msgid "playlist-workshop.section.cum-rounds.description"
 msgstr "选择哪些高潮关卡可用。"
 
-#: src/routes/settings.tsx:1953
+#: src/routes/settings.tsx:1972
 msgid "Choose which GPU is used by FFmpeg and Electron's renderer. \"Default\" lets the OS decide. On Linux, selects the GPU via DRI_PRIME for both FFmpeg transcoding and Electron's Chromium GPU process. On Windows/macOS, selects the Electron rendering GPU via the --gpu-device-index switch (FFmpeg codec selection is unaffected). Requires an app restart to apply."
 msgstr "选择 FFmpeg 和 Electron 渲染器使用的 GPU。「默认」让操作系统决定。在 Linux 上，通过 DRI_PRIME 为 FFmpeg 转码和 Electron 的 Chromium GPU 进程选择 GPU。在 Windows/macOS 上，通过 --gpu-device-index 开关选择 Electron 渲染 GPU（不影响 FFmpeg 编解码器选择）。需要重启应用程序才能生效。"
 
@@ -2264,7 +2264,7 @@ msgid "clear"
 msgstr "清除"
 
 #: src/components/GlobalMusicOverlay.tsx:698
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2828
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2849
 #: src/routes/playlist-workshop.tsx:2235
 #: src/routes/playlist-workshop.tsx:3297
 #: src/routes/progression.tsx:626
@@ -2281,7 +2281,7 @@ msgstr "全部清除"
 msgid "Clear all skills"
 msgstr "清除所有技能"
 
-#: src/routes/settings.tsx:1828
+#: src/routes/settings.tsx:1847
 msgid "Clear Booru Cache"
 msgstr "清除Booru缓存"
 
@@ -2301,7 +2301,7 @@ msgstr "清空编辑器"
 msgid "Clear filters"
 msgstr "清除过滤器"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2972
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2993
 msgid "Clear Filters"
 msgstr "清除过滤器"
 
@@ -2332,7 +2332,7 @@ msgstr "清除播放列表"
 msgid "Clear selected rounds?"
 msgstr "清空已选回合？"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3267
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3288
 msgid "Clear the current filters to get back to the full library."
 msgstr "清除当前过滤器以返回完整库。"
 
@@ -2341,7 +2341,7 @@ msgstr "清除当前过滤器以返回完整库。"
 msgid "settings.help.shortcuts.mapEditor.clearSelection"
 msgstr "清除当前选择并取消待处理的连接。"
 
-#: src/routes/settings.tsx:1824
+#: src/routes/settings.tsx:1843
 msgid "Clear the local cache of booru (Rule34/Gelbooru/Danbooru) media items and thumbnails."
 msgstr "清除Booru（Rule34/Gelbooru/Danbooru）媒体项目和缩略图的本地缓存。"
 
@@ -2375,9 +2375,9 @@ msgstr "关闭"
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:369
 #: src/components/game/GameScene.tsx:5103
 #: src/components/game/GameScene.tsx:5510
-#: src/components/game/RoundVideoOverlay.tsx:3490
-#: src/components/game/RoundVideoOverlay.tsx:3984
-#: src/components/game/RoundVideoOverlay.tsx:4658
+#: src/components/game/RoundVideoOverlay.tsx:3558
+#: src/components/game/RoundVideoOverlay.tsx:4052
+#: src/components/game/RoundVideoOverlay.tsx:4743
 #: src/components/GlobalHandyOverlay.tsx:329
 #: src/components/GlobalMusicOverlay.tsx:328
 #: src/components/PlaylistPackExportDialog.tsx:191
@@ -2389,7 +2389,7 @@ msgstr "关闭"
 msgid "Close"
 msgstr "关闭"
 
-#: src/components/game/RoundVideoOverlay.tsx:3489
+#: src/components/game/RoundVideoOverlay.tsx:3557
 msgid "Close ({missingMediaAutoCloseRemainingSec}s)"
 msgstr "关闭 ({missingMediaAutoCloseRemainingSec}s)"
 
@@ -2397,7 +2397,7 @@ msgstr "关闭 ({missingMediaAutoCloseRemainingSec}s)"
 msgid "Close command palette"
 msgstr "关闭命令面板"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2257
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2278
 msgid "Close details"
 msgstr "关闭详情"
 
@@ -2447,11 +2447,11 @@ msgstr "寒冷连败"
 msgid "Collapse"
 msgstr "坍塌"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2639
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2660
 msgid "Collapse groups"
 msgstr "折叠组"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3255
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3276
 msgid "Collapse Groups"
 msgstr "折叠分组"
 
@@ -2481,7 +2481,7 @@ msgstr "命令面板"
 msgid "perk.rarity.common"
 msgstr "普通"
 
-#: src/routes/settings.tsx:1972
+#: src/routes/settings.tsx:1991
 msgid "Compatibility option for NVIDIA/Chromium video or compositor flicker. Requires an app restart."
 msgstr "NVIDIA/Chromium 视频或合成器闪烁的兼容性选项。需要重启应用程序。"
 
@@ -2555,7 +2555,7 @@ msgstr "确认迁移"
 msgid "Confirm Reveal"
 msgstr "确认显示"
 
-#: src/components/game/RoundVideoOverlay.tsx:4622
+#: src/components/game/RoundVideoOverlay.tsx:4707
 msgid "Confirm what happened in this cum round."
 msgstr "确认此高潮关卡中发生了什么。"
 
@@ -2567,7 +2567,7 @@ msgstr "确认您已高潮"
 msgid "Confirm your orgasm. Because this is not a cum round, this will immediately end the round and the entire game as a loss."
 msgstr "确认您已高潮。由于这不是高潮关卡，这将立即结束当前关卡并将整场游戏判定为失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1433
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1454
 msgid "Confirmation text did not match. No changes were made."
 msgstr "确认文本不匹配。未进行任何更改。"
 
@@ -2657,7 +2657,7 @@ msgstr "内容"
 msgid "first-start.step.heroes.eyebrow"
 msgstr "内容"
 
-#: src/routes/settings.tsx:1569
+#: src/routes/settings.tsx:1588
 msgid "Content safety, trusted domains, and safe site lists."
 msgstr "内容安全、信任域名和安全站点列表。"
 
@@ -2679,7 +2679,7 @@ msgstr "继续此播放列表的已保存运行"
 msgid "Continue Unresolved"
 msgstr "继续未解析项"
 
-#: src/routes/settings.tsx:2181
+#: src/routes/settings.tsx:2200
 msgid "Controller Support"
 msgstr "手柄支持"
 
@@ -2693,7 +2693,7 @@ msgstr "控制器支持、网络funscripts"
 msgid "hud.controls"
 msgstr "控制"
 
-#: src/routes/settings.tsx:1896
+#: src/routes/settings.tsx:1915
 msgid "Controls how much diagnostic information is written to the local log file."
 msgstr "控制写入本地日志文件中的诊断信息量。"
 
@@ -2705,7 +2705,7 @@ msgstr "控制用于移动的骰子范围。"
 msgid "Controls the range of the dice used for movement. Default is 1 to 6."
 msgstr "控制用于移动的骰子范围。默认为 1 到 6。"
 
-#: src/routes/settings.tsx:1547
+#: src/routes/settings.tsx:1566
 msgid "Controls when Stash sync refreshes funscript attachments from the source when the scene has one."
 msgstr "控制当场景包含funscript附件时，Stash同步何时从源刷新funscript附件。"
 
@@ -2727,7 +2727,7 @@ msgstr "将角色转换为关卡"
 msgid "Convert to AV1"
 msgstr "转换为 AV1"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2347
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2368
 msgid "Convert to hero"
 msgstr "转换为英雄"
 
@@ -2852,7 +2852,7 @@ msgstr "优惠券剪刀"
 msgid "Create"
 msgstr "创建"
 
-#: src/routes/settings.tsx:1778
+#: src/routes/settings.tsx:1797
 msgid "Create a backup immediately or open the automatic backup folder. Restores are manual: close the app and replace the active database file with one of these backup files. This is not automated to avoid accidental data loss."
 msgstr "立即创建备份或打开自动备份文件夹。恢复是手动操作：关闭应用程序并将活动的数据库文件替换为其中一个备份文件。此操作未自动化，以避免意外数据丢失。"
 
@@ -2880,7 +2880,7 @@ msgstr "先创建或导入一个播放列表，然后开始您的运行。"
 msgid "Create a playlist to start building your map."
 msgstr "创建一个播放列表以开始构建您的地图。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1773
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1794
 msgid "Create a round from a public URL"
 msgstr "从公共 URL 创建回合"
 
@@ -2888,7 +2888,7 @@ msgstr "从公共 URL 创建回合"
 msgid "Create a segment from the current IN and OUT markers."
 msgstr "从当前的入点和出点标记创建一个片段。"
 
-#: src/routes/settings.tsx:1801
+#: src/routes/settings.tsx:1820
 msgid "Create a settings backup immediately or open the automatic settings backup folder. Restores are manual: close the app and replace the active f-land.json settings file with one of these backup files."
 msgstr "立即创建设置备份或打开自动设置备份文件夹。恢复为手动操作：关闭应用并使用其中一个备份文件替换当前活动的 f-land.json 设置文件。"
 
@@ -2921,7 +2921,7 @@ msgstr "创建新的播放列表"
 msgid "Create or select a playlist before hosting."
 msgstr "在主持之前创建或选择一个播放列表。"
 
-#: src/routes/settings.tsx:1730
+#: src/routes/settings.tsx:1749
 msgid "Create periodic local SQLite and settings backups in the app data folder."
 msgstr "在应用数据文件夹中创建定期的本地 SQLite 和设置备份。"
 
@@ -2987,13 +2987,13 @@ msgid "Credits & License"
 msgstr "版权与许可"
 
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:56
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3005
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3026
 #: src/routes/settings.tsx:6961
 msgid "Cum"
 msgstr "高潮"
 
 #: src/components/game/GameScene.tsx:5063
-#: src/components/game/RoundVideoOverlay.tsx:3968
+#: src/components/game/RoundVideoOverlay.tsx:4036
 msgid "Cum (C)"
 msgstr "高潮 (C)"
 
@@ -3026,7 +3026,7 @@ msgstr "Cum 回合奖励分数"
 msgid "Cum Round Bonus Score"
 msgstr "Cum 回合奖励分数"
 
-#: src/components/game/RoundVideoOverlay.tsx:4616
+#: src/components/game/RoundVideoOverlay.tsx:4701
 msgid "Cum Round Check"
 msgstr "Cum 回合检查"
 
@@ -3050,7 +3050,7 @@ msgid "Current"
 msgstr "当前"
 
 #. placeholder {0}: deleteSelectedRoundsDialog.filterContext.join(", ")
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1698
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1719
 msgid "Current filters: {0}"
 msgstr "当前筛选器：{0}"
 
@@ -3073,7 +3073,7 @@ msgstr "当前回合已有 funscript"
 msgid "Current round preview"
 msgstr "当前回合预览"
 
-#: src/components/game/RoundVideoOverlay.tsx:4760
+#: src/components/game/RoundVideoOverlay.tsx:4845
 msgid "Current script position"
 msgstr "当前脚本位置"
 
@@ -3130,7 +3130,7 @@ msgstr "D{0}"
 msgid "Danger Zone"
 msgstr "危险区域"
 
-#: src/routes/settings.tsx:1606
+#: src/routes/settings.tsx:1625
 msgid "Data & Storage"
 msgstr "数据与存储"
 
@@ -3143,11 +3143,11 @@ msgstr "数据根目录：{0}"
 msgid "Database"
 msgstr "数据库"
 
-#: src/routes/settings.tsx:1777
+#: src/routes/settings.tsx:1796
 msgid "Database Backup Actions"
 msgstr "数据库备份操作"
 
-#: src/routes/settings.tsx:1785
+#: src/routes/settings.tsx:1804
 msgid "Database backup created."
 msgstr "数据库备份已创建。"
 
@@ -3180,8 +3180,8 @@ msgstr "停用所有增益"
 msgid "Deactivate skill"
 msgstr "停用技能"
 
-#: src/routes/settings.tsx:1889
-#: src/routes/settings.tsx:1909
+#: src/routes/settings.tsx:1908
+#: src/routes/settings.tsx:1928
 msgid "Debug"
 msgstr "调试"
 
@@ -3199,11 +3199,11 @@ msgstr "调试信息已复制。"
 msgid "Debug Information"
 msgstr "调试信息"
 
-#: src/routes/settings.tsx:1915
+#: src/routes/settings.tsx:1934
 msgid "Debug log level updated."
 msgstr "调试日志级别已更新。"
 
-#: src/routes/settings.tsx:1956
+#: src/routes/settings.tsx:1975
 msgid "Default (OS decides)"
 msgstr "默认（操作系统决定）"
 
@@ -3229,7 +3229,7 @@ msgstr "将 phash 生成推迟到稍后进行。"
 #: src/features/map-editor/components/AutomationPanel.tsx:288
 #: src/features/map-editor/components/EditorToolbar.tsx:140
 #: src/features/playlist-picker/PlaylistPicker.tsx:560
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2683
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2704
 #: src/routes/highscores.tsx:757
 #: src/routes/map-editor.tsx:3449
 #: src/routes/playlist-workshop.tsx:1625
@@ -3252,11 +3252,11 @@ msgstr "删除\"{0}\""
 msgid "Delete \"{0}\"? This cannot be undone."
 msgstr "删除 \"{0}\"？此操作无法撤销。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2181
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2202
 msgid "Delete {deleteSelectedRoundCount} Rounds"
 msgstr "删除 {deleteSelectedRoundCount} 轮次"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1695
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1716
 msgid "Delete {deleteSelectedRoundCount} selected round entries from the database?"
 msgstr "从数据库中删除 {deleteSelectedRoundCount} 个选中的轮次条目？"
 
@@ -3265,7 +3265,7 @@ msgstr "从数据库中删除 {deleteSelectedRoundCount} 个选中的轮次条�
 msgid "Delete <0>{0}</0>? This cannot be undone."
 msgstr "删除 <0>{0}</0>？此操作无法撤销。"
 
-#: src/routes/settings.tsx:1761
+#: src/routes/settings.tsx:1780
 msgid "Delete automatic database and settings backups once they are older than this many days."
 msgstr "当自动数据库和设置备份超过此天数后将其删除。"
 
@@ -3278,12 +3278,12 @@ msgid "Delete hero"
 msgstr "删除英雄"
 
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:32
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2191
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2212
 msgid "Delete Hero"
 msgstr "删除 Hero"
 
 #. placeholder {0}: deleteHeroDialog?.name ?? ""
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2190
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2211
 msgid ""
 "Delete hero entry “{0}” from the database?\n"
 "\n"
@@ -3293,7 +3293,7 @@ msgstr ""
 "\n"
 "这也会永久删除数据库中所有关联的回合。磁盘上的文件将保持不变。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2189
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2210
 msgid "Delete Hero?"
 msgstr "删除 Hero？"
 
@@ -3314,17 +3314,17 @@ msgstr "删除播放列表"
 msgid "Delete Playlist?"
 msgstr "删除播放列表？"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2365
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2386
 msgid "Delete round"
 msgstr "删除回合"
 
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:39
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2172
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2193
 msgid "Delete Round"
 msgstr "删除回合"
 
 #. placeholder {0}: deleteRoundDialog?.name ?? ""
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2171
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2192
 msgid ""
 "Delete round entry “{0}” from the database?\n"
 "\n"
@@ -3334,7 +3334,7 @@ msgstr ""
 "\n"
 "这仅移除数据库条目。磁盘上的文件将保持不变。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2170
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2191
 msgid "Delete Round?"
 msgstr "删除回合？"
 
@@ -3347,11 +3347,11 @@ msgstr "删除运行 {0}"
 msgid "Delete selected"
 msgstr "删除选中"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2871
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2892
 msgid "Delete Selected"
 msgstr "删除选中"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2179
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2200
 msgid "Delete Selected Rounds?"
 msgstr "删除选中的轮次？"
 
@@ -3369,7 +3369,7 @@ msgid "Delete: X removes the selected node, edge, or text."
 msgstr "删除：按 X 删除选定的节点、边或文本。"
 
 #. placeholder {0}: result.deletedCount
-#: src/features/rounds/library/InstalledRoundsPage.tsx:977
+#: src/features/rounds/library/InstalledRoundsPage.tsx:998
 msgid "Deleted {0} rounds."
 msgstr "已删除 {0} 个轮次。"
 
@@ -3442,7 +3442,7 @@ msgstr "开发者菜单"
 msgid "Dev Perks"
 msgstr "开发者增益"
 
-#: src/components/game/RoundVideoOverlay.tsx:4043
+#: src/components/game/RoundVideoOverlay.tsx:4111
 msgid "Dev Skip (K)"
 msgstr "开发者跳过 (K)"
 
@@ -3451,12 +3451,12 @@ msgstr "开发者跳过 (K)"
 msgid "settings.help.shortcuts.gameDebug.description"
 msgstr "仅用于开发的快捷键，只有在启用回合调试控制时才会激活。"
 
-#: src/components/game/RoundVideoOverlay.tsx:1866
+#: src/components/game/RoundVideoOverlay.tsx:1934
 msgid "Development: forced intermediary clip."
 msgstr "开发模式：强制中间片段。"
 
-#: src/components/game/RoundVideoOverlay.tsx:3276
-#: src/components/game/RoundVideoOverlay.tsx:4009
+#: src/components/game/RoundVideoOverlay.tsx:3344
+#: src/components/game/RoundVideoOverlay.tsx:4077
 msgid "Development: intermediary ended early."
 msgstr "开发模式：中间片段提前结束。"
 
@@ -3506,15 +3506,15 @@ msgstr "设备已停止"
 msgid "Dice Roll Limits"
 msgstr "骰子掷点限制"
 
-#: src/components/game/RoundVideoOverlay.tsx:4640
+#: src/components/game/RoundVideoOverlay.tsx:4725
 msgid "Did not cum"
 msgstr "未完成"
 
-#: src/components/game/RoundVideoOverlay.tsx:4819
+#: src/components/game/RoundVideoOverlay.tsx:4904
 msgid "Did Not Cum"
 msgstr "未完成"
 
-#: src/components/game/RoundVideoOverlay.tsx:4619
+#: src/components/game/RoundVideoOverlay.tsx:4704
 msgid "Did you cum as instructed?"
 msgstr "你是否按照指示完成了？"
 
@@ -3525,10 +3525,10 @@ msgstr "你完成了吗？"
 #: src/features/map-editor/components/EditorToolbar.tsx:206
 #: src/features/rounds/library/components/DifficultyBadge.tsx:18
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:75
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1652
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2300
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2618
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3108
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1673
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2321
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2639
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3129
 msgid "Difficulty"
 msgstr "难度"
 
@@ -3567,11 +3567,11 @@ msgstr "直接应用"
 msgid "Disable"
 msgstr "禁用"
 
-#: src/routes/settings.tsx:2048
+#: src/routes/settings.tsx:2067
 msgid "Disable Accelerated Video Decode"
 msgstr "禁用硬件加速视频解码"
 
-#: src/routes/settings.tsx:2080
+#: src/routes/settings.tsx:2099
 msgid "Disable Accelerated Video Encode"
 msgstr "禁用硬件加速视频编码"
 
@@ -3593,19 +3593,19 @@ msgstr "禁用骰子动画"
 msgid "playlist-workshop.disable-dice-animation.toggle"
 msgstr "禁用骰子动画"
 
-#: src/routes/settings.tsx:2032
+#: src/routes/settings.tsx:2051
 msgid "Disable GPU Compositing"
 msgstr "禁用 GPU 合成"
 
-#: src/routes/settings.tsx:2016
+#: src/routes/settings.tsx:2035
 msgid "Disable GPU Rasterization"
 msgstr "禁用 GPU 光栅化"
 
-#: src/routes/settings.tsx:2064
+#: src/routes/settings.tsx:2083
 msgid "Disable GPU Shader Disk Cache"
 msgstr "禁用 GPU 着色器磁盘缓存"
 
-#: src/routes/settings.tsx:2096
+#: src/routes/settings.tsx:2115
 msgid "Disable GPU VSync"
 msgstr "禁用 GPU 垂直同步"
 
@@ -3613,11 +3613,11 @@ msgstr "禁用 GPU 垂直同步"
 msgid "Disable Snap"
 msgstr "禁用吸附"
 
-#: src/routes/settings.tsx:2128
+#: src/routes/settings.tsx:2147
 msgid "Disable WebGL 2"
 msgstr "禁用 WebGL 2"
 
-#: src/routes/settings.tsx:1971
+#: src/routes/settings.tsx:1990
 msgid "Disable Zero-Copy Rendering"
 msgstr "禁用零拷贝渲染"
 
@@ -3629,8 +3629,8 @@ msgstr "已禁用"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1095
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1129
 #: src/features/rounds/library/components/RoundCard.tsx:183
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2286
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2896
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2307
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2917
 #: src/routes/first-start.tsx:1839
 #: src/routes/playlist-workshop.tsx:2654
 #: src/routes/playlist-workshop.tsx:3660
@@ -3640,15 +3640,15 @@ msgstr "已禁用"
 msgid "Disabled"
 msgstr "已禁用"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3180
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3201
 msgid "Disabled Hidden"
 msgstr "已禁用（隐藏）"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3180
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3201
 msgid "Disabled Included"
 msgstr "已禁用（包含）"
 
-#: src/routes/settings.tsx:2004
+#: src/routes/settings.tsx:2023
 msgid "Disables hardware acceleration on next launch. Use only when GPU rendering or video surfaces are unstable. Requires an app restart."
 msgstr "下次启动时禁用硬件加速。仅在 GPU 渲染或视频表面不稳定时使用。需要重启应用程序。"
 
@@ -3691,7 +3691,7 @@ msgstr "断开连接"
 msgid "Disconnect all"
 msgstr "断开所有连接"
 
-#: src/components/game/RoundVideoOverlay.tsx:3640
+#: src/components/game/RoundVideoOverlay.tsx:3708
 #: src/components/GlobalHandyOverlay.tsx:224
 #: src/routes/index.tsx:431
 #: src/routes/settings.tsx:4404
@@ -3728,7 +3728,7 @@ msgstr "显示名称"
 msgid "Display name is required."
 msgstr "显示名称为必填项。"
 
-#: src/routes/settings.tsx:1550
+#: src/routes/settings.tsx:1569
 msgid "Do Not Reattach"
 msgstr "不重新附加"
 
@@ -3741,7 +3741,7 @@ msgstr "不要在此使用你的访问令牌。请在 Handy 创建或选择一�
 msgid "game.perk.skip"
 msgstr "不要购买任何增益"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2635
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2656
 msgid "Done"
 msgstr "完毕"
 
@@ -3829,7 +3829,7 @@ msgstr "枯竭期"
 msgid "Duplicate"
 msgstr "复制"
 
-#: src/components/game/RoundVideoOverlay.tsx:4751
+#: src/components/game/RoundVideoOverlay.tsx:4836
 msgid "Duration"
 msgstr "时长"
 
@@ -3871,7 +3871,7 @@ msgstr "编辑英雄"
 msgid "Edit Hero"
 msgstr "编辑 Hero"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2339
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2360
 msgid "Edit round"
 msgstr "编辑回合"
 
@@ -3879,11 +3879,11 @@ msgstr "编辑回合"
 msgid "Edit Round"
 msgstr "编辑回合"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2669
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2690
 msgid "Edit tags"
 msgstr "编辑标签"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2855
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2876
 msgid "Edit Tags"
 msgstr "编辑标签"
 
@@ -3983,12 +3983,12 @@ msgstr "编码器等待中"
 
 #: src/features/converter/SegmentCard.tsx:408
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:412
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2306
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2327
 #: src/routes/playlist-workshop.tsx:2989
 msgid "End"
 msgstr "结束"
 
-#: src/components/game/RoundVideoOverlay.tsx:4014
+#: src/components/game/RoundVideoOverlay.tsx:4082
 msgid "End Intermediary (J)"
 msgstr "结束中间片段 (J)"
 
@@ -4032,7 +4032,7 @@ msgstr "英语"
 msgid "Enter a code to join immediately or host a lobby with the current playlist."
 msgstr "输入代码立即加入，或使用当前播放列表创建大厅。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1223
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1244
 msgid "Enter a round name before installing."
 msgstr "安装前请输入回合名称。"
 
@@ -4040,12 +4040,12 @@ msgstr "安装前请输入回合名称。"
 msgid "Enter a valid http(s) video URL."
 msgstr "请输入有效的 http(s) 视频 URL。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:592
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1229
+#: src/features/rounds/library/InstalledRoundsPage.tsx:613
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1250
 msgid "Enter a valid public http(s) website video URL."
 msgstr "请输入有效的公开 http(s) 网站视频 URL。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:903
+#: src/features/rounds/library/InstalledRoundsPage.tsx:924
 msgid "Enter at least one tag."
 msgstr "请至少输入一个标签。"
 
@@ -4137,7 +4137,7 @@ msgstr "EroScripts登录窗口已打开。请在那里登录——登录状态�
 msgid "EroScripts search failed."
 msgstr "EroScripts 搜索失败。"
 
-#: src/routes/settings.tsx:1904
+#: src/routes/settings.tsx:1923
 #: src/routes/settings.tsx:3765
 #: src/routes/settings.tsx:3957
 msgid "Error"
@@ -4197,7 +4197,7 @@ msgstr "所有位置"
 msgid "Exact:"
 msgstr "精确："
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1700
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1721
 msgid "Examples: {deleteSelectedRoundExamples}"
 msgstr "示例：{deleteSelectedRoundExamples}"
 
@@ -4205,10 +4205,10 @@ msgstr "示例：{deleteSelectedRoundExamples}"
 msgid "Exclude from random round selection"
 msgstr "从随机回合选择中排除"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1660
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2287
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2622
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3112
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1681
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2308
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2643
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3133
 msgid "Excluded"
 msgstr "已排除"
 
@@ -4233,11 +4233,11 @@ msgstr "扩张"
 msgid "Expand a cached match to review every player row from the stored standings snapshot."
 msgstr "展开缓存比赛以查看存储排名快照中的每行玩家数据。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3233
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3254
 msgid "Expand All Groups"
 msgstr "展开所有分组"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2639
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2660
 msgid "Expand groups"
 msgstr "展开组"
 
@@ -4262,7 +4262,7 @@ msgid "Expected Size"
 msgstr "预计大小"
 
 #: src/components/MenuButton.tsx:228
-#: src/routes/settings.tsx:2161
+#: src/routes/settings.tsx:2180
 msgid "Experimental"
 msgstr "实验性"
 
@@ -4279,7 +4279,7 @@ msgstr "实验性功能"
 msgid "Experimental Feature"
 msgstr "实验性功能"
 
-#: src/routes/settings.tsx:2182
+#: src/routes/settings.tsx:2201
 msgid "Experimental gamepad navigation and input support. Disabled by default until it is more stable. Expect some things to not work as expected."
 msgstr "实验性手柄导航和输入支持。默认禁用，直到更加稳定。部分功能可能无法按预期工作。"
 
@@ -4304,8 +4304,8 @@ msgstr "实验性覆盖已激活。此大厅期望 {0} 个已安装回合，低�
 msgid "Experimental Support"
 msgstr "实验性支持"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2676
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2743
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2697
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2764
 msgid "Export"
 msgstr "导出"
 
@@ -4314,8 +4314,8 @@ msgstr "导出"
 msgid "Export .fplay"
 msgstr "导出 .fplay"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:465
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1046
+#: src/features/rounds/library/InstalledRoundsPage.tsx:486
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1067
 msgid "Export canceled."
 msgstr "导出已取消。"
 
@@ -4335,7 +4335,7 @@ msgstr "导出调试文件"
 msgid "Export Fplay"
 msgstr "导出 Fplay"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1819
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1840
 msgid "Export library"
 msgstr "导出库"
 
@@ -4352,7 +4352,7 @@ msgstr "导出就绪"
 msgid "Export Scope"
 msgstr "导出范围"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2839
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2860
 msgid "Export Selected"
 msgstr "导出选中"
 
@@ -4374,7 +4374,7 @@ msgid "first-start.step.heroes.detail.5"
 msgstr "导出自己的作品也很简单。当你的回合或播放列表准备好后，应用会提供直接的导出路径，因此分享包不是一个复杂的过程。"
 
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:582
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2743
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2764
 #: src/routes/settings.tsx:7352
 msgid "Exporting..."
 msgstr "正在导出..."
@@ -4383,7 +4383,7 @@ msgstr "正在导出..."
 msgid "Exposes an optional remote funscript URL field in the Install From Web dialog. Disabled by default so web installs prefer a local funscript file."
 msgstr "在从网页安装对话框中显示可选的远程 Funscript URL 字段。默认禁用，使网页安装优先使用本地 Funscript 文件。"
 
-#: src/routes/settings.tsx:1541
+#: src/routes/settings.tsx:1560
 msgid "External source integrations, Stash sync, and local library folders."
 msgstr "外部来源集成、Stash 同步和本地库文件夹。"
 
@@ -4409,7 +4409,7 @@ msgstr "ey..."
 msgid "F{fieldIndex}"
 msgstr "F{fieldIndex}"
 
-#: src/components/game/RoundVideoOverlay.tsx:4648
+#: src/components/game/RoundVideoOverlay.tsx:4733
 msgid "Failed instruction"
 msgstr "失败的指令"
 
@@ -4453,7 +4453,7 @@ msgstr "分析库包失败。"
 msgid "Failed to apply setting."
 msgstr "应用设置失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1213
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1234
 msgid "Failed to attach the selected funscript file."
 msgstr "附加所选 Funscript 文件失败。"
 
@@ -4466,7 +4466,7 @@ msgstr "自动设置准备状态失败。"
 msgid "Failed to ban player."
 msgstr "封禁玩家失败。"
 
-#: src/routes/settings.tsx:1834
+#: src/routes/settings.tsx:1853
 msgid "Failed to clear booru cache."
 msgstr "清除Booru缓存失败。"
 
@@ -4482,7 +4482,7 @@ msgstr "清除日志文件失败。"
 msgid "Failed to clear login cookies."
 msgstr "清除登录 Cookie 失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1452
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1473
 msgid "Failed to convert hero group back to a round."
 msgstr "将 Hero 组转换回回合失败。"
 
@@ -4500,7 +4500,7 @@ msgstr "复制调试信息失败。"
 msgid "Failed to copy invite info."
 msgstr "复制邀请信息失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1615
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1636
 msgid "Failed to create legacy playlist."
 msgstr "创建旧版播放列表失败。"
 
@@ -4521,7 +4521,7 @@ msgstr "创建播放列表失败。"
 msgid "Failed to create source."
 msgstr "创建来源失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:893
+#: src/features/rounds/library/InstalledRoundsPage.tsx:914
 msgid "Failed to delete hero."
 msgstr "删除 Hero 失败。"
 
@@ -4530,11 +4530,11 @@ msgstr "删除 Hero 失败。"
 msgid "Failed to delete playlist."
 msgstr "删除播放列表失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:853
+#: src/features/rounds/library/InstalledRoundsPage.tsx:874
 msgid "Failed to delete round."
 msgstr "删除回合失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:981
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1002
 msgid "Failed to delete selected rounds."
 msgstr "删除选中轮次失败。"
 
@@ -4566,8 +4566,8 @@ msgstr "装备称号失败。"
 msgid "Failed to export debug file."
 msgstr "导出调试文件失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:472
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1049
+#: src/features/rounds/library/InstalledRoundsPage.tsx:493
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1070
 msgid "Failed to export library package."
 msgstr "导出库包失败。"
 
@@ -4588,7 +4588,7 @@ msgstr "完成运行结算失败。"
 msgid "Failed to give up."
 msgstr "放弃失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1181
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1202
 msgid "Failed to import selected file."
 msgstr "导入所选文件失败。"
 
@@ -4600,23 +4600,23 @@ msgstr "导入所选文件失败。"
 msgid "Failed to import the selected folder."
 msgstr "导入所选文件夹失败。"
 
-#: src/components/game/RoundVideoOverlay.tsx:1914
+#: src/components/game/RoundVideoOverlay.tsx:1982
 msgid "Failed to initialize haptics session for resync."
 msgstr "初始化触觉会话以重新同步失败。"
 
-#: src/components/game/RoundVideoOverlay.tsx:1223
+#: src/components/game/RoundVideoOverlay.tsx:1291
 msgid "Failed to initialize haptics session."
 msgstr "初始化触觉会话失败。"
 
-#: src/components/game/RoundVideoOverlay.tsx:2064
+#: src/components/game/RoundVideoOverlay.tsx:2132
 msgid "Failed to initialize haptics sync."
 msgstr "初始化触觉同步失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1360
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1381
 msgid "Failed to install EroScripts video."
 msgstr "无法安装 EroScripts 视频。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1272
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1293
 msgid "Failed to install the website round."
 msgstr "安装网站回合失败。"
 
@@ -4645,11 +4645,11 @@ msgstr "加载调试信息失败。"
 msgid "Failed to load EroScripts topic."
 msgstr "无法加载 EroScripts 主题。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2912
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2933
 msgid "Failed to load installed rounds"
 msgstr "加载已安装的回合失败"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2917
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2938
 msgid "Failed to load installed rounds."
 msgstr "加载已安装的回合失败。"
 
@@ -4661,10 +4661,10 @@ msgstr "无法加载程序版本。"
 msgid "Failed to load public lobbies."
 msgstr "加载公共大厅失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:651
-#: src/features/rounds/library/InstalledRoundsPage.tsx:660
-#: src/features/rounds/library/InstalledRoundsPage.tsx:675
-#: src/features/rounds/library/InstalledRoundsPage.tsx:683
+#: src/features/rounds/library/InstalledRoundsPage.tsx:672
+#: src/features/rounds/library/InstalledRoundsPage.tsx:681
+#: src/features/rounds/library/InstalledRoundsPage.tsx:696
+#: src/features/rounds/library/InstalledRoundsPage.tsx:704
 msgid "Failed to load selected round media."
 msgstr "无法加载所选回合媒体。"
 
@@ -4738,11 +4738,11 @@ msgstr "移除服务器配置失败。"
 msgid "Failed to rename playlist."
 msgstr "重命名播放列表失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1530
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1551
 msgid "Failed to repair template hero."
 msgstr "修复模板 Hero 失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1477
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1498
 msgid "Failed to repair template round."
 msgstr "修复模板回合失败。"
 
@@ -4754,19 +4754,19 @@ msgstr "无法重新指定技能。"
 msgid "Failed to resume selected playlist."
 msgstr "恢复所选播放列表失败。"
 
-#: src/components/game/RoundVideoOverlay.tsx:1947
+#: src/components/game/RoundVideoOverlay.tsx:2015
 msgid "Failed to resync timing with haptics."
 msgstr "与触觉重新同步时间失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:721
+#: src/features/rounds/library/InstalledRoundsPage.tsx:742
 msgid "Failed to retry template hero linking."
 msgstr "重试模板 Hero 链接失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:701
+#: src/features/rounds/library/InstalledRoundsPage.tsx:722
 msgid "Failed to retry template round linking."
 msgstr "重试模板回合链接失败。"
 
-#: src/components/game/RoundVideoOverlay.tsx:813
+#: src/components/game/RoundVideoOverlay.tsx:819
 msgid "Failed to save offset to round."
 msgstr "保存偏移量到回合失败。"
 
@@ -4811,7 +4811,7 @@ msgstr "为所有玩家启动失败。"
 msgid "Failed to start selected playlist."
 msgstr "启动所选播放列表失败。"
 
-#: src/components/game/RoundVideoOverlay.tsx:3125
+#: src/components/game/RoundVideoOverlay.tsx:3193
 msgid "Failed to stream sync position to haptics."
 msgstr "将同步位置流式传输到触觉失败。"
 
@@ -4843,7 +4843,7 @@ msgstr "更新频道失败。"
 msgid "Failed to update heartbeat."
 msgstr "更新心跳失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:814
+#: src/features/rounds/library/InstalledRoundsPage.tsx:835
 msgid "Failed to update hero."
 msgstr "更新 Hero 失败。"
 
@@ -4856,11 +4856,11 @@ msgstr "更新大厅锁定状态失败。"
 msgid "Failed to update public lobby visibility."
 msgstr "更新公共大厅可见性失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:775
+#: src/features/rounds/library/InstalledRoundsPage.tsx:796
 msgid "Failed to update round."
 msgstr "更新回合失败。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:919
+#: src/features/rounds/library/InstalledRoundsPage.tsx:940
 msgid "Failed to update selected round tags."
 msgstr "更新选中回合标签失败。"
 
@@ -4932,7 +4932,7 @@ msgstr "场地 {0}：{1}"
 msgid "File Name"
 msgstr "文件名"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1696
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1717
 msgid "Files on disk will be left untouched. This cannot be undone from inside the app."
 msgstr "磁盘上的文件将保持不变。此操作无法在应用内撤销。"
 
@@ -4944,11 +4944,11 @@ msgstr "按主角或主角标签筛选"
 msgid "Filter domains"
 msgstr "筛选域名"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2937
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2958
 msgid "Filter library"
 msgstr "过滤器库"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2590
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2611
 msgid "Filters"
 msgstr "过滤器"
 
@@ -4993,7 +4993,7 @@ msgstr "查找视频和 Funscript"
 msgid "Find videos and direct funscripts from EroScripts."
 msgstr "从 EroScripts 查找视频和直接 funscript。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1781
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1802
 msgid "Find videos and funscripts"
 msgstr "查找视频和有趣的脚本"
 
@@ -5075,7 +5075,7 @@ msgstr "感谢通过以下方式提供 TCode 设备实现示例"
 msgid "perk.description.im-close"
 msgstr "接下来两轮，骰子最小点数提高到 9，最大点数提高到 15。"
 
-#: src/routes/settings.tsx:2112
+#: src/routes/settings.tsx:2131
 msgid "Force OpenGL ANGLE Backend"
 msgstr "强制使用 OpenGL ANGLE 后端"
 
@@ -5084,7 +5084,7 @@ msgstr "强制使用 OpenGL ANGLE 后端"
 msgid "Force stop"
 msgstr "强制停止"
 
-#: src/components/game/RoundVideoOverlay.tsx:3955
+#: src/components/game/RoundVideoOverlay.tsx:4023
 #: src/routes/settings.tsx:4938
 msgid "Force Stop"
 msgstr "强制停止"
@@ -5093,23 +5093,23 @@ msgstr "强制停止"
 msgid "Force Stop Handy"
 msgstr "强制停止 Handy"
 
-#: src/routes/settings.tsx:2113
+#: src/routes/settings.tsx:2132
 msgid "Forces Chromium's ANGLE layer to use OpenGL instead of the default backend (Vulkan on Linux). Can fix GPU process crashes on NVIDIA drivers with broken Vulkan support. Requires an app restart."
 msgstr "强制 Chromium 的 ANGLE 层使用 OpenGL 而非默认后端（Linux 上为 Vulkan）。可修复 NVIDIA 驱动程序 Vulkan 支持损坏导致的 GPU 进程崩溃。需要重启应用程序。"
 
-#: src/routes/settings.tsx:2129
+#: src/routes/settings.tsx:2148
 msgid "Forces fallback to WebGL 1. Some NVIDIA driver versions have broken WebGL 2 implementations that cause context loss and renderer crashes. Requires an app restart."
 msgstr "强制回退到 WebGL 1。某些 NVIDIA 驱动版本的 WebGL 2 实现存在问题，会导致上下文丢失和渲染器崩溃。需要重启应用程序。"
 
-#: src/routes/settings.tsx:2017
+#: src/routes/settings.tsx:2036
 msgid "Forces software rasterization instead of using the GPU. Can fix visual artifacts or crashes on some GPU drivers. Requires an app restart."
 msgstr "强制使用软件光栅化而非 GPU。可修复某些 GPU 驱动上的视觉伪影或崩溃。需要重启应用程序。"
 
-#: src/routes/settings.tsx:2049
+#: src/routes/settings.tsx:2068
 msgid "Forces software video decoding instead of GPU-accelerated decode. Can fix video playback issues or crashes. Requires an app restart."
 msgstr "强制使用软件视频解码而非 GPU 加速解码。可修复视频播放问题或崩溃。需要重启应用程序。"
 
-#: src/routes/settings.tsx:2081
+#: src/routes/settings.tsx:2100
 msgid "Forces software video encoding instead of GPU-accelerated encode (NVENC). Can fix crashes when the GPU is under heavy concurrent load from WebGL rendering. Requires an app restart."
 msgstr "强制使用软件视频编码而非 GPU 加速编码（NVENC）。可修复 GPU 在 WebGL 渲染的高并发负载下出现的崩溃。需要重启应用程序。"
 
@@ -5121,7 +5121,7 @@ msgstr "前进步数"
 msgid "Fpack Extraction Location"
 msgstr "Fpack 解压位置"
 
-#: src/routes/settings.tsx:2195
+#: src/routes/settings.tsx:2214
 msgid "FPS Counter"
 msgstr "帧率计数器"
 
@@ -5134,8 +5134,8 @@ msgstr "免费"
 msgid "first-start.language-option.fr"
 msgstr "法语"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3122
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3137
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3143
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3158
 msgid "From"
 msgstr "从"
 
@@ -5182,20 +5182,20 @@ msgstr "完全随机"
 msgid "Funscript"
 msgstr "Funscript"
 
-#: src/components/game/RoundVideoOverlay.tsx:4757
+#: src/components/game/RoundVideoOverlay.tsx:4842
 msgid "Funscript actions"
 msgstr "Funscript 动作"
 
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:238
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1326
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1347
 msgid "Funscript attached."
 msgstr "Funscript 已附加。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1316
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1337
 msgid "Funscript attached. Save the hero to apply it to all attached rounds."
 msgstr "Funscript已附加。保存英雄以将其应用到所有附加的回合。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1308
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1329
 msgid "Funscript attached. Save the round to keep it."
 msgstr "Funscript 已附加。保存回合后才会保留。"
 
@@ -5203,7 +5203,7 @@ msgstr "Funscript 已附加。保存回合后才会保留。"
 msgid "Funscript Offset (ms)"
 msgstr "Funscript 偏移量 (ms)"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:747
+#: src/features/rounds/library/InstalledRoundsPage.tsx:768
 msgid "Funscript offset must be between {THEHANDY_OFFSET_MIN_MS}ms and {THEHANDY_OFFSET_MAX_MS}ms."
 msgstr "Funscript 偏移量必须在 {THEHANDY_OFFSET_MIN_MS}ms 和 {THEHANDY_OFFSET_MAX_MS}ms 之间。"
 
@@ -5220,7 +5220,7 @@ msgid "Funscript URL"
 msgstr "Funscript 链接"
 
 #: src/features/converter/ConverterSourcePicker.tsx:370
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1247
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1268
 msgid "Funscript URL must also be a valid http(s) URL."
 msgstr "Funscript URL 也必须是有效的 http(s) URL。"
 
@@ -5261,8 +5261,8 @@ msgstr "游戏会话"
 msgid "Gameplay"
 msgstr "游戏玩法"
 
-#: src/components/game/RoundVideoOverlay.tsx:4202
-#: src/components/game/RoundVideoOverlay.tsx:4331
+#: src/components/game/RoundVideoOverlay.tsx:4270
+#: src/components/game/RoundVideoOverlay.tsx:4399
 msgid "Gameplay captions"
 msgstr "游戏字幕"
 
@@ -5303,7 +5303,7 @@ msgstr "门槛：如果玩家缺少金钱，此边不可用。"
 msgid "General"
 msgstr "通用"
 
-#: src/components/game/RoundVideoOverlay.tsx:1363
+#: src/components/game/RoundVideoOverlay.tsx:1431
 msgid "Generated sequence sync failed."
 msgstr "生成的序列同步失败。"
 
@@ -5341,16 +5341,16 @@ msgstr "赠送保证增益"
 msgid "Give Up"
 msgstr "放弃"
 
-#: src/features/map-editor/components/AutomationPanel.tsx:235
-msgid "Global"
-msgstr "全局"
-
 #. js-lingui-explicit-id
 #: src/routes/settings.tsx:309
 msgid "settings.help.shortcuts.global.title"
 msgstr "全局"
 
-#: src/routes/settings.tsx:1515
+#: src/features/map-editor/components/AutomationPanel.tsx:235
+msgid "Global"
+msgstr "全局"
+
+#: src/routes/settings.tsx:1534
 msgid "Global background music queue and playback preferences."
 msgstr "全局背景音乐队列和播放偏好。"
 
@@ -5395,7 +5395,7 @@ msgstr "返回主菜单"
 msgid "perk.name.gooooal"
 msgstr "进球啦"
 
-#: src/routes/settings.tsx:1952
+#: src/routes/settings.tsx:1971
 msgid "GPU Preference (FFmpeg & Electron)"
 msgstr "GPU 偏好设置（FFmpeg 和 Electron）"
 
@@ -5421,25 +5421,25 @@ msgstr "图播放列表"
 msgid "Graphics Compatibility"
 msgstr "图形兼容性"
 
-#: src/routes/settings.tsx:2145
+#: src/routes/settings.tsx:2164
 msgid "Graphics compatibility settings require a restart to take effect. Click below to restart the app now."
 msgstr "图形兼容性设置需要重启才能生效。点击下方立即重启应用程序。"
 
-#: src/routes/settings.tsx:2003
+#: src/routes/settings.tsx:2022
 msgid "Graphics Safe Mode"
 msgstr "图形安全模式"
 
-#: src/routes/settings.tsx:1980
-#: src/routes/settings.tsx:1996
-#: src/routes/settings.tsx:2009
-#: src/routes/settings.tsx:2025
-#: src/routes/settings.tsx:2041
-#: src/routes/settings.tsx:2057
-#: src/routes/settings.tsx:2073
-#: src/routes/settings.tsx:2089
-#: src/routes/settings.tsx:2105
-#: src/routes/settings.tsx:2121
-#: src/routes/settings.tsx:2137
+#: src/routes/settings.tsx:1999
+#: src/routes/settings.tsx:2015
+#: src/routes/settings.tsx:2028
+#: src/routes/settings.tsx:2044
+#: src/routes/settings.tsx:2060
+#: src/routes/settings.tsx:2076
+#: src/routes/settings.tsx:2092
+#: src/routes/settings.tsx:2108
+#: src/routes/settings.tsx:2124
+#: src/routes/settings.tsx:2140
+#: src/routes/settings.tsx:2156
 msgid "Graphics setting saved. Restart the app to apply it."
 msgstr "图形设置已保存。重启应用程序以应用更改。"
 
@@ -5451,7 +5451,7 @@ msgstr "网格整理"
 msgid "Group"
 msgstr "分组"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3172
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3193
 msgid "Grouping:"
 msgstr "分组："
 
@@ -5476,15 +5476,15 @@ msgstr "触觉控制"
 msgid "Haptics global offset slider"
 msgstr "触觉全局偏移滑块"
 
-#: src/routes/settings.tsx:1522
+#: src/routes/settings.tsx:1541
 msgid "Haptics hardware integration and funscript compatibility."
 msgstr "触觉硬件集成和 funscript 兼容性。"
 
-#: src/components/game/RoundVideoOverlay.tsx:4416
+#: src/components/game/RoundVideoOverlay.tsx:4501
 msgid "Haptics Linkup"
 msgstr "触觉连接"
 
-#: src/components/game/RoundVideoOverlay.tsx:3832
+#: src/components/game/RoundVideoOverlay.tsx:3900
 msgid "Haptics Menu"
 msgstr "触觉菜单"
 
@@ -5496,20 +5496,20 @@ msgstr "触觉重新连接失败。"
 msgid "Haptics reconnected."
 msgstr "触觉已重新连接。"
 
-#: src/components/game/RoundVideoOverlay.tsx:3940
+#: src/components/game/RoundVideoOverlay.tsx:4008
 #: src/components/GlobalHandyOverlay.tsx:143
 msgid "Haptics resumed."
 msgstr "触觉已恢复。"
 
-#: src/components/game/RoundVideoOverlay.tsx:3856
+#: src/components/game/RoundVideoOverlay.tsx:3924
 msgid "Haptics Status Off"
 msgstr "触觉状态关"
 
-#: src/components/game/RoundVideoOverlay.tsx:3856
+#: src/components/game/RoundVideoOverlay.tsx:3924
 msgid "Haptics Status On"
 msgstr "触觉状态开"
 
-#: src/components/game/RoundVideoOverlay.tsx:3944
+#: src/components/game/RoundVideoOverlay.tsx:4012
 msgid "Haptics stopped manually."
 msgstr "触觉已手动停止。"
 
@@ -5521,7 +5521,7 @@ msgstr "触觉已停止。"
 msgid "Haptics stroke reset."
 msgstr "触觉行程已重置。"
 
-#: src/components/game/RoundVideoOverlay.tsx:1943
+#: src/components/game/RoundVideoOverlay.tsx:2011
 msgid "Haptics timing resynced."
 msgstr "触觉时间已重新同步。"
 
@@ -5554,11 +5554,11 @@ msgstr "硬件"
 msgid "command-palette.category.hardware"
 msgstr "硬件"
 
-#: src/routes/settings.tsx:1521
+#: src/routes/settings.tsx:1540
 msgid "Hardware & Sync"
 msgstr "硬件与同步"
 
-#: src/routes/settings.tsx:1612
+#: src/routes/settings.tsx:1631
 msgid "Hardware performance presets"
 msgstr "硬件性能预设"
 
@@ -5580,7 +5580,7 @@ msgstr "治疗"
 msgid "Help"
 msgstr "帮助"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1662
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1683
 msgid "Hero"
 msgstr "主角"
 
@@ -5588,7 +5588,7 @@ msgstr "主角"
 msgid "Hero collection"
 msgstr "英雄合集"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2893
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2914
 msgid "Hero Groups"
 msgstr "主角组"
 
@@ -5607,7 +5607,7 @@ msgstr "主角标签"
 #: src/components/LibraryExportOverlay.tsx:124
 #: src/features/map-editor/components/TileSidebar.tsx:305
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:222
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2606
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2627
 #: src/routes/playlist-workshop.tsx:3160
 #: src/routes/playlist-workshop.tsx:3302
 msgid "Heroes"
@@ -5847,7 +5847,7 @@ msgstr "如果你愿意，可以现在跳过，稍后再回来。"
 msgid "first-start.step.phash.detail.2"
 msgstr "如果你的电脑较旧或在启动时已经吃力，禁用后台哈希计算可以减少后台负载。"
 
-#: src/routes/settings.tsx:2224
+#: src/routes/settings.tsx:1512
 msgid "Ignore Playlist Level Requirements"
 msgstr "忽略播放列表级别要求"
 
@@ -5875,11 +5875,11 @@ msgstr "导入并创建播放列表"
 msgid "Import Content"
 msgstr "导入内容"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1764
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1785
 msgid "Import file"
 msgstr "导入文件"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2713
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2734
 #: src/routes/first-start.tsx:2099
 msgid "Import File"
 msgstr "导入文件"
@@ -6034,7 +6034,7 @@ msgstr "无限进步"
 msgid "Infinite run with random rounds. Dice locked to 1. No dice-related perks. Anti-perks can be toggled in the playlist settings."
 msgstr "随机回合的无限模式。骰子锁定为1。无骰子相关增益。反增益可在播放列表设置中切换。"
 
-#: src/routes/settings.tsx:1908
+#: src/routes/settings.tsx:1927
 msgid "Info"
 msgstr "信息"
 
@@ -6051,11 +6051,11 @@ msgstr "检查 {displayName}"
 msgid "highscores.section.single.description"
 msgstr "查看本地运行历史、生存时间和高分进度。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1750
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1771
 msgid "Install"
 msgstr "安装"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3268
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3289
 msgid "Install a folder or import a portable file to start building the library."
 msgstr "安装文件夹或导入便携文件以开始构建库。"
 
@@ -6063,17 +6063,17 @@ msgstr "安装文件夹或导入便携文件以开始构建库。"
 msgid "Install dropped files?"
 msgstr "安装拖放的文件？"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1756
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1777
 msgid "Install folder"
 msgstr "安装文件夹"
 
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:89
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1772
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1793
 msgid "Install from web"
 msgstr "从网页安装"
 
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:99
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2723
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2744
 msgid "Install From Web"
 msgstr "从网页安装"
 
@@ -6082,7 +6082,7 @@ msgstr "从网页安装"
 msgid "command-palette.rounds-install-web"
 msgstr "从网络安装"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2703
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2724
 #: src/routes/index.tsx:320
 msgid "Install Rounds"
 msgstr "安装回合"
@@ -6115,21 +6115,21 @@ msgid "Install Website Round"
 msgstr "安装网站回合"
 
 #: src/features/converter/SourcePanel.tsx:72
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2309
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3017
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2330
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3038
 #: src/routes/settings.tsx:4096
 msgid "Installed"
 msgstr "已安装"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1268
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1289
 msgid "Installed \"{trimmedName}\"."
 msgstr "已安装 \"{trimmedName}\"。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1354
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1375
 msgid "Installed EroScripts video with funscript."
 msgstr "已安装带 funscript 的 EroScripts 视频。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1355
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1376
 msgid "Installed EroScripts video without a funscript."
 msgstr "已安装不带 funscript 的 EroScripts 视频。"
 
@@ -6137,7 +6137,7 @@ msgstr "已安装不带 funscript 的 EroScripts 视频。"
 msgid "Installed library"
 msgstr "已安装的库"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1006
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1027
 msgid "Installed Library"
 msgstr "已安装库"
 
@@ -6153,7 +6153,7 @@ msgstr "已安装回合"
 msgid "Installed Round Source"
 msgstr "已安装回合来源"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1728
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1749
 #: src/routes/index.tsx:334
 msgid "Installed Rounds"
 msgstr "已安装回合"
@@ -6207,12 +6207,12 @@ msgid "hud.intensityCap"
 msgstr "强度 <="
 
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:55
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3004
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3025
 #: src/routes/settings.tsx:6960
 msgid "Interjection"
 msgstr "插入"
 
-#: src/components/game/RoundVideoOverlay.tsx:4748
+#: src/components/game/RoundVideoOverlay.tsx:4833
 msgid "Intermediary"
 msgstr "中间环节"
 
@@ -6221,7 +6221,7 @@ msgstr "中间环节"
 msgid "hud.intermediary"
 msgstr "中间环节"
 
-#: src/components/game/RoundVideoOverlay.tsx:2786
+#: src/components/game/RoundVideoOverlay.tsx:2854
 msgid "Intermediary clip spawned."
 msgstr "中间环节片段已生成。"
 
@@ -6265,11 +6265,11 @@ msgstr "中间环节最大值 %"
 msgid "first-start.step.booru.eyebrow"
 msgstr "中间环节媒体"
 
-#: src/components/game/RoundVideoOverlay.tsx:1774
+#: src/components/game/RoundVideoOverlay.tsx:1842
 msgid "Intermediary media was not found. Returning to main video."
 msgstr "未找到中间媒体。返回主视频。"
 
-#: src/components/game/RoundVideoOverlay.tsx:4769
+#: src/components/game/RoundVideoOverlay.tsx:4854
 msgid "Intermediary queue"
 msgstr "中间环节队列"
 
@@ -6422,7 +6422,7 @@ msgstr "继续游玩"
 msgid "Keep Playlist"
 msgstr "保留播放列表"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2696
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2717
 msgid "Keep the main browsing tools, collection health, and import actions in one place."
 msgstr "将主要浏览工具、集合健康状态和导入操作集中在一处。"
 
@@ -6496,7 +6496,7 @@ msgstr "大型播放列表仍可能需要比全局最小值更多的已安装回
 msgid "Last checked:"
 msgstr "上次检查："
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:213
+#: src/features/rounds/library/InstalledRoundsPage.tsx:208
 msgid "Last scan done ({summary})"
 msgstr "上次扫描完成（{summary}）"
 
@@ -6546,7 +6546,7 @@ msgstr "排行榜"
 msgid "Leave custom mode off unless you explicitly want to override the built-in app identity."
 msgstr "除非你明确想覆盖内置应用标识，否则请保持自定义模式关闭。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1596
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1617
 msgid "Legacy import did not finish."
 msgstr "旧版导入未完成。"
 
@@ -6555,8 +6555,8 @@ msgid "Legacy Login"
 msgstr "旧版登录"
 
 #: src/features/rounds/library/dialogs/LegacyPlaylistReviewDialog.tsx:88
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1133
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1570
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1154
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1591
 msgid "Legacy Playlist"
 msgstr "旧版播放列表"
 
@@ -6569,9 +6569,9 @@ msgstr "Stash 来源不再提供旧版用户名/密码登录。请将此来源�
 msgid "perk.rarity.legendary"
 msgstr "传说"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1656
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2620
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3110
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1677
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2641
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3131
 msgid "Length"
 msgstr "长度"
 
@@ -6583,7 +6583,7 @@ msgstr "让玩家选择游玩此回合，或跳过它并改为从此图块掷骰
 msgid "Let's get you set up. This quick walkthrough covers the essentials and lets you import content right away."
 msgstr "先帮你完成设置。这个快速引导会介绍核心内容，并让你立即导入内容。"
 
-#: src/routes/settings.tsx:2211
+#: src/routes/settings.tsx:2230
 msgid "Lets singleplayer start while required web rounds are still caching. Warning: some rounds may not play, and the web version is used instead of the local cache."
 msgstr "允许在所需 Web 回合仍在缓存时启动单人模式。警告：部分回合可能无法播放，且会使用 Web 版本而非本地缓存。"
 
@@ -6617,7 +6617,7 @@ msgid "Level forge"
 msgstr "等级锻造"
 
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:257
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3050
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3071
 #: src/routes/settings.tsx:6378
 msgid "Library"
 msgstr "库"
@@ -6639,7 +6639,7 @@ msgstr "库导出进行中"
 msgid "Library filter"
 msgstr "库筛选"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2693
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2714
 msgid "Library Snapshot"
 msgstr "库快照"
 
@@ -6670,11 +6670,11 @@ msgstr "许可证"
 
 #: src/routes/first-start.tsx:2475
 #: src/routes/first-start.tsx:2490
-#: src/routes/settings.tsx:1715
+#: src/routes/settings.tsx:1734
 msgid "Limit preview ffmpeg to one thread"
 msgstr "将预览 ffmpeg 限制为单线程"
 
-#: src/routes/settings.tsx:1699
+#: src/routes/settings.tsx:1718
 msgid "Limits how many missing video fingerprints are calculated during each automatic background pass. Manual scans still process the full backlog."
 msgstr "限制每次自动后台处理时计算多少缺失的视频指纹。手动扫描仍会处理全部积压任务。"
 
@@ -6727,7 +6727,7 @@ msgstr "加载上一个未转换的回合并聚焦目标计数。"
 msgid "perk.name.loaded-dice"
 msgstr "灌铅骰子"
 
-#: src/components/game/RoundVideoOverlay.tsx:4502
+#: src/components/game/RoundVideoOverlay.tsx:4587
 msgid "Loading captions"
 msgstr "正在加载字幕"
 
@@ -6743,11 +6743,11 @@ msgstr "正在加载外部来源..."
 msgid "Loading folders..."
 msgstr "正在加载文件夹..."
 
-#: src/components/game/RoundVideoOverlay.tsx:1702
+#: src/components/game/RoundVideoOverlay.tsx:1770
 msgid "LOADING INTERMEDIARY"
 msgstr "正在加载中间事件"
 
-#: src/components/game/RoundVideoOverlay.tsx:1704
+#: src/components/game/RoundVideoOverlay.tsx:1772
 msgid "Loading intermediary assets..."
 msgstr "正在加载中间事件资源..."
 
@@ -6777,7 +6777,7 @@ msgstr "正在加载安全设置..."
 msgid "Loading..."
 msgstr "加载中..."
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3175
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3196
 msgid "Loading…"
 msgstr "加载中…"
 
@@ -6839,9 +6839,9 @@ msgstr "大厅："
 
 #: src/features/converter/SourcePanel.tsx:56
 #: src/features/rounds/library/components/RoundCard.tsx:76
-#: src/features/rounds/library/InstalledRoundsPage.tsx:931
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2310
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3068
+#: src/features/rounds/library/InstalledRoundsPage.tsx:952
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2331
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3089
 msgid "Local"
 msgstr "本地"
 
@@ -6871,11 +6871,11 @@ msgstr "已附加本地 funscript：{funscriptFileLabel}"
 msgid "Local funscript attached: {websiteFunscriptFileLabel}"
 msgstr "已附加本地 Funscript：{websiteFunscriptFileLabel}"
 
-#: src/components/game/RoundVideoOverlay.tsx:4358
+#: src/components/game/RoundVideoOverlay.tsx:4426
 msgid "Local media file not found"
 msgstr "未找到本地媒体文件"
 
-#: src/routes/settings.tsx:1874
+#: src/routes/settings.tsx:1893
 msgid "Local Only"
 msgstr "仅本地"
 
@@ -6911,7 +6911,7 @@ msgstr "日志文件已清除。"
 msgid "Log in on the EroScripts website to make the search popup and downloads use your account cookies, including two-factor authentication."
 msgstr "在 EroScripts 网站登录后，搜索弹窗和下载会使用你的账号 Cookie，包括双重验证。"
 
-#: src/routes/settings.tsx:1895
+#: src/routes/settings.tsx:1914
 msgid "Log Level"
 msgstr "日志级别"
 
@@ -6931,7 +6931,7 @@ msgstr "已登录"
 msgid "Logged in as {0}"
 msgstr "已以 {0} 登录"
 
-#: src/routes/settings.tsx:1890
+#: src/routes/settings.tsx:1909
 msgid "Logging, diagnostics, and public-safe support information."
 msgstr "日志记录、诊断和公开安全的支持信息。"
 
@@ -7009,7 +7009,7 @@ msgstr "幸运势能"
 msgid "perk.name.lucky-star"
 msgstr "幸运星"
 
-#: src/components/game/RoundVideoOverlay.tsx:4748
+#: src/components/game/RoundVideoOverlay.tsx:4833
 msgid "Main"
 msgstr "主项"
 
@@ -7050,11 +7050,11 @@ msgid "Manage your stored perks and active effects."
 msgstr "管理你已存储的增益和当前激活的效果。"
 
 #. placeholder {0}: Math.round(pauseDurationMs / 1000)
-#: src/components/game/RoundVideoOverlay.tsx:3349
+#: src/components/game/RoundVideoOverlay.tsx:3417
 msgid "Manual pause active ({0}s)."
 msgstr "手动暂停激活（{0}s）。"
 
-#: src/components/game/RoundVideoOverlay.tsx:3353
+#: src/components/game/RoundVideoOverlay.tsx:3421
 msgid "Manual pause ended."
 msgstr "手动暂停已结束。"
 
@@ -7158,7 +7158,7 @@ msgstr "升满所有技能"
 msgid "Max D"
 msgstr "最大难度"
 
-#: src/routes/settings.tsx:1938
+#: src/routes/settings.tsx:1957
 msgid "Max Log File Size (MB)"
 msgstr "最大日志文件大小 (MB)"
 
@@ -7271,7 +7271,7 @@ msgstr "最小难度"
 msgid "Min Round (ms)"
 msgstr "最短回合（毫秒）"
 
-#: src/routes/settings.tsx:1744
+#: src/routes/settings.tsx:1763
 msgid "Minimum number of days between automatic database and settings backups."
 msgstr "自动数据库和设置备份之间的最小天数。"
 
@@ -7285,13 +7285,13 @@ msgstr "最小掷骰"
 msgid "Minimum Round Count: {requiredNormalRoundCount}"
 msgstr "最少回合数：{requiredNormalRoundCount}"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3018
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3039
 msgid "Missing"
 msgstr "缺失"
 
-#: src/components/game/RoundVideoOverlay.tsx:1907
-#: src/components/game/RoundVideoOverlay.tsx:2015
-#: src/components/game/RoundVideoOverlay.tsx:2878
+#: src/components/game/RoundVideoOverlay.tsx:1975
+#: src/components/game/RoundVideoOverlay.tsx:2083
+#: src/components/game/RoundVideoOverlay.tsx:2946
 msgid "Missing haptics connection settings."
 msgstr "缺少触觉连接设置。"
 
@@ -7299,7 +7299,7 @@ msgstr "缺少触觉连接设置。"
 msgid "Missing lobby snapshot."
 msgstr "缺少大厅快照。"
 
-#: src/routes/settings.tsx:1551
+#: src/routes/settings.tsx:1570
 msgid "Missing or Stash-Origin Only"
 msgstr "仅缺失或Stash来源的"
 
@@ -7307,7 +7307,7 @@ msgstr "仅缺失或Stash来源的"
 msgid "Missing player id."
 msgstr "缺少玩家 ID。"
 
-#: src/components/game/RoundVideoOverlay.tsx:3644
+#: src/components/game/RoundVideoOverlay.tsx:3712
 msgid "Missing Settings"
 msgstr "缺少设置"
 
@@ -7367,7 +7367,7 @@ msgid "hud.more"
 msgstr "更多"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:630
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1793
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1814
 msgid "More actions"
 msgstr "更多行动"
 
@@ -7428,15 +7428,15 @@ msgstr "上移视频"
 msgid "ms"
 msgstr "毫秒"
 
-#: src/routes/index.tsx:304
-#: src/routes/multiplayer.tsx:822
-msgid "Multiplayer"
-msgstr "多人模式"
-
 #. js-lingui-explicit-id
 #: src/routes/highscores.tsx:68
 msgid "highscores.section.multiplayer.title"
 msgstr "多人游戏"
+
+#: src/routes/index.tsx:304
+#: src/routes/multiplayer.tsx:822
+msgid "Multiplayer"
+msgstr "多人模式"
 
 #. js-lingui-explicit-id
 #: src/components/CommandPalette.tsx:49
@@ -7579,9 +7579,9 @@ msgstr "不适用"
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:387
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:36
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:43
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1658
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2621
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3111
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1679
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2642
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3132
 msgid "Name"
 msgstr "名称"
 
@@ -7650,9 +7650,9 @@ msgstr "新规则"
 msgid "game.reward.newScoreTotal"
 msgstr "新分数总额"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1661
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2616
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3106
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1682
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2637
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3127
 msgid "Newest"
 msgstr "最新"
 
@@ -7685,7 +7685,7 @@ msgstr "下次掷骰倍率"
 msgid "perk.description.succubus"
 msgstr "下一轮变为一个随机的高难度已安装回合。"
 
-#: src/components/game/RoundVideoOverlay.tsx:4031
+#: src/components/game/RoundVideoOverlay.tsx:4099
 msgid "Next Video"
 msgstr "下一个视频"
 
@@ -7706,7 +7706,7 @@ msgstr "否"
 msgid "No active bans."
 msgstr "没有生效中的封禁。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3166
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3187
 msgid "No Active Filters"
 msgstr "没有激活的筛选器"
 
@@ -7714,11 +7714,11 @@ msgstr "没有激活的筛选器"
 msgid "No active perk effects."
 msgstr "没有激活的增益效果。"
 
-#: src/components/game/RoundVideoOverlay.tsx:2417
+#: src/components/game/RoundVideoOverlay.tsx:2485
 msgid "No active round."
 msgstr "当前没有激活的回合。"
 
-#: src/components/game/RoundVideoOverlay.tsx:1887
+#: src/components/game/RoundVideoOverlay.tsx:1955
 msgid "No active TheHandy timeline to resync."
 msgstr "没有可重新同步的 TheHandy 时间轴。"
 
@@ -7726,7 +7726,7 @@ msgstr "没有可重新同步的 TheHandy 时间轴。"
 msgid "NO ACTIVE THREATS"
 msgstr "无活动威胁"
 
-#: src/components/game/RoundVideoOverlay.tsx:1883
+#: src/components/game/RoundVideoOverlay.tsx:1951
 msgid "No active video to resync."
 msgstr "没有可重新同步的视频。"
 
@@ -7759,7 +7759,7 @@ msgstr "无条件。只要触发器匹配，规则就会执行。"
 msgid "No configured Cum Round is currently available."
 msgstr "当前没有可用的已配置 Cum 回合。"
 
-#: src/components/game/RoundVideoOverlay.tsx:3947
+#: src/components/game/RoundVideoOverlay.tsx:4015
 #: src/components/GlobalHandyOverlay.tsx:146
 msgid "No connected haptics device to toggle."
 msgstr "没有已连接的触觉设备可切换。"
@@ -7794,7 +7794,7 @@ msgstr "未选择高潮回合。"
 msgid "No dependencies match this search."
 msgstr "没有匹配此搜索的依赖项。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2294
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2315
 #: src/routes/single-player-setup.tsx:684
 msgid "No description"
 msgstr "无描述"
@@ -7857,7 +7857,7 @@ msgstr "未找到已安装的高潮回合。"
 msgid "No installed rounds match the current filter."
 msgstr "没有已安装回合匹配当前筛选条件。"
 
-#: src/components/game/RoundVideoOverlay.tsx:1840
+#: src/components/game/RoundVideoOverlay.tsx:1908
 msgid "No intermediary resources available for this round."
 msgstr "此回合没有可用的中间事件资源。"
 
@@ -7939,7 +7939,7 @@ msgstr "无预览"
 msgid "No Preview"
 msgstr "无预览"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2271
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2292
 msgid "No preview available"
 msgstr "没有可用的预览"
 
@@ -7969,15 +7969,15 @@ msgstr "未找到结果。"
 msgid "No results loaded"
 msgstr "未加载结果"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2375
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2396
 msgid "No round hash"
 msgstr "无轮散列"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3208
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3229
 msgid "No rounds currently match the active search and filter state."
 msgstr "当前没有回合匹配已启用的搜索和筛选条件。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3263
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3284
 msgid "No rounds match this filter"
 msgstr "没有回合匹配此筛选条件"
 
@@ -7993,7 +7993,7 @@ msgid "No Saves"
 msgstr "无存档"
 
 #: src/features/rounds/library/components/RoundCard.tsx:203
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2284
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2305
 msgid "No script"
 msgstr "无脚本"
 
@@ -8037,7 +8037,7 @@ msgstr "尚无已存储的物品。"
 msgid "No stored perks yet."
 msgstr "尚无已存储的增益。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1127
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1148
 msgid "No supported video files found in selected folder."
 msgstr "在所选文件夹中未找到受支持的视频文件。"
 
@@ -8070,7 +8070,7 @@ msgstr "尚无用户信任域名。"
 msgid "No video packaging step is required."
 msgstr "无需进行视频打包步骤。"
 
-#: src/components/game/RoundVideoOverlay.tsx:3616
+#: src/components/game/RoundVideoOverlay.tsx:3684
 msgid "No video resource found for this round. The board is still running underneath."
 msgstr "未找到此回合的视频资源。底层棋盘仍在继续运行。"
 
@@ -8123,7 +8123,7 @@ msgstr "未选择"
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1340
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1539
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:54
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3003
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3024
 #: src/routes/settings.tsx:6959
 msgid "Normal"
 msgstr "普通"
@@ -8181,7 +8181,7 @@ msgstr "OAuth 不可用"
 #: src/components/GlobalMusicOverlay.tsx:630
 #: src/components/GlobalMusicOverlay.tsx:647
 #: src/features/map-editor/components/AutomationPanel.tsx:228
-#: src/routes/settings.tsx:1902
+#: src/routes/settings.tsx:1921
 #: src/routes/settings.tsx:5506
 msgid "Off"
 msgstr "关闭"
@@ -8190,7 +8190,7 @@ msgstr "关闭"
 msgid "Offer Cum & save here"
 msgstr "提供 Cum 并保存到这里"
 
-#: src/components/game/RoundVideoOverlay.tsx:808
+#: src/components/game/RoundVideoOverlay.tsx:814
 #: src/components/GlobalHandyOverlay.tsx:112
 msgid "Offset saved to round."
 msgstr "偏移量已保存到回合。"
@@ -8209,9 +8209,9 @@ msgstr "X 偏移"
 msgid "Offset Y"
 msgstr "Y 偏移"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1650
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2617
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3107
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1671
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2638
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3128
 msgid "Oldest"
 msgstr "最旧"
 
@@ -8272,7 +8272,7 @@ msgstr "打开"
 msgid "Open {0}"
 msgstr "打开 {0}"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1765
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1786
 msgid "Open a round or portable package"
 msgstr "打开圆形或便携式包装"
 
@@ -8281,7 +8281,7 @@ msgstr "打开圆形或便携式包装"
 msgid "Open Advanced Map Editor"
 msgstr "打开高级地图编辑器"
 
-#: src/routes/settings.tsx:1790
+#: src/routes/settings.tsx:1809
 msgid "Open Backup Folder"
 msgstr "打开备份文件夹"
 
@@ -8356,7 +8356,7 @@ msgstr "打开或关闭全局 TheHandy 浮层。"
 msgid "Open Playlist Workshop"
 msgstr "打开播放列表工坊"
 
-#: src/routes/settings.tsx:1813
+#: src/routes/settings.tsx:1832
 msgid "Open Settings Backup Folder"
 msgstr "打开设置备份文件夹"
 
@@ -8423,7 +8423,7 @@ msgstr "正在打开工坊..."
 msgid "Opening..."
 msgstr "正在打开..."
 
-#: src/routes/settings.tsx:2162
+#: src/routes/settings.tsx:2181
 msgid "Opt into unfinished features that may change or break between builds."
 msgstr "启用仍未完成、可能在不同构建间变更或失效的功能。"
 
@@ -8444,8 +8444,8 @@ msgstr "可选：https://example.com/video.funscript"
 #: src/components/game/GameScene.tsx:5071
 #: src/components/game/GameScene.tsx:5332
 #: src/components/game/GameScene.tsx:5595
-#: src/components/game/RoundVideoOverlay.tsx:3907
-#: src/components/game/RoundVideoOverlay.tsx:4806
+#: src/components/game/RoundVideoOverlay.tsx:3975
+#: src/components/game/RoundVideoOverlay.tsx:4891
 msgid "Options"
 msgstr "选项"
 
@@ -8546,7 +8546,7 @@ msgstr "偏执模式会显著影响用户体验，仅应在你完全清楚自己
 msgid "Party Edition"
 msgstr "派对版"
 
-#: src/routes/settings.tsx:2097
+#: src/routes/settings.tsx:2116
 msgid "Passes Chromium --disable-gpu-vsync on startup. Use for graphics timing diagnostics or vsync-related stalls. Requires an app restart."
 msgstr "启动时向 Chromium 传递 --disable-gpu-vsync。用于诊断图形时序或与垂直同步相关的卡顿。需要重启应用。"
 
@@ -8599,7 +8599,7 @@ msgid "Pause"
 msgstr "暂停"
 
 #. placeholder {0}: roundControl?.pauseCharges ?? 0
-#: src/components/game/RoundVideoOverlay.tsx:3875
+#: src/components/game/RoundVideoOverlay.tsx:3943
 msgid "Pause {0}"
 msgstr "暂停 {0}"
 
@@ -8615,7 +8615,7 @@ msgstr "中间事件结束后，在恢复主回合前的暂停时长。"
 msgid "Pause Gap (ms)"
 msgstr "暂停间隔（毫秒）"
 
-#: src/components/game/RoundVideoOverlay.tsx:4804
+#: src/components/game/RoundVideoOverlay.tsx:4889
 msgid "Pause Round"
 msgstr "暂停回合"
 
@@ -8755,7 +8755,7 @@ msgid "Plaintext settings file created."
 msgstr "纯文本设置文件已创建。"
 
 #: src/components/game/GameScene.tsx:2336
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2332
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2353
 #: src/routes/index.tsx:293
 #: src/routes/settings.tsx:5422
 msgid "Play"
@@ -8797,14 +8797,14 @@ msgstr "播放或暂停源视频。"
 msgid "Play/Pause"
 msgstr "播放/暂停"
 
-#: src/components/game/RoundVideoOverlay.tsx:4754
+#: src/components/game/RoundVideoOverlay.tsx:4839
 #: src/components/GlobalHandyOverlay.tsx:573
 msgid "Playback"
 msgstr "播放"
 
-#: src/components/game/RoundVideoOverlay.tsx:1526
-#: src/components/game/RoundVideoOverlay.tsx:4192
-#: src/components/game/RoundVideoOverlay.tsx:4321
+#: src/components/game/RoundVideoOverlay.tsx:1594
+#: src/components/game/RoundVideoOverlay.tsx:4260
+#: src/components/game/RoundVideoOverlay.tsx:4389
 msgid "Playback paused for transition..."
 msgstr "播放已暂停，等待过渡..."
 
@@ -8832,24 +8832,24 @@ msgstr "玩家排名"
 msgid "Playing on <0>{0}</0> · Codes are case-insensitive."
 msgstr "当前服务器：<0>{0}</0> · 邀请码不区分大小写。"
 
-#: src/components/game/RoundVideoOverlay.tsx:2648
-#: src/components/game/RoundVideoOverlay.tsx:2666
+#: src/components/game/RoundVideoOverlay.tsx:2716
+#: src/components/game/RoundVideoOverlay.tsx:2734
 msgid "Playing video (empty funscript)."
 msgstr "正在播放视频（空 Funscript）。"
 
-#: src/components/game/RoundVideoOverlay.tsx:2636
+#: src/components/game/RoundVideoOverlay.tsx:2704
 msgid "Playing video (no funscript)."
 msgstr "正在播放视频（无 Funscript）。"
 
-#: src/components/game/RoundVideoOverlay.tsx:2648
-#: src/components/game/RoundVideoOverlay.tsx:2666
+#: src/components/game/RoundVideoOverlay.tsx:2716
+#: src/components/game/RoundVideoOverlay.tsx:2734
 msgid "Playing video + funscript."
 msgstr "正在播放视频 + Funscript。"
 
 #: src/components/GlobalMusicOverlay.tsx:534
 #: src/components/PlaylistExportOverlay.tsx:130
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:664
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1662
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1683
 #: src/routes/first-start.tsx:1965
 #: src/routes/multiplayer.tsx:1185
 #: src/routes/settings.tsx:5604
@@ -8983,7 +8983,7 @@ msgid "Playlist:"
 msgstr "播放列表："
 
 #: src/components/ClearDataDialog.tsx:63
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2606
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2627
 #: src/routes/single-player-setup.tsx:548
 msgid "Playlists"
 msgstr "播放列表"
@@ -9050,11 +9050,11 @@ msgstr "正在准备可用回合"
 msgid "Preparing export package..."
 msgstr "正在准备导出包..."
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1019
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1040
 msgid "Preparing export..."
 msgstr "正在准备导出..."
 
-#: src/components/game/RoundVideoOverlay.tsx:979
+#: src/components/game/RoundVideoOverlay.tsx:1047
 msgid "Preparing haptics synchronization."
 msgstr "正在准备触觉同步。"
 
@@ -9062,7 +9062,7 @@ msgstr "正在准备触觉同步。"
 msgid "Preparing import..."
 msgstr "正在准备导入..."
 
-#: src/components/game/RoundVideoOverlay.tsx:1734
+#: src/components/game/RoundVideoOverlay.tsx:1802
 msgid "Preparing main round resume..."
 msgstr "正在准备恢复主回合..."
 
@@ -9070,11 +9070,11 @@ msgstr "正在准备恢复主回合..."
 msgid "Preparing multiplayer authentication on the selected server."
 msgstr "正在所选服务器上准备多人认证。"
 
-#: src/components/game/RoundVideoOverlay.tsx:438
+#: src/components/game/RoundVideoOverlay.tsx:440
 msgid "Preparing playback..."
 msgstr "正在准备播放..."
 
-#: src/components/game/RoundVideoOverlay.tsx:2452
+#: src/components/game/RoundVideoOverlay.tsx:2520
 msgid "Preparing round video..."
 msgstr "正在准备回合视频..."
 
@@ -9107,11 +9107,11 @@ msgstr "按 C"
 msgid "Prev"
 msgstr "上一个"
 
-#: src/routes/settings.tsx:1575
+#: src/routes/settings.tsx:1594
 msgid "Prevents all media from loading. Videos, images, previews, and booru media are replaced with a placeholder banner. Does not affect gameplay logic."
 msgstr "阻止所有媒体加载。视频、图片、预览和 booru 媒体会被替换为占位横幅。不影响游戏逻辑。"
 
-#: src/routes/settings.tsx:2065
+#: src/routes/settings.tsx:2084
 msgid "Prevents Chromium from caching compiled GPU shaders on disk. Can fix GPU process crashes caused by corrupted shader caches after NVIDIA driver updates. Requires an app restart."
 msgstr "阻止 Chromium 将编译后的 GPU 着色器缓存到磁盘。可修复 NVIDIA 驱动更新后因着色器缓存损坏导致的 GPU 进程崩溃。需要重启应用程序。"
 
@@ -9119,7 +9119,7 @@ msgstr "阻止 Chromium 将编译后的 GPU 着色器缓存到磁盘。可修复
 msgid "Prevents further rules from firing"
 msgstr "阻止后续规则触发"
 
-#: src/routes/settings.tsx:2033
+#: src/routes/settings.tsx:2052
 msgid "Prevents the GPU from compositing render layers. Can fix flickering or blank screens on some hardware. Requires an app restart."
 msgstr "阻止 GPU 合成渲染层。可修复某些硬件上的闪烁或黑屏问题。需要重启应用程序。"
 
@@ -9205,7 +9205,7 @@ msgstr "渐进随机"
 msgid "prompt"
 msgstr "搜索词"
 
-#: src/components/game/RoundVideoOverlay.tsx:4584
+#: src/components/game/RoundVideoOverlay.tsx:4669
 msgid "Prompt:"
 msgstr "搜索词："
 
@@ -9362,7 +9362,7 @@ msgstr "现实覆盖"
 msgid "Reason: {0}"
 msgstr "原因：{0}"
 
-#: src/routes/settings.tsx:1546
+#: src/routes/settings.tsx:1565
 msgid "Reattach Funscripts in Stash Rounds"
 msgstr "重新附加Stash回合中的Funscript"
 
@@ -9451,7 +9451,7 @@ msgstr "将中场片段概率降低 10%；单人模式下还会将反增益概�
 msgid "perk.description.breather"
 msgstr "将中间片段概率降低5%并获得一次暂停充能。"
 
-#: src/routes/settings.tsx:1716
+#: src/routes/settings.tsx:1735
 msgid "Reduces preview generation load on weak hardware. Leave off for faster imports on stronger systems."
 msgstr "降低弱性能硬件上的预览生成负载。在更强的系统上保持关闭可加快导入速度。"
 
@@ -9470,7 +9470,7 @@ msgstr "已重新编码"
 msgid "Refresh"
 msgstr "刷新"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1805
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1826
 msgid "Refresh library"
 msgstr "刷新库"
 
@@ -9486,8 +9486,8 @@ msgstr "刷新多人游戏"
 msgid "Refreshing export analysis..."
 msgstr "正在刷新导出分析..."
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3190
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3195
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3211
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3216
 msgid "Refreshing library"
 msgstr "正在刷新库"
 
@@ -9528,7 +9528,7 @@ msgstr "剩余缺失："
 msgid "Remote Import Trust"
 msgstr "远程导入信任"
 
-#: src/components/game/RoundVideoOverlay.tsx:4359
+#: src/components/game/RoundVideoOverlay.tsx:4427
 msgid "Remote media file not found"
 msgstr "未找到远程媒体文件"
 
@@ -9605,7 +9605,7 @@ msgstr "按难度重新排序回合？"
 msgid "Reorder selected rounds?"
 msgstr "重新排序已选回合？"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2353
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2374
 msgid "Repair template"
 msgstr "维修模板"
 
@@ -9828,8 +9828,8 @@ msgstr "重新指定（{0} 令牌）"
 msgid "Respec tokens"
 msgstr "重置点数代币"
 
-#: src/routes/settings.tsx:2144
-#: src/routes/settings.tsx:2149
+#: src/routes/settings.tsx:2163
+#: src/routes/settings.tsx:2168
 msgid "Restart App"
 msgstr "重启应用"
 
@@ -9850,7 +9850,7 @@ msgstr "继续"
 msgid "Resume Handy"
 msgstr "恢复 Handy"
 
-#: src/components/game/RoundVideoOverlay.tsx:3955
+#: src/components/game/RoundVideoOverlay.tsx:4023
 msgid "Resume Haptics"
 msgstr "恢复触觉"
 
@@ -9871,11 +9871,11 @@ msgstr "使用 Web 回退继续"
 msgid "Resuming..."
 msgstr "继续中..."
 
-#: src/components/game/RoundVideoOverlay.tsx:3820
+#: src/components/game/RoundVideoOverlay.tsx:3888
 msgid "Resync (R)"
 msgstr "重新同步 (R)"
 
-#: src/components/game/RoundVideoOverlay.tsx:1951
+#: src/components/game/RoundVideoOverlay.tsx:2019
 msgid "Resync failed: {message}"
 msgstr "重新同步失败：{message}"
 
@@ -9884,18 +9884,18 @@ msgstr "重新同步失败：{message}"
 msgid "settings.help.shortcuts.game.resyncHandy"
 msgstr "将 TheHandy 时间同步到当前回合视频。"
 
-#: src/components/game/RoundVideoOverlay.tsx:1894
+#: src/components/game/RoundVideoOverlay.tsx:1962
 msgid "Resyncing TheHandy timing..."
 msgstr "正在重新同步 TheHandy 计时..."
 
 #: src/features/converter/ConverterCachingOverlay.tsx:174
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2921
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2942
 #: src/routes/multiplayer.tsx:942
 msgid "Retry"
 msgstr "重试"
 
 #: src/features/rounds/library/components/GroupHeaders.tsx:170
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2356
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2377
 msgid "Retry auto-link"
 msgstr "重试自动链接"
 
@@ -9911,13 +9911,13 @@ msgstr "中间事件后返回暂停（秒）"
 msgid "Return to main menu"
 msgstr "返回主菜单"
 
-#: src/components/game/RoundVideoOverlay.tsx:1732
-#: src/components/game/RoundVideoOverlay.tsx:2950
+#: src/components/game/RoundVideoOverlay.tsx:1800
+#: src/components/game/RoundVideoOverlay.tsx:3018
 msgid "RETURNING TO MAIN"
 msgstr "返回主视频"
 
-#: src/components/game/RoundVideoOverlay.tsx:1717
-#: src/components/game/RoundVideoOverlay.tsx:2576
+#: src/components/game/RoundVideoOverlay.tsx:1785
+#: src/components/game/RoundVideoOverlay.tsx:2644
 msgid "Returning to main round video."
 msgstr "正在返回主回合视频。"
 
@@ -9994,7 +9994,7 @@ msgstr "掷骰子或触发主要游戏操作。"
 msgid "hud.phase.rolling"
 msgstr "掷骰中"
 
-#: src/components/game/RoundVideoOverlay.tsx:3801
+#: src/components/game/RoundVideoOverlay.tsx:3869
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:420
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:433
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:564
@@ -10027,12 +10027,12 @@ msgstr "回合数量"
 msgid "playlist-workshop.section.session.description"
 msgstr "回合数量、安全点和棋盘布局。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2248
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2253
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2269
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2274
 msgid "Round details"
 msgstr "圆形细节"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:739
+#: src/features/rounds/library/InstalledRoundsPage.tsx:760
 msgid "Round fields must use valid numeric values."
 msgstr "回合字段必须使用有效的数值。"
 
@@ -10097,7 +10097,7 @@ msgid "playlist-workshop.section.rounds.title"
 msgstr "回合"
 
 #: src/routes/first-start.tsx:2441
-#: src/routes/settings.tsx:1698
+#: src/routes/settings.tsx:1717
 msgid "Rounds per background pHash pass"
 msgstr "每次后台 pHash 处理的回合数"
 
@@ -10133,7 +10133,7 @@ msgstr "如果你想复习游戏模式、内容安装、编辑器、Handy 设置
 msgid "Running"
 msgstr "运行中"
 
-#: src/components/game/RoundVideoOverlay.tsx:2212
+#: src/components/game/RoundVideoOverlay.tsx:2280
 msgid "Running anti-perk sequence..."
 msgstr "正在运行反增益序列..."
 
@@ -10149,7 +10149,7 @@ msgstr "安全体验"
 msgid "Safe Mode Enabled"
 msgstr "安全模式已启用"
 
-#: src/routes/settings.tsx:1589
+#: src/routes/settings.tsx:1608
 msgid "Safe Mode Startup Shortcut"
 msgstr "安全模式启动快捷键"
 
@@ -10218,7 +10218,7 @@ msgstr "保存主角"
 msgid "Save Mode"
 msgstr "保存模式"
 
-#: src/components/game/RoundVideoOverlay.tsx:4673
+#: src/components/game/RoundVideoOverlay.tsx:4758
 #: src/components/GlobalHandyOverlay.tsx:451
 msgid "Save Offset to Round"
 msgstr "保存偏移量到回合"
@@ -10286,19 +10286,19 @@ msgstr "节省"
 msgid "Scale"
 msgstr "缩放"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1757
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1778
 msgid "Scan a folder for rounds"
 msgstr "扫描文件夹进行轮次"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:210
+#: src/features/rounds/library/InstalledRoundsPage.tsx:205
 msgid "Scan aborted ({summary})"
 msgstr "扫描已中止（{summary}）"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1812
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1833
 msgid "Scan connected folders"
 msgstr "扫描连接的文件夹"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:212
+#: src/features/rounds/library/InstalledRoundsPage.tsx:207
 msgid "Scan error ({summary})"
 msgstr "扫描出错（{summary}）"
 
@@ -10306,7 +10306,7 @@ msgstr "扫描出错（{summary}）"
 msgid "Scan Now"
 msgstr "立即扫描"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:208
+#: src/features/rounds/library/InstalledRoundsPage.tsx:203
 msgid "Scan running ({summary})"
 msgstr "扫描进行中（{summary}）"
 
@@ -10368,11 +10368,11 @@ msgid "Score:"
 msgstr "分数："
 
 #: src/features/rounds/library/components/RoundCard.tsx:203
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3013
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3034
 msgid "Script"
 msgstr "脚本"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2284
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2305
 msgid "Script ready"
 msgstr "脚本准备就绪"
 
@@ -10381,12 +10381,12 @@ msgstr "脚本准备就绪"
 msgid "Scripts"
 msgstr "脚本"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2894
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2915
 msgid "Scripts Ready"
 msgstr "脚本就绪"
 
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:396
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2980
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3001
 #: src/routes/settings.tsx:6931
 msgid "Search"
 msgstr "搜索"
@@ -10417,8 +10417,8 @@ msgstr "搜索命令"
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:112
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:217
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:227
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1780
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2733
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1801
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2754
 msgid "Search EroScripts"
 msgstr "搜索 EroScripts"
 
@@ -10430,8 +10430,8 @@ msgstr "搜索免费的 EroScripts 主题，附加直接 funscript，或安装�
 msgid "Search heroes or tags…"
 msgstr "搜索主角或标签…"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2575
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2984
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2596
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3005
 msgid "Search installed rounds"
 msgstr "搜索已安装回合"
 
@@ -10460,7 +10460,7 @@ msgstr "用于从 rule34/booru 站点获取加载屏幕媒体的搜索词。"
 msgid "Search rounds"
 msgstr "搜索回合"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2581
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2602
 msgid "Search rounds, heroes, authors…"
 msgstr "搜索回合、英雄、作者……"
 
@@ -10476,7 +10476,7 @@ msgstr "搜索图块"
 msgid "Search title, creator, or video name"
 msgstr "搜索标题、创作者或视频名称"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2993
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3014
 msgid "Search title, hero, author"
 msgstr "搜索标题、主角、作者"
 
@@ -10489,7 +10489,7 @@ msgstr "正在搜索..."
 msgid "Secret progression cheat console"
 msgstr "秘密进度作弊控制台"
 
-#: src/routes/settings.tsx:1568
+#: src/routes/settings.tsx:1587
 msgid "Security & Privacy"
 msgstr "安全与隐私"
 
@@ -10517,7 +10517,11 @@ msgstr "向前进 1 秒。"
 msgid "Seek forward by 5 seconds."
 msgstr "向前进 5 秒。"
 
-#: src/components/game/RoundVideoOverlay.tsx:4748
+#: src/components/game/RoundVideoOverlay.tsx:4464
+msgid "Seek video"
+msgstr "视频跳转"
+
+#: src/components/game/RoundVideoOverlay.tsx:4833
 msgid "Segment"
 msgstr "片段"
 
@@ -10545,7 +10549,7 @@ msgstr "选中"
 #: src/components/PlaylistPackExportDialog.tsx:289
 #: src/components/PlaylistPackExportDialog.tsx:351
 #: src/features/map-editor/components/EditorToolbar.tsx:78
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2635
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2656
 msgid "Select"
 msgstr "选择"
 
@@ -10586,7 +10590,7 @@ msgstr "选择一条规则以编辑其触发器、条件和操作。"
 msgid "Select a search result to inspect downloadable files."
 msgstr "选择一个搜索结果以查看可下载文件。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1508
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1529
 msgid "Select a source hero first."
 msgstr "请先选择一个源主角。"
 
@@ -10610,7 +10614,7 @@ msgstr "从你的电脑中选择一个视频文件来转换为回合。"
 msgid "Select an edge to inspect"
 msgstr "选择一条边进行检查"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1463
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1484
 msgid "Select an installed round to repair this template."
 msgstr "选择一个已安装的回合来修复此模板。"
 
@@ -10640,8 +10644,8 @@ msgstr "选择已安装的回合"
 msgid "Select Installed Round"
 msgstr "选择已安装的回合"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2753
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2792
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2774
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2813
 msgid "Select Items"
 msgstr "选择项目"
 
@@ -10658,11 +10662,11 @@ msgstr "在库中选择项目以启用部分导出。"
 msgid "Select Local Funscript"
 msgstr "选择本地 Funscript"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2662
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2683
 msgid "Select matching"
 msgstr "选择匹配"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2810
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2831
 msgid "Select Matching Rounds"
 msgstr "选择匹配的回合"
 
@@ -10947,15 +10951,15 @@ msgstr "设置 - 安全与隐私"
 msgid "command-palette.settings-sources"
 msgstr "设置 - 来源与库"
 
-#: src/routes/settings.tsx:1800
+#: src/routes/settings.tsx:1819
 msgid "Settings Backup Actions"
 msgstr "设置备份操作"
 
-#: src/routes/settings.tsx:1808
+#: src/routes/settings.tsx:1827
 msgid "Settings backup created."
 msgstr "设置备份已创建。"
 
-#: src/routes/settings.tsx:1574
+#: src/routes/settings.tsx:1593
 msgid "SFW Mode"
 msgstr "SFW 模式"
 
@@ -10987,7 +10991,7 @@ msgstr "用于图形编辑、布局和视图控制的快捷键。"
 msgid "Show Anti-Perk Beatbar"
 msgstr "显示反增益节拍条"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2947
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2968
 msgid "Show Disabled Imports"
 msgstr "显示已禁用的导入"
 
@@ -11036,8 +11040,8 @@ msgstr "在未连接设备时，在回合播放期间显示断开连接的触觉
 msgid "Show this {mediaLabel} anyway?"
 msgstr "仍然显示此{mediaLabel}？"
 
-#: src/components/game/RoundVideoOverlay.tsx:4337
-#: src/components/game/RoundVideoOverlay.tsx:4519
+#: src/components/game/RoundVideoOverlay.tsx:4405
+#: src/components/game/RoundVideoOverlay.tsx:4604
 msgid "Show Video Once"
 msgstr "播放视频一次"
 
@@ -11051,7 +11055,7 @@ msgstr "显示 Web 安装 Funscript URL"
 msgid "Showing {0} of {1} packages"
 msgstr "显示 {0} / {1} 个包"
 
-#: src/routes/settings.tsx:2196
+#: src/routes/settings.tsx:2215
 msgid "Shows a global frames-per-second counter in the top-right corner. The display updates at a low frequency to keep overhead low."
 msgstr "在右上角显示全局每秒帧数计数器。显示以低频率更新以保持低开销。"
 
@@ -11109,7 +11113,7 @@ msgstr "注册"
 msgid "Silently blocking every remote URL that is not already whitelisted."
 msgstr "静默阻止所有未列入白名单的远程 URL。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3080
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3101
 msgid "Since Date"
 msgstr "日期之后"
 
@@ -11173,7 +11177,7 @@ msgid "perk.name.skip"
 msgstr "跳过"
 
 #. placeholder {0}: roundControl?.skipCharges ?? 0
-#: src/components/game/RoundVideoOverlay.tsx:3892
+#: src/components/game/RoundVideoOverlay.tsx:3960
 msgid "Skip {0}"
 msgstr "跳过 {0}"
 
@@ -11210,11 +11214,11 @@ msgid "Skippable"
 msgstr "可跳过"
 
 #. placeholder {0}: result.skippedRounds
-#: src/features/rounds/library/InstalledRoundsPage.tsx:806
+#: src/features/rounds/library/InstalledRoundsPage.tsx:827
 msgid "Skipped {0} rounds without resources."
 msgstr "已跳过{0}个无资源的回合。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:805
+#: src/features/rounds/library/InstalledRoundsPage.tsx:826
 msgid "Skipped 1 round without resources."
 msgstr "已跳过1个无资源的回合。"
 
@@ -11272,7 +11276,7 @@ msgstr "部分回合可能无法播放；未缓存的回合将使用 Web 版本"
 msgid "Something went wrong"
 msgstr "出了点问题"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3103
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3124
 msgid "Sort"
 msgstr "排序"
 
@@ -11282,11 +11286,11 @@ msgstr "排序"
 msgid "Sort by Difficulty"
 msgstr "按难度排序"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2611
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2632
 msgid "Sort rounds"
 msgstr "排序回合"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3169
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3190
 msgid "Sort:"
 msgstr "排序："
 
@@ -11295,8 +11299,8 @@ msgid "Sound effects volume"
 msgstr "音效音量"
 
 #: src/features/converter/SourcePanel.tsx:39
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2310
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3062
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2331
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3083
 msgid "Source"
 msgstr "来源"
 
@@ -11320,7 +11324,7 @@ msgstr "源大小"
 msgid "Source Video Size"
 msgstr "源视频大小"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:932
+#: src/features/rounds/library/InstalledRoundsPage.tsx:953
 msgid "Source: {sourceLabel}"
 msgstr "来源：{sourceLabel}"
 
@@ -11328,7 +11332,7 @@ msgstr "来源：{sourceLabel}"
 msgid "Sources"
 msgstr "来源"
 
-#: src/routes/settings.tsx:1540
+#: src/routes/settings.tsx:1559
 msgid "Sources & Library"
 msgstr "来源与库"
 
@@ -11371,7 +11375,7 @@ msgstr "叠加"
 
 #: src/components/LibraryExportOverlay.tsx:130
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:223
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2892
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2913
 msgid "Standalone"
 msgstr "独立"
 
@@ -11382,7 +11386,7 @@ msgstr "待机"
 
 #: src/features/converter/SegmentCard.tsx:397
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:410
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2302
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2323
 #: src/routes/playlist-workshop.tsx:2988
 msgid "Start"
 msgstr "开始"
@@ -11518,8 +11522,8 @@ msgid "Starting..."
 msgstr "启动中..."
 
 #: src/features/rounds/library/components/RoundCard.tsx:74
-#: src/features/rounds/library/InstalledRoundsPage.tsx:931
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3066
+#: src/features/rounds/library/InstalledRoundsPage.tsx:952
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3087
 msgid "Stash"
 msgstr "Stash"
 
@@ -11599,13 +11603,13 @@ msgstr "停止测试"
 msgid "command-palette.thehandy-stop"
 msgstr "停止TheHandy"
 
-#: src/components/game/RoundVideoOverlay.tsx:3642
+#: src/components/game/RoundVideoOverlay.tsx:3710
 #: src/components/GlobalHandyOverlay.tsx:226
 #: src/routes/settings.tsx:4970
 msgid "Stopped"
 msgstr "已停止"
 
-#: src/routes/settings.tsx:1988
+#: src/routes/settings.tsx:2007
 msgid "Stops forcing Chromium to ignore its GPU blocklist. Try this for GPU-specific rendering issues. Requires an app restart."
 msgstr "停止强制 Chromium 忽略其 GPU 黑名单。适用于 GPU 特定的渲染问题。需要重启应用程序。"
 
@@ -11692,7 +11696,7 @@ msgstr "Supabase 链接"
 msgid "Supported in practice through yt-dlp-backed playback. Paste sites like Pornhub, XVideos, or xHamster here, then add segments the same way as any other source."
 msgstr "通过 yt-dlp 支持的播放实际可用。在此粘贴 Pornhub、XVideos 或 xHamster 等站点的链接，然后像其他来源一样添加片段。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:610
+#: src/features/rounds/library/InstalledRoundsPage.tsx:631
 msgid "Supported via {sourceLabel}{titleSuffix}"
 msgstr "通过 {sourceLabel}{titleSuffix} 支持"
 
@@ -11735,7 +11739,7 @@ msgstr "切换到选择工具。"
 msgid "Sync & Cache"
 msgstr "同步与缓存"
 
-#: src/components/game/RoundVideoOverlay.tsx:3648
+#: src/components/game/RoundVideoOverlay.tsx:3716
 msgid "Sync Error"
 msgstr "同步错误"
 
@@ -11753,13 +11757,13 @@ msgstr "同步偏移"
 msgid "Sync Queue"
 msgstr "同步队列"
 
-#: src/components/game/RoundVideoOverlay.tsx:3646
+#: src/components/game/RoundVideoOverlay.tsx:3714
 #: src/components/GlobalHandyOverlay.tsx:230
 #: src/routes/settings.tsx:4409
 msgid "Synced"
 msgstr "已同步"
 
-#: src/components/game/RoundVideoOverlay.tsx:3649
+#: src/components/game/RoundVideoOverlay.tsx:3717
 #: src/components/GlobalHandyOverlay.tsx:231
 #: src/routes/settings.tsx:4970
 msgid "Syncing"
@@ -11783,8 +11787,8 @@ msgstr "系统"
 msgid "System Config"
 msgstr "系统配置"
 
-#: src/routes/settings.tsx:1857
-#: src/routes/settings.tsx:1875
+#: src/routes/settings.tsx:1876
+#: src/routes/settings.tsx:1894
 #: src/routes/settings.tsx:7140
 msgid "System Only"
 msgstr "仅系统"
@@ -11793,11 +11797,11 @@ msgstr "仅系统"
 msgid "SYSTEM TERMINATION"
 msgstr "系统终止"
 
-#: src/components/game/RoundVideoOverlay.tsx:4787
+#: src/components/game/RoundVideoOverlay.tsx:4872
 msgid "System Warning"
 msgstr "系统警告"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3026
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3047
 msgid "Tag"
 msgstr "标签"
 
@@ -11877,11 +11881,11 @@ msgstr "TCode v0.3 / 4 位"
 msgid "TCode Version"
 msgstr "TCode 版本"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2371
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2392
 msgid "Technical details"
 msgstr "技术细节"
 
-#: src/routes/settings.tsx:1846
+#: src/routes/settings.tsx:1865
 msgid "Technical preferences for power users."
 msgstr "面向高级用户的技术偏好设置。"
 
@@ -11915,7 +11919,7 @@ msgstr "测试"
 msgid "Test Device"
 msgstr "测试设备"
 
-#: src/components/game/RoundVideoOverlay.tsx:3998
+#: src/components/game/RoundVideoOverlay.tsx:4066
 msgid "Test Intermediary (I)"
 msgstr "测试中间事件 (I)"
 
@@ -11955,7 +11959,7 @@ msgstr "这意味着你不需要复杂的流程就能开始制作内容。转换
 msgid "first-start.step.phash.description"
 msgstr "应用可以在后台计算视觉指纹以改进回合匹配。在较慢的机器上，禁用这项额外工作可能是值得的。"
 
-#: src/routes/settings.tsx:1930
+#: src/routes/settings.tsx:1949
 msgid "The app will always start in recovery mode."
 msgstr "该应用程序将始终以恢复模式启动。"
 
@@ -11972,11 +11976,11 @@ msgstr "无法保存检查点。请继续游玩或重试。"
 msgid "The Cum Point instruction failed, but your checkpoint remains available."
 msgstr "Cum 点指令失败，但你的检查点仍可使用。"
 
-#: src/components/game/RoundVideoOverlay.tsx:976
+#: src/components/game/RoundVideoOverlay.tsx:1044
 msgid "The device reported a sync error. Retrying handshake..."
 msgstr "设备报告了同步错误。正在重试握手..."
 
-#: src/components/game/RoundVideoOverlay.tsx:3177
+#: src/components/game/RoundVideoOverlay.tsx:3245
 msgid "The device reported a sync error. Retrying momentarily..."
 msgstr "设备报告了同步错误。即将重试..."
 
@@ -12065,8 +12069,8 @@ msgstr "TheHandy已恢复。"
 msgid "game.handy.resumed"
 msgstr "TheHandy 已恢复。"
 
-#: src/components/game/RoundVideoOverlay.tsx:1879
-#: src/components/game/RoundVideoOverlay.tsx:2912
+#: src/components/game/RoundVideoOverlay.tsx:1947
+#: src/components/game/RoundVideoOverlay.tsx:2980
 msgid "TheHandy stopped manually."
 msgstr "TheHandy 已手动停止。"
 
@@ -12218,7 +12222,7 @@ msgstr "此运行是在作弊模式激活时完成的"
 msgid "This Stash source will connect without API keys."
 msgstr "此 Stash 来源将在不使用 API 密钥的情况下连接。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:618
+#: src/features/rounds/library/InstalledRoundsPage.tsx:639
 msgid "This website video URL is not supported."
 msgstr "此网站视频 URL 不受支持。"
 
@@ -12282,8 +12286,8 @@ msgstr "时间："
 msgid "Title"
 msgstr "称号"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3129
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3148
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3150
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3169
 msgid "To"
 msgstr "到"
 
@@ -12466,7 +12470,7 @@ msgid "hud.turn"
 msgstr "回合"
 
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:50
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2999
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3020
 msgid "Type"
 msgstr "类型"
 
@@ -12535,7 +12539,7 @@ msgid "Unknown Author"
 msgstr "未知作者"
 
 #: src/features/rounds/library/components/RoundCard.tsx:68
-#: src/features/rounds/library/InstalledRoundsPage.tsx:2244
+#: src/features/rounds/library/InstalledRoundsPage.tsx:2265
 msgid "Unknown creator"
 msgstr "未知创作者"
 
@@ -12581,16 +12585,16 @@ msgid "Update Status"
 msgstr "更新状态"
 
 #. placeholder {0}: result.updatedResources
-#: src/features/rounds/library/InstalledRoundsPage.tsx:801
+#: src/features/rounds/library/InstalledRoundsPage.tsx:822
 msgid "Updated funscript for {0} hero rounds."
 msgstr "已为{0}个英雄回合更新funscript。"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:800
+#: src/features/rounds/library/InstalledRoundsPage.tsx:821
 msgid "Updated funscript for 1 hero round."
 msgstr "已为1个英雄回合更新funscript。"
 
 #. placeholder {0}: result.updatedCount
-#: src/features/rounds/library/InstalledRoundsPage.tsx:915
+#: src/features/rounds/library/InstalledRoundsPage.tsx:936
 msgid "Updated tags for {0} rounds."
 msgstr "已更新 {0} 个回合的标签。"
 
@@ -12623,7 +12627,7 @@ msgstr "使用当前所有库筛选器"
 msgid "Use Built-In"
 msgstr "使用内置"
 
-#: src/routes/settings.tsx:1987
+#: src/routes/settings.tsx:2006
 msgid "Use Chromium GPU Blocklist"
 msgstr "使用 Chromium GPU 黑名单"
 
@@ -12647,7 +12651,7 @@ msgstr "使用物品"
 msgid "Use perks on yourself, fire anti-perks at opponents, or discard stored items."
 msgstr "对自己使用增益，向对手发射反增益，或丢弃已存储的物品。"
 
-#: src/routes/settings.tsx:2167
+#: src/routes/settings.tsx:2186
 msgid "Use System Language"
 msgstr "使用系统语言"
 
@@ -12716,8 +12720,8 @@ msgstr "版本"
 msgid "Vibration Sensitivity"
 msgstr "振动灵敏度"
 
-#: src/components/game/RoundVideoOverlay.tsx:4338
-#: src/components/game/RoundVideoOverlay.tsx:4520
+#: src/components/game/RoundVideoOverlay.tsx:4406
+#: src/components/game/RoundVideoOverlay.tsx:4605
 msgid "video"
 msgstr "视频"
 
@@ -12741,7 +12745,7 @@ msgstr "已安装带所选 funscript 的视频。"
 msgid "Video installed without a funscript."
 msgstr "已安装不带 funscript 的视频。"
 
-#: src/components/game/RoundVideoOverlay.tsx:4764
+#: src/components/game/RoundVideoOverlay.tsx:4849
 msgid "Video queue"
 msgstr "视频队列"
 
@@ -12760,7 +12764,7 @@ msgstr "视频 URL"
 msgid "Video:"
 msgstr "视频："
 
-#: src/routes/settings.tsx:1851
+#: src/routes/settings.tsx:1870
 msgid "VideoHash FFmpeg Source"
 msgstr "VideoHash FFmpeg 来源"
 
@@ -12820,23 +12824,23 @@ msgstr "音量："
 msgid "Wait until the required web rounds finish caching"
 msgstr "等待所需的 Web 回合完成缓存"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1234
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1255
 msgid "Wait until the website video URL support check finishes."
 msgstr "等待网站视频 URL 支持检查完成。"
 
-#: src/components/game/RoundVideoOverlay.tsx:4419
+#: src/components/game/RoundVideoOverlay.tsx:4504
 msgid "Waiting For Device Sync"
 msgstr "等待设备同步"
 
-#: src/components/game/RoundVideoOverlay.tsx:1531
+#: src/components/game/RoundVideoOverlay.tsx:1599
 msgid "Waiting for haptics sync before playback..."
 msgstr "等待触觉同步后再播放..."
 
-#: src/components/game/RoundVideoOverlay.tsx:3182
+#: src/components/game/RoundVideoOverlay.tsx:3250
 msgid "Waiting for TheHandy sync before playback..."
 msgstr "播放前等待 TheHandy 同步..."
 
-#: src/routes/settings.tsx:1906
+#: src/routes/settings.tsx:1925
 msgid "Warn"
 msgstr "警告"
 
@@ -12857,8 +12861,8 @@ msgid "Weak hardware: reduce rounds per pass, enable single-thread previews, or 
 msgstr "弱性能硬件：如果启动或媒体库处理感觉吃力，请减少每次处理的回合数、启用单线程预览，或关闭后台哈希计算。"
 
 #: src/features/rounds/library/components/RoundCard.tsx:75
-#: src/features/rounds/library/InstalledRoundsPage.tsx:931
-#: src/features/rounds/library/InstalledRoundsPage.tsx:3067
+#: src/features/rounds/library/InstalledRoundsPage.tsx:952
+#: src/features/rounds/library/InstalledRoundsPage.tsx:3088
 msgid "Web"
 msgstr "网页"
 
@@ -12866,7 +12870,7 @@ msgstr "网页"
 msgid "Website Install"
 msgstr "网站安装"
 
-#: src/components/game/RoundVideoOverlay.tsx:4356
+#: src/components/game/RoundVideoOverlay.tsx:4424
 msgid "Website stream playback failed"
 msgstr "网站流播放失败"
 
@@ -12929,15 +12933,15 @@ msgstr "当"
 msgid "When disabled, animated backgrounds keep the visual effects but skip loading video files."
 msgstr "禁用时，动画背景保留视觉效果但跳过加载视频文件。"
 
-#: src/routes/settings.tsx:2168
+#: src/routes/settings.tsx:2187
 msgid "When enabled, first launch may use your system language if it is supported. Disabled by default so English remains the default language."
 msgstr "启用时，首次启动可能会使用你的系统语言（如果支持）。默认禁用以保持英语为默认语言。"
 
-#: src/routes/settings.tsx:1528
+#: src/routes/settings.tsx:1547
 msgid "When enabled, funscripts with `range: 90` are normalized to `100` in memory so TheHandy playback keeps working."
 msgstr "启用时，内存中 `range: 90` 的 Funscript 会被标准化为 `100`，以确保 TheHandy 播放正常工作。"
 
-#: src/routes/settings.tsx:1590
+#: src/routes/settings.tsx:1609
 msgid "When enabled, holding 'S' during the first 5 seconds of app startup will automatically enable SFW Mode. Useful for emergency situations."
 msgstr "启用时，在应用启动的前 5 秒内按住 'S' 将自动启用 SFW 模式。适用于紧急情况。"
 
@@ -12961,7 +12965,7 @@ msgstr "启用后，所有文件成功复制后将删除原始缓存文件夹。
 msgid "When enabled, this round will never be picked by random round nodes, the succubus anti-perk, or the cum round fallback."
 msgstr "启用后，此回合将不会被随机回合节点、魅魔反增益或 cum 回退所选择。"
 
-#: src/routes/settings.tsx:1939
+#: src/routes/settings.tsx:1958
 msgid "When the log file exceeds this size, the oldest entries are pruned."
 msgstr "当日志文件超过此大小时，最旧的条目将被清除。"
 
@@ -13131,7 +13135,7 @@ msgstr "作弊模式启用期间，你的等级不会提升"
 msgid "Your Placement"
 msgstr "你的排名"
 
-#: src/features/rounds/library/InstalledRoundsPage.tsx:1735
+#: src/features/rounds/library/InstalledRoundsPage.tsx:1756
 msgid "Your playable media library"
 msgstr "您的可播放媒体库"
 
@@ -13143,7 +13147,7 @@ msgstr "你的队列为空"
 msgid "Your queue is empty."
 msgstr "你的队列为空。"
 
-#: src/routes/settings.tsx:1869
+#: src/routes/settings.tsx:1888
 msgid "yt-dlp Binary Source"
 msgstr "yt-dlp 二进制文件来源"
 

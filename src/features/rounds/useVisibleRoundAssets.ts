@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { InstalledRoundCardAssets } from "../../services/db";
 import {
   getInstalledRoundCardAssetsCached,
+  invalidateInstalledRoundCardAssets,
   peekInstalledRoundCardAssetsCached,
 } from "../../services/installedRoundsCache";
 
@@ -27,6 +28,7 @@ export function useVisibleRoundAssets({
   includeDisabled: boolean;
   isScrolling: boolean;
 }) {
+  const [refreshRevision, setRefreshRevision] = useState(0);
   const [fetchedCardAssetsState, setFetchedCardAssetsState] = useState<{
     includeDisabled: boolean;
     entries: Map<string, InstalledRoundCardAssets>;
@@ -46,7 +48,9 @@ export function useVisibleRoundAssets({
   const cachedCardAssetsByRoundId = useMemo(() => {
     const entries = peekInstalledRoundCardAssetsCached(requestedRoundIds, includeDisabled);
     return new Map(entries.map((entry) => [entry.roundId, entry] as const));
-  }, [includeDisabled, requestedRoundIds]);
+    // refreshRevision deliberately forces a new cache read after targeted invalidation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includeDisabled, refreshRevision, requestedRoundIds]);
 
   const cardAssetsByRoundId = useMemo(() => {
     const next = new Map(cachedCardAssetsByRoundId);
@@ -151,5 +155,23 @@ export function useVisibleRoundAssets({
     };
   }, [cachedCardAssetsByRoundId, includeDisabled, isScrolling, requestedRoundIds, selectedRoundId]);
 
-  return cardAssetsByRoundId;
+  const refreshRoundAssets = useCallback((roundIds: string[]) => {
+    const uniqueRoundIds = [...new Set(roundIds.filter((roundId) => roundId.trim().length > 0))];
+    if (uniqueRoundIds.length === 0) return;
+
+    for (const roundId of uniqueRoundIds) {
+      invalidateInstalledRoundCardAssets(roundId);
+    }
+    setFetchedCardAssetsState((previous) => {
+      const next = new Map(previous.entries);
+      let changed = false;
+      for (const roundId of uniqueRoundIds) {
+        changed = next.delete(roundId) || changed;
+      }
+      return changed ? { ...previous, entries: next } : previous;
+    });
+    setRefreshRevision((previous) => previous + 1);
+  }, []);
+
+  return { cardAssetsByRoundId, refreshRoundAssets };
 }

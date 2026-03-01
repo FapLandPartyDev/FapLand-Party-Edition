@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getInstalledRoundCardAssetsCached: vi.fn(),
+  invalidateInstalledRoundCardAssets: vi.fn(),
   peekInstalledRoundCardAssetsCached: vi.fn(),
 }));
 
 vi.mock("../../services/installedRoundsCache", () => ({
   getInstalledRoundCardAssetsCached: mocks.getInstalledRoundCardAssetsCached,
+  invalidateInstalledRoundCardAssets: mocks.invalidateInstalledRoundCardAssets,
   peekInstalledRoundCardAssetsCached: mocks.peekInstalledRoundCardAssetsCached,
 }));
 
@@ -48,8 +50,10 @@ describe("useVisibleRoundAssets", () => {
       })
     );
 
-    expect(result.current.get("round-1")?.previewImage).toBe("data:image/png;base64,cached");
-    expect(result.current.has("round-2")).toBe(false);
+    expect(result.current.cardAssetsByRoundId.get("round-1")?.previewImage).toBe(
+      "data:image/png;base64,cached"
+    );
+    expect(result.current.cardAssetsByRoundId.has("round-2")).toBe(false);
     expect(mocks.getInstalledRoundCardAssetsCached).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -57,7 +61,9 @@ describe("useVisibleRoundAssets", () => {
     });
 
     expect(mocks.getInstalledRoundCardAssetsCached).toHaveBeenCalledWith(["round-2"], false);
-    expect(result.current.get("round-2")?.previewImage).toBe("data:image/png;base64,fetched");
+    expect(result.current.cardAssetsByRoundId.get("round-2")?.previewImage).toBe(
+      "data:image/png;base64,fetched"
+    );
   });
 
   it("does not request visible previews while scrolling", async () => {
@@ -146,5 +152,68 @@ describe("useVisibleRoundAssets", () => {
     });
 
     expect(mocks.getInstalledRoundCardAssetsCached).toHaveBeenCalledWith(["round-2"], false);
+  });
+
+  it("invalidates and reloads only requested visible round assets", async () => {
+    const initialEntries = [
+      {
+        roundId: "round-1",
+        previewImage: null,
+        previewVideoUri: "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fone",
+        websiteVideoCacheStatus: "pending",
+        primaryResourceId: "resource-1",
+      },
+      {
+        roundId: "round-2",
+        previewImage: null,
+        previewVideoUri: "app://external/web-url?target=https%3A%2F%2Fexample.com%2Ftwo",
+        websiteVideoCacheStatus: "pending",
+        primaryResourceId: "resource-2",
+      },
+    ];
+    let roundOneInvalidated = false;
+    mocks.invalidateInstalledRoundCardAssets.mockImplementation((roundId: string) => {
+      if (roundId === "round-1") roundOneInvalidated = true;
+    });
+    mocks.peekInstalledRoundCardAssetsCached.mockImplementation(() =>
+      roundOneInvalidated
+        ? initialEntries.filter((entry) => entry.roundId !== "round-1")
+        : initialEntries
+    );
+    mocks.getInstalledRoundCardAssetsCached.mockResolvedValue([
+      {
+        roundId: "round-1",
+        previewImage: "data:image/png;base64,finished",
+        previewVideoUri: "app://media/finished.mp4",
+        websiteVideoCacheStatus: "cached",
+        primaryResourceId: "resource-1",
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useVisibleRoundAssets({
+        visibleRoundIds: ["round-1", "round-2"],
+        selectedRoundId: null,
+        includeDisabled: false,
+        isScrolling: false,
+      })
+    );
+
+    act(() => {
+      result.current.refreshRoundAssets(["round-1"]);
+    });
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(mocks.invalidateInstalledRoundCardAssets).toHaveBeenCalledTimes(1);
+    expect(mocks.invalidateInstalledRoundCardAssets).toHaveBeenCalledWith("round-1");
+    expect(mocks.getInstalledRoundCardAssetsCached).toHaveBeenCalledWith(["round-1"], false);
+    expect(result.current.cardAssetsByRoundId.get("round-1")?.websiteVideoCacheStatus).toBe(
+      "cached"
+    );
+    expect(result.current.cardAssetsByRoundId.get("round-2")?.websiteVideoCacheStatus).toBe(
+      "pending"
+    );
   });
 });

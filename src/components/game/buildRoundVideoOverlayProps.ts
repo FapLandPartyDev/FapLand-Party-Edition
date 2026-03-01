@@ -45,7 +45,7 @@ type RoundVideoOverlaySessionConfig = Pick<
 
 type RoundVideoOverlayShellConfig = Pick<
   RoundVideoOverlayProps,
-  "showCloseButton" | "onClose" | "onFinishRound"
+  "showCloseButton" | "onClose" | "onFinishRound" | "allowTimelineSeeking"
 >;
 
 export type RoundVideoOverlayLaunchConfig = {
@@ -74,6 +74,7 @@ export function buildRoundVideoOverlayProps({
     showCloseButton: shell.showCloseButton,
     onClose: shell.onClose,
     onFinishRound: shell.onFinishRound,
+    allowTimelineSeeking: shell.allowTimelineSeeking,
     currentPlayer: session?.currentPlayer,
     roundControl: session?.roundControl,
     onRequestCum: session?.onRequestCum,
@@ -127,6 +128,7 @@ export function buildPreviewRoundVideoOverlayProps(
     },
     shell: {
       showCloseButton: true,
+      allowTimelineSeeking: true,
       onClose: config.onClose,
       onFinishRound: config.onFinishRound,
     },
@@ -181,6 +183,7 @@ export function buildGameplayRoundVideoOverlayProps(
     },
     shell: {
       showCloseButton: false,
+      allowTimelineSeeking: false,
       onClose: undefined,
       onFinishRound: config.onFinishRound,
     },

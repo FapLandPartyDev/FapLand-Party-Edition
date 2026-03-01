@@ -118,11 +118,27 @@ describe("buildRoundVideoOverlayProps", () => {
     });
 
     expect(preview.showCloseButton).toBe(true);
+    expect(preview.allowTimelineSeeking).toBe(true);
     expect(preview.onClose).toBeTypeOf("function");
     expect(preview.currentPlayer).toBeUndefined();
     expect(preview.roundControl).toBeUndefined();
     expect(preview.onRequestCum).toBeUndefined();
     expect(preview.onOpenOptions).toBeUndefined();
+  });
+
+  it("keeps timeline seeking disabled during gameplay", () => {
+    const gameplay = buildGameplayRoundVideoOverlayProps({
+      activeRound: createActiveRound(),
+      installedRounds: [createInstalledRound()],
+      intermediaryProbability: 0,
+      booruSearchPrompt: "animated gif webm",
+      intermediaryLoadingDurationSec: 5,
+      intermediaryReturnPauseSec: 4,
+      currentPlayer: createPlayer(),
+      onFinishRound: vi.fn(),
+    });
+
+    expect(gameplay.allowTimelineSeeking).toBe(false);
   });
 
   it("allows preview callers to opt back into automatic intermediaries explicitly", () => {

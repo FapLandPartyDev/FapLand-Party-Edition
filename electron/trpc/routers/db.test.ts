@@ -6,6 +6,10 @@ const { getDbMock } = vi.hoisted(() => ({
   getDbMock: vi.fn(),
 }));
 
+const { queueWebsiteVideoCacheImmediatelyMock } = vi.hoisted(() => ({
+  queueWebsiteVideoCacheImmediatelyMock: vi.fn(async () => {}),
+}));
+
 const { exportInstalledDatabaseMock } = vi.hoisted(() => ({
   exportInstalledDatabaseMock: vi.fn(),
 }));
@@ -93,6 +97,11 @@ const { createResourceUriResolverMock, getDisabledRoundIdSetMock, resolveResourc
 
 vi.mock("../../services/db", () => ({
   getDb: getDbMock,
+}));
+
+vi.mock("../../services/webVideoScanService", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../services/webVideoScanService")>()),
+  queueWebsiteVideoCacheImmediately: queueWebsiteVideoCacheImmediatelyMock,
 }));
 
 vi.mock("../../services/installExport", () => ({
@@ -1793,6 +1802,12 @@ describe("dbRouter local highscore and multiplayer cache", () => {
       "app://media/tmp/demo.funscript"
     );
     expect(dbMockRef.transaction).toHaveBeenCalledTimes(1);
+    expect(queueWebsiteVideoCacheImmediatelyMock).toHaveBeenCalledWith({
+      roundId: created.roundId,
+      resourceId: created.resourceId,
+      roundName: "Website Round",
+      url: "https://www.xhamster.com/videos/demo-123",
+    });
   });
 
   it("rejects invalid website round video URLs", async () => {
@@ -1805,6 +1820,7 @@ describe("dbRouter local highscore and multiplayer cache", () => {
         funscriptUri: null,
       })
     ).rejects.toThrow("public http(s) URLs");
+    expect(queueWebsiteVideoCacheImmediatelyMock).not.toHaveBeenCalled();
   });
 
   it("deletes a round entry", async () => {

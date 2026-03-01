@@ -1506,6 +1506,25 @@ export function SettingsPage() {
               }
             },
           },
+          {
+            id: "ignore-playlist-level-requirements",
+            type: "toggle",
+            label: t`Ignore Playlist Level Requirements`,
+            description: t`Allows locked solo playlists to start for testing. Runs started through this bypass do not award XP.`,
+            value: ignorePlaylistLevelRequirements,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({
+                key: IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_KEY,
+                value: next,
+              });
+              setIgnorePlaylistLevelRequirements(next);
+              window.dispatchEvent(
+                new CustomEvent<boolean>(IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_EVENT, {
+                  detail: next,
+                })
+              );
+            },
+          },
         ],
       },
       {
@@ -2216,25 +2235,6 @@ export function SettingsPage() {
                 value: next,
               });
               setPlaylistCacheOngoingRestrictionDisabled(next);
-            },
-          },
-          {
-            id: "ignore-playlist-level-requirements",
-            type: "toggle",
-            label: t`Ignore Playlist Level Requirements`,
-            description: t`Allows locked solo playlists to start for testing. Runs started through this bypass do not award XP.`,
-            value: ignorePlaylistLevelRequirements,
-            onChange: async (next: boolean) => {
-              await trpc.store.set.mutate({
-                key: IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_KEY,
-                value: next,
-              });
-              setIgnorePlaylistLevelRequirements(next);
-              window.dispatchEvent(
-                new CustomEvent<boolean>(IGNORE_PLAYLIST_LEVEL_REQUIREMENTS_EVENT, {
-                  detail: next,
-                })
-              );
             },
           },
           {

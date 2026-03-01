@@ -498,6 +498,7 @@ describe("Settings music section", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Skip Multiplayer Safeguards")).toBeDefined();
+      expect(screen.getByText("Ignore Playlist Level Requirements")).toBeDefined();
     });
 
     fireEvent.click(screen.getByRole("switch", { name: "Toggle Skip Multiplayer Safeguards" }));
@@ -507,6 +508,12 @@ describe("Settings music section", () => {
         screen.getByText(/general minimum round count and any playlist-specific round requirement/i)
       ).toBeDefined();
       expect(screen.getAllByText(/bad user experience/i).length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Experimental/ })[0]!);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Ignore Playlist Level Requirements")).toBeNull();
     });
   });
 

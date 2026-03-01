@@ -1,5 +1,20 @@
 # What's New
 
+## v0.6.05-beta
+
+### Added
+
+- **Seekable installed-round previews** — the video progress bar in the Installed Rounds preview is now an interactive timeline. Drag or click it to seek within the playable portion of the main video, with cut ranges skipped automatically and haptics resynchronized to the selected position. Timeline seeking remains disabled during normal gameplay and intermediary sequences.
+- **Immediate website-video caching** — newly installed website rounds now queue their video for caching right away instead of waiting for the next bulk scan. Targeted installs take priority over background work, share in-flight downloads for duplicate URLs, and retain the existing cache concurrency limit.
+
+### Changed
+
+- Installed-round cards now recognize download progress for both direct website URLs and wrapped external playback URLs, show caching activity while targeted downloads are running, and refresh their cached preview assets as soon as a download completes.
+- **Ignore Playlist Level Requirements** has moved from Experimental into the main gameplay settings so the existing no-XP testing bypass is easier to find.
+- Release metadata and the bundled dependency-license manifest have been refreshed for this version.
+
+---
+
 ## v0.6.00-beta
 
 ### Added

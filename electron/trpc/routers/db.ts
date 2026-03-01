@@ -52,6 +52,7 @@ import {
 } from "../../services/phashScanService";
 import {
   getWebsiteVideoScanStatus,
+  queueWebsiteVideoCacheImmediately,
   requestWebsiteVideoScanAbort,
   startWebsiteVideoScan,
   startWebsiteVideoScanManual,
@@ -228,6 +229,17 @@ function toMediaRoundInstallSourceKey(input: {
 
 function queueWebsiteVideoCaching(): void {
   void startWebsiteVideoScan().catch((error) => {
+    console.error("Failed to queue website video caching", error);
+  });
+}
+
+function queueWebsiteVideoCachingImmediately(input: {
+  resourceId: string;
+  roundId: string;
+  roundName: string;
+  url: string;
+}): void {
+  void queueWebsiteVideoCacheImmediately(input).catch((error) => {
     console.error("Failed to queue website video caching", error);
   });
 }
@@ -1442,7 +1454,11 @@ export const dbRouter = router({
           };
         });
 
-        queueWebsiteVideoCaching();
+        queueWebsiteVideoCachingImmediately({
+          ...created,
+          roundName: input.name.trim(),
+          url: normalizedVideoUri,
+        });
         return created;
       } catch (error) {
         throw new TRPCError({

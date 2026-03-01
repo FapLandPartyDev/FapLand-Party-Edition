@@ -11,6 +11,7 @@ const {
   generateRoundPreviewImageDataUriMock,
   startPhashScanManualMock,
   isStashProxyUriMock,
+  shouldDeferBackgroundWorkMock,
 } = vi.hoisted(() => {
   return {
     getDbMock: vi.fn(),
@@ -21,6 +22,7 @@ const {
     generateRoundPreviewImageDataUriMock: vi.fn(),
     startPhashScanManualMock: vi.fn(),
     isStashProxyUriMock: vi.fn(),
+    shouldDeferBackgroundWorkMock: vi.fn(),
   };
 });
 
@@ -41,6 +43,10 @@ vi.mock("./webVideo", () => ({
 
 vi.mock("./roundPreview", () => ({
   generateRoundPreviewImageDataUri: generateRoundPreviewImageDataUriMock,
+}));
+
+vi.mock("./rendererPerformance", () => ({
+  shouldDeferBackgroundWork: shouldDeferBackgroundWorkMock,
 }));
 
 vi.mock("./phashScanService", () => ({
@@ -109,6 +115,7 @@ describe("webVideoScanService", () => {
       return null;
     });
     isStashProxyUriMock.mockReturnValue(false);
+    shouldDeferBackgroundWorkMock.mockReturnValue(false);
   });
 
   it("ignores stash proxy URIs even if not marked in installSourceKey", async () => {
@@ -254,6 +261,139 @@ describe("webVideoScanService", () => {
     expect(ensureWebsiteVideoCachedMock).toHaveBeenCalledTimes(1);
     expect(result.state).toBe("done");
     expect(result.completedCount).toBe(1);
+  });
+
+  it("starts a targeted cache immediately while install and background work are blocked", async () => {
+    getInstallScanStatusMock.mockReturnValue({ state: "running" });
+    shouldDeferBackgroundWorkMock.mockReturnValue(true);
+    getDbMock.mockReturnValue(buildDbMock([]));
+
+    const service = await import("./webVideoScanService");
+    const pending = service.queueWebsiteVideoCacheImmediately({
+      resourceId: "res-targeted",
+      roundId: "round-targeted",
+      roundName: "Targeted Round",
+      url: "https://page.example/watch/targeted",
+    });
+
+    await vi.waitFor(() => {
+      expect(ensureWebsiteVideoCachedMock).toHaveBeenCalledWith(
+        "https://page.example/watch/targeted"
+      );
+    });
+    await pending;
+
+    expect(getInstallScanStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("runs targeted cache requests sequentially and deduplicates queued URLs", async () => {
+    getDbMock.mockReturnValue(buildDbMock([]));
+    // Assigned from the async mock after the cache request starts.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let releaseFirst: any = null;
+    ensureWebsiteVideoCachedMock.mockImplementation(
+      (url: string) =>
+        new Promise<{ finalFilePath: string }>((resolve) => {
+          if (url.endsWith("/one")) {
+            releaseFirst = () => resolve({ finalFilePath: "/tmp/one.mp4" });
+            return;
+          }
+          resolve({ finalFilePath: "/tmp/two.mp4" });
+        })
+    );
+
+    const service = await import("./webVideoScanService");
+    const first = service.queueWebsiteVideoCacheImmediately({
+      resourceId: "res-1",
+      roundId: "round-1",
+      roundName: "Round One",
+      url: "https://page.example/watch/one",
+    });
+    const duplicate = service.queueWebsiteVideoCacheImmediately({
+      resourceId: "res-duplicate",
+      roundId: "round-duplicate",
+      roundName: "Duplicate",
+      url: "https://page.example/watch/one",
+    });
+    const second = service.queueWebsiteVideoCacheImmediately({
+      resourceId: "res-2",
+      roundId: "round-2",
+      roundName: "Round Two",
+      url: "https://page.example/watch/two",
+    });
+
+    expect(duplicate).toBe(first);
+    await vi.waitFor(() => {
+      expect(ensureWebsiteVideoCachedMock).toHaveBeenCalledTimes(1);
+    });
+    expect(ensureWebsiteVideoCachedMock).not.toHaveBeenCalledWith("https://page.example/watch/two");
+
+    releaseFirst?.();
+    await Promise.all([first, duplicate, second]);
+
+    expect(ensureWebsiteVideoCachedMock).toHaveBeenCalledTimes(2);
+    expect(startPhashScanManualMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("prioritizes targeted work without exceeding the bulk concurrency ceiling", async () => {
+    const bulkUrls = [1, 2, 3, 4].map((index) => `https://page.example/watch/bulk-${index}`);
+    getDbMock.mockReturnValue(
+      buildDbMock(
+        bulkUrls.map((videoUri, index) => ({
+          resourceId: `res-${index}`,
+          roundId: `round-${index}`,
+          roundName: `Bulk ${index}`,
+          videoUri,
+        }))
+      )
+    );
+
+    let activeCount = 0;
+    let maxActiveCount = 0;
+    const releases = new Map<string, () => void>();
+    ensureWebsiteVideoCachedMock.mockImplementation(
+      (url: string) =>
+        new Promise<{ finalFilePath: string }>((resolve) => {
+          activeCount += 1;
+          maxActiveCount = Math.max(maxActiveCount, activeCount);
+          releases.set(url, () => {
+            activeCount -= 1;
+            resolve({ finalFilePath: `/tmp/${encodeURIComponent(url)}.mp4` });
+          });
+        })
+    );
+
+    const service = await import("./webVideoScanService");
+    const bulkRun = service.startWebsiteVideoScanManual();
+    await vi.waitFor(() => {
+      expect(ensureWebsiteVideoCachedMock).toHaveBeenCalledTimes(3);
+    });
+
+    const targetedUrl = "https://page.example/watch/targeted-priority";
+    const targetedRun = service.queueWebsiteVideoCacheImmediately({
+      resourceId: "res-targeted",
+      roundId: "round-targeted",
+      roundName: "Targeted",
+      url: targetedUrl,
+    });
+    expect(ensureWebsiteVideoCachedMock).not.toHaveBeenCalledWith(targetedUrl);
+
+    releases.get(bulkUrls[0]!)?.();
+    await vi.waitFor(() => {
+      expect(ensureWebsiteVideoCachedMock).toHaveBeenCalledWith(targetedUrl);
+    });
+    expect(maxActiveCount).toBe(3);
+
+    releases.get(targetedUrl)?.();
+    releases.get(bulkUrls[1]!)?.();
+    releases.get(bulkUrls[2]!)?.();
+    await vi.waitFor(() => {
+      expect(ensureWebsiteVideoCachedMock).toHaveBeenCalledWith(bulkUrls[3]);
+    });
+    releases.get(bulkUrls[3]!)?.();
+
+    await Promise.all([bulkRun, targetedRun]);
+    expect(maxActiveCount).toBe(3);
   });
 
   it("waits for install scanning to finish before downloading", async () => {

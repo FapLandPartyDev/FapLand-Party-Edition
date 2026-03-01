@@ -52,11 +52,14 @@ type PendingWebsiteVideo = {
   url: string;
 };
 
+export type ImmediateWebsiteVideoCacheRequest = PendingWebsiteVideo;
+
 type PendingWebsiteVideoDiscoveryError = PendingWebsiteVideo & {
   reason: string;
 };
 
 type WebsiteVideoScanMode = "background" | "manual";
+type WebsiteVideoCachePriority = "targeted" | "bulk";
 
 type WebsiteRoundPreviewCandidate = {
   roundId: string;
@@ -91,7 +94,13 @@ let abortRequested = false;
 let continuousScanTimer: ReturnType<typeof setInterval> | null = null;
 let initialContinuousScanTimer: ReturnType<typeof setTimeout> | null = null;
 const activeItemsByUrl = new Map<string, PendingWebsiteVideo>();
+const processingItemsByUrl = new Map<string, Promise<void>>();
+const targetedItemsByUrl = new Map<string, Promise<void>>();
+const targetedCacheWaiters: Array<() => void> = [];
+const bulkCacheWaiters: Array<() => void> = [];
 let rerunRequested = false;
+let activeCacheTaskCount = 0;
+let targetedQueueTail: Promise<void> = Promise.resolve();
 
 function cloneStatus(status: WebsiteVideoScanStatus): WebsiteVideoScanStatus {
   return { ...status, errors: [...status.errors] };
@@ -121,6 +130,29 @@ function syncCurrentItemSummary(): void {
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function acquireCacheTaskSlot(priority: WebsiteVideoCachePriority): Promise<() => void> {
+  if (activeCacheTaskCount < WEBSITE_VIDEO_SCAN_CONCURRENCY) {
+    activeCacheTaskCount += 1;
+  } else {
+    await new Promise<void>((resolve) => {
+      (priority === "targeted" ? targetedCacheWaiters : bulkCacheWaiters).push(resolve);
+    });
+  }
+
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+
+    const next = targetedCacheWaiters.shift() ?? bulkCacheWaiters.shift();
+    if (next) {
+      next();
+      return;
+    }
+    activeCacheTaskCount = Math.max(0, activeCacheTaskCount - 1);
+  };
 }
 
 async function waitForInstallScan(): Promise<void> {
@@ -250,6 +282,33 @@ async function generateMissingPreviewImagesForCachedWebsiteVideo(
   }
 }
 
+function processWebsiteVideoItem(
+  item: PendingWebsiteVideo,
+  priority: WebsiteVideoCachePriority
+): Promise<void> {
+  const existing = processingItemsByUrl.get(item.url);
+  if (existing) return existing;
+
+  const pending = (async () => {
+    const releaseSlot = await acquireCacheTaskSlot(priority);
+    try {
+      const metadata = await ensureWebsiteVideoCached(item.url);
+      await generateMissingPreviewImagesForCachedWebsiteVideo(item, metadata.finalFilePath);
+      void startPhashScanManual().catch((error) => {
+        console.error("Failed to queue phash scan after website cache", error);
+        debugLog.error("websiteVideoScan", "Failed to queue phash scan after website cache", error);
+      });
+    } finally {
+      releaseSlot();
+    }
+  })().finally(() => {
+    processingItemsByUrl.delete(item.url);
+  });
+
+  processingItemsByUrl.set(item.url, pending);
+  return pending;
+}
+
 async function runWebsiteVideoScan(mode: WebsiteVideoScanMode): Promise<void> {
   const { items, discoveryErrors } = await findUncachedWebsiteVideos();
   for (const discoveryError of discoveryErrors) {
@@ -285,16 +344,7 @@ async function runWebsiteVideoScan(mode: WebsiteVideoScanMode): Promise<void> {
       syncCurrentItemSummary();
 
       try {
-        const metadata = await ensureWebsiteVideoCached(item.url);
-        await generateMissingPreviewImagesForCachedWebsiteVideo(item, metadata.finalFilePath);
-        void startPhashScanManual().catch((error) => {
-          console.error("Failed to queue phash scan after website cache", error);
-          debugLog.error(
-            "websiteVideoScan",
-            "Failed to queue phash scan after website cache",
-            error
-          );
-        });
+        await processWebsiteVideoItem(item, "bulk");
         scanStatus.completedCount += 1;
       } catch (error) {
         const message =
@@ -445,6 +495,46 @@ export async function startWebsiteVideoScan(): Promise<WebsiteVideoScanStatus> {
 
 export async function startWebsiteVideoScanManual(): Promise<WebsiteVideoScanStatus> {
   return startScanInternal(true);
+}
+
+export function queueWebsiteVideoCacheImmediately(
+  request: ImmediateWebsiteVideoCacheRequest
+): Promise<void> {
+  const targetUrl = getWebsiteVideoTargetUrl(request.url);
+  if (!targetUrl) {
+    return Promise.reject(
+      new Error("Website video URL is invalid or not eligible for immediate caching.")
+    );
+  }
+
+  const item: PendingWebsiteVideo = {
+    ...request,
+    url: targetUrl,
+  };
+  const existing = targetedItemsByUrl.get(item.url);
+  if (existing) return existing;
+
+  const pending = targetedQueueTail
+    .catch(() => undefined)
+    .then(() => processWebsiteVideoItem(item, "targeted"))
+    .catch((error) => {
+      const message =
+        error instanceof Error ? error.message : "Unknown immediate website video cache error.";
+      debugLog.warn("websiteVideoScan", "Immediate website video cache failed", {
+        roundId: item.roundId,
+        roundName: item.roundName,
+        url: item.url,
+        message,
+      });
+      throw error;
+    })
+    .finally(() => {
+      targetedItemsByUrl.delete(item.url);
+    });
+
+  targetedItemsByUrl.set(item.url, pending);
+  targetedQueueTail = pending;
+  return pending;
 }
 
 export function startContinuousWebsiteVideoScan(): void {

@@ -298,6 +298,7 @@ function renderOverlay({
   boardSequence = null,
   idleBoardSequence = null,
   allowDebugRoundControls = false,
+  allowTimelineSeeking = false,
   initialShowAntiPerkBeatbar = true,
   onCompleteBoardSequence,
   intermediaryLoadingDurationSec = 10,
@@ -312,6 +313,7 @@ function renderOverlay({
   boardSequence?: "milker" | "jackhammer" | null;
   idleBoardSequence?: "no-rest" | null;
   allowDebugRoundControls?: boolean;
+  allowTimelineSeeking?: boolean;
   initialShowAntiPerkBeatbar?: boolean;
   onCompleteBoardSequence?: ((perkId: "milker" | "jackhammer") => void) | undefined;
   intermediaryLoadingDurationSec?: number;
@@ -339,6 +341,7 @@ function renderOverlay({
       idleBoardSequence={idleBoardSequence}
       onCompleteBoardSequence={onCompleteBoardSequence}
       allowDebugRoundControls={allowDebugRoundControls}
+      allowTimelineSeeking={allowTimelineSeeking}
       initialShowAntiPerkBeatbar={initialShowAntiPerkBeatbar}
       roadPalette={roadPalette}
       roundControl={roundControl}
@@ -1476,6 +1479,108 @@ describe("RoundVideoOverlay", () => {
         activeAntiPerkCount: 0,
       });
     });
+  });
+
+  it("renders an accessible scrubber only when timeline seeking is enabled", async () => {
+    const { container, rerender } = renderOverlay();
+
+    expect(screen.queryByRole("slider", { name: "Seek video" })).toBeNull();
+
+    rerender(
+      <RoundVideoOverlay
+        activeRound={createActiveRound()}
+        installedRounds={[createInstalledRound()]}
+        currentPlayer={undefined}
+        intermediaryProbability={0}
+        booruSearchPrompt="animated gif webm"
+        intermediaryLoadingDurationSec={10}
+        intermediaryReturnPauseSec={4}
+        onFinishRound={vi.fn()}
+        allowTimelineSeeking
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('video[src="/video.mp4"]')).not.toBeNull();
+    });
+    expect(screen.getByRole("slider", { name: "Seek video" })).not.toBeNull();
+  });
+
+  it("scrubs within the trimmed preview window without changing playback state", async () => {
+    const mainRound = createInstalledRound("round-1", null, {
+      startTime: 5_000,
+      endTime: 25_000,
+      durationMs: 30_000,
+    });
+    const mainTime = { value: 0 };
+    const { container } = renderOverlay({
+      installedRounds: [mainRound],
+      allowTimelineSeeking: true,
+    });
+    const video = await waitFor(() => {
+      const candidate = container.querySelector('video[src="/video.mp4"]');
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(video, { duration: 30, currentTimeRef: mainTime });
+    fireEvent.loadedMetadata(video);
+    await waitFor(() => expect(mainTime.value).toBe(5));
+
+    const wasPaused = video.paused;
+    fireEvent.input(screen.getByRole("slider", { name: "Seek video" }), {
+      target: { value: "0.5" },
+    });
+
+    expect(mainTime.value).toBe(15);
+    expect(screen.getByText("0:10 / 0:20")).not.toBeNull();
+    expect(video.paused).toBe(wasPaused);
+  });
+
+  it("clamps preview scrubbing to the actual video duration", async () => {
+    const mainRound = createInstalledRound("round-1", null, {
+      startTime: 5_000,
+      endTime: 60_000,
+      durationMs: 60_000,
+    });
+    const mainTime = { value: 0 };
+    const { container } = renderOverlay({
+      installedRounds: [mainRound],
+      allowTimelineSeeking: true,
+    });
+    const video = await waitFor(() => {
+      const candidate = container.querySelector('video[src="/video.mp4"]');
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(video, { duration: 30, currentTimeRef: mainTime });
+    fireEvent.loadedMetadata(video);
+
+    fireEvent.input(screen.getByRole("slider", { name: "Seek video" }), {
+      target: { value: "1" },
+    });
+
+    expect(mainTime.value).toBe(30);
+  });
+
+  it("ignores preview scrubbing until valid metadata is available", async () => {
+    const mainTime = { value: 7 };
+    const { container } = renderOverlay({ allowTimelineSeeking: true });
+    const video = await waitFor(() => {
+      const candidate = container.querySelector('video[src="/video.mp4"]');
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(video, { duration: Number.NaN, currentTimeRef: mainTime });
+    Object.defineProperty(video, "readyState", {
+      configurable: true,
+      get: () => HTMLMediaElement.HAVE_NOTHING,
+    });
+
+    fireEvent.input(screen.getByRole("slider", { name: "Seek video" }), {
+      target: { value: "0.75" },
+    });
+
+    expect(mainTime.value).toBe(7);
   });
 
   it("starts intermediary rounds at their trim start and shows trim-relative timing", async () => {

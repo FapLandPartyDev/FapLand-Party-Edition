@@ -99,6 +99,7 @@ export type RoundVideoOverlayProps = {
   onCompleteBoardSequence?: (perkId: "milker" | "jackhammer") => void;
   continuousMoaningActive?: boolean;
   allowAutomaticIntermediaries?: boolean;
+  allowTimelineSeeking?: boolean;
   showCloseButton?: boolean;
   onClose?: () => void;
   booruSearchPrompt: string;
@@ -288,6 +289,7 @@ export function RoundVideoOverlay({
   onCompleteBoardSequence,
   continuousMoaningActive = false,
   allowAutomaticIntermediaries = true,
+  allowTimelineSeeking = false,
   showCloseButton = false,
   onClose,
   booruSearchPrompt,
@@ -439,6 +441,7 @@ export function RoundVideoOverlay({
   const [playbackRateLabel, setPlaybackRateLabel] = useState("1.00");
   const [playbackTimeLabel, setPlaybackTimeLabel] = useState("0:00 / 0:00");
   const playbackProgressElementRef = useRef<HTMLDivElement | null>(null);
+  const playbackSeekElementRef = useRef<HTMLInputElement | null>(null);
   const playbackProgressRef = useRef(0);
   const [funscriptCount, setFunscriptCount] = useState(0);
   const funscriptPositionRef = useRef<number | null>(null);
@@ -464,6 +467,9 @@ export function RoundVideoOverlay({
     const clampedProgress = Math.max(0, Math.min(1, progress));
     if (Math.abs(playbackProgressRef.current - clampedProgress) < 0.002) return;
     playbackProgressRef.current = clampedProgress;
+    if (playbackSeekElementRef.current) {
+      playbackSeekElementRef.current.value = String(clampedProgress);
+    }
     playbackProgressElementRef.current?.style.setProperty(
       "transform",
       `scaleX(${clampedProgress})`
@@ -826,6 +832,68 @@ export function RoundVideoOverlay({
   }, [canSaveOffsetToRound, handleSaveOffsetToRound]);
 
   const isIntermediaryScreenActive = loadingCountdown !== null;
+  const handleTimelineSeek = useCallback(
+    (progress: number) => {
+      if (!allowTimelineSeeking || segment.kind !== "main" || isIntermediaryScreenActive) return;
+
+      const video = mainVideoRef.current;
+      if (
+        !video ||
+        video.readyState < HTMLMediaElement.HAVE_METADATA ||
+        !Number.isFinite(video.duration) ||
+        video.duration <= 0
+      ) {
+        return;
+      }
+
+      const { startSec, endSec } = resolveMainWindowForDuration(video.duration);
+      const windowEndSec = endSec ?? video.duration;
+      const windowDurationSec = Math.max(0, windowEndSec - startSec);
+      if (windowDurationSec <= 0) return;
+
+      const clampedProgress = Math.max(0, Math.min(1, progress));
+      const requestedTimeSec = startSec + windowDurationSec * clampedProgress;
+      const cutAdjustedTimeSec =
+        skipCutIfNeeded(requestedTimeSec, resolvedMainResource?.cutRanges) ?? requestedTimeSec;
+      const targetTimeSec = clampToPlaybackWindow(cutAdjustedTimeSec, {
+        startSec,
+        endSec: windowEndSec,
+      });
+
+      video.currentTime = targetTimeSec;
+      forceHandySyncMsRef.current = Math.max(0, targetTimeSec * 1000);
+
+      const elapsedInWindowSec =
+        getEffectiveElapsedMs(
+          targetTimeSec * 1000,
+          startSec * 1000,
+          resolvedMainResource?.cutRanges
+        ) / 1000;
+      const effectiveDurationSec =
+        getEffectiveDurationMs(
+          startSec * 1000,
+          windowEndSec * 1000,
+          resolvedMainResource?.cutRanges
+        ) / 1000;
+      const effectiveProgress =
+        effectiveDurationSec > 0
+          ? Math.max(0, Math.min(1, elapsedInWindowSec / effectiveDurationSec))
+          : 0;
+
+      setPlaybackProgress(effectiveProgress);
+      setPlaybackTimeLabel(
+        `${formatDurationLabel(elapsedInWindowSec)} / ${formatDurationLabel(effectiveDurationSec)}`
+      );
+    },
+    [
+      allowTimelineSeeking,
+      isIntermediaryScreenActive,
+      resolveMainWindowForDuration,
+      resolvedMainResource?.cutRanges,
+      segment.kind,
+      setPlaybackProgress,
+    ]
+  );
   const resolvedMainVideoSrc = resolvedMainResource
     ? getVideoSrc(resolvedMainResource.videoUri)
     : undefined;
@@ -4374,13 +4442,30 @@ export function RoundVideoOverlay({
           )}
 
           <div
-            className={`pointer-events-none absolute inset-x-0 bottom-0 z-[35] h-1 overflow-hidden bg-white/8 transition-opacity duration-250 ${showProgressBarAlways || isUiVisible ? "opacity-100" : "opacity-0"}`}
+            className={`absolute inset-x-0 bottom-0 z-[35] h-1 bg-white/8 transition-opacity duration-250 ${
+              allowTimelineSeeking ? "pointer-events-auto" : "pointer-events-none"
+            } ${showProgressBarAlways || isUiVisible ? "opacity-100" : "opacity-0"}`}
           >
-            <div
-              className="h-full bg-violet-400/90 shadow-[0_0_8px_rgba(167,139,250,0.75),0_0_16px_rgba(139,92,246,0.4)] transition-[width] duration-150 ease-out"
-              ref={playbackProgressElementRef}
-              style={{ transform: "scaleX(0)", transformOrigin: "left center" }}
-            />
+            <div className="h-full overflow-hidden">
+              <div
+                className="h-full bg-violet-400/90 shadow-[0_0_8px_rgba(167,139,250,0.75),0_0_16px_rgba(139,92,246,0.4)] transition-[width] duration-150 ease-out"
+                ref={playbackProgressElementRef}
+                style={{ transform: "scaleX(0)", transformOrigin: "left center" }}
+              />
+            </div>
+            {allowTimelineSeeking && (
+              <input
+                ref={playbackSeekElementRef}
+                type="range"
+                min="0"
+                max="1"
+                step="0.001"
+                defaultValue="0"
+                aria-label={t`Seek video`}
+                className="absolute -top-3 left-0 h-7 w-full cursor-pointer opacity-0"
+                onInput={(event) => handleTimelineSeek(event.currentTarget.valueAsNumber)}
+              />
+            )}
           </div>
 
           {isWaitingForHandyStart && (
