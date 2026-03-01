@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it, vi } from "vitest";
+import { FFMPEG_GPU_PREFERENCE_KEY } from "../../src/constants/debugSettings";
 import {
   GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED_KEY,
   GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED_KEY,
@@ -198,7 +199,7 @@ describe("graphicsCompatibility", () => {
     });
   });
 
-  it("mirrors only graphics settings into the startup store", () => {
+  it("mirrors graphics settings and GPU preference into the startup store", () => {
     const set = vi.fn();
 
     expect(
@@ -208,6 +209,22 @@ describe("graphicsCompatibility", () => {
       })
     ).toBe(true);
     expect(set).toHaveBeenCalledWith(GRAPHICS_DISABLE_ZERO_COPY_ENABLED_KEY, true);
+
+    expect(
+      persistGraphicsCompatibilityStartupSetting(FFMPEG_GPU_PREFERENCE_KEY, "gpu:2", {
+        get: vi.fn(),
+        set,
+      })
+    ).toBe(true);
+    expect(set).toHaveBeenCalledWith(FFMPEG_GPU_PREFERENCE_KEY, "gpu:2");
+
+    expect(
+      persistGraphicsCompatibilityStartupSetting(FFMPEG_GPU_PREFERENCE_KEY, "invalid", {
+        get: vi.fn(),
+        set,
+      })
+    ).toBe(true);
+    expect(set).toHaveBeenCalledWith(FFMPEG_GPU_PREFERENCE_KEY, "default");
 
     expect(
       persistGraphicsCompatibilityStartupSetting("unrelated.setting", true, {

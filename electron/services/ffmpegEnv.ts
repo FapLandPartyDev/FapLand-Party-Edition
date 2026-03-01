@@ -5,10 +5,36 @@ import {
   parseFfmpegGpuIndex,
 } from "../../src/constants/debugSettings";
 import { getStore } from "./store";
+import { createStartupGraphicsStore } from "./graphicsCompatibility";
+
+type StoreLike = {
+  get: (key: string) => unknown;
+};
+
+type ElectronAppLike = {
+  commandLine: {
+    appendSwitch: (switchName: string, value?: string) => void;
+  };
+};
+
+type ProcessEnvLike = {
+  env: NodeJS.ProcessEnv;
+  platform: NodeJS.Platform;
+};
+
+function resolveGpuIndexFromStore(store: StoreLike): number | null {
+  const preference = normalizeFfmpegGpuPreference(store.get(FFMPEG_GPU_PREFERENCE_KEY));
+  return parseFfmpegGpuIndex(preference);
+}
 
 export function resolveGpuIndex(): number | null {
-  const preference = normalizeFfmpegGpuPreference(getStore().get(FFMPEG_GPU_PREFERENCE_KEY));
-  return parseFfmpegGpuIndex(preference);
+  return resolveGpuIndexFromStore(getStore());
+}
+
+export function resolveStartupGpuIndex(
+  store: StoreLike = createStartupGraphicsStore()
+): number | null {
+  return resolveGpuIndexFromStore(store);
 }
 
 /**
@@ -44,15 +70,19 @@ export function getFfmpegGpuEnv(): Record<string, string> | undefined {
  *   switch, which is the only cross-platform mechanism Chromium exposes for
  *   GPU selection without DRI.
  */
-export function applyElectronGpuEnv(): void {
-  const index = resolveGpuIndex();
+export function applyElectronGpuEnv(
+  electronApp: ElectronAppLike = app,
+  processLike: ProcessEnvLike = process,
+  store: StoreLike = createStartupGraphicsStore()
+): void {
+  const index = resolveStartupGpuIndex(store);
 
-  if (process.platform === "linux") {
+  if (processLike.platform === "linux") {
     if (index === null) {
-      delete process.env.DRI_PRIME;
+      delete processLike.env.DRI_PRIME;
       return;
     }
-    process.env.DRI_PRIME = String(index);
+    processLike.env.DRI_PRIME = String(index);
     return;
   }
 
@@ -60,6 +90,6 @@ export function applyElectronGpuEnv(): void {
   // Only append when a specific GPU is chosen; omitting the switch lets
   // Chromium pick its default (usually GPU 0).
   if (index !== null) {
-    app.commandLine.appendSwitch("gpu-device-index", String(index));
+    electronApp.commandLine.appendSwitch("gpu-device-index", String(index));
   }
 }

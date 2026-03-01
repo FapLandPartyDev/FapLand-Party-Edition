@@ -1,6 +1,10 @@
 import { app } from "electron";
 import Store from "electron-store";
 import {
+  FFMPEG_GPU_PREFERENCE_KEY,
+  normalizeFfmpegGpuPreference,
+} from "../../src/constants/debugSettings";
+import {
   DEFAULT_GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED,
   DEFAULT_GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED,
   DEFAULT_GRAPHICS_DISABLE_GPU_BLOCKLIST_OVERRIDE_ENABLED,
@@ -67,7 +71,7 @@ const graphicsCompatibilityKeys = new Set([
   GRAPHICS_DISABLE_WEBGL2_ENABLED_KEY,
 ]);
 
-function createStartupGraphicsStore(): Store<Record<string, unknown>> {
+export function createStartupGraphicsStore(): Store<Record<string, unknown>> {
   try {
     return new Store<Record<string, unknown>>({ name: "graphics-startup" });
   } catch (error) {
@@ -124,12 +128,21 @@ export function persistGraphicsCompatibilityStartupSetting(
   value: unknown,
   store: StoreLike = createStartupGraphicsStore()
 ): boolean {
-  if (!graphicsCompatibilityKeys.has(key) || !store.set) {
+  if (!store.set) {
     return false;
   }
 
-  store.set(key, normalizeGraphicsBoolean(value));
-  return true;
+  if (graphicsCompatibilityKeys.has(key)) {
+    store.set(key, normalizeGraphicsBoolean(value));
+    return true;
+  }
+
+  if (key === FFMPEG_GPU_PREFERENCE_KEY) {
+    store.set(key, normalizeFfmpegGpuPreference(value));
+    return true;
+  }
+
+  return false;
 }
 
 export function applyGraphicsCompatibilityFlags(
