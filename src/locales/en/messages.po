@@ -46,7 +46,7 @@ msgstr ".fpack Extraction"
 msgid "first-start.step.storage.detail.3"
 msgstr ".fpack extraction location stores extracted pack contents in a persistent folder so those rounds stay playable later."
 
-#: src/routes/settings.tsx:5481
+#: src/routes/settings.tsx:5546
 msgid ".fpack Extractions"
 msgstr ".fpack Extractions"
 
@@ -71,8 +71,8 @@ msgstr "{0} - round {1}"
 
 #. placeholder {0}: scanStatus.completedCount
 #. placeholder {1}: scanStatus.totalCount
-#: src/routes/settings.tsx:3109
-#: src/routes/settings.tsx:3301
+#: src/routes/settings.tsx:3174
+#: src/routes/settings.tsx:3366
 msgid "{0} / {1} videos"
 msgstr "{0} / {1} videos"
 
@@ -112,12 +112,12 @@ msgid "{0} board"
 msgstr "{0} board"
 
 #. placeholder {0}: scanStatus.completedCount
-#: src/routes/settings.tsx:3332
+#: src/routes/settings.tsx:3397
 msgid "{0} cached"
 msgstr "{0} cached"
 
 #. placeholder {0}: trustedSites.builtInYtDlpDomains.length
-#: src/routes/settings.tsx:7159
+#: src/routes/settings.tsx:7224
 msgid "{0} domains — use the filter above to search."
 msgstr "{0} domains — use the filter above to search."
 
@@ -139,7 +139,7 @@ msgid "{0} files will be installed:"
 msgstr "{0} files will be installed:"
 
 #. placeholder {0}: scanStatus.completedCount
-#: src/routes/settings.tsx:3140
+#: src/routes/settings.tsx:3205
 msgid "{0} hashed"
 msgstr "{0} hashed"
 
@@ -393,7 +393,7 @@ msgstr "• unsaved"
 #: src/routes/highscores.tsx:458
 #: src/routes/playlist-workshop.tsx:2089
 #: src/routes/rounds.tsx:2890
-#: src/routes/settings.tsx:2241
+#: src/routes/settings.tsx:2258
 #: src/routes/single-player-setup.tsx:607
 msgid "← Back"
 msgstr "← Back"
@@ -554,8 +554,8 @@ msgstr "A simple, specific prompt usually works better than a long one. You can 
 msgid "A-Z"
 msgstr "A-Z"
 
-#: src/routes/settings.tsx:3177
-#: src/routes/settings.tsx:3369
+#: src/routes/settings.tsx:3242
+#: src/routes/settings.tsx:3434
 msgid "Abort"
 msgstr "Abort"
 
@@ -568,8 +568,8 @@ msgstr "Abort Export"
 msgid "Abort Import"
 msgstr "Abort Import"
 
-#: src/routes/settings.tsx:3136
-#: src/routes/settings.tsx:3328
+#: src/routes/settings.tsx:3201
+#: src/routes/settings.tsx:3393
 msgid "Aborted"
 msgstr "Aborted"
 
@@ -660,8 +660,8 @@ msgstr "Active Server"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:671
 #: src/routes/first-start.tsx:1684
 #: src/routes/first-start.tsx:1914
-#: src/routes/settings.tsx:4858
-#: src/routes/settings.tsx:5277
+#: src/routes/settings.tsx:4923
+#: src/routes/settings.tsx:5342
 msgid "Add"
 msgstr "Add"
 
@@ -681,12 +681,12 @@ msgstr "Add Action"
 msgid "Add automation for this node"
 msgstr "Add automation for this node"
 
-#: src/routes/settings.tsx:5168
+#: src/routes/settings.tsx:5233
 msgid "Add Files"
 msgstr "Add Files"
 
 #: src/routes/first-start.tsx:1979
-#: src/routes/settings.tsx:5827
+#: src/routes/settings.tsx:5892
 msgid "Add Folder"
 msgstr "Add Folder"
 
@@ -694,8 +694,8 @@ msgstr "Add Folder"
 msgid "Add from any yt-dlp-supported URL"
 msgstr "Add from any yt-dlp-supported URL"
 
-#: src/routes/settings.tsx:4786
-#: src/routes/settings.tsx:5205
+#: src/routes/settings.tsx:4851
+#: src/routes/settings.tsx:5270
 msgid "Add from any yt-dlp-supported URL (downloaded as MP3 via yt-dlp)"
 msgstr "Add from any yt-dlp-supported URL (downloaded as MP3 via yt-dlp)"
 
@@ -705,8 +705,8 @@ msgstr "Add from any yt-dlp-supported URL. Single tracks and playlists are both 
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:596
 #: src/routes/first-start.tsx:1833
-#: src/routes/settings.tsx:4765
-#: src/routes/settings.tsx:5184
+#: src/routes/settings.tsx:4830
+#: src/routes/settings.tsx:5249
 msgid "Add from URL"
 msgstr "Add from URL"
 
@@ -738,11 +738,11 @@ msgstr "Add Music Files"
 msgid "Add Segment"
 msgstr "Add Segment"
 
-#: src/routes/settings.tsx:6209
+#: src/routes/settings.tsx:6274
 msgid "Add Source"
 msgstr "Add Source"
 
-#: src/routes/settings.tsx:6147
+#: src/routes/settings.tsx:6212
 msgid "Add Stash Source"
 msgstr "Add Stash Source"
 
@@ -757,15 +757,15 @@ msgstr "Add the guaranteed perk to the player's inventory instead of applying it
 msgid "Add to queue"
 msgstr "Add to queue"
 
-#: src/routes/settings.tsx:4749
+#: src/routes/settings.tsx:4814
 msgid "Add Tracks"
 msgstr "Add Tracks"
 
-#: src/routes/settings.tsx:7071
+#: src/routes/settings.tsx:7136
 msgid "Add trusted base domain"
 msgstr "Add trusted base domain"
 
-#: src/routes/settings.tsx:7086
+#: src/routes/settings.tsx:7151
 msgid "Add Trusted Site"
 msgstr "Add Trusted Site"
 
@@ -781,14 +781,14 @@ msgstr "Added"
 
 #. placeholder {0}: urlResult.added
 #. placeholder {1}: urlResult.added !== 1 ? "s" : ""
-#: src/routes/settings.tsx:5284
+#: src/routes/settings.tsx:5349
 msgid "Added {0} file{1}"
 msgstr "Added {0} file{1}"
 
 #. placeholder {0}: urlResult.added
 #. placeholder {1}: urlResult.added !== 1 ? "s" : ""
 #. placeholder {2}: urlResult.errors
-#: src/routes/settings.tsx:5283
+#: src/routes/settings.tsx:5348
 msgid "Added {0} file{1} ({2} failed)"
 msgstr "Added {0} file{1} ({2} failed)"
 
@@ -803,14 +803,14 @@ msgstr "Added {0} moaning file{1} to the gameplay library."
 #. placeholder {1}: musicUrlResult.added !== 1 ? "s" : ""
 #. placeholder {1}: urlResult.added !== 1 ? "s" : ""
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:678
-#: src/routes/settings.tsx:4865
+#: src/routes/settings.tsx:4930
 msgid "Added {0} track{1}"
 msgstr "Added {0} track{1}"
 
 #. placeholder {0}: urlResult.added
 #. placeholder {1}: urlResult.added !== 1 ? "s" : ""
 #. placeholder {2}: urlResult.errors
-#: src/routes/settings.tsx:4864
+#: src/routes/settings.tsx:4929
 msgid "Added {0} track{1} ({2} failed)"
 msgstr "Added {0} track{1} ({2} failed)"
 
@@ -834,7 +834,7 @@ msgstr "Added {0} track{1}, {2} failed"
 msgid "Added {0} track{1}{2}"
 msgstr "Added {0} track{1}{2}"
 
-#: src/routes/settings.tsx:5758
+#: src/routes/settings.tsx:5823
 msgid "Added folders import immediately, including legacy video-folder fallback, and are rescanned on startup."
 msgstr "Added folders import immediately, including legacy video-folder fallback, and are rescanned on startup."
 
@@ -876,8 +876,8 @@ msgstr "Adding a folder is best when you already keep your packs together in one
 #: src/components/GlobalMusicOverlay.tsx:472
 #: src/routes/first-start.tsx:1610
 #: src/routes/first-start.tsx:1771
-#: src/routes/settings.tsx:4749
-#: src/routes/settings.tsx:5168
+#: src/routes/settings.tsx:4814
+#: src/routes/settings.tsx:5233
 msgid "Adding..."
 msgstr "Adding..."
 
@@ -906,7 +906,7 @@ msgid "adjust in-game"
 msgstr "adjust in-game"
 
 #: src/components/GlobalHandyOverlay.tsx:466
-#: src/routes/settings.tsx:4365
+#: src/routes/settings.tsx:4430
 msgid "Adjust the active haptics stroke range."
 msgstr "Adjust the active haptics stroke range."
 
@@ -915,11 +915,11 @@ msgstr "Adjust the active haptics stroke range."
 msgid "settings.help.shortcuts.game.adjustHandyOffset"
 msgstr "Adjust the global TheHandy offset; hold Shift for 1ms fine tuning."
 
-#: src/routes/settings.tsx:6792
+#: src/routes/settings.tsx:6857
 msgid "Adjust the window zoom level used by the whole app."
 msgstr "Adjust the window zoom level used by the whole app."
 
-#: src/routes/settings.tsx:1588
+#: src/routes/settings.tsx:1590
 msgid "Advanced"
 msgstr "Advanced"
 
@@ -950,15 +950,15 @@ msgstr "All"
 msgid "All (AND)"
 msgstr "All (AND)"
 
-#: src/routes/settings.tsx:7838
+#: src/routes/settings.tsx:7903
 msgid "All cache data will be copied to:"
 msgstr "All cache data will be copied to:"
 
-#: src/routes/settings.tsx:8082
+#: src/routes/settings.tsx:8147
 msgid "All cache data, your database, and settings will be copied to the portable installation. The app will need to be restarted using the portable executable afterwards."
 msgstr "All cache data, your database, and settings will be copied to the portable installation. The app will need to be restarted using the portable executable afterwards."
 
-#: src/routes/settings.tsx:5451
+#: src/routes/settings.tsx:5516
 msgid "All downloaded/imported game content."
 msgstr "All downloaded/imported game content."
 
@@ -978,7 +978,7 @@ msgstr "All shortcuts"
 msgid "All tracks from this playlist are already in your queue."
 msgstr "All tracks from this playlist are already in your queue."
 
-#: src/routes/settings.tsx:3344
+#: src/routes/settings.tsx:3409
 msgid "All website videos cached"
 msgstr "All website videos cached"
 
@@ -986,7 +986,7 @@ msgstr "All website videos cached"
 msgid "Allow late join"
 msgstr "Allow late join"
 
-#: src/routes/settings.tsx:1297
+#: src/routes/settings.tsx:1299
 msgid "Allow multiplayer access regardless of the global minimum and playlist-specific round requirements. Disabling these safeguards may result in a bad user experience."
 msgstr "Allow multiplayer access regardless of the global minimum and playlist-specific round requirements. Disabling these safeguards may result in a bad user experience."
 
@@ -994,11 +994,11 @@ msgstr "Allow multiplayer access regardless of the global minimum and playlist-s
 msgid "Allow overlaps"
 msgstr "Allow overlaps"
 
-#: src/routes/settings.tsx:1716
+#: src/routes/settings.tsx:1732
 msgid "Allow Playlist Start During Cache Ongoing"
 msgstr "Allow Playlist Start During Cache Ongoing"
 
-#: src/routes/settings.tsx:7051
+#: src/routes/settings.tsx:7116
 msgid "Allowing only configured Stash source URLs and blocking yt-dlp and user-whitelisted domains."
 msgstr "Allowing only configured Stash source URLs and blocking yt-dlp and user-whitelisted domains."
 
@@ -1013,7 +1013,7 @@ msgstr "Already AV1"
 msgid "Already inside an intermediary segment."
 msgstr "Already inside an intermediary segment."
 
-#: src/routes/settings.tsx:8063
+#: src/routes/settings.tsx:8128
 msgid "An existing database was found and will be backed up before migration."
 msgstr "An existing database was found and will be backed up before migration."
 
@@ -1041,7 +1041,7 @@ msgstr "Analyzing..."
 msgid "AND"
 msgstr "AND"
 
-#: src/routes/settings.tsx:7604
+#: src/routes/settings.tsx:7669
 msgid "anon fapland inventor"
 msgstr "anon fapland inventor"
 
@@ -1187,7 +1187,7 @@ msgstr "Any"
 msgid "Any (OR)"
 msgstr "Any (OR)"
 
-#: src/routes/settings.tsx:5621
+#: src/routes/settings.tsx:5686
 msgid "Any highscore you achieve will be permanently marked with 🎭"
 msgstr "Any highscore you achieve will be permanently marked with 🎭"
 
@@ -1195,34 +1195,34 @@ msgstr "Any highscore you achieve will be permanently marked with 🎭"
 msgid "Any Time"
 msgstr "Any Time"
 
-#: src/routes/settings.tsx:6188
-#: src/routes/settings.tsx:6263
+#: src/routes/settings.tsx:6253
+#: src/routes/settings.tsx:6328
 msgid "API key"
 msgstr "API key"
 
-#: src/routes/settings.tsx:6176
-#: src/routes/settings.tsx:6245
+#: src/routes/settings.tsx:6241
+#: src/routes/settings.tsx:6310
 msgid "API Key"
 msgstr "API Key"
 
-#: src/routes/settings.tsx:6630
-#: src/routes/settings.tsx:6738
+#: src/routes/settings.tsx:6695
+#: src/routes/settings.tsx:6803
 msgid "App"
 msgstr "App"
 
-#: src/routes/settings.tsx:4037
+#: src/routes/settings.tsx:4102
 msgid "App Key"
 msgstr "App Key"
 
-#: src/routes/settings.tsx:5491
+#: src/routes/settings.tsx:5556
 msgid "App Settings & Preference"
 msgstr "App Settings & Preference"
 
-#: src/routes/settings.tsx:1160
+#: src/routes/settings.tsx:1162
 msgid "App Theme"
 msgstr "App Theme"
 
-#: src/routes/settings.tsx:6789
+#: src/routes/settings.tsx:6854
 msgid "App Zoom"
 msgstr "App Zoom"
 
@@ -1231,11 +1231,11 @@ msgstr "App Zoom"
 msgid "Appearance"
 msgstr "Appearance"
 
-#: src/routes/settings.tsx:1393
+#: src/routes/settings.tsx:1395
 msgid "Application data maintenance and destructive actions."
 msgstr "Application data maintenance and destructive actions."
 
-#: src/routes/settings.tsx:4069
+#: src/routes/settings.tsx:4134
 msgid "Application ID"
 msgstr "Application ID"
 
@@ -1244,7 +1244,7 @@ msgstr "Application ID"
 msgid "Applied playlist resolutions to \"{0}\"."
 msgstr "Applied playlist resolutions to \"{0}\"."
 
-#: src/routes/settings.tsx:4240
+#: src/routes/settings.tsx:4305
 msgid "Applies to all haptics sync operations. Use this if the device is slightly ahead or behind the video."
 msgstr "Applies to all haptics sync operations. Use this if the device is slightly ahead or behind the video."
 
@@ -1257,7 +1257,7 @@ msgstr "Apply {0}"
 msgid "Apply 25/50/75 Preset"
 msgstr "Apply 25/50/75 Preset"
 
-#: src/routes/settings.tsx:1399
+#: src/routes/settings.tsx:1401
 msgid "Apply a quick profile for background hashing and preview generation. You can still fine tune each setting below."
 msgstr "Apply a quick profile for background hashing and preview generation. You can still fine tune each setting below."
 
@@ -1265,7 +1265,7 @@ msgstr "Apply a quick profile for background hashing and preview generation. You
 msgid "Apply boost only when landing directly on this tile (not when passing over it)."
 msgstr "Apply boost only when landing directly on this tile (not when passing over it)."
 
-#: src/routes/settings.tsx:1434
+#: src/routes/settings.tsx:1436
 msgid "Apply defaults"
 msgstr "Apply defaults"
 
@@ -1292,7 +1292,7 @@ msgid "Apply Progressive"
 msgstr "Apply Progressive"
 
 #: src/routes/first-start.tsx:2310
-#: src/routes/settings.tsx:1403
+#: src/routes/settings.tsx:1405
 msgid "Apply recommended settings for weak hardware"
 msgstr "Apply recommended settings for weak hardware"
 
@@ -1318,7 +1318,7 @@ msgstr "Apply the current graph layout strategy."
 msgid "Applying recommended weak hardware settings..."
 msgstr "Applying recommended weak hardware settings..."
 
-#: src/routes/settings.tsx:7297
+#: src/routes/settings.tsx:7362
 msgid "Applying..."
 msgstr "Applying..."
 
@@ -1336,7 +1336,7 @@ msgstr "Are you sure you want to reset the graph? This will delete all progress 
 msgid "settings.help.shortcuts.mapEditor.armTile"
 msgstr "Arm one of the first nine visible tile types for placement."
 
-#: src/routes/settings.tsx:7054
+#: src/routes/settings.tsx:7119
 msgid "Asking during manual sidecar imports before trusting unknown remote URLs."
 msgstr "Asking during manual sidecar imports before trusting unknown remote URLs."
 
@@ -1383,7 +1383,7 @@ msgstr "Attach to Current Video"
 msgid "Attaching..."
 msgstr "Attaching..."
 
-#: src/routes/settings.tsx:1321
+#: src/routes/settings.tsx:1323
 msgid "Audio"
 msgstr "Audio"
 
@@ -1426,13 +1426,13 @@ msgstr "author-one, author-two"
 msgid "Author:"
 msgstr "Author:"
 
-#: src/routes/settings.tsx:1598
-#: src/routes/settings.tsx:1616
-#: src/routes/settings.tsx:6518
+#: src/routes/settings.tsx:1600
+#: src/routes/settings.tsx:1618
+#: src/routes/settings.tsx:6583
 msgid "Auto (Default)"
 msgstr "Auto (Default)"
 
-#: src/routes/settings.tsx:3968
+#: src/routes/settings.tsx:4033
 msgid "Auto Detect Toy"
 msgstr "Auto Detect Toy"
 
@@ -1444,11 +1444,11 @@ msgstr "Auto Detection"
 msgid "Auto from funscript"
 msgstr "Auto from funscript"
 
-#: src/routes/settings.tsx:1595
+#: src/routes/settings.tsx:1597
 msgid "Auto keeps current behavior (prefer newer system binaries). Use Bundled/System to force source selection."
 msgstr "Auto keeps current behavior (prefer newer system binaries). Use Bundled/System to force source selection."
 
-#: src/routes/settings.tsx:1613
+#: src/routes/settings.tsx:1615
 msgid "Auto keeps current behavior (prefer the bundled local binary). Use Local/System to force source selection."
 msgstr "Auto keeps current behavior (prefer the bundled local binary). Use Local/System to force source selection."
 
@@ -1464,7 +1464,7 @@ msgstr "Auto-advance to the next node after this scene completes."
 msgid "Auto-apply"
 msgstr "Auto-apply"
 
-#: src/routes/settings.tsx:1224
+#: src/routes/settings.tsx:1226
 msgid "Auto-Apply Perks"
 msgstr "Auto-Apply Perks"
 
@@ -1476,15 +1476,15 @@ msgstr "Auto-pick in"
 msgid "Auto-pick pending"
 msgstr "Auto-pick pending"
 
-#: src/routes/settings.tsx:1334
+#: src/routes/settings.tsx:1336
 msgid "Autofix Broken Funscripts"
 msgstr "Autofix Broken Funscripts"
 
-#: src/routes/settings.tsx:1515
+#: src/routes/settings.tsx:1517
 msgid "Automatic Database Backups"
 msgstr "Automatic Database Backups"
 
-#: src/routes/settings.tsx:1471
+#: src/routes/settings.tsx:1473
 msgid "Automatically compute visual fingerprints for rounds in the background. Highly recommended for accurate similarity matching."
 msgstr "Automatically compute visual fingerprints for rounds in the background. Highly recommended for accurate similarity matching."
 
@@ -1515,7 +1515,7 @@ msgstr "Available"
 msgid "settings.help.shortcuts.global.description"
 msgstr "Available anywhere unless an input field is actively being edited."
 
-#: src/routes/settings.tsx:7647
+#: src/routes/settings.tsx:7712
 msgid "Available on"
 msgstr "Available on"
 
@@ -1548,7 +1548,7 @@ msgstr "Back to Editor"
 #: src/routes/converter.tsx:276
 #: src/routes/highscores.tsx:907
 #: src/routes/rounds.tsx:3907
-#: src/routes/settings.tsx:2506
+#: src/routes/settings.tsx:2523
 msgid "Back to Main Menu"
 msgstr "Back to Main Menu"
 
@@ -1561,7 +1561,7 @@ msgstr "Back to Menu"
 msgid "Back to settings"
 msgstr "Back to settings"
 
-#: src/routes/settings.tsx:1568
+#: src/routes/settings.tsx:1570
 msgid "Back Up Now"
 msgstr "Back Up Now"
 
@@ -1574,11 +1574,11 @@ msgstr "Background"
 msgid "Background Hashing"
 msgstr "Background Hashing"
 
-#: src/routes/settings.tsx:6634
+#: src/routes/settings.tsx:6699
 msgid "Background Jobs"
 msgstr "Background Jobs"
 
-#: src/routes/settings.tsx:1470
+#: src/routes/settings.tsx:1472
 msgid "Background Phash Scanning"
 msgstr "Background Phash Scanning"
 
@@ -1587,11 +1587,11 @@ msgstr "Background Phash Scanning"
 msgid "first-start.step.phash.detail.1"
 msgstr "Background pHash scanning helps the app recognize visually similar rounds and imported content more accurately."
 
-#: src/routes/settings.tsx:1529
+#: src/routes/settings.tsx:1531
 msgid "Backup Frequency (days)"
 msgstr "Backup Frequency (days)"
 
-#: src/routes/settings.tsx:1546
+#: src/routes/settings.tsx:1548
 msgid "Backup Retention (days)"
 msgstr "Backup Retention (days)"
 
@@ -1630,7 +1630,7 @@ msgid "Base chance to roll a random perk after each completed round. This does n
 msgstr "Base chance to roll a random perk after each completed round. This does not stack per round; the same chance is checked again each time."
 
 #: src/routes/first-start.tsx:2639
-#: src/routes/settings.tsx:3975
+#: src/routes/settings.tsx:4040
 msgid "Baud Rate"
 msgstr "Baud Rate"
 
@@ -1673,7 +1673,7 @@ msgstr "Best Score"
 msgid "Between Dates"
 msgstr "Between Dates"
 
-#: src/routes/settings.tsx:7043
+#: src/routes/settings.tsx:7108
 msgid "block"
 msgstr "block"
 
@@ -1778,7 +1778,7 @@ msgstr "Build \"if this happens, do that\" rules here."
 msgid "Build a clean installed-database export and choose where the package should be written."
 msgstr "Build a clean installed-database export and choose where the package should be written."
 
-#: src/routes/settings.tsx:4580
+#: src/routes/settings.tsx:4645
 msgid "Build a global queue from local audio files. Music pauses for foreground video playback and resumes from the same spot."
 msgstr "Build a global queue from local audio files. Music pauses for foreground video playback and resumes from the same spot."
 
@@ -1790,7 +1790,7 @@ msgstr "Building the export package."
 msgid "Building the library package."
 msgstr "Building the library package."
 
-#: src/routes/settings.tsx:4103
+#: src/routes/settings.tsx:4168
 msgid "Built-in key loaded. Override only if you need a different app identity."
 msgstr "Built-in key loaded. Override only if you need a different app identity."
 
@@ -1802,16 +1802,16 @@ msgstr "Built-in server credentials stay hidden and cannot be edited."
 msgid "Built-in servers cannot be loaded into the editor."
 msgstr "Built-in servers cannot be loaded into the editor."
 
-#: src/routes/settings.tsx:6509
+#: src/routes/settings.tsx:6574
 msgid "Bundled"
 msgstr "Bundled"
 
-#: src/routes/settings.tsx:1599
-#: src/routes/settings.tsx:6515
+#: src/routes/settings.tsx:1601
+#: src/routes/settings.tsx:6580
 msgid "Bundled Only"
 msgstr "Bundled Only"
 
-#: src/routes/settings.tsx:3360
+#: src/routes/settings.tsx:3425
 msgid "Cache Now"
 msgstr "Cache Now"
 
@@ -1828,7 +1828,7 @@ msgstr "Cached Matches"
 msgid "Cached standings let you revisit prior lobbies even when the remote service is unavailable."
 msgstr "Cached standings let you revisit prior lobbies even when the remote service is unavailable."
 
-#: src/routes/settings.tsx:3282
+#: src/routes/settings.tsx:3347
 msgid "Caching"
 msgstr "Caching"
 
@@ -1854,7 +1854,7 @@ msgstr "Caching Ongoing"
 msgid "Caching Video"
 msgstr "Caching Video"
 
-#: src/routes/settings.tsx:3360
+#: src/routes/settings.tsx:3425
 msgid "Caching..."
 msgstr "Caching..."
 
@@ -1899,13 +1899,13 @@ msgstr "CAMPFIRE"
 #: src/routes/playlist-workshop.tsx:4315
 #: src/routes/playlist-workshop.tsx:4452
 #: src/routes/rounds.tsx:5649
-#: src/routes/settings.tsx:4765
-#: src/routes/settings.tsx:5184
-#: src/routes/settings.tsx:5567
-#: src/routes/settings.tsx:5639
-#: src/routes/settings.tsx:5716
-#: src/routes/settings.tsx:7856
-#: src/routes/settings.tsx:8099
+#: src/routes/settings.tsx:4830
+#: src/routes/settings.tsx:5249
+#: src/routes/settings.tsx:5632
+#: src/routes/settings.tsx:5704
+#: src/routes/settings.tsx:5781
+#: src/routes/settings.tsx:7921
+#: src/routes/settings.tsx:8164
 #: src/routes/single-player-setup.tsx:883
 msgid "Cancel"
 msgstr "Cancel"
@@ -1952,27 +1952,27 @@ msgstr "Center"
 msgid "Change Source"
 msgstr "Change Source"
 
-#: src/routes/settings.tsx:2756
+#: src/routes/settings.tsx:2821
 msgid "Changing this only affects future .fpack extractions. Existing extracted files are not moved automatically."
 msgstr "Changing this only affects future .fpack extractions. Existing extracted files are not moved automatically."
 
-#: src/routes/settings.tsx:2663
+#: src/routes/settings.tsx:2728
 msgid "Changing this only affects future EroScripts downloads. Existing cached files are not moved automatically."
 msgstr "Changing this only affects future EroScripts downloads. Existing cached files are not moved automatically."
 
-#: src/routes/settings.tsx:2947
+#: src/routes/settings.tsx:3012
 msgid "Changing this only affects the music cache path. Existing downloaded files are not moved automatically."
 msgstr "Changing this only affects the music cache path. Existing downloaded files are not moved automatically."
 
-#: src/routes/settings.tsx:2570
+#: src/routes/settings.tsx:2635
 msgid "Changing this only affects the website video cache path. Existing cached files are not moved automatically."
 msgstr "Changing this only affects the website video cache path. Existing cached files are not moved automatically."
 
-#: src/routes/settings.tsx:3480
+#: src/routes/settings.tsx:3545
 msgid "Channel"
 msgstr "Channel"
 
-#: src/routes/settings.tsx:1278
+#: src/routes/settings.tsx:1280
 msgid "Cheat Mode"
 msgstr "Cheat Mode"
 
@@ -1980,30 +1980,30 @@ msgstr "Cheat Mode"
 msgid "Cheat mode active"
 msgstr "Cheat mode active"
 
-#: src/routes/settings.tsx:5624
+#: src/routes/settings.tsx:5689
 msgid "Cheat mode has no effect in multiplayer"
 msgstr "Cheat mode has no effect in multiplayer"
 
-#: src/routes/settings.tsx:3400
+#: src/routes/settings.tsx:3465
 msgid "Check Failed"
 msgstr "Check Failed"
 
-#: src/routes/settings.tsx:3455
+#: src/routes/settings.tsx:3520
 msgid "Check for new releases or open the latest available download for this build."
 msgstr "Check for new releases or open the latest available download for this build."
 
 #: src/routes/first-start.tsx:2135
-#: src/routes/settings.tsx:2882
+#: src/routes/settings.tsx:2947
 msgid "Check Login"
 msgstr "Check Login"
 
 #: src/routes/index.tsx:362
-#: src/routes/settings.tsx:3394
+#: src/routes/settings.tsx:3459
 msgid "Checking"
 msgstr "Checking"
 
 #: src/routes/first-start.tsx:2062
-#: src/routes/settings.tsx:2822
+#: src/routes/settings.tsx:2887
 msgid "Checking login..."
 msgstr "Checking login..."
 
@@ -2067,10 +2067,10 @@ msgid "Choose a source hero for <0>{0}</0>. Assignments are auto-filled by round
 msgstr "Choose a source hero for <0>{0}</0>. Assignments are auto-filled by round name, then order."
 
 #: src/routes/first-start.tsx:2219
-#: src/routes/settings.tsx:2584
-#: src/routes/settings.tsx:2677
-#: src/routes/settings.tsx:2770
-#: src/routes/settings.tsx:2961
+#: src/routes/settings.tsx:2649
+#: src/routes/settings.tsx:2742
+#: src/routes/settings.tsx:2835
+#: src/routes/settings.tsx:3026
 msgid "Choose Folder"
 msgstr "Choose Folder"
 
@@ -2083,15 +2083,15 @@ msgstr "Choose Folder and Export"
 msgid "Choose media"
 msgstr "Choose media"
 
-#: src/routes/settings.tsx:7795
+#: src/routes/settings.tsx:7860
 msgid "Choose Target Directory"
 msgstr "Choose Target Directory"
 
-#: src/routes/settings.tsx:1161
+#: src/routes/settings.tsx:1163
 msgid "Choose the color scheme used outside the gameboard."
 msgstr "Choose the color scheme used outside the gameboard."
 
-#: src/routes/settings.tsx:1181
+#: src/routes/settings.tsx:1183
 msgid "Choose the language used for app labels, dialogs, and safe mode prompts. English stays the default unless the experimental system language option is enabled."
 msgstr "Choose the language used for app labels, dialogs, and safe mode prompts. English stays the default unless the experimental system language option is enabled."
 
@@ -2104,7 +2104,7 @@ msgstr "Choose the language used on this page and across the app. Changes apply 
 msgid "first-start.step.storage.title"
 msgstr "Choose where cached and extracted files should live"
 
-#: src/routes/settings.tsx:5512
+#: src/routes/settings.tsx:5577
 msgid "Choose which categories of information to wipe from this device."
 msgstr "Choose which categories of information to wipe from this device."
 
@@ -2129,8 +2129,8 @@ msgstr "clear"
 #: src/components/GlobalMusicOverlay.tsx:698
 #: src/routes/playlist-workshop.tsx:1977
 #: src/routes/rounds.tsx:3097
-#: src/routes/settings.tsx:4778
-#: src/routes/settings.tsx:5197
+#: src/routes/settings.tsx:4843
+#: src/routes/settings.tsx:5262
 msgid "Clear"
 msgstr "Clear"
 
@@ -2142,7 +2142,7 @@ msgstr "Clear all"
 msgid "Clear Cut Marks"
 msgstr "Clear Cut Marks"
 
-#: src/routes/settings.tsx:5509
+#: src/routes/settings.tsx:5574
 msgid "Clear Data"
 msgstr "Clear Data"
 
@@ -2154,26 +2154,26 @@ msgstr "Clear Editor"
 msgid "Clear Filters"
 msgstr "Clear Filters"
 
-#: src/routes/settings.tsx:6707
+#: src/routes/settings.tsx:6772
 msgid "Clear Log File"
 msgstr "Clear Log File"
 
-#: src/routes/settings.tsx:2891
+#: src/routes/settings.tsx:2956
 msgid "Clear Login Cookies"
 msgstr "Clear Login Cookies"
 
-#: src/routes/settings.tsx:5358
+#: src/routes/settings.tsx:5423
 msgid "Clear moaning playlist?"
 msgstr "Clear moaning playlist?"
 
 #: src/components/GlobalMusicOverlay.tsx:752
-#: src/routes/settings.tsx:4944
+#: src/routes/settings.tsx:5009
 msgid "Clear music playlist?"
 msgstr "Clear music playlist?"
 
 #: src/components/GlobalMusicOverlay.tsx:754
-#: src/routes/settings.tsx:4946
-#: src/routes/settings.tsx:5360
+#: src/routes/settings.tsx:5011
+#: src/routes/settings.tsx:5425
 msgid "Clear Playlist"
 msgstr "Clear Playlist"
 
@@ -2190,9 +2190,9 @@ msgstr "Clear the current filters to get back to the full library."
 msgid "settings.help.shortcuts.mapEditor.clearSelection"
 msgstr "Clear the current selection and cancel a pending connection."
 
-#: src/routes/settings.tsx:5412
-#: src/routes/settings.tsx:5580
-#: src/routes/settings.tsx:6707
+#: src/routes/settings.tsx:5477
+#: src/routes/settings.tsx:5645
+#: src/routes/settings.tsx:6772
 msgid "Clearing..."
 msgstr "Clearing..."
 
@@ -2270,7 +2270,7 @@ msgstr "Close music overlay"
 msgid "settings.help.shortcuts.global.closeMusic"
 msgstr "Close the global music overlay when it is open."
 
-#: src/routes/settings.tsx:7987
+#: src/routes/settings.tsx:8052
 msgid "Close this application and launch the portable executable to use your migrated data."
 msgstr "Close this application and launch the portable executable to use your migrated data."
 
@@ -2287,7 +2287,7 @@ msgstr "Cold Streak"
 msgid "Collapse Groups"
 msgstr "Collapse Groups"
 
-#: src/routes/settings.tsx:6751
+#: src/routes/settings.tsx:6816
 msgid "Collection Errors"
 msgstr "Collection Errors"
 
@@ -2309,8 +2309,8 @@ msgstr "Command Palette"
 msgid "perk.rarity.common"
 msgstr "COMMON"
 
-#: src/routes/settings.tsx:3134
-#: src/routes/settings.tsx:3326
+#: src/routes/settings.tsx:3199
+#: src/routes/settings.tsx:3391
 msgid "Complete"
 msgstr "Complete"
 
@@ -2333,7 +2333,7 @@ msgstr "Compression Strength"
 msgid "Compression Time"
 msgstr "Compression Time"
 
-#: src/routes/settings.tsx:6097
+#: src/routes/settings.tsx:6162
 msgid "Configure Stash instances, tags, and run sync."
 msgstr "Configure Stash instances, tags, and run sync."
 
@@ -2356,14 +2356,14 @@ msgstr "Confirm Conversion"
 
 #: src/routes/highscores.tsx:1045
 #: src/routes/highscores.tsx:1094
-#: src/routes/settings.tsx:5580
+#: src/routes/settings.tsx:5645
 msgid "Confirm Deletion"
 msgstr "Confirm Deletion"
 
-#: src/routes/settings.tsx:7832
-#: src/routes/settings.tsx:7865
-#: src/routes/settings.tsx:8076
-#: src/routes/settings.tsx:8108
+#: src/routes/settings.tsx:7897
+#: src/routes/settings.tsx:7930
+#: src/routes/settings.tsx:8141
+#: src/routes/settings.tsx:8173
 msgid "Confirm Migration"
 msgstr "Confirm Migration"
 
@@ -2390,7 +2390,7 @@ msgstr "Confirmation text did not match. No changes were made."
 #: src/components/GlobalHandyOverlay.tsx:566
 #: src/features/map-editor/components/EditorToolbar.tsx:76
 #: src/routes/first-start.tsx:2748
-#: src/routes/settings.tsx:4142
+#: src/routes/settings.tsx:4207
 msgid "Connect"
 msgstr "Connect"
 
@@ -2419,7 +2419,7 @@ msgstr "Connect: C, then choose source and target nodes."
 #: src/routes/first-start.tsx:2043
 #: src/routes/first-start.tsx:2426
 #: src/routes/index.tsx:354
-#: src/routes/settings.tsx:3750
+#: src/routes/settings.tsx:3815
 msgid "Connected"
 msgstr "Connected"
 
@@ -2428,7 +2428,7 @@ msgid "Connected TCode URL"
 msgstr "Connected TCode URL"
 
 #: src/routes/index.tsx:352
-#: src/routes/settings.tsx:3759
+#: src/routes/settings.tsx:3824
 msgid "Connecting"
 msgstr "Connecting"
 
@@ -2439,7 +2439,7 @@ msgstr "Linking your Handy device"
 
 #: src/components/GlobalHandyOverlay.tsx:566
 #: src/routes/first-start.tsx:2734
-#: src/routes/settings.tsx:4142
+#: src/routes/settings.tsx:4207
 msgid "Connecting..."
 msgstr "Connecting..."
 
@@ -2459,7 +2459,7 @@ msgstr "Connection Failed"
 msgid "Connection Key"
 msgstr "Connection Key"
 
-#: src/routes/settings.tsx:4016
+#: src/routes/settings.tsx:4081
 msgid "Connection Key / Channel Ref"
 msgstr "Connection Key / Channel Ref"
 
@@ -2473,7 +2473,7 @@ msgstr "Content"
 msgid "first-start.step.heroes.eyebrow"
 msgstr "Content"
 
-#: src/routes/settings.tsx:1355
+#: src/routes/settings.tsx:1357
 msgid "Content safety, trusted domains, and safe site lists."
 msgstr "Content safety, trusted domains, and safe site lists."
 
@@ -2494,7 +2494,7 @@ msgstr "Continue the saved run for this playlist"
 msgid "Continue Unresolved"
 msgstr "Continue Unresolved"
 
-#: src/routes/settings.tsx:1687
+#: src/routes/settings.tsx:1703
 msgid "Controller Support"
 msgstr "Controller Support"
 
@@ -2508,7 +2508,7 @@ msgstr "Controller support, web funscripts"
 msgid "hud.controls"
 msgstr "Controls"
 
-#: src/routes/settings.tsx:1639
+#: src/routes/settings.tsx:1641
 msgid "Controls how much diagnostic information is written to the local log file."
 msgstr "Controls how much diagnostic information is written to the local log file."
 
@@ -2588,7 +2588,7 @@ msgstr "Converting..."
 msgid "Cookies stored: {0}"
 msgstr "Cookies stored: {0}"
 
-#: src/routes/settings.tsx:2853
+#: src/routes/settings.tsx:2918
 msgid "Cookies stored: {cookieCount}"
 msgstr "Cookies stored: {cookieCount}"
 
@@ -2605,11 +2605,11 @@ msgstr "Copied to Clipboard!"
 msgid "Copy"
 msgstr "Copy"
 
-#: src/routes/settings.tsx:7751
+#: src/routes/settings.tsx:7816
 msgid "Copy all cache folders (web videos, music, EroScripts, .fpack extractions) to a new directory and update all settings to point there. Useful for moving data to a different drive or location."
 msgstr "Copy all cache folders (web videos, music, EroScripts, .fpack extractions) to a new directory and update all settings to point there. Useful for moving data to a different drive or location."
 
-#: src/routes/settings.tsx:6683
+#: src/routes/settings.tsx:6748
 msgid "Copy Debug Info"
 msgstr "Copy Debug Info"
 
@@ -2625,7 +2625,7 @@ msgstr "Copy original media"
 msgid "Copy original videos"
 msgstr "Copy original videos"
 
-#: src/routes/settings.tsx:6683
+#: src/routes/settings.tsx:6748
 msgid "Copying..."
 msgstr "Copying..."
 
@@ -2656,7 +2656,7 @@ msgstr "Coupon Clipper"
 msgid "Create"
 msgstr "Create"
 
-#: src/routes/settings.tsx:1564
+#: src/routes/settings.tsx:1566
 msgid "Create a backup immediately or open the automatic backup folder. Restores are manual: close the app and replace the active database file with one of these backup files. This is not automated to avoid accidental data loss."
 msgstr "Create a backup immediately or open the automatic backup folder. Restores are manual: close the app and replace the active database file with one of these backup files. This is not automated to avoid accidental data loss."
 
@@ -2713,7 +2713,7 @@ msgstr "Create New"
 msgid "Create or select a playlist before hosting."
 msgstr "Create or select a playlist before hosting."
 
-#: src/routes/settings.tsx:1516
+#: src/routes/settings.tsx:1518
 msgid "Create periodic local SQLite backups in the app data folder."
 msgstr "Create periodic local SQLite backups in the app data folder."
 
@@ -2724,7 +2724,7 @@ msgstr "Create periodic local SQLite backups in the app data folder."
 msgid "Create Playlist"
 msgstr "Create Playlist"
 
-#: src/routes/settings.tsx:6130
+#: src/routes/settings.tsx:6195
 msgid "Created/Updated/Linked:"
 msgstr "Created/Updated/Linked:"
 
@@ -2749,25 +2749,25 @@ msgstr "Creation"
 msgid "Creation & Workshop"
 msgstr "Creation & Workshop"
 
-#: src/routes/settings.tsx:7616
+#: src/routes/settings.tsx:7681
 msgid "Creator of the game."
 msgstr "Creator of the game."
 
-#: src/routes/settings.tsx:7622
+#: src/routes/settings.tsx:7687
 msgid "Credit for the original Godot version."
 msgstr "Credit for the original Godot version."
 
-#: src/routes/settings.tsx:1774
+#: src/routes/settings.tsx:1790
 msgid "Credits / License"
 msgstr "Credits / License"
 
-#: src/routes/settings.tsx:7575
+#: src/routes/settings.tsx:7640
 msgid "Credits & License"
 msgstr "Credits & License"
 
 #: src/routes/rounds.tsx:3267
 #: src/routes/rounds.tsx:4018
-#: src/routes/settings.tsx:6338
+#: src/routes/settings.tsx:6403
 msgid "Cum"
 msgstr "Cum"
 
@@ -2807,8 +2807,8 @@ msgid "Cum rounds play after the main playlist reaches the end. The rounds you e
 msgstr "Cum rounds play after the main playlist reaches the end. The rounds you enable here become a random selection pool, and one of them will be chosen when the run finishes."
 
 #: src/routes/index.tsx:366
-#: src/routes/settings.tsx:4248
-#: src/routes/settings.tsx:4370
+#: src/routes/settings.tsx:4313
+#: src/routes/settings.tsx:4435
 msgid "Current"
 msgstr "Current"
 
@@ -2817,10 +2817,10 @@ msgstr "Current"
 msgid "Current filters: {0}"
 msgstr "Current filters: {0}"
 
-#: src/routes/settings.tsx:2559
-#: src/routes/settings.tsx:2655
-#: src/routes/settings.tsx:2748
-#: src/routes/settings.tsx:2936
+#: src/routes/settings.tsx:2624
+#: src/routes/settings.tsx:2720
+#: src/routes/settings.tsx:2813
+#: src/routes/settings.tsx:3001
 msgid "Current Location"
 msgstr "Current Location"
 
@@ -2845,11 +2845,11 @@ msgid "Current Status"
 msgstr "Current Status"
 
 #: src/components/GlobalHandyOverlay.tsx:503
-#: src/routes/settings.tsx:4406
+#: src/routes/settings.tsx:4471
 msgid "Current stroke"
 msgstr "Current stroke"
 
-#: src/routes/settings.tsx:6803
+#: src/routes/settings.tsx:6868
 msgid "Current Zoom"
 msgstr "Current Zoom"
 
@@ -2881,33 +2881,33 @@ msgstr "Cuts"
 msgid "D{0}"
 msgstr "D{0}"
 
-#: src/routes/settings.tsx:5388
+#: src/routes/settings.tsx:5453
 msgid "Danger Zone"
 msgstr "Danger Zone"
 
-#: src/routes/settings.tsx:1392
+#: src/routes/settings.tsx:1394
 msgid "Data & Storage"
 msgstr "Data & Storage"
 
 #. placeholder {0}: detection.dataRoot
-#: src/routes/settings.tsx:8053
+#: src/routes/settings.tsx:8118
 msgid "Data root: {0}"
 msgstr "Data root: {0}"
 
-#: src/routes/settings.tsx:6633
+#: src/routes/settings.tsx:6698
 msgid "Database"
 msgstr "Database"
 
-#: src/routes/settings.tsx:1563
+#: src/routes/settings.tsx:1565
 msgid "Database Backup Actions"
 msgstr "Database Backup Actions"
 
-#: src/routes/settings.tsx:1571
+#: src/routes/settings.tsx:1573
 msgid "Database backup created."
 msgstr "Database backup created."
 
 #. placeholder {0}: detection.databasePath
-#: src/routes/settings.tsx:8058
+#: src/routes/settings.tsx:8123
 msgid "Database: {0}"
 msgstr "Database: {0}"
 
@@ -2924,26 +2924,26 @@ msgstr "Deactivate all anti-perks"
 msgid "Deactivate all perks"
 msgstr "Deactivate all perks"
 
-#: src/routes/settings.tsx:1632
-#: src/routes/settings.tsx:1652
+#: src/routes/settings.tsx:1634
+#: src/routes/settings.tsx:1654
 msgid "Debug"
 msgstr "Debug"
 
-#: src/routes/settings.tsx:2154
-#: src/routes/settings.tsx:2156
+#: src/routes/settings.tsx:2171
+#: src/routes/settings.tsx:2173
 msgid "Debug file exported."
 msgstr "Debug file exported."
 
-#: src/routes/settings.tsx:2135
-#: src/routes/settings.tsx:2136
+#: src/routes/settings.tsx:2152
+#: src/routes/settings.tsx:2153
 msgid "Debug info copied."
 msgstr "Debug info copied."
 
-#: src/routes/settings.tsx:6728
+#: src/routes/settings.tsx:6793
 msgid "Debug Information"
 msgstr "Debug Information"
 
-#: src/routes/settings.tsx:1658
+#: src/routes/settings.tsx:1660
 msgid "Debug log level updated."
 msgstr "Debug log level updated."
 
@@ -2951,13 +2951,13 @@ msgstr "Debug log level updated."
 #: src/routes/first-start.tsx:2169
 #: src/routes/first-start.tsx:2177
 #: src/routes/first-start.tsx:2185
-#: src/routes/settings.tsx:2660
-#: src/routes/settings.tsx:2753
+#: src/routes/settings.tsx:2725
+#: src/routes/settings.tsx:2818
 msgid "Default app data folder"
 msgstr "Default app data folder"
 
-#: src/routes/settings.tsx:2566
-#: src/routes/settings.tsx:2943
+#: src/routes/settings.tsx:2631
+#: src/routes/settings.tsx:3008
 msgid "Default app data folder (existing behavior)"
 msgstr "Default app data folder (existing behavior)"
 
@@ -2973,7 +2973,7 @@ msgstr "Defer phash generation to a later moment."
 #: src/routes/map-editor.tsx:3005
 #: src/routes/playlist-workshop.tsx:2215
 #: src/routes/playlist-workshop.tsx:3774
-#: src/routes/settings.tsx:6405
+#: src/routes/settings.tsx:6470
 msgid "Delete"
 msgstr "Delete"
 
@@ -2995,7 +2995,7 @@ msgstr "Delete {deleteSelectedRoundCount} selected round entries from the databa
 msgid "Delete <0>{0}</0>? This cannot be undone."
 msgstr "Delete <0>{0}</0>? This cannot be undone."
 
-#: src/routes/settings.tsx:1547
+#: src/routes/settings.tsx:1549
 msgid "Delete automatic database backups once they are older than this many days."
 msgstr "Delete automatic database backups once they are older than this many days."
 
@@ -3028,7 +3028,7 @@ msgstr "Delete Hero?"
 msgid "Delete Highscore Entry?"
 msgstr "Delete Highscore Entry?"
 
-#: src/routes/settings.tsx:7818
+#: src/routes/settings.tsx:7883
 msgid "Delete original files after successful migration"
 msgstr "Delete original files after successful migration"
 
@@ -3104,7 +3104,7 @@ msgid "Deleting..."
 msgstr "Deleting..."
 
 #: src/routes/first-start.tsx:2593
-#: src/routes/settings.tsx:3919
+#: src/routes/settings.tsx:3984
 msgid "Derived WebSocket URL"
 msgstr "Derived WebSocket URL"
 
@@ -3156,8 +3156,8 @@ msgstr "Detect Target"
 
 #: src/features/converter/AutoDetectionPanel.tsx:132
 #: src/features/converter/AutoDetectionPanel.tsx:150
-#: src/routes/settings.tsx:3968
-#: src/routes/settings.tsx:8010
+#: src/routes/settings.tsx:4033
+#: src/routes/settings.tsx:8075
 msgid "Detecting..."
 msgstr "Detecting..."
 
@@ -3193,7 +3193,7 @@ msgstr "Development: intermediary ended early."
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1196
 #: src/routes/playlist-workshop.tsx:3190
 #: src/routes/playlist-workshop.tsx:3294
-#: src/routes/settings.tsx:3851
+#: src/routes/settings.tsx:3916
 msgid "Device"
 msgstr "Device"
 
@@ -3201,7 +3201,7 @@ msgstr "Device"
 msgid "Device active"
 msgstr "Device active"
 
-#: src/routes/settings.tsx:1744
+#: src/routes/settings.tsx:1760
 msgid "Device Animation Test"
 msgstr "Device Animation Test"
 
@@ -3213,12 +3213,12 @@ msgstr "Device connected"
 msgid "Device Connection"
 msgstr "Device Connection"
 
-#: src/routes/settings.tsx:4023
+#: src/routes/settings.tsx:4088
 msgid "Device connection key"
 msgstr "Device connection key"
 
 #: src/routes/first-start.tsx:2581
-#: src/routes/settings.tsx:3907
+#: src/routes/settings.tsx:3972
 msgid "Device IP / Host"
 msgstr "Device IP / Host"
 
@@ -3282,7 +3282,7 @@ msgstr "Direct"
 msgid "game.perk.directApply"
 msgstr "Direct apply"
 
-#: src/routes/settings.tsx:6397
+#: src/routes/settings.tsx:6462
 msgid "Disable"
 msgstr "Disable"
 
@@ -3330,7 +3330,7 @@ msgstr "Disabled Hidden"
 msgid "Disabled Included"
 msgstr "Disabled Included"
 
-#: src/routes/settings.tsx:5702
+#: src/routes/settings.tsx:5767
 msgid "Disabling both checks may result in a bad user experience for you and other players"
 msgstr "Disabling both checks may result in a bad user experience for you and other players"
 
@@ -3362,14 +3362,14 @@ msgstr "Discarded item"
 
 #: src/components/GlobalHandyOverlay.tsx:566
 #: src/routes/first-start.tsx:2741
-#: src/routes/settings.tsx:4142
+#: src/routes/settings.tsx:4207
 msgid "Disconnect"
 msgstr "Disconnect"
 
 #: src/components/game/RoundVideoOverlay.tsx:3437
 #: src/components/GlobalHandyOverlay.tsx:225
 #: src/routes/index.tsx:357
-#: src/routes/settings.tsx:3750
+#: src/routes/settings.tsx:3815
 msgid "Disconnected"
 msgstr "Disconnected"
 
@@ -3403,7 +3403,7 @@ msgstr "Display Name"
 msgid "Display name is required."
 msgstr "Display name is required."
 
-#: src/routes/settings.tsx:4089
+#: src/routes/settings.tsx:4154
 msgid "Do not use your access token here. Create or select an app at Handy and paste the application ID instead."
 msgstr "Do not use your access token here. Create or select an app at Handy and paste the application ID instead."
 
@@ -3430,7 +3430,7 @@ msgstr "Down"
 msgid "download"
 msgstr "download"
 
-#: src/routes/settings.tsx:3267
+#: src/routes/settings.tsx:3332
 msgid "Download and cache videos from website rounds for offline playback. A background scan runs automatically every 5 minutes."
 msgstr "Download and cache videos from website rounds for offline playback. A background scan runs automatically every 5 minutes."
 
@@ -3438,16 +3438,16 @@ msgstr "Download and cache videos from website rounds for offline playback. A ba
 msgid "Downloaded"
 msgstr "Downloaded"
 
-#: src/routes/settings.tsx:5487
+#: src/routes/settings.tsx:5552
 msgid "Downloaded EroScripts funscripts and optional video copies."
 msgstr "Downloaded EroScripts funscripts and optional video copies."
 
-#: src/routes/settings.tsx:5467
+#: src/routes/settings.tsx:5532
 msgid "Downloaded match results and sync queue."
 msgstr "Downloaded match results and sync queue."
 
 #: src/routes/first-start.tsx:2159
-#: src/routes/settings.tsx:5477
+#: src/routes/settings.tsx:5542
 msgid "Downloaded menu music and imported YouTube audio."
 msgstr "Downloaded menu music and imported YouTube audio."
 
@@ -3455,11 +3455,11 @@ msgstr "Downloaded menu music and imported YouTube audio."
 msgid "Downloaded website videos and cache files."
 msgstr "Downloaded website videos and cache files."
 
-#: src/routes/settings.tsx:5472
+#: src/routes/settings.tsx:5537
 msgid "Downloaded website videos and generated playback transcodes."
 msgstr "Downloaded website videos and generated playback transcodes."
 
-#: src/routes/settings.tsx:3295
+#: src/routes/settings.tsx:3360
 msgid "Downloading:"
 msgstr "Downloading:"
 
@@ -3468,8 +3468,8 @@ msgstr "Downloading:"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:671
 #: src/routes/first-start.tsx:1684
 #: src/routes/first-start.tsx:1914
-#: src/routes/settings.tsx:4858
-#: src/routes/settings.tsx:5277
+#: src/routes/settings.tsx:4923
+#: src/routes/settings.tsx:5342
 msgid "Downloading..."
 msgstr "Downloading..."
 
@@ -3579,7 +3579,7 @@ msgstr "Email Required"
 msgid "playlist-workshop.empty-playlist.name"
 msgstr "Empty"
 
-#: src/routes/settings.tsx:6397
+#: src/routes/settings.tsx:6462
 msgid "Enable"
 msgstr "Enable"
 
@@ -3588,11 +3588,11 @@ msgstr "Enable"
 msgid "Enable background pHash scanning"
 msgstr "Enable background pHash scanning"
 
-#: src/routes/settings.tsx:5606
+#: src/routes/settings.tsx:5671
 msgid "Enable Cheat Mode?"
 msgstr "Enable Cheat Mode?"
 
-#: src/routes/settings.tsx:1136
+#: src/routes/settings.tsx:1138
 msgid "Enable or disable fullscreen mode for the game window."
 msgstr "Enable or disable fullscreen mode for the game window."
 
@@ -3613,7 +3613,7 @@ msgstr "enabled"
 msgid "Enabled"
 msgstr "Enabled"
 
-#: src/routes/settings.tsx:1279
+#: src/routes/settings.tsx:1281
 msgid "Enables dev menu features in singleplayer. Any highscore achieved will be permanently marked with 🎭. Does not work in multiplayer."
 msgstr "Enables dev menu features in singleplayer. Any highscore achieved will be permanently marked with 🎭. Does not work in multiplayer."
 
@@ -3685,7 +3685,7 @@ msgstr "Enter connection key from Handy app"
 msgid "Enter search prompt..."
 msgstr "Enter search prompt..."
 
-#: src/routes/settings.tsx:4076
+#: src/routes/settings.tsx:4141
 msgid "Enter your Handy application ID"
 msgstr "Enter your Handy application ID"
 
@@ -3695,7 +3695,7 @@ msgid "perk.rarity.epic"
 msgstr "EPIC"
 
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:289
-#: src/routes/settings.tsx:2834
+#: src/routes/settings.tsx:2899
 msgid "EroScripts"
 msgstr "EroScripts"
 
@@ -3709,11 +3709,11 @@ msgstr "EroScripts"
 msgid "EroScripts Account"
 msgstr "EroScripts Account"
 
-#: src/routes/settings.tsx:5486
+#: src/routes/settings.tsx:5551
 msgid "EroScripts Cache"
 msgstr "EroScripts Cache"
 
-#: src/routes/settings.tsx:2643
+#: src/routes/settings.tsx:2708
 msgid "EroScripts Download Cache Location"
 msgstr "EroScripts Download Cache Location"
 
@@ -3727,7 +3727,7 @@ msgid "first-start.step.storage.detail.4"
 msgstr "You can skip this and change any of these later in Settings under Data & Storage."
 
 #: src/routes/first-start.tsx:1188
-#: src/routes/settings.tsx:1997
+#: src/routes/settings.tsx:2014
 msgid "EroScripts is not logged in."
 msgstr "EroScripts is not logged in."
 
@@ -3743,17 +3743,17 @@ msgstr "EroScripts is where the funscript community shares interactive scripts. 
 
 #: src/routes/first-start.tsx:853
 #: src/routes/first-start.tsx:1184
-#: src/routes/settings.tsx:1084
-#: src/routes/settings.tsx:1993
+#: src/routes/settings.tsx:1086
+#: src/routes/settings.tsx:2010
 msgid "EroScripts login active."
 msgstr "EroScripts login active."
 
-#: src/routes/settings.tsx:2015
+#: src/routes/settings.tsx:2032
 msgid "EroScripts login cookies cleared."
 msgstr "EroScripts login cookies cleared."
 
 #: src/routes/first-start.tsx:1165
-#: src/routes/settings.tsx:1974
+#: src/routes/settings.tsx:1991
 msgid "EroScripts login window opened. Sign in there — login will be detected automatically."
 msgstr "EroScripts login window opened. Sign in there — login will be detected automatically."
 
@@ -3761,9 +3761,9 @@ msgstr "EroScripts login window opened. Sign in there — login will be detected
 msgid "EroScripts search failed."
 msgstr "EroScripts search failed."
 
-#: src/routes/settings.tsx:1647
-#: src/routes/settings.tsx:3137
-#: src/routes/settings.tsx:3329
+#: src/routes/settings.tsx:1649
+#: src/routes/settings.tsx:3202
+#: src/routes/settings.tsx:3394
 msgid "Error"
 msgstr "Error"
 
@@ -3804,7 +3804,7 @@ msgstr "Event"
 msgid "gameboard.kind.event"
 msgstr "EVENT★"
 
-#: src/routes/settings.tsx:6866
+#: src/routes/settings.tsx:6931
 msgid "Every shortcut currently wired into the app is listed here."
 msgstr "Every shortcut currently wired into the app is listed here."
 
@@ -3836,7 +3836,7 @@ msgid "Excluded:"
 msgstr "Excluded:"
 
 #. placeholder {0}: detection.exePath
-#: src/routes/settings.tsx:8048
+#: src/routes/settings.tsx:8113
 msgid "Executable: {0}"
 msgstr "Executable: {0}"
 
@@ -3873,7 +3873,7 @@ msgid "Expected Size"
 msgstr "Expected Size"
 
 #: src/components/MenuButton.tsx:228
-#: src/routes/settings.tsx:1667
+#: src/routes/settings.tsx:1683
 msgid "Experimental"
 msgstr "Experimental"
 
@@ -3881,12 +3881,12 @@ msgstr "Experimental"
 msgid "Experimental feature"
 msgstr "Experimental feature"
 
-#: src/routes/settings.tsx:5603
-#: src/routes/settings.tsx:5670
+#: src/routes/settings.tsx:5668
+#: src/routes/settings.tsx:5735
 msgid "Experimental Feature"
 msgstr "Experimental Feature"
 
-#: src/routes/settings.tsx:1688
+#: src/routes/settings.tsx:1704
 msgid "Experimental gamepad navigation and input support. Disabled by default until it is more stable. Expect some things to not work as expected."
 msgstr "Experimental gamepad navigation and input support. Disabled by default until it is more stable. Expect some things to not work as expected."
 
@@ -3902,8 +3902,8 @@ msgstr "Experimental override active. This lobby expects {0} installed rounds, a
 
 #: src/routes/first-start.tsx:2489
 #: src/routes/first-start.tsx:2531
-#: src/routes/settings.tsx:3817
-#: src/routes/settings.tsx:3861
+#: src/routes/settings.tsx:3882
+#: src/routes/settings.tsx:3926
 msgid "Experimental Support"
 msgstr "Experimental Support"
 
@@ -3925,7 +3925,7 @@ msgstr "Export & Share"
 msgid "Export canceled."
 msgstr "Export canceled."
 
-#: src/routes/settings.tsx:2154
+#: src/routes/settings.tsx:2171
 msgid "Export cancelled."
 msgstr "Export cancelled."
 
@@ -3933,7 +3933,7 @@ msgstr "Export cancelled."
 msgid "Export complete."
 msgstr "Export complete."
 
-#: src/routes/settings.tsx:6691
+#: src/routes/settings.tsx:6756
 msgid "Export Debug File"
 msgstr "Export Debug File"
 
@@ -3978,19 +3978,19 @@ msgstr "Exporting your own work is meant to be simple too. Once your rounds or p
 #: src/routes/rounds.tsx:3015
 #: src/routes/rounds.tsx:3872
 #: src/routes/rounds.tsx:6414
-#: src/routes/settings.tsx:6691
+#: src/routes/settings.tsx:6756
 msgid "Exporting..."
 msgstr "Exporting..."
 
-#: src/routes/settings.tsx:1731
+#: src/routes/settings.tsx:1747
 msgid "Exposes an optional remote funscript URL field in the Install From Web dialog. Disabled by default so web installs prefer a local funscript file."
 msgstr "Exposes an optional remote funscript URL field in the Install From Web dialog. Disabled by default so web installs prefer a local funscript file."
 
-#: src/routes/settings.tsx:1348
+#: src/routes/settings.tsx:1350
 msgid "External source integrations, Stash sync, and local library folders."
 msgstr "External source integrations, Stash sync, and local library folders."
 
-#: src/routes/settings.tsx:5482
+#: src/routes/settings.tsx:5547
 msgid "Extracted pack contents stored for installed portable packages."
 msgstr "Extracted pack contents stored for installed portable packages."
 
@@ -4026,8 +4026,8 @@ msgstr "Failed to abort playlist export."
 
 #: src/components/GlobalMusicOverlay.tsx:183
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:282
-#: src/routes/settings.tsx:4546
-#: src/routes/settings.tsx:5035
+#: src/routes/settings.tsx:4611
+#: src/routes/settings.tsx:5100
 msgid "Failed to add from URL"
 msgstr "Failed to add from URL"
 
@@ -4052,7 +4052,7 @@ msgstr "Failed to analyze export package."
 msgid "Failed to analyze library package."
 msgstr "Failed to analyze library package."
 
-#: src/routes/settings.tsx:7267
+#: src/routes/settings.tsx:7332
 msgid "Failed to apply setting."
 msgstr "Failed to apply setting."
 
@@ -4069,11 +4069,11 @@ msgstr "Failed to auto-set ready state."
 msgid "Failed to ban player."
 msgstr "Failed to ban player."
 
-#: src/routes/settings.tsx:2018
+#: src/routes/settings.tsx:2035
 msgid "Failed to clear EroScripts login cookies."
 msgstr "Failed to clear EroScripts login cookies."
 
-#: src/routes/settings.tsx:2186
+#: src/routes/settings.tsx:2203
 msgid "Failed to clear log file."
 msgstr "Failed to clear log file."
 
@@ -4090,7 +4090,7 @@ msgstr "Failed to convert hero group back to a round."
 msgid "Failed to convert playlist to linear."
 msgstr "Failed to convert playlist to linear."
 
-#: src/routes/settings.tsx:2142
+#: src/routes/settings.tsx:2159
 msgid "Failed to copy debug info."
 msgstr "Failed to copy debug info."
 
@@ -4113,7 +4113,7 @@ msgstr "Failed to create lobby."
 msgid "Failed to create playlist."
 msgstr "Failed to create playlist."
 
-#: src/routes/settings.tsx:5990
+#: src/routes/settings.tsx:6055
 msgid "Failed to create source."
 msgstr "Failed to create source."
 
@@ -4133,11 +4133,11 @@ msgstr "Failed to delete round."
 msgid "Failed to delete selected rounds."
 msgstr "Failed to delete selected rounds."
 
-#: src/routes/settings.tsx:6027
+#: src/routes/settings.tsx:6092
 msgid "Failed to delete source."
 msgstr "Failed to delete source."
 
-#: src/routes/settings.tsx:7920
+#: src/routes/settings.tsx:7985
 msgid "Failed to detect portable installation."
 msgstr "Failed to detect portable installation."
 
@@ -4149,7 +4149,7 @@ msgstr "Failed to directly send anti-perk."
 msgid "Failed to download funscript."
 msgstr "Failed to download funscript."
 
-#: src/routes/settings.tsx:2161
+#: src/routes/settings.tsx:2178
 msgid "Failed to export debug file."
 msgstr "Failed to export debug file."
 
@@ -4224,7 +4224,7 @@ msgstr "Failed to join running match."
 msgid "Failed to kick player."
 msgstr "Failed to kick player."
 
-#: src/routes/settings.tsx:860
+#: src/routes/settings.tsx:862
 msgid "Failed to load debug info."
 msgstr "Failed to load debug info."
 
@@ -4253,7 +4253,7 @@ msgstr "Failed to load playlists."
 msgid "Failed to load preview settings."
 msgstr "Failed to load preview settings."
 
-#: src/routes/settings.tsx:838
+#: src/routes/settings.tsx:839
 msgid "Failed to load program versions."
 msgstr "Failed to load program versions."
 
@@ -4268,7 +4268,7 @@ msgstr "Failed to load public lobbies."
 msgid "Failed to load selected round media."
 msgstr "Failed to load selected round media."
 
-#: src/routes/settings.tsx:6969
+#: src/routes/settings.tsx:7034
 msgid "Failed to load trusted sites."
 msgstr "Failed to load trusted sites."
 
@@ -4286,11 +4286,11 @@ msgid "Failed to open EroScripts login window."
 msgstr "Failed to open EroScripts login window."
 
 #: src/routes/first-start.tsx:1169
-#: src/routes/settings.tsx:1978
+#: src/routes/settings.tsx:1995
 msgid "Failed to open EroScripts login."
 msgstr "Failed to open EroScripts login."
 
-#: src/routes/settings.tsx:2172
+#: src/routes/settings.tsx:2189
 msgid "Failed to open log folder."
 msgstr "Failed to open log folder."
 
@@ -4311,7 +4311,7 @@ msgid "Failed to refresh anti-perk feed."
 msgstr "Failed to refresh anti-perk feed."
 
 #: src/routes/first-start.tsx:1192
-#: src/routes/settings.tsx:2001
+#: src/routes/settings.tsx:2018
 msgid "Failed to refresh EroScripts login."
 msgstr "Failed to refresh EroScripts login."
 
@@ -4417,7 +4417,7 @@ msgstr "Failed to subscribe to match updates."
 msgid "Failed to sync local progress."
 msgstr "Failed to sync local progress."
 
-#: src/routes/settings.tsx:5959
+#: src/routes/settings.tsx:6024
 msgid "Failed to sync sources."
 msgstr "Failed to sync sources."
 
@@ -4425,7 +4425,7 @@ msgstr "Failed to sync sources."
 msgid "Failed to unban player."
 msgstr "Failed to unban player."
 
-#: src/routes/settings.tsx:3439
+#: src/routes/settings.tsx:3504
 msgid "Failed to update channel."
 msgstr "Failed to update channel."
 
@@ -4450,14 +4450,14 @@ msgstr "Failed to update public lobby visibility."
 msgid "Failed to update round."
 msgstr "Failed to update round."
 
-#: src/routes/settings.tsx:7329
-#: src/routes/settings.tsx:7393
-#: src/routes/settings.tsx:7455
-#: src/routes/settings.tsx:7515
+#: src/routes/settings.tsx:7394
+#: src/routes/settings.tsx:7458
+#: src/routes/settings.tsx:7520
+#: src/routes/settings.tsx:7580
 msgid "Failed to update setting."
 msgstr "Failed to update setting."
 
-#: src/routes/settings.tsx:6014
+#: src/routes/settings.tsx:6079
 msgid "Failed to update source."
 msgstr "Failed to update source."
 
@@ -4517,7 +4517,7 @@ msgstr "File Name"
 msgid "Files on disk will be left untouched. This cannot be undone from inside the app."
 msgstr "Files on disk will be left untouched. This cannot be undone from inside the app."
 
-#: src/routes/settings.tsx:7093
+#: src/routes/settings.tsx:7158
 msgid "Filter domains"
 msgstr "Filter domains"
 
@@ -4618,7 +4618,7 @@ msgstr "Finished:"
 msgid "Finished: {0}"
 msgstr "Finished: {0}"
 
-#: src/routes/settings.tsx:3529
+#: src/routes/settings.tsx:3594
 msgid "First Start Workflow"
 msgstr "First Start Workflow"
 
@@ -4639,7 +4639,7 @@ msgstr "Folder installs are best for bulk local content. Portable file import is
 msgid "Folders"
 msgstr "Folders"
 
-#: src/routes/settings.tsx:7628
+#: src/routes/settings.tsx:7693
 msgid "For"
 msgstr "For"
 
@@ -4654,7 +4654,7 @@ msgid "Force stop"
 msgstr "Force stop"
 
 #: src/components/game/RoundVideoOverlay.tsx:3723
-#: src/routes/settings.tsx:4152
+#: src/routes/settings.tsx:4217
 msgid "Force Stop"
 msgstr "Force Stop"
 
@@ -4666,11 +4666,11 @@ msgstr "Force Stop Handy"
 msgid "Forward steps"
 msgstr "Forward steps"
 
-#: src/routes/settings.tsx:2736
+#: src/routes/settings.tsx:2801
 msgid "Fpack Extraction Location"
 msgstr "Fpack Extraction Location"
 
-#: src/routes/settings.tsx:1701
+#: src/routes/settings.tsx:1717
 msgid "FPS Counter"
 msgstr "FPS Counter"
 
@@ -4713,7 +4713,7 @@ msgstr "From URL"
 msgid "perk.name.full-heal"
 msgstr "Full Heal"
 
-#: src/routes/settings.tsx:1135
+#: src/routes/settings.tsx:1137
 msgid "Fullscreen"
 msgstr "Fullscreen"
 
@@ -4801,7 +4801,7 @@ msgstr "Game saved."
 msgid "settings.help.shortcuts.game.title"
 msgstr "Game Session"
 
-#: src/routes/settings.tsx:1193
+#: src/routes/settings.tsx:1195
 msgid "Gameplay"
 msgstr "Gameplay"
 
@@ -4841,7 +4841,7 @@ msgstr "Gate cost ($)"
 msgid "Gate: if the player lacks money, this edge is unavailable."
 msgstr "Gate: if the player lacks money, this edge is unavailable."
 
-#: src/routes/settings.tsx:1129
+#: src/routes/settings.tsx:1131
 msgid "General"
 msgstr "General"
 
@@ -4876,7 +4876,7 @@ msgstr "Global"
 msgid "Global"
 msgstr "Global"
 
-#: src/routes/settings.tsx:1322
+#: src/routes/settings.tsx:1324
 msgid "Global background music queue and playback preferences."
 msgstr "Global background music queue and playback preferences."
 
@@ -4892,11 +4892,11 @@ msgstr "Global Music"
 msgid "Global music controls"
 msgstr "Global music controls"
 
-#: src/routes/settings.tsx:5461
+#: src/routes/settings.tsx:5526
 msgid "Global Stats"
 msgstr "Global Stats"
 
-#: src/routes/settings.tsx:4237
+#: src/routes/settings.tsx:4302
 msgid "Global Sync Offset"
 msgstr "Global Sync Offset"
 
@@ -4968,7 +4968,7 @@ msgstr "Haptics Controls"
 msgid "Haptics global offset slider"
 msgstr "Haptics global offset slider"
 
-#: src/routes/settings.tsx:1329
+#: src/routes/settings.tsx:1331
 msgid "Haptics hardware integration and funscript compatibility."
 msgstr "Haptics hardware integration and funscript compatibility."
 
@@ -5018,7 +5018,7 @@ msgid "Hard cap for intermediary chance. Scaling stops increasing once this valu
 msgstr "Hard cap for intermediary chance. Scaling stops increasing once this value is reached, even if more rounds are completed."
 
 #: src/components/PlaylistPackExportDialog.tsx:326
-#: src/routes/settings.tsx:6632
+#: src/routes/settings.tsx:6697
 msgid "Hardware"
 msgstr "Hardware"
 
@@ -5038,11 +5038,11 @@ msgstr "Hardware"
 msgid "first-start.step.handy.eyebrow"
 msgstr "Hardware"
 
-#: src/routes/settings.tsx:1328
+#: src/routes/settings.tsx:1330
 msgid "Hardware & Sync"
 msgstr "Hardware & Sync"
 
-#: src/routes/settings.tsx:1398
+#: src/routes/settings.tsx:1400
 msgid "Hardware performance presets"
 msgstr "Hardware performance presets"
 
@@ -5060,7 +5060,7 @@ msgstr "Hashes may need to be calculated, and video transcoding or preview gener
 msgid "perk.name.heal"
 msgstr "Heal"
 
-#: src/routes/settings.tsx:1760
+#: src/routes/settings.tsx:1776
 msgid "Help"
 msgstr "Help"
 
@@ -5160,7 +5160,7 @@ msgstr "Highscores"
 msgid "Highscores"
 msgstr "Highscores"
 
-#: src/routes/settings.tsx:5462
+#: src/routes/settings.tsx:5527
 msgid "Highscores and overall career progress."
 msgstr "Highscores and overall career progress."
 
@@ -5209,7 +5209,7 @@ msgstr "Hover, focus, or click a route to preview it on the board. You can also 
 msgid "How cum rounds work"
 msgstr "How cum rounds work"
 
-#: src/routes/settings.tsx:1251
+#: src/routes/settings.tsx:1253
 msgid "How long the intermediary loading countdown runs before switching videos."
 msgstr "How long the intermediary loading countdown runs before switching videos."
 
@@ -5224,15 +5224,15 @@ msgstr "How to add fap or cock heroes and round content"
 
 #: src/components/GlobalMusicOverlay.tsx:542
 #: src/routes/first-start.tsx:1883
-#: src/routes/settings.tsx:4827
-#: src/routes/settings.tsx:5246
+#: src/routes/settings.tsx:4892
+#: src/routes/settings.tsx:5311
 msgid "https://example.com/playlist-or-collection"
 msgstr "https://example.com/playlist-or-collection"
 
 #: src/components/GlobalMusicOverlay.tsx:543
 #: src/routes/first-start.tsx:1884
-#: src/routes/settings.tsx:4828
-#: src/routes/settings.tsx:5247
+#: src/routes/settings.tsx:4893
+#: src/routes/settings.tsx:5312
 msgid "https://example.com/video-or-audio"
 msgstr "https://example.com/video-or-audio"
 
@@ -5244,7 +5244,7 @@ msgstr "https://example.com/video-or-playlist"
 msgid "https://project.supabase.co"
 msgstr "https://project.supabase.co"
 
-#: src/routes/settings.tsx:6166
+#: src/routes/settings.tsx:6231
 msgid "https://stash.example.com"
 msgstr "https://stash.example.com"
 
@@ -5257,11 +5257,11 @@ msgstr "https://www.pornhub.com/view_video.php?viewkey=..."
 msgid "command-palette.settings-gameplay.description"
 msgstr "HUD, perks, cheat mode"
 
-#: src/routes/settings.tsx:5724
+#: src/routes/settings.tsx:5789
 msgid "I Understand, Disable Safeguards"
 msgstr "I Understand, Disable Safeguards"
 
-#: src/routes/settings.tsx:5647
+#: src/routes/settings.tsx:5712
 msgid "I Understand, Enable"
 msgstr "I Understand, Enable"
 
@@ -5271,8 +5271,8 @@ msgid "perk.name.im-close"
 msgstr "I'm close"
 
 #: src/routes/index.tsx:369
-#: src/routes/settings.tsx:3149
-#: src/routes/settings.tsx:3341
+#: src/routes/settings.tsx:3214
+#: src/routes/settings.tsx:3406
 msgid "Idle"
 msgstr "Idle"
 
@@ -5377,7 +5377,7 @@ msgstr "Import with Selected Resolutions"
 msgid "Import Without Playlist"
 msgstr "Import Without Playlist"
 
-#: src/routes/settings.tsx:5617
+#: src/routes/settings.tsx:5682
 msgid "Important consequences:"
 msgstr "Important consequences:"
 
@@ -5425,7 +5425,7 @@ msgstr "in development mode."
 msgid "In this round, you may cum when the video instructs you to do so."
 msgstr "In this round, you may cum when the video instructs you to do so."
 
-#: src/routes/settings.tsx:1194
+#: src/routes/settings.tsx:1196
 msgid "In-game HUD, anti-perks, intermediary session behavior, and gameplay modifiers."
 msgstr "In-game HUD, anti-perks, intermediary session behavior, and gameplay modifiers."
 
@@ -5485,7 +5485,7 @@ msgstr "Increase round playback speed to 1.2x for one round."
 msgid "Infinite run with random rounds. Dice locked to 1. No dice-related perks. Anti-perks can be toggled in the playlist settings."
 msgstr "Infinite run with random rounds. Dice locked to 1. No dice-related perks. Anti-perks can be toggled in the playlist settings."
 
-#: src/routes/settings.tsx:1651
+#: src/routes/settings.tsx:1653
 msgid "Info"
 msgstr "Info"
 
@@ -5562,7 +5562,7 @@ msgstr "Install Website Round"
 #: src/routes/rounds.tsx:416
 #: src/routes/rounds.tsx:3283
 #: src/routes/rounds.tsx:4828
-#: src/routes/settings.tsx:3468
+#: src/routes/settings.tsx:3533
 msgid "Installed"
 msgstr "Installed"
 
@@ -5609,7 +5609,7 @@ msgstr "Installed Rounds"
 msgid "Installed Rounds"
 msgstr "Installed Rounds"
 
-#: src/routes/settings.tsx:5450
+#: src/routes/settings.tsx:5515
 msgid "Installed Rounds & Heroes"
 msgstr "Installed Rounds & Heroes"
 
@@ -5654,7 +5654,7 @@ msgstr "Intensity <="
 
 #: src/routes/rounds.tsx:3266
 #: src/routes/rounds.tsx:4017
-#: src/routes/settings.tsx:6337
+#: src/routes/settings.tsx:6402
 msgid "Interjection"
 msgstr "Interjection"
 
@@ -5689,11 +5689,11 @@ msgstr "Intermediary initial"
 msgid "Intermediary Initial %"
 msgstr "Intermediary Initial %"
 
-#: src/routes/settings.tsx:1250
+#: src/routes/settings.tsx:1252
 msgid "Intermediary Loading Duration (s)"
 msgstr "Intermediary Loading Duration (s)"
 
-#: src/routes/settings.tsx:1235
+#: src/routes/settings.tsx:1237
 msgid "Intermediary Loading Prompt"
 msgstr "Intermediary Loading Prompt"
 
@@ -5724,7 +5724,7 @@ msgid "Internal Name"
 msgstr "Internal Name"
 
 #: src/routes/first-start.tsx:2466
-#: src/routes/settings.tsx:3794
+#: src/routes/settings.tsx:3859
 msgid "Intiface"
 msgstr "Intiface"
 
@@ -5732,7 +5732,7 @@ msgstr "Intiface"
 msgid "Intiface device connected"
 msgstr "Intiface device connected"
 
-#: src/routes/settings.tsx:3820
+#: src/routes/settings.tsx:3885
 msgid "Intiface support is currently experimental and may have performance limitations. Using a direct TheHandy connection is always preferred for the best experience."
 msgstr "Intiface support is currently experimental and may have performance limitations. Using a direct TheHandy connection is always preferred for the best experience."
 
@@ -5741,7 +5741,7 @@ msgid "Intiface support is experimental. A direct TheHandy connection is always 
 msgstr "Intiface support is experimental. A direct TheHandy connection is always preferred for performance."
 
 #: src/routes/first-start.tsx:2503
-#: src/routes/settings.tsx:3832
+#: src/routes/settings.tsx:3897
 msgid "Intiface WebSocket URL"
 msgstr "Intiface WebSocket URL"
 
@@ -5749,8 +5749,8 @@ msgstr "Intiface WebSocket URL"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:267
 #: src/routes/first-start.tsx:970
 #: src/routes/first-start.tsx:1097
-#: src/routes/settings.tsx:4526
-#: src/routes/settings.tsx:5015
+#: src/routes/settings.tsx:4591
+#: src/routes/settings.tsx:5080
 msgid "Invalid URL format"
 msgstr "Invalid URL format"
 
@@ -5842,8 +5842,8 @@ msgid "Jump to a random point in the source video."
 msgstr "Jump to a random point in the source video."
 
 #: src/components/GlobalMusicOverlay.tsx:755
-#: src/routes/settings.tsx:4947
-#: src/routes/settings.tsx:5361
+#: src/routes/settings.tsx:5012
+#: src/routes/settings.tsx:5426
 msgid "Keep Playlist"
 msgstr "Keep Playlist"
 
@@ -5859,7 +5859,7 @@ msgstr "Keep the main browsing tools, collection health, and import actions in o
 msgid "Keep the manual round name without linking to an installed round."
 msgstr "Keep the manual round name without linking to an installed round."
 
-#: src/routes/settings.tsx:1211
+#: src/routes/settings.tsx:1213
 msgid "Keep the round playback progress bar visible even after the rest of the HUD fades out."
 msgstr "Keep the round playback progress bar visible even after the rest of the HUD fades out."
 
@@ -5882,11 +5882,11 @@ msgstr "Keyboard mappings that mirror controller input when controller support s
 msgid "command-palette.settings-help.description"
 msgstr "Keyboard shortcut reference"
 
-#: src/routes/settings.tsx:1761
+#: src/routes/settings.tsx:1777
 msgid "Keyboard shortcut reference for the app, editor, and gameplay screens."
 msgstr "Keyboard shortcut reference for the app, editor, and gameplay screens."
 
-#: src/routes/settings.tsx:6863
+#: src/routes/settings.tsx:6928
 msgid "Keyboard Shortcuts"
 msgstr "Keyboard Shortcuts"
 
@@ -5913,15 +5913,15 @@ msgid "Landing on any end node queues these rounds in order."
 msgstr "Landing on any end node queues these rounds in order."
 
 #: src/routes/first-start.tsx:1523
-#: src/routes/settings.tsx:1180
+#: src/routes/settings.tsx:1182
 msgid "Language"
 msgstr "Language"
 
-#: src/routes/settings.tsx:5694
+#: src/routes/settings.tsx:5759
 msgid "Large playlists can still require more installed rounds than the global minimum"
 msgstr "Large playlists can still require more installed rounds than the global minimum"
 
-#: src/routes/settings.tsx:6473
+#: src/routes/settings.tsx:6538
 msgid "Last checked:"
 msgstr "Last checked:"
 
@@ -5933,7 +5933,7 @@ msgstr "Last scan done ({summary})"
 msgid "Late join is"
 msgstr "Late join is"
 
-#: src/routes/settings.tsx:3472
+#: src/routes/settings.tsx:3537
 msgid "Latest"
 msgstr "Latest"
 
@@ -5971,7 +5971,7 @@ msgstr "Lazy Hero"
 msgid "Leaderboard"
 msgstr "Leaderboard"
 
-#: src/routes/settings.tsx:4095
+#: src/routes/settings.tsx:4160
 msgid "Leave custom mode off unless you explicitly want to override the built-in app identity."
 msgstr "Leave custom mode off unless you explicitly want to override the built-in app identity."
 
@@ -5979,7 +5979,7 @@ msgstr "Leave custom mode off unless you explicitly want to override the built-i
 msgid "Legacy import did not finish."
 msgstr "Legacy import did not finish."
 
-#: src/routes/settings.tsx:6250
+#: src/routes/settings.tsx:6315
 msgid "Legacy Login"
 msgstr "Legacy Login"
 
@@ -5989,7 +5989,7 @@ msgstr "Legacy Login"
 msgid "Legacy Playlist"
 msgstr "Legacy Playlist"
 
-#: src/routes/settings.tsx:6269
+#: src/routes/settings.tsx:6334
 msgid "Legacy username/password login is no longer offered for Stash sources. Switch this source to No Auth or API Key."
 msgstr "Legacy username/password login is no longer offered for Stash sources. Switch this source to No Auth or API Key."
 
@@ -6015,7 +6015,7 @@ msgstr "Let the player choose to play this round or skip it and roll from this t
 msgid "Let's get you set up. This quick walkthrough covers the essentials and lets you import content right away."
 msgstr "Let's get you set up. This quick walkthrough covers the essentials and lets you import content right away."
 
-#: src/routes/settings.tsx:1717
+#: src/routes/settings.tsx:1733
 msgid "Lets singleplayer start while required web rounds are still caching. Warning: some rounds may not play, and the web version is used instead of the local cache."
 msgstr "Lets singleplayer start while required web rounds are still caching. Warning: some rounds may not play, and the web version is used instead of the local cache."
 
@@ -6024,12 +6024,12 @@ msgstr "Lets singleplayer start while required web rounds are still caching. War
 #: src/routes/rounds.tsx:3352
 #: src/routes/rounds.tsx:4279
 #: src/routes/rounds.tsx:5023
-#: src/routes/settings.tsx:5755
+#: src/routes/settings.tsx:5820
 msgid "Library"
 msgstr "Library"
 
 #. placeholder {0}: queue.length
-#: src/routes/settings.tsx:5124
+#: src/routes/settings.tsx:5189
 msgid "Library ({0} files)"
 msgstr "Library ({0} files)"
 
@@ -6061,7 +6061,7 @@ msgstr "Library Snapshot"
 msgid "library-one, library-two"
 msgstr "library-one, library-two"
 
-#: src/routes/settings.tsx:7662
+#: src/routes/settings.tsx:7727
 msgid "License"
 msgstr "License"
 
@@ -6084,11 +6084,11 @@ msgstr "Licenses"
 
 #: src/routes/first-start.tsx:2385
 #: src/routes/first-start.tsx:2400
-#: src/routes/settings.tsx:1501
+#: src/routes/settings.tsx:1503
 msgid "Limit preview ffmpeg to one thread"
 msgstr "Limit preview ffmpeg to one thread"
 
-#: src/routes/settings.tsx:1485
+#: src/routes/settings.tsx:1487
 msgid "Limits how many missing video fingerprints are calculated during each automatic background pass. Manual scans still process the full backlog."
 msgstr "Limits how many missing video fingerprints are calculated during each automatic background pass. Manual scans still process the full backlog."
 
@@ -6110,7 +6110,7 @@ msgstr "Linear maps, graph maps, and their two editors"
 msgid "Link Discord"
 msgstr "Link Discord"
 
-#: src/routes/settings.tsx:6466
+#: src/routes/settings.tsx:6531
 msgid "Live versions fetched from the currently resolved ffmpeg, ffprobe, and yt-dlp executables. These reflect your active source preferences."
 msgstr "Live versions fetched from the currently resolved ffmpeg, ffprobe, and yt-dlp executables. These reflect your active source preferences."
 
@@ -6118,7 +6118,7 @@ msgstr "Live versions fetched from the currently resolved ffmpeg, ffprobe, and y
 msgid "Load a local video file and convert manually."
 msgstr "Load a local video file and convert manually."
 
-#: src/routes/settings.tsx:1146
+#: src/routes/settings.tsx:1148
 msgid "Load Background Videos"
 msgstr "Load Background Videos"
 
@@ -6147,11 +6147,11 @@ msgstr "Loading captions"
 msgid "Loading downloadable files..."
 msgstr "Loading downloadable files..."
 
-#: src/routes/settings.tsx:6083
+#: src/routes/settings.tsx:6148
 msgid "Loading external sources..."
 msgstr "Loading external sources..."
 
-#: src/routes/settings.tsx:5786
+#: src/routes/settings.tsx:5851
 msgid "Loading folders..."
 msgstr "Loading folders..."
 
@@ -6175,21 +6175,21 @@ msgstr "Loading playlist groups..."
 msgid "Loading Preview"
 msgstr "Loading Preview"
 
-#: src/routes/settings.tsx:7108
+#: src/routes/settings.tsx:7173
 msgid "Loading security settings..."
 msgstr "Loading security settings..."
 
 #: src/components/RoutePending.tsx:11
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1241
 #: src/routes/first-start.tsx:2200
-#: src/routes/settings.tsx:2563
-#: src/routes/settings.tsx:2659
-#: src/routes/settings.tsx:2752
-#: src/routes/settings.tsx:2940
-#: src/routes/settings.tsx:6502
-#: src/routes/settings.tsx:6663
-#: src/routes/settings.tsx:6731
-#: src/routes/settings.tsx:6780
+#: src/routes/settings.tsx:2628
+#: src/routes/settings.tsx:2724
+#: src/routes/settings.tsx:2817
+#: src/routes/settings.tsx:3005
+#: src/routes/settings.tsx:6567
+#: src/routes/settings.tsx:6728
+#: src/routes/settings.tsx:6796
+#: src/routes/settings.tsx:6845
 msgid "Loading..."
 msgstr "Loading..."
 
@@ -6278,7 +6278,7 @@ msgstr "Local funscript attached: {websiteFunscriptFileLabel}"
 msgid "Local media file not found"
 msgstr "Local media file not found"
 
-#: src/routes/settings.tsx:1617
+#: src/routes/settings.tsx:1619
 msgid "Local Only"
 msgstr "Local Only"
 
@@ -6298,24 +6298,24 @@ msgstr "Local Videos"
 msgid "Lock Lobby"
 msgstr "Lock Lobby"
 
-#: src/routes/settings.tsx:6660
+#: src/routes/settings.tsx:6725
 msgid "Log File"
 msgstr "Log File"
 
-#: src/routes/settings.tsx:2182
+#: src/routes/settings.tsx:2199
 msgid "Log file cleared."
 msgstr "Log file cleared."
 
-#: src/routes/settings.tsx:2837
+#: src/routes/settings.tsx:2902
 msgid "Log in on the EroScripts website to make the search popup and downloads use your account cookies, including two-factor authentication."
 msgstr "Log in on the EroScripts website to make the search popup and downloads use your account cookies, including two-factor authentication."
 
-#: src/routes/settings.tsx:1638
+#: src/routes/settings.tsx:1640
 msgid "Log Level"
 msgstr "Log Level"
 
 #: src/routes/first-start.tsx:2066
-#: src/routes/settings.tsx:2826
+#: src/routes/settings.tsx:2891
 msgid "Logged in"
 msgstr "Logged in"
 
@@ -6326,16 +6326,16 @@ msgstr "Logged In"
 #. placeholder {0}: eroscriptsLoginStatus.username
 #. placeholder {0}: status.username
 #: src/routes/first-start.tsx:2065
-#: src/routes/settings.tsx:2825
+#: src/routes/settings.tsx:2890
 msgid "Logged in as {0}"
 msgstr "Logged in as {0}"
 
-#: src/routes/settings.tsx:1633
+#: src/routes/settings.tsx:1635
 msgid "Logging, diagnostics, and public-safe support information."
 msgstr "Logging, diagnostics, and public-safe support information."
 
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:356
-#: src/routes/settings.tsx:2873
+#: src/routes/settings.tsx:2938
 msgid "Login"
 msgstr "Login"
 
@@ -6352,7 +6352,7 @@ msgid "Login Required"
 msgstr "Login Required"
 
 #: src/routes/first-start.tsx:2058
-#: src/routes/settings.tsx:2848
+#: src/routes/settings.tsx:2913
 msgid "Login Status"
 msgstr "Login Status"
 
@@ -6374,7 +6374,7 @@ msgstr "Long Interlude"
 msgid "Loop"
 msgstr "Loop"
 
-#: src/routes/settings.tsx:4714
+#: src/routes/settings.tsx:4779
 msgid "Loop:"
 msgstr "Loop:"
 
@@ -6419,7 +6419,7 @@ msgstr "Making your own packs is also pretty easy. You can use the Round Convert
 msgid "Manage"
 msgstr "Manage"
 
-#: src/routes/settings.tsx:5412
+#: src/routes/settings.tsx:5477
 msgid "Manage & Clear Data"
 msgstr "Manage & Clear Data"
 
@@ -6427,7 +6427,7 @@ msgstr "Manage & Clear Data"
 msgid "Manage imports, hero groups, and exports with the same focused shell as the new settings screen."
 msgstr "Manage imports, hero groups, and exports with the same focused shell as the new settings screen."
 
-#: src/routes/settings.tsx:5069
+#: src/routes/settings.tsx:5134
 msgid "Manage the gameplay moaning library used by perks and anti-perks. Add local audio files or download them from supported URLs via yt-dlp."
 msgstr "Manage the gameplay moaning library used by perks and anti-perks. Add local audio files or download them from supported URLs via yt-dlp."
 
@@ -6448,7 +6448,7 @@ msgstr "Manual pause active (15s)."
 msgid "Manual pause ended."
 msgstr "Manual pause ended."
 
-#: src/routes/settings.tsx:3075
+#: src/routes/settings.tsx:3140
 msgid "Manually trigger a scan to compute perceptual hashes for rounds that do not have them yet."
 msgstr "Manually trigger a scan to compute perceptual hashes for rounds that do not have them yet."
 
@@ -6529,9 +6529,13 @@ msgid "Matchmaking Terminal"
 msgstr "Matchmaking Terminal"
 
 #: src/components/GlobalHandyOverlay.tsx:483
-#: src/routes/settings.tsx:4384
+#: src/routes/settings.tsx:4449
 msgid "Max"
 msgstr "Max"
+
+#: src/routes/settings.tsx:1667
+msgid "Max Log File Size (MB)"
+msgstr "Max Log File Size (MB)"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:771
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:774
@@ -6566,47 +6570,47 @@ msgstr "Merge"
 msgid "Merge the selected segment with the next segment."
 msgstr "Merge the selected segment with the next segment."
 
-#: src/routes/settings.tsx:7748
-#: src/routes/settings.tsx:7835
+#: src/routes/settings.tsx:7813
+#: src/routes/settings.tsx:7900
 msgid "Migrate Storage Paths"
 msgstr "Migrate Storage Paths"
 
-#: src/routes/settings.tsx:7962
-#: src/routes/settings.tsx:8079
+#: src/routes/settings.tsx:8027
+#: src/routes/settings.tsx:8144
 msgid "Migrate to Portable"
 msgstr "Migrate to Portable"
 
-#: src/routes/settings.tsx:7807
-#: src/routes/settings.tsx:7865
-#: src/routes/settings.tsx:8022
-#: src/routes/settings.tsx:8108
+#: src/routes/settings.tsx:7872
+#: src/routes/settings.tsx:7930
+#: src/routes/settings.tsx:8087
+#: src/routes/settings.tsx:8173
 msgid "Migrating..."
 msgstr "Migrating..."
 
 #. placeholder {0}: migrationResult.migratedCaches
 #. placeholder {1}: migrationResult.databaseMigrated ? ", database copied" : ""
 #. placeholder {2}: migrationResult.storeConfigMigrated ? ", settings copied" : ""
-#: src/routes/settings.tsx:7981
+#: src/routes/settings.tsx:8046
 msgid "Migration complete: {0} cache folders migrated{1}{2}."
 msgstr "Migration complete: {0} cache folders migrated{1}{2}."
 
 #. placeholder {0}: result.migrated
 #. placeholder {1}: result.skipped > 0 ? `, ${result.skipped} skipped` : ""
-#: src/routes/settings.tsx:7767
+#: src/routes/settings.tsx:7832
 msgid "Migration complete: {0} paths migrated{1}."
 msgstr "Migration complete: {0} paths migrated{1}."
 
 #. placeholder {0}: migrationResult.migrated.length
-#: src/routes/settings.tsx:7728
+#: src/routes/settings.tsx:7793
 msgid "Migration complete. {0} paths migrated."
 msgstr "Migration complete. {0} paths migrated."
 
-#: src/routes/settings.tsx:7732
-#: src/routes/settings.tsx:7946
+#: src/routes/settings.tsx:7797
+#: src/routes/settings.tsx:8011
 msgid "Migration failed."
 msgstr "Migration failed."
 
-#: src/routes/settings.tsx:7944
+#: src/routes/settings.tsx:8009
 msgid "Migration to portable complete."
 msgstr "Migration to portable complete."
 
@@ -6626,7 +6630,7 @@ msgid "antiperk.sequence.milker.label"
 msgstr "MILKER SEQUENCE"
 
 #: src/components/GlobalHandyOverlay.tsx:480
-#: src/routes/settings.tsx:4381
+#: src/routes/settings.tsx:4446
 msgid "Min"
 msgstr "Min"
 
@@ -6634,7 +6638,7 @@ msgstr "Min"
 msgid "Min Round (ms)"
 msgstr "Min Round (ms)"
 
-#: src/routes/settings.tsx:1530
+#: src/routes/settings.tsx:1532
 msgid "Minimum number of days between automatic database backups."
 msgstr "Minimum number of days between automatic database backups."
 
@@ -6676,15 +6680,15 @@ msgid "first-start.step.moaning.shortLabel"
 msgstr "Moaning"
 
 #: src/routes/first-start.tsx:1748
-#: src/routes/settings.tsx:5066
+#: src/routes/settings.tsx:5131
 msgid "Moaning"
 msgstr "Moaning"
 
-#: src/routes/settings.tsx:5098
+#: src/routes/settings.tsx:5163
 msgid "Moaning Disabled"
 msgstr "Moaning Disabled"
 
-#: src/routes/settings.tsx:5098
+#: src/routes/settings.tsx:5163
 msgid "Moaning Enabled"
 msgstr "Moaning Enabled"
 
@@ -6697,7 +6701,7 @@ msgstr "Moaning file added to the gameplay library."
 msgid "perk.name.moaning-loop"
 msgstr "Moaning Loop"
 
-#: src/routes/settings.tsx:5106
+#: src/routes/settings.tsx:5171
 msgid "Moaning volume"
 msgstr "Moaning volume"
 
@@ -6724,7 +6728,7 @@ msgstr "Money available at the start of a new run from this playlist."
 msgid "hud.more"
 msgstr "more"
 
-#: src/routes/settings.tsx:7965
+#: src/routes/settings.tsx:8030
 msgid "Move all your data — cache folders, database, and settings — to an existing portable installation. Any existing data in the portable installation will be backed up first. After migration, launch the portable executable to use your migrated data."
 msgstr "Move all your data — cache folders, database, and settings — to an existing portable installation. Any existing data in the portable installation will be backed up first. After migration, launch the portable executable to use your migrated data."
 
@@ -6796,7 +6800,7 @@ msgstr "Multiplayer"
 msgid "Multiplayer"
 msgstr "Multiplayer"
 
-#: src/routes/settings.tsx:5466
+#: src/routes/settings.tsx:5531
 msgid "Multiplayer Cache"
 msgstr "Multiplayer Cache"
 
@@ -6835,7 +6839,7 @@ msgstr "Multiplayer Summary"
 msgid "first-start.step.music.shortLabel"
 msgstr "Music"
 
-#: src/routes/settings.tsx:4577
+#: src/routes/settings.tsx:4642
 msgid "Music"
 msgstr "Music"
 
@@ -6844,11 +6848,11 @@ msgid "Music added here is used only while this playlist is running. It will not
 msgstr "Music added here is used only while this playlist is running. It will not be added to the global music playlist."
 
 #: src/routes/first-start.tsx:2158
-#: src/routes/settings.tsx:5476
+#: src/routes/settings.tsx:5541
 msgid "Music Cache"
 msgstr "Music Cache"
 
-#: src/routes/settings.tsx:2924
+#: src/routes/settings.tsx:2989
 msgid "Music Cache Location"
 msgstr "Music Cache Location"
 
@@ -6861,7 +6865,7 @@ msgstr "Music cache stores downloaded menu music and YouTube imports."
 msgid "Music disabled"
 msgstr "Music disabled"
 
-#: src/routes/settings.tsx:4609
+#: src/routes/settings.tsx:4674
 msgid "Music Disabled"
 msgstr "Music Disabled"
 
@@ -6870,7 +6874,7 @@ msgstr "Music Disabled"
 msgid "first-start.step.music.detail.1"
 msgstr "Music does not replace your round videos. It is background audio for the app when no foreground video is actively playing."
 
-#: src/routes/settings.tsx:4609
+#: src/routes/settings.tsx:4674
 msgid "Music Enabled"
 msgstr "Music Enabled"
 
@@ -6902,7 +6906,7 @@ msgid "command-palette.settings-audio.description"
 msgstr "Music queue, volume"
 
 #: src/components/GlobalMusicOverlay.tsx:596
-#: src/routes/settings.tsx:4662
+#: src/routes/settings.tsx:4727
 msgid "Music volume"
 msgstr "Music volume"
 
@@ -6994,7 +6998,7 @@ msgid "Newest"
 msgstr "Newest"
 
 #: src/features/converter/ConverterHeader.tsx:99
-#: src/routes/settings.tsx:4648
+#: src/routes/settings.tsx:4713
 msgid "Next"
 msgstr "Next"
 
@@ -7071,12 +7075,12 @@ msgstr "No active video to resync."
 msgid "No anti-perks available."
 msgstr "No anti-perks available."
 
-#: src/routes/settings.tsx:6175
-#: src/routes/settings.tsx:6244
+#: src/routes/settings.tsx:6240
+#: src/routes/settings.tsx:6309
 msgid "No Auth"
 msgstr "No Auth"
 
-#: src/routes/settings.tsx:5790
+#: src/routes/settings.tsx:5855
 msgid "No auto-scan folders configured."
 msgstr "No auto-scan folders configured."
 
@@ -7084,7 +7088,7 @@ msgstr "No auto-scan folders configured."
 msgid "No background media selected."
 msgstr "No background media selected."
 
-#: src/routes/settings.tsx:4114
+#: src/routes/settings.tsx:4179
 msgid "No bundled TheHandy app key is configured in this build. Enable custom mode and enter one manually."
 msgstr "No bundled TheHandy app key is configured in this build. Enable custom mode and enter one manually."
 
@@ -7111,7 +7115,7 @@ msgstr "No connected TheHandy to toggle."
 msgid "No Connection Key"
 msgstr "No Connection Key"
 
-#: src/routes/settings.tsx:6276
+#: src/routes/settings.tsx:6341
 msgid "No credentials required for this Stash instance."
 msgstr "No credentials required for this Stash instance."
 
@@ -7141,8 +7145,8 @@ msgstr "No device connected"
 msgid "No direct funscripts found."
 msgstr "No direct funscripts found."
 
-#: src/routes/settings.tsx:7784
-#: src/routes/settings.tsx:7999
+#: src/routes/settings.tsx:7849
+#: src/routes/settings.tsx:8064
 msgid "No directory selected"
 msgstr "No directory selected"
 
@@ -7206,7 +7210,7 @@ msgstr "No match history visible."
 msgid "No media selected. Click \"Choose media\" to attach a file."
 msgstr "No media selected. Click \"Choose media\" to attach a file."
 
-#: src/routes/settings.tsx:5294
+#: src/routes/settings.tsx:5359
 msgid "No moaning files configured."
 msgstr "No moaning files configured."
 
@@ -7222,7 +7226,7 @@ msgstr "No multiplayer result cache yet."
 msgid "No music files were selected. You can continue and add them later in Settings."
 msgstr "No music files were selected. You can continue and add them later in Settings."
 
-#: src/routes/settings.tsx:4875
+#: src/routes/settings.tsx:4940
 msgid "No music tracks configured."
 msgstr "No music tracks configured."
 
@@ -7334,7 +7338,7 @@ msgstr "No servers saved"
 msgid "No single-player history yet."
 msgstr "No single-player history yet."
 
-#: src/routes/settings.tsx:6216
+#: src/routes/settings.tsx:6281
 msgid "No sources configured yet."
 msgstr "No sources configured yet."
 
@@ -7362,11 +7366,11 @@ msgstr "No supported video files found in selected folder."
 msgid "No tiles match this filter."
 msgstr "No tiles match this filter."
 
-#: src/routes/settings.tsx:3702
+#: src/routes/settings.tsx:3767
 msgid "No toy seems connected."
 msgstr "No toy seems connected."
 
-#: src/routes/settings.tsx:4651
+#: src/routes/settings.tsx:4716
 msgid "No track"
 msgstr "No track"
 
@@ -7379,7 +7383,7 @@ msgstr "No track selected"
 msgid "No URL configured"
 msgstr "No URL configured"
 
-#: src/routes/settings.tsx:7200
+#: src/routes/settings.tsx:7265
 msgid "No user-trusted domains yet."
 msgstr "No user-trusted domains yet."
 
@@ -7437,7 +7441,7 @@ msgstr "None selected"
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1258
 #: src/routes/rounds.tsx:3265
 #: src/routes/rounds.tsx:4016
-#: src/routes/settings.tsx:6336
+#: src/routes/settings.tsx:6401
 msgid "Normal"
 msgstr "Normal"
 
@@ -7449,12 +7453,12 @@ msgstr "NORMAL ROUND"
 msgid "Not attached"
 msgstr "Not attached"
 
-#: src/routes/settings.tsx:3401
+#: src/routes/settings.tsx:3466
 msgid "Not Checked Yet"
 msgstr "Not Checked Yet"
 
 #: src/routes/first-start.tsx:2067
-#: src/routes/settings.tsx:2827
+#: src/routes/settings.tsx:2892
 msgid "Not logged in"
 msgstr "Not logged in"
 
@@ -7466,7 +7470,7 @@ msgstr "Not Logged In"
 msgid "Not selected"
 msgstr "Not selected"
 
-#: src/routes/settings.tsx:3755
+#: src/routes/settings.tsx:3820
 msgid "Not Synced"
 msgstr "Not Synced"
 
@@ -7493,8 +7497,8 @@ msgstr "OAuth Unavailable"
 #: src/components/GlobalMusicOverlay.tsx:630
 #: src/components/GlobalMusicOverlay.tsx:647
 #: src/features/map-editor/components/AutomationPanel.tsx:228
-#: src/routes/settings.tsx:1645
-#: src/routes/settings.tsx:4721
+#: src/routes/settings.tsx:1647
+#: src/routes/settings.tsx:4786
 msgid "Off"
 msgstr "Off"
 
@@ -7503,7 +7507,7 @@ msgstr "Off"
 msgid "Offset saved to round."
 msgstr "Offset saved to round."
 
-#: src/routes/settings.tsx:4315
+#: src/routes/settings.tsx:4380
 msgid "Offset Slider"
 msgstr "Offset Slider"
 
@@ -7537,7 +7541,7 @@ msgid "Only Checkpoint"
 msgstr "Only Checkpoint"
 
 #: src/routes/first-start.tsx:2693
-#: src/routes/settings.tsx:4030
+#: src/routes/settings.tsx:4095
 msgid "Only firmware version 4 and up is supported."
 msgstr "Only firmware version 4 and up is supported."
 
@@ -7545,7 +7549,7 @@ msgstr "Only firmware version 4 and up is supported."
 msgid "Only sidecars and script files will be written. Video URIs stay as references."
 msgstr "Only sidecars and script files will be written. Video URIs stay as references."
 
-#: src/routes/settings.tsx:6150
+#: src/routes/settings.tsx:6215
 msgid "Only the newest Stash release, currently version {ACTIVE_STASH_VERSION}, is actively supported."
 msgstr "Only the newest Stash release, currently version {ACTIVE_STASH_VERSION}, is actively supported."
 
@@ -7580,22 +7584,22 @@ msgstr "Open a popup to create an installed round from a public website URL."
 msgid "Open Advanced Map Editor"
 msgstr "Open Advanced Map Editor"
 
-#: src/routes/settings.tsx:1576
+#: src/routes/settings.tsx:1578
 msgid "Open Backup Folder"
 msgstr "Open Backup Folder"
 
-#: src/routes/settings.tsx:2593
-#: src/routes/settings.tsx:2686
-#: src/routes/settings.tsx:2779
-#: src/routes/settings.tsx:2970
+#: src/routes/settings.tsx:2658
+#: src/routes/settings.tsx:2751
+#: src/routes/settings.tsx:2844
+#: src/routes/settings.tsx:3035
 msgid "Open Current Folder"
 msgstr "Open Current Folder"
 
-#: src/routes/settings.tsx:3548
+#: src/routes/settings.tsx:3613
 msgid "Open First Start Workflow"
 msgstr "Open First Start Workflow"
 
-#: src/routes/settings.tsx:4086
+#: src/routes/settings.tsx:4151
 msgid "Open Handy User Portal"
 msgstr "Open Handy User Portal"
 
@@ -7623,7 +7627,7 @@ msgstr "Open lobby control"
 msgid "Open Lobby Control"
 msgstr "Open Lobby Control"
 
-#: src/routes/settings.tsx:6699
+#: src/routes/settings.tsx:6764
 msgid "Open Log Folder"
 msgstr "Open Log Folder"
 
@@ -7718,15 +7722,15 @@ msgid "Opening Workshop..."
 msgstr "Opening Workshop..."
 
 #: src/routes/first-start.tsx:2111
-#: src/routes/settings.tsx:2593
-#: src/routes/settings.tsx:2686
-#: src/routes/settings.tsx:2779
-#: src/routes/settings.tsx:2873
-#: src/routes/settings.tsx:2970
+#: src/routes/settings.tsx:2658
+#: src/routes/settings.tsx:2751
+#: src/routes/settings.tsx:2844
+#: src/routes/settings.tsx:2938
+#: src/routes/settings.tsx:3035
 msgid "Opening..."
 msgstr "Opening..."
 
-#: src/routes/settings.tsx:1668
+#: src/routes/settings.tsx:1684
 msgid "Opt into unfinished features that may change or break between builds."
 msgstr "Opt into unfinished features that may change or break between builds."
 
@@ -7759,11 +7763,11 @@ msgstr "OR"
 msgid "Order"
 msgstr "Order"
 
-#: src/routes/settings.tsx:7773
+#: src/routes/settings.tsx:7838
 msgid "Original files have been deleted."
 msgstr "Original files have been deleted."
 
-#: src/routes/settings.tsx:7845
+#: src/routes/settings.tsx:7910
 msgid "Original files will be deleted after copying."
 msgstr "Original files will be deleted after copying."
 
@@ -7827,11 +7831,11 @@ msgstr "Parallax"
 msgid "Parallel Jobs"
 msgstr "Parallel Jobs"
 
-#: src/routes/settings.tsx:7043
+#: src/routes/settings.tsx:7108
 msgid "paranoid"
 msgstr "paranoid"
 
-#: src/routes/settings.tsx:7058
+#: src/routes/settings.tsx:7123
 msgid "Paranoid mode will impact the user experience significantly and should only be used if you know exactly what you are doing."
 msgstr "Paranoid mode will impact the user experience significantly and should only be used if you know exactly what you are doing."
 
@@ -7864,7 +7868,7 @@ msgid "Paste track URL"
 msgstr "Paste track URL"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:187
-#: src/routes/settings.tsx:6561
+#: src/routes/settings.tsx:6626
 msgid "Path"
 msgstr "Path"
 
@@ -7874,7 +7878,7 @@ msgstr "Path"
 msgid "gameboard.kind.path"
 msgstr "PATH"
 
-#: src/routes/settings.tsx:4637
+#: src/routes/settings.tsx:4702
 msgid "Pause"
 msgstr "Pause"
 
@@ -7892,7 +7896,7 @@ msgstr "Pause {0}"
 msgid "Pause Bonus (ms)"
 msgstr "Pause Bonus (ms)"
 
-#: src/routes/settings.tsx:1265
+#: src/routes/settings.tsx:1267
 msgid "Pause duration after intermediary ends before resuming the main round."
 msgstr "Pause duration after intermediary ends before resuming the main round."
 
@@ -7988,7 +7992,7 @@ msgstr "Permanent"
 msgid "perk.description.lazy-hero"
 msgstr "Permanently increase between-round pause by 5000ms."
 
-#: src/routes/settings.tsx:5391
+#: src/routes/settings.tsx:5456
 msgid "Permanently remove saved data, such as rounds, playlists, or settings."
 msgstr "Permanently remove saved data, such as rounds, playlists, or settings."
 
@@ -8022,7 +8026,7 @@ msgstr "Pick And Start"
 msgid "Pick music files from your computer, or add YouTube videos and playlists to download as MP3."
 msgstr "Pick music files from your computer, or add YouTube videos and playlists to download as MP3."
 
-#: src/routes/settings.tsx:1210
+#: src/routes/settings.tsx:1212
 msgid "Pin Round Progress Bar"
 msgstr "Pin Round Progress Bar"
 
@@ -8042,7 +8046,7 @@ msgstr "Play"
 
 #: src/components/game/GameScene.tsx:2150
 #: src/routes/index.tsx:224
-#: src/routes/settings.tsx:4637
+#: src/routes/settings.tsx:4702
 msgid "Play"
 msgstr "Play"
 
@@ -8127,8 +8131,8 @@ msgstr "Playing video + funscript."
 #: src/routes/first-start.tsx:1875
 #: src/routes/multiplayer.tsx:1157
 #: src/routes/rounds.tsx:1758
-#: src/routes/settings.tsx:4819
-#: src/routes/settings.tsx:5238
+#: src/routes/settings.tsx:4884
+#: src/routes/settings.tsx:5303
 msgid "Playlist"
 msgstr "Playlist"
 
@@ -8255,7 +8259,7 @@ msgstr "Playlist:"
 #: src/features/map-editor/components/PlaylistPickerView.tsx:96
 #: src/routes/rounds.tsx:417
 #: src/routes/rounds.tsx:2845
-#: src/routes/settings.tsx:5453
+#: src/routes/settings.tsx:5518
 #: src/routes/single-player-setup.tsx:498
 msgid "Playlists"
 msgstr "Playlists"
@@ -8264,7 +8268,7 @@ msgstr "Playlists"
 msgid "Playlists..."
 msgstr "Playlists..."
 
-#: src/routes/settings.tsx:7584
+#: src/routes/settings.tsx:7649
 msgid "Playtesters"
 msgstr "Playtesters"
 
@@ -8272,16 +8276,16 @@ msgstr "Playtesters"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:261
 #: src/routes/first-start.tsx:964
 #: src/routes/first-start.tsx:1091
-#: src/routes/settings.tsx:4520
-#: src/routes/settings.tsx:5009
+#: src/routes/settings.tsx:4585
+#: src/routes/settings.tsx:5074
 msgid "Please enter a URL"
 msgstr "Please enter a URL"
 
-#: src/routes/settings.tsx:7387
+#: src/routes/settings.tsx:7452
 msgid "Please enter a valid number."
 msgstr "Please enter a valid number."
 
-#: src/routes/settings.tsx:7996
+#: src/routes/settings.tsx:8061
 msgid "Portable Installation Directory"
 msgstr "Portable Installation Directory"
 
@@ -8296,11 +8300,11 @@ msgstr "POS"
 msgid "Pos {0} • ${1} • Score {2}"
 msgstr "Pos {0} • ${1} • Score {2}"
 
-#: src/routes/settings.tsx:6532
+#: src/routes/settings.tsx:6597
 msgid "Preference:"
 msgstr "Preference:"
 
-#: src/routes/settings.tsx:5492
+#: src/routes/settings.tsx:5557
 msgid "Preferences, hardware keys, and window state."
 msgstr "Preferences, hardware keys, and window state."
 
@@ -8358,7 +8362,7 @@ msgstr "Preparing round video..."
 msgid "Preparing your multiplayer account"
 msgstr "Preparing your multiplayer account"
 
-#: src/routes/settings.tsx:3484
+#: src/routes/settings.tsx:3549
 msgid "Prerelease"
 msgstr "Prerelease"
 
@@ -8375,11 +8379,11 @@ msgid "Press C"
 msgstr "Press C"
 
 #: src/features/converter/ConverterHeader.tsx:83
-#: src/routes/settings.tsx:4622
+#: src/routes/settings.tsx:4687
 msgid "Prev"
 msgstr "Prev"
 
-#: src/routes/settings.tsx:1361
+#: src/routes/settings.tsx:1363
 msgid "Prevents all media from loading. Videos, images, previews, and booru media are replaced with a placeholder banner. Does not affect gameplay logic."
 msgstr "Prevents all media from loading. Videos, images, previews, and booru media are replaced with a placeholder banner. Does not affect gameplay logic."
 
@@ -8389,7 +8393,7 @@ msgstr "Prevents further rules from firing"
 
 #: src/components/game/GameScene.tsx:4974
 #: src/features/map-editor/components/AutomationPanel.tsx:378
-#: src/routes/settings.tsx:5141
+#: src/routes/settings.tsx:5206
 msgid "Preview"
 msgstr "Preview"
 
@@ -8436,7 +8440,7 @@ msgstr "Private Lobby (Click to Advertise)"
 msgid "Proceed"
 msgstr "Proceed"
 
-#: src/routes/settings.tsx:3103
+#: src/routes/settings.tsx:3168
 msgid "Processing:"
 msgstr "Processing:"
 
@@ -8448,7 +8452,7 @@ msgstr "Processing..."
 msgid "Program Version"
 msgstr "Program Version"
 
-#: src/routes/settings.tsx:6463
+#: src/routes/settings.tsx:6528
 msgid "Program Versions"
 msgstr "Program Versions"
 
@@ -8466,7 +8470,7 @@ msgstr "Progressive"
 msgid "Progressive Random"
 msgstr "Progressive Random"
 
-#: src/routes/settings.tsx:7043
+#: src/routes/settings.tsx:7108
 msgid "prompt"
 msgstr "prompt"
 
@@ -8504,7 +8508,7 @@ msgstr "Pull remote match history into the local cache, then browse it instantly
 #: src/components/GlobalMusicOverlay.tsx:645
 #: src/components/GlobalMusicOverlay.tsx:685
 #: src/routes/highscores.tsx:494
-#: src/routes/settings.tsx:4719
+#: src/routes/settings.tsx:4784
 msgid "Queue"
 msgstr "Queue"
 
@@ -8513,7 +8517,7 @@ msgid "Queue · drag to reorder · fills repeats if shorter than session"
 msgstr "Queue · drag to reorder · fills repeats if shorter than session"
 
 #. placeholder {0}: queue.length
-#: src/routes/settings.tsx:4732
+#: src/routes/settings.tsx:4797
 msgid "Queue ({0} tracks)"
 msgstr "Queue ({0} tracks)"
 
@@ -8602,7 +8606,7 @@ msgstr "Ready to play"
 msgid "Ready To Play"
 msgstr "Ready To Play"
 
-#: src/routes/settings.tsx:3152
+#: src/routes/settings.tsx:3217
 msgid "Ready to scan"
 msgstr "Ready to scan"
 
@@ -8620,7 +8624,7 @@ msgstr "Reason: {0}"
 msgid "game.inventory.received"
 msgstr "Received"
 
-#: src/routes/settings.tsx:1768
+#: src/routes/settings.tsx:1784
 msgid "Recent releases, fixes, and gameplay updates."
 msgstr "Recent releases, fixes, and gameplay updates."
 
@@ -8657,7 +8661,7 @@ msgstr "Reconnect TheHandy using the saved connection settings."
 msgid "Reconnecting haptics..."
 msgstr "Reconnecting haptics..."
 
-#: src/routes/settings.tsx:5457
+#: src/routes/settings.tsx:5522
 msgid "Records of your past games and sessions."
 msgstr "Records of your past games and sessions."
 
@@ -8683,7 +8687,7 @@ msgstr "Redo the last undone segment edit."
 msgid "perk.description.heal"
 msgstr "Reduce intermediary chance by 10%; in singleplayer also reduce anti-perk chance by 10%."
 
-#: src/routes/settings.tsx:1502
+#: src/routes/settings.tsx:1504
 msgid "Reduces preview generation load on weak hardware. Leave off for faster imports on stronger systems."
 msgstr "Reduces preview generation load on weak hardware. Leave off for faster imports on stronger systems."
 
@@ -8696,9 +8700,9 @@ msgstr "Reencoded"
 #: src/routes/first-start.tsx:2632
 #: src/routes/multiplayer-result.tsx:246
 #: src/routes/multiplayer.tsx:1095
-#: src/routes/settings.tsx:3960
-#: src/routes/settings.tsx:6489
-#: src/routes/settings.tsx:6715
+#: src/routes/settings.tsx:4025
+#: src/routes/settings.tsx:6554
+#: src/routes/settings.tsx:6780
 msgid "Refresh"
 msgstr "Refresh"
 
@@ -8725,21 +8729,21 @@ msgstr "Refreshing local and remote result history."
 #: src/routes/first-start.tsx:2632
 #: src/routes/multiplayer-result.tsx:246
 #: src/routes/multiplayer.tsx:1095
-#: src/routes/settings.tsx:3959
-#: src/routes/settings.tsx:6489
-#: src/routes/settings.tsx:6715
+#: src/routes/settings.tsx:4024
+#: src/routes/settings.tsx:6554
+#: src/routes/settings.tsx:6780
 msgid "Refreshing..."
 msgstr "Refreshing..."
 
-#: src/routes/settings.tsx:3483
+#: src/routes/settings.tsx:3548
 msgid "Release"
 msgstr "Release"
 
-#: src/routes/settings.tsx:6913
+#: src/routes/settings.tsx:6978
 msgid "Release Notes"
 msgstr "Release Notes"
 
-#: src/routes/settings.tsx:6919
+#: src/routes/settings.tsx:6984
 msgid "Release notes and shipped improvements bundled directly into the app."
 msgstr "Release notes and shipped improvements bundled directly into the app."
 
@@ -8751,7 +8755,7 @@ msgstr "Reload App"
 msgid "Remaining missing:"
 msgstr "Remaining missing:"
 
-#: src/routes/settings.tsx:7001
+#: src/routes/settings.tsx:7066
 msgid "Remote Import Trust"
 msgstr "Remote Import Trust"
 
@@ -8769,9 +8773,9 @@ msgstr "Remote Videos"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:322
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:724
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:942
-#: src/routes/settings.tsx:5809
-#: src/routes/settings.tsx:6365
-#: src/routes/settings.tsx:7220
+#: src/routes/settings.tsx:5874
+#: src/routes/settings.tsx:6430
+#: src/routes/settings.tsx:7285
 msgid "Remove"
 msgstr "Remove"
 
@@ -8878,7 +8882,7 @@ msgstr "Reroll rounds randomly?"
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:315
 #: src/features/map-editor/components/TextInspectorPanel.tsx:119
 #: src/features/map-editor/components/TextInspectorPanel.tsx:172
-#: src/routes/settings.tsx:4286
+#: src/routes/settings.tsx:4351
 msgid "Reset"
 msgstr "Reset"
 
@@ -8949,7 +8953,7 @@ msgid "Reset roads"
 msgstr "Reset roads"
 
 #: src/components/GlobalHandyOverlay.tsx:520
-#: src/routes/settings.tsx:4427
+#: src/routes/settings.tsx:4492
 msgid "Reset Stroke"
 msgstr "Reset Stroke"
 
@@ -8979,8 +8983,8 @@ msgstr "Reset the editor camera to the default view."
 msgid "Reset View"
 msgstr "Reset View"
 
-#: src/routes/settings.tsx:6824
-#: src/routes/settings.tsx:6825
+#: src/routes/settings.tsx:6889
+#: src/routes/settings.tsx:6890
 msgid "Reset zoom"
 msgstr "Reset zoom"
 
@@ -9021,7 +9025,7 @@ msgstr "Resource Hash"
 msgid "Resource ID"
 msgstr "Resource ID"
 
-#: src/routes/settings.tsx:6134
+#: src/routes/settings.tsx:6199
 msgid "Resources Added:"
 msgstr "Resources Added:"
 
@@ -9095,7 +9099,7 @@ msgstr "Retry Auto-Link"
 msgid "Retry Needed"
 msgstr "Retry Needed"
 
-#: src/routes/settings.tsx:1264
+#: src/routes/settings.tsx:1266
 msgid "Return Pause After Intermediary (s)"
 msgstr "Return Pause After Intermediary (s)"
 
@@ -9293,7 +9297,7 @@ msgid "playlist-workshop.section.rounds.title"
 msgstr "Rounds"
 
 #: src/routes/first-start.tsx:2351
-#: src/routes/settings.tsx:1484
+#: src/routes/settings.tsx:1486
 msgid "Rounds per background pHash pass"
 msgstr "Rounds per background pHash pass"
 
@@ -9309,7 +9313,7 @@ msgstr "Run auto-detection on the current funscript."
 msgid "Run Count"
 msgstr "Run Count"
 
-#: src/routes/settings.tsx:5456
+#: src/routes/settings.tsx:5521
 msgid "Run History"
 msgstr "Run History"
 
@@ -9321,11 +9325,11 @@ msgstr "RUN INITIALIZATION"
 msgid "Run Summary"
 msgstr "Run Summary"
 
-#: src/routes/settings.tsx:3532
+#: src/routes/settings.tsx:3597
 msgid "Run the guided introduction again if you want a refresher on play modes, content installs, editors, Handy setup, music, and booru search."
 msgstr "Run the guided introduction again if you want a refresher on play modes, content installs, editors, Handy setup, music, and booru search."
 
-#: src/routes/settings.tsx:4184
+#: src/routes/settings.tsx:4249
 msgid "Running"
 msgstr "Running"
 
@@ -9333,7 +9337,7 @@ msgstr "Running"
 msgid "Running anti-perk sequence..."
 msgstr "Running anti-perk sequence..."
 
-#: src/routes/settings.tsx:4170
+#: src/routes/settings.tsx:4235
 msgid "Runs a generated motion loop with a matching visual animation for sync checks."
 msgstr "Runs a generated motion loop with a matching visual animation for sync checks."
 
@@ -9341,7 +9345,7 @@ msgstr "Runs a generated motion loop with a matching visual animation for sync c
 msgid "Safe Mode Enabled"
 msgstr "Safe Mode Enabled"
 
-#: src/routes/settings.tsx:1375
+#: src/routes/settings.tsx:1377
 msgid "Safe Mode Startup Shortcut"
 msgstr "Safe Mode Startup Shortcut"
 
@@ -9361,10 +9365,10 @@ msgstr "Safe Points"
 #: src/features/converter/SegmentList.tsx:94
 #: src/features/map-editor/components/EditorToolbar.tsx:235
 #: src/routes/playlist-workshop.tsx:2061
-#: src/routes/settings.tsx:6379
-#: src/routes/settings.tsx:7357
-#: src/routes/settings.tsx:7430
-#: src/routes/settings.tsx:7551
+#: src/routes/settings.tsx:6444
+#: src/routes/settings.tsx:7422
+#: src/routes/settings.tsx:7495
+#: src/routes/settings.tsx:7616
 msgid "Save"
 msgstr "Save"
 
@@ -9431,7 +9435,7 @@ msgstr "Save-enabled runs are marked as assisted in local highscores and run his
 msgid "Save/test: Ctrl/Cmd+S saves, Test Map launches the run."
 msgstr "Save/test: Ctrl/Cmd+S saves, Test Map launches the run."
 
-#: src/routes/settings.tsx:3923
+#: src/routes/settings.tsx:3988
 msgid "Saved TCode URL"
 msgstr "Saved TCode URL"
 
@@ -9443,7 +9447,7 @@ msgstr "Saved TCode URL"
 #: src/routes/playlist-workshop.tsx:2369
 #: src/routes/rounds.tsx:3993
 #: src/routes/rounds.tsx:4368
-#: src/routes/settings.tsx:3504
+#: src/routes/settings.tsx:3569
 msgid "Saving..."
 msgstr "Saving..."
 
@@ -9466,7 +9470,7 @@ msgstr "Scan error ({summary})"
 
 #: src/routes/rounds.tsx:3842
 #: src/routes/rounds.tsx:3898
-#: src/routes/settings.tsx:3168
+#: src/routes/settings.tsx:3233
 msgid "Scan Now"
 msgstr "Scan Now"
 
@@ -9474,7 +9478,7 @@ msgstr "Scan Now"
 msgid "Scan running ({summary})"
 msgstr "Scan running ({summary})"
 
-#: src/routes/settings.tsx:3090
+#: src/routes/settings.tsx:3155
 msgid "Scanning"
 msgstr "Scanning"
 
@@ -9484,11 +9488,11 @@ msgstr "Scanning files and preparing imported rounds..."
 
 #: src/routes/rounds.tsx:3842
 #: src/routes/rounds.tsx:3898
-#: src/routes/settings.tsx:3168
+#: src/routes/settings.tsx:3233
 msgid "Scanning..."
 msgstr "Scanning..."
 
-#: src/routes/settings.tsx:6127
+#: src/routes/settings.tsx:6192
 msgid "Scenes:"
 msgstr "Scenes:"
 
@@ -9553,7 +9557,7 @@ msgstr "Scripts Ready"
 
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:396
 #: src/routes/rounds.tsx:3242
-#: src/routes/settings.tsx:6308
+#: src/routes/settings.tsx:6373
 msgid "Search"
 msgstr "Search"
 
@@ -9603,7 +9607,7 @@ msgstr "Search pages, settings, actions..."
 msgid "Search Prompt"
 msgstr "Search Prompt"
 
-#: src/routes/settings.tsx:1236
+#: src/routes/settings.tsx:1238
 msgid "Search prompt used for loading-screen media from rule34/booru sites."
 msgstr "Search prompt used for loading-screen media from rule34/booru sites."
 
@@ -9611,7 +9615,7 @@ msgstr "Search prompt used for loading-screen media from rule34/booru sites."
 msgid "Search rounds"
 msgstr "Search rounds"
 
-#: src/routes/settings.tsx:6288
+#: src/routes/settings.tsx:6353
 msgid "Search tags"
 msgstr "Search tags"
 
@@ -9632,15 +9636,15 @@ msgstr "Search title, hero, author"
 msgid "Searching..."
 msgstr "Searching..."
 
-#: src/routes/settings.tsx:1354
+#: src/routes/settings.tsx:1356
 msgid "Security & Privacy"
 msgstr "Security & Privacy"
 
-#: src/routes/settings.tsx:7021
+#: src/routes/settings.tsx:7086
 msgid "Security Mode"
 msgstr "Security Mode"
 
-#: src/routes/settings.tsx:6985
+#: src/routes/settings.tsx:7050
 msgid "Security settings update failed."
 msgstr "Security settings update failed."
 
@@ -9806,12 +9810,12 @@ msgstr "Select Perk"
 msgid "Select Playlist"
 msgstr "Select Playlist"
 
-#: src/routes/settings.tsx:8010
+#: src/routes/settings.tsx:8075
 msgid "Select Portable Installation"
 msgstr "Select Portable Installation"
 
 #: src/routes/first-start.tsx:2617
-#: src/routes/settings.tsx:3943
+#: src/routes/settings.tsx:4008
 msgid "Select serial port"
 msgstr "Select serial port"
 
@@ -9863,7 +9867,7 @@ msgid "Selected"
 msgstr "Selected"
 
 #: src/routes/first-start.tsx:2523
-#: src/routes/settings.tsx:3851
+#: src/routes/settings.tsx:3916
 msgid "Selected device"
 msgstr "Selected device"
 
@@ -9898,7 +9902,7 @@ msgstr "Selected: {0}"
 msgid "Selection mode"
 msgstr "Selection mode"
 
-#: src/routes/settings.tsx:5506
+#: src/routes/settings.tsx:5571
 msgid "Selective Maintenance"
 msgstr "Selective Maintenance"
 
@@ -9920,12 +9924,12 @@ msgid "Sensory overload threshold reached. Initiating cooldown sequence."
 msgstr "Sensory overload threshold reached. Initiating cooldown sequence."
 
 #: src/routes/first-start.tsx:2571
-#: src/routes/settings.tsx:3897
+#: src/routes/settings.tsx:3962
 msgid "Serial"
 msgstr "Serial"
 
 #: src/routes/first-start.tsx:2608
-#: src/routes/settings.tsx:3934
+#: src/routes/settings.tsx:3999
 msgid "Serial Port"
 msgstr "Serial Port"
 
@@ -10024,7 +10028,7 @@ msgstr "Settings"
 #: src/features/map-editor/components/AutomationPanel.tsx:370
 #: src/routes/index.tsx:293
 #: src/routes/map-editor.tsx:2910
-#: src/routes/settings.tsx:2205
+#: src/routes/settings.tsx:2222
 msgid "Settings"
 msgstr "Settings"
 
@@ -10078,7 +10082,7 @@ msgstr "Settings - Security & Privacy"
 msgid "command-palette.settings-sources"
 msgstr "Settings - Sources & Library"
 
-#: src/routes/settings.tsx:1360
+#: src/routes/settings.tsx:1362
 msgid "SFW Mode"
 msgstr "SFW Mode"
 
@@ -10106,7 +10110,7 @@ msgstr "Shield"
 msgid "settings.help.shortcuts.mapEditor.description"
 msgstr "Shortcuts for graph editing, layout, and viewport control."
 
-#: src/routes/settings.tsx:1199
+#: src/routes/settings.tsx:1201
 msgid "Show Anti-Perk Beatbar"
 msgstr "Show Anti-Perk Beatbar"
 
@@ -10160,7 +10164,7 @@ msgstr "Show this {mediaLabel} anyway?"
 msgid "Show Video Once"
 msgstr "Show Video Once"
 
-#: src/routes/settings.tsx:1730
+#: src/routes/settings.tsx:1746
 msgid "Show Web Install Funscript URL"
 msgstr "Show Web Install Funscript URL"
 
@@ -10170,20 +10174,20 @@ msgstr "Show Web Install Funscript URL"
 msgid "Showing {0} of {1} packages"
 msgstr "Showing {0} of {1} packages"
 
-#: src/routes/settings.tsx:1702
+#: src/routes/settings.tsx:1718
 msgid "Shows a global frames-per-second counter in the top-right corner. The display updates at a low frequency to keep overhead low."
 msgstr "Shows a global frames-per-second counter in the top-right corner. The display updates at a low frequency to keep overhead low."
 
-#: src/routes/settings.tsx:1200
+#: src/routes/settings.tsx:1202
 msgid "Shows a synchronized manual beatbar during jackhammer and milker anti-perk sequences."
 msgstr "Shows a synchronized manual beatbar during jackhammer and milker anti-perk sequences."
 
-#: src/routes/settings.tsx:1745
+#: src/routes/settings.tsx:1761
 msgid "Shows the Test Device panel in Hardware & Sync for visual sync checks with a generated motion loop."
 msgstr "Shows the Test Device panel in Hardware & Sync for visual sync checks with a generated motion loop."
 
 #: src/components/GlobalMusicOverlay.tsx:614
-#: src/routes/settings.tsx:4709
+#: src/routes/settings.tsx:4774
 msgid "Shuffle"
 msgstr "Shuffle"
 
@@ -10191,7 +10195,7 @@ msgstr "Shuffle"
 msgid "Shuffles normal rounds randomly without difficulty bias."
 msgstr "Shuffles normal rounds randomly without difficulty bias."
 
-#: src/routes/settings.tsx:7004
+#: src/routes/settings.tsx:7069
 msgid "Sidecar imports automatically trust Stash source hosts, yt-dlp-supported domains, and the user-trusted domains listed here. In <0>Prompt</0> mode, unknown remote URLs can be approved during manual import. In <1>Block</1> mode, every non-whitelisted remote URL is blocked automatically. In <2>Paranoid</2> mode, only configured Stash source URLs are allowed."
 msgstr "Sidecar imports automatically trust Stash source hosts, yt-dlp-supported domains, and the user-trusted domains listed here. In <0>Prompt</0> mode, unknown remote URLs can be approved during manual import. In <1>Block</1> mode, every non-whitelisted remote URL is blocked automatically. In <2>Paranoid</2> mode, only configured Stash source URLs are allowed."
 
@@ -10220,7 +10224,7 @@ msgstr "Sign in to your EroScripts account to search and download funscripts and
 msgid "Sign Up"
 msgstr "Sign Up"
 
-#: src/routes/settings.tsx:7053
+#: src/routes/settings.tsx:7118
 msgid "Silently blocking every remote URL that is not already whitelisted."
 msgstr "Silently blocking every remote URL that is not already whitelisted."
 
@@ -10245,8 +10249,8 @@ msgstr "Single Runs"
 
 #: src/components/GlobalMusicOverlay.tsx:518
 #: src/routes/first-start.tsx:1860
-#: src/routes/settings.tsx:4803
-#: src/routes/settings.tsx:5222
+#: src/routes/settings.tsx:4868
+#: src/routes/settings.tsx:5287
 msgid "Single Track"
 msgstr "Single Track"
 
@@ -10270,7 +10274,7 @@ msgstr "Singleplayer Run History"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:280
 #: src/features/map-editor/components/TextInspectorPanel.tsx:126
-#: src/routes/settings.tsx:6668
+#: src/routes/settings.tsx:6733
 msgid "Size"
 msgstr "Size"
 
@@ -10292,11 +10296,11 @@ msgstr "Skip All"
 msgid "Skip cuts in preview"
 msgstr "Skip cuts in preview"
 
-#: src/routes/settings.tsx:1296
+#: src/routes/settings.tsx:1298
 msgid "Skip Multiplayer Safeguards"
 msgstr "Skip Multiplayer Safeguards"
 
-#: src/routes/settings.tsx:5673
+#: src/routes/settings.tsx:5738
 msgid "Skip Multiplayer Safeguards?"
 msgstr "Skip Multiplayer Safeguards?"
 
@@ -10380,7 +10384,7 @@ msgstr "Sort by Difficulty"
 msgid "Sort:"
 msgstr "Sort:"
 
-#: src/routes/settings.tsx:4678
+#: src/routes/settings.tsx:4743
 msgid "Sound effects volume"
 msgstr "Sound effects volume"
 
@@ -10389,7 +10393,7 @@ msgstr "Sound effects volume"
 msgid "Source"
 msgstr "Source"
 
-#: src/routes/settings.tsx:7644
+#: src/routes/settings.tsx:7709
 msgid "Source Code"
 msgstr "Source Code"
 
@@ -10401,7 +10405,7 @@ msgstr "Source Hero"
 msgid "Source Key"
 msgstr "Source Key"
 
-#: src/routes/settings.tsx:6158
+#: src/routes/settings.tsx:6223
 msgid "Source name"
 msgstr "Source name"
 
@@ -10421,15 +10425,15 @@ msgstr "Source:"
 msgid "Source: {sourceLabel}"
 msgstr "Source: {sourceLabel}"
 
-#: src/routes/settings.tsx:6094
+#: src/routes/settings.tsx:6159
 msgid "Sources"
 msgstr "Sources"
 
-#: src/routes/settings.tsx:1347
+#: src/routes/settings.tsx:1349
 msgid "Sources & Library"
 msgstr "Sources & Library"
 
-#: src/routes/settings.tsx:6124
+#: src/routes/settings.tsx:6189
 msgid "Sources:"
 msgstr "Sources:"
 
@@ -10438,11 +10442,11 @@ msgstr "Sources:"
 msgid "first-start.language-option.es"
 msgstr "Spanish interface"
 
-#: src/routes/settings.tsx:1775
+#: src/routes/settings.tsx:1791
 msgid "Special thanks & inspiration."
 msgstr "Special thanks & inspiration."
 
-#: src/routes/settings.tsx:7578
+#: src/routes/settings.tsx:7643
 msgid "Special thanks to the community and creators who inspired this project."
 msgstr "Special thanks to the community and creators who inspired this project."
 
@@ -10523,7 +10527,7 @@ msgid "first-start.step.welcome.eyebrow"
 msgstr "Start Here"
 
 #: src/routes/first-start.tsx:2516
-#: src/routes/settings.tsx:3844
+#: src/routes/settings.tsx:3909
 msgid "Start Intiface Central, start its server, then connect to a linear/position-capable device."
 msgstr "Start Intiface Central, start its server, then connect to a linear/position-capable device."
 
@@ -10531,8 +10535,8 @@ msgstr "Start Intiface Central, start its server, then connect to a linear/posit
 msgid "START MATCH"
 msgstr "START MATCH"
 
-#: src/routes/settings.tsx:7807
-#: src/routes/settings.tsx:8022
+#: src/routes/settings.tsx:7872
+#: src/routes/settings.tsx:8087
 msgid "Start Migration"
 msgstr "Start Migration"
 
@@ -10545,7 +10549,7 @@ msgstr "Start Playing"
 msgid "Start Selected Playlist"
 msgstr "Start Selected Playlist"
 
-#: src/routes/settings.tsx:4223
+#: src/routes/settings.tsx:4288
 msgid "Start Test"
 msgstr "Start Test"
 
@@ -10600,8 +10604,8 @@ msgstr "Starting percent chance."
 
 #: src/components/PlaylistPackExportDialog.tsx:548
 #: src/features/map-editor/components/EditorToolbar.tsx:245
-#: src/routes/settings.tsx:3168
-#: src/routes/settings.tsx:3360
+#: src/routes/settings.tsx:3233
+#: src/routes/settings.tsx:3425
 #: src/routes/single-player-setup.tsx:723
 #: src/routes/single-player-setup.tsx:730
 #: src/routes/single-player-setup.tsx:765
@@ -10614,15 +10618,15 @@ msgstr "Starting..."
 msgid "Stash"
 msgstr "Stash"
 
-#: src/routes/settings.tsx:6040
+#: src/routes/settings.tsx:6105
 msgid "Stash connection failed."
 msgstr "Stash connection failed."
 
-#: src/routes/settings.tsx:6038
+#: src/routes/settings.tsx:6103
 msgid "Stash connection succeeded."
 msgstr "Stash connection succeeded."
 
-#: src/routes/settings.tsx:7116
+#: src/routes/settings.tsx:7181
 msgid "Stash Hosts"
 msgstr "Stash Hosts"
 
@@ -10635,7 +10639,7 @@ msgstr "Stash, auto-scan folders"
 msgid "state"
 msgstr "state"
 
-#: src/routes/settings.tsx:6121
+#: src/routes/settings.tsx:6186
 msgid "State:"
 msgstr "State:"
 
@@ -10657,7 +10661,7 @@ msgstr "Steady Steps"
 msgid "perk.name.sticky-fingers"
 msgstr "Sticky Fingers"
 
-#: src/routes/settings.tsx:5152
+#: src/routes/settings.tsx:5217
 msgid "Stop"
 msgstr "Stop"
 
@@ -10681,7 +10685,7 @@ msgstr "Stop movement as soon as a player reaches this round tile and start the 
 msgid "Stop Preview"
 msgstr "Stop Preview"
 
-#: src/routes/settings.tsx:4220
+#: src/routes/settings.tsx:4285
 msgid "Stop Test"
 msgstr "Stop Test"
 
@@ -10692,7 +10696,7 @@ msgstr "Stop TheHandy"
 
 #: src/components/game/RoundVideoOverlay.tsx:3439
 #: src/components/GlobalHandyOverlay.tsx:227
-#: src/routes/settings.tsx:4184
+#: src/routes/settings.tsx:4249
 msgid "Stopped"
 msgstr "Stopped"
 
@@ -10701,8 +10705,8 @@ msgstr "Stopped"
 msgid "first-start.step.storage.shortLabel"
 msgstr "Storage"
 
-#: src/routes/settings.tsx:6631
-#: src/routes/settings.tsx:6738
+#: src/routes/settings.tsx:6696
+#: src/routes/settings.tsx:6803
 msgid "Storage"
 msgstr "Storage"
 
@@ -10715,19 +10719,19 @@ msgstr "Storage Locations"
 msgid "Store"
 msgstr "Store"
 
-#: src/routes/settings.tsx:2646
+#: src/routes/settings.tsx:2711
 msgid "Store downloaded EroScripts funscripts and optional video copies in a custom folder, or leave this unset to use the default app data location."
 msgstr "Store downloaded EroScripts funscripts and optional video copies in a custom folder, or leave this unset to use the default app data location."
 
-#: src/routes/settings.tsx:2927
+#: src/routes/settings.tsx:2992
 msgid "Store downloaded music files in a custom folder, or leave this unset to keep using the built-in default location."
 msgstr "Store downloaded music files in a custom folder, or leave this unset to keep using the built-in default location."
 
-#: src/routes/settings.tsx:2550
+#: src/routes/settings.tsx:2615
 msgid "Store downloaded website videos in a custom folder, or leave this unset to keep using the built-in default location."
 msgstr "Store downloaded website videos in a custom folder, or leave this unset to keep using the built-in default location."
 
-#: src/routes/settings.tsx:2739
+#: src/routes/settings.tsx:2804
 msgid "Store extracted .fpack contents in a custom folder, or leave this unset to use the default app data location."
 msgstr "Store extracted .fpack contents in a custom folder, or leave this unset to use the default app data location."
 
@@ -10750,7 +10754,7 @@ msgid "Stored: {0}"
 msgstr "Stored: {0}"
 
 #: src/components/GlobalHandyOverlay.tsx:463
-#: src/routes/settings.tsx:4362
+#: src/routes/settings.tsx:4427
 msgid "Stroke Adjustment"
 msgstr "Stroke Adjustment"
 
@@ -10828,7 +10832,7 @@ msgstr "Sync Error"
 
 #: src/routes/highscores.tsx:507
 #: src/routes/highscores.tsx:567
-#: src/routes/settings.tsx:6114
+#: src/routes/settings.tsx:6179
 msgid "Sync Now"
 msgstr "Sync Now"
 
@@ -10842,37 +10846,37 @@ msgstr "Sync Queue"
 
 #: src/components/game/RoundVideoOverlay.tsx:3443
 #: src/components/GlobalHandyOverlay.tsx:229
-#: src/routes/settings.tsx:3755
+#: src/routes/settings.tsx:3820
 msgid "Synced"
 msgstr "Synced"
 
 #: src/components/game/RoundVideoOverlay.tsx:3446
 #: src/components/GlobalHandyOverlay.tsx:230
-#: src/routes/settings.tsx:4184
+#: src/routes/settings.tsx:4249
 msgid "Syncing"
 msgstr "Syncing"
 
 #: src/routes/highscores.tsx:507
 #: src/routes/highscores.tsx:567
 #: src/routes/highscores.tsx:829
-#: src/routes/settings.tsx:4222
-#: src/routes/settings.tsx:6114
+#: src/routes/settings.tsx:4287
+#: src/routes/settings.tsx:6179
 msgid "Syncing..."
 msgstr "Syncing..."
 
 #: src/routes/index.tsx:536
 #: src/routes/index.tsx:762
-#: src/routes/settings.tsx:6511
+#: src/routes/settings.tsx:6576
 msgid "System"
 msgstr "System"
 
-#: src/routes/settings.tsx:2202
+#: src/routes/settings.tsx:2219
 msgid "System Config"
 msgstr "System Config"
 
-#: src/routes/settings.tsx:1600
-#: src/routes/settings.tsx:1618
-#: src/routes/settings.tsx:6517
+#: src/routes/settings.tsx:1602
+#: src/routes/settings.tsx:1620
+#: src/routes/settings.tsx:6582
 msgid "System Only"
 msgstr "System Only"
 
@@ -10888,7 +10892,7 @@ msgstr "System Warning"
 msgid "Tag"
 msgstr "Tag"
 
-#: src/routes/settings.tsx:6053
+#: src/routes/settings.tsx:6118
 msgid "Tag search failed."
 msgstr "Tag search failed."
 
@@ -10901,7 +10905,7 @@ msgstr "tag-one, tag-two"
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:404
 #: src/routes/rounds.tsx:4267
 #: src/routes/rounds.tsx:4398
-#: src/routes/settings.tsx:6283
+#: src/routes/settings.tsx:6348
 msgid "Tags"
 msgstr "Tags"
 
@@ -10914,7 +10918,7 @@ msgstr "Tags filter"
 msgid "Target Count"
 msgstr "Target Count"
 
-#: src/routes/settings.tsx:7781
+#: src/routes/settings.tsx:7846
 msgid "Target Directory"
 msgstr "Target Directory"
 
@@ -10927,7 +10931,7 @@ msgid "Target Player"
 msgstr "Target Player"
 
 #: src/routes/first-start.tsx:2481
-#: src/routes/settings.tsx:3809
+#: src/routes/settings.tsx:3874
 msgid "TCode"
 msgstr "TCode"
 
@@ -10935,7 +10939,7 @@ msgstr "TCode"
 msgid "TCode device connected"
 msgstr "TCode device connected"
 
-#: src/routes/settings.tsx:3706
+#: src/routes/settings.tsx:3771
 msgid "TCode serial port detected: {portPath}"
 msgstr "TCode serial port detected: {portPath}"
 
@@ -10943,26 +10947,26 @@ msgstr "TCode serial port detected: {portPath}"
 msgid "TCode support connects to TCodeESP32 over WebSocket and streams the primary funscript to L0."
 msgstr "TCode support connects to TCodeESP32 over WebSocket and streams the primary funscript to L0."
 
-#: src/routes/settings.tsx:3864
+#: src/routes/settings.tsx:3929
 msgid "TCode support streams the primary funscript to the L0 axis of OSR/SR-style devices."
 msgstr "TCode support streams the primary funscript to the L0 axis of OSR/SR-style devices."
 
 #: src/routes/first-start.tsx:2669
-#: src/routes/settings.tsx:4005
+#: src/routes/settings.tsx:4070
 msgid "TCode v0.2 / 3 digit"
 msgstr "TCode v0.2 / 3 digit"
 
 #: src/routes/first-start.tsx:2668
-#: src/routes/settings.tsx:4004
+#: src/routes/settings.tsx:4069
 msgid "TCode v0.3 / 4 digit"
 msgstr "TCode v0.3 / 4 digit"
 
 #: src/routes/first-start.tsx:2659
-#: src/routes/settings.tsx:3995
+#: src/routes/settings.tsx:4060
 msgid "TCode Version"
 msgstr "TCode Version"
 
-#: src/routes/settings.tsx:1589
+#: src/routes/settings.tsx:1591
 msgid "Technical preferences for power users."
 msgstr "Technical preferences for power users."
 
@@ -10985,11 +10989,11 @@ msgid "Temporary Standings"
 msgstr "Temporary Standings"
 
 #: src/routes/playlist-workshop.tsx:2069
-#: src/routes/settings.tsx:6387
+#: src/routes/settings.tsx:6452
 msgid "Test"
 msgstr "Test"
 
-#: src/routes/settings.tsx:4167
+#: src/routes/settings.tsx:4232
 msgid "Test Device"
 msgstr "Test Device"
 
@@ -11019,7 +11023,7 @@ msgstr "Text size"
 msgid "That file type is not supported here."
 msgstr "That file type is not supported here."
 
-#: src/routes/settings.tsx:7639
+#: src/routes/settings.tsx:7704
 msgid "that inspired this project."
 msgstr "that inspired this project."
 
@@ -11073,7 +11077,7 @@ msgstr "The full installed library will be packaged."
 msgid "The game keeps running in the background."
 msgstr "The game keeps running in the background."
 
-#: src/routes/settings.tsx:5688
+#: src/routes/settings.tsx:5753
 msgid "The global multiplayer minimum helps ensure everyone starts from a baseline good experience"
 msgstr "The global multiplayer minimum helps ensure everyone starts from a baseline good experience"
 
@@ -11081,7 +11085,7 @@ msgstr "The global multiplayer minimum helps ensure everyone starts from a basel
 msgid "The hero will be removed and the kept round will become a standalone entry. This cannot be undone in-app."
 msgstr "The hero will be removed and the kept round will become a standalone entry. This cannot be undone in-app."
 
-#: src/routes/settings.tsx:5627
+#: src/routes/settings.tsx:5692
 msgid "The mark on your highscores cannot be removed later"
 msgstr "The mark on your highscores cannot be removed later"
 
@@ -11090,14 +11094,14 @@ msgstr "The mark on your highscores cannot be removed later"
 msgid "first-start.step.moaning.detail.1"
 msgstr "The moaning library is separate from menu music. It is used by gameplay events that trigger one-shot or looping moaning audio."
 
-#: src/routes/settings.tsx:7608
+#: src/routes/settings.tsx:7673
 msgid "The person who came up with the original fap land idea."
 msgstr "The person who came up with the original fap land idea."
 
 #: src/routes/first-start.tsx:2451
 #: src/routes/index.tsx:606
 #: src/routes/index.tsx:772
-#: src/routes/settings.tsx:3779
+#: src/routes/settings.tsx:3844
 msgid "TheHandy"
 msgstr "TheHandy"
 
@@ -11116,7 +11120,7 @@ msgstr "TheHandy offset"
 msgid "game.handy.offsetReset"
 msgstr "TheHandy offset reset"
 
-#: src/routes/settings.tsx:4324
+#: src/routes/settings.tsx:4389
 msgid "TheHandy offset slider"
 msgstr "TheHandy offset slider"
 
@@ -11146,16 +11150,16 @@ msgid "game.handy.stopped"
 msgstr "TheHandy stopped."
 
 #: src/components/GlobalHandyOverlay.tsx:491
-#: src/routes/settings.tsx:4392
+#: src/routes/settings.tsx:4457
 msgid "TheHandy stroke maximum slider"
 msgstr "TheHandy stroke maximum slider"
 
 #: src/components/GlobalHandyOverlay.tsx:490
-#: src/routes/settings.tsx:4391
+#: src/routes/settings.tsx:4456
 msgid "TheHandy stroke minimum slider"
 msgstr "TheHandy stroke minimum slider"
 
-#: src/routes/settings.tsx:7637
+#: src/routes/settings.tsx:7702
 msgid "TheHandy version"
 msgstr "TheHandy version"
 
@@ -11169,11 +11173,11 @@ msgstr "TheHandy, funscripts"
 msgid "Then"
 msgstr "Then"
 
-#: src/routes/settings.tsx:5684
+#: src/routes/settings.tsx:5749
 msgid "These safeguards are not here to annoy you:"
 msgstr "These safeguards are not here to annoy you:"
 
-#: src/routes/settings.tsx:7587
+#: src/routes/settings.tsx:7652
 msgid "They helped improving and polishing the game."
 msgstr "They helped improving and polishing the game."
 
@@ -11271,7 +11275,7 @@ msgstr "This result is temporary. {activePlayers} player(s) still active. Final 
 msgid "This run was completed with cheat mode active"
 msgstr "This run was completed with cheat mode active"
 
-#: src/routes/settings.tsx:6196
+#: src/routes/settings.tsx:6261
 msgid "This Stash source will connect without API keys."
 msgstr "This Stash source will connect without API keys."
 
@@ -11279,20 +11283,20 @@ msgstr "This Stash source will connect without API keys."
 msgid "This website video URL is not supported."
 msgstr "This website video URL is not supported."
 
-#: src/routes/settings.tsx:5676
+#: src/routes/settings.tsx:5741
 msgid "This will allow you to access multiplayer regardless of the general minimum round count and any playlist-specific round requirement."
 msgstr "This will allow you to access multiplayer regardless of the general minimum round count and any playlist-specific round requirement."
 
-#: src/routes/settings.tsx:5609
+#: src/routes/settings.tsx:5674
 msgid "This will enable developer menu features in singleplayer sessions, giving you access to debug controls and shortcuts."
 msgstr "This will enable developer menu features in singleplayer sessions, giving you access to debug controls and shortcuts."
 
-#: src/routes/settings.tsx:5359
+#: src/routes/settings.tsx:5424
 msgid "This will remove every file from the current moaning playlist."
 msgstr "This will remove every file from the current moaning playlist."
 
 #: src/components/GlobalMusicOverlay.tsx:753
-#: src/routes/settings.tsx:4945
+#: src/routes/settings.tsx:5010
 msgid "This will remove every track from the current music playlist."
 msgstr "This will remove every track from the current music playlist."
 
@@ -11345,16 +11349,16 @@ msgid "toggle"
 msgstr "toggle"
 
 #. placeholder {0}: setting.label
-#: src/routes/settings.tsx:7476
+#: src/routes/settings.tsx:7541
 msgid "Toggle {0}"
 msgstr "Toggle {0}"
 
-#: src/routes/settings.tsx:4592
+#: src/routes/settings.tsx:4657
 msgid "Toggle Enable Global Music"
 msgstr "Toggle Enable Global Music"
 
 #: src/routes/first-start.tsx:1731
-#: src/routes/settings.tsx:5081
+#: src/routes/settings.tsx:5146
 msgid "Toggle Enable Moaning"
 msgstr "Toggle Enable Moaning"
 
@@ -11372,7 +11376,7 @@ msgstr "Toggle Handy"
 msgid "playlist-workshop.section.perks.description"
 msgstr "Toggle individual perks and anti-perks."
 
-#: src/routes/settings.tsx:4694
+#: src/routes/settings.tsx:4759
 msgid "Toggle Shuffle"
 msgstr "Toggle Shuffle"
 
@@ -11415,7 +11419,7 @@ msgstr "Total Rounds"
 
 #: src/components/GlobalMusicOverlay.tsx:646
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:630
-#: src/routes/settings.tsx:4720
+#: src/routes/settings.tsx:4785
 msgid "Track"
 msgstr "Track"
 
@@ -11518,9 +11522,9 @@ msgstr "Type \"{0}\" to confirm"
 
 #: src/components/PlaylistPackExportDialog.tsx:353
 #: src/routes/multiplayer.tsx:636
-#: src/routes/settings.tsx:6512
-#: src/routes/settings.tsx:6555
-#: src/routes/settings.tsx:6564
+#: src/routes/settings.tsx:6577
+#: src/routes/settings.tsx:6620
+#: src/routes/settings.tsx:6629
 msgid "Unavailable"
 msgstr "Unavailable"
 
@@ -11588,11 +11592,11 @@ msgstr "Unresolved"
 msgid "Up"
 msgstr "Up"
 
-#: src/routes/settings.tsx:3398
+#: src/routes/settings.tsx:3463
 msgid "Up to Date"
 msgstr "Up to Date"
 
-#: src/routes/settings.tsx:3396
+#: src/routes/settings.tsx:3461
 msgid "Update Available"
 msgstr "Update Available"
 
@@ -11613,16 +11617,16 @@ msgstr "Update Required"
 msgid "Update Status"
 msgstr "Update Status"
 
-#: src/routes/settings.tsx:3452
+#: src/routes/settings.tsx:3517
 msgid "Updates"
 msgstr "Updates"
 
 #: src/routes/first-start.tsx:2217
-#: src/routes/settings.tsx:2584
-#: src/routes/settings.tsx:2677
-#: src/routes/settings.tsx:2770
-#: src/routes/settings.tsx:2961
-#: src/routes/settings.tsx:5827
+#: src/routes/settings.tsx:2649
+#: src/routes/settings.tsx:2742
+#: src/routes/settings.tsx:2835
+#: src/routes/settings.tsx:3026
+#: src/routes/settings.tsx:5892
 msgid "Updating..."
 msgstr "Updating..."
 
@@ -11630,19 +11634,19 @@ msgstr "Updating..."
 msgid "Use a website video URL like Pornhub, XVideos, or rule34video as the source."
 msgstr "Use a website video URL like Pornhub, XVideos, or rule34video as the source."
 
-#: src/routes/settings.tsx:4059
+#: src/routes/settings.tsx:4124
 msgid "Use Built-In"
 msgstr "Use Built-In"
 
-#: src/routes/settings.tsx:4059
+#: src/routes/settings.tsx:4124
 msgid "Use Custom"
 msgstr "Use Custom"
 
 #: src/routes/first-start.tsx:2239
-#: src/routes/settings.tsx:2609
-#: src/routes/settings.tsx:2702
-#: src/routes/settings.tsx:2795
-#: src/routes/settings.tsx:2986
+#: src/routes/settings.tsx:2674
+#: src/routes/settings.tsx:2767
+#: src/routes/settings.tsx:2860
+#: src/routes/settings.tsx:3051
 msgid "Use Default"
 msgstr "Use Default"
 
@@ -11654,7 +11658,7 @@ msgstr "Use Item"
 msgid "Use perks on yourself, fire anti-perks at opponents, or discard stored items."
 msgstr "Use perks on yourself, fire anti-perks at opponents, or discard stored items."
 
-#: src/routes/settings.tsx:1673
+#: src/routes/settings.tsx:1689
 msgid "Use System Language"
 msgstr "Use System Language"
 
@@ -11690,7 +11694,7 @@ msgstr "Used during active gameplay and round playback."
 msgid "settings.help.shortcuts.converter.description"
 msgstr "Used while trimming and classifying segments in the converter."
 
-#: src/routes/settings.tsx:7188
+#: src/routes/settings.tsx:7253
 msgid "User-Trusted Domains"
 msgstr "User-Trusted Domains"
 
@@ -11699,15 +11703,15 @@ msgstr "User-Trusted Domains"
 msgid "User: {0}"
 msgstr "User: {0}"
 
-#: src/routes/settings.tsx:4042
+#: src/routes/settings.tsx:4107
 msgid "Using the built-in TheHandy app key automatically."
 msgstr "Using the built-in TheHandy app key automatically."
 
-#: src/routes/settings.tsx:4041
+#: src/routes/settings.tsx:4106
 msgid "Using your custom TheHandy app key."
 msgstr "Using your custom TheHandy app key."
 
-#: src/routes/settings.tsx:8044
+#: src/routes/settings.tsx:8109
 msgid "Valid portable installation detected"
 msgstr "Valid portable installation detected"
 
@@ -11715,7 +11719,7 @@ msgstr "Valid portable installation detected"
 msgid "Verify the board and start."
 msgstr "Verify the board and start."
 
-#: src/routes/settings.tsx:6552
+#: src/routes/settings.tsx:6617
 msgid "Version"
 msgstr "Version"
 
@@ -11724,7 +11728,7 @@ msgstr "Version"
 msgid "video"
 msgstr "video"
 
-#: src/routes/settings.tsx:5471
+#: src/routes/settings.tsx:5536
 msgid "Video Cache"
 msgstr "Video Cache"
 
@@ -11732,7 +11736,7 @@ msgstr "Video Cache"
 msgid "Video Caching"
 msgstr "Video Caching"
 
-#: src/routes/settings.tsx:3072
+#: src/routes/settings.tsx:3137
 msgid "Video Fingerprint Scanner"
 msgstr "Video Fingerprint Scanner"
 
@@ -11767,7 +11771,7 @@ msgstr "Video URL"
 msgid "Video:"
 msgstr "Video:"
 
-#: src/routes/settings.tsx:1594
+#: src/routes/settings.tsx:1596
 msgid "VideoHash FFmpeg Source"
 msgstr "VideoHash FFmpeg Source"
 
@@ -11822,8 +11826,8 @@ msgstr "visible steps"
 msgid "Volume"
 msgstr "Volume"
 
-#: src/routes/settings.tsx:4659
-#: src/routes/settings.tsx:5103
+#: src/routes/settings.tsx:4724
+#: src/routes/settings.tsx:5168
 msgid "Volume:"
 msgstr "Volume:"
 
@@ -11847,7 +11851,7 @@ msgstr "Waiting for haptics sync before playback..."
 msgid "Waiting for TheHandy sync before playback..."
 msgstr "Waiting for TheHandy sync before playback..."
 
-#: src/routes/settings.tsx:1649
+#: src/routes/settings.tsx:1651
 msgid "Warn"
 msgstr "Warn"
 
@@ -11859,7 +11863,7 @@ msgstr "Warning"
 msgid "Warning: runs from this playlist are marked as assisted on the highscore and in run history."
 msgstr "Warning: runs from this playlist are marked as assisted on the highscore and in run history."
 
-#: src/routes/settings.tsx:5552
+#: src/routes/settings.tsx:5617
 msgid "Warning: This cannot be undone."
 msgstr "Warning: This cannot be undone."
 
@@ -11882,11 +11886,11 @@ msgid "Website stream playback failed"
 msgstr "Website stream playback failed"
 
 #: src/routes/first-start.tsx:2166
-#: src/routes/settings.tsx:3264
+#: src/routes/settings.tsx:3329
 msgid "Website Video Cache"
 msgstr "Website Video Cache"
 
-#: src/routes/settings.tsx:2547
+#: src/routes/settings.tsx:2612
 msgid "Website Video Cache Location"
 msgstr "Website Video Cache Location"
 
@@ -11900,7 +11904,7 @@ msgid "Website Video URL"
 msgstr "Website Video URL"
 
 #: src/routes/first-start.tsx:2555
-#: src/routes/settings.tsx:3882
+#: src/routes/settings.tsx:3947
 msgid "WebSocket"
 msgstr "WebSocket"
 
@@ -11926,8 +11930,8 @@ msgstr "What Fap Land Party Edition is and how the two play modes work"
 msgid "What happens"
 msgstr "What happens"
 
-#: src/routes/settings.tsx:1767
-#: src/routes/settings.tsx:6916
+#: src/routes/settings.tsx:1783
+#: src/routes/settings.tsx:6981
 msgid "What's New"
 msgstr "What's New"
 
@@ -11936,23 +11940,23 @@ msgstr "What's New"
 msgid "When"
 msgstr "When"
 
-#: src/routes/settings.tsx:1147
+#: src/routes/settings.tsx:1149
 msgid "When disabled, animated backgrounds keep the visual effects but skip loading video files."
 msgstr "When disabled, animated backgrounds keep the visual effects but skip loading video files."
 
-#: src/routes/settings.tsx:1674
+#: src/routes/settings.tsx:1690
 msgid "When enabled, first launch may use your system language if it is supported. Disabled by default so English remains the default language."
 msgstr "When enabled, first launch may use your system language if it is supported. Disabled by default so English remains the default language."
 
-#: src/routes/settings.tsx:1335
+#: src/routes/settings.tsx:1337
 msgid "When enabled, funscripts with `range: 90` are normalized to `100` in memory so TheHandy playback keeps working."
 msgstr "When enabled, funscripts with `range: 90` are normalized to `100` in memory so TheHandy playback keeps working."
 
-#: src/routes/settings.tsx:1376
+#: src/routes/settings.tsx:1378
 msgid "When enabled, holding 'S' during the first 5 seconds of app startup will automatically enable SFW Mode. Useful for emergency situations."
 msgstr "When enabled, holding 'S' during the first 5 seconds of app startup will automatically enable SFW Mode. Useful for emergency situations."
 
-#: src/routes/settings.tsx:1225
+#: src/routes/settings.tsx:1227
 msgid "When enabled, perks (not anti-perks) are applied immediately when received instead of being stored in inventory."
 msgstr "When enabled, perks (not anti-perks) are applied immediately when received instead of being stored in inventory."
 
@@ -11964,7 +11968,7 @@ msgstr "When enabled, the anti-perk chance resets to its initial value after a r
 msgid "When enabled, the intermediary chance resets to its initial value after a round where intermediaries were triggered."
 msgstr "When enabled, the intermediary chance resets to its initial value after a round where intermediaries were triggered."
 
-#: src/routes/settings.tsx:7821
+#: src/routes/settings.tsx:7886
 msgid "When enabled, the original cache folders will be removed after all files have been copied successfully. Keep this off if you want to verify the migration first."
 msgstr "When enabled, the original cache folders will be removed after all files have been copied successfully. Keep this off if you want to verify the migration first."
 
@@ -11972,7 +11976,11 @@ msgstr "When enabled, the original cache folders will be removed after all files
 msgid "When enabled, this round will never be picked by random round nodes, the succubus anti-perk, or the cum round fallback."
 msgstr "When enabled, this round will never be picked by random round nodes, the succubus anti-perk, or the cum round fallback."
 
-#: src/routes/settings.tsx:1130
+#: src/routes/settings.tsx:1668
+msgid "When the log file exceeds this size, the oldest entries are pruned."
+msgstr "When the log file exceeds this size, the oldest entries are pruned."
+
+#: src/routes/settings.tsx:1132
 msgid "Window and display preferences."
 msgstr "Window and display preferences."
 
@@ -12091,7 +12099,7 @@ msgstr "You ended your endless run. Great endurance!"
 msgid "You failed the final instruction. The system is disappointed."
 msgstr "You failed the final instruction. The system is disappointed."
 
-#: src/routes/settings.tsx:5699
+#: src/routes/settings.tsx:5764
 msgid "You may encounter empty rounds, repeated content, or broken match flows"
 msgstr "You may encounter empty rounds, repeated content, or broken match flows"
 
@@ -12111,7 +12119,7 @@ msgstr "You were removed from this game."
 msgid "You will choose a destination folder, then a timestamped export package will be generated inside it."
 msgstr "You will choose a destination folder, then a timestamped export package will be generated inside it."
 
-#: src/routes/settings.tsx:5453
+#: src/routes/settings.tsx:5518
 msgid "Your custom and imported playlists."
 msgstr "Your custom and imported playlists."
 
@@ -12131,11 +12139,11 @@ msgstr "Your queue is empty"
 msgid "Your queue is empty."
 msgstr "Your queue is empty."
 
-#: src/routes/settings.tsx:1612
+#: src/routes/settings.tsx:1614
 msgid "yt-dlp Binary Source"
 msgstr "yt-dlp Binary Source"
 
-#: src/routes/settings.tsx:7148
+#: src/routes/settings.tsx:7213
 msgid "yt-dlp Domains"
 msgstr "yt-dlp Domains"
 
@@ -12147,13 +12155,13 @@ msgstr "Z-A"
 msgid "Zoom"
 msgstr "Zoom"
 
-#: src/routes/settings.tsx:6835
-#: src/routes/settings.tsx:6836
+#: src/routes/settings.tsx:6900
+#: src/routes/settings.tsx:6901
 msgid "Zoom in"
 msgstr "Zoom in"
 
-#: src/routes/settings.tsx:6813
-#: src/routes/settings.tsx:6814
+#: src/routes/settings.tsx:6878
+#: src/routes/settings.tsx:6879
 msgid "Zoom out"
 msgstr "Zoom out"
 
