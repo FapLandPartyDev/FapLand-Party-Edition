@@ -1,6 +1,5 @@
 export type FunscriptDifficultyMetrics = {
-  averageVelocity: number;
-  pointsPerSecond: number;
+  beatHitCount: number;
   durationSec: number;
 };
 
@@ -9,36 +8,29 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /**
- * Maps funscript motion metrics to the 1–5 difficulty scale.
+ * Maps a funscript's beat hits and duration to the 1–5 difficulty scale.
  *
- * The inputs are normalized linearly so common scripts retain useful separation
- * across levels 1–3. Levels 4 and 5 require increasingly unusual combinations
- * of velocity and action density instead of being reached early by log curves.
+ * A full beat is one up/down stroke, represented by two timed funscript actions.
+ * Total beat hits are the primary signal, while duration has enough weight to
+ * make longer rounds meaningfully harder. Position changes are deliberately
+ * ignored: moving farther during a stroke should not increase its difficulty.
  */
 export function estimateFunscriptDifficulty({
-  averageVelocity,
-  pointsPerSecond,
+  beatHitCount,
   durationSec,
 }: FunscriptDifficultyMetrics): number | null {
   if (
-    !Number.isFinite(averageVelocity) ||
-    averageVelocity < 0 ||
-    !Number.isFinite(pointsPerSecond) ||
-    pointsPerSecond < 0 ||
+    !Number.isFinite(beatHitCount) ||
+    beatHitCount < 0 ||
     !Number.isFinite(durationSec) ||
     durationSec <= 0
   ) {
     return null;
   }
 
-  const velocityNorm = clamp(averageVelocity / 2_000, 0, 1);
-  const pointNorm = clamp(pointsPerSecond / 20, 0, 1);
-  const lengthNorm = clamp(durationSec / 180, 0, 1);
-  const score = 0.55 * velocityNorm + 0.35 * pointNorm + 0.1 * lengthNorm;
+  const hitNorm = clamp(beatHitCount / 1_000, 0, 1);
+  const lengthNorm = clamp(durationSec / 300, 0, 1);
+  const score = 0.65 * hitNorm + 0.35 * lengthNorm;
 
-  if (score < 0.125) return 1;
-  if (score < 0.375) return 2;
-  if (score < 0.575) return 3;
-  if (score < 0.875) return 4;
-  return 5;
+  return clamp(Math.round(1 + score * 4), 1, 5);
 }

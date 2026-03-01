@@ -7,6 +7,7 @@ type ShelfHeaderProps = {
   roundCount: number;
   expanded: boolean;
   status?: string | null;
+  badge?: string | null;
   accent: "cyan" | "emerald";
   onToggle: () => void;
   onHoverSfx: () => void;
@@ -22,6 +23,7 @@ function ShelfHeader({
   roundCount,
   expanded,
   status,
+  badge,
   accent,
   onToggle,
   onHoverSfx,
@@ -70,6 +72,7 @@ function ShelfHeader({
           <h2 className="truncate text-base font-bold tracking-tight text-zinc-100">{name}</h2>
         </div>
         <span className="round-library-count-badge">{roundCount}</span>
+        {badge && <span className="round-library-hard-mode-badge">{badge}</span>}
         {status && <span className="truncate text-[10px] text-amber-300/70">{status}</span>}
         <span className="ml-auto text-[10px] text-zinc-600">
           {expanded ? t`Collapse` : t`Expand`}
@@ -117,6 +120,7 @@ export function HeroGroupHeader({
   expanded,
   converting,
   convertingHardMode,
+  isHardModeConverted,
   hasTemplateRounds,
   onToggle,
   onConvertToRound,
@@ -138,6 +142,7 @@ export function HeroGroupHeader({
   expanded: boolean;
   converting: boolean;
   convertingHardMode: boolean;
+  isHardModeConverted: boolean;
   hasTemplateRounds: boolean;
   onToggle: () => void;
   onConvertToRound: () => void;
@@ -161,6 +166,7 @@ export function HeroGroupHeader({
       roundCount={roundCount}
       expanded={expanded}
       status={pending > 0 ? t`${pending} media tasks pending` : null}
+      badge={isHardModeConverted ? t`Hard Mode` : null}
       accent="cyan"
       onToggle={onToggle}
       onHoverSfx={onHoverSfx}

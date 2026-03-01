@@ -25,6 +25,7 @@ import {
 } from "../constants/menuThemeSettings";
 import { useHandy } from "../contexts/HandyContext";
 import { useAppUpdate } from "../hooks/useAppUpdate";
+import { useUpdateChannel } from "../hooks/useUpdateChannel";
 import { useIdleScreenPerformance } from "../hooks/useIdleScreenPerformance";
 import { useSfwMode } from "../hooks/useSfwMode";
 import { useMenuNavigation, type MenuOption } from "../hooks/useMenuNavigation";
@@ -195,6 +196,7 @@ const Home = () => {
   const { t } = useLingui();
   const { connected, isConnecting, error, connectionKey } = useHandy();
   const appUpdate = useAppUpdate();
+  const updateChannel = useUpdateChannel();
   const sfwModeEnabled = useSfwMode();
   const scopeRef = useRef<HTMLDivElement | null>(null);
   const [compactSystemOpen, setCompactSystemOpen] = useState(false);
@@ -283,6 +285,7 @@ const Home = () => {
   }, []);
 
   const options: MenuOption[] = useMemo(() => {
+    const multiplayerBlockedByDisabledUpdates = updateChannel === null || updateChannel === "none";
     const multiplayerBlockedByUpdate = appUpdate.state.status === "update_available";
     const multiplayerBlockedByRounds =
       !skipRoundsCheck && installedRoundCount < MULTIPLAYER_MINIMUM_ROUNDS;
@@ -303,17 +306,26 @@ const Home = () => {
             id: "multiplayer",
             label: t`Multiplayer`,
             experimental: true,
-            disabled: sfwModeEnabled || multiplayerBlockedByUpdate || multiplayerBlockedByRounds,
+            disabled:
+              sfwModeEnabled ||
+              multiplayerBlockedByDisabledUpdates ||
+              multiplayerBlockedByUpdate ||
+              multiplayerBlockedByRounds,
             subLabel: sfwModeEnabled
               ? t`Blocked By SFW Mode`
-              : multiplayerBlockedByUpdate
-                ? t`Update Required`
-                : multiplayerBlockedByRounds
-                  ? t`${MULTIPLAYER_MINIMUM_ROUNDS} Rounds Required`
-                  : undefined,
+              : multiplayerBlockedByDisabledUpdates
+                ? t`Updates Disabled`
+                : multiplayerBlockedByUpdate
+                  ? t`Update Required`
+                  : multiplayerBlockedByRounds
+                    ? t`${MULTIPLAYER_MINIMUM_ROUNDS} Rounds Required`
+                    : undefined,
             action: () => navigate({ to: "/multiplayer" }),
           },
-          ...(multiplayerBlockedByRounds && !sfwModeEnabled && !multiplayerBlockedByUpdate
+          ...(multiplayerBlockedByRounds &&
+          !sfwModeEnabled &&
+          !multiplayerBlockedByDisabledUpdates &&
+          !multiplayerBlockedByUpdate
             ? [
                 {
                   id: "install-rounds-for-multiplayer",
@@ -407,7 +419,15 @@ const Home = () => {
     });
 
     return nextOptions;
-  }, [appUpdate, navigate, installedRoundCount, sfwModeEnabled, skipRoundsCheck, t]);
+  }, [
+    appUpdate,
+    navigate,
+    installedRoundCount,
+    sfwModeEnabled,
+    skipRoundsCheck,
+    t,
+    updateChannel,
+  ]);
 
   const { selectedIndex, handleMouseEnter, handleClick, currentOptions, depth, goBack } =
     useMenuNavigation(options);

@@ -4968,6 +4968,7 @@ export const GameScene = memo(function GameScene({
       {animPhase.kind === "roundCountdown" && (
         <RoundStartTransition
           queuedRound={state.queuedRound}
+          player={currentPlayer}
           remaining={animPhase.remaining}
           duration={animPhase.duration}
           roadPalette={

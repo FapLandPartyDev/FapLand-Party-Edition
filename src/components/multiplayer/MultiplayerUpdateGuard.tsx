@@ -3,6 +3,7 @@ import { useAppUpdate } from "../../hooks/useAppUpdate";
 import { AnimatedBackground } from "../AnimatedBackground";
 import { playSelectSound } from "../../utils/audio";
 import { useNavigate } from "@tanstack/react-router";
+import { useUpdateChannel } from "../../hooks/useUpdateChannel";
 
 /**
  * A guard component that blocks access to multiplayer features if an update is available.
@@ -11,12 +12,18 @@ import { useNavigate } from "@tanstack/react-router";
 export const MultiplayerUpdateGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state, triggerPrimaryAction } = useAppUpdate();
   const navigate = useNavigate();
+  const updateChannel = useUpdateChannel();
+  const updatesDisabled = updateChannel === "none";
+
+  if (updateChannel === null) {
+    return null;
+  }
 
   // If we are still checking or no update is available, show the content.
   // Note: "error" is also ignored here to avoid blocking users if GitHub is down,
   // unless we decide that blocking on error is safer.
   // Given the current requirement, "update_available" is the key trigger.
-  if (state.status !== "update_available") {
+  if (!updatesDisabled && state.status !== "update_available") {
     return <>{children}</>;
   }
 
@@ -50,28 +57,33 @@ export const MultiplayerUpdateGuard: React.FC<{ children: React.ReactNode }> = (
 
           <div className="space-y-2">
             <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-              Update Required
+              {updatesDisabled ? "Multiplayer Disabled" : "Update Required"}
             </h1>
-            <p className="text-lg font-medium text-violet-200/70">Multiplayer protocol mismatch</p>
+            <p className="text-lg font-medium text-violet-200/70">
+              {updatesDisabled ? "Updates are turned off" : "Multiplayer protocol mismatch"}
+            </p>
           </div>
 
           <p className="text-sm leading-relaxed text-zinc-400">
-            A newer version of f-land is available (v{state.latestVersion}). To ensure fair play and
-            stable connections, all players must be on the latest build.
+            {updatesDisabled
+              ? "Multiplayer requires updates to remain enabled so players use compatible versions. Select a release channel in Settings to continue."
+              : `A newer version of f-land is available (v${state.latestVersion}). To ensure fair play and stable connections, all players must be on the latest build.`}
           </p>
         </div>
 
         <div className="flex flex-col gap-4">
-          <button
-            onClick={() => {
-              playSelectSound();
-              void triggerPrimaryAction();
-            }}
-            className="group relative flex items-center justify-center gap-3 overflow-hidden rounded-2xl bg-white px-8 py-4 text-sm font-bold uppercase tracking-widest text-black transition-all hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] active:scale-[0.98]"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-violet-200/0 via-violet-200/30 to-violet-200/0 translate-x-[-100%] transition-transform duration-1000 group-hover:translate-x-[100%]" />
-            Update Now
-          </button>
+          {!updatesDisabled ? (
+            <button
+              onClick={() => {
+                playSelectSound();
+                void triggerPrimaryAction();
+              }}
+              className="group relative flex items-center justify-center gap-3 overflow-hidden rounded-2xl bg-white px-8 py-4 text-sm font-bold uppercase tracking-widest text-black transition-all hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] active:scale-[0.98]"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-200/0 via-violet-200/30 to-violet-200/0 translate-x-[-100%] transition-transform duration-1000 group-hover:translate-x-[100%]" />
+              Update Now
+            </button>
+          ) : null}
 
           <button
             onClick={() => {
@@ -84,11 +96,13 @@ export const MultiplayerUpdateGuard: React.FC<{ children: React.ReactNode }> = (
           </button>
         </div>
 
-        <div className="pt-2">
-          <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.3em] text-zinc-600">
-            Detected: v{state.currentVersion} → v{state.latestVersion}
-          </p>
-        </div>
+        {!updatesDisabled ? (
+          <div className="pt-2">
+            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.3em] text-zinc-600">
+              Detected: v{state.currentVersion} → v{state.latestVersion}
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

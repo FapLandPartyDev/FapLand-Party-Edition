@@ -12,6 +12,7 @@ function renderHeroHeader(overrides: Partial<ComponentProps<typeof HeroGroupHead
     expanded: false,
     converting: false,
     convertingHardMode: false,
+    isHardModeConverted: false,
     hasTemplateRounds: false,
     onToggle: vi.fn(),
     onConvertToRound: vi.fn(),
@@ -47,5 +48,11 @@ describe("HeroGroupHeader", () => {
     const action = screen.getByRole("button", { name: "Converting legacy script…" });
 
     expect(action.hasAttribute("disabled")).toBe(true);
+  });
+
+  it("shows when the hero funscript is already converted to hard mode", () => {
+    renderHeroHeader({ isHardModeConverted: true });
+
+    expect(screen.getByText("Hard Mode")).toBeDefined();
   });
 });

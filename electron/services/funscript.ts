@@ -409,29 +409,9 @@ function calculateDifficulty(actions: FunscriptAction[]): number | null {
   const durationMs = actions[actions.length - 1].at - actions[0].at;
   if (!(durationMs > 0)) return null;
 
-  const durationSec = durationMs / 1000;
-  const pointRate = actions.length / durationSec;
-
-  let velocitySamples = 0;
-  let velocitySum = 0;
-  for (let index = 1; index < actions.length; index += 1) {
-    const previous = actions[index - 1];
-    const current = actions[index];
-    if (!previous || !current) continue;
-    const deltaTimeSec = (current.at - previous.at) / 1000;
-    if (deltaTimeSec <= 0) continue;
-    const deltaPos = Math.abs(current.pos - previous.pos);
-    velocitySum += deltaPos / deltaTimeSec;
-    velocitySamples += 1;
-  }
-
-  if (velocitySamples === 0) return null;
-
-  const avgVelocity = velocitySum / velocitySamples;
   return estimateFunscriptDifficulty({
-    averageVelocity: avgVelocity,
-    pointsPerSecond: pointRate,
-    durationSec,
+    beatHitCount: actions.length / 2,
+    durationSec: durationMs / 1000,
   });
 }
 

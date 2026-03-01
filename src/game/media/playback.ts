@@ -68,10 +68,12 @@ const JAMMED_DICE_INTERMEDIARIES: PlaybackModifier = {
   },
 };
 
+export const HIGHSPEED_PLAYBACK_RATE = 1.2;
+
 const HIGHSPEED_RATE: PlaybackModifier = {
   id: "highspeed-rate",
   isEnabled: (ctx) => ctx.playerAntiPerks.includes("highspeed"),
-  getPlaybackRateMultiplier: () => 1.2,
+  getPlaybackRateMultiplier: () => HIGHSPEED_PLAYBACK_RATE,
 };
 
 const BUILTIN_MODIFIERS: PlaybackModifier[] = [JAMMED_DICE_INTERMEDIARIES, HIGHSPEED_RATE];

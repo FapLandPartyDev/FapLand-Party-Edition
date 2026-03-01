@@ -42,23 +42,38 @@ describe("converter metadata", () => {
     ];
     expect(estimateDifficultyFromActions(easyActions, 8)).toBe(1);
 
-    // Sustained 700 units/second at 10 points/second remains in the normal 1–3 range.
-    const mediumActions = Array.from({ length: 3_001 }, (_, index) => ({
-      at: index * 100,
+    // A sustained five-minute script with about 800 beat hits rates highly.
+    const mediumActions = Array.from({ length: 1_601 }, (_, index) => ({
+      at: Math.round(index * 187.5),
       pos: index % 2 === 0 ? 0 : 70,
     }));
-    expect(estimateDifficultyFromActions(mediumActions, 300)).toBe(3);
+    expect(estimateDifficultyFromActions(mediumActions, 300)).toBe(4);
 
-    // Level 4 requires extreme velocity and density sustained for the full segment.
-    const extremeActions = Array.from({ length: 4_801 }, (_, index) => ({
-      at: Math.round(index * 62.5),
+    // One thousand or more beat hits over five minutes reaches level 5.
+    const extremeActions = Array.from({ length: 2_001 }, (_, index) => ({
+      at: index * 150,
       pos: index % 2 === 0 ? 0 : 100,
     }));
-    expect(estimateDifficultyFromActions(extremeActions, 300)).toBe(4);
+    expect(estimateDifficultyFromActions(extremeActions, 300)).toBe(5);
   });
 
-  it("returns null difficulty on insufficient velocity samples", () => {
+  it("returns null difficulty on insufficient beat-hit data", () => {
     expect(estimateDifficultyFromActions([{ at: 0, pos: 30 }], 1)).toBeNull();
+  });
+
+  it("does not let movement velocity affect difficulty", () => {
+    const smallMovements = Array.from({ length: 1_000 }, (_, index) => ({
+      at: index * 100,
+      pos: index % 2 === 0 ? 49 : 51,
+    }));
+    const largeMovements = smallMovements.map((action, index) => ({
+      ...action,
+      pos: index % 2 === 0 ? 0 : 100,
+    }));
+
+    expect(estimateDifficultyFromActions(smallMovements, 180)).toBe(
+      estimateDifficultyFromActions(largeMovements, 180)
+    );
   });
 
   it("clamps bpm to allowed bounds", () => {

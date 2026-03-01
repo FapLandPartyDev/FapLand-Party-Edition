@@ -199,6 +199,7 @@ import { MUSIC_CACHE_ROOT_PATH_KEY } from "../constants/musicSettings";
 import { FPACK_EXTRACTION_PATH_KEY } from "../constants/fpackSettings";
 import {
   DEFAULT_UPDATE_CHANNEL,
+  UPDATE_CHANNEL_CHANGED_EVENT,
   UPDATE_CHANNEL_KEY,
   normalizeUpdateChannel,
   type UpdateChannel,
@@ -4118,6 +4119,7 @@ function AppUpdateCard({ appUpdate }: { appUpdate: ReturnType<typeof useAppUpdat
     try {
       await trpc.store.set.mutate({ key: UPDATE_CHANNEL_KEY, value: next });
       setUpdateChannel(next);
+      window.dispatchEvent(new CustomEvent(UPDATE_CHANNEL_CHANGED_EVENT, { detail: next }));
       await trpc.updater.check.mutate({ force: true });
     } catch (error) {
       setChannelError(error instanceof Error ? error.message : t`Failed to update channel.`);
@@ -4164,6 +4166,7 @@ function AppUpdateCard({ appUpdate }: { appUpdate: ReturnType<typeof useAppUpdat
               label={t`Channel`}
               value={updateChannel}
               options={[
+                { value: "none", label: t`None (updates disabled)` },
                 { value: "release", label: t`Release` },
                 { value: "prerelease", label: t`Prerelease` },
               ]}
@@ -4174,18 +4177,22 @@ function AppUpdateCard({ appUpdate }: { appUpdate: ReturnType<typeof useAppUpdat
             />
             <button
               type="button"
-              disabled={appUpdate.isBusy || isSavingChannel}
+              disabled={updateChannel === "none" || appUpdate.isBusy || isSavingChannel}
               onClick={() => {
                 playSelectSound();
                 void appUpdate.triggerPrimaryAction();
               }}
               className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                appUpdate.isBusy || isSavingChannel
+                updateChannel === "none" || appUpdate.isBusy || isSavingChannel
                   ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
                   : "border-violet-300/60 bg-violet-500/30 text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/45"
               }`}
             >
-              {isSavingChannel ? t`Saving...` : appUpdate.actionLabel}
+              {isSavingChannel
+                ? t`Saving...`
+                : updateChannel === "none"
+                  ? t`Updates Disabled`
+                  : appUpdate.actionLabel}
             </button>
           </div>
         </div>
@@ -4197,6 +4204,17 @@ function AppUpdateCard({ appUpdate }: { appUpdate: ReturnType<typeof useAppUpdat
             <Trans>
               Prerelease updates are unstable and may break features. In rare cases, you may lose
               data. Back up important data before continuing.
+            </Trans>
+          </div>
+        ) : null}
+        {updateChannel === "none" ? (
+          <div
+            role="alert"
+            className="mt-3 rounded-xl border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100 animate-entrance"
+          >
+            <Trans>
+              Updates are disabled. You will not stay up to date, and multiplayer is unavailable
+              until you select a release channel.
             </Trans>
           </div>
         ) : null}

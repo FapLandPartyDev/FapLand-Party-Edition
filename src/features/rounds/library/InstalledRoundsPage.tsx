@@ -3640,6 +3640,7 @@ function HeroGroupHeaderShell({
       onHoverSfx={handleHoverSfx}
       converting={convertingHeroGroupKey === row.groupKey}
       convertingHardMode={convertingHardModeHeroId === heroId || revertingHardModeRoundId !== null}
+      isHardModeConverted={row.rounds.some((round) => round.isHardModeConverted)}
       hasTemplateRounds={row.rounds.some((round) => isTemplateRound(round))}
       selectionMode={selectionMode}
       selected={isGroupSelected}

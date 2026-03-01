@@ -2,11 +2,21 @@ import { useMemo, type CSSProperties } from "react";
 import type { RoadPalette } from "../../game/types";
 import { normalizeRoadPalette } from "../../features/map-editor/EditorState";
 
+export type CinematicTransitionHintTone = "instruction" | "perk" | "antiPerk";
+
+export type CinematicTransitionHint = {
+  id: string;
+  label: string;
+  text: string;
+  tone: CinematicTransitionHintTone;
+};
+
 export type CinematicTransitionFrameProps = {
   title: string;
   overline: string;
   accentLabel?: string | null;
   hintText?: string | null;
+  hints?: CinematicTransitionHint[];
   countdownLabel?: string | null;
   progress: number;
   variant: "playlist-launch" | "round-start";
@@ -45,6 +55,7 @@ export function CinematicTransitionFrame({
   overline,
   accentLabel,
   hintText,
+  hints = [],
   countdownLabel,
   progress,
   variant,
@@ -54,6 +65,15 @@ export function CinematicTransitionFrame({
   const safeProgress = clamp01(progress);
   const isPlaylistLaunch = variant === "playlist-launch";
   const palette = useMemo(() => normalizeRoadPalette(roadPalette), [roadPalette]);
+  const resolvedHints = useMemo(
+    () => [
+      ...(hintText
+        ? [{ id: "legacy-hint", label: "", text: hintText, tone: "instruction" as const }]
+        : []),
+      ...hints,
+    ],
+    [hintText, hints]
+  );
 
   // Timeline Math
   // Entry: 0 to 15%
@@ -296,25 +316,61 @@ export function CinematicTransitionFrame({
             ) : null}
           </div>
 
-          {hintText ? (
+          {resolvedHints.length > 0 ? (
             <div
-              className="relative z-10 mt-6 rounded-[1.5rem] border border-fuchsia-200/20 bg-[linear-gradient(135deg,rgba(14,29,56,0.85),rgba(34,11,49,0.78))] px-4 py-4 shadow-[inset_0_0_24px_rgba(103,232,249,0.08),0_0_24px_rgba(217,70,239,0.08)] sm:px-5"
+              className="relative z-10 mt-6 grid gap-2.5"
               data-testid="cinematic-transition-hint"
               style={{
-                background:
-                  "linear-gradient(135deg, var(--transition-body-85), var(--transition-glow-30))",
-                borderColor: "var(--transition-rail-b-25)",
-                boxShadow:
-                  "inset 0 0 24px var(--transition-rail-a-08), 0 0 24px var(--transition-rail-b-20)",
                 opacity: entryPhase < 1 ? entryEase : 1 - warpEase * 0.15,
               }}
             >
-              <p
-                className="font-[family-name:var(--font-inter)] text-sm font-semibold leading-6 text-cyan-50 sm:text-base"
-                style={{ color: "var(--transition-marker)" }}
-              >
-                {hintText}
-              </p>
+              {resolvedHints.map((hint) => {
+                const semanticColor =
+                  hint.tone === "perk"
+                    ? "#34d399"
+                    : hint.tone === "antiPerk"
+                      ? "#fb7185"
+                      : palette.center;
+
+                return (
+                  <div
+                    className="flex items-start gap-3 rounded-[1.1rem] border bg-[linear-gradient(135deg,rgba(14,29,56,0.85),rgba(34,11,49,0.78))] px-4 py-3 shadow-[inset_0_0_24px_rgba(103,232,249,0.08),0_0_24px_rgba(217,70,239,0.08)] sm:items-center"
+                    data-testid="cinematic-transition-hint-item"
+                    data-tone={hint.tone}
+                    key={hint.id}
+                    style={{
+                      background:
+                        "linear-gradient(135deg, var(--transition-body-85), var(--transition-glow-30))",
+                      borderColor: colorWithAlpha(semanticColor, 0.38),
+                      boxShadow: `inset 0 0 24px var(--transition-rail-a-08), 0 0 24px ${colorWithAlpha(semanticColor, 0.12)}`,
+                    }}
+                  >
+                    <span
+                      className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full sm:mt-0"
+                      style={{
+                        backgroundColor: semanticColor,
+                        boxShadow: `0 0 12px ${colorWithAlpha(semanticColor, 0.75)}`,
+                      }}
+                    />
+                    <div className="min-w-0 sm:flex sm:items-baseline sm:gap-3">
+                      {hint.label ? (
+                        <span
+                          className="block shrink-0 font-[family-name:var(--font-jetbrains-mono)] text-[9px] font-black uppercase tracking-[0.22em] sm:inline"
+                          style={{ color: semanticColor }}
+                        >
+                          {hint.label}
+                        </span>
+                      ) : null}
+                      <p
+                        className="font-[family-name:var(--font-inter)] text-sm font-semibold leading-5 text-cyan-50 sm:text-base"
+                        style={{ color: "var(--transition-marker)" }}
+                      >
+                        {hint.text}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : null}
 

@@ -29,6 +29,7 @@ import { PlaylistExportOverlay } from "../components/PlaylistExportOverlay";
 import { PlaylistResolutionModal } from "../components/PlaylistResolutionModal";
 import { RoundVideoOverlay } from "../components/game/RoundVideoOverlay";
 import { PlaylistPicker } from "../features/playlist-picker/PlaylistPicker";
+import { DifficultySectionNumberInput } from "../features/playlist-workshop/DifficultySectionNumberInput";
 import {
   CURRENT_PLAYLIST_VERSION,
   ZPlaylistConfig,
@@ -2125,9 +2126,33 @@ function PlaylistWorkshopPage() {
     setSetup((prev) =>
       ensureLinearSetupCapacity({
         ...prev,
-        difficultySections: prev.difficultySections.map((section, index) =>
-          index === sectionIndex ? { ...section, ...patch } : section
-        ),
+        difficultySections: prev.difficultySections.map((section, index) => {
+          if (index !== sectionIndex) return section;
+          const nextSection = { ...section, ...patch };
+
+          if (patch.startIndex !== undefined && nextSection.startIndex > nextSection.endIndex) {
+            nextSection.endIndex = nextSection.startIndex;
+          } else if (
+            patch.endIndex !== undefined &&
+            nextSection.endIndex < nextSection.startIndex
+          ) {
+            nextSection.startIndex = nextSection.endIndex;
+          }
+
+          if (
+            patch.minDifficulty !== undefined &&
+            nextSection.minDifficulty > nextSection.maxDifficulty
+          ) {
+            nextSection.maxDifficulty = nextSection.minDifficulty;
+          } else if (
+            patch.maxDifficulty !== undefined &&
+            nextSection.maxDifficulty < nextSection.minDifficulty
+          ) {
+            nextSection.minDifficulty = nextSection.maxDifficulty;
+          }
+
+          return nextSection;
+        }),
       })
     );
   };
@@ -2996,20 +3021,18 @@ function PlaylistWorkshopPage() {
                                           className="text-[10px] uppercase tracking-[0.16em] text-cyan-50/60"
                                         >
                                           {label}
-                                          <input
-                                            type="number"
-                                            min={field.includes("Difficulty") ? 1 : 1}
+                                          <DifficultySectionNumberInput
+                                            value={section[field]}
+                                            disabled={!isLinearEditable}
+                                            min={1}
                                             max={
                                               field.includes("Difficulty") ? 5 : setup.roundCount
                                             }
-                                            value={section[field]}
-                                            disabled={!isLinearEditable}
-                                            onChange={(event) =>
+                                            onChange={(value) =>
                                               updateDifficultySection(sectionIndex, {
-                                                [field]: Number(event.target.value),
+                                                [field]: value,
                                               })
                                             }
-                                            className="mt-1 w-full rounded-md border border-cyan-300/25 bg-black/45 px-2 py-1 text-sm text-zinc-100 outline-none focus:border-cyan-200/70 disabled:cursor-not-allowed disabled:opacity-50"
                                           />
                                         </label>
                                       ))}

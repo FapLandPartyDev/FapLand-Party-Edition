@@ -1,5 +1,23 @@
 # What's New
 
+## v0.6.11-beta
+
+### Added
+
+- **"None" update channel** — a new option in the Update Channel selector (Settings → App Updates) disables app update checks entirely. While active, the manual check and update actions are turned off with an inline "Updates Disabled" state, an amber notice explains the consequences, and the home screen's Multiplayer entry is blocked with an "Updates Disabled" sub-label. A dedicated "Multiplayer Disabled" screen replaces the update-required guard so it is clear why multiplayer is unavailable without a release channel. A new `useUpdateChannel` hook and a cross-component `fland:update-channel-changed` event keep every surface in sync the moment the channel changes.
+- **Hard Mode badge in the installed rounds library** — hero group headers now show a "Hard Mode" badge whenever any round in the hero has been converted to Hard Mode, backed by a new `isHardModeConverted` flag computed from hard-mode revert records on the installed-round catalog query.
+- **Cinematic round-start hint cards** — the round-start transition now renders a stack of color-coded hint cards instead of a single hint line. Each card surfaces a round rule (such as cum-round instructions), an active anti-perk (Highspeed playback speed, Antigravity inverted motion), or an intensity-capping perk, tagged with an instruction / perk / anti-perk tone and matching accent color.
+- **Difficulty-section draft input** — the Playlist Workshop's difficulty-section index and difficulty-band fields now use a dedicated numeric input that tolerates transient empty or non-numeric drafts while typing and clamps to the valid range on blur, instead of fighting the user on every keystroke.
+
+### Changed
+
+- Funscript difficulty estimation now rates total beat hits and duration (with longer rounds contributing more strongly) instead of average movement velocity and action density, and the five difficulty levels are distributed linearly. This affects the Round Converter, the installed-round difficulty calculator, and the Recalculate All Difficulties action.
+- Recalculate All Difficulties now reads the generated Hard Mode funscript for rounds that have been converted, so the reported difficulty reflects the active script rather than the original.
+- Difficulty-section ranges in the Playlist Workshop now auto-correct their start/end indices and min/max difficulty bands when one side is moved past the other, preventing invalid inverted or overlapping ranges.
+- Translation catalogs have been regenerated.
+
+---
+
 ## v0.6.10-beta
 
 ### Added
@@ -24,7 +42,7 @@
 
 ### Changed
 
-- Funscript difficulty estimation is now shared by the Round Converter and the installed-round difficulty calculator via a single `estimateFunscriptDifficulty` helper. The new model normalizes velocity, action density, and duration linearly so common scripts keep useful separation across levels 1–3, while levels 4 and 5 require increasingly unusual motion instead of being reached early by log curves.
+- Funscript difficulty estimation is shared by the Round Converter and installed-round calculator. It now rates total beat hits and duration instead of movement velocity, with longer rounds contributing more strongly and all five difficulty levels distributed linearly.
 - The `ConfirmDialog` component now accepts optional `children`, used to embed the recalculation checkbox inside the hard-mode conversion prompts.
 - Release metadata and the bundled dependency-license manifest have been refreshed for this version.
 

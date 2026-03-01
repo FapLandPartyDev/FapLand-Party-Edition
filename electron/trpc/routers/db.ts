@@ -1636,8 +1636,14 @@ export const dbRouter = router({
       }
 
       try {
-        const resolvedFunscriptUri = resolveResourceUrisForRequest(primaryResource).funscriptUri;
-        const difficulty = await calculateFunscriptDifficultyFromUri(resolvedFunscriptUri);
+        const hardModeRevert = await getHardModeAttachmentRevert(
+          primaryResource.id,
+          primaryResource.funscriptUri
+        );
+        const funscriptUri = hardModeRevert
+          ? hardModeRevert.hardModeFunscriptUri
+          : resolveResourceUrisForRequest(primaryResource).funscriptUri;
+        const difficulty = await calculateFunscriptDifficultyFromUri(funscriptUri);
         if (difficulty === null) {
           skippedCount += 1;
           continue;
@@ -2278,7 +2284,22 @@ export const dbRouter = router({
           })
         );
 
-      return filteredRounds.map((entry) => toInstalledRoundCatalogEntry(entry));
+      return await Promise.all(
+        filteredRounds.map(async (entry) => {
+          const primaryResource = entry.resources[0];
+          const hardModeRevert =
+            primaryResource?.funscriptUri &&
+            (await getHardModeAttachmentRevert(
+              primaryResource.id,
+              primaryResource.funscriptUri
+            ));
+
+          return {
+            ...toInstalledRoundCatalogEntry(entry),
+            isHardModeConverted: Boolean(hardModeRevert),
+          };
+        })
+      );
     }),
 
   getInstalledRoundRuntimeCatalog: publicProcedure

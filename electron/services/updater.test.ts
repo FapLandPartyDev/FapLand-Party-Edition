@@ -84,6 +84,7 @@ describe("updateSettings.normalizeUpdateChannel", () => {
     expect(normalizeUpdateChannel(undefined)).toBe("release");
     expect(normalizeUpdateChannel("release")).toBe("release");
     expect(normalizeUpdateChannel("prerelease")).toBe("prerelease");
+    expect(normalizeUpdateChannel("none")).toBe("none");
   });
 });
 

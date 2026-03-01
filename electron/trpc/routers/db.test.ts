@@ -1638,6 +1638,37 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     });
   });
 
+  it("recalculates installed difficulty from the converted hard-mode script", async () => {
+    const caller = createRendererCaller();
+    const hardModeFunscriptUri = "app://media/converted-hard-mode.funscript";
+
+    resourcesByIdRef.set("resource-1", {
+      ...resourcesByIdRef.get("resource-1")!,
+      funscriptUri: hardModeFunscriptUri,
+    });
+    getHardModeAttachmentRevertMock.mockResolvedValueOnce({
+      resourceId: "resource-1",
+      hardModeFunscriptUri,
+      previousFunscriptUri: "stash://scene/1/legacy.funscript",
+      converterVersion: 2,
+    });
+    calculateFunscriptDifficultyFromUriMock.mockResolvedValueOnce(4);
+
+    await expect(caller.recalculateInstalledRoundDifficulties()).resolves.toEqual({
+      totalCount: 1,
+      updatedCount: 1,
+      skippedCount: 0,
+    });
+
+    expect(getHardModeAttachmentRevertMock).toHaveBeenCalledWith(
+      "resource-1",
+      hardModeFunscriptUri
+    );
+    expect(resolveResourceUrisMock).not.toHaveBeenCalled();
+    expect(calculateFunscriptDifficultyFromUriMock).toHaveBeenCalledWith(hardModeFunscriptUri);
+    expect(roundsByIdRef.get("round-1")?.difficulty).toBe(4);
+  });
+
   it("converts one legacy script and transactionally attaches it to hero primary resources", async () => {
     const caller = createRendererCaller();
 
@@ -2570,6 +2601,27 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     expect(result[0]?.resources[0]).not.toHaveProperty("funscriptUri");
     expect(result[0]).not.toHaveProperty("previewImage");
     expect(getWebsiteVideoCacheStateMock).not.toHaveBeenCalled();
+  });
+
+  it("marks installed catalog entries whose primary script was converted to hard mode", async () => {
+    const caller = createRendererCaller();
+    const primaryResource = resourcesByIdRef.get("resource-1");
+    if (!primaryResource) throw new Error("Missing primary test resource.");
+    primaryResource.funscriptUri = "app://media/managed-hard-mode.funscript";
+    getHardModeAttachmentRevertMock.mockResolvedValueOnce({
+      resourceId: "resource-1",
+      hardModeFunscriptUri: primaryResource.funscriptUri,
+      previousFunscriptUri: "file:///tmp/original.funscript",
+      converterVersion: 2,
+    });
+
+    const result = await caller.getInstalledRoundCatalog();
+
+    expect(result[0]?.isHardModeConverted).toBe(true);
+    expect(getHardModeAttachmentRevertMock).toHaveBeenCalledWith(
+      "resource-1",
+      primaryResource.funscriptUri
+    );
   });
 
   it("loads disabled round ids without selecting unrelated round or resource columns", async () => {

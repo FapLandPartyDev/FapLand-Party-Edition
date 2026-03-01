@@ -946,6 +946,66 @@ describe("PlaylistWorkshopRoute", () => {
     expect(screen.getByDisplayValue("4")).toBeDefined();
   });
 
+  it("allows difficulty section values to be cleared while entering a replacement", async () => {
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
+    playlist.config.boardConfig.totalIndices = 100;
+
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    await openLinearPlaylistAndSection("Linear Playlist", "Rounds");
+    fireEvent.click(screen.getByRole("button", { name: "Add Section" }));
+
+    const startInput = screen.getByLabelText("Start") as HTMLInputElement;
+    const minDifficultyInput = screen.getByLabelText("Min D") as HTMLInputElement;
+
+    fireEvent.focus(startInput);
+    fireEvent.change(startInput, { target: { value: "" } });
+    expect(startInput.value).toBe("");
+    fireEvent.change(startInput, { target: { value: "25" } });
+    fireEvent.blur(startInput);
+
+    fireEvent.focus(minDifficultyInput);
+    fireEvent.change(minDifficultyInput, { target: { value: "" } });
+    expect(minDifficultyInput.value).toBe("");
+    fireEvent.change(minDifficultyInput, { target: { value: "4" } });
+    fireEvent.blur(minDifficultyInput);
+
+    expect(startInput.value).toBe("25");
+    expect(minDifficultyInput.value).toBe("4");
+
+    fireEvent.click(screen.getByRole("button", { name: "💾 Save" }));
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+    });
+
+    const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: ReturnType<typeof makeLinearPlaylist>["config"] & {
+        boardConfig: ReturnType<typeof makeLinearPlaylist>["config"]["boardConfig"] & {
+          difficultySections: Array<{
+            startIndex: number;
+            endIndex: number;
+            minDifficulty: number;
+            maxDifficulty: number;
+          }>;
+        };
+      };
+    };
+    expect(updateCall.config.boardConfig.difficultySections).toEqual([
+      {
+        startIndex: 25,
+        endIndex: 100,
+        minDifficulty: 4,
+        maxDifficulty: 5,
+      },
+    ]);
+  });
+
   it("clamps round count instead of pruning selected rounds", async () => {
     const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
     playlist.config.boardConfig.totalIndices = 10;

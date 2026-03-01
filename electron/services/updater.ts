@@ -280,7 +280,7 @@ export function selectHighestRelease(
 
 async function fetchUpdateRelease(channel: UpdateChannel): Promise<GitHubLatestReleaseResponse> {
   const latestRelease = await fetchLatestRelease();
-  if (channel === "release") {
+  if (channel !== "prerelease") {
     return latestRelease;
   }
 
@@ -308,6 +308,18 @@ export function subscribeToUpdateState(listener: (state: AppUpdateState) => void
 }
 
 export async function checkForAppUpdates(force = false): Promise<AppUpdateState> {
+  if (getUpdateChannel() === "none") {
+    return setState({
+      status: "idle",
+      latestVersion: null,
+      checkedAtIso: null,
+      downloadUrl: null,
+      releaseNotes: null,
+      publishedAtIso: null,
+      errorMessage: null,
+    });
+  }
+
   if (!force && currentCheckPromise) {
     return currentCheckPromise;
   }

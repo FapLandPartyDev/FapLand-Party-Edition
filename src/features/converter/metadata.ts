@@ -74,34 +74,8 @@ export function estimateDifficultyFromActions(
 ): number | null {
   if (actions.length < 2 || !Number.isFinite(durationSec) || durationSec <= 0) return null;
 
-  const points = actions.length;
-  const pointRate = points / durationSec;
-
-  let velocitySamples = 0;
-  let velocitySum = 0;
-
-  for (let index = 1; index < actions.length; index += 1) {
-    const previous = actions[index - 1];
-    const current = actions[index];
-    if (!previous || !current) continue;
-
-    const deltaTimeSec = (current.at - previous.at) / 1000;
-    if (!Number.isFinite(deltaTimeSec) || deltaTimeSec <= 0) continue;
-
-    const deltaPos = Math.abs(current.pos - previous.pos);
-    const velocity = deltaPos / deltaTimeSec;
-    if (!Number.isFinite(velocity)) continue;
-
-    velocitySamples += 1;
-    velocitySum += velocity;
-  }
-
-  if (velocitySamples <= 0) return null;
-
-  const avgVelocity = velocitySum / velocitySamples;
   return estimateFunscriptDifficulty({
-    averageVelocity: avgVelocity,
-    pointsPerSecond: pointRate,
+    beatHitCount: actions.length / 2,
     durationSec,
   });
 }

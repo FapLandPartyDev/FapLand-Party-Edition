@@ -22,8 +22,12 @@ export type Round = RoundFromTrpc & {
   libraryLabel?: string | null;
 };
 export type Resource = NonNullable<Awaited<ReturnType<typeof trpc.db.getResource.query>>>;
-export type InstalledRound = Omit<InstalledRoundFromTrpc, "hero" | "excludeFromNumbering"> & {
+export type InstalledRound = Omit<
+  InstalledRoundFromTrpc,
+  "hero" | "excludeFromNumbering" | "isHardModeConverted"
+> & {
   excludeFromNumbering?: boolean;
+  isHardModeConverted?: boolean;
   tags?: string[];
   libraryLabel?: string | null;
   hero:
@@ -32,7 +36,11 @@ export type InstalledRound = Omit<InstalledRoundFromTrpc, "hero" | "excludeFromN
       })
     | null;
 };
-export type InstalledRoundCatalogEntry = Omit<InstalledRoundCatalogEntryFromTrpc, "hero"> & {
+export type InstalledRoundCatalogEntry = Omit<
+  InstalledRoundCatalogEntryFromTrpc,
+  "hero" | "isHardModeConverted"
+> & {
+  isHardModeConverted?: boolean;
   tags?: string[];
   libraryLabel?: string | null;
   hero:
