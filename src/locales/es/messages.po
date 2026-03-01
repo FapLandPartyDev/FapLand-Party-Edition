@@ -5132,13 +5132,13 @@ msgstr "Regalar ventaja garantizada"
 msgid "Give Up"
 msgstr "Rendirse"
 
-#: src/features/map-editor/components/AutomationPanel.tsx:235
-msgid "Global"
-msgstr "Global"
-
 #. js-lingui-explicit-id
 #: src/routes/settings.tsx:299
 msgid "settings.help.shortcuts.global.title"
+msgstr "Global"
+
+#: src/features/map-editor/components/AutomationPanel.tsx:235
+msgid "Global"
 msgstr "Global"
 
 #: src/routes/settings.tsx:1496
@@ -9803,13 +9803,13 @@ msgid "Rounds"
 msgstr "Rondas"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:193
-msgid "playlist-workshop.section.rounds.title"
+#: src/routes/first-start.tsx:155
+msgid "first-start.step.round-packs.shortLabel"
 msgstr "Rondas"
 
 #. js-lingui-explicit-id
-#: src/routes/first-start.tsx:155
-msgid "first-start.step.round-packs.shortLabel"
+#: src/routes/playlist-workshop.tsx:193
+msgid "playlist-workshop.section.rounds.title"
 msgstr "Rondas"
 
 #: src/routes/first-start.tsx:2441

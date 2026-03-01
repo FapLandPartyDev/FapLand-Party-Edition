@@ -5131,13 +5131,13 @@ msgstr "Cadeau garanti"
 msgid "Give Up"
 msgstr "Abandonner"
 
-#: src/features/map-editor/components/AutomationPanel.tsx:235
-msgid "Global"
-msgstr "Global"
-
 #. js-lingui-explicit-id
 #: src/routes/settings.tsx:299
 msgid "settings.help.shortcuts.global.title"
+msgstr "Global"
+
+#: src/features/map-editor/components/AutomationPanel.tsx:235
+msgid "Global"
 msgstr "Global"
 
 #: src/routes/settings.tsx:1496
@@ -9802,13 +9802,13 @@ msgid "Rounds"
 msgstr "Tours"
 
 #. js-lingui-explicit-id
-#: src/routes/playlist-workshop.tsx:193
-msgid "playlist-workshop.section.rounds.title"
+#: src/routes/first-start.tsx:155
+msgid "first-start.step.round-packs.shortLabel"
 msgstr "Tours"
 
 #. js-lingui-explicit-id
-#: src/routes/first-start.tsx:155
-msgid "first-start.step.round-packs.shortLabel"
+#: src/routes/playlist-workshop.tsx:193
+msgid "playlist-workshop.section.rounds.title"
 msgstr "Tours"
 
 #: src/routes/first-start.tsx:2441
