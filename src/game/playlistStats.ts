@@ -7,6 +7,7 @@ export type PlaylistBoardDescription = {
   edgeCount: number;
   safePointCount: number;
   roundNodeCount: number;
+  catapultNodeCount: number;
 };
 
 export function describePlaylistBoard(config: PlaylistConfig): PlaylistBoardDescription {
@@ -17,6 +18,7 @@ export function describePlaylistBoard(config: PlaylistConfig): PlaylistBoardDesc
       edgeCount: config.boardConfig.totalIndices,
       safePointCount: config.boardConfig.safePointIndices.length,
       roundNodeCount: config.boardConfig.totalIndices - config.boardConfig.safePointIndices.length,
+      catapultNodeCount: 0,
     };
   }
 
@@ -28,6 +30,7 @@ export function describePlaylistBoard(config: PlaylistConfig): PlaylistBoardDesc
     roundNodeCount: config.boardConfig.nodes.filter(
       (node) => node.kind === "round" || node.kind === "randomRound"
     ).length,
+    catapultNodeCount: config.boardConfig.nodes.filter((node) => node.kind === "catapult").length,
   };
 }
 

@@ -5,6 +5,7 @@ import { getDb } from "./db";
 import { resolveInstallExportBaseDir } from "./appPaths";
 import { asc } from "drizzle-orm";
 import { round } from "./db/schema";
+import { parseOptionalRoundCutRangesJson } from "../../src/utils/roundCuts";
 export type RoundType = "Normal" | "Interjection" | "Cum";
 
 export type ExportInstalledDatabaseInput = {
@@ -34,6 +35,7 @@ type SidecarRound = {
   phash: string | null;
   startTime: number | null;
   endTime: number | null;
+  cutRangesJson?: string | null;
   type: RoundType;
   resources: SidecarResource[];
   heroId: string | null;
@@ -68,6 +70,11 @@ function toRoundSidecar(round: SidecarRound, includeResourceUris: boolean) {
     phash: round.phash ?? undefined,
     startTime: round.startTime ?? undefined,
     endTime: round.endTime ?? undefined,
+    cutRanges: parseOptionalRoundCutRangesJson(
+      round.cutRangesJson,
+      round.startTime,
+      round.endTime
+    ),
     type: round.type,
     resources: includeResourceUris
       ? round.resources.map((resource) => ({

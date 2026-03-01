@@ -8,6 +8,11 @@ import { PlaylistResolutionModal } from "../components/PlaylistResolutionModal";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "../game/data/perks";
 import {
+  CURRENT_PLAYLIST_VERSION,
+  ZPlaylistConfig,
+  type PlaylistConfig,
+} from "../game/playlistSchema";
+import {
   analyzePlaylistResolution,
   applyPlaylistResolutionMapping,
   type PlaylistResolutionAnalysis,
@@ -18,6 +23,9 @@ import {
   createEditorId,
   EMPTY_EDITOR_SELECTION,
   layoutLinearGraphFromPlaylist,
+  normalizeGraphBackgroundMedia,
+  normalizeRoadPalette,
+  ROAD_PALETTE_PRESETS,
   toEditorGraphConfig,
   toGraphBoardConfig,
   type EditorEdge,
@@ -88,21 +96,26 @@ const DEFAULT_EDITOR_VIEWPORT: ViewportState = {
 const DEFAULT_TEXT_ANNOTATION_TEXT = "Guidance text";
 const DEFAULT_TEXT_ANNOTATION_COLOR = "#f8fafc";
 const DEFAULT_TEXT_ANNOTATION_SIZE = 18;
+
+const getFileNameFromPath = (filePath: string): string => {
+  const normalized = filePath.replace(/\\/g, "/");
+  return normalized.split("/").pop() ?? "Map background";
+};
 type MapEditorInstalledRound = InstalledRound | InstalledRoundCatalogEntry;
 
 type InspectorTab = "node" | "edge" | "text" | "settings" | "validation";
 type ResolutionModalState =
   | {
-    context: "import";
-    title: string;
-    filePath: string;
-    analysis: PlaylistResolutionAnalysis;
-  }
+      context: "import";
+      title: string;
+      filePath: string;
+      analysis: PlaylistResolutionAnalysis;
+    }
   | {
-    context: "playlist";
-    title: string;
-    analysis: PlaylistResolutionAnalysis;
-  };
+      context: "playlist";
+      title: string;
+      analysis: PlaylistResolutionAnalysis;
+    };
 type ImportedPlaylistReview = {
   playlistId: string;
   analysis: PlaylistResolutionAnalysis;
@@ -165,6 +178,10 @@ const toEditorConfigFromPlaylist = (playlist: StoredPlaylist): EditorGraphConfig
     },
     dice: { ...playlist.config.dice },
     saveMode: playlist.config.saveMode ?? "none",
+    music: {
+      tracks: playlist.config.music?.tracks.map((track) => ({ ...track })) ?? [],
+      loop: playlist.config.music?.loop ?? true,
+    },
   };
 };
 
@@ -254,7 +271,49 @@ const makeStartingConfig = (): EditorGraphConfig => ({
     max: 6,
   },
   saveMode: "none",
+  style: {},
+  music: {
+    tracks: [],
+    loop: true,
+  },
 });
+
+const createPlaylistConfigFromEditorConfig = (editorConfig: EditorGraphConfig): PlaylistConfig =>
+  ZPlaylistConfig.parse({
+    playlistVersion: CURRENT_PLAYLIST_VERSION,
+    boardConfig: toGraphBoardConfig(editorConfig),
+    saveMode: editorConfig.saveMode,
+    roundStartDelayMs: 20000,
+    perkSelection: {
+      ...editorConfig.perkSelection,
+    },
+    perkPool: {
+      enabledPerkIds: [...editorConfig.perkPool.enabledPerkIds],
+      enabledAntiPerkIds: [...editorConfig.perkPool.enabledAntiPerkIds],
+    },
+    probabilityScaling: {
+      ...editorConfig.probabilityScaling,
+    },
+    economy: {
+      startingMoney: editorConfig.economy.startingMoney,
+      moneyPerCompletedRound: 50,
+      startingScore: 0,
+      scorePerCompletedRound: 100,
+      scorePerIntermediary: 30,
+      scorePerActiveAntiPerk: 25,
+      scorePerCumRoundSuccess: editorConfig.economy.scorePerCumRoundSuccess,
+    },
+    dice: {
+      ...editorConfig.dice,
+    },
+    music:
+      editorConfig.music.tracks.length > 0
+        ? {
+            tracks: editorConfig.music.tracks.map((track) => ({ ...track })),
+            loop: editorConfig.music.loop,
+          }
+        : undefined,
+  });
 
 const toTitleCase = (input: string): string =>
   `${input.slice(0, 1).toUpperCase()}${input.slice(1)}`;
@@ -610,12 +669,12 @@ function MapEditorPage() {
     () =>
       selectedPlaylist
         ? analyzePlaylistResolution(
-          {
-            ...selectedPlaylist.config,
-            boardConfig: toGraphBoardConfig(config),
-          },
-          installedRounds
-        )
+            {
+              ...selectedPlaylist.config,
+              boardConfig: toGraphBoardConfig(config),
+            },
+            installedRounds
+          )
         : null,
     [config, installedRounds, selectedPlaylist]
   );
@@ -656,8 +715,8 @@ function MapEditorPage() {
     () =>
       selection.selectedTextAnnotationId
         ? (config.textAnnotations.find(
-          (annotation) => annotation.id === selection.selectedTextAnnotationId
-        ) ?? null)
+            (annotation) => annotation.id === selection.selectedTextAnnotationId
+          ) ?? null)
         : null,
     [config.textAnnotations, selection.selectedTextAnnotationId]
   );
@@ -761,9 +820,9 @@ function MapEditorPage() {
         });
         return changed
           ? {
-            ...previous,
-            textAnnotations: nextTextAnnotations,
-          }
+              ...previous,
+              textAnnotations: nextTextAnnotations,
+            }
           : previous;
       });
     },
@@ -896,6 +955,249 @@ function MapEditorPage() {
       updateGraphConfig((previous) => ({
         ...previous,
         saveMode: value,
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const setMapBackground = useCallback(
+    (background: EditorGraphConfig["style"]["background"] | undefined) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        style: {
+          ...previous.style,
+          background,
+        },
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const patchMapBackground = useCallback(
+    (patch: Partial<NonNullable<EditorGraphConfig["style"]["background"]>>) => {
+      updateGraphConfig((previous) => {
+        const background = normalizeGraphBackgroundMedia({
+          ...previous.style.background,
+          ...patch,
+        });
+        return {
+          ...previous,
+          style: {
+            ...previous.style,
+            background,
+          },
+        };
+      });
+    },
+    [updateGraphConfig]
+  );
+
+  const chooseMapBackground = useCallback(async () => {
+    try {
+      const filePath = await window.electronAPI.dialog.selectMapBackgroundFile();
+      if (!filePath) return;
+      const uri = window.electronAPI.file.convertFileSrc(filePath);
+      const background = normalizeGraphBackgroundMedia({
+        uri,
+        name: getFileNameFromPath(filePath),
+      });
+      if (!background) {
+        playMapInvalidActionSound();
+        setSaveNotice("Selected background media is not supported.");
+        return;
+      }
+      setMapBackground(background);
+      playSelectSound();
+    } catch (error) {
+      console.error("Failed to choose map background", error);
+      playMapInvalidActionSound();
+      setSaveNotice(
+        error instanceof Error ? error.message : "Failed to choose map background media."
+      );
+    }
+  }, [setMapBackground]);
+
+  const setRoadPalette = useCallback(
+    (palette: EditorGraphConfig["style"]["roadPalette"]) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        style: {
+          ...previous.style,
+          roadPalette: normalizeRoadPalette(palette),
+        },
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const patchRoadPalette = useCallback(
+    (patch: Partial<NonNullable<EditorGraphConfig["style"]["roadPalette"]>>) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        style: {
+          ...previous.style,
+          roadPalette: normalizeRoadPalette({
+            ...previous.style.roadPalette,
+            ...patch,
+            presetId: patch.presetId ?? "custom",
+          }),
+        },
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const resetRoadPalette = useCallback(() => {
+    setRoadPalette({ ...ROAD_PALETTE_PRESETS[0].palette });
+  }, [setRoadPalette]);
+
+  const choosePlaylistMusicFiles = useCallback(async () => {
+    try {
+      const filePaths = await window.electronAPI.dialog.selectMusicFiles();
+      if (!filePaths || filePaths.length === 0) return;
+      updateGraphConfig((previous) => {
+        const existingUris = new Set(previous.music.tracks.map((t) => t.uri));
+        const newTracks = filePaths
+          .filter((fp) => {
+            const uri = window.electronAPI.file.convertFileSrc(fp);
+            return !existingUris.has(uri);
+          })
+          .map((fp) => ({
+            id: createEditorId("music"),
+            uri: window.electronAPI.file.convertFileSrc(fp),
+            name: getFileNameFromPath(fp),
+          }));
+        if (newTracks.length === 0) return previous;
+        return {
+          ...previous,
+          music: {
+            ...previous.music,
+            tracks: [...previous.music.tracks, ...newTracks],
+          },
+        };
+      });
+      playSelectSound();
+    } catch (error) {
+      console.error("Failed to choose music files", error);
+      playMapInvalidActionSound();
+      setSaveNotice(error instanceof Error ? error.message : "Failed to choose music files.");
+    }
+  }, [updateGraphConfig]);
+
+  const addPlaylistMusicFromUrl = useCallback(
+    async ({
+      url,
+      mode,
+    }: {
+      url: string;
+      mode: "track" | "playlist";
+    }): Promise<{ addedCount: number; errorCount: number }> => {
+      const trimmed = url.trim();
+      if (!trimmed) throw new Error("Please enter a URL");
+      try {
+        new URL(trimmed);
+      } catch {
+        throw new Error("Invalid URL format");
+      }
+
+      const appendTracks = (
+        tracks: Array<{ filePath: string; title: string }>
+      ): { addedCount: number } => {
+        let addedCount = 0;
+        updateGraphConfig((previous) => {
+          const existingUris = new Set(previous.music.tracks.map((track) => track.uri));
+          const newTracks = tracks.flatMap((track) => {
+            const uri = window.electronAPI.file.convertFileSrc(track.filePath);
+            if (existingUris.has(uri)) return [];
+            existingUris.add(uri);
+            addedCount += 1;
+            return [
+              {
+                id: createEditorId("music"),
+                uri,
+                name: track.title.trim() || getFileNameFromPath(track.filePath),
+              },
+            ];
+          });
+          if (newTracks.length === 0) return previous;
+          return {
+            ...previous,
+            music: {
+              ...previous.music,
+              tracks: [...previous.music.tracks, ...newTracks],
+            },
+          };
+        });
+        return { addedCount };
+      };
+
+      if (mode === "playlist") {
+        const result = await window.electronAPI.dialog.addMusicPlaylistFromUrl(trimmed);
+        const { addedCount } = appendTracks(result.tracks);
+        if (addedCount > 0) playSelectSound();
+        return { addedCount, errorCount: result.errors.length };
+      }
+
+      const result = await window.electronAPI.dialog.addMusicFromUrl(trimmed);
+      const { addedCount } = appendTracks([{ filePath: result.filePath, title: result.title }]);
+      if (addedCount > 0) playSelectSound();
+      return { addedCount, errorCount: 0 };
+    },
+    [updateGraphConfig]
+  );
+
+  const removePlaylistMusicTrack = useCallback(
+    (trackId: string) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        music: {
+          ...previous.music,
+          tracks: previous.music.tracks.filter((t) => t.id !== trackId),
+        },
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const movePlaylistMusicTrack = useCallback(
+    (trackId: string, direction: -1 | 1) => {
+      updateGraphConfig((previous) => {
+        const tracks = [...previous.music.tracks];
+        const index = tracks.findIndex((t) => t.id === trackId);
+        if (index < 0) return previous;
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= tracks.length) return previous;
+        [tracks[index], tracks[targetIndex]] = [tracks[targetIndex], tracks[index]];
+        return {
+          ...previous,
+          music: {
+            ...previous.music,
+            tracks,
+          },
+        };
+      });
+    },
+    [updateGraphConfig]
+  );
+
+  const clearPlaylistMusicTracks = useCallback(() => {
+    updateGraphConfig((previous) => ({
+      ...previous,
+      music: {
+        ...previous.music,
+        tracks: [],
+      },
+    }));
+  }, [updateGraphConfig]);
+
+  const setPlaylistMusicLoop = useCallback(
+    (value: boolean) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        music: {
+          ...previous.music,
+          loop: value,
+        },
       }));
     },
     [updateGraphConfig]
@@ -1094,9 +1396,9 @@ function MapEditorPage() {
         });
         return moved
           ? {
-            ...previous,
-            nodes: nextNodes,
-          }
+              ...previous,
+              nodes: nextNodes,
+            }
           : previous;
       }, false);
 
@@ -1126,9 +1428,9 @@ function MapEditorPage() {
         });
         return moved
           ? {
-            ...previous,
-            textAnnotations: nextTextAnnotations,
-          }
+              ...previous,
+              textAnnotations: nextTextAnnotations,
+            }
           : previous;
       }, false);
 
@@ -1168,6 +1470,9 @@ function MapEditorPage() {
         }
         if (kind === "perk") {
           nextNode.visualId = perkOptions[0]?.id;
+        }
+        if (kind === "catapult") {
+          nextNode.catapultForward = 2;
         }
         createdNodeId = nextNode.id;
         const nextNodes = [...previous.nodes, nextNode];
@@ -1343,6 +1648,13 @@ function MapEditorPage() {
       },
       dice: { ...configRef.current.dice },
       saveMode: configRef.current.saveMode,
+      music:
+        configRef.current.music.tracks.length > 0
+          ? {
+              tracks: configRef.current.music.tracks.map((track) => ({ ...track })),
+              loop: configRef.current.music.loop,
+            }
+          : undefined,
     };
   }, []);
 
@@ -1398,7 +1710,8 @@ function MapEditorPage() {
     setCreatePlaylistPending(true);
     setSaveNotice(null);
     try {
-      const created = await playlists.create({ name: playlistName });
+      const config = createPlaylistConfigFromEditorConfig(makeStartingConfig());
+      const created = await playlists.create({ name: playlistName, config });
       updatePlaylistListEntry(created);
       setNewPlaylistName("");
       openPlaylistForEditing(created);
@@ -1914,28 +2227,28 @@ function MapEditorPage() {
   const editorGuidance =
     config.nodes.length === 0
       ? {
-        tone: "cyan" as const,
-        message: t`Add a start node from the left sidebar or use Place mode.`,
-        actionLabel: null,
-      }
+          tone: "cyan" as const,
+          message: t`Add a start node from the left sidebar or use Place mode.`,
+          actionLabel: null,
+        }
       : validation.errors.length > 0
         ? {
-          tone: "rose" as const,
-          message: validation.errors[0]?.message ?? t`Map contains validation errors.`,
-          actionLabel: t`Review validation`,
-        }
+            tone: "rose" as const,
+            message: validation.errors[0]?.message ?? t`Map contains validation errors.`,
+            actionLabel: t`Review validation`,
+          }
         : tool === "connect" && !connectFromNodeId
           ? {
-            tone: "cyan" as const,
-            message: t`Select a node to start connecting.`,
-            actionLabel: null,
-          }
-          : tool === "place" && activeTile
-            ? {
               tone: "cyan" as const,
-              message: t`Click the canvas to place ${activeTile.label}.`,
+              message: t`Select a node to start connecting.`,
               actionLabel: null,
             }
+          : tool === "place" && activeTile
+            ? {
+                tone: "cyan" as const,
+                message: t`Click the canvas to place ${activeTile.label}.`,
+                actionLabel: null,
+              }
             : null;
 
   /* ──────────────────────── Playlist picker view ──────────── */
@@ -2081,10 +2394,11 @@ function MapEditorPage() {
         {/* ── Save notice ─────────────────── */}
         {saveNotice && (
           <div
-            className={`flex-shrink-0 border-b px-4 py-1.5 text-xs ${saveNotice.startsWith("Cannot continue")
-              ? "border-rose-500/30 bg-rose-950/30 text-rose-200"
-              : "border-emerald-500/30 bg-emerald-950/30 text-emerald-200"
-              }`}
+            className={`flex-shrink-0 border-b px-4 py-1.5 text-xs ${
+              saveNotice.startsWith("Cannot continue")
+                ? "border-rose-500/30 bg-rose-950/30 text-rose-200"
+                : "border-emerald-500/30 bg-emerald-950/30 text-emerald-200"
+            }`}
             role={saveNotice.startsWith("Cannot continue") ? "alert" : "status"}
             aria-live={saveNotice.startsWith("Cannot continue") ? "assertive" : "polite"}
           >
@@ -2149,10 +2463,11 @@ function MapEditorPage() {
             <div className="relative min-h-0 flex-1 bg-black/20" data-controller-skip="true">
               {editorGuidance && (
                 <div
-                  className={`pointer-events-auto absolute left-3 top-3 z-20 max-w-sm rounded-xl border px-4 py-3 text-xs shadow-2xl backdrop-blur-xl ${editorGuidance.tone === "rose"
-                    ? "border-rose-300/40 bg-rose-950/85 text-rose-100"
-                    : "border-cyan-300/35 bg-zinc-950/85 text-cyan-100"
-                    }`}
+                  className={`pointer-events-auto absolute left-3 top-3 z-20 max-w-sm rounded-xl border px-4 py-3 text-xs shadow-2xl backdrop-blur-xl ${
+                    editorGuidance.tone === "rose"
+                      ? "border-rose-300/40 bg-rose-950/85 text-rose-100"
+                      : "border-cyan-300/35 bg-zinc-950/85 text-cyan-100"
+                  }`}
                   role={editorGuidance.tone === "rose" ? "alert" : "status"}
                   aria-live={editorGuidance.tone === "rose" ? "assertive" : "polite"}
                 >
@@ -2248,8 +2563,9 @@ function MapEditorPage() {
                       <button
                         key={tab.id}
                         type="button"
-                        className={`editor-tab relative flex-1 px-2 py-2 text-[11px] font-medium transition-colors ${isActive ? "text-cyan-300" : "text-zinc-600 hover:text-zinc-400"
-                          }`}
+                        className={`editor-tab relative flex-1 px-2 py-2 text-[11px] font-medium transition-colors ${
+                          isActive ? "text-cyan-300" : "text-zinc-600 hover:text-zinc-400"
+                        }`}
                         onClick={() => setInspectorTab(tab.id)}
                       >
                         {tab.label}
@@ -2272,6 +2588,7 @@ function MapEditorPage() {
                       outgoingEdges={outgoingEdgesForSelectedNode}
                       installedRounds={installedRounds}
                       perkOptions={perkOptions}
+                      antiPerkOptions={antiPerkOptions}
                       onPatchNode={patchNode}
                       onCommitSelection={commitSelection}
                       onSetTool={handleSetConnectTool}
@@ -2300,6 +2617,7 @@ function MapEditorPage() {
                       economy={config.economy}
                       dice={config.dice}
                       saveMode={config.saveMode}
+                      style={config.style}
                       perkOptions={perkOptions}
                       antiPerkOptions={antiPerkOptions}
                       cumRoundRefs={config.cumRoundRefs}
@@ -2312,6 +2630,12 @@ function MapEditorPage() {
                       onSetSaveMode={setSaveMode}
                       onSetStartingMoney={setStartingMoney}
                       onSetCumRoundBonusScore={setCumRoundBonusScore}
+                      onChooseMapBackground={chooseMapBackground}
+                      onSetMapBackground={setMapBackground}
+                      onPatchMapBackground={patchMapBackground}
+                      onSetRoadPalette={setRoadPalette}
+                      onPatchRoadPalette={patchRoadPalette}
+                      onResetRoadPalette={resetRoadPalette}
                       onTogglePerk={togglePerkEnabled}
                       onToggleAntiPerk={toggleAntiPerkEnabled}
                       onSetAllPerksEnabled={setAllPerksEnabled}
@@ -2319,6 +2643,13 @@ function MapEditorPage() {
                       onToggleCumRound={toggleCumRound}
                       onMoveCumRound={moveCumRound}
                       onRemoveCumRoundByIndex={removeCumRoundByIndex}
+                      music={config.music}
+                      onChoosePlaylistMusicFiles={choosePlaylistMusicFiles}
+                      onAddPlaylistMusicFromUrl={addPlaylistMusicFromUrl}
+                      onRemovePlaylistMusicTrack={removePlaylistMusicTrack}
+                      onMovePlaylistMusicTrack={movePlaylistMusicTrack}
+                      onClearPlaylistMusicTracks={clearPlaylistMusicTracks}
+                      onSetPlaylistMusicLoop={setPlaylistMusicLoop}
                     />
                   )}
                   {inspectorTab === "validation" && <ValidationPanel validation={validation} />}
@@ -2357,9 +2688,9 @@ function MapEditorPage() {
                 setImportedPlaylistReview(
                   resolutionModalState.analysis.issues.length > 0
                     ? {
-                      playlistId: imported.playlist.id,
-                      analysis: resolutionModalState.analysis,
-                    }
+                        playlistId: imported.playlist.id,
+                        analysis: resolutionModalState.analysis,
+                      }
                     : null
                 );
                 setSaveNotice(t`Imported "${imported.playlist.name}".`);
@@ -2407,7 +2738,9 @@ function MapEditorPage() {
                 playlistId: imported.playlist.id,
                 analysis: resolutionModalState.analysis,
               });
-              setSaveNotice(t`Imported "${imported.playlist.name}" with unresolved refs preserved.`);
+              setSaveNotice(
+                t`Imported "${imported.playlist.name}" with unresolved refs preserved.`
+              );
               setResolutionModalState(null);
             })();
           }}

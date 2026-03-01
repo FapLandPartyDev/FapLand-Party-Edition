@@ -254,8 +254,12 @@ function ConverterPage() {
                       selectedSegmentId={state.selectedSegmentId}
                       selectedSegment={state.selectedSegment}
                       heroName={state.heroName}
+                      allowOverlappingSegments={state.allowOverlappingSegments}
                       onSelectSegment={state.setSelectedSegmentId}
                       onRemoveSegment={state.removeSegment}
+                      onAllowOverlappingSegmentsChange={state.setAllowOverlappingSegments}
+                      onAddCutFromMarks={state.addCutFromMarks}
+                      onRemoveCut={state.removeCut}
                       onSeekToMs={(ms) => {
                         state.seekToMs(ms);
                         playSelectSound();

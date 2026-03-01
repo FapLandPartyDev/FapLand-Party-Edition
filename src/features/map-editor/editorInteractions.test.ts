@@ -74,6 +74,8 @@ const makeConfig = (): EditorGraphConfig => ({
   economy: { startingMoney: 120, scorePerCumRoundSuccess: 420 },
   dice: { min: 1, max: 6 },
   saveMode: "none",
+  style: {},
+  music: { tracks: [], loop: true },
 });
 
 describe("editorInteractions", () => {
@@ -155,10 +157,7 @@ describe("editorInteractions", () => {
   });
 
   it("uses a newly added start node when no current start node exists", () => {
-    const nodes = [
-      sampleNode("path-1", 100, 100),
-      sampleNode("start-new", 420, 120, "start"),
-    ];
+    const nodes = [sampleNode("path-1", 100, 100), sampleNode("start-new", 420, 120, "start")];
 
     expect(resolveStartNodeId("", nodes)).toBe("start-new");
     expect(resolveStartNodeId("path-1", nodes)).toBe("start-new");

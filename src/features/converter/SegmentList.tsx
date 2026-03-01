@@ -9,8 +9,12 @@ type SegmentListProps = {
   selectedSegmentId: string | null;
   selectedSegment: ConverterState["selectedSegment"];
   heroName: string;
+  allowOverlappingSegments: boolean;
   onSelectSegment: (id: string) => void;
   onRemoveSegment: (id: string) => void;
+  onAllowOverlappingSegmentsChange: (enabled: boolean) => void;
+  onAddCutFromMarks: () => void;
+  onRemoveCut: (segmentId: string, cutId: string) => void;
   onSeekToMs: (ms: number) => void;
   onMergeSegmentWithNext: (id: string) => void;
   onSetSegmentCustomName: (id: string, name: string) => void;
@@ -30,8 +34,12 @@ export const SegmentList: React.FC<SegmentListProps> = React.memo(
     selectedSegmentId,
     selectedSegment,
     heroName,
+    allowOverlappingSegments,
     onSelectSegment,
     onRemoveSegment,
+    onAllowOverlappingSegmentsChange,
+    onAddCutFromMarks,
+    onRemoveCut,
     onSeekToMs,
     onMergeSegmentWithNext,
     onSetSegmentCustomName,
@@ -48,7 +56,7 @@ export const SegmentList: React.FC<SegmentListProps> = React.memo(
 
     return (
       <div>
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-2 flex items-center justify-between gap-3">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-violet-100">
               <Trans>Segments</Trans>
@@ -74,15 +82,35 @@ export const SegmentList: React.FC<SegmentListProps> = React.memo(
               </span>
             </div>
           </div>
-          {selectedSegment && (
-            <button
-              type="button"
-              onClick={() => onRemoveSegment(selectedSegment.id)}
-              className="text-[10px] text-rose-300 hover:text-rose-200"
-            >
-              <Trans>Delete selected</Trans> <kbd className="converter-kbd ml-1">Delete</kbd>
-            </button>
-          )}
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-100">
+              <input
+                type="checkbox"
+                checked={allowOverlappingSegments}
+                onChange={(event) => onAllowOverlappingSegmentsChange(event.currentTarget.checked)}
+                className="h-3.5 w-3.5 accent-violet-400"
+              />
+              <Trans>Allow overlaps</Trans>
+            </label>
+            {selectedSegment && (
+              <>
+                <button
+                  type="button"
+                  onClick={onAddCutFromMarks}
+                  className="text-[10px] text-amber-300 hover:text-amber-200"
+                >
+                  <Trans>Cut marks</Trans> <kbd className="converter-kbd ml-1">C</kbd>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRemoveSegment(selectedSegment.id)}
+                  className="text-[10px] text-rose-300 hover:text-rose-200"
+                >
+                  <Trans>Delete selected</Trans> <kbd className="converter-kbd ml-1">Delete</kbd>
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="max-h-[32rem] overflow-y-auto divide-y divide-violet-300/10">
@@ -112,6 +140,17 @@ export const SegmentList: React.FC<SegmentListProps> = React.memo(
                   setError(null);
                 }}
                 onMergeWithNext={() => onMergeSegmentWithNext(segment.id)}
+                onRemoveCut={(cutId) => onRemoveCut(segment.id, cutId)}
+                onJumpCutStart={(cutId) => {
+                  const cut = segment.cutRanges.find((entry) => entry.id === cutId);
+                  if (!cut) return;
+                  onSeekToMs(cut.startTimeMs);
+                }}
+                onJumpCutEnd={(cutId) => {
+                  const cut = segment.cutRanges.find((entry) => entry.id === cutId);
+                  if (!cut) return;
+                  onSeekToMs(cut.endTimeMs);
+                }}
                 onSetCustomName={(name) => onSetSegmentCustomName(segment.id, name)}
                 onSetBpm={(rawValue) => onSetSegmentBpm(segment.id, rawValue)}
                 onResetBpm={() => onResetSegmentBpm(segment.id)}
@@ -138,8 +177,12 @@ export function pickSegmentListProps(state: ConverterState): SegmentListProps {
     selectedSegmentId: state.selectedSegmentId,
     selectedSegment: state.selectedSegment,
     heroName: state.heroName,
+    allowOverlappingSegments: state.allowOverlappingSegments,
     onSelectSegment: state.setSelectedSegmentId,
     onRemoveSegment: state.removeSegment,
+    onAllowOverlappingSegmentsChange: state.setAllowOverlappingSegments,
+    onAddCutFromMarks: state.addCutFromMarks,
+    onRemoveCut: state.removeCut,
     onSeekToMs: (ms: number) => {
       state.seekToMs(ms);
       playSelectSound();

@@ -43,6 +43,13 @@
       "when": 1776643200000,
       "tag": "0005_round_exclude_from_random",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776816000000,
+      "tag": "0006_round_cut_ranges",
+      "breakpoints": true
     }
   ]
 }

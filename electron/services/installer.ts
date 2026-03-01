@@ -11,6 +11,12 @@ import {
   normalizePhashForSimilarity,
 } from "../../src/utils/phashSimilarity";
 import {
+  assertValidRoundCutRanges,
+  parseRoundCutRangesJson,
+  stringifyRoundCutRanges,
+  type RoundCutRange,
+} from "../../src/utils/roundCuts";
+import {
   ZHeroSidecar,
   ZRoundSidecar,
   type InstallResource,
@@ -115,6 +121,7 @@ type SidecarRoundData = {
   phash: string | null;
   startTime: number | null;
   endTime: number | null;
+  cutRanges: RoundCutRange[];
   type: RoundType;
   excludeFromRandom?: boolean;
   resources: InstallResource[];
@@ -1055,6 +1062,13 @@ function toRoundType(input: string | null | undefined): RoundType {
 }
 
 function normalizeRoundData(input: InstallRound): SidecarRoundData {
+  if (
+    (input.cutRanges?.length ?? 0) > 0 &&
+    (typeof input.startTime !== "number" || typeof input.endTime !== "number")
+  ) {
+    throw new Error(`Round "${input.name}" cut ranges require startTime and endTime.`);
+  }
+
   return {
     name: input.name,
     author: normalizeText(input.author),
@@ -1064,6 +1078,10 @@ function normalizeRoundData(input: InstallRound): SidecarRoundData {
     phash: normalizeText(input.phash),
     startTime: typeof input.startTime === "number" ? input.startTime : null,
     endTime: typeof input.endTime === "number" ? input.endTime : null,
+    cutRanges:
+      typeof input.startTime === "number" && typeof input.endTime === "number"
+        ? assertValidRoundCutRanges(input.cutRanges ?? [], input.startTime, input.endTime)
+        : [],
     type: toRoundType(input.type),
     ...(typeof input.excludeFromRandom === "boolean"
       ? { excludeFromRandom: input.excludeFromRandom }
@@ -1351,6 +1369,7 @@ async function upsertRoundWithResources(
     phash: params.round.phash,
     startTime: params.round.startTime,
     endTime: params.round.endTime,
+    cutRangesJson: stringifyRoundCutRanges(params.round.cutRanges),
     type: params.round.type,
     ...(params.round.excludeFromRandom !== undefined
       ? { excludeFromRandom: params.round.excludeFromRandom }
@@ -1805,6 +1824,7 @@ type ReconciliationRoundRow = {
   phash: string | null;
   startTime: number | null;
   endTime: number | null;
+  cutRangesJson?: string | null;
   type: RoundType;
   excludeFromRandom: boolean;
   installSourceKey: string | null;
@@ -1821,6 +1841,7 @@ function toSidecarRoundDataFromExistingRound(row: ReconciliationRoundRow): Sidec
     phash: row.phash,
     startTime: row.startTime,
     endTime: row.endTime,
+    cutRanges: parseRoundCutRangesJson(row.cutRangesJson, row.startTime, row.endTime),
     type: row.type,
     excludeFromRandom: row.excludeFromRandom,
     resources: [],
@@ -1844,6 +1865,7 @@ async function findRoundByIdForReconciliation(
         phash: true,
         startTime: true,
         endTime: true,
+        cutRangesJson: true,
         type: true,
         excludeFromRandom: true,
         installSourceKey: true,

@@ -230,6 +230,7 @@ describe("Settings website video caching", () => {
         selectMusicCacheDirectory: vi.fn(),
         selectMoaningCacheDirectory: vi.fn(),
         selectConverterVideoFile: vi.fn(),
+        selectMapBackgroundFile: vi.fn(),
         selectMusicFiles: vi.fn(async () => []),
         selectMoaningFiles: vi.fn(async () => []),
         addMusicFromUrl: vi.fn(),

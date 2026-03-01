@@ -16,6 +16,7 @@ import {
 } from "../../src/game/playlistSchema";
 import { resolvePortableRoundRefExact } from "../../src/game/playlistResolution";
 import { ZHeroSidecar, ZRoundSidecar } from "../../src/zod/installSidecar";
+import { parseOptionalRoundCutRangesJson } from "../../src/utils/roundCuts";
 import { getDb } from "./db";
 import { playlist as playlistTable } from "./db/schema";
 import { assertApprovedDialogPath } from "./dialogPathApproval";
@@ -97,6 +98,7 @@ export type PlaylistExportPackageStatus = {
     sidecarFiles: number;
     videoFiles: number;
     funscriptFiles: number;
+    musicFiles: number;
   };
   compression: PlaylistExportPackageCompressionStatus | null;
 };
@@ -107,6 +109,7 @@ export type ExportPackageResult = {
   sidecarFiles: number;
   videoFiles: number;
   funscriptFiles: number;
+  musicFiles: number;
   referencedRounds: number;
   compression: {
     enabled: boolean;
@@ -171,6 +174,7 @@ type ExportableRound = {
   phash: string | null;
   startTime: number | null;
   endTime: number | null;
+  cutRangesJson?: string | null;
   type: "Normal" | "Interjection" | "Cum";
   excludeFromRandom: boolean;
   installSourceKey: string | null;
@@ -242,10 +246,29 @@ type FunscriptTask = {
   output: ExportedMediaFile | null;
 };
 
+type BackgroundMediaTask = {
+  uri: string;
+  kind: "image" | "video";
+  preferredBaseName: string;
+  originalExtension: string;
+  output: ExportedMediaFile | null;
+};
+
+type MusicTrackTask = {
+  trackId: string;
+  uri: string;
+  name: string;
+  preferredBaseName: string;
+  originalExtension: string;
+  output: ExportedMediaFile | null;
+};
+
 type PreparedPlaylistExport = {
   loaded: ResolvedPlaylistExport;
   videoTasks: VideoTask[];
   funscriptTasks: FunscriptTask[];
+  backgroundTask: BackgroundMediaTask | null;
+  musicTasks: MusicTrackTask[];
   resourceReferences: ResourceReference[];
   encoder: Av1EncoderDetails | null;
   effectiveCompressionMode: PlaylistExportCompressionMode;
@@ -318,6 +341,7 @@ let exportStatus: PlaylistExportPackageStatus = {
     sidecarFiles: 0,
     videoFiles: 0,
     funscriptFiles: 0,
+    musicFiles: 0,
   },
   compression: null,
 };
@@ -923,10 +947,28 @@ function buildResourceInventory(loaded: ResolvedPlaylistExport): {
   resourceReferences: ResourceReference[];
   videoTasks: VideoTask[];
   funscriptTasks: FunscriptTask[];
+  backgroundTask: BackgroundMediaTask | null;
+  musicTasks: MusicTrackTask[];
 } {
   const resourceReferences: ResourceReference[] = [];
   const videoTaskByKey = new Map<string, VideoTask>();
   const funscriptTaskByKey = new Map<string, FunscriptTask>();
+  const background =
+    loaded.playlist.config.boardConfig.mode === "graph"
+      ? loaded.playlist.config.boardConfig.style?.background
+      : undefined;
+  const backgroundTask: BackgroundMediaTask | null = background
+    ? {
+        uri: background.uri,
+        kind: background.kind,
+        preferredBaseName: "map-background",
+        originalExtension: inferExtensionFromUri(
+          background.uri,
+          background.kind === "video" ? ".mp4" : ".png"
+        ),
+        output: null,
+      }
+    : null;
 
   for (const round of loaded.rounds) {
     if (round.resources.length === 0) {
@@ -995,10 +1037,29 @@ function buildResourceInventory(loaded: ResolvedPlaylistExport): {
     });
   };
 
+  const musicTracks = loaded.playlist.config.music?.tracks ?? [];
+  const musicTaskByUri = new Map<string, MusicTrackTask>();
+  for (const track of musicTracks) {
+    if (!musicTaskByUri.has(track.uri)) {
+      const rawName = track.name.replace(/\\/g, "/");
+      const baseName = rawName.split("/").pop() ?? "music-track";
+      musicTaskByUri.set(track.uri, {
+        trackId: track.id,
+        uri: track.uri,
+        name: track.name,
+        preferredBaseName: sanitizeFileSystemName(baseName, "music-track"),
+        originalExtension: inferExtensionFromUri(track.uri, ".mp3"),
+        output: null,
+      });
+    }
+  }
+
   return {
     resourceReferences,
     videoTasks: Array.from(videoTaskByKey.values()).sort(sortByKey),
     funscriptTasks: Array.from(funscriptTaskByKey.values()).sort(sortByKey),
+    backgroundTask,
+    musicTasks: Array.from(musicTaskByUri.values()),
   };
 }
 
@@ -1013,7 +1074,14 @@ async function preparePlaylistExport(
   const requestedMode = input.compressionMode ?? defaultMode;
   const effectiveCompressionMode = requestedMode === "av1" && encoder ? "av1" : "copy";
   const parallelJobs = getParallelJobsForEncoder(encoder?.kind ?? null);
-  const { resourceReferences, videoTasks, funscriptTasks } = buildResourceInventory(loaded);
+  const {
+    resourceReferences,
+    videoTasks,
+    funscriptTasks,
+    backgroundTask: discoveredBackgroundTask,
+    musicTasks,
+  } = buildResourceInventory(loaded);
+  const backgroundTask = input.includeMedia === false ? null : discoveredBackgroundTask;
 
   for (const task of videoTasks) {
     const localPath = await resolveLocalSourcePath(task.uri);
@@ -1073,6 +1141,8 @@ async function preparePlaylistExport(
     loaded,
     videoTasks,
     funscriptTasks,
+    backgroundTask,
+    musicTasks,
     resourceReferences,
     encoder,
     effectiveCompressionMode,
@@ -1123,9 +1193,12 @@ function estimateExportWork(input: PreparedPlaylistExport) {
     videoFiles: input.videoTasks.length,
     funscriptFiles: input.funscriptTasks.length,
     sidecarFiles: standaloneSidecars + heroGroups.size,
+    musicFiles: input.musicTasks.length,
     total:
       input.videoTasks.length +
       input.funscriptTasks.length +
+      (input.backgroundTask ? 1 : 0) +
+      input.musicTasks.length +
       standaloneSidecars +
       heroGroups.size +
       1,
@@ -1142,6 +1215,11 @@ function toRoundSidecarPayload(entry: RoundResourceEntry, includeMedia: boolean)
     phash: entry.round.phash ?? undefined,
     startTime: entry.round.startTime ?? undefined,
     endTime: entry.round.endTime ?? undefined,
+    cutRanges: parseOptionalRoundCutRangesJson(
+      entry.round.cutRangesJson,
+      entry.round.startTime,
+      entry.round.endTime
+    ),
     type: entry.round.type,
     excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
     resources: [
@@ -1182,6 +1260,11 @@ function createHeroSidecarPayload(
         phash: entry.round.phash ?? undefined,
         startTime: entry.round.startTime ?? undefined,
         endTime: entry.round.endTime ?? undefined,
+        cutRanges: parseOptionalRoundCutRangesJson(
+          entry.round.cutRangesJson,
+          entry.round.startTime,
+          entry.round.endTime
+        ),
         type: entry.round.type,
         excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
         resources: [
@@ -1266,6 +1349,59 @@ function allocateMediaOutputs(input: {
       relativePath: toPortableRelativePath(input.packageDir, absolutePath),
     };
   }
+}
+
+function allocateBackgroundOutput(input: {
+  task: BackgroundMediaTask;
+  usedNames: Set<string>;
+  packageDir: string;
+}): void {
+  const fileName = toUniqueCaseInsensitiveFileName(
+    input.usedNames,
+    sanitizeFileSystemName(input.task.preferredBaseName, "map-background"),
+    sanitizeExtension(input.task.originalExtension, input.task.kind === "video" ? ".mp4" : ".png")
+  );
+  const absolutePath = path.join(input.packageDir, fileName);
+  input.task.output = {
+    absolutePath,
+    relativePath: toPortableRelativePath(input.packageDir, absolutePath),
+  };
+}
+
+function allocateMusicOutput(input: {
+  tasks: MusicTrackTask[];
+  usedNames: Set<string>;
+  packageDir: string;
+}): void {
+  for (const task of input.tasks) {
+    const fileName = toUniqueCaseInsensitiveFileName(
+      input.usedNames,
+      sanitizeFileSystemName(task.preferredBaseName, "music-track"),
+      sanitizeExtension(task.originalExtension, ".mp3")
+    );
+    const absolutePath = path.join(input.packageDir, fileName);
+    task.output = {
+      absolutePath,
+      relativePath: toPortableRelativePath(input.packageDir, absolutePath),
+    };
+  }
+}
+
+async function materializeMusicTask(task: MusicTrackTask): Promise<void> {
+  if (!task.output) {
+    throw new Error("Music track output path was not allocated.");
+  }
+
+  const outputName = path.basename(task.output.absolutePath);
+  updateExportPhase("copying", `Exporting music track ${outputName}...`);
+  const localPath = await resolveLocalSourcePath(task.uri);
+  if (!localPath) {
+    throw new Error(`Music track export requires a local file for "${task.name}".`);
+  }
+  await ensureLocalSourceExists(localPath, `music track "${task.name}"`);
+  await copyLocalFile(localPath, task.output.absolutePath);
+  incrementExportStat("musicFiles");
+  incrementExportProgress();
 }
 
 function registerEncodeChild(child: ChildProcess): void {
@@ -1485,8 +1621,87 @@ async function materializeFunscriptTask(task: FunscriptTask): Promise<void> {
   incrementExportProgress();
 }
 
+async function materializeBackgroundTask(task: BackgroundMediaTask): Promise<void> {
+  if (!task.output) {
+    throw new Error("Map background output path was not allocated.");
+  }
+
+  const outputName = path.basename(task.output.absolutePath);
+  updateExportPhase("copying", `Exporting map background ${outputName}...`);
+  const localPath = await resolveLocalSourcePath(task.uri);
+  if (!localPath) {
+    throw new Error("Map background export requires a local background media file.");
+  }
+  await ensureLocalSourceExists(localPath, "map background");
+  await copyLocalFile(localPath, task.output.absolutePath);
+  if (task.kind === "video") {
+    incrementExportStat("videoFiles");
+  }
+  incrementExportProgress();
+}
+
+function withExportedBackgroundConfig(
+  config: PlaylistConfig,
+  backgroundTask: BackgroundMediaTask | null,
+  includeMedia: boolean
+): PlaylistConfig {
+  if (
+    !includeMedia ||
+    !backgroundTask?.output ||
+    config.boardConfig.mode !== "graph" ||
+    !config.boardConfig.style?.background
+  ) {
+    return config;
+  }
+
+  return {
+    ...config,
+    boardConfig: {
+      ...config.boardConfig,
+      style: {
+        ...config.boardConfig.style,
+        background: {
+          ...config.boardConfig.style.background,
+          uri: backgroundTask.output.relativePath,
+        },
+      },
+    },
+  };
+}
+
+function withExportedMusicConfig(
+  config: PlaylistConfig,
+  musicTasks: MusicTrackTask[],
+  includeMedia: boolean
+): PlaylistConfig {
+  if (!includeMedia || musicTasks.length === 0 || !config.music) {
+    return config;
+  }
+
+  const uriByOriginalUri = new Map<string, string>();
+  for (const task of musicTasks) {
+    if (task.output) {
+      uriByOriginalUri.set(task.uri, task.output.relativePath);
+    }
+  }
+
+  const rewrittenTracks = config.music.tracks.map((track) => {
+    const rewritten = uriByOriginalUri.get(track.uri);
+    return rewritten ? { ...track, uri: rewritten } : track;
+  });
+
+  return {
+    ...config,
+    music: {
+      ...config.music,
+      tracks: rewrittenTracks,
+    },
+  };
+}
+
 function buildReadmeContent(input: {
   videoNames: string[];
+  musicNames: string[];
   result: ExportPackageResult["compression"];
   encoder: Av1EncoderDetails | null;
   parallelJobs: number;
@@ -1525,6 +1740,18 @@ function buildReadmeContent(input: {
     ...input.videoNames.map((name) => `- ${name}`),
     "",
   ];
+
+  if (input.musicNames.length > 0) {
+    lines.push(
+      "## Exported Music",
+      "",
+      "This package contains the following playlist music tracks:",
+      "",
+      ...input.musicNames.map((name) => `- ${name}`),
+      ""
+    );
+  }
+
   return lines.join("\n");
 }
 
@@ -1566,6 +1793,20 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
       packageDir: tempDir,
       compressionMode: prepared.effectiveCompressionMode,
     });
+    if (prepared.backgroundTask) {
+      allocateBackgroundOutput({
+        task: prepared.backgroundTask,
+        usedNames: usedMediaNames,
+        packageDir: tempDir,
+      });
+    }
+    if (prepared.musicTasks.length > 0) {
+      allocateMusicOutput({
+        tasks: prepared.musicTasks,
+        usedNames: usedMediaNames,
+        packageDir: tempDir,
+      });
+    }
 
     const binaries = await resolvePhashBinaries();
     let actualVideoBytes = 0;
@@ -1605,6 +1846,14 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
 
     for (const task of prepared.funscriptTasks) {
       await materializeFunscriptTask(task);
+    }
+    if (includeMedia && prepared.backgroundTask) {
+      await materializeBackgroundTask(prepared.backgroundTask);
+    }
+    if (includeMedia) {
+      for (const musicTask of prepared.musicTasks) {
+        await materializeMusicTask(musicTask);
+      }
     }
 
     const videoOutputByKey = new Map<string, ExportedMediaFile>(
@@ -1652,7 +1901,21 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
     );
     const playlistFilePath = path.join(tempDir, playlistFileName);
     updateExportPhase("writing", `Writing playlist ${playlistFileName}...`);
-    await writeJsonFile(playlistFilePath, createPlaylistEnvelope(prepared.loaded.playlist));
+    await writeJsonFile(
+      playlistFilePath,
+      createPlaylistEnvelope({
+        ...prepared.loaded.playlist,
+        config: withExportedMusicConfig(
+          withExportedBackgroundConfig(
+            prepared.loaded.playlist.config,
+            prepared.backgroundTask,
+            includeMedia
+          ),
+          prepared.musicTasks,
+          includeMedia
+        ),
+      })
+    );
     incrementExportStat("playlistFiles");
     incrementExportProgress();
 
@@ -1702,6 +1965,11 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
 
     const videoNames = prepared.videoTasks
       .map((task) => path.basename(task.output?.absolutePath ?? ""))
+      .concat(
+        prepared.backgroundTask?.kind === "video"
+          ? [path.basename(prepared.backgroundTask.output?.absolutePath ?? "")]
+          : []
+      )
       .filter((name) => name.length > 0)
       .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }));
 
@@ -1717,10 +1985,16 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
         alreadyAv1Copied,
         actualVideoBytes,
       } satisfies ExportPackageResult["compression"];
+      const musicNames = prepared.musicTasks
+        .map((task) => path.basename(task.output?.absolutePath ?? ""))
+        .filter((name) => name.length > 0)
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }));
+
       await fs.writeFile(
         readmePath,
         buildReadmeContent({
           videoNames,
+          musicNames,
           result: compressionResult,
           encoder: prepared.encoder,
           parallelJobs: prepared.parallelJobs,
@@ -1736,8 +2010,9 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
       exportDir: finalDir,
       playlistFilePath: path.join(finalDir, playlistFileName),
       sidecarFiles,
-      videoFiles: prepared.videoTasks.length,
+      videoFiles: prepared.videoTasks.length + (prepared.backgroundTask?.kind === "video" ? 1 : 0),
       funscriptFiles: prepared.funscriptTasks.length,
+      musicFiles: prepared.musicTasks.length,
       referencedRounds: prepared.loaded.rounds.length,
       compression: {
         enabled: prepared.effectiveCompressionMode === "av1" && Boolean(prepared.encoder),
@@ -1828,6 +2103,7 @@ export async function exportPlaylistPackage(
       sidecarFiles: 0,
       videoFiles: 0,
       funscriptFiles: 0,
+      musicFiles: 0,
     },
     compression:
       input.compressionMode === "av1"

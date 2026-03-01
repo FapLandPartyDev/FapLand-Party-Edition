@@ -4,6 +4,10 @@ import { saveConvertedRounds } from "../../services/converter";
 import { publicProcedure, router } from "../trpc";
 
 const ZRoundType = z.enum(["Normal", "Interjection", "Cum"]);
+const ZRoundCutRange = z.object({
+  startTimeMs: z.number().int().nonnegative(),
+  endTimeMs: z.number().int().nonnegative(),
+});
 
 export const converterRouter = router({
   saveSegments: publicProcedure
@@ -21,6 +25,7 @@ export const converterRouter = router({
           sourceRoundIds: z.array(z.string().trim().min(1)).optional().nullable(),
           removeSourceRound: z.boolean().optional(),
         }),
+        allowOverlaps: z.boolean().optional(),
         segments: z
           .array(
             z.object({
@@ -30,6 +35,7 @@ export const converterRouter = router({
               customName: z.string().optional().nullable(),
               bpm: z.number().finite().min(1).max(400).optional().nullable(),
               difficulty: z.number().int().min(1).max(5).optional().nullable(),
+              cutRanges: z.array(ZRoundCutRange).optional().nullable(),
             }),
           )
           .min(1),

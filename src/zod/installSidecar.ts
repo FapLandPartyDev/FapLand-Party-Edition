@@ -31,6 +31,13 @@ const ZInstallUri = z.union([ZAbsoluteInstallUri, ZRelativeInstallPath]);
 
 const ZNullableString = z.string().trim().min(1).nullish();
 
+const ZRoundCutRange = z
+  .object({
+    startTimeMs: z.number().int().nonnegative(),
+    endTimeMs: z.number().int().nonnegative(),
+  })
+  .strict();
+
 export const ZInstallResource = z
   .object({
     videoUri: ZInstallUri,
@@ -57,6 +64,7 @@ export const ZInstallRound = z
     phash: ZNullableString,
     startTime: z.number().int().nullish(),
     endTime: z.number().int().nullish(),
+    cutRanges: z.array(ZRoundCutRange).optional(),
     type: z.enum(["Normal", "Interjection", "Cum"]).nullish(),
     excludeFromRandom: z.boolean().optional(),
     resources: z.array(ZInstallResource).default([]),

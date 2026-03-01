@@ -57,6 +57,7 @@ function makeRound(
     phash: null,
     startTime: null,
     endTime: null,
+    cutRangesJson: null,
     installSourceKey: null,
     previewImage: null,
     type,
@@ -509,6 +510,125 @@ describe("playlistSchema", () => {
     });
   });
 
+  it("accepts graph map backgrounds and road palettes through editor and runtime round trips", () => {
+    const parsed = ZPlaylistConfig.parse(
+      buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [{ id: "edge-a", fromNodeId: "start", toNodeId: "end" }],
+        randomRoundPools: [],
+        cumRoundRefs: [],
+        pathChoiceTimeoutMs: 6000,
+        style: {
+          background: {
+            kind: "image",
+            uri: "app://media/%2Ftmp%2Fmap.gif",
+            fit: "contain",
+            position: "top",
+            opacity: 0.75,
+            blur: 2,
+            dim: 0.2,
+            scale: 1.4,
+            offsetX: 12,
+            offsetY: -8,
+            motion: "parallax",
+            parallaxStrength: 0.32,
+          },
+          roadPalette: {
+            presetId: "custom",
+            body: "#101010",
+            railA: "#112233",
+            railB: "#445566",
+            glow: "#778899",
+            center: "#abcdef",
+            gate: "#fedcba",
+            marker: "#ffffff",
+          },
+        },
+      })
+    );
+
+    expect(parsed.boardConfig.mode).toBe("graph");
+    if (parsed.boardConfig.mode !== "graph") {
+      throw new Error("Expected graph board config");
+    }
+    expect(parsed.boardConfig.style?.background?.kind).toBe("image");
+    expect(parsed.boardConfig.style?.roadPalette?.railA).toBe("#112233");
+
+    const editorConfig = toEditorGraphConfig(parsed.boardConfig);
+    const roundTripped = toGraphBoardConfig(editorConfig);
+    expect(roundTripped.style?.background?.uri).toBe("app://media/%2Ftmp%2Fmap.gif");
+    expect(roundTripped.style?.background?.motion).toBe("parallax");
+    expect(roundTripped.style?.background?.parallaxStrength).toBe(0.32);
+    expect(roundTripped.style?.roadPalette?.gate).toBe("#fedcba");
+
+    const runtimeConfig = toGameConfigFromPlaylist(parsed, []);
+    expect(runtimeConfig.mapStyle?.background?.fit).toBe("contain");
+    expect(runtimeConfig.mapStyle?.background?.motion).toBe("parallax");
+    expect(runtimeConfig.mapStyle?.roadPalette?.center).toBe("#abcdef");
+  });
+
+  it("accepts graph video backgrounds and rejects invalid road colors", () => {
+    const withVideo = ZPlaylistConfig.parse(
+      buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [{ id: "edge-a", fromNodeId: "start", toNodeId: "end" }],
+        randomRoundPools: [],
+        cumRoundRefs: [],
+        pathChoiceTimeoutMs: 6000,
+        style: {
+          background: {
+            kind: "video",
+            uri: "app://media/%2Ftmp%2Fmap.mp4",
+          },
+        },
+      })
+    );
+    expect(withVideo.boardConfig.mode).toBe("graph");
+    if (withVideo.boardConfig.mode !== "graph") {
+      throw new Error("Expected graph board config");
+    }
+    expect(withVideo.boardConfig.style?.background?.motion).toBe("fixed");
+    expect(withVideo.boardConfig.style?.background?.parallaxStrength).toBe(0.18);
+
+    expect(() =>
+      ZPlaylistConfig.parse(
+        buildConfig({
+          mode: "graph",
+          startNodeId: "start",
+          nodes: [
+            { id: "start", name: "Start", kind: "start" },
+            { id: "end", name: "End", kind: "end" },
+          ],
+          edges: [{ id: "edge-a", fromNodeId: "start", toNodeId: "end" }],
+          randomRoundPools: [],
+          cumRoundRefs: [],
+          pathChoiceTimeoutMs: 6000,
+          style: {
+            roadPalette: {
+              body: "blue",
+              railA: "#112233",
+              railB: "#445566",
+              glow: "#778899",
+              center: "#abcdef",
+              gate: "#fedcba",
+              marker: "#ffffff",
+            },
+          },
+        })
+      )
+    ).toThrow();
+  });
+
   it("copies forced-stop round nodes into runtime board fields", () => {
     const parsed = ZPlaylistConfig.parse(
       buildConfig({
@@ -641,5 +761,155 @@ describe("playlistSchema", () => {
       dice: { min: 10, max: 5 },
     });
     expect(invalidDice.success).toBe(false);
+  });
+
+  it("parses playlist config with music tracks and defaults loop to true", () => {
+    const parsed = ZPlaylistConfig.parse({
+      ...buildConfig({
+        mode: "linear",
+        totalIndices: 10,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+      }),
+      music: {
+        tracks: [{ id: "m1", uri: "app://media/song.mp3", name: "Song" }],
+      },
+    });
+    expect(parsed.music).toBeDefined();
+    expect(parsed.music!.tracks).toHaveLength(1);
+    expect(parsed.music!.tracks[0]).toEqual({
+      id: "m1",
+      uri: "app://media/song.mp3",
+      name: "Song",
+    });
+    expect(parsed.music!.loop).toBe(true);
+  });
+
+  it("parses URL-imported cached playlist music tracks", () => {
+    const parsed = ZPlaylistConfig.parse({
+      ...buildConfig({
+        mode: "linear",
+        totalIndices: 10,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+      }),
+      music: {
+        tracks: [
+          {
+            id: "m-url",
+            uri: "app://media/%2Fmusic-cache%2Fdownloaded-track.mp3",
+            name: "Downloaded Track",
+          },
+        ],
+      },
+    });
+    expect(parsed.music?.tracks[0]).toEqual({
+      id: "m-url",
+      uri: "app://media/%2Fmusic-cache%2Fdownloaded-track.mp3",
+      name: "Downloaded Track",
+    });
+  });
+
+  it("rejects music tracks with empty uri or name", () => {
+    const emptyUri = ZPlaylistConfig.safeParse({
+      ...buildConfig({
+        mode: "linear",
+        totalIndices: 5,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+      }),
+      music: {
+        tracks: [{ id: "m1", uri: "  ", name: "Song" }],
+      },
+    });
+    expect(emptyUri.success).toBe(false);
+
+    const emptyName = ZPlaylistConfig.safeParse({
+      ...buildConfig({
+        mode: "linear",
+        totalIndices: 5,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+      }),
+      music: {
+        tracks: [{ id: "m1", uri: "app://media/song.mp3", name: "" }],
+      },
+    });
+    expect(emptyName.success).toBe(false);
+  });
+
+  it("parses existing configs without music", () => {
+    const parsed = ZPlaylistConfig.parse(
+      buildConfig({
+        mode: "linear",
+        totalIndices: 10,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+      })
+    );
+    expect(parsed.music).toBeUndefined();
+  });
+
+  it("exposes playlistMusic in GameConfig when tracks exist", () => {
+    const config = ZPlaylistConfig.parse({
+      ...buildConfig({
+        mode: "linear",
+        totalIndices: 5,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [{ name: "Round 1" }],
+        cumRoundRefs: [],
+      }),
+      music: {
+        tracks: [
+          { id: "m1", uri: "app://media/a.mp3", name: "A" },
+          { id: "m2", uri: "app://media/b.mp3", name: "B" },
+        ],
+        loop: false,
+      },
+    });
+    const runtime = toGameConfigFromPlaylist(config, [makeRound("r1", "Round 1")]);
+    expect(runtime.playlistMusic).toBeDefined();
+    expect(runtime.playlistMusic!.tracks).toHaveLength(2);
+    expect(runtime.playlistMusic!.loop).toBe(false);
+  });
+
+  it("omits playlistMusic when music is empty or missing", () => {
+    const withEmpty = ZPlaylistConfig.parse({
+      ...buildConfig({
+        mode: "linear",
+        totalIndices: 5,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [{ name: "Round 1" }],
+        cumRoundRefs: [],
+      }),
+      music: { tracks: [] },
+    });
+    const runtimeEmpty = toGameConfigFromPlaylist(withEmpty, [makeRound("r1", "Round 1")]);
+    expect(runtimeEmpty.playlistMusic).toBeUndefined();
+
+    const without = ZPlaylistConfig.parse(
+      buildConfig({
+        mode: "linear",
+        totalIndices: 5,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [{ name: "Round 1" }],
+        cumRoundRefs: [],
+      })
+    );
+    const runtimeMissing = toGameConfigFromPlaylist(without, [makeRound("r1", "Round 1")]);
+    expect(runtimeMissing.playlistMusic).toBeUndefined();
   });
 });

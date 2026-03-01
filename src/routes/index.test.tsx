@@ -206,6 +206,7 @@ describe("Home route update menu", () => {
         selectMusicCacheDirectory: vi.fn(),
         selectMoaningCacheDirectory: vi.fn(),
         selectConverterVideoFile: vi.fn(),
+        selectMapBackgroundFile: vi.fn(),
         selectMusicFiles: vi.fn(),
         selectMoaningFiles: vi.fn(),
         addMusicFromUrl: vi.fn(),

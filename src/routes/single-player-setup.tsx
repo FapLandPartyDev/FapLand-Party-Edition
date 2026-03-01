@@ -386,6 +386,11 @@ function SinglePlayerSetupPage() {
         roundCount={boardSummary.roundNodeCount}
         estimatedDurationLabel={formatDurationLabel(selectedPlaylistDurationSec)}
         progress={launchProgress}
+        roadPalette={
+          selectedPlaylist.config.boardConfig.mode === "graph"
+            ? selectedPlaylist.config.boardConfig.style?.roadPalette
+            : undefined
+        }
       />
 
       <div

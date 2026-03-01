@@ -6,6 +6,92 @@ export const PLAYLIST_FILE_VERSION = 1;
 export const ZPlaylistSaveMode = z.enum(["none", "checkpoint", "everywhere"]);
 
 export const ZRoundType = z.enum(["Normal", "Interjection", "Cum"]);
+export const ZGraphBackgroundFit = z.enum(["cover", "contain", "stretch", "tile"]);
+export const ZGraphBackgroundPosition = z.enum(["center", "top", "bottom", "left", "right"]);
+export const ZGraphBackgroundMotion = z.enum(["fixed", "parallax"]);
+
+const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+const ZHexColor = z
+  .string()
+  .trim()
+  .regex(HEX_COLOR_PATTERN, "Color must be a #rgb or #rrggbb hex value.");
+const IMAGE_BACKGROUND_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "gif",
+  "avif",
+  "bmp",
+  "svg",
+]);
+const VIDEO_BACKGROUND_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v", "mkv"]);
+
+function getUriExtension(uri: string): string | null {
+  const clean = uri.split(/[?#]/u)[0] ?? uri;
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(clean);
+    } catch {
+      return clean;
+    }
+  })();
+  const match = /\.([a-z0-9]+)$/iu.exec(decoded);
+  return match?.[1]?.toLowerCase() ?? null;
+}
+
+export const ZGraphBackgroundMedia = z
+  .object({
+    kind: z.enum(["image", "video"]),
+    uri: z.string().trim().min(1),
+    name: z.string().trim().min(1).optional(),
+    fit: ZGraphBackgroundFit.default("cover"),
+    position: ZGraphBackgroundPosition.default("center"),
+    opacity: z.number().min(0).max(1).default(0.55),
+    blur: z.number().min(0).max(24).default(0),
+    dim: z.number().min(0).max(1).default(0.35),
+    scale: z.number().min(0.25).max(4).default(1),
+    offsetX: z.number().finite().default(0),
+    offsetY: z.number().finite().default(0),
+    motion: ZGraphBackgroundMotion.default("fixed"),
+    parallaxStrength: z.number().min(0).max(1).default(0.18),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const extension = getUriExtension(value.uri);
+    if (!extension) return;
+    const valid =
+      value.kind === "image"
+        ? IMAGE_BACKGROUND_EXTENSIONS.has(extension)
+        : VIDEO_BACKGROUND_EXTENSIONS.has(extension);
+    if (!valid) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Background ${value.kind} URI must use a supported ${value.kind} extension.`,
+        path: ["uri"],
+      });
+    }
+  });
+
+export const ZGraphRoadPalette = z
+  .object({
+    presetId: z.string().trim().min(1).optional(),
+    body: ZHexColor,
+    railA: ZHexColor,
+    railB: ZHexColor,
+    glow: ZHexColor,
+    center: ZHexColor,
+    gate: ZHexColor,
+    marker: ZHexColor,
+  })
+  .strict();
+
+export const ZGraphBoardStyle = z
+  .object({
+    background: ZGraphBackgroundMedia.optional(),
+    roadPalette: ZGraphRoadPalette.optional(),
+  })
+  .strict();
 
 export const ZPortableRoundRef = z
   .object({
@@ -60,6 +146,7 @@ export const ZGraphNodeKind = z.enum([
   "randomRound",
   "perk",
   "event",
+  "catapult",
 ]);
 
 export const ZGraphNode = z
@@ -74,6 +161,8 @@ export const ZGraphNode = z
     checkpointRestMs: z.number().int().min(0).optional(),
     visualId: z.string().trim().min(1).optional(),
     giftGuaranteedPerk: z.boolean().optional(),
+    catapultForward: z.number().int().min(1).optional(),
+    catapultLandingOnly: z.boolean().optional(),
     styleHint: z
       .object({
         x: z.number().finite().optional(),
@@ -140,6 +229,7 @@ export const ZGraphBoardConfig = z
     randomRoundPools: z.array(ZRoundPool).default([]),
     cumRoundRefs: z.array(ZPortableRoundRef).default([]),
     pathChoiceTimeoutMs: z.number().int().min(1000).max(30000).default(12000),
+    style: ZGraphBoardStyle.optional(),
   })
   .strict()
   .superRefine((value, context) => {
@@ -212,6 +302,22 @@ export const ZGraphBoardConfig = z
           path: ["nodes"],
         });
       }
+
+      if (node.kind !== "catapult" && typeof node.catapultForward === "number") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only catapult nodes may define catapultForward (${node.id})`,
+          path: ["nodes"],
+        });
+      }
+
+      if (node.kind !== "catapult" && typeof node.catapultLandingOnly === "boolean") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only catapult nodes may define catapultLandingOnly (${node.id})`,
+          path: ["nodes"],
+        });
+      }
     }
 
     const startNode = value.nodes.find((node) => node.id === value.startNodeId);
@@ -263,7 +369,10 @@ export const ZGraphBoardConfig = z
         });
       }
 
-      outgoingCountByNodeId.set(edge.fromNodeId, (outgoingCountByNodeId.get(edge.fromNodeId) ?? 0) + 1);
+      outgoingCountByNodeId.set(
+        edge.fromNodeId,
+        (outgoingCountByNodeId.get(edge.fromNodeId) ?? 0) + 1
+      );
     }
 
     const poolIds = new Set<string>();
@@ -299,10 +408,26 @@ export const ZGraphBoardConfig = z
 
 export const ZBoardConfig = z.union([ZLinearBoardConfig, ZGraphBoardConfig]);
 
+export const ZPlaylistMusicTrack = z
+  .object({
+    id: z.string().trim().min(1),
+    uri: z.string().trim().min(1),
+    name: z.string().trim().min(1),
+  })
+  .strict();
+
+export const ZPlaylistMusic = z
+  .object({
+    tracks: z.array(ZPlaylistMusicTrack).default([]),
+    loop: z.boolean().default(true),
+  })
+  .strict();
+
 export const ZPlaylistConfig = z
   .object({
     playlistVersion: z.number().int().min(1).default(CURRENT_PLAYLIST_VERSION),
     boardConfig: ZBoardConfig,
+    music: ZPlaylistMusic.optional(),
     saveMode: ZPlaylistSaveMode.default("none"),
     roundStartDelayMs: z.number().int().min(0).max(300000).default(20000),
     dice: z
@@ -382,12 +507,20 @@ export const ZPlaylistEnvelopeV1 = z
 
 export type PortableRoundRef = z.infer<typeof ZPortableRoundRef>;
 export type LinearBoardConfig = z.infer<typeof ZLinearBoardConfig>;
+export type GraphBackgroundFit = z.infer<typeof ZGraphBackgroundFit>;
+export type GraphBackgroundPosition = z.infer<typeof ZGraphBackgroundPosition>;
+export type GraphBackgroundMotion = z.infer<typeof ZGraphBackgroundMotion>;
+export type GraphBackgroundMedia = z.infer<typeof ZGraphBackgroundMedia>;
+export type GraphRoadPalette = z.infer<typeof ZGraphRoadPalette>;
+export type GraphBoardStyle = z.infer<typeof ZGraphBoardStyle>;
 export type GraphTextAnnotation = z.infer<typeof ZGraphTextAnnotation>;
 export type GraphBoardConfig = z.infer<typeof ZGraphBoardConfig>;
 export type BoardConfig = z.infer<typeof ZBoardConfig>;
 export type PlaylistConfig = z.infer<typeof ZPlaylistConfig>;
 export type PlaylistEnvelopeV1 = z.infer<typeof ZPlaylistEnvelopeV1>;
 export type PlaylistSaveMode = z.infer<typeof ZPlaylistSaveMode>;
+export type PlaylistMusicTrack = z.infer<typeof ZPlaylistMusicTrack>;
+export type PlaylistMusic = z.infer<typeof ZPlaylistMusic>;
 
 export function isLinearBoardConfig(config: BoardConfig): config is LinearBoardConfig {
   return config.mode === "linear";

@@ -108,7 +108,7 @@ describe("engine inventory flow", () => {
     expect(player.activePerkEffects).toHaveLength(1);
   });
 
-  it("stores anti-perk in inventory", () => {
+  it("self-applies anti-perk when applyDirectly is true", () => {
     const initial = createInitialGameState(makeConfig());
     const withMoney: GameState = {
       ...initial,
@@ -118,8 +118,8 @@ describe("engine inventory flow", () => {
     const next = selectPerk(base, "jammed-dice", { applyDirectly: true });
     const player = next.players[next.currentPlayerIndex]!;
 
-    expect(player.inventory).toHaveLength(1);
-    expect(player.inventory[0]?.kind).toBe("antiPerk");
+    expect(player.inventory).toHaveLength(0);
+    expect(player.antiPerks).toContain("jammed-dice");
   });
 
   it("applies stored perk item to self and consumes it", () => {

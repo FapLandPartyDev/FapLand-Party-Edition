@@ -134,6 +134,20 @@ const FALLBACK_TILES: TileCatalogTile[] = [
     size: 1,
     tags: ["event", "core"],
   },
+  {
+    id: "catapult-node",
+    kind: "catapult",
+    visualId: "catapult",
+    label: "Catapult",
+    description: "Launches the player forward by a configurable number of nodes.",
+    category: "utility",
+    color: "#06b6d4",
+    defaultName: "Catapult",
+    width: 190,
+    height: 84,
+    size: 1,
+    tags: ["utility", "movement"],
+  },
 ];
 
 const FALLBACK_CATEGORIES: TileCatalogCategory[] = [
@@ -188,9 +202,12 @@ const parseTile = (raw: unknown): TileCatalogTile | null => {
   const kind = normalizeTileKind(candidate.kind);
   const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
   const visualId = typeof candidate.visualId === "string" ? candidate.visualId.trim() : "";
-  const label = clampName(typeof candidate.label === "string" ? candidate.label : candidate.kind?.toString() ?? "Node");
+  const label = clampName(
+    typeof candidate.label === "string" ? candidate.label : (candidate.kind?.toString() ?? "Node")
+  );
   const category = typeof candidate.category === "string" ? candidate.category.trim() : "";
-  const defaultName = typeof candidate.defaultName === "string" ? candidate.defaultName.trim() : undefined;
+  const defaultName =
+    typeof candidate.defaultName === "string" ? candidate.defaultName.trim() : undefined;
 
   if (!id || !visualId || !label) return null;
 
@@ -199,14 +216,21 @@ const parseTile = (raw: unknown): TileCatalogTile | null => {
     kind: kind,
     visualId,
     label,
-    description: typeof candidate.description === "string" ? candidate.description.trim() : undefined,
+    description:
+      typeof candidate.description === "string" ? candidate.description.trim() : undefined,
     category: category.length > 0 ? category : "core",
     color: parseColor(candidate.color),
     icon: typeof candidate.icon === "string" ? candidate.icon.trim() : undefined,
     defaultName: defaultName && defaultName.length > 0 ? defaultName : undefined,
-    width: Number.isFinite(candidate.width as number) ? Math.max(96, Math.floor(candidate.width as number)) : undefined,
-    height: Number.isFinite(candidate.height as number) ? Math.max(56, Math.floor(candidate.height as number)) : undefined,
-    size: Number.isFinite(candidate.size as number) ? Math.max(0.5, Number(candidate.size)) : undefined,
+    width: Number.isFinite(candidate.width as number)
+      ? Math.max(96, Math.floor(candidate.width as number))
+      : undefined,
+    height: Number.isFinite(candidate.height as number)
+      ? Math.max(56, Math.floor(candidate.height as number))
+      : undefined,
+    size: Number.isFinite(candidate.size as number)
+      ? Math.max(0.5, Number(candidate.size))
+      : undefined,
     tags: Array.isArray(candidate.tags)
       ? candidate.tags
           .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
@@ -216,11 +240,20 @@ const parseTile = (raw: unknown): TileCatalogTile | null => {
 };
 
 export function normalizeTileKind(kind: unknown): EditorNodeKind {
-  if (kind === "start" || kind === "end" || kind === "path" || kind === "safePoint" || kind === "round" || kind === "randomRound" || kind === "perk") {
+  if (
+    kind === "start" ||
+    kind === "end" ||
+    kind === "path" ||
+    kind === "safePoint" ||
+    kind === "round" ||
+    kind === "randomRound" ||
+    kind === "perk" ||
+    kind === "catapult"
+  ) {
     return kind;
   }
   return "path";
-};
+}
 
 export async function loadTileCatalog(): Promise<TileCatalog> {
   try {
@@ -255,18 +288,25 @@ export async function loadTileCatalog(): Promise<TileCatalog> {
           }))
       : [];
 
-    const fallbackByCategory = tiles.length > 0 ? new Map(tiles.map((tile) => [tile.id, tile])) : new Map();
-    const fallbackMissing: (TileCatalogTile & { kind: EditorNodeKind })[] = FALLBACK_TILES
-      .filter((tile) => !fallbackByCategory.has(tile.id))
-      .map((tile) => ({
-        ...tile,
-        category: "utility",
-        kind: normalizeTileKind(tile.kind),
-      }));
+    const fallbackByCategory =
+      tiles.length > 0 ? new Map(tiles.map((tile) => [tile.id, tile])) : new Map();
+    const fallbackMissing: (TileCatalogTile & { kind: EditorNodeKind })[] = FALLBACK_TILES.filter(
+      (tile) => !fallbackByCategory.has(tile.id)
+    ).map((tile) => ({
+      ...tile,
+      category: "utility",
+      kind: normalizeTileKind(tile.kind),
+    }));
 
-    const mergedTiles: (TileCatalogTile & { kind: EditorNodeKind })[] = [...tiles, ...fallbackMissing];
+    const mergedTiles: (TileCatalogTile & { kind: EditorNodeKind })[] = [
+      ...tiles,
+      ...fallbackMissing,
+    ];
     return {
-      version: Number.isFinite(versionValue) && versionValue > 0 ? Math.floor(versionValue) : DEFAULT_CATALOG.version,
+      version:
+        Number.isFinite(versionValue) && versionValue > 0
+          ? Math.floor(versionValue)
+          : DEFAULT_CATALOG.version,
       categories: categories.length > 0 ? categories : FALLBACK_CATEGORIES,
       tiles: mergedTiles,
     };

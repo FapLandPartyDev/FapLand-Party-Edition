@@ -3,7 +3,13 @@ import React, { useEffect, useMemo, useState, type RefObject } from "react";
 import { useSfwMode } from "../../hooks/useSfwMode";
 import { playHoverSound } from "../../utils/audio";
 import { abbreviateNsfwText } from "../../utils/sfwText";
-import { DEFAULT_ZOOM_PX_PER_SEC, formatMs, type DragState, type SegmentDraft } from "./types";
+import {
+  assignSegmentLanes,
+  DEFAULT_ZOOM_PX_PER_SEC,
+  formatMs,
+  type DragState,
+  type SegmentDraft,
+} from "./types";
 import type { FunscriptAction } from "../../game/media/playback";
 
 type TimelineProps = {
@@ -26,6 +32,10 @@ type TimelineProps = {
 
 const WAVEFORM_HEIGHT = 40;
 const WAVEFORM_BUCKET_PX = 3;
+const SEGMENT_LANE_TOP = 56;
+const SEGMENT_LANE_HEIGHT = 32;
+const SEGMENT_LANE_GAP = 6;
+const TIMELINE_BOTTOM_PADDING = 22;
 
 function buildWaveformPath(
   actions: FunscriptAction[],
@@ -79,6 +89,11 @@ export const Timeline: React.FC<TimelineProps> = React.memo(
       () => buildWaveformPath(funscriptActions, durationMs, timelineWidthPx),
       [funscriptActions, durationMs, timelineWidthPx]
     );
+    const segmentLanes = useMemo(() => assignSegmentLanes(sortedSegments), [sortedSegments]);
+    const laneCount = Math.max(1, ...segmentLanes.map((entry) => entry.lane + 1));
+    const laneAreaHeight =
+      laneCount * SEGMENT_LANE_HEIGHT + (laneCount - 1) * SEGMENT_LANE_GAP;
+    const timelineHeight = SEGMENT_LANE_TOP + laneAreaHeight + TIMELINE_BOTTOM_PADDING;
     const [zoomDraft, setZoomDraft] = useState(() => `${zoomPxPerSec}`);
 
     useEffect(() => {
@@ -161,21 +176,27 @@ export const Timeline: React.FC<TimelineProps> = React.memo(
           className="mt-4 overflow-x-auto rounded-2xl border border-violet-300/20 bg-black/40 p-4"
         >
           <div
-            className="relative h-36"
-            style={{ width: `${timelineWidthPx}px` }}
+            className="relative"
+            style={{ width: `${timelineWidthPx}px`, height: `${timelineHeight}px` }}
             onPointerDown={onTimelinePointerDown}
           >
             {/* Track bar */}
-            <div className="absolute left-0 right-0 top-16 h-4 rounded-full bg-zinc-800/90" />
+            <div
+              className="absolute left-0 right-0 rounded-full bg-zinc-800/90"
+              style={{
+                top: `${SEGMENT_LANE_TOP + SEGMENT_LANE_HEIGHT / 2 - 2}px`,
+                height: "4px",
+              }}
+            />
 
             {/* Waveform */}
             {waveformPath && (
               <svg
-                className="absolute left-0 top-[52px] opacity-25"
+                className="absolute left-0 opacity-25"
                 width={timelineWidthPx}
                 height={WAVEFORM_HEIGHT}
                 preserveAspectRatio="none"
-                style={{ pointerEvents: "none" }}
+                style={{ top: `${SEGMENT_LANE_TOP - 4}px`, pointerEvents: "none" }}
               >
                 <path d={waveformPath} fill="rgba(139,92,246,0.5)" />
               </svg>
@@ -188,22 +209,30 @@ export const Timeline: React.FC<TimelineProps> = React.memo(
                   className="converter-playhead absolute top-5 w-[2px]"
                   style={{
                     left: `${(currentTimeMs / durationMs) * timelineWidthPx}px`,
-                    height: "95px",
+                    height: `${timelineHeight - 20}px`,
                   }}
                 />
                 {/* Mark IN */}
                 {markInMs !== null && (
                   <div
-                    className="absolute top-10 h-24 w-[2px] bg-cyan-300/90"
-                    style={{ left: `${(markInMs / durationMs) * timelineWidthPx}px` }}
+                    className="absolute w-[2px] bg-cyan-300/90"
+                    style={{
+                      left: `${(markInMs / durationMs) * timelineWidthPx}px`,
+                      top: `${SEGMENT_LANE_TOP - 14}px`,
+                      height: `${laneAreaHeight + 28}px`,
+                    }}
                     title={`IN ${formatMs(markInMs)}`}
                   />
                 )}
                 {/* Mark OUT */}
                 {markOutMs !== null && (
                   <div
-                    className="absolute top-10 h-24 w-[2px] bg-indigo-300/90"
-                    style={{ left: `${(markOutMs / durationMs) * timelineWidthPx}px` }}
+                    className="absolute w-[2px] bg-indigo-300/90"
+                    style={{
+                      left: `${(markOutMs / durationMs) * timelineWidthPx}px`,
+                      top: `${SEGMENT_LANE_TOP - 14}px`,
+                      height: `${laneAreaHeight + 28}px`,
+                    }}
                     title={`OUT ${formatMs(markOutMs)}`}
                   />
                 )}
@@ -211,7 +240,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(
             )}
 
             {/* Segments */}
-            {sortedSegments.map((segment) => {
+            {segmentLanes.map(({ segment, lane }) => {
               const left =
                 durationMs > 0 ? (segment.startTimeMs / durationMs) * timelineWidthPx : 0;
               const width =
@@ -227,19 +256,21 @@ export const Timeline: React.FC<TimelineProps> = React.memo(
                     : "bg-emerald-500/45 border-emerald-300/70";
 
               const selected = selectedSegmentId === segment.id;
+              const top = SEGMENT_LANE_TOP + lane * (SEGMENT_LANE_HEIGHT + SEGMENT_LANE_GAP);
 
               return (
                 <button
                   key={segment.id}
                   type="button"
+                  data-segment-lane={lane}
                   onClick={() => onSelectSegment(segment.id)}
                   onMouseEnter={playHoverSound}
-                  className={`converter-segment-enter absolute top-14 h-8 rounded-md border ${tone} transition-shadow duration-150 ${
+                  className={`converter-segment-enter absolute rounded-md border ${tone} transition-shadow duration-150 ${
                     selected
                       ? "ring-2 ring-white/80 shadow-[0_0_14px_rgba(255,255,255,0.15)]"
                       : "hover:brightness-125"
                   }`}
-                  style={{ left, width: Math.max(6, width) }}
+                  style={{ left, top, width: Math.max(6, width), height: SEGMENT_LANE_HEIGHT }}
                   title={`${abbreviateNsfwText(segment.type, sfwMode)} • ${formatMs(segment.startTimeMs)}-${formatMs(segment.endTimeMs)}`}
                 >
                   {selected && (
@@ -258,7 +289,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(
                             initialEndTimeMs: segment.endTimeMs,
                           };
                         }}
-                        className="absolute -left-1 top-0 h-8 w-2 cursor-ew-resize rounded bg-white/85"
+                        className="absolute -left-1 top-0 h-full w-2 cursor-ew-resize rounded bg-white/85"
                       />
                       <span
                         role="presentation"
@@ -274,13 +305,38 @@ export const Timeline: React.FC<TimelineProps> = React.memo(
                             initialEndTimeMs: segment.endTimeMs,
                           };
                         }}
-                        className="absolute -right-1 top-0 h-8 w-2 cursor-ew-resize rounded bg-white/85"
+                        className="absolute -right-1 top-0 h-full w-2 cursor-ew-resize rounded bg-white/85"
                       />
                     </>
                   )}
                 </button>
               );
             })}
+
+            {/* Cuts */}
+            {sortedSegments.flatMap((segment) =>
+              segment.cutRanges.map((cut) => {
+                const left = durationMs > 0 ? (cut.startTimeMs / durationMs) * timelineWidthPx : 0;
+                const width =
+                  durationMs > 0
+                    ? ((cut.endTimeMs - cut.startTimeMs) / durationMs) * timelineWidthPx
+                    : 0;
+                return (
+                  <div
+                    key={`${segment.id}-${cut.id}`}
+                    aria-label="Cut range"
+                    className="pointer-events-none absolute rounded border border-rose-200/70 bg-[repeating-linear-gradient(135deg,rgba(244,63,94,0.42)_0,rgba(244,63,94,0.42)_6px,rgba(127,29,29,0.22)_6px,rgba(127,29,29,0.22)_12px)]"
+                    style={{
+                      left,
+                      top: `${SEGMENT_LANE_TOP - 4}px`,
+                      width: Math.max(4, width),
+                      height: `${laneAreaHeight + 8}px`,
+                    }}
+                    title={`Cut ${formatMs(cut.startTimeMs)}-${formatMs(cut.endTimeMs)}`}
+                  />
+                );
+              })
+            )}
 
             {/* Ruler */}
             {durationMs > 0 && (

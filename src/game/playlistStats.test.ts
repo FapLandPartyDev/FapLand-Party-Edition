@@ -49,6 +49,7 @@ describe("playlistStats", () => {
       edgeCount: 8,
       safePointCount: 2,
       roundNodeCount: 6,
+      catapultNodeCount: 0,
     });
   });
 
@@ -84,6 +85,7 @@ describe("playlistStats", () => {
       edgeCount: 3,
       safePointCount: 1,
       roundNodeCount: 2,
+      catapultNodeCount: 0,
     });
   });
 

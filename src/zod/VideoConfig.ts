@@ -14,6 +14,11 @@ export const ZHero = z.object({
     phash: z.string().optional().nullable(),
 });
 
+export const ZRoundCutRange = z.object({
+    startTimeMs: z.number().int().nonnegative(),
+    endTimeMs: z.number().int().nonnegative(),
+});
+
 export const ZRound = z.object({
     name: z.string(),
     author: z.string().optional().nullable(),
@@ -23,6 +28,7 @@ export const ZRound = z.object({
     phash: z.string().optional().nullable(),
     startTime: z.number().int().optional().nullable(),
     endTime: z.number().int().optional().nullable(),
+    cutRanges: z.array(ZRoundCutRange).optional(),
     type: ZRoundType.default('Normal').optional().nullable(),
     resources: z.array(ZResource).default([]),
     hero: ZHero.optional().nullable(),

@@ -4,6 +4,7 @@ export type GameOption<T extends string> = {
   value: T;
   label: string;
   disabled?: boolean;
+  heading?: boolean;
 };
 
 export function GameDropdown<T extends string>({
@@ -37,13 +38,15 @@ export function GameDropdown<T extends string>({
   const selectedIndex = options.findIndex((opt) => opt.value === value);
 
   const enabledIndices = options.reduce<number[]>((indices, option, index) => {
-    if (!option.disabled) {
+    if (!option.disabled && !option.heading) {
       indices.push(index);
     }
     return indices;
   }, []);
   const defaultHighlightedIndex =
-    selectedIndex >= 0 && !options[selectedIndex]?.disabled ? selectedIndex : (enabledIndices[0] ?? -1);
+    selectedIndex >= 0 && !options[selectedIndex]?.disabled
+      ? selectedIndex
+      : (enabledIndices[0] ?? -1);
 
   const focusOption = (index: number) => {
     if (index < 0) return;
@@ -64,8 +67,7 @@ export function GameDropdown<T extends string>({
     const currentPosition = enabledIndices.indexOf(highlightedIndex);
     const fallbackPosition = direction > 0 ? -1 : enabledIndices.length;
     const basePosition = currentPosition >= 0 ? currentPosition : fallbackPosition;
-    const nextPosition =
-      (basePosition + direction + enabledIndices.length) % enabledIndices.length;
+    const nextPosition = (basePosition + direction + enabledIndices.length) % enabledIndices.length;
     const nextIndex = enabledIndices[nextPosition] ?? -1;
     setHighlightedIndex(nextIndex);
     focusOption(nextIndex);
@@ -73,7 +75,7 @@ export function GameDropdown<T extends string>({
 
   const selectOption = (index: number) => {
     const option = options[index];
-    if (!option || option.disabled) return;
+    if (!option || option.disabled || option.heading) return;
     onChange(option.value);
     setOpen(false);
     setHighlightedIndex(index);
@@ -115,15 +117,12 @@ export function GameDropdown<T extends string>({
     }
   }, [defaultHighlightedIndex, highlightedIndex, open]);
 
-  const selected = options.find((opt) => opt.value === value) ?? options[0];
+  const selected = options.find((opt) => opt.value === value && !opt.heading) ?? options[0];
 
   const noop = () => {};
   const hover = onHoverSfx ?? noop;
   const select = onSelectSfx ?? noop;
-  const menuPositionClass =
-    menuPlacement === "top"
-      ? "bottom-full mb-2"
-      : "top-full mt-2";
+  const menuPositionClass = menuPlacement === "top" ? "bottom-full mb-2" : "top-full mt-2";
 
   return (
     <div
@@ -222,6 +221,17 @@ export function GameDropdown<T extends string>({
           className={`absolute z-50 w-full overflow-hidden rounded-xl border border-violet-300/35 bg-zinc-950/95 shadow-[0_0_24px_rgba(139,92,246,0.38)] backdrop-blur-xl ${menuPositionClass}`}
         >
           {options.map((option, index) => {
+            if (option.heading) {
+              return (
+                <div
+                  key={`heading-${index}`}
+                  className="border-t border-white/10 px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500"
+                >
+                  {option.label}
+                </div>
+              );
+            }
+
             const active = option.value === value;
             const highlighted = index === highlightedIndex;
             return (

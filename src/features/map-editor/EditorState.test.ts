@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeNodeKind, toEditorGraphConfig } from "./EditorState";
+import {
+  normalizeGraphBackgroundMedia,
+  normalizeRoadPalette,
+  sanitizeNodeKind,
+  toEditorGraphConfig,
+} from "./EditorState";
 
 describe("EditorState", () => {
   it("falls back legacy event nodes to path", () => {
@@ -79,5 +84,48 @@ describe("EditorState", () => {
         styleHint: { x: 12, y: 24, color: "#10b981", size: 72 },
       },
     ]);
+  });
+
+  it("normalizes graph background media defaults and clamps numeric controls", () => {
+    expect(
+      normalizeGraphBackgroundMedia({
+        uri: "app://media/%2Ftmp%2Fbackground.mp4",
+        opacity: 2,
+        dim: -1,
+        blur: 99,
+        scale: 10,
+        parallaxStrength: 2,
+        motion: "parallax",
+      })
+    ).toMatchObject({
+      kind: "video",
+      fit: "cover",
+      position: "center",
+      opacity: 1,
+      dim: 0,
+      blur: 24,
+      scale: 4,
+      offsetX: 0,
+      offsetY: 0,
+      motion: "parallax",
+      parallaxStrength: 1,
+    });
+
+    expect(normalizeGraphBackgroundMedia({ uri: "   " })).toBeUndefined();
+  });
+
+  it("normalizes road palettes to defaults for missing or invalid fields", () => {
+    expect(
+      normalizeRoadPalette({
+        presetId: "custom",
+        body: "#123456",
+        railA: "not-a-color",
+      })
+    ).toMatchObject({
+      presetId: "custom",
+      body: "#123456",
+      railA: "#79ddff",
+      railB: "#ff71ca",
+    });
   });
 });

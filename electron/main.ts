@@ -1068,6 +1068,24 @@ function registerDialogIpc() {
     return result.filePaths[0] ?? null;
   });
 
+  ipcMain.handle("dialog:selectMapBackgroundFile", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const options: OpenDialogOptions = {
+      title: "Select Map Background",
+      properties: ["openFile"],
+      filters: [
+        { name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif", "avif", "bmp", "svg"] },
+        { name: "Videos", extensions: ["mp4", "webm", "mov", "m4v", "mkv"] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+    };
+    const result = win
+      ? await dialog.showOpenDialog(win, options)
+      : await dialog.showOpenDialog(options);
+    if (result.canceled) return null;
+    return result.filePaths[0] ?? null;
+  });
+
   ipcMain.handle("dialog:selectMusicFiles", async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     const options: OpenDialogOptions = {

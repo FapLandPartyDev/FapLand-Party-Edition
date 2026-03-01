@@ -5,7 +5,15 @@ export const DEFAULT_NODE_HEIGHT = 78;
 export const MIN_NODE_SCALE = 0.5;
 export const MAX_PREVIEW_NODE_SCALE = 3;
 
-type NodeVisualKind = "start" | "end" | "path" | "safePoint" | "round" | "randomRound" | "perk";
+type NodeVisualKind =
+  | "start"
+  | "end"
+  | "path"
+  | "safePoint"
+  | "round"
+  | "randomRound"
+  | "perk"
+  | "catapult";
 
 type StyleHintLike = {
   color?: string;
@@ -27,6 +35,7 @@ const KIND_COLORS: Record<NodeVisualKind, string> = {
   round: "#38bdf8",
   randomRound: "#f59e0b",
   perk: "#ec4899",
+  catapult: "#06b6d4",
 };
 
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -46,22 +55,19 @@ export function getNodeDisplayColor(node: NodeVisualSource): string {
 export function getNodeBaseWidth(node: Pick<NodeVisualSource, "styleHint">): number {
   return Math.max(
     NODE_MIN_WIDTH,
-    isFiniteNumber(node.styleHint?.width) ? node.styleHint.width : DEFAULT_NODE_WIDTH,
+    isFiniteNumber(node.styleHint?.width) ? node.styleHint.width : DEFAULT_NODE_WIDTH
   );
 }
 
 export function getNodeBaseHeight(node: Pick<NodeVisualSource, "styleHint">): number {
   return Math.max(
     NODE_MIN_HEIGHT,
-    isFiniteNumber(node.styleHint?.height) ? node.styleHint.height : DEFAULT_NODE_HEIGHT,
+    isFiniteNumber(node.styleHint?.height) ? node.styleHint.height : DEFAULT_NODE_HEIGHT
   );
 }
 
 export function getNodeScale(node: Pick<NodeVisualSource, "styleHint">): number {
-  return Math.max(
-    MIN_NODE_SCALE,
-    isFiniteNumber(node.styleHint?.size) ? node.styleHint.size : 1,
-  );
+  return Math.max(MIN_NODE_SCALE, isFiniteNumber(node.styleHint?.size) ? node.styleHint.size : 1);
 }
 
 export function getNodeRenderWidth(node: Pick<NodeVisualSource, "styleHint">): number {
@@ -89,9 +95,10 @@ export function clampPreviewNodeScale(scale: number): number {
 export function parseHexColorToNumber(color: string | undefined): number | null {
   const value = color?.trim();
   if (!value || !HEX_COLOR_PATTERN.test(value)) return null;
-  const normalized = value.length === 4
-    ? `${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`
-    : value.slice(1);
+  const normalized =
+    value.length === 4
+      ? `${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`
+      : value.slice(1);
   const parsed = Number.parseInt(normalized, 16);
   return Number.isFinite(parsed) ? parsed : null;
 }

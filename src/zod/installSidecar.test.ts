@@ -62,6 +62,31 @@ describe("install sidecar schemas", () => {
     expect(parsed.excludeFromRandom).toBeUndefined();
   });
 
+  it("parses cut ranges on round and hero sidecars", () => {
+    const round = ZRoundSidecar.parse({
+      name: "Cut Round",
+      startTime: 0,
+      endTime: 10_000,
+      cutRanges: [{ startTimeMs: 3_000, endTimeMs: 4_000 }],
+      resources: [],
+    });
+    const hero = ZHeroSidecar.parse({
+      name: "Cut Hero",
+      rounds: [
+        {
+          name: "Cut Hero Round",
+          startTime: 0,
+          endTime: 10_000,
+          cutRanges: [{ startTimeMs: 5_000, endTimeMs: 6_000 }],
+          resources: [],
+        },
+      ],
+    });
+
+    expect(round.cutRanges).toEqual([{ startTimeMs: 3_000, endTimeMs: 4_000 }]);
+    expect(hero.rounds[0]?.cutRanges).toEqual([{ startTimeMs: 5_000, endTimeMs: 6_000 }]);
+  });
+
   it("rejects non-boolean random exclusion values", () => {
     const stringResult = ZRoundSidecar.safeParse({
       name: "Invalid String Exclusion",

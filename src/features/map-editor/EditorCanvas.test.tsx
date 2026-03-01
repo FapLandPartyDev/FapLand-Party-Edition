@@ -46,6 +46,8 @@ const baseConfig: EditorGraphConfig = {
   economy: { startingMoney: 120, scorePerCumRoundSuccess: 420 },
   dice: { min: 1, max: 6 },
   saveMode: "none",
+  style: {},
+  music: { tracks: [], loop: true },
 };
 
 const selection: EditorSelectionState = {
@@ -237,6 +239,54 @@ describe("EditorCanvas", () => {
     expect(text.getAttribute("font-size")).toBe("22");
   });
 
+  it("applies parallax offset to background media while panning", () => {
+    const config: EditorGraphConfig = {
+      ...baseConfig,
+      style: {
+        background: {
+          kind: "image",
+          uri: "app://media/%2Ftmp%2Fmap.png",
+          fit: "cover",
+          position: "center",
+          opacity: 0.55,
+          blur: 0,
+          dim: 0.35,
+          scale: 1,
+          offsetX: 5,
+          offsetY: -5,
+          motion: "parallax",
+          parallaxStrength: 0.2,
+        },
+      },
+    };
+
+    const { getByTestId } = render(
+      <EditorCanvas
+        config={config}
+        selection={selection}
+        connectFromNodeId={null}
+        tool="select"
+        activePlacementKind={null}
+        viewport={{ x: 100, y: -50, zoom: 1 }}
+        showGrid={false}
+        spacePanActive={false}
+        onViewportChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        onSetConnectFrom={vi.fn()}
+        onMoveNodes={vi.fn()}
+        onMoveTextAnnotation={vi.fn()}
+        onCreateEdge={vi.fn()}
+        onDeleteEdgeBetween={vi.fn()}
+        onDeleteSelection={vi.fn()}
+        onPlaceNodeAtWorld={vi.fn()}
+        onPlaceTextAtWorld={vi.fn()}
+      />
+    );
+
+    const image = getByTestId("map-background-media").querySelector("img");
+    expect(image?.style.transform).toContain("translate(-15px, 5px)");
+  });
+
   it("places text annotations with the text tool", () => {
     const onPlaceTextAtWorld = vi.fn();
     const { container } = render(
@@ -304,7 +354,11 @@ describe("EditorCanvas", () => {
       />
     );
 
-    fireEvent.mouseDown(getByTestId("editor-map-text-annotation"), { button: 0, clientX: 240, clientY: 260 });
+    fireEvent.mouseDown(getByTestId("editor-map-text-annotation"), {
+      button: 0,
+      clientX: 240,
+      clientY: 260,
+    });
     expect(onSelectionChange).toHaveBeenCalledWith({
       selectedNodeIds: [],
       primaryNodeId: null,

@@ -18,14 +18,27 @@ export type GraphValidationResult = {
   hardBlocked: boolean;
 };
 
-const toMessage = (message: string, path: string, severity: ValidationSeverity): GraphValidationMessage => ({
+const toMessage = (
+  message: string,
+  path: string,
+  severity: ValidationSeverity
+): GraphValidationMessage => ({
   message,
   path,
   severity,
 });
 
 const isKnownKind = (kind: EditorNodeKind): boolean => {
-  return kind === "start" || kind === "end" || kind === "path" || kind === "safePoint" || kind === "round" || kind === "randomRound" || kind === "perk";
+  return (
+    kind === "start" ||
+    kind === "end" ||
+    kind === "path" ||
+    kind === "safePoint" ||
+    kind === "round" ||
+    kind === "randomRound" ||
+    kind === "perk" ||
+    kind === "catapult"
+  );
 };
 
 export function validateGraphConfig(
@@ -33,7 +46,7 @@ export function validateGraphConfig(
   installedRounds: Array<InstalledRound | InstalledRoundCatalogEntry>,
   options: {
     allowSelfLoops?: boolean;
-  } = {},
+  } = {}
 ): GraphValidationResult {
   const errors: GraphValidationMessage[] = [];
   const warnings: GraphValidationMessage[] = [];
@@ -81,13 +94,21 @@ export function validateGraphConfig(
       } else {
         const resolved = resolvePortableRoundRef(node.roundRef, installedRounds);
         if (!resolved) {
-          addWarning(`Round node "${node.id}" has unresolved round reference`, `nodes.${node.id}.roundRef`, node.id);
+          addWarning(
+            `Round node "${node.id}" has unresolved round reference`,
+            `nodes.${node.id}.roundRef`,
+            node.id
+          );
         }
       }
     }
 
     if (node.kind !== "round" && node.kind !== "perk" && typeof node.forceStop === "boolean") {
-      addError(`Only round and perk nodes may define force stop`, `nodes.${node.id}.forceStop`, node.id);
+      addError(
+        `Only round and perk nodes may define force stop`,
+        `nodes.${node.id}.forceStop`,
+        node.id
+      );
     }
 
     if (node.kind !== "round" && typeof node.skippable === "boolean") {
@@ -95,30 +116,80 @@ export function validateGraphConfig(
     }
 
     if (node.kind === "end" && node.roundRef) {
-      addError(`End node "${node.id}" must not define roundRef`, `nodes.${node.id}.roundRef`, node.id);
+      addError(
+        `End node "${node.id}" must not define roundRef`,
+        `nodes.${node.id}.roundRef`,
+        node.id
+      );
     }
 
     if (node.kind === "end" && node.randomPoolId) {
-      addError(`End node "${node.id}" must not define randomPoolId`, `nodes.${node.id}.randomPoolId`, node.id);
+      addError(
+        `End node "${node.id}" must not define randomPoolId`,
+        `nodes.${node.id}.randomPoolId`,
+        node.id
+      );
     }
 
     if (node.kind !== "safePoint" && typeof node.checkpointRestMs === "number") {
-      addError(`Only safe-point nodes may define checkpoint rest`, `nodes.${node.id}.checkpointRestMs`, node.id);
+      addError(
+        `Only safe-point nodes may define checkpoint rest`,
+        `nodes.${node.id}.checkpointRestMs`,
+        node.id
+      );
     }
 
-    if (typeof node.checkpointRestMs === "number" && (!Number.isFinite(node.checkpointRestMs) || node.checkpointRestMs < 0)) {
-      addError(`Node "${node.id}" checkpoint rest must be a non-negative number`, `nodes.${node.id}.checkpointRestMs`, node.id);
+    if (
+      typeof node.checkpointRestMs === "number" &&
+      (!Number.isFinite(node.checkpointRestMs) || node.checkpointRestMs < 0)
+    ) {
+      addError(
+        `Node "${node.id}" checkpoint rest must be a non-negative number`,
+        `nodes.${node.id}.checkpointRestMs`,
+        node.id
+      );
     }
 
     if (node.kind !== "perk" && typeof node.giftGuaranteedPerk === "boolean") {
-      addError(`Only perk nodes may define guaranteed perk gifting`, `nodes.${node.id}.giftGuaranteedPerk`, node.id);
+      addError(
+        `Only perk nodes may define guaranteed perk gifting`,
+        `nodes.${node.id}.giftGuaranteedPerk`,
+        node.id
+      );
+    }
+
+    if (node.kind !== "catapult" && typeof node.catapultForward === "number") {
+      addError(
+        `Only catapult nodes may define catapultForward`,
+        `nodes.${node.id}.catapultForward`,
+        node.id
+      );
+    }
+
+    if (
+      typeof node.catapultForward === "number" &&
+      (!Number.isFinite(node.catapultForward) || node.catapultForward < 1)
+    ) {
+      addError(
+        `Node "${node.id}" catapultForward must be a positive integer`,
+        `nodes.${node.id}.catapultForward`,
+        node.id
+      );
     }
 
     if (node.styleHint?.x !== undefined && !Number.isFinite(node.styleHint.x)) {
-      addError(`Node "${node.id}" styleHint.x must be numeric`, `nodes.${node.id}.styleHint.x`, node.id);
+      addError(
+        `Node "${node.id}" styleHint.x must be numeric`,
+        `nodes.${node.id}.styleHint.x`,
+        node.id
+      );
     }
     if (node.styleHint?.y !== undefined && !Number.isFinite(node.styleHint.y)) {
-      addError(`Node "${node.id}" styleHint.y must be numeric`, `nodes.${node.id}.styleHint.y`, node.id);
+      addError(
+        `Node "${node.id}" styleHint.y must be numeric`,
+        `nodes.${node.id}.styleHint.y`,
+        node.id
+      );
     }
   }
 
@@ -130,7 +201,10 @@ export function validateGraphConfig(
   if (startNodes.length > 1) {
     addError("Graph must contain exactly one start node", "nodes");
   } else if (startNodes[0] && startNodes[0].id !== config.startNodeId) {
-    addError(`startNodeId must reference the start node (expected "${startNodes[0].id}")`, "startNodeId");
+    addError(
+      `startNodeId must reference the start node (expected "${startNodes[0].id}")`,
+      "startNodeId"
+    );
   }
 
   if (!nodeById.has(config.startNodeId)) {
@@ -163,18 +237,36 @@ export function validateGraphConfig(
     }
 
     if (!nodeById.has(edge.fromNodeId)) {
-      addError(`Edge "${edge.id}" references unknown fromNodeId "${edge.fromNodeId}"`, `edges.${edge.id}.fromNodeId`, undefined, edge.id);
+      addError(
+        `Edge "${edge.id}" references unknown fromNodeId "${edge.fromNodeId}"`,
+        `edges.${edge.id}.fromNodeId`,
+        undefined,
+        edge.id
+      );
     }
     if (!nodeById.has(edge.toNodeId)) {
-      addError(`Edge "${edge.id}" references unknown toNodeId "${edge.toNodeId}"`, `edges.${edge.id}.toNodeId`, undefined, edge.id);
+      addError(
+        `Edge "${edge.id}" references unknown toNodeId "${edge.toNodeId}"`,
+        `edges.${edge.id}.toNodeId`,
+        undefined,
+        edge.id
+      );
     }
-    outgoingCountByNodeId.set(edge.fromNodeId, (outgoingCountByNodeId.get(edge.fromNodeId) ?? 0) + 1);
+    outgoingCountByNodeId.set(
+      edge.fromNodeId,
+      (outgoingCountByNodeId.get(edge.fromNodeId) ?? 0) + 1
+    );
     if (!options.allowSelfLoops && edge.fromNodeId === edge.toNodeId) {
       addError(`Self-loop edge "${edge.id}" is not allowed`, `edges.${edge.id}`);
     }
 
     if (edge.weight !== undefined && (typeof edge.weight !== "number" || edge.weight <= 0)) {
-      addWarning(`Edge "${edge.id}" should have positive numeric weight`, `edges.${edge.id}.weight`, undefined, edge.id);
+      addWarning(
+        `Edge "${edge.id}" should have positive numeric weight`,
+        `edges.${edge.id}.weight`,
+        undefined,
+        edge.id
+      );
     }
   }
 
@@ -188,7 +280,11 @@ export function validateGraphConfig(
       addError(`End node "${node.id}" must not have outgoing edges`, `nodes.${node.id}`, node.id);
     }
     if (node.kind !== "end" && outgoingCount === 0) {
-      addError(`Node "${node.id}" is a dead end; only end nodes may have zero outgoing edges`, `nodes.${node.id}`, node.id);
+      addError(
+        `Node "${node.id}" is a dead end; only end nodes may have zero outgoing edges`,
+        `nodes.${node.id}`,
+        node.id
+      );
     }
   }
 
@@ -211,22 +307,34 @@ export function validateGraphConfig(
 
     for (const [candidateIndex, candidate] of pool.candidates.entries()) {
       if (!candidate.roundRef) {
-        addError(`Random pool "${pool.id}" candidate #${candidateIndex + 1} missing roundRef`, `randomRoundPools.${pool.id}.candidates.${candidateIndex}`);
+        addError(
+          `Random pool "${pool.id}" candidate #${candidateIndex + 1} missing roundRef`,
+          `randomRoundPools.${pool.id}.candidates.${candidateIndex}`
+        );
         continue;
       }
       const candidateRoundId = candidate.roundRef.idHint ?? null;
       if (!candidateRoundId || candidateRoundId.trim().length === 0) {
-        addWarning(`Random pool "${pool.id}" candidate #${candidateIndex + 1} missing idHint`, `randomRoundPools.${pool.id}.candidates.${candidateIndex}`);
+        addWarning(
+          `Random pool "${pool.id}" candidate #${candidateIndex + 1} missing idHint`,
+          `randomRoundPools.${pool.id}.candidates.${candidateIndex}`
+        );
       } else if (installedRoundRefSet.has(candidateRoundId)) {
         continue;
       } else {
         const resolved = resolvePortableRoundRef(candidate.roundRef, installedRounds);
         if (!resolved) {
-          addWarning(`Random pool "${pool.id}" candidate #${candidateIndex + 1} has unresolved round`, `randomRoundPools.${pool.id}.candidates.${candidateIndex}`);
+          addWarning(
+            `Random pool "${pool.id}" candidate #${candidateIndex + 1} has unresolved round`,
+            `randomRoundPools.${pool.id}.candidates.${candidateIndex}`
+          );
         }
       }
       if (typeof candidate.weight !== "number" || candidate.weight <= 0) {
-        addWarning(`Random pool "${pool.id}" candidate #${candidateIndex + 1} has invalid weight`, `randomRoundPools.${pool.id}.candidates.${candidateIndex}`);
+        addWarning(
+          `Random pool "${pool.id}" candidate #${candidateIndex + 1} has invalid weight`,
+          `randomRoundPools.${pool.id}.candidates.${candidateIndex}`
+        );
       }
     }
   }

@@ -1,9 +1,16 @@
 export type SegmentType = "Normal" | "Interjection" | "Cum";
 
+export type RoundCutRangeDraft = {
+    id: string;
+    startTimeMs: number;
+    endTimeMs: number;
+};
+
 export type SegmentDraft = {
     id: string;
     startTimeMs: number;
     endTimeMs: number;
+    cutRanges: RoundCutRangeDraft[];
     type: SegmentType;
     customName?: string | null;
     bpm: number | null;
@@ -24,6 +31,7 @@ export type InstalledSourceOption = {
     difficulty: number | null;
     videoUri: string;
     funscriptUri: string | null;
+    cutRangesJson: string | null;
     heroName: string | null;
     heroAuthor: string | null;
     heroDescription: string | null;
@@ -114,7 +122,29 @@ export function sortSegments(input: SegmentDraft[]): SegmentDraft[] {
     });
 }
 
-export function validateSegments(segments: SegmentDraft[], durationMs: number): string | null {
+export function segmentsOverlap(a: Pick<SegmentDraft, "startTimeMs" | "endTimeMs">, b: Pick<SegmentDraft, "startTimeMs" | "endTimeMs">): boolean {
+    return a.startTimeMs < b.endTimeMs && b.startTimeMs < a.endTimeMs;
+}
+
+export function assignSegmentLanes(segments: SegmentDraft[]): Array<{ segment: SegmentDraft; lane: number }> {
+    const laneEnds: number[] = [];
+
+    return sortSegments(segments).map((segment) => {
+        let lane = laneEnds.findIndex((endTimeMs) => endTimeMs <= segment.startTimeMs);
+        if (lane < 0) {
+            lane = laneEnds.length;
+        }
+
+        laneEnds[lane] = segment.endTimeMs;
+        return { segment, lane };
+    });
+}
+
+export function validateSegments(
+    segments: SegmentDraft[],
+    durationMs: number,
+    options: { allowOverlaps?: boolean } = {},
+): string | null {
     for (const segment of segments) {
         if (!Number.isFinite(segment.startTimeMs) || !Number.isFinite(segment.endTimeMs)) {
             return "Segment times must be finite numbers.";
@@ -128,15 +158,41 @@ export function validateSegments(segments: SegmentDraft[], durationMs: number): 
         if (segment.startTimeMs >= segment.endTimeMs) {
             return "Segment start must be before end.";
         }
+        const sortedCuts = [...(segment.cutRanges ?? [])].sort((a, b) => a.startTimeMs - b.startTimeMs);
+        for (let cutIndex = 0; cutIndex < sortedCuts.length; cutIndex += 1) {
+            const cut = sortedCuts[cutIndex];
+            if (!cut) continue;
+            if (!Number.isFinite(cut.startTimeMs) || !Number.isFinite(cut.endTimeMs)) {
+                return "Cut times must be finite numbers.";
+            }
+            if (cut.startTimeMs < segment.startTimeMs || cut.endTimeMs > segment.endTimeMs) {
+                return "Cuts must stay inside their segment.";
+            }
+            if (cut.startTimeMs >= cut.endTimeMs) {
+                return "Cut start must be before end.";
+            }
+            if (cut.endTimeMs - cut.startTimeMs < MIN_SEGMENT_MS) {
+                return "Cut is too short.";
+            }
+            if (cut.startTimeMs <= segment.startTimeMs && cut.endTimeMs >= segment.endTimeMs) {
+                return "A cut cannot remove an entire segment.";
+            }
+            const previousCut = sortedCuts[cutIndex - 1];
+            if (previousCut && cut.startTimeMs < previousCut.endTimeMs) {
+                return "Cuts must not overlap.";
+            }
+        }
     }
 
-    const sorted = sortSegments(segments);
-    for (let i = 1; i < sorted.length; i += 1) {
-        const prev = sorted[i - 1];
-        const current = sorted[i];
-        if (!prev || !current) continue;
-        if (current.startTimeMs < prev.endTimeMs) {
-            return "Segments must not overlap.";
+    if (!options.allowOverlaps) {
+        const sorted = sortSegments(segments);
+        for (let i = 1; i < sorted.length; i += 1) {
+            const prev = sorted[i - 1];
+            const current = sorted[i];
+            if (!prev || !current) continue;
+            if (segmentsOverlap(prev, current)) {
+                return "Segments must not overlap.";
+            }
         }
     }
 

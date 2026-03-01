@@ -8,6 +8,7 @@ import { pipeline } from "node:stream/promises";
 import { app } from "electron";
 import { inArray } from "drizzle-orm";
 import { ZHeroSidecar, ZRoundSidecar } from "../../src/zod/installSidecar";
+import { parseOptionalRoundCutRangesJson } from "../../src/utils/roundCuts";
 import { getDb } from "./db";
 import { round as roundTable } from "./db/schema";
 import { createFpackFromDirectory } from "./fpack";
@@ -165,6 +166,7 @@ type ExportableRound = {
   phash: string | null;
   startTime: number | null;
   endTime: number | null;
+  cutRangesJson?: string | null;
   type: "Normal" | "Interjection" | "Cum";
   excludeFromRandom: boolean;
   installSourceKey: string | null;
@@ -779,6 +781,11 @@ function toRoundSidecarPayload(entry: RoundResourceEntry, includeMedia: boolean)
     phash: entry.round.phash ?? undefined,
     startTime: entry.round.startTime ?? undefined,
     endTime: entry.round.endTime ?? undefined,
+    cutRanges: parseOptionalRoundCutRangesJson(
+      entry.round.cutRangesJson,
+      entry.round.startTime,
+      entry.round.endTime
+    ),
     type: entry.round.type,
     excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
     resources: [
@@ -817,6 +824,11 @@ function toHeroSidecarPayload(
         phash: entry.round.phash ?? undefined,
         startTime: entry.round.startTime ?? undefined,
         endTime: entry.round.endTime ?? undefined,
+        cutRanges: parseOptionalRoundCutRangesJson(
+          entry.round.cutRangesJson,
+          entry.round.startTime,
+          entry.round.endTime
+        ),
         type: entry.round.type,
         excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
         resources: [

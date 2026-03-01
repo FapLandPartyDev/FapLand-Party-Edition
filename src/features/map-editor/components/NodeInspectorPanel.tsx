@@ -23,6 +23,7 @@ const NODE_KIND_OPTIONS: EditorNode["kind"][] = [
   "round",
   "randomRound",
   "perk",
+  "catapult",
 ];
 
 interface NodeInspectorPanelProps {
@@ -30,6 +31,7 @@ interface NodeInspectorPanelProps {
   outgoingEdges: ReadonlyArray<EditorEdge>;
   installedRounds: ReadonlyArray<InstalledRound | InstalledRoundCatalogEntry>;
   perkOptions: ReadonlyArray<PerkOption>;
+  antiPerkOptions: ReadonlyArray<PerkOption>;
   onPatchNode: (nodeId: string, patch: Partial<EditorNode>) => void;
   onCommitSelection: (selection: EditorSelectionState) => void;
   onSetTool: (tool: "connect") => void;
@@ -53,6 +55,7 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
     outgoingEdges,
     installedRounds,
     perkOptions,
+    antiPerkOptions,
     onPatchNode,
     onCommitSelection,
     onSetTool,
@@ -111,7 +114,9 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                           ? t`Round`
                           : kind === "randomRound"
                             ? t`Random Round`
-                            : t`Perk`,
+                            : kind === "catapult"
+                              ? t`Catapult`
+                              : t`Perk`,
             }))}
             onChange={(kind) => {
               onPatchNode(selectedNode.id, {
@@ -123,6 +128,10 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                 visualId:
                   kind === "perk" ? (selectedNode.visualId ?? perkOptions[0]?.id) : undefined,
                 giftGuaranteedPerk: kind === "perk" ? selectedNode.giftGuaranteedPerk : undefined,
+                catapultForward:
+                  kind === "catapult" ? (selectedNode.catapultForward ?? 2) : undefined,
+                catapultLandingOnly:
+                  kind === "catapult" ? selectedNode.catapultLandingOnly : undefined,
                 randomPoolId: undefined,
               });
             }}
@@ -319,7 +328,7 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
               step="1"
               value={
                 typeof selectedNode.checkpointRestMs === "number" &&
-                selectedNode.checkpointRestMs > 0
+                  selectedNode.checkpointRestMs > 0
                   ? Math.floor(selectedNode.checkpointRestMs / 1000)
                   : ""
               }
@@ -345,6 +354,62 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
           <div className="rounded-lg border border-amber-400/20 bg-amber-500/8 p-2.5 text-xs text-amber-100">
             <Trans>This node plays a random installed round. It does not need a random pool.</Trans>
           </div>
+        )}
+
+        {/* ── Catapult-specific fields ─────────────────── */}
+        {selectedNode.kind === "catapult" && (
+          <>
+            <label className="block">
+              <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+                <Trans>Forward steps</Trans>
+              </span>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                step="1"
+                value={
+                  typeof selectedNode.catapultForward === "number" && selectedNode.catapultForward > 0
+                    ? String(selectedNode.catapultForward)
+                    : ""
+                }
+                onChange={(event) => {
+                  const value = event.target.value.trim();
+                  if (value.length === 0) {
+                    onPatchNode(selectedNode.id, { catapultForward: undefined });
+                    return;
+                  }
+                  const parsed = Number.parseInt(value, 10);
+                  onPatchNode(selectedNode.id, {
+                    catapultForward:
+                      Number.isFinite(parsed) && parsed >= 1 ? Math.min(20, parsed) : undefined,
+                  });
+                }}
+                className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
+                placeholder={t`2`}
+              />
+              <p className="mt-1 text-[11px] text-zinc-500">
+                <Trans>Number of additional nodes the player moves forward when landing here.</Trans>
+              </p>
+            </label>
+            <label className="block">
+              <label className="mt-1 flex items-start gap-2 rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-2 text-xs text-zinc-200">
+                <input
+                  type="checkbox"
+                  checked={Boolean(selectedNode.catapultLandingOnly)}
+                  onChange={(event) =>
+                    onPatchNode(selectedNode.id, { catapultLandingOnly: event.target.checked || undefined })
+                  }
+                  className="mt-0.5"
+                />
+                <span>
+                  <Trans>
+                    Apply boost only when landing directly on this tile (not when passing over it).
+                  </Trans>
+                </span>
+              </label>
+            </label>
+          </>
         )}
 
         {/* ── Perk-specific fields ─────────────────── */}
@@ -375,16 +440,17 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
               <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
                 <Trans>Guaranteed perk</Trans>
               </span>
-              <GameDropdown
-                value={selectedNode.visualId ?? ""}
-                options={[
-                  { value: "" as string, label: t`None` },
-                  ...perkOptions.map((perk) => ({
-                    value: perk.id,
-                    label: perk.name,
-                  })),
-                ]}
-                onChange={(value) => onPatchNode(selectedNode.id, { visualId: value })}
+              <PerkPicker
+                selectedPerkId={selectedNode.visualId ?? ""}
+                perkOptions={perkOptions}
+                antiPerkOptions={antiPerkOptions}
+                onSelect={(perkId, isAntiPerk) => {
+                  const patch: Partial<EditorNode> = {
+                    visualId: perkId,
+                    styleHint: { color: isAntiPerk ? ANTI_PERK_COLOR : PERK_COLOR },
+                  };
+                  onPatchNode(selectedNode.id, patch);
+                }}
               />
             </div>
             <label className="block">
@@ -465,6 +531,86 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
 
 NodeInspectorPanel.displayName = "NodeInspectorPanel";
 
+const PERK_COLOR = "#ec4899";
+const ANTI_PERK_COLOR = "#ef4444";
+
+const PerkPicker: React.FC<{
+  selectedPerkId: string;
+  perkOptions: ReadonlyArray<PerkOption>;
+  antiPerkOptions: ReadonlyArray<PerkOption>;
+  onSelect: (perkId: string, isAntiPerk: boolean) => void;
+}> = React.memo(({ selectedPerkId, perkOptions, antiPerkOptions, onSelect }) => {
+  return (
+    <div className="mt-1 space-y-1 rounded-lg border border-zinc-700/50 bg-zinc-950/40 p-2">
+      <button
+        type="button"
+        className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${!selectedPerkId
+          ? "border-pink-400/50 bg-pink-500/12 text-pink-100"
+          : "border-zinc-700/50 bg-zinc-950/60 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
+          }`}
+        onMouseEnter={playHoverSound}
+        onClick={() => {
+          playSelectSound();
+          onSelect("", false);
+        }}
+      >
+        <Trans>None (random perk)</Trans>
+      </button>
+      <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
+        {perkOptions.map((perk) => {
+          const selected = perk.id === selectedPerkId;
+          return (
+            <button
+              key={perk.id}
+              type="button"
+              className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${selected
+                ? "border-pink-400/50 bg-pink-500/12 text-pink-100"
+                : "border-zinc-700/40 bg-zinc-950/50 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
+                }`}
+              onMouseEnter={playHoverSound}
+              onClick={() => {
+                playSelectSound();
+                onSelect(perk.id, false);
+              }}
+            >
+              <span className="truncate font-medium">{perk.name}</span>
+            </button>
+          );
+        })}
+        {antiPerkOptions.length > 0 && (
+          <>
+            <div className="border-t border-white/10 px-1 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
+              <Trans>Anti-Perks</Trans>
+            </div>
+            {antiPerkOptions.map((perk) => {
+              const selected = perk.id === selectedPerkId;
+              return (
+                <button
+                  key={perk.id}
+                  type="button"
+                  className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${selected
+                    ? "border-red-400/50 bg-red-500/12 text-red-100"
+                    : "border-zinc-700/40 bg-zinc-950/50 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
+                    }`}
+                  onMouseEnter={playHoverSound}
+                  onClick={() => {
+                    playSelectSound();
+                    onSelect(perk.id, true);
+                  }}
+                >
+                  <span className="truncate font-medium">{perk.name}</span>
+                </button>
+              );
+            })}
+          </>
+        )}
+      </div>
+    </div>
+  );
+});
+
+PerkPicker.displayName = "PerkPicker";
+
 const InstalledRoundPicker: React.FC<{
   selectedRoundId: string | null;
   installedRounds: ReadonlyArray<InstalledRound | InstalledRoundCatalogEntry>;
@@ -508,11 +654,10 @@ const InstalledRoundPicker: React.FC<{
       />
       <button
         type="button"
-        className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${
-          selectedRoundId
-            ? "border-zinc-700/50 bg-zinc-950/60 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
-            : "border-cyan-400/50 bg-cyan-500/12 text-cyan-100"
-        }`}
+        className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${selectedRoundId
+          ? "border-zinc-700/50 bg-zinc-950/60 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
+          : "border-cyan-400/50 bg-cyan-500/12 text-cyan-100"
+          }`}
         onMouseEnter={playHoverSound}
         onClick={onClearSelection}
       >
@@ -528,11 +673,10 @@ const InstalledRoundPicker: React.FC<{
             <button
               key={round.id}
               type="button"
-              className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${
-                selected
-                  ? "border-cyan-400/50 bg-cyan-500/12 text-cyan-100"
-                  : "border-zinc-700/40 bg-zinc-950/50 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
-              }`}
+              className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${selected
+                ? "border-cyan-400/50 bg-cyan-500/12 text-cyan-100"
+                : "border-zinc-700/40 bg-zinc-950/50 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
+                }`}
               onMouseEnter={playHoverSound}
               onClick={() => {
                 playSelectSound();
@@ -541,7 +685,9 @@ const InstalledRoundPicker: React.FC<{
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate font-medium">{round.name}</span>
-                {selected && <span className="text-[10px] uppercase tracking-[0.1em]">{t`Selected`}</span>}
+                {selected && (
+                  <span className="text-[10px] uppercase tracking-[0.1em]">{t`Selected`}</span>
+                )}
               </div>
               <div className="mt-1 text-[11px] text-zinc-500">
                 {formatInstalledRoundMeta(round, {
@@ -571,7 +717,9 @@ function SelectedRoundPreview({
   round: InstalledRound | InstalledRoundCatalogEntry | null;
 }) {
   const { t } = useLingui();
-  const { mediaResources, isLoading, loadMediaResources } = useInstalledRoundMedia(round?.id ?? null);
+  const { mediaResources, isLoading, loadMediaResources } = useInstalledRoundMedia(
+    round?.id ?? null
+  );
   const previewUri = mediaResources?.resources[0]?.videoUri ?? null;
   const previewImage = round?.previewImage ?? null;
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
@@ -613,8 +761,7 @@ function SelectedRoundPreview({
 
   const startPreview = async () => {
     setIsPreviewActive(true);
-    const ensuredResources =
-      previewUri || !round ? mediaResources : await loadMediaResources();
+    const ensuredResources = previewUri || !round ? mediaResources : await loadMediaResources();
     const ensuredPreviewUri = previewUri ?? ensuredResources?.resources[0]?.videoUri ?? null;
     if (!ensuredPreviewUri) return;
     const video = videoRef.current;
@@ -696,7 +843,7 @@ function SelectedRoundPreview({
                     if (!video) return;
                     const { startSec } = resolvePreviewWindow(video);
                     video.currentTime = startSec;
-                    void video.play().catch(() => {});
+                    void video.play().catch(() => { });
                   }}
                   onTimeUpdate={() => {
                     if (!isPreviewActive) return;
@@ -710,7 +857,7 @@ function SelectedRoundPreview({
                     if (endSec !== null && video.currentTime >= endSec - 0.04) {
                       video.currentTime = startSec;
                       if (video.paused) {
-                        void video.play().catch(() => {});
+                        void video.play().catch(() => { });
                       }
                     }
                   }}
@@ -720,7 +867,7 @@ function SelectedRoundPreview({
                     if (!video) return;
                     const { startSec } = resolvePreviewWindow(video);
                     video.currentTime = startSec;
-                    void video.play().catch(() => {});
+                    void video.play().catch(() => { });
                   }}
                 />
               </SfwGuard>

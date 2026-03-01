@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "../game/data/perks";
 
 function makePlaylist(id: string, name: string) {
   return {
@@ -264,7 +265,7 @@ beforeEach(() => {
   window.sessionStorage.clear();
   window.electronAPI = {
     file: {
-      convertFileSrc: vi.fn(),
+      convertFileSrc: vi.fn((filePath: string) => `app://media/${encodeURIComponent(filePath)}`),
     },
     dialog: {
       selectFolders: vi.fn(),
@@ -277,10 +278,22 @@ beforeEach(() => {
       selectMusicCacheDirectory: vi.fn(),
       selectMoaningCacheDirectory: vi.fn(),
       selectConverterVideoFile: vi.fn(),
+        selectMapBackgroundFile: vi.fn(),
       selectMusicFiles: vi.fn(),
       selectMoaningFiles: vi.fn(),
-      addMusicFromUrl: vi.fn(),
-      addMusicPlaylistFromUrl: vi.fn(),
+      addMusicFromUrl: vi.fn(async () => ({
+        filePath: "/music/from-url.mp3",
+        title: "URL Track",
+      })),
+      addMusicPlaylistFromUrl: vi.fn(async () => ({
+        playlistTitle: "URL Playlist",
+        totalTracks: 2,
+        tracks: [
+          { filePath: "/music/playlist-a.mp3", title: "Playlist A" },
+          { filePath: "/music/playlist-b.mp3", title: "Playlist B" },
+        ],
+        errors: [],
+      })),
       addMoaningFromUrl: vi.fn(),
       addMoaningPlaylistFromUrl: vi.fn(),
       selectConverterFunscriptFile: vi.fn(),
@@ -519,6 +532,31 @@ describe("MapEditorRoute", () => {
     render(<Component />);
     expect(screen.getByText("Select Playlist")).toBeDefined();
     expect(screen.queryByTestId("tool-value")).toBeNull();
+  });
+
+  it("creates advanced playlists with all perks and anti-perks enabled", async () => {
+    render(<Component />);
+
+    fireEvent.change(screen.getByLabelText("Playlist name"), {
+      target: { value: "Fresh Advanced Playlist" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create Playlist" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.create).toHaveBeenCalledTimes(1);
+    });
+
+    const createCall = mocks.playlists.create.mock.calls[0]?.[0] as {
+      config: ReturnType<typeof makePlaylist>["config"];
+    };
+
+    expect(createCall.config.boardConfig.mode).toBe("graph");
+    expect(createCall.config.perkPool.enabledPerkIds).toEqual(
+      getSinglePlayerPerkPool().map((perk) => perk.id)
+    );
+    expect(createCall.config.perkPool.enabledAntiPerkIds).toEqual(
+      getSinglePlayerAntiPerkPool().map((perk) => perk.id)
+    );
   });
 
   it("copies an advanced playlist from the picker and opens the duplicate", async () => {
@@ -911,7 +949,9 @@ describe("MapEditorRoute", () => {
     });
 
     const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
-      config: ReturnType<typeof makePlaylist>["config"];
+      config: ReturnType<typeof makePlaylist>["config"] & {
+        music?: { tracks: Array<{ id: string; uri: string; name: string }> };
+      };
     };
     expect(updateCall.config.perkSelection.triggerChancePerCompletedRound).toBe(0.55);
     expect(updateCall.config.probabilityScaling.initialIntermediaryProbability).toBe(0.04);
@@ -924,6 +964,111 @@ describe("MapEditorRoute", () => {
     expect(updateCall.config.economy.scorePerCumRoundSuccess).toBe(180);
     expect(updateCall.config.perkPool.enabledPerkIds).toContain("loaded-dice");
     expect(updateCall.config.perkPool.enabledAntiPerkIds).toContain("jammed-dice");
+  });
+
+  it("adds a URL music track to advanced playlist music only", async () => {
+    const addMusicFromUrl = vi.mocked(window.electronAPI.dialog.addMusicFromUrl);
+    addMusicFromUrl.mockResolvedValueOnce({
+      filePath: "/music/url-only.mp3",
+      title: "URL Only",
+    });
+
+    render(<Component />);
+    await enterEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add from URL" }));
+    fireEvent.change(screen.getByLabelText("Playlist music URL"), {
+      target: { value: "https://example.com/song" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => {
+      expect(addMusicFromUrl).toHaveBeenCalledWith("https://example.com/song");
+      expect(screen.getByText("URL Only")).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+    });
+
+    const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: ReturnType<typeof makePlaylist>["config"] & {
+        music?: { tracks: Array<{ id: string; uri: string; name: string }> };
+      };
+    };
+    expect(updateCall.config.music?.tracks).toEqual([
+      {
+        id: expect.stringMatching(/^music-/),
+        uri: "app://media/%2Fmusic%2Furl-only.mp3",
+        name: "URL Only",
+      },
+    ]);
+    expect(window.electronAPI.dialog.addMusicPlaylistFromUrl).not.toHaveBeenCalled();
+  });
+
+  it("adds playlist URL music tracks, reports partial failures, and skips duplicates", async () => {
+    const addMusicPlaylistFromUrl = vi.mocked(window.electronAPI.dialog.addMusicPlaylistFromUrl);
+    addMusicPlaylistFromUrl.mockResolvedValue({
+      playlistTitle: "Remote Mix",
+      totalTracks: 3,
+      tracks: [
+        { filePath: "/music/mix-a.mp3", title: "Mix A" },
+        { filePath: "/music/mix-b.mp3", title: "Mix B" },
+      ],
+      errors: [{ url: "https://example.com/missing", error: "Unavailable" }],
+    });
+
+    render(<Component />);
+    await enterEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add from URL" }));
+    fireEvent.click(screen.getByRole("button", { name: "Playlist" }));
+    fireEvent.change(screen.getByLabelText("Playlist music URL"), {
+      target: { value: "https://example.com/playlist" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Added 2 tracks, 1 failed")).toBeDefined();
+      expect(screen.getByText("Mix A")).toBeDefined();
+      expect(screen.getByText("Mix B")).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => {
+      expect(addMusicPlaylistFromUrl).toHaveBeenCalledTimes(2);
+      expect(screen.getByText("Added 0 tracks, 1 failed")).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+    });
+
+    const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: ReturnType<typeof makePlaylist>["config"] & {
+        music?: { tracks: Array<{ id: string; uri: string; name: string }> };
+      };
+    };
+    expect(updateCall.config.music?.tracks).toEqual([
+      {
+        id: expect.stringMatching(/^music-/),
+        uri: "app://media/%2Fmusic%2Fmix-a.mp3",
+        name: "Mix A",
+      },
+      {
+        id: expect.stringMatching(/^music-/),
+        uri: "app://media/%2Fmusic%2Fmix-b.mp3",
+        name: "Mix B",
+      },
+    ]);
+    expect(window.electronAPI.dialog.addMusicFromUrl).not.toHaveBeenCalled();
   });
 
   it("persists renamed map names from the advanced editor header", async () => {

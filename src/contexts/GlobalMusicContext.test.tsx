@@ -1,4 +1,5 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { useEffect, useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MusicLoopMode } from "../constants/musicSettings";
 import { ForegroundMediaProvider, useForegroundMedia } from "./ForegroundMediaContext";
@@ -8,6 +9,7 @@ import { useGlobalMusic } from "../hooks/useGlobalMusic";
 const mocks = vi.hoisted(() => ({
   getQuery: vi.fn(),
   setMutate: vi.fn(),
+  overrideActionsStable: vi.fn(),
 }));
 
 vi.mock("../services/trpc", () => ({
@@ -82,6 +84,16 @@ function Suppressor() {
 
 function Consumer() {
   const music = useGlobalMusic();
+  const initialStartOverrideRef = useRef(music.startTemporaryQueueOverride);
+  const initialStopOverrideRef = useRef(music.stopTemporaryQueueOverride);
+
+  useEffect(() => {
+    mocks.overrideActionsStable(
+      initialStartOverrideRef.current === music.startTemporaryQueueOverride &&
+        initialStopOverrideRef.current === music.stopTemporaryQueueOverride
+    );
+  }, [music.startTemporaryQueueOverride, music.stopTemporaryQueueOverride]);
+
   return (
     <div>
       <div data-testid="track">{music.currentTrack?.name ?? "none"}</div>
@@ -99,6 +111,24 @@ function Consumer() {
       </button>
       <button type="button" onClick={() => void music.setLoopMode("off")}>
         loop-off
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          music.startTemporaryQueueOverride({
+            id: "test-override",
+            tracks: [
+              { id: "pm1", filePath: "/playlist/track1.mp3", name: "Playlist Track 1" },
+              { id: "pm2", filePath: "/playlist/track2.mp3", name: "Playlist Track 2" },
+            ],
+            loop: true,
+          })
+        }
+      >
+        start-override
+      </button>
+      <button type="button" onClick={() => music.stopTemporaryQueueOverride("test-override")}>
+        stop-override
       </button>
     </div>
   );
@@ -134,6 +164,7 @@ describe("GlobalMusicContext", () => {
         selectMusicCacheDirectory: vi.fn(),
         selectMoaningCacheDirectory: vi.fn(),
         selectConverterVideoFile: vi.fn(),
+        selectMapBackgroundFile: vi.fn(),
         selectMusicFiles: vi.fn(),
         selectMoaningFiles: vi.fn(),
         addMusicFromUrl: vi.fn(),
@@ -161,6 +192,7 @@ describe("GlobalMusicContext", () => {
       },
     };
     mocks.setMutate.mockResolvedValue(undefined);
+    mocks.overrideActionsStable.mockClear();
     const values = new Map<string, unknown>([
       ["music.enabled", true],
       [
@@ -277,5 +309,144 @@ describe("GlobalMusicContext", () => {
     });
 
     expect(screen.getByTestId("playing").textContent).toBe("false");
+  });
+
+  it("temporary override plays override queue without persisting it", async () => {
+    renderProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("one.mp3");
+    });
+
+    act(() => {
+      screen.getByText("start-override").click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("Playlist Track 1");
+    });
+    expect(mocks.overrideActionsStable).toHaveBeenLastCalledWith(true);
+
+    expect(mocks.setMutate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ key: "music.queue" })
+    );
+  });
+
+  it("does not persist current index changes while a temporary override is active", async () => {
+    renderProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("one.mp3");
+    });
+
+    act(() => {
+      screen.getByText("start-override").click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("Playlist Track 1");
+    });
+
+    mocks.setMutate.mockClear();
+
+    act(() => {
+      screen.getByText("next").click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("Playlist Track 2");
+    });
+
+    expect(mocks.setMutate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ key: "music.currentIndex" })
+    );
+  });
+
+  it("override loops by default", async () => {
+    renderProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("one.mp3");
+    });
+
+    act(() => {
+      screen.getByText("start-override").click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("Playlist Track 1");
+    });
+
+    act(() => {
+      audioInstances[0]!.dispatchEvent(new Event("ended"));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("Playlist Track 2");
+    });
+
+    act(() => {
+      audioInstances[0]!.dispatchEvent(new Event("ended"));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("Playlist Track 1");
+    });
+  });
+
+  it("stopping override restores prior queue and current track", async () => {
+    renderProviders();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("one.mp3");
+    });
+
+    act(() => {
+      screen.getByText("start-override").click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("Playlist Track 1");
+    });
+
+    act(() => {
+      screen.getByText("stop-override").click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("one.mp3");
+    });
+  });
+
+  it("stopping override resumes prior playback only if it was playing", async () => {
+    renderProviders();
+
+    await waitFor(() => {
+      expect(audioInstances[0]?.play).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      screen.getByText("pause").click();
+    });
+
+    act(() => {
+      screen.getByText("start-override").click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("Playlist Track 1");
+    });
+
+    const playCountBeforeStop = audioInstances[0]!.play.mock.calls.length;
+
+    act(() => {
+      screen.getByText("stop-override").click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track").textContent).toBe("one.mp3");
+    });
+
+    expect(audioInstances[0]!.play.mock.calls.length).toBe(playCountBeforeStop);
   });
 });

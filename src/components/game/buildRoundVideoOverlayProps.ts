@@ -1,6 +1,7 @@
 import type {
   ActiveRound,
   CompletedRoundSummary,
+  RoadPalette,
   PlayerState,
 } from "../../game/types";
 import type { InstalledRound } from "../../services/db";
@@ -38,6 +39,7 @@ type RoundVideoOverlaySessionConfig = Pick<
   | "idleBoardSequence"
   | "onCompleteBoardSequence"
   | "continuousMoaningActive"
+  | "roadPalette"
 >;
 
 type RoundVideoOverlayShellConfig = Pick<
@@ -86,6 +88,7 @@ export function buildRoundVideoOverlayProps({
     idleBoardSequence: session?.idleBoardSequence,
     onCompleteBoardSequence: session?.onCompleteBoardSequence,
     continuousMoaningActive: session?.continuousMoaningActive,
+    roadPalette: session?.roadPalette,
   };
 }
 
@@ -151,6 +154,7 @@ export type GameplayRoundVideoOverlayLaunchConfig = {
   continuousMoaningActive?: boolean;
   extraModifiers?: PlaybackModifier[];
   onFunscriptFrame?: (payload: { timeMs: number; position: number | null }) => void;
+  roadPalette?: RoadPalette;
 };
 
 export function buildGameplayRoundVideoOverlayProps(
@@ -190,6 +194,7 @@ export function buildGameplayRoundVideoOverlayProps(
       continuousMoaningActive: config.continuousMoaningActive,
       extraModifiers: config.extraModifiers,
       onFunscriptFrame: config.onFunscriptFrame,
+      roadPalette: config.roadPalette,
     },
   });
 }

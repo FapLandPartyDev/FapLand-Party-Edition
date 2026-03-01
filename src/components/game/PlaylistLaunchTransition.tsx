@@ -1,4 +1,5 @@
 import { useLingui } from "@lingui/react/macro";
+import type { RoadPalette } from "../../game/types";
 import { CinematicTransitionFrame } from "./CinematicTransitionFrame";
 
 export type PlaylistLaunchTransitionProps = {
@@ -8,6 +9,7 @@ export type PlaylistLaunchTransitionProps = {
   roundCount: number;
   estimatedDurationLabel: string;
   progress: number;
+  roadPalette?: RoadPalette;
 };
 
 export function PlaylistLaunchTransition({
@@ -17,6 +19,7 @@ export function PlaylistLaunchTransition({
   roundCount,
   estimatedDurationLabel,
   progress,
+  roadPalette,
 }: PlaylistLaunchTransitionProps) {
   const { t } = useLingui();
   if (!visible) return null;
@@ -33,6 +36,7 @@ export function PlaylistLaunchTransition({
           estimatedDurationLabel,
         ]}
         progress={progress}
+        roadPalette={roadPalette}
         variant="playlist-launch"
       />
     </div>

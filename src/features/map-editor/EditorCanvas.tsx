@@ -1,7 +1,31 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type JSX, type MouseEvent, type WheelEvent } from "react";
-import type { EditorGraphConfig, EditorNode, EditorSelectionState, MapEditorTool, ViewportState } from "./EditorState";
-import { getNodesIntersectingScreenRect, mergeNodeSelection, replaceNodeSelection, toggleNodeSelection } from "./editorInteractions";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type JSX,
+  type MouseEvent,
+  type WheelEvent,
+} from "react";
+import type {
+  EditorGraphConfig,
+  EditorNode,
+  EditorSelectionState,
+  MapEditorTool,
+  ViewportState,
+} from "./EditorState";
+import { normalizeRoadPalette } from "./EditorState";
+import {
+  getNodesIntersectingScreenRect,
+  mergeNodeSelection,
+  replaceNodeSelection,
+  toggleNodeSelection,
+} from "./editorInteractions";
 import { getNodeDisplayColor, getNodeRenderHeight, getNodeRenderWidth } from "./nodeVisuals";
+import { getPerkById } from "../../game/data/perks";
+import { MapBackgroundMedia } from "../../components/MapBackgroundMedia";
 
 type Interaction =
   | {
@@ -62,14 +86,14 @@ type EditorCanvasProps = {
 
 const WORLD_ZOOM_MIN = 0.35;
 const WORLD_ZOOM_MAX = 2;
-const EDGE_COLOR = "#94a3b8";
 const DEFAULT_TEXT_COLOR = "#f8fafc";
 const DEFAULT_TEXT_SIZE = 18;
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
-const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value));
 
 const trimOrNull = (value: string | undefined): string | null => {
   if (!value) return null;
@@ -77,24 +101,35 @@ const trimOrNull = (value: string | undefined): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
-const toScreenSpace = (world: { x: number; y: number }, viewport: ViewportState): { x: number; y: number } => ({
+const toScreenSpace = (
+  world: { x: number; y: number },
+  viewport: ViewportState
+): { x: number; y: number } => ({
   x: world.x * viewport.zoom + viewport.x,
   y: world.y * viewport.zoom + viewport.y,
 });
 
-const toWorldSpace = (screen: { x: number; y: number }, viewport: ViewportState): { x: number; y: number } => ({
+const toWorldSpace = (
+  screen: { x: number; y: number },
+  viewport: ViewportState
+): { x: number; y: number } => ({
   x: (screen.x - viewport.x) / viewport.zoom,
   y: (screen.y - viewport.y) / viewport.zoom,
 });
 
-const getRectCenter = (rect: { x: number; y: number; width: number; height: number }): { x: number; y: number } => ({
-  x: rect.x + (rect.width * 0.5),
-  y: rect.y + (rect.height * 0.5),
+const getRectCenter = (rect: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}): { x: number; y: number } => ({
+  x: rect.x + rect.width * 0.5,
+  y: rect.y + rect.height * 0.5,
 });
 
 const getRectConnectionPoint = (
   rect: { x: number; y: number; width: number; height: number },
-  target: { x: number; y: number },
+  target: { x: number; y: number }
 ): { x: number; y: number } => {
   const center = getRectCenter(rect);
   const dx = target.x - center.x;
@@ -105,17 +140,18 @@ const getRectConnectionPoint = (
 
   const halfWidth = rect.width * 0.5;
   const halfHeight = rect.height * 0.5;
-  const scale = 1 / Math.max(Math.abs(dx) / Math.max(halfWidth, 1), Math.abs(dy) / Math.max(halfHeight, 1));
+  const scale =
+    1 / Math.max(Math.abs(dx) / Math.max(halfWidth, 1), Math.abs(dy) / Math.max(halfHeight, 1));
 
   return {
-    x: center.x + (dx * scale),
-    y: center.y + (dy * scale),
+    x: center.x + dx * scale,
+    y: center.y + dy * scale,
   };
 };
 
 const getTrimmedEdgePoints = (
   sourceRect: { x: number; y: number; width: number; height: number },
-  targetRect: { x: number; y: number; width: number; height: number },
+  targetRect: { x: number; y: number; width: number; height: number }
 ): { x1: number; y1: number; x2: number; y2: number } | null => {
   const sourceCenter = getRectCenter(sourceRect);
   const targetCenter = getRectCenter(targetRect);
@@ -172,6 +208,10 @@ export function EditorCanvas({
 
   const placedNodeIds = useMemo(() => new Set(recentlyPlacedNodeIds), [recentlyPlacedNodeIds]);
   const flashedEdgeIds = useMemo(() => new Set(recentlyTouchedEdgeIds), [recentlyTouchedEdgeIds]);
+  const roadPalette = useMemo(
+    () => normalizeRoadPalette(config.style.roadPalette),
+    [config.style.roadPalette]
+  );
 
   const nodesById = useMemo(() => {
     const map = new Map<string, EditorNode>();
@@ -181,7 +221,10 @@ export function EditorCanvas({
     return map;
   }, [config.nodes]);
 
-  const getContainerRect = useCallback(() => containerRef.current?.getBoundingClientRect() ?? null, []);
+  const getContainerRect = useCallback(
+    () => containerRef.current?.getBoundingClientRect() ?? null,
+    []
+  );
 
   const toLocal = useCallback(
     (clientX: number, clientY: number): { x: number; y: number } => {
@@ -192,7 +235,7 @@ export function EditorCanvas({
         y: clientY - containerRect.top,
       };
     },
-    [getContainerRect],
+    [getContainerRect]
   );
 
   const toLocalWorld = useCallback(
@@ -200,7 +243,7 @@ export function EditorCanvas({
       const local = toLocal(clientX, clientY);
       return toWorldSpace(local, viewport);
     },
-    [toLocal, viewport],
+    [toLocal, viewport]
   );
 
   const addPan = useCallback(
@@ -214,68 +257,79 @@ export function EditorCanvas({
         zoom: viewport.zoom,
       });
     },
-    [viewport.x, viewport.y, viewport.zoom],
+    [viewport.x, viewport.y, viewport.zoom]
   );
 
-  const handleGlobalMouseMove = useCallback((event: globalThis.MouseEvent) => {
-    setInteraction((current) => {
-      if (!current) return current;
+  const handleGlobalMouseMove = useCallback(
+    (event: globalThis.MouseEvent) => {
+      setInteraction((current) => {
+        if (!current) return current;
 
-      if (current.kind === "pan") {
-        const dx = event.clientX - current.clientX;
-        const dy = event.clientY - current.clientY;
-        onViewportChange({
-          x: current.viewportX + dx,
-          y: current.viewportY + dy,
-          zoom: current.zoom,
-        });
+        if (current.kind === "pan") {
+          const dx = event.clientX - current.clientX;
+          const dy = event.clientY - current.clientY;
+          onViewportChange({
+            x: current.viewportX + dx,
+            y: current.viewportY + dy,
+            zoom: current.zoom,
+          });
+          return current;
+        }
+
+        if (current.kind === "nodeDrag") {
+          const world = toLocalWorld(event.clientX, event.clientY);
+          const deltaWorldX = world.x - current.lastWorldX;
+          const deltaWorldY = world.y - current.lastWorldY;
+          if (Math.abs(deltaWorldX) > 0 || Math.abs(deltaWorldY) > 0) {
+            onMoveNodes(current.nodeIds, deltaWorldX, deltaWorldY);
+          }
+          return {
+            ...current,
+            lastWorldX: world.x,
+            lastWorldY: world.y,
+          };
+        }
+
+        if (current.kind === "textDrag") {
+          const world = toLocalWorld(event.clientX, event.clientY);
+          const deltaWorldX = world.x - current.lastWorldX;
+          const deltaWorldY = world.y - current.lastWorldY;
+          if (Math.abs(deltaWorldX) > 0 || Math.abs(deltaWorldY) > 0) {
+            onMoveTextAnnotation(current.annotationId, deltaWorldX, deltaWorldY);
+          }
+          return {
+            ...current,
+            lastWorldX: world.x,
+            lastWorldY: world.y,
+          };
+        }
+
+        if (current.kind === "marquee") {
+          const local = toLocal(event.clientX, event.clientY);
+          return {
+            ...current,
+            currentX: local.x,
+            currentY: local.y,
+          };
+        }
+
         return current;
+      });
+
+      if (tool === "connect" && connectFromNodeId) {
+        setPreviewPointer(toLocal(event.clientX, event.clientY));
       }
-
-      if (current.kind === "nodeDrag") {
-        const world = toLocalWorld(event.clientX, event.clientY);
-        const deltaWorldX = world.x - current.lastWorldX;
-        const deltaWorldY = world.y - current.lastWorldY;
-        if (Math.abs(deltaWorldX) > 0 || Math.abs(deltaWorldY) > 0) {
-          onMoveNodes(current.nodeIds, deltaWorldX, deltaWorldY);
-        }
-        return {
-          ...current,
-          lastWorldX: world.x,
-          lastWorldY: world.y,
-        };
-      }
-
-      if (current.kind === "textDrag") {
-        const world = toLocalWorld(event.clientX, event.clientY);
-        const deltaWorldX = world.x - current.lastWorldX;
-        const deltaWorldY = world.y - current.lastWorldY;
-        if (Math.abs(deltaWorldX) > 0 || Math.abs(deltaWorldY) > 0) {
-          onMoveTextAnnotation(current.annotationId, deltaWorldX, deltaWorldY);
-        }
-        return {
-          ...current,
-          lastWorldX: world.x,
-          lastWorldY: world.y,
-        };
-      }
-
-      if (current.kind === "marquee") {
-        const local = toLocal(event.clientX, event.clientY);
-        return {
-          ...current,
-          currentX: local.x,
-          currentY: local.y,
-        };
-      }
-
-      return current;
-    });
-
-    if (tool === "connect" && connectFromNodeId) {
-      setPreviewPointer(toLocal(event.clientX, event.clientY));
-    }
-  }, [connectFromNodeId, onMoveNodes, onMoveTextAnnotation, onViewportChange, toLocal, toLocalWorld, tool]);
+    },
+    [
+      connectFromNodeId,
+      onMoveNodes,
+      onMoveTextAnnotation,
+      onViewportChange,
+      toLocal,
+      toLocalWorld,
+      tool,
+    ]
+  );
 
   const handleGlobalMouseUp = useCallback(() => {
     setInteraction((current) => {
@@ -284,20 +338,24 @@ export function EditorCanvas({
       if (current.kind === "nodeDrag" || current.kind === "textDrag") {
         onEndNodeDrag?.();
       } else if (current.kind === "marquee") {
-        const intersectingNodeIds = getNodesIntersectingScreenRect(
-          config.nodes,
-          viewport,
-          {
-            startX: current.anchorX,
-            startY: current.anchorY,
-            endX: current.currentX,
-            endY: current.currentY,
-          },
-        );
+        const intersectingNodeIds = getNodesIntersectingScreenRect(config.nodes, viewport, {
+          startX: current.anchorX,
+          startY: current.anchorY,
+          endX: current.currentX,
+          endY: current.currentY,
+        });
 
         const nextSelection = current.additive
-          ? mergeNodeSelection(current.baseSelection, intersectingNodeIds, intersectingNodeIds[0] ?? null)
-          : replaceNodeSelection(current.baseSelection, intersectingNodeIds, intersectingNodeIds[0] ?? null);
+          ? mergeNodeSelection(
+              current.baseSelection,
+              intersectingNodeIds,
+              intersectingNodeIds[0] ?? null
+            )
+          : replaceNodeSelection(
+              current.baseSelection,
+              intersectingNodeIds,
+              intersectingNodeIds[0] ?? null
+            );
         onSelectionChange(nextSelection);
       }
 
@@ -364,20 +422,39 @@ export function EditorCanvas({
       onSetConnectFrom(null);
       onSelectionChange(EMPTY_SELECTION);
     },
-    [activePlacementKind, addPan, onPlaceNodeAtWorld, onPlaceTextAtWorld, onSelectionChange, onSetConnectFrom, selection, spacePanActive, toLocal, toLocalWorld, tool],
+    [
+      activePlacementKind,
+      addPan,
+      onPlaceNodeAtWorld,
+      onPlaceTextAtWorld,
+      onSelectionChange,
+      onSetConnectFrom,
+      selection,
+      spacePanActive,
+      toLocal,
+      toLocalWorld,
+      tool,
+    ]
   );
 
-  const handleCanvasWheel = useCallback((event: WheelEvent<SVGSVGElement>) => {
-    event.preventDefault();
-    const local = toLocal(event.clientX, event.clientY);
-    const world = toWorldSpace(local, viewport);
-    const nextZoom = clamp(viewport.zoom * (event.deltaY > 0 ? 0.92 : 1.08), WORLD_ZOOM_MIN, WORLD_ZOOM_MAX);
-    onViewportChange({
-      zoom: nextZoom,
-      x: local.x - world.x * nextZoom,
-      y: local.y - world.y * nextZoom,
-    });
-  }, [onViewportChange, toLocal, viewport]);
+  const handleCanvasWheel = useCallback(
+    (event: WheelEvent<SVGSVGElement>) => {
+      event.preventDefault();
+      const local = toLocal(event.clientX, event.clientY);
+      const world = toWorldSpace(local, viewport);
+      const nextZoom = clamp(
+        viewport.zoom * (event.deltaY > 0 ? 0.92 : 1.08),
+        WORLD_ZOOM_MIN,
+        WORLD_ZOOM_MAX
+      );
+      onViewportChange({
+        zoom: nextZoom,
+        x: local.x - world.x * nextZoom,
+        y: local.y - world.y * nextZoom,
+      });
+    },
+    [onViewportChange, toLocal, viewport]
+  );
 
   const handleNodeMouseDown = useCallback(
     (nodeId: string, event: MouseEvent<SVGGElement>) => {
@@ -430,7 +507,18 @@ export function EditorCanvas({
       });
       onSetConnectFrom(null);
     },
-    [connectFromNodeId, onBeginNodeDrag, onCreateEdge, onDeleteEdgeBetween, onSelectionChange, onSetConnectFrom, selection, toLocal, toLocalWorld, tool],
+    [
+      connectFromNodeId,
+      onBeginNodeDrag,
+      onCreateEdge,
+      onDeleteEdgeBetween,
+      onSelectionChange,
+      onSetConnectFrom,
+      selection,
+      toLocal,
+      toLocalWorld,
+      tool,
+    ]
   );
 
   const handleNodeMouseOver = useCallback(
@@ -439,20 +527,23 @@ export function EditorCanvas({
       event.preventDefault();
       setPreviewPointer(toLocal(event.clientX, event.clientY));
     },
-    [connectFromNodeId, toLocal, tool],
+    [connectFromNodeId, toLocal, tool]
   );
 
-  const handleEdgeMouseDown = useCallback((edgeId: string, event: MouseEvent<SVGLineElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    onSetConnectFrom(null);
-    onSelectionChange({
-      selectedNodeIds: [],
-      primaryNodeId: null,
-      selectedEdgeId: edgeId,
-      selectedTextAnnotationId: null,
-    });
-  }, [onSelectionChange, onSetConnectFrom]);
+  const handleEdgeMouseDown = useCallback(
+    (edgeId: string, event: MouseEvent<SVGLineElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onSetConnectFrom(null);
+      onSelectionChange({
+        selectedNodeIds: [],
+        primaryNodeId: null,
+        selectedEdgeId: edgeId,
+        selectedTextAnnotationId: null,
+      });
+    },
+    [onSelectionChange, onSetConnectFrom]
+  );
 
   const handleTextMouseDown = useCallback(
     (annotationId: string, event: MouseEvent<SVGGElement>) => {
@@ -481,22 +572,35 @@ export function EditorCanvas({
     [onBeginNodeDrag, onSelectionChange, onSetConnectFrom, toLocalWorld, tool]
   );
 
-  const marqueeRect = interaction?.kind === "marquee"
-    ? {
-        x: Math.min(interaction.anchorX, interaction.currentX),
-        y: Math.min(interaction.anchorY, interaction.currentY),
-        width: Math.abs(interaction.currentX - interaction.anchorX),
-        height: Math.abs(interaction.currentY - interaction.anchorY),
+  const marqueeRect =
+    interaction?.kind === "marquee"
+      ? {
+          x: Math.min(interaction.anchorX, interaction.currentX),
+          y: Math.min(interaction.anchorY, interaction.currentY),
+          width: Math.abs(interaction.currentX - interaction.anchorX),
+          height: Math.abs(interaction.currentY - interaction.anchorY),
       }
-    : null;
+      : null;
+  const backgroundParallaxOffset = useMemo(() => {
+    const background = config.style.background;
+    if (!background || background.motion !== "parallax") return { x: 0, y: 0 };
+    return {
+      x: -viewport.x * background.parallaxStrength,
+      y: -viewport.y * background.parallaxStrength,
+    };
+  }, [config.style.background, viewport.x, viewport.y]);
 
   return (
     <div
       ref={containerRef}
       className="relative h-full w-full overflow-hidden rounded-xl border border-zinc-500/25 bg-zinc-950/55"
     >
+      <MapBackgroundMedia
+        background={config.style.background}
+        parallaxOffset={backgroundParallaxOffset}
+      />
       <svg
-        className="h-full w-full select-none"
+        className="relative z-10 h-full w-full select-none"
         role="application"
         aria-label="map editor canvas"
         tabIndex={0}
@@ -523,8 +627,21 @@ export function EditorCanvas({
             <path d="M 0 1 L 8 5 L 0 9 z" fill="context-stroke" />
           </marker>
           {showGrid && (
-            <pattern id="editor-grid-pattern" x="0" y="0" width="48" height="48" patternUnits="userSpaceOnUse">
-              <rect width="48" height="48" fill="none" stroke="rgba(148,163,184,0.15)" strokeWidth="1" />
+            <pattern
+              id="editor-grid-pattern"
+              x="0"
+              y="0"
+              width="48"
+              height="48"
+              patternUnits="userSpaceOnUse"
+            >
+              <rect
+                width="48"
+                height="48"
+                fill="none"
+                stroke="rgba(148,163,184,0.15)"
+                strokeWidth="1"
+              />
             </pattern>
           )}
         </defs>
@@ -540,10 +657,10 @@ export function EditorCanvas({
           const target = nodesById.get(edge.toNodeId);
           if (!source?.styleHint || !target?.styleHint) return null;
           if (
-            !isFiniteNumber(source.styleHint.x)
-            || !isFiniteNumber(source.styleHint.y)
-            || !isFiniteNumber(target.styleHint.x)
-            || !isFiniteNumber(target.styleHint.y)
+            !isFiniteNumber(source.styleHint.x) ||
+            !isFiniteNumber(source.styleHint.y) ||
+            !isFiniteNumber(target.styleHint.x) ||
+            !isFiniteNumber(target.styleHint.y)
           ) {
             return null;
           }
@@ -552,8 +669,14 @@ export function EditorCanvas({
           const sourceHeight = getNodeRenderHeight(source);
           const targetWidth = getNodeRenderWidth(target);
           const targetHeight = getNodeRenderHeight(target);
-          const sourcePos = toScreenSpace({ x: source.styleHint.x, y: source.styleHint.y }, viewport);
-          const targetPos = toScreenSpace({ x: target.styleHint.x, y: target.styleHint.y }, viewport);
+          const sourcePos = toScreenSpace(
+            { x: source.styleHint.x, y: source.styleHint.y },
+            viewport
+          );
+          const targetPos = toScreenSpace(
+            { x: target.styleHint.x, y: target.styleHint.y },
+            viewport
+          );
           const edgePoints = getTrimmedEdgePoints(
             {
               x: sourcePos.x,
@@ -566,12 +689,12 @@ export function EditorCanvas({
               y: targetPos.y,
               width: targetWidth * viewport.zoom,
               height: targetHeight * viewport.zoom,
-            },
+            }
           );
           if (!edgePoints) return null;
 
           const isSelected = edge.id === selection.selectedEdgeId;
-          const strokeColor = isSelected ? "#c4b5fd" : EDGE_COLOR;
+          const strokeColor = isSelected ? "#c4b5fd" : roadPalette.center;
 
           return (
             <g key={edge.id} data-edge-id={edge.id}>
@@ -607,7 +730,9 @@ export function EditorCanvas({
                   fontFamily="var(--font-jetbrains-mono)"
                   className="pointer-events-none"
                 >
-                  {edge.label ?? ""}{edge.label ? " " : ""}{(edge.gateCost ?? 0) > 0 ? `$${edge.gateCost}` : ""}
+                  {edge.label ?? ""}
+                  {edge.label ? " " : ""}
+                  {(edge.gateCost ?? 0) > 0 ? `$${edge.gateCost}` : ""}
                 </text>
               )}
             </g>
@@ -615,7 +740,12 @@ export function EditorCanvas({
         })}
 
         {config.nodes.map((node) => {
-          if (!node.styleHint || !isFiniteNumber(node.styleHint.x) || !isFiniteNumber(node.styleHint.y)) return null;
+          if (
+            !node.styleHint ||
+            !isFiniteNumber(node.styleHint.x) ||
+            !isFiniteNumber(node.styleHint.y)
+          )
+            return null;
           const width = getNodeRenderWidth(node);
           const height = getNodeRenderHeight(node);
           const color = getNodeDisplayColor(node);
@@ -626,8 +756,14 @@ export function EditorCanvas({
           const rectHeight = height * viewport.zoom;
           const isFresh = placedNodeIds.has(node.id);
           const selectedRoundName = trimOrNull(node.roundRef?.name);
-          const primaryLabel = node.kind === "round" ? selectedRoundName ?? node.name : node.name;
-          const secondaryLabel = node.kind === "round" ? "round" : node.kind;
+          const primaryLabel = node.kind === "round" ? (selectedRoundName ?? node.name) : node.name;
+          const perkDef = node.kind === "perk" && node.visualId ? getPerkById(node.visualId) : null;
+          const secondaryLabel =
+            node.kind === "round"
+              ? "round"
+              : perkDef?.kind === "antiPerk"
+                ? "anti-perk"
+                : node.kind;
 
           return (
             <g
@@ -686,7 +822,10 @@ export function EditorCanvas({
           const y = Number(annotation.styleHint.y);
           if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
           const position = toScreenSpace({ x, y }, viewport);
-          const fontSize = Math.max(8, Math.min(96, (annotation.styleHint.size ?? DEFAULT_TEXT_SIZE) * viewport.zoom));
+          const fontSize = Math.max(
+            8,
+            Math.min(96, (annotation.styleHint.size ?? DEFAULT_TEXT_SIZE) * viewport.zoom)
+          );
           const lineHeight = fontSize * 1.25;
           const lines = annotation.text.split("\n");
           const isSelected = selection.selectedTextAnnotationId === annotation.id;
@@ -719,7 +858,15 @@ export function EditorCanvas({
                 <rect
                   x={-8}
                   y={-fontSize}
-                  width={Math.max(36, annotation.text.split("\n").reduce((max, line) => Math.max(max, line.length), 0) * fontSize * 0.65 + 16)}
+                  width={Math.max(
+                    36,
+                    annotation.text
+                      .split("\n")
+                      .reduce((max, line) => Math.max(max, line.length), 0) *
+                      fontSize *
+                      0.65 +
+                      16
+                  )}
                   height={Math.max(lineHeight, lines.length * lineHeight)}
                   fill="none"
                   stroke="#c4b5fd"
@@ -746,35 +893,45 @@ export function EditorCanvas({
           />
         )}
 
-        {tool === "connect" && connectFromNodeId && previewPointer && (() => {
-          const startNode = nodesById.get(connectFromNodeId);
-          if (!startNode?.styleHint || !isFiniteNumber(startNode.styleHint.x) || !isFiniteNumber(startNode.styleHint.y)) {
-            return null;
-          }
-          const startWidth = getNodeRenderWidth(startNode);
-          const startHeight = getNodeRenderHeight(startNode);
-          const startPos = toScreenSpace({ x: startNode.styleHint.x, y: startNode.styleHint.y }, viewport);
-          const startRect = {
-            x: startPos.x,
-            y: startPos.y,
-            width: startWidth * viewport.zoom,
-            height: startHeight * viewport.zoom,
-          };
-          const fromPoint = getRectConnectionPoint(startRect, previewPointer);
-          return (
-            <line
-              x1={fromPoint.x}
-              y1={fromPoint.y}
-              x2={previewPointer.x}
-              y2={previewPointer.y}
-              stroke="#f472b6"
-              strokeWidth={2}
-              strokeDasharray="5 6"
-              strokeLinecap="round"
-              markerEnd={`url(#${arrowMarkerId})`}
-            />
-          );
-        })()}
+        {tool === "connect" &&
+          connectFromNodeId &&
+          previewPointer &&
+          (() => {
+            const startNode = nodesById.get(connectFromNodeId);
+            if (
+              !startNode?.styleHint ||
+              !isFiniteNumber(startNode.styleHint.x) ||
+              !isFiniteNumber(startNode.styleHint.y)
+            ) {
+              return null;
+            }
+            const startWidth = getNodeRenderWidth(startNode);
+            const startHeight = getNodeRenderHeight(startNode);
+            const startPos = toScreenSpace(
+              { x: startNode.styleHint.x, y: startNode.styleHint.y },
+              viewport
+            );
+            const startRect = {
+              x: startPos.x,
+              y: startPos.y,
+              width: startWidth * viewport.zoom,
+              height: startHeight * viewport.zoom,
+            };
+            const fromPoint = getRectConnectionPoint(startRect, previewPointer);
+            return (
+              <line
+                x1={fromPoint.x}
+                y1={fromPoint.y}
+                x2={previewPointer.x}
+                y2={previewPointer.y}
+                stroke={roadPalette.railB}
+                strokeWidth={2}
+                strokeDasharray="5 6"
+                strokeLinecap="round"
+                markerEnd={`url(#${arrowMarkerId})`}
+              />
+            );
+          })()}
       </svg>
     </div>
   );

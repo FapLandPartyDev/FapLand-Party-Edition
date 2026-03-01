@@ -204,7 +204,7 @@ export function pickVideoPreviewProps(state: ConverterState): VideoPreviewProps 
       state.setCurrentTimeMs(0);
       void state.ensurePlayableVideo(state.videoUri);
     },
-    onTimeUpdate: (ms: number) => state.setCurrentTimeMs(ms),
+    onTimeUpdate: (ms: number) => state.syncPreviewTimeMs(ms),
     onVideoError: () => void state.handleVideoError(state.videoUri),
     onTogglePlayback: () => void state.togglePlayback(),
     onSetMarkIn: () => state.setMarkInMs(state.currentTimeMs),

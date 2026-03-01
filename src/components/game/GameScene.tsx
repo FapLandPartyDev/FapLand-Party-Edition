@@ -33,7 +33,13 @@ import {
   type AnimPhase,
   useGameAnimation,
 } from "../../game/useGameAnimation";
-import type { BoardField, GameState, MapTextAnnotation, PlayerState } from "../../game/types";
+import type {
+  BoardField,
+  GameState,
+  MapTextAnnotation,
+  PlayerState,
+  RoadPalette,
+} from "../../game/types";
 import { PERK_RARITY_META, resolvePerkRarity, getRarityLabel } from "../../game/data/perkRarity";
 import type { InstalledRound } from "../../services/db";
 import { trpc } from "../../services/trpc";
@@ -53,6 +59,8 @@ import { InventoryDockButton } from "./InventoryDockButton";
 import { PerkInventoryPanel } from "./PerkInventoryPanel";
 import { buildTileDurationLabelByFieldId } from "./tileDurationLabels";
 import { getNodeScale, parseHexColorToNumber } from "../../features/map-editor/nodeVisuals";
+import { normalizeRoadPalette } from "../../features/map-editor/EditorState";
+import { MapBackgroundMedia } from "../MapBackgroundMedia";
 import ControllerHints from "./ControllerHints";
 
 // ─── Board layout strategy ────────────────────────────────────────────────────
@@ -116,6 +124,33 @@ const TILE_COLOURS: Record<string, TileC> = {
 
 const PLAYER_COLOURS = [0xff5d8d, 0x6ef4ff, 0xb08dff, 0x6ff2bf] as const;
 
+type RuntimeRoadPalette = {
+  body: number;
+  railA: number;
+  railB: number;
+  glow: number;
+  center: number;
+  gate: number;
+  marker: number;
+};
+
+type RuntimeUiPalette = {
+  panelBg: number;
+  panelBorder: number;
+  panelRim: number;
+  primary: number;
+  secondary: number;
+  glow: number;
+  text: number;
+  mutedText: number;
+  danger: number;
+  progress: number;
+  money: number;
+  buttonBg: number;
+  buttonBgHover: number;
+  buttonBgPressed: number;
+};
+
 // ─── Layout helpers ───────────────────────────────────────────────────────────
 
 /** Vertical layout: tile 0 at bottom, ascending upward. */
@@ -169,7 +204,10 @@ function buildFallbackTileOrigins(total: number): Array<{ x: number; y: number }
   });
 }
 
-function estimateTextAnnotationBounds(annotation: MapTextAnnotation): { width: number; height: number } {
+function estimateTextAnnotationBounds(annotation: MapTextAnnotation): {
+  width: number;
+  height: number;
+} {
   const fontSize = annotation.styleHint.size ?? 18;
   const lines = annotation.text.split("\n");
   const maxLineLength = lines.reduce((max, line) => Math.max(max, line.length), 1);
@@ -392,6 +430,20 @@ function blendColor(a: number, b: number, t: number): number {
   return (r << 16) | (g << 8) | bl;
 }
 
+function relativeColorLuminance(color: number): number {
+  const r = (color >> 16) & 0xff;
+  const g = (color >> 8) & 0xff;
+  const b = color & 0xff;
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+
+function ensureReadableOnDark(color: number, minLuminance = 0.58): number {
+  const luminance = relativeColorLuminance(color);
+  if (luminance >= minLuminance) return color;
+  const amount = clampNum((minLuminance - luminance) / minLuminance, 0, 1);
+  return blendColor(color, 0xffffff, 0.25 + amount * 0.55);
+}
+
 function clampNum(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -421,6 +473,42 @@ function resolveTileColours(field: BoardField): TileC {
     dark: blendColor(customColor, 0x000000, 0.38),
     glow: blendColor(customColor, 0xffffff, 0.24),
     base: blendColor(customColor, 0x050816, 0.84),
+  };
+}
+
+function resolveRoadPalette(palette: RoadPalette | undefined): RuntimeRoadPalette {
+  const normalized = normalizeRoadPalette(palette);
+  return {
+    body: parseHexColorToNumber(normalized.body) ?? 0x151a2a,
+    railA: parseHexColorToNumber(normalized.railA) ?? 0x79ddff,
+    railB: parseHexColorToNumber(normalized.railB) ?? 0xff71ca,
+    glow: parseHexColorToNumber(normalized.glow) ?? 0x8a4dff,
+    center: parseHexColorToNumber(normalized.center) ?? 0xb0baff,
+    gate: parseHexColorToNumber(normalized.gate) ?? 0xff79b4,
+    marker: parseHexColorToNumber(normalized.marker) ?? 0xdce7ff,
+  };
+}
+
+function resolveUiPalette(roadPalette: RuntimeRoadPalette): RuntimeUiPalette {
+  const panelBg = blendColor(roadPalette.body, 0x000000, 0.42);
+  const buttonBg = blendColor(roadPalette.body, roadPalette.glow, 0.32);
+  const mutedCandidate = blendColor(roadPalette.center, 0x000000, 0.18);
+
+  return {
+    panelBg,
+    panelBorder: blendColor(roadPalette.glow, roadPalette.center, 0.45),
+    panelRim: ensureReadableOnDark(blendColor(roadPalette.center, 0xffffff, 0.32), 0.52),
+    primary: roadPalette.railA,
+    secondary: roadPalette.railB,
+    glow: roadPalette.glow,
+    text: ensureReadableOnDark(blendColor(roadPalette.marker, 0xffffff, 0.35), 0.7),
+    mutedText: ensureReadableOnDark(mutedCandidate, 0.42),
+    danger: blendColor(roadPalette.gate, 0xff2f5f, 0.42),
+    progress: roadPalette.center,
+    money: roadPalette.gate,
+    buttonBg,
+    buttonBgHover: blendColor(buttonBg, roadPalette.railA, 0.28),
+    buttonBgPressed: blendColor(buttonBg, 0x000000, 0.28),
   };
 }
 
@@ -459,6 +547,14 @@ function buildPendingPathPreviewSegments(state: GameState, edgeId: string): Path
 
     const currentField = board[graph.nodeIndexById[currentNodeId] ?? -1];
     if (!currentField) break;
+    if (
+      currentField.kind === "catapult" &&
+      !currentField.catapultLandingOnly &&
+      typeof currentField.catapultForward === "number" &&
+      currentField.catapultForward > 0
+    ) {
+      remainingSteps += currentField.catapultForward;
+    }
     if (
       currentField.forceStop ||
       currentField.kind === "safePoint" ||
@@ -564,6 +660,24 @@ function drawTile(
     g.fill({ color: 0xf5d4ff, alpha: 0.95 });
     g.circle(cx, cy, 2.2);
     g.fill({ color: c.accent, alpha: 1 });
+  } else if (field.kind === "catapult") {
+    g.poly([
+      cx - 4,
+      cy + 8,
+      cx - 4,
+      cy - 2,
+      cx - 8,
+      cy - 2,
+      cx,
+      cy - 10,
+      cx + 8,
+      cy - 2,
+      cx + 4,
+      cy - 2,
+      cx + 4,
+      cy + 8,
+    ]);
+    g.fill({ color: 0x67e8f9, alpha: 0.95 });
   } else {
     g.circle(cx - 5.5, cy, 3);
     g.fill({ color: 0xd6e5ff, alpha: 0.9 });
@@ -596,7 +710,8 @@ function drawNeonRoadConnector(
   y1: number,
   x2: number,
   y2: number,
-  t: number
+  t: number,
+  palette: RuntimeRoadPalette
 ): void {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -611,26 +726,26 @@ function drawNeonRoadConnector(
   // Soft outer glow
   g.moveTo(x1, y1);
   g.lineTo(x2, y2);
-  g.stroke({ color: 0x8a4dff, alpha: 0.08 + pulse * 0.06, width: 42 });
+  g.stroke({ color: palette.glow, alpha: 0.08 + pulse * 0.06, width: 42 });
 
   // Asphalt / lane body
   g.moveTo(x1, y1);
   g.lineTo(x2, y2);
-  g.stroke({ color: 0x151a2a, alpha: 0.95, width: 26 });
+  g.stroke({ color: palette.body, alpha: 0.95, width: 26 });
 
   // Neon edge rails
   g.moveTo(x1 + nx * edgeOffset, y1 + ny * edgeOffset);
   g.lineTo(x2 + nx * edgeOffset, y2 + ny * edgeOffset);
-  g.stroke({ color: 0x79ddff, alpha: 0.78 + pulse * 0.16, width: 2.4 });
+  g.stroke({ color: palette.railA, alpha: 0.78 + pulse * 0.16, width: 2.4 });
 
   g.moveTo(x1 - nx * edgeOffset, y1 - ny * edgeOffset);
   g.lineTo(x2 - nx * edgeOffset, y2 - ny * edgeOffset);
-  g.stroke({ color: 0xff71ca, alpha: 0.72 + pulse * 0.16, width: 2.2 });
+  g.stroke({ color: palette.railB, alpha: 0.72 + pulse * 0.16, width: 2.2 });
 
   // Center lane accent
   g.moveTo(x1, y1);
   g.lineTo(x2, y2);
-  g.stroke({ color: 0xb0baff, alpha: 0.28, width: 2.6 });
+  g.stroke({ color: palette.center, alpha: 0.28, width: 2.6 });
 
   // Traveling marker lights for movement
   for (let i = 0; i < 4; i++) {
@@ -638,7 +753,7 @@ function drawNeonRoadConnector(
     const mx = x1 + dx * p;
     const my = y1 + dy * p;
     g.circle(mx, my, 2.1);
-    g.fill({ color: 0xdce7ff, alpha: 0.7 });
+    g.fill({ color: palette.marker, alpha: 0.7 });
   }
 }
 
@@ -679,7 +794,8 @@ function drawRoadGate(
   y1: number,
   x2: number,
   y2: number,
-  t: number
+  t: number,
+  palette: RuntimeRoadPalette
 ): { x: number; y: number; normalX: number; normalY: number } | null {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -703,7 +819,7 @@ function drawRoadGate(
   const pillarRadius = 3;
 
   g.circle(gateX, gateY + 2, 28);
-  g.fill({ color: 0xff79b4, alpha: 0.05 + pulse * 0.04 });
+  g.fill({ color: palette.gate, alpha: 0.05 + pulse * 0.04 });
 
   g.roundRect(
     gateX - frameWidth / 2,
@@ -713,7 +829,7 @@ function drawRoadGate(
     pillarRadius
   );
   g.fill({ color: 0x182235, alpha: 0.98 });
-  g.stroke({ color: 0xaed9ff, alpha: 0.55, width: 1.1 });
+  g.stroke({ color: palette.railA, alpha: 0.55, width: 1.1 });
 
   g.roundRect(
     gateX + frameWidth / 2 - pillarWidth,
@@ -723,7 +839,7 @@ function drawRoadGate(
     pillarRadius
   );
   g.fill({ color: 0x182235, alpha: 0.98 });
-  g.stroke({ color: 0xaed9ff, alpha: 0.55, width: 1.1 });
+  g.stroke({ color: palette.railA, alpha: 0.55, width: 1.1 });
 
   g.roundRect(gateX - frameWidth / 2 - 3, gateY + frameHeight / 2 - 5, pillarWidth + 6, 6, 3);
   g.fill({ color: 0x0d1322, alpha: 0.94 });
@@ -738,27 +854,27 @@ function drawRoadGate(
 
   g.roundRect(gateX - frameWidth / 2, gateY - frameHeight / 2, frameWidth, lintelHeight, 4);
   g.fill({ color: 0x243651, alpha: 0.98 });
-  g.stroke({ color: 0x8fd0ff, alpha: 0.7, width: 1.2 });
+  g.stroke({ color: palette.railA, alpha: 0.7, width: 1.2 });
 
   g.roundRect(gateX - innerWidth / 2, gateY - innerHeight / 2 + 2, innerWidth, innerHeight, 4);
   g.fill({ color: 0x0f1728, alpha: 0.96 });
-  g.stroke({ color: 0xffc96d, alpha: 0.75 + pulse * 0.12, width: 1.3 });
+  g.stroke({ color: palette.gate, alpha: 0.75 + pulse * 0.12, width: 1.3 });
 
   for (let bar = -1; bar <= 1; bar++) {
     const barX = gateX + bar * 6;
     g.moveTo(barX, gateY - innerHeight / 2 + 5);
     g.lineTo(barX, gateY + innerHeight / 2 - 3);
-    g.stroke({ color: 0xffd978, alpha: 0.85, width: 1.7, cap: "round" });
+    g.stroke({ color: palette.gate, alpha: 0.85, width: 1.7, cap: "round" });
   }
 
   g.moveTo(gateX - innerWidth / 2 + 3, gateY - 1);
   g.lineTo(gateX + innerWidth / 2 - 3, gateY - 1);
-  g.stroke({ color: 0xffd978, alpha: 0.65, width: 1.4, cap: "round" });
+  g.stroke({ color: palette.gate, alpha: 0.65, width: 1.4, cap: "round" });
 
   g.circle(gateX, gateY + 2, 3.5);
-  g.fill({ color: 0xff89bb, alpha: 0.95 });
+  g.fill({ color: palette.gate, alpha: 0.95 });
   g.circle(gateX, gateY + 2, 7);
-  g.stroke({ color: 0xff89bb, alpha: 0.24 + pulse * 0.12, width: 1.6 });
+  g.stroke({ color: palette.gate, alpha: 0.24 + pulse * 0.12, width: 1.6 });
 
   return { x: gateX, y: gateY, normalX: nx, normalY: ny };
 }
@@ -827,9 +943,10 @@ function drawPlayerAvatarToken(
   playerIndex: number,
   bob: number,
   stretchScale: number,
-  t: number
+  t: number,
+  overrideColor?: number
 ): void {
-  const color = PLAYER_COLOURS[playerIndex % PLAYER_COLOURS.length];
+  const color = overrideColor ?? PLAYER_COLOURS[playerIndex % PLAYER_COLOURS.length];
   const pulse = 0.5 + 0.5 * Math.sin(t * 4.1);
   const centerY = cy - bob - 8;
   const auraR = 24 + 4 * pulse;
@@ -881,7 +998,8 @@ function drawDiceFrame(
   value: number,
   pulse: number,
   scale: number,
-  accent: number
+  accent: number,
+  uiPalette: RuntimeUiPalette
 ): void {
   const w = 190 * scale;
   const h = 190 * scale;
@@ -891,11 +1009,11 @@ function drawDiceFrame(
   g.roundRect(x - 12, y - 12, w + 24, h + 24, 24);
   g.fill({ color: accent, alpha: 0.15 + pulse * 0.1 });
   g.roundRect(x, y, w, h, 20);
-  g.fill({ color: 0x0d1428, alpha: 0.96 });
+  g.fill({ color: uiPalette.panelBg, alpha: 0.96 });
   g.stroke({ color: blendColor(accent, 0xffffff, 0.2), alpha: 0.95, width: 2.2 });
 
   g.roundRect(x + 10, y + 10, w - 20, h - 20, 14);
-  g.stroke({ color: 0x79c9ff, alpha: 0.45 + pulse * 0.2, width: 1.3 });
+  g.stroke({ color: uiPalette.panelRim, alpha: 0.45 + pulse * 0.2, width: 1.3 });
 
   const dots = getDiceDots(value);
   dots.forEach(([dx, dy]: [number, number]) => {
@@ -904,7 +1022,7 @@ function drawDiceFrame(
     g.circle(px, py, 12 * scale);
     g.fill({ color: accent, alpha: 0.17 + pulse * 0.1 });
     g.circle(px, py, 7 * scale);
-    g.fill({ color: 0xe8f4ff, alpha: 0.95 });
+    g.fill({ color: uiPalette.text, alpha: 0.95 });
   });
 }
 
@@ -915,25 +1033,26 @@ function drawDiceOverlay(
   value: number,
   t: number,
   w: number,
-  h: number
+  h: number,
+  uiPalette: RuntimeUiPalette
 ): void {
   const pulse = 0.5 + 0.5 * Math.sin(t * Math.PI * 8);
   const settle = easeOutBack(Math.min(1, t * 1.3));
 
   g.rect(0, 0, w, h);
-  g.fill({ color: 0x05050c, alpha: 0.66 });
+  g.fill({ color: blendColor(uiPalette.panelBg, 0x000000, 0.35), alpha: 0.66 });
 
   for (let i = 0; i < 4; i++) {
     const ringR = 114 + i * 30 + Math.sin(t * Math.PI * 6 + i) * 9;
     g.circle(cx, cy, ringR);
     g.stroke({
-      color: i % 2 === 0 ? 0x7de0ff : 0xff6ec6,
+      color: i % 2 === 0 ? uiPalette.primary : uiPalette.secondary,
       alpha: 0.25 - i * 0.04 + pulse * 0.1,
       width: 2.4 - i * 0.4,
     });
   }
 
-  drawDiceFrame(g, cx, cy, value, pulse, 0.95 + settle * 0.12, 0x7de0ff);
+  drawDiceFrame(g, cx, cy, value, pulse, 0.95 + settle * 0.12, uiPalette.primary, uiPalette);
 }
 
 function drawDiceResultOverlay(
@@ -943,13 +1062,14 @@ function drawDiceResultOverlay(
   value: number,
   t: number,
   w: number,
-  h: number
+  h: number,
+  uiPalette: RuntimeUiPalette
 ): void {
   const pulse = 0.5 + 0.5 * Math.sin(t * Math.PI * 10);
   const entry = easeOutBack(Math.min(1, t * 1.45));
 
   g.rect(0, 0, w, h);
-  g.fill({ color: 0x05050c, alpha: 0.64 });
+  g.fill({ color: blendColor(uiPalette.panelBg, 0x000000, 0.35), alpha: 0.64 });
 
   for (let i = 0; i < 14; i++) {
     const ang = (i / 14) * Math.PI * 2;
@@ -958,13 +1078,13 @@ function drawDiceResultOverlay(
     g.moveTo(cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1);
     g.lineTo(cx + Math.cos(ang) * r2, cy + Math.sin(ang) * r2);
     g.stroke({
-      color: i % 2 === 0 ? 0xff70c8 : 0x83dfff,
+      color: i % 2 === 0 ? uiPalette.secondary : uiPalette.primary,
       alpha: 0.24 + pulse * 0.28,
       width: 2.5,
     });
   }
 
-  drawDiceFrame(g, cx, cy, value, pulse, 1.02 + entry * 0.1, 0xff70c8);
+  drawDiceFrame(g, cx, cy, value, pulse, 1.02 + entry * 0.1, uiPalette.secondary, uiPalette);
 }
 
 /** Returns normalised [0..1] dot positions for a standard dice face */
@@ -1240,7 +1360,13 @@ function formatHudDiceMeta(player: PlayerState | undefined): string {
 }
 const ROUND_REWARD_FX_DURATION = 2.25;
 
-function drawHUD(hudG: Graphics, state: GameState, w: number, rewardPulse = 0): void {
+function drawHUD(
+  hudG: Graphics,
+  state: GameState,
+  w: number,
+  uiPalette: RuntimeUiPalette,
+  rewardPulse = 0
+): void {
   const player = state.players[state.currentPlayerIndex];
   const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.003);
 
@@ -1261,18 +1387,18 @@ function drawHUD(hudG: Graphics, state: GameState, w: number, rewardPulse = 0): 
 
   // Outer glow
   hudG.roundRect(outerX, outerY, HUD_W + 12, HUD_H + 12, 28);
-  hudG.fill({ color: 0x9d00ff, alpha: 0.05 + pulse * 0.03 });
+  hudG.fill({ color: uiPalette.glow, alpha: 0.05 + pulse * 0.03 });
 
   // Main dark glass background
   hudG.roundRect(px, py, HUD_W, HUD_H, 20);
-  hudG.fill({ color: 0x0d0614, alpha: 0.85 });
+  hudG.fill({ color: uiPalette.panelBg, alpha: 0.85 });
 
   // Sleek inner border
-  hudG.stroke({ color: 0x3a1c5e, alpha: 0.8, width: 2 });
+  hudG.stroke({ color: uiPalette.panelBorder, alpha: 0.8, width: 2 });
 
   // Top bright highlight edge (glass rim)
   hudG.roundRect(px + 1, py + 1, HUD_W - 2, HUD_H - 2, 18);
-  hudG.stroke({ color: 0x613499, alpha: 0.4, width: 1 });
+  hudG.stroke({ color: uiPalette.panelRim, alpha: 0.4, width: 1 });
 
   const headerX = px + 16;
   const headerY = py + 16;
@@ -1281,7 +1407,7 @@ function drawHUD(hudG: Graphics, state: GameState, w: number, rewardPulse = 0): 
   // Subtle accent line under header
   hudG.moveTo(headerX, headerY + 61);
   hudG.lineTo(headerX + headerW, headerY + 61);
-  hudG.stroke({ color: 0xff007f, alpha: 0.35 + pulse * 0.15, width: 1.5 });
+  hudG.stroke({ color: uiPalette.secondary, alpha: 0.35 + pulse * 0.15, width: 1.5 });
 
   const section2Y = headerY + 75;
 
@@ -1291,15 +1417,15 @@ function drawHUD(hudG: Graphics, state: GameState, w: number, rewardPulse = 0): 
   const progressBarW = headerW;
 
   hudG.roundRect(progressBarX, progressBarY, progressBarW, 6, 3);
-  hudG.fill({ color: 0x1a0b2e, alpha: 0.9 });
+  hudG.fill({ color: blendColor(uiPalette.panelBg, 0x000000, 0.18), alpha: 0.9 });
 
   // Progress fill (Cyan)
   hudG.roundRect(progressBarX, progressBarY, progressBarW * boardProgress, 6, 3);
-  hudG.fill({ color: 0x00e5ff, alpha: 0.95 });
+  hudG.fill({ color: uiPalette.progress, alpha: 0.95 });
 
   if (boardProgress > 0) {
     hudG.circle(progressBarX + progressBarW * boardProgress, progressBarY + 3, 5 + pulse * 2);
-    hudG.fill({ color: 0x00e5ff, alpha: 0.6 });
+    hudG.fill({ color: uiPalette.progress, alpha: 0.6 });
   }
 
   const statCardY = section2Y + 60;
@@ -1310,62 +1436,70 @@ function drawHUD(hudG: Graphics, state: GameState, w: number, rewardPulse = 0): 
   if (rewardPulse > 0) {
     const rewardGlow = rewardPulse * 0.25;
     hudG.roundRect(scoreX - 4, statCardY - 4, statW + 8, 48 + 8, 12);
-    hudG.fill({ color: 0x00e5ff, alpha: rewardGlow });
+    hudG.fill({ color: uiPalette.primary, alpha: rewardGlow });
     hudG.roundRect(moneyX - 4, statCardY - 4, statW + 8, 48 + 8, 12);
-    hudG.fill({ color: 0xff007f, alpha: rewardGlow });
+    hudG.fill({ color: uiPalette.money, alpha: rewardGlow });
   }
 
   // Score Box
   hudG.roundRect(scoreX, statCardY, statW, 56, 10);
-  hudG.fill({ color: 0x150926, alpha: 0.8 });
-  hudG.stroke({ color: 0x2b144d, alpha: 0.6, width: 1 });
+  hudG.fill({ color: blendColor(uiPalette.panelBg, uiPalette.primary, 0.1), alpha: 0.8 });
+  hudG.stroke({
+    color: blendColor(uiPalette.panelBorder, uiPalette.primary, 0.2),
+    alpha: 0.6,
+    width: 1,
+  });
 
   const scoreBarY = statCardY + 44;
   hudG.roundRect(scoreX + 8, scoreBarY, statW - 16, 4, 2);
-  hudG.fill({ color: 0x1f0d36, alpha: 1 });
+  hudG.fill({ color: blendColor(uiPalette.panelBg, 0x000000, 0.1), alpha: 1 });
   hudG.roundRect(scoreX + 8, scoreBarY, (statW - 16) * scoreRatio, 4, 2);
-  hudG.fill({ color: 0x00e5ff, alpha: 0.9 });
+  hudG.fill({ color: uiPalette.primary, alpha: 0.9 });
 
   // Money Box
   hudG.roundRect(moneyX, statCardY, statW, 56, 10);
-  hudG.fill({ color: 0x1a061c, alpha: 0.8 });
-  hudG.stroke({ color: 0x4a113a, alpha: 0.6, width: 1 });
+  hudG.fill({ color: blendColor(uiPalette.panelBg, uiPalette.money, 0.1), alpha: 0.8 });
+  hudG.stroke({
+    color: blendColor(uiPalette.panelBorder, uiPalette.money, 0.2),
+    alpha: 0.6,
+    width: 1,
+  });
 
   const moneyBarY = statCardY + 44;
   hudG.roundRect(moneyX + 8, moneyBarY, statW - 16, 4, 2);
-  hudG.fill({ color: 0x2d0a21, alpha: 1 });
+  hudG.fill({ color: blendColor(uiPalette.panelBg, 0x000000, 0.1), alpha: 1 });
   hudG.roundRect(moneyX + 8, moneyBarY, (statW - 16) * moneyRatio, 4, 2);
-  hudG.fill({ color: 0xff007f, alpha: 0.9 });
+  hudG.fill({ color: uiPalette.money, alpha: 0.9 });
 
   // Effects Area
   const effectsY = statCardY + 70;
   hudG.roundRect(headerX, effectsY, headerW, 60, 8);
-  hudG.fill({ color: 0x12081f, alpha: 0.7 });
-  hudG.stroke({ color: 0x24113d, alpha: 0.5, width: 1 });
+  hudG.fill({ color: blendColor(uiPalette.panelBg, uiPalette.glow, 0.07), alpha: 0.7 });
+  hudG.stroke({ color: uiPalette.glow, alpha: 0.5, width: 1 });
 
   // Probabilities Area
   const probY = effectsY + 74;
   hudG.roundRect(headerX, probY, headerW, 50, 8);
-  hudG.fill({ color: 0x11071c, alpha: 0.7 });
-  hudG.stroke({ color: 0x2d1547, alpha: 0.5, width: 1 });
+  hudG.fill({ color: blendColor(uiPalette.panelBg, uiPalette.secondary, 0.07), alpha: 0.7 });
+  hudG.stroke({ color: uiPalette.secondary, alpha: 0.5, width: 1 });
 
   const probBarW = headerW - 24;
   const interBarY = probY + 20;
   const antiBarY = probY + 34;
 
   hudG.roundRect(headerX + 12, interBarY, probBarW, 4, 2);
-  hudG.fill({ color: 0x1b0c2e, alpha: 1 });
+  hudG.fill({ color: blendColor(uiPalette.panelBg, 0x000000, 0.1), alpha: 1 });
   hudG.roundRect(headerX + 12, interBarY, probBarW * intermediaryRatio, 4, 2);
-  hudG.fill({ color: 0xb92b27, alpha: 0.9 });
+  hudG.fill({ color: uiPalette.danger, alpha: 0.9 });
 
   hudG.roundRect(headerX + 12, antiBarY, probBarW, 4, 2);
-  hudG.fill({ color: 0x1b0c2e, alpha: 1 });
+  hudG.fill({ color: blendColor(uiPalette.panelBg, 0x000000, 0.1), alpha: 1 });
   hudG.roundRect(headerX + 12, antiBarY, probBarW * antiRatio, 4, 2);
-  hudG.fill({ color: 0xff007f, alpha: 0.9 });
+  hudG.fill({ color: uiPalette.secondary, alpha: 0.9 });
 
   hudG.roundRect(px + HUD_W - 86, py + 16, 70, 18, 6);
-  hudG.fill({ color: 0x220e3b, alpha: 0.85 });
-  hudG.stroke({ color: 0x441b75, alpha: 0.7, width: 1 });
+  hudG.fill({ color: blendColor(uiPalette.panelBg, uiPalette.glow, 0.16), alpha: 0.85 });
+  hudG.stroke({ color: uiPalette.panelBorder, alpha: 0.7, width: 1 });
 }
 
 function drawRoundRewardOverlay(g: Graphics, w: number, h: number, elapsed: number): void {
@@ -1593,6 +1727,9 @@ export const GameScene = memo(function GameScene({
   showNonCumOutcomeMenuRef.current = showNonCumOutcomeMenu;
   const [handyNotification, setHandyNotification] = useState<string | null>(null);
   const [roundPreviewState, setRoundPreviewState] = useState({ active: false, loading: false });
+  const [backgroundParallaxOffset, setBackgroundParallaxOffset] = useState({ x: 0, y: 0 });
+  const backgroundParallaxOffsetRef = useRef(backgroundParallaxOffset);
+  backgroundParallaxOffsetRef.current = backgroundParallaxOffset;
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [completedElapsedSec, setCompletedElapsedSec] = useState<number | null>(null);
   const [controllerPerkSelectionIndex, setControllerPerkSelectionIndex] = useState(0);
@@ -1609,6 +1746,12 @@ export const GameScene = memo(function GameScene({
   );
   const highlightedPathEdgeIdRef = useRef<string | null>(highlightedPathEdgeId);
   highlightedPathEdgeIdRef.current = highlightedPathEdgeId;
+  const updateBackgroundParallaxOffset = useEffectEvent((next: { x: number; y: number }) => {
+    const previous = backgroundParallaxOffsetRef.current;
+    if (Math.abs(previous.x - next.x) < 0.5 && Math.abs(previous.y - next.y) < 0.5) return;
+    backgroundParallaxOffsetRef.current = next;
+    setBackgroundParallaxOffset(next);
+  });
   const nowMsRef = useRef(nowMs);
   nowMsRef.current = nowMs;
   const completedElapsedSecRef = useRef<number | null>(completedElapsedSec);
@@ -2311,6 +2454,9 @@ export const GameScene = memo(function GameScene({
       stateRef.current.config.board,
       stateRef.current.config.mapTextAnnotations ?? []
     );
+    const roadPalette = resolveRoadPalette(stateRef.current.config.mapStyle?.roadPalette);
+    const uiPalette = resolveUiPalette(roadPalette);
+    const hasCustomBackground = Boolean(stateRef.current.config.mapStyle?.background);
     const rawBoardW = boardLayout.width;
     const rawBoardH = boardLayout.height;
     const availW = W - 60; // only edge padding — board uses full width
@@ -2503,6 +2649,7 @@ export const GameScene = memo(function GameScene({
             path: i18n._({ id: "gameboard.kind.path", message: "PATH" }),
             event: i18n._({ id: "gameboard.kind.event", message: "EVENT★" }),
             perk: i18n._({ id: "gameboard.kind.perk", message: "✦ PERK" }),
+            catapult: i18n._({ id: "gameboard.kind.catapult", message: "CATAPULT" }),
           };
           const kindT = new Text({
             text: KIND_MAP[field.kind] ?? field.kind,
@@ -2610,7 +2757,15 @@ export const GameScene = memo(function GameScene({
           connG.clear();
           gateG.clear();
           validatedRuntimeEdges.forEach((edge) => {
-            drawNeonRoadConnector(connG, edge.from.x, edge.from.y, edge.to.x, edge.to.y, 0);
+            drawNeonRoadConnector(
+              connG,
+              edge.from.x,
+              edge.from.y,
+              edge.to.x,
+              edge.to.y,
+              0,
+              roadPalette
+            );
             const pair = gateCostLabelMap.get(edge.edgeId);
             if (edge.gateCost > 0) {
               const gateAnchor = drawRoadGate(
@@ -2619,7 +2774,8 @@ export const GameScene = memo(function GameScene({
                 edge.from.y,
                 edge.to.x,
                 edge.to.y,
-                0
+                0,
+                roadPalette
               );
               if (pair && gateAnchor) {
                 pair.x = gateAnchor.x + gateAnchor.normalX * 34;
@@ -2773,13 +2929,17 @@ export const GameScene = memo(function GameScene({
         function drawRollBtn(pressed: boolean, hovered: boolean) {
           rollBtn.clear();
           rollBtn.roundRect(rollBtnX - 4, rollBtnY - 4, rollBtnW + 8, rollBtnH + 8, 16);
-          rollBtn.fill({ color: 0x8a68ff, alpha: hovered ? 0.28 : 0.16 });
+          rollBtn.fill({ color: uiPalette.glow, alpha: hovered ? 0.28 : 0.16 });
           rollBtn.roundRect(rollBtnX, rollBtnY, rollBtnW, rollBtnH, 12);
           rollBtn.fill({
-            color: pressed ? 0x3b2d7d : hovered ? 0x4b379a : 0x3f307f,
+            color: pressed
+              ? uiPalette.buttonBgPressed
+              : hovered
+                ? uiPalette.buttonBgHover
+                : uiPalette.buttonBg,
             alpha: 1,
           });
-          rollBtn.stroke({ color: 0xb9adff, alpha: 0.9, width: 1.6 });
+          rollBtn.stroke({ color: uiPalette.primary, alpha: 0.9, width: 1.6 });
           rollBtn.roundRect(rollBtnX + 3, rollBtnY + 3, rollBtnW - 6, rollBtnH * 0.42, 9);
           rollBtn.fill({ color: 0xffffff, alpha: 0.08 });
         }
@@ -2802,7 +2962,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "Inter,sans-serif",
             fontSize: 11,
-            fill: 0xe8e2ff,
+            fill: uiPalette.text,
             fontWeight: "700",
             letterSpacing: 1.1,
           }),
@@ -2820,10 +2980,15 @@ export const GameScene = memo(function GameScene({
         function drawFinishBtn(hovered: boolean) {
           finishBtn.clear();
           finishBtn.roundRect(finishBtnX - 3, finishBtnY - 3, 146, 52, 14);
-          finishBtn.fill({ color: 0x74ffd2, alpha: hovered ? 0.24 : 0.1 });
+          finishBtn.fill({ color: uiPalette.progress, alpha: hovered ? 0.24 : 0.1 });
           finishBtn.roundRect(finishBtnX, finishBtnY, 140, 46, 12);
-          finishBtn.fill({ color: hovered ? 0x1f6f63 : 0x174f49, alpha: 1 });
-          finishBtn.stroke({ color: 0x8cf2d8, alpha: 0.92, width: 1.6 });
+          finishBtn.fill({
+            color: hovered
+              ? blendColor(uiPalette.buttonBgHover, uiPalette.progress, 0.28)
+              : blendColor(uiPalette.buttonBg, uiPalette.progress, 0.18),
+            alpha: 1,
+          });
+          finishBtn.stroke({ color: uiPalette.progress, alpha: 0.92, width: 1.6 });
           finishBtn.roundRect(finishBtnX + 3, finishBtnY + 3, 134, 18, 8);
           finishBtn.fill({ color: 0xffffff, alpha: 0.07 });
         }
@@ -2842,7 +3007,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "Inter,sans-serif",
             fontSize: 12,
-            fill: 0xd9fff4,
+            fill: uiPalette.text,
             fontWeight: "700",
             letterSpacing: 1,
           }),
@@ -2860,10 +3025,15 @@ export const GameScene = memo(function GameScene({
         function drawStartRoundBtn(hovered: boolean) {
           startRoundBtn.clear();
           startRoundBtn.roundRect(startRoundBtnX - 3, startRoundBtnY - 3, 178, 52, 14);
-          startRoundBtn.fill({ color: 0xff7ad8, alpha: hovered ? 0.24 : 0.1 });
+          startRoundBtn.fill({ color: uiPalette.secondary, alpha: hovered ? 0.24 : 0.1 });
           startRoundBtn.roundRect(startRoundBtnX, startRoundBtnY, 172, 46, 12);
-          startRoundBtn.fill({ color: hovered ? 0x57328a : 0x42266a, alpha: 1 });
-          startRoundBtn.stroke({ color: 0xf0a7ff, alpha: 0.9, width: 1.6 });
+          startRoundBtn.fill({
+            color: hovered
+              ? blendColor(uiPalette.buttonBgHover, uiPalette.secondary, 0.32)
+              : blendColor(uiPalette.buttonBg, uiPalette.secondary, 0.2),
+            alpha: 1,
+          });
+          startRoundBtn.stroke({ color: uiPalette.secondary, alpha: 0.9, width: 1.6 });
           startRoundBtn.roundRect(startRoundBtnX + 3, startRoundBtnY + 3, 166, 18, 8);
           startRoundBtn.fill({ color: 0xffffff, alpha: 0.08 });
         }
@@ -2882,7 +3052,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "Inter,sans-serif",
             fontSize: 12,
-            fill: 0xf8dfff,
+            fill: uiPalette.text,
             fontWeight: "700",
             letterSpacing: 1.2,
           }),
@@ -2898,7 +3068,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "JetBrains Mono,monospace",
             fontSize: 10,
-            fill: 0xff007f,
+            fill: uiPalette.secondary,
             letterSpacing: 2,
             fontWeight: "700",
           }),
@@ -2910,7 +3080,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "JetBrains Mono,monospace",
             fontSize: 9,
-            fill: 0xdfb8ff,
+            fill: uiPalette.panelRim,
             fontWeight: "800",
             letterSpacing: 1.5,
           }),
@@ -2923,7 +3093,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "Inter,sans-serif",
             fontSize: 24,
-            fill: 0xffffff,
+            fill: uiPalette.text,
             fontWeight: "900",
             letterSpacing: 0.5,
           }),
@@ -2935,7 +3105,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "Inter,sans-serif",
             fontSize: 11,
-            fill: 0x9068be,
+            fill: uiPalette.mutedText,
             fontWeight: "600",
             wordWrap: true,
             wordWrapWidth: 240,
@@ -2948,7 +3118,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "JetBrains Mono,monospace",
             fontSize: 11,
-            fill: 0x00e5ff,
+            fill: uiPalette.progress,
             fontWeight: "800",
             letterSpacing: 1,
           }),
@@ -2960,7 +3130,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "Inter,sans-serif",
             fontSize: 32,
-            fill: 0xffffff,
+            fill: uiPalette.text,
             fontWeight: "900",
             align: "right",
           }),
@@ -2973,7 +3143,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "JetBrains Mono,monospace",
             fontSize: 9,
-            fill: 0x8a5cb0,
+            fill: uiPalette.mutedText,
             fontWeight: "700",
             align: "right",
             wordWrap: true,
@@ -2988,7 +3158,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "JetBrains Mono,monospace",
             fontSize: 13,
-            fill: 0xff007f,
+            fill: uiPalette.money,
             fontWeight: "800",
           }),
         });
@@ -2999,7 +3169,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "JetBrains Mono,monospace",
             fontSize: 13,
-            fill: 0x00e5ff,
+            fill: uiPalette.primary,
             fontWeight: "800",
           }),
         });
@@ -3010,7 +3180,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "JetBrains Mono,monospace",
             fontSize: 9,
-            fill: 0x5e3785,
+            fill: uiPalette.mutedText,
             fontWeight: "800",
           }),
         });
@@ -3034,7 +3204,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "JetBrains Mono,monospace",
             fontSize: 11,
-            fill: 0xdfb8ff,
+            fill: uiPalette.panelRim,
             fontWeight: "600",
             wordWrap: true,
             wordWrapWidth: HUD_W - 52,
@@ -3048,7 +3218,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "JetBrains Mono,monospace",
             fontSize: 10,
-            fill: 0xbd8aff,
+            fill: uiPalette.glow,
             fontWeight: "600",
             wordWrap: true,
             wordWrapWidth: HUD_W - 52,
@@ -3061,7 +3231,7 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "JetBrains Mono,monospace",
             fontSize: 12,
-            fill: 0xfff4c7,
+            fill: uiPalette.text,
             fontWeight: "700",
             letterSpacing: 1.2,
           }),
@@ -3323,9 +3493,9 @@ export const GameScene = memo(function GameScene({
           style: new TextStyle({
             fontFamily: "JetBrains Mono,monospace",
             fontSize: 72,
-            fill: 0xeaf3ff,
+            fill: uiPalette.text,
             fontWeight: "800",
-            dropShadow: { color: 0xff72ce, blur: 18, distance: 0, alpha: 0.9 },
+            dropShadow: { color: uiPalette.secondary, blur: 18, distance: 0, alpha: 0.9 },
           }),
         });
         bigDiceText.anchor.set(0.5, 0.5);
@@ -3497,6 +3667,18 @@ export const GameScene = memo(function GameScene({
               camY + Math.cos(t * 0.35) * 4,
               CAMERA_MARGIN_Y
             );
+            const background = stateRef.current.config.mapStyle?.background;
+            if (background?.motion === "parallax") {
+              const baseBoardX = (W - scaledWidth) / 2;
+              const baseBoardY = (H - 80 - scaledHeight) / 2 + 20;
+              const strength = clampNum(background.parallaxStrength, 0, 1);
+              updateBackgroundParallaxOffset({
+                x: (baseBoardX - boardContainer.x) * strength,
+                y: (baseBoardY - boardContainer.y) * strength,
+              });
+            } else {
+              updateBackgroundParallaxOffset({ x: 0, y: 0 });
+            }
             const ambientScale = 1 + Math.sin(t * 0.55) * 0.008;
             boardContainer.scale.set(boardScale * ambientScale);
             boardContainer.rotation = Math.sin(t * 0.22) * 0.008;
@@ -3506,7 +3688,9 @@ export const GameScene = memo(function GameScene({
             if (shouldRedrawBackground) {
               lastBgRedrawAt = t;
               bgG.clear();
-              drawBackground(bgG, W, H, t);
+              if (!hasCustomBackground) {
+                drawBackground(bgG, W, H, t);
+              }
 
               starG.clear();
               drawStars(starG, stars, t);
@@ -3530,7 +3714,7 @@ export const GameScene = memo(function GameScene({
                   edge.to.x,
                   edge.to.y,
                   t + index * 0.17,
-                  index % 2 === 0 ? 0x79ddff : 0xff71ca,
+                  index % 2 === 0 ? roadPalette.railA : roadPalette.railB,
                   0.9
                 );
               });
@@ -3565,10 +3749,10 @@ export const GameScene = memo(function GameScene({
                   const previewSegments = pendingPathPreviewByEdgeId[option.edgeId] ?? [];
                   const isFocused = option.edgeId === focusEdgeId;
                   const optionColor = isFocused
-                    ? 0xffd36a
+                    ? roadPalette.gate
                     : optionIndex % 2 === 0
-                      ? 0x7addff
-                      : 0xff8ac5;
+                      ? roadPalette.railA
+                      : roadPalette.railB;
                   const optionPulse = isFocused
                     ? 0.95 + 0.05 * Math.sin(t * 6.4)
                     : 0.52 + 0.12 * Math.sin(t * 3.1 + optionIndex);
@@ -3661,7 +3845,16 @@ export const GameScene = memo(function GameScene({
               activeTokenLabelIds.add(playerId);
             };
 
-            drawPlayerAvatarToken(tokenG, localTX, localTY, 0, tokenBob, tokenScaleY, t);
+            drawPlayerAvatarToken(
+              tokenG,
+              localTX,
+              localTY,
+              0,
+              tokenBob,
+              tokenScaleY,
+              t,
+              uiPalette.secondary
+            );
             labelPlayerToken(
               localPlayerId,
               currentPlayer?.name ?? "Player",
@@ -3771,7 +3964,7 @@ export const GameScene = memo(function GameScene({
             if (shouldRedrawHud) {
               lastHudRedrawAt = t;
               hudG.clear();
-              drawHUD(hudG, s, W, roundRewardPulse);
+              drawHUD(hudG, s, W, uiPalette, roundRewardPulse);
             }
 
             // Reposition HUD text to right side
@@ -3981,7 +4174,7 @@ export const GameScene = memo(function GameScene({
 
             if (phase.kind === "rollingDice") {
               const pct = phase.elapsed / DICE_ROLL_DURATION;
-              drawDiceOverlay(diceG, W / 2, H / 2, phase.displayValue, pct, W, H);
+              drawDiceOverlay(diceG, W / 2, H / 2, phase.displayValue, pct, W, H, uiPalette);
               bigDiceText.visible = true;
               setTextIfChanged(bigDiceText, `${phase.displayValue}`);
               // Harmonic shake looks energetic without noisy jitter.
@@ -3994,7 +4187,7 @@ export const GameScene = memo(function GameScene({
             }
             if (phase.kind === "diceResultReveal") {
               const pct = Math.min(1, phase.elapsed / DICE_RESULT_REVEAL_DURATION);
-              drawDiceResultOverlay(diceG, W / 2, H / 2, phase.value, pct, W, H);
+              drawDiceResultOverlay(diceG, W / 2, H / 2, phase.value, pct, W, H, uiPalette);
               bigDiceText.visible = true;
               setTextIfChanged(bigDiceText, `${phase.value}`);
               bigDiceText.x = W / 2;
@@ -4022,19 +4215,23 @@ export const GameScene = memo(function GameScene({
               const panelY = autoRollPanelY;
 
               diceG.roundRect(panelX, panelY, panelW, panelH, 12);
-              diceG.fill({ color: 0x12182b, alpha: 0.88 });
-              diceG.stroke({ color: 0x7d86be, alpha: 0.55 + pulse * 0.22, width: 1.3 });
+              diceG.fill({ color: uiPalette.panelBg, alpha: 0.88 });
+              diceG.stroke({
+                color: uiPalette.panelBorder,
+                alpha: 0.55 + pulse * 0.22,
+                width: 1.3,
+              });
 
               const barX = panelX + 12;
               const barY = panelY + 32;
               const barW = panelW - 24;
               const barH = 8;
               diceG.roundRect(barX, barY, barW, barH, 4);
-              diceG.fill({ color: 0x0c1120, alpha: 0.95 });
+              diceG.fill({ color: blendColor(uiPalette.panelBg, 0x000000, 0.22), alpha: 0.95 });
               diceG.roundRect(barX, barY, barW * timeNorm, barH, 4);
-              diceG.fill({ color: 0xf168c6, alpha: 0.9 });
+              diceG.fill({ color: uiPalette.secondary, alpha: 0.9 });
               diceG.roundRect(barX, barY, Math.max(0, barW * timeNorm * 0.4), barH, 4);
-              diceG.fill({ color: 0xffffff, alpha: 0.28 });
+              diceG.fill({ color: uiPalette.text, alpha: 0.28 });
 
               autoRollLabel.visible = true;
               autoRollLabel.x = W / 2;
@@ -4185,8 +4382,7 @@ export const GameScene = memo(function GameScene({
 
             const perkOptions = s.pendingPerkSelection?.options ?? [];
             const numPerks = perkOptions.length;
-            const naturalPerkW =
-              numPerks * PERK_CARD_W + Math.max(0, numPerks - 1) * PERK_CARD_GAP;
+            const naturalPerkW = numPerks * PERK_CARD_W + Math.max(0, numPerks - 1) * PERK_CARD_GAP;
             const availablePerkW = Math.max(0, W - PERK_VIEWPORT_SIDE_PAD);
             const perkCardScale =
               naturalPerkW > 0
@@ -4194,8 +4390,7 @@ export const GameScene = memo(function GameScene({
                 : 1;
             const scaledCardW = PERK_CARD_W * perkCardScale;
             const scaledCardGap = PERK_CARD_GAP * perkCardScale;
-            const totalPerkW =
-              numPerks * scaledCardW + Math.max(0, numPerks - 1) * scaledCardGap;
+            const totalPerkW = numPerks * scaledCardW + Math.max(0, numPerks - 1) * scaledCardGap;
             const perkStartX = W / 2 - totalPerkW / 2;
             const perkY = H * 0.32;
 
@@ -4264,7 +4459,9 @@ export const GameScene = memo(function GameScene({
               const directLabel =
                 applyPerkDirectlyRef.current && perk.kind === "perk"
                   ? i18n._({ id: "game.perk.directApply", message: "Direct apply" })
-                  : i18n._({ id: "game.perk.storedInInventory", message: "Stored in inventory" });
+                  : applyPerkDirectlyRef.current && perk.kind === "antiPerk"
+                    ? i18n._({ id: "game.perk.selfApply", message: "Self-apply" })
+                    : i18n._({ id: "game.perk.storedInInventory", message: "Stored in inventory" });
               const costText = `💰 $${perk.cost}${canAfford ? "" : ` (${i18n._({ id: "game.perk.tooExpensive", message: "too expensive" })})`} • ${directLabel}`;
               descT.text = `${getPerkDescription(perk.id)}\n${costText}`;
               descT.style.fill = canAfford ? 0xddddee : 0xffb6b6;
@@ -4310,7 +4507,7 @@ export const GameScene = memo(function GameScene({
               hudG.clear();
               hudG.rect(0, 0, W, H);
               hudG.fill({ color: 0x000000, alpha: 0.45 });
-              drawHUD(hudG, s, W, roundRewardPulse); // redraw HUD on top of dim
+              drawHUD(hudG, s, W, uiPalette, roundRewardPulse); // redraw HUD on top of dim
               lastHudRedrawAt = t;
             } else {
               skipPerkBtn.hitArea = null;
@@ -4318,7 +4515,7 @@ export const GameScene = memo(function GameScene({
               skipPerkLabel.visible = false;
               if (didRoundRewardVisibilityChange && !shouldRedrawHud) {
                 hudG.clear();
-                drawHUD(hudG, s, W, roundRewardPulse);
+                drawHUD(hudG, s, W, uiPalette, roundRewardPulse);
                 lastHudRedrawAt = t;
               }
             }
@@ -4394,6 +4591,11 @@ export const GameScene = memo(function GameScene({
 
   return (
     <>
+      <MapBackgroundMedia
+        background={state.config.mapStyle?.background}
+        className="z-0"
+        parallaxOffset={backgroundParallaxOffset}
+      />
       <div
         ref={containerRef}
         style={{
@@ -4414,6 +4616,7 @@ export const GameScene = memo(function GameScene({
           queuedRound={state.queuedRound}
           remaining={animPhase.remaining}
           duration={animPhase.duration}
+          roadPalette={state.config.mapStyle?.roadPalette}
         />
       )}
       <RoundVideoOverlay
@@ -4436,6 +4639,7 @@ export const GameScene = memo(function GameScene({
           initialShowAntiPerkBeatbar,
           allowDebugRoundControls,
           lastLogMessage: state.log[0],
+          roadPalette: state.config.mapStyle?.roadPalette,
           boardSequence: boardAntiPerkSequence,
           idleBoardSequence,
           continuousMoaningActive: state.activeRoundAudioEffect?.kind === "continuousMoaning",

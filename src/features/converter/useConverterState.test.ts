@@ -70,6 +70,72 @@ vi.mock("./metadata", () => ({
   applyAutoMetadataToSegments: vi.fn((segments: unknown) => segments),
 }));
 
+vi.mock("./shortcuts", () => ({
+  CONVERTER_SHORTCUTS: [
+    {
+      matches: (event: KeyboardEvent) => event.key === "k" || event.key === "K",
+      trigger: (context: { splitSegmentAtPlayhead: () => void }) => context.splitSegmentAtPlayhead(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "n" && !event.shiftKey,
+      trigger: (context: { selectNextSegment: () => void }) => context.selectNextSegment(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "N" && event.shiftKey,
+      trigger: (context: { selectPreviousSegment: () => void }) => context.selectPreviousSegment(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "p" || event.key === "P",
+      trigger: (context: { selectSegmentAtPlayhead: () => void }) => context.selectSegmentAtPlayhead(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "End",
+      trigger: (context: { seekToSelectedSegmentEnd: () => void }) => context.seekToSelectedSegmentEnd(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "Home",
+      trigger: (context: { seekToSelectedSegmentStart: () => void }) => context.seekToSelectedSegmentStart(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "s" && !event.ctrlKey && !event.metaKey,
+      trigger: (context: { moveSelectedSegmentStartToPlayhead: () => void }) =>
+        context.moveSelectedSegmentStartToPlayhead(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "e" || event.key === "E",
+      trigger: (context: { moveSelectedSegmentEndToPlayhead: () => void }) =>
+        context.moveSelectedSegmentEndToPlayhead(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "m" || event.key === "M",
+      trigger: (context: { mergeSelectedSegmentWithNext: () => void }) =>
+        context.mergeSelectedSegmentWithNext(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "a" && !event.shiftKey,
+      trigger: (context: { runAutoDetect: () => void }) => context.runAutoDetect(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "A" && event.shiftKey,
+      trigger: (context: { applyDetectedSuggestions: () => void }) =>
+        context.applyDetectedSuggestions(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "s" && (event.ctrlKey || event.metaKey),
+      trigger: (context: { saveConvertedRounds: () => void }) => context.saveConvertedRounds(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "Escape",
+      trigger: (context: { clearTransientEditorState: () => void }) =>
+        context.clearTransientEditorState(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "?",
+      trigger: (context: { toggleHotkeys: () => void }) => context.toggleHotkeys(),
+    },
+  ],
+}));
+
 vi.mock("../../hooks/usePlayableVideoFallback", () => ({
   usePlayableVideoFallback: () => ({
     getVideoSrc: (uri: string) => uri,
@@ -209,6 +275,202 @@ describe("useConverterState", () => {
     ]);
     expect(result.current.selectedSegmentId).toBe(result.current.sortedSegments[1]?.id ?? null);
     expect(result.current.message).toBe("Split segment at 00:03.00.");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("adds a cut from marks to the selected segment", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(8_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    act(() => {
+      result.current.setMarkInMs(3_000);
+      result.current.setMarkOutMs(4_000);
+    });
+
+    act(() => {
+      result.current.addCutFromMarks();
+    });
+
+    expect(result.current.sortedSegments[0]?.cutRanges).toMatchObject([
+      { startTimeMs: 3_000, endTimeMs: 4_000 },
+    ]);
+    expect(result.current.message).toBe("Cut added (00:03.00 - 00:04.00).");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("rejects overlapping segments while overlap mode is off", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(5_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    act(() => {
+      result.current.setMarkInMs(3_000);
+      result.current.setMarkOutMs(7_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    expect(result.current.sortedSegments).toHaveLength(1);
+    expect(result.current.error).toBe("Segments must not overlap.");
+  });
+
+  it("adds overlapping segments while overlap mode is on", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setAllowOverlappingSegments(true);
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(5_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    act(() => {
+      result.current.setMarkInMs(3_000);
+      result.current.setMarkOutMs(7_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    expect(result.current.sortedSegments.map((segment) => [segment.startTimeMs, segment.endTimeMs]))
+      .toEqual([
+        [1_000, 5_000],
+        [3_000, 7_000],
+      ]);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("skips cuts while preview playback is running", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    const video = {
+      currentTime: 0,
+      paused: false,
+    } as HTMLVideoElement;
+
+    act(() => {
+      result.current.videoRef.current = video;
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(8_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    act(() => {
+      result.current.setMarkInMs(3_000);
+      result.current.setMarkOutMs(4_000);
+    });
+
+    act(() => {
+      result.current.addCutFromMarks();
+    });
+
+    act(() => {
+      result.current.syncPreviewTimeMs(3_250);
+    });
+
+    expect(video.currentTime).toBe(4);
+    expect(result.current.currentTimeMs).toBe(4_000);
+  });
+
+  it("trims the selected segment when a cut reaches its start", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(2_000);
+      result.current.setMarkOutMs(8_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    act(() => {
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(3_000);
+    });
+
+    act(() => {
+      result.current.addCutFromMarks();
+    });
+
+    expect(result.current.sortedSegments[0]?.startTimeMs).toBe(3_000);
+    expect(result.current.sortedSegments[0]?.endTimeMs).toBe(8_000);
+    expect(result.current.sortedSegments[0]?.cutRanges).toEqual([]);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("removes the selected segment when a cut covers it completely", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(2_000);
+      result.current.setMarkOutMs(8_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    act(() => {
+      result.current.addCutFromMarks();
+    });
+
+    expect(result.current.sortedSegments).toEqual([]);
+    expect(result.current.message).toBe("Segment cut out (00:02.00 - 00:08.00).");
     expect(result.current.error).toBeNull();
   });
 
@@ -359,6 +621,61 @@ describe("useConverterState", () => {
     });
   });
 
+  it("allows boundary shortcuts to cross neighboring segments only when overlap mode is on", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(3_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    act(() => {
+      result.current.setMarkInMs(5_000);
+      result.current.setMarkOutMs(7_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    act(() => {
+      result.current.setSelectedSegmentId(result.current.sortedSegments[1]?.id ?? null);
+      result.current.setCurrentTimeMs(2_000);
+    });
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "s" }));
+    });
+
+    expect(result.current.sortedSegments[1]).toMatchObject({
+      startTimeMs: 3_000,
+      endTimeMs: 7_000,
+    });
+
+    act(() => {
+      result.current.setAllowOverlappingSegments(true);
+      result.current.setCurrentTimeMs(2_000);
+    });
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "s" }));
+    });
+
+    expect(result.current.sortedSegments[1]).toMatchObject({
+      startTimeMs: 2_000,
+      endTimeMs: 7_000,
+    });
+  });
+
   it("merges the selected segment with the next one when pressing m", async () => {
     const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
 
@@ -473,6 +790,34 @@ describe("useConverterState", () => {
     });
   });
 
+  it("sends overlap mode when saving", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setAllowOverlappingSegments(true);
+      result.current.setDurationMs(10_000);
+      result.current.setHeroName("Hero");
+      result.current.setVideoUri("file:///tmp/test.mp4");
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(3_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    await act(async () => {
+      await result.current.saveConvertedRounds();
+    });
+
+    const input = mocks.converterSaveSegments.mock.calls.at(-1)?.[0];
+    expect(input.allowOverlaps).toBe(true);
+  });
+
   it("sends every loaded hero source round when saving a merged hero edit", async () => {
     mocks.db.hero.findMany.mockResolvedValue([
       { id: "hero-1", name: "Millionaire", author: "Host", description: "Quiz" },
@@ -558,8 +903,16 @@ describe("useConverterState", () => {
       await result.current.selectRoundAndEdit("round-1");
     });
 
+    await waitFor(() => {
+      expect(result.current.selectedInstalledOption?.id).toBe("round-1");
+    });
+
     act(() => {
       result.current.setDurationMs(3_000);
+    });
+
+    await waitFor(() => {
+      expect(result.current.canSave).toBe(true);
     });
 
     await act(async () => {
@@ -569,6 +922,51 @@ describe("useConverterState", () => {
     const input = mocks.converterSaveSegments.mock.calls.at(-1)?.[0];
     expect(input.source.sourceRoundIds).toEqual(["round-1"]);
     expect(input.source.removeSourceRound).toBe(true);
+    expect(input.segments[0].cutRanges).toEqual([]);
+  });
+
+  it("loads and saves installed round cuts", async () => {
+    mocks.db.round.findInstalled.mockResolvedValue([
+      makeInstalledRound("round-1", {
+        name: "Cut Round",
+        startTime: 1_000,
+        endTime: 9_000,
+        cutRangesJson: JSON.stringify([{ startTimeMs: 3_000, endTimeMs: 4_000 }]),
+      }),
+    ]);
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    await act(async () => {
+      await result.current.selectRoundAndEdit("round-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedInstalledOption?.id).toBe("round-1");
+    });
+
+    expect(result.current.sortedSegments[0]?.cutRanges).toMatchObject([
+      { startTimeMs: 3_000, endTimeMs: 4_000 },
+    ]);
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+    });
+
+    await waitFor(() => {
+      expect(result.current.canSave).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.saveConvertedRounds();
+    });
+
+    const input = mocks.converterSaveSegments.mock.calls.at(-1)?.[0];
+    expect(input.segments[0].cutRanges).toEqual([{ startTimeMs: 3_000, endTimeMs: 4_000 }]);
   });
 
   it("does not send replacement source rounds for local saves", async () => {

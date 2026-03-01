@@ -166,6 +166,8 @@ function getKindLabel(kind: string): string {
       return i18n._({ id: "gameboard.kind.event", message: "EVENT★" });
     case "perk":
       return i18n._({ id: "gameboard.kind.perk", message: "✦ PERK" });
+    case "catapult":
+      return i18n._({ id: "gameboard.kind.catapult", message: "CATAPULT" });
     default:
       return kind;
   }

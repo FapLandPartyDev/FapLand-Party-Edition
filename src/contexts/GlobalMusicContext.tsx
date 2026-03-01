@@ -60,6 +60,12 @@ export type GlobalMusicActions = {
   setShuffle: (next: boolean) => Promise<void>;
   setLoopMode: (next: MusicLoopMode) => Promise<void>;
   seek: (time: number) => void;
+  startTemporaryQueueOverride: (input: {
+    id: string;
+    tracks: MusicQueueEntry[];
+    loop?: boolean;
+  }) => void;
+  stopTemporaryQueueOverride: (id: string) => void;
 };
 
 type GlobalMusicContextValue = GlobalMusicState & GlobalMusicActions;
@@ -69,6 +75,11 @@ const GlobalMusicContext = createContext<GlobalMusicContextValue | null>(null);
 function getTrackName(filePath: string): string {
   const normalized = filePath.replace(/\\/g, "/");
   return normalized.split("/").pop()?.trim() || "Unknown Track";
+}
+
+function toAudioSrc(filePath: string): string {
+  if (filePath.startsWith("app://media/")) return filePath;
+  return window.electronAPI.file.convertFileSrc(filePath);
 }
 
 function buildQueueEntries(filePaths: string[]): MusicQueueEntry[] {
@@ -109,9 +120,35 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
   const resumeAfterVideoRef = useRef(false);
   const shuffleBagRef = useRef<number[]>([]);
   const activeTrackPathRef = useRef<string | null>(null);
+  const overrideActiveRef = useRef(false);
+  const activeOverrideIdRef = useRef<string | null>(null);
+  const latestQueueRef = useRef<MusicQueueEntry[]>([]);
+  const latestCurrentIndexRef = useRef(0);
+  const latestLoopModeRef = useRef<MusicLoopMode>(DEFAULT_MUSIC_LOOP_MODE);
+  const latestShuffleRef = useRef(DEFAULT_MUSIC_SHUFFLE);
+  const latestIsPlayingRef = useRef(false);
+  const latestEnabledRef = useRef(DEFAULT_MUSIC_ENABLED);
+  const preOverrideSnapshotRef = useRef<{
+    queue: MusicQueueEntry[];
+    currentIndex: number;
+    loopMode: MusicLoopMode;
+    shuffle: boolean;
+    wasPlaying: boolean;
+    currentTime: number;
+    userPaused: boolean;
+  } | null>(null);
 
   const currentTrack = queue[currentIndex] ?? null;
   const isSuppressedByVideo = activeForegroundVideoCount > 0;
+
+  useEffect(() => {
+    latestQueueRef.current = queue;
+    latestCurrentIndexRef.current = currentIndex;
+    latestLoopModeRef.current = loopMode;
+    latestShuffleRef.current = shuffle;
+    latestIsPlayingRef.current = isPlaying;
+    latestEnabledRef.current = enabled;
+  }, [currentIndex, enabled, isPlaying, loopMode, queue, shuffle]);
 
   const persist = useCallback(async (key: string, value: unknown) => {
     await trpc.store.set.mutate({ key, value });
@@ -136,6 +173,9 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
       await audio.play();
       setIsPlaying(true);
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
       console.warn("Failed to start global music playback", error);
     }
   }, [currentTrack, enabled, isSuppressedByVideo]);
@@ -187,7 +227,9 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
     }
     userPausedRef.current = false;
     setCurrentIndex(nextIndex);
-    void persist(MUSIC_CURRENT_INDEX_KEY, nextIndex);
+    if (!overrideActiveRef.current) {
+      void persist(MUSIC_CURRENT_INDEX_KEY, nextIndex);
+    }
   });
 
   useEffect(() => {
@@ -277,7 +319,7 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
       setDuration(0);
       return;
     }
-    const nextSrc = window.electronAPI.file.convertFileSrc(currentTrack.filePath);
+    const nextSrc = toAudioSrc(currentTrack.filePath);
     if (activeTrackPathRef.current === currentTrack.filePath) return;
     const shouldAutoplay = enabled && !isSuppressedByVideo && !userPausedRef.current;
     activeTrackPathRef.current = currentTrack.filePath;
@@ -469,7 +511,9 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
     }
     userPausedRef.current = false;
     setCurrentIndex(nextIndex);
-    await persist(MUSIC_CURRENT_INDEX_KEY, nextIndex);
+    if (!overrideActiveRef.current) {
+      await persist(MUSIC_CURRENT_INDEX_KEY, nextIndex);
+    }
   }, [currentIndex, getNextIndex, pause, persist]);
 
   const previous = useCallback(async () => {
@@ -478,7 +522,9 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
       currentIndex > 0 ? currentIndex - 1 : loopMode === "queue" ? queue.length - 1 : 0;
     userPausedRef.current = false;
     setCurrentIndex(nextIndex);
-    await persist(MUSIC_CURRENT_INDEX_KEY, nextIndex);
+    if (!overrideActiveRef.current) {
+      await persist(MUSIC_CURRENT_INDEX_KEY, nextIndex);
+    }
   }, [currentIndex, loopMode, persist, queue.length]);
 
   const setCurrentTrack = useCallback(
@@ -487,7 +533,9 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
       if (nextIndex < 0) return;
       userPausedRef.current = false;
       setCurrentIndex(nextIndex);
-      await persist(MUSIC_CURRENT_INDEX_KEY, nextIndex);
+      if (!overrideActiveRef.current) {
+        await persist(MUSIC_CURRENT_INDEX_KEY, nextIndex);
+      }
     },
     [persist, queue]
   );
@@ -515,6 +563,85 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
       await persist(MUSIC_LOOP_MODE_KEY, next);
     },
     [persist]
+  );
+
+  const startTemporaryQueueOverride = useCallback(
+    (input: { id: string; tracks: MusicQueueEntry[]; loop?: boolean }) => {
+      if (overrideActiveRef.current) return;
+      const audio = audioRef.current;
+      preOverrideSnapshotRef.current = {
+        queue: latestQueueRef.current,
+        currentIndex: latestCurrentIndexRef.current,
+        loopMode: latestLoopModeRef.current,
+        shuffle: latestShuffleRef.current,
+        wasPlaying: latestIsPlayingRef.current,
+        currentTime: audio?.currentTime ?? 0,
+        userPaused: userPausedRef.current,
+      };
+      overrideActiveRef.current = true;
+      activeOverrideIdRef.current = input.id;
+      userPausedRef.current = false;
+      activeTrackPathRef.current = null;
+      shuffleBagRef.current = [];
+      setQueue(input.tracks);
+      setCurrentIndex(0);
+      setLoopModeState(input.loop !== false ? "queue" : "off");
+      setShuffleState(false);
+    },
+    []
+  );
+
+  const stopTemporaryQueueOverride = useCallback(
+    (id: string) => {
+      if (!overrideActiveRef.current) return;
+      if (activeOverrideIdRef.current !== id) return;
+      const snapshot = preOverrideSnapshotRef.current;
+      if (!snapshot) return;
+      preOverrideSnapshotRef.current = null;
+      overrideActiveRef.current = false;
+      activeOverrideIdRef.current = null;
+      const audio = audioRef.current;
+      if (audio && !audio.paused) {
+        audio.pause();
+      }
+      activeTrackPathRef.current = null;
+      shuffleBagRef.current = [];
+      setQueue(snapshot.queue);
+      setCurrentIndex(snapshot.currentIndex);
+      setLoopModeState(snapshot.loopMode);
+      setShuffleState(snapshot.shuffle);
+      userPausedRef.current = snapshot.userPaused;
+      if (snapshot.wasPlaying && latestEnabledRef.current && snapshot.queue.length > 0) {
+        userPausedRef.current = false;
+        const restoredTrack = snapshot.queue[snapshot.currentIndex];
+        if (restoredTrack) {
+          const restoredSrc = toAudioSrc(restoredTrack.filePath);
+          audio?.load();
+          if (audio && activeTrackPathRef.current !== restoredTrack.filePath) {
+            audio.src = restoredSrc;
+            audio.load();
+            activeTrackPathRef.current = restoredTrack.filePath;
+          }
+          if (snapshot.currentTime > 0 && audio) {
+            audio.addEventListener(
+              "loadedmetadata",
+              () => {
+                audio.currentTime = snapshot.currentTime;
+                void audio.play().catch((error) => {
+                  console.warn("Failed to restore global music playback", error);
+                });
+              },
+              { once: true }
+            );
+          } else {
+            void audio?.play().catch((error) => {
+              console.warn("Failed to restore global music playback", error);
+            });
+          }
+        }
+      }
+    },
+    []
   );
 
   const seek = useCallback((time: number) => {
@@ -552,6 +679,8 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
       setShuffle,
       setLoopMode,
       seek,
+      startTemporaryQueueOverride,
+      stopTemporaryQueueOverride,
     }),
     [
       addPlaylistFromUrl,
@@ -580,6 +709,8 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
       setShuffle,
       setVolume,
       shuffle,
+      startTemporaryQueueOverride,
+      stopTemporaryQueueOverride,
       volume,
     ]
   );

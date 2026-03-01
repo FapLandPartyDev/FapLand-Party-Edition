@@ -7,6 +7,11 @@ import { getDb } from "./db";
 import { eq } from "drizzle-orm";
 import { hero, round, resource } from "./db/schema";
 import { generateRoundPreviewImageDataUri } from "./roundPreview";
+import {
+  assertValidRoundCutRanges,
+  stringifyRoundCutRanges,
+  type RoundCutRange,
+} from "../../src/utils/roundCuts";
 export type RoundType = "Normal" | "Interjection" | "Cum";
 type TransactionClient = Parameters<Parameters<ReturnType<typeof getDb>['transaction']>[0]>[0];
 
@@ -17,6 +22,7 @@ export type ConverterSegmentInput = {
   customName?: string | null;
   bpm?: number | null;
   difficulty?: number | null;
+  cutRanges?: RoundCutRange[] | null;
 };
 
 export type SaveConvertedRoundsInput = {
@@ -32,6 +38,7 @@ export type SaveConvertedRoundsInput = {
     sourceRoundIds?: string[] | null;
     removeSourceRound?: boolean;
   };
+  allowOverlaps?: boolean;
   segments: ConverterSegmentInput[];
 };
 
@@ -51,6 +58,7 @@ export type SaveConvertedRoundsResult = {
     endTime: number;
     type: RoundType;
     phash: string | null;
+    cutRanges: RoundCutRange[];
   }>;
 };
 
@@ -103,7 +111,10 @@ function toRoundType(input: string): RoundType {
   return "Normal";
 }
 
-export function validateAndNormalizeSegments(input: ConverterSegmentInput[]): ConverterSegmentInput[] {
+export function validateAndNormalizeSegments(
+  input: ConverterSegmentInput[],
+  options: { allowOverlaps?: boolean } = {},
+): ConverterSegmentInput[] {
   if (!Array.isArray(input) || input.length === 0) {
     throw new Error("At least one segment is required.");
   }
@@ -132,6 +143,12 @@ export function validateAndNormalizeSegments(input: ConverterSegmentInput[]): Co
       customName: normalizeNullableText(segment.customName),
       bpm: normalizeOptionalBpm(segment.bpm, index + 1),
       difficulty: normalizeOptionalDifficulty(segment.difficulty, index + 1),
+      cutRanges: assertValidRoundCutRanges(
+        segment.cutRanges ?? [],
+        start,
+        end,
+        `Segment ${index + 1} cut range`,
+      ),
     } satisfies ConverterSegmentInput;
   });
 
@@ -140,12 +157,14 @@ export function validateAndNormalizeSegments(input: ConverterSegmentInput[]): Co
     return a.endTimeMs - b.endTimeMs;
   });
 
-  for (let i = 1; i < normalized.length; i += 1) {
-    const prev = normalized[i - 1];
-    const current = normalized[i];
-    if (!prev || !current) continue;
-    if (current.startTimeMs < prev.endTimeMs) {
-      throw new Error("Segments must not overlap.");
+  if (!options.allowOverlaps) {
+    for (let i = 1; i < normalized.length; i += 1) {
+      const prev = normalized[i - 1];
+      const current = normalized[i];
+      if (!prev || !current) continue;
+      if (current.startTimeMs < prev.endTimeMs) {
+        throw new Error("Segments must not overlap.");
+      }
     }
   }
 
@@ -158,15 +177,22 @@ export function toDeterministicInstallSourceKey(input: {
   funscriptUri: string | null;
   startTimeMs: number;
   endTimeMs: number;
+  cutRanges?: RoundCutRange[] | null;
+  segmentOrdinal?: number | null;
 }): string {
-  const payload = [
-    "converter:v1",
+  const payloadParts = [
+    typeof input.segmentOrdinal === "number" ? "converter:v3" : "converter:v2",
     input.heroName.trim().toLowerCase(),
     input.videoUri.trim(),
     input.funscriptUri?.trim() ?? "",
     `${input.startTimeMs}`,
     `${input.endTimeMs}`,
-  ].join("|");
+    JSON.stringify(input.cutRanges ?? []),
+  ];
+  if (typeof input.segmentOrdinal === "number") {
+    payloadParts.push(`${input.segmentOrdinal}`);
+  }
+  const payload = payloadParts.join("|");
   const digest = crypto.createHash("sha256").update(payload).digest("hex");
   return `converter:${digest}`;
 }
@@ -291,7 +317,9 @@ export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Prom
   const sourceRoundIds = normalizeSourceRoundIds(input.source);
   const removeSourceRounds = Boolean(input.source.removeSourceRound && sourceRoundIds.length > 0);
 
-  const normalizedSegments = validateAndNormalizeSegments(input.segments);
+  const normalizedSegments = validateAndNormalizeSegments(input.segments, {
+    allowOverlaps: input.allowOverlaps,
+  });
 
   const localVideoPath = fromUriToLocalPath(videoUri);
   let phashes: Array<string | null>;
@@ -340,6 +368,8 @@ export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Prom
         funscriptUri,
         startTimeMs: segment.startTimeMs,
         endTimeMs: segment.endTimeMs,
+        cutRanges: segment.cutRanges ?? [],
+        segmentOrdinal: input.allowOverlaps ? index : null,
       });
 
       const existing = await tx.query.round.findFirst({
@@ -352,6 +382,7 @@ export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Prom
         type: segment.type,
         startTime: segment.startTimeMs,
         endTime: segment.endTimeMs,
+        cutRangesJson: stringifyRoundCutRanges(segment.cutRanges ?? []),
         bpm: segment.bpm ?? null,
         difficulty: segment.difficulty ?? null,
         phash,
@@ -393,6 +424,7 @@ export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Prom
         endTime: segment.endTimeMs,
         type: segment.type,
         phash,
+        cutRanges: segment.cutRanges ?? [],
       });
     }
 

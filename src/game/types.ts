@@ -93,7 +93,8 @@ export type BoardFieldKind =
   | "round"
   | "randomRound"
   | "perk"
-  | "event";
+  | "event"
+  | "catapult";
 
 export type RoundRef = {
   slot: number;
@@ -110,6 +111,8 @@ export type BoardField = {
   checkpointRestMs?: number;
   visualId?: string;
   giftGuaranteedPerk?: boolean;
+  catapultForward?: number;
+  catapultLandingOnly?: boolean;
   styleHint?: {
     x?: number;
     y?: number;
@@ -132,6 +135,38 @@ export type MapTextAnnotation = {
     color?: string;
     size?: number;
   };
+};
+
+export type MapBackgroundMedia = {
+  kind: "image" | "video";
+  uri: string;
+  name?: string;
+  fit: "cover" | "contain" | "stretch" | "tile";
+  position: "center" | "top" | "bottom" | "left" | "right";
+  opacity: number;
+  blur: number;
+  dim: number;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+  motion: "fixed" | "parallax";
+  parallaxStrength: number;
+};
+
+export type RoadPalette = {
+  presetId?: string;
+  body: string;
+  railA: string;
+  railB: string;
+  glow: string;
+  center: string;
+  gate: string;
+  marker: string;
+};
+
+export type MapStyle = {
+  background?: MapBackgroundMedia;
+  roadPalette?: RoadPalette;
 };
 
 export type RuntimeGraphEdge = {
@@ -241,9 +276,21 @@ export type ActivePerkEffect = {
   appliedAfterRoll: boolean;
 };
 
+export type PlaylistMusicTrack = {
+  id: string;
+  uri: string;
+  name: string;
+};
+
+export type PlaylistMusicConfig = {
+  tracks: PlaylistMusicTrack[];
+  loop: boolean;
+};
+
 export type GameConfig = {
   board: BoardField[];
   mapTextAnnotations?: MapTextAnnotation[];
+  mapStyle?: MapStyle;
   runtimeGraph: RuntimeGraphConfig;
   dice: {
     min: number;
@@ -282,6 +329,7 @@ export type GameConfig = {
     scorePerCumRoundSuccess: number;
   };
   roundStartDelayMs: number;
+  playlistMusic?: PlaylistMusicConfig;
 };
 
 export type PlayerStats = {

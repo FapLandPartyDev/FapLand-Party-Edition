@@ -1,8 +1,14 @@
 import { getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "../../game/data/perks";
 import type {
+  GraphBackgroundFit,
+  GraphBackgroundMedia,
+  GraphBackgroundPosition,
   GraphBoardConfig,
+  GraphBoardStyle,
+  GraphRoadPalette,
   LinearBoardConfig,
   PlaylistConfig,
+  PlaylistMusicTrack,
   PortableRoundRef,
 } from "../../game/playlistSchema";
 
@@ -15,6 +21,79 @@ const DEFAULT_TEXT_SIZE = 18;
 const MIN_TEXT_SIZE = 10;
 const MAX_TEXT_SIZE = 72;
 const MAX_TEXT_LENGTH = 500;
+const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+const DEFAULT_BACKGROUND: Omit<GraphBackgroundMedia, "kind" | "uri" | "name"> = {
+  fit: "cover",
+  position: "center",
+  opacity: 0.55,
+  blur: 0,
+  dim: 0.35,
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  motion: "fixed",
+  parallaxStrength: 0.18,
+};
+
+export const ROAD_PALETTE_PRESETS = [
+  {
+    id: "neon",
+    name: "Neon",
+    palette: {
+      presetId: "neon",
+      body: "#151a2a",
+      railA: "#79ddff",
+      railB: "#ff71ca",
+      glow: "#8a4dff",
+      center: "#b0baff",
+      gate: "#ff79b4",
+      marker: "#dce7ff",
+    },
+  },
+  {
+    id: "candy",
+    name: "Candy",
+    palette: {
+      presetId: "candy",
+      body: "#24131f",
+      railA: "#f9a8d4",
+      railB: "#67e8f9",
+      glow: "#fb7185",
+      center: "#fde68a",
+      gate: "#f472b6",
+      marker: "#ffffff",
+    },
+  },
+  {
+    id: "synth",
+    name: "Synth",
+    palette: {
+      presetId: "synth",
+      body: "#111827",
+      railA: "#a78bfa",
+      railB: "#22d3ee",
+      glow: "#7c3aed",
+      center: "#c4b5fd",
+      gate: "#38bdf8",
+      marker: "#f8fafc",
+    },
+  },
+  {
+    id: "mono",
+    name: "Mono",
+    palette: {
+      presetId: "mono",
+      body: "#18181b",
+      railA: "#d4d4d8",
+      railB: "#a1a1aa",
+      glow: "#71717a",
+      center: "#e4e4e7",
+      gate: "#f4f4f5",
+      marker: "#ffffff",
+    },
+  },
+] as const satisfies ReadonlyArray<{ id: string; name: string; palette: GraphRoadPalette }>;
 
 export type EditorNodeKind =
   | "start"
@@ -23,7 +102,8 @@ export type EditorNodeKind =
   | "safePoint"
   | "round"
   | "randomRound"
-  | "perk";
+  | "perk"
+  | "catapult";
 
 export interface EditorStyleHint {
   x?: number;
@@ -46,6 +126,8 @@ export interface EditorNode {
   checkpointRestMs?: number;
   visualId?: string;
   giftGuaranteedPerk?: boolean;
+  catapultForward?: number;
+  catapultLandingOnly?: boolean;
   styleHint?: EditorStyleHint;
 }
 
@@ -80,6 +162,8 @@ export interface EditorRandomPool {
   candidates: EditorRandomPoolCandidate[];
 }
 
+export type EditorGraphStyle = GraphBoardStyle;
+
 export interface EditorGraphConfig {
   mode: "graph";
   startNodeId: string;
@@ -95,6 +179,11 @@ export interface EditorGraphConfig {
   economy: Pick<PlaylistConfig["economy"], "startingMoney" | "scorePerCumRoundSuccess">;
   dice: PlaylistConfig["dice"];
   saveMode: PlaylistConfig["saveMode"];
+  style: EditorGraphStyle;
+  music: {
+    tracks: PlaylistMusicTrack[];
+    loop: boolean;
+  };
 }
 
 export interface ViewportState {
@@ -127,6 +216,95 @@ const toFiniteNumber = (value: unknown): number | null => {
 
 const clamp = (value: number, min: number, max: number): number => {
   return Math.min(max, Math.max(min, value));
+};
+
+const isHexColor = (value: unknown): value is string =>
+  typeof value === "string" && HEX_COLOR_PATTERN.test(value.trim());
+
+export const getDefaultRoadPalette = (): GraphRoadPalette => ({
+  ...ROAD_PALETTE_PRESETS[0].palette,
+});
+
+const normalizeColor = (value: unknown, fallback: string): string => {
+  return isHexColor(value) ? value.trim() : fallback;
+};
+
+export const normalizeRoadPalette = (
+  input?: Partial<GraphRoadPalette> | null
+): GraphRoadPalette => {
+  const fallback = getDefaultRoadPalette();
+  if (!input) return fallback;
+  const presetId =
+    typeof input.presetId === "string" && input.presetId.trim().length > 0
+      ? input.presetId.trim()
+      : "custom";
+  return {
+    presetId,
+    body: normalizeColor(input.body, fallback.body),
+    railA: normalizeColor(input.railA, fallback.railA),
+    railB: normalizeColor(input.railB, fallback.railB),
+    glow: normalizeColor(input.glow, fallback.glow),
+    center: normalizeColor(input.center, fallback.center),
+    gate: normalizeColor(input.gate, fallback.gate),
+    marker: normalizeColor(input.marker, fallback.marker),
+  };
+};
+
+const inferBackgroundKind = (uri: string, fallback?: "image" | "video"): "image" | "video" => {
+  const cleanUri = uri.split(/[?#]/u)[0]?.toLowerCase() ?? uri.toLowerCase();
+  if (/\.(mp4|webm|mov|m4v|mkv)$/u.test(cleanUri)) return "video";
+  if (/\.(png|jpe?g|webp|gif|avif|bmp|svg)$/u.test(cleanUri)) return "image";
+  return fallback ?? "image";
+};
+
+export const normalizeGraphBackgroundMedia = (
+  input?: Partial<GraphBackgroundMedia> | null
+): GraphBackgroundMedia | undefined => {
+  if (!input || typeof input.uri !== "string") return undefined;
+  const uri = input.uri.trim();
+  if (!uri) return undefined;
+  const kind = inferBackgroundKind(uri, input.kind === "video" ? "video" : "image");
+  const fit: GraphBackgroundFit =
+    input.fit === "contain" || input.fit === "stretch" || input.fit === "tile"
+      ? input.fit
+      : "cover";
+  const position: GraphBackgroundPosition =
+    input.position === "top" ||
+      input.position === "bottom" ||
+      input.position === "left" ||
+      input.position === "right"
+      ? input.position
+      : "center";
+  return {
+    kind,
+    uri,
+    ...(typeof input.name === "string" && input.name.trim().length > 0
+      ? { name: input.name.trim() }
+      : {}),
+    fit,
+    position,
+    opacity: clamp(toFiniteNumber(input.opacity) ?? DEFAULT_BACKGROUND.opacity, 0, 1),
+    blur: clamp(toFiniteNumber(input.blur) ?? DEFAULT_BACKGROUND.blur, 0, 24),
+    dim: clamp(toFiniteNumber(input.dim) ?? DEFAULT_BACKGROUND.dim, 0, 1),
+    scale: clamp(toFiniteNumber(input.scale) ?? DEFAULT_BACKGROUND.scale, 0.25, 4),
+    offsetX: toFiniteNumber(input.offsetX) ?? DEFAULT_BACKGROUND.offsetX,
+    offsetY: toFiniteNumber(input.offsetY) ?? DEFAULT_BACKGROUND.offsetY,
+    motion: input.motion === "parallax" ? "parallax" : "fixed",
+    parallaxStrength: clamp(
+      toFiniteNumber(input.parallaxStrength) ?? DEFAULT_BACKGROUND.parallaxStrength,
+      0,
+      1
+    ),
+  };
+};
+
+const normalizeGraphStyle = (style?: GraphBoardStyle): EditorGraphStyle => {
+  const background = normalizeGraphBackgroundMedia(style?.background);
+  const roadPalette = style?.roadPalette ? normalizeRoadPalette(style.roadPalette) : undefined;
+  return {
+    ...(background ? { background } : {}),
+    ...(roadPalette ? { roadPalette } : {}),
+  };
 };
 
 export const createEditorId = (prefix: string): string => {
@@ -195,7 +373,10 @@ const normalizeTextAnnotation = (annotation: unknown): EditorTextAnnotation | nu
   if (x === null || y === null) return null;
 
   const styleHint: EditorTextAnnotation["styleHint"] = { x, y };
-  if (typeof candidate.styleHint?.color === "string" && candidate.styleHint.color.trim().length > 0) {
+  if (
+    typeof candidate.styleHint?.color === "string" &&
+    candidate.styleHint.color.trim().length > 0
+  ) {
     styleHint.color = candidate.styleHint.color.trim();
   }
   const size = toFiniteNumber(candidate.styleHint?.size);
@@ -210,13 +391,14 @@ const normalizeTextAnnotation = (annotation: unknown): EditorTextAnnotation | nu
 
 export const sanitizeNodeKind = (kind: string | undefined): EditorNodeKind => {
   if (
-    kind === "start"
-    || kind === "end"
-    || kind === "path"
-    || kind === "safePoint"
-    || kind === "round"
-    || kind === "randomRound"
-    || kind === "perk"
+    kind === "start" ||
+    kind === "end" ||
+    kind === "path" ||
+    kind === "safePoint" ||
+    kind === "round" ||
+    kind === "randomRound" ||
+    kind === "perk" ||
+    kind === "catapult"
   ) {
     return kind;
   }
@@ -236,6 +418,14 @@ export const toEditorGraphConfig = (input: GraphBoardConfig): EditorGraphConfig 
     checkpointRestMs: typeof node.checkpointRestMs === "number" ? node.checkpointRestMs : undefined,
     visualId: node.visualId,
     giftGuaranteedPerk: node.giftGuaranteedPerk,
+    catapultForward:
+      typeof (node as { catapultForward?: unknown }).catapultForward === "number"
+        ? Math.max(1, Math.floor((node as { catapultForward: number }).catapultForward))
+        : undefined,
+    catapultLandingOnly:
+      typeof (node as { catapultLandingOnly?: unknown }).catapultLandingOnly === "boolean"
+        ? (node as { catapultLandingOnly: boolean }).catapultLandingOnly
+        : undefined,
     styleHint: {
       x: toFiniteNumber(node.styleHint?.x) ?? index * 220,
       y: toFiniteNumber(node.styleHint?.y) ?? 0,
@@ -299,6 +489,11 @@ export const toEditorGraphConfig = (input: GraphBoardConfig): EditorGraphConfig 
       max: 6,
     },
     saveMode: "none",
+    style: normalizeGraphStyle(input.style),
+    music: {
+      tracks: [],
+      loop: true,
+    },
   };
 };
 
@@ -422,53 +617,76 @@ export const layoutLinearGraphFromPlaylist = (config: LinearBoardConfig): Editor
       max: 6,
     },
     saveMode: "none",
+    style: {},
+    music: {
+      tracks: [],
+      loop: true,
+    },
   };
 };
 
-export const toGraphBoardConfig = (input: EditorGraphConfig): GraphBoardConfig => ({
-  mode: "graph",
-  startNodeId: input.startNodeId,
-  nodes: input.nodes.map((node) => ({
-    id: node.id,
-    name: node.name,
-    kind: sanitizeNodeKind(node.kind),
-    roundRef: node.roundRef ? { ...node.roundRef } : undefined,
-    forceStop: node.kind === "round" || node.kind === "perk" ? node.forceStop : undefined,
-    skippable: node.kind === "round" ? node.skippable : undefined,
-    randomPoolId: node.randomPoolId,
-    checkpointRestMs: typeof node.checkpointRestMs === "number" ? Math.max(0, Math.floor(node.checkpointRestMs)) : undefined,
-    visualId: node.visualId,
-    giftGuaranteedPerk: node.kind === "perk" ? node.giftGuaranteedPerk : undefined,
-    styleHint: normalizeStyleHint(node.styleHint),
-  })),
-  edges: input.edges.map((edge) => ({
-    id: edge.id,
-    fromNodeId: edge.fromNodeId,
-    toNodeId: edge.toNodeId,
-    gateCost: edge.gateCost,
-    weight: edge.weight,
-    label: edge.label,
-  })),
-  textAnnotations: input.textAnnotations
-    .map((annotation) => normalizeTextAnnotation(annotation))
-    .filter((annotation): annotation is EditorTextAnnotation => Boolean(annotation))
-    .map((annotation) => ({
-      id: annotation.id,
-      text: annotation.text,
-      styleHint: { ...annotation.styleHint },
+export const toGraphBoardConfig = (input: EditorGraphConfig): GraphBoardConfig => {
+  const style = normalizeGraphStyle(input.style);
+  return {
+    mode: "graph",
+    startNodeId: input.startNodeId,
+    nodes: input.nodes.map((node) => ({
+      id: node.id,
+      name: node.name,
+      kind: sanitizeNodeKind(node.kind),
+      roundRef: node.roundRef ? { ...node.roundRef } : undefined,
+      forceStop: node.kind === "round" || node.kind === "perk" ? node.forceStop : undefined,
+      skippable: node.kind === "round" ? node.skippable : undefined,
+      randomPoolId: node.randomPoolId,
+      checkpointRestMs:
+        typeof node.checkpointRestMs === "number"
+          ? Math.max(0, Math.floor(node.checkpointRestMs))
+          : undefined,
+      visualId: node.visualId,
+      giftGuaranteedPerk: node.kind === "perk" ? node.giftGuaranteedPerk : undefined,
+      catapultForward:
+        node.kind === "catapult"
+          ? typeof node.catapultForward === "number"
+            ? Math.max(1, Math.floor(node.catapultForward))
+            : undefined
+          : undefined,
+      catapultLandingOnly: node.kind === "catapult" ? node.catapultLandingOnly : undefined,
+      styleHint: normalizeStyleHint(node.styleHint),
     })),
-  randomRoundPools: input.randomRoundPools
-    .map((pool) => ({
-      id: pool.id,
-      name: pool.name,
-      candidates: pool.candidates
-        .filter((candidate) => Boolean(candidate.roundRef.name || candidate.roundRef.idHint || candidate.roundRef.phash))
-        .map((candidate) => ({
-          roundRef: { ...candidate.roundRef },
-          weight: Number.isFinite(candidate.weight) ? candidate.weight : 1,
-        })),
-    }))
-    .filter((pool) => pool.id.length > 0),
-  cumRoundRefs: input.cumRoundRefs.map((ref) => ({ ...ref })),
-  pathChoiceTimeoutMs: clamp(Math.floor(input.pathChoiceTimeoutMs), 1000, 30000),
-});
+    edges: input.edges.map((edge) => ({
+      id: edge.id,
+      fromNodeId: edge.fromNodeId,
+      toNodeId: edge.toNodeId,
+      gateCost: edge.gateCost,
+      weight: edge.weight,
+      label: edge.label,
+    })),
+    textAnnotations: input.textAnnotations
+      .map((annotation) => normalizeTextAnnotation(annotation))
+      .filter((annotation): annotation is EditorTextAnnotation => Boolean(annotation))
+      .map((annotation) => ({
+        id: annotation.id,
+        text: annotation.text,
+        styleHint: { ...annotation.styleHint },
+      })),
+    randomRoundPools: input.randomRoundPools
+      .map((pool) => ({
+        id: pool.id,
+        name: pool.name,
+        candidates: pool.candidates
+          .filter((candidate) =>
+            Boolean(
+              candidate.roundRef.name || candidate.roundRef.idHint || candidate.roundRef.phash
+            )
+          )
+          .map((candidate) => ({
+            roundRef: { ...candidate.roundRef },
+            weight: Number.isFinite(candidate.weight) ? candidate.weight : 1,
+          })),
+      }))
+      .filter((pool) => pool.id.length > 0),
+    cumRoundRefs: input.cumRoundRefs.map((ref) => ({ ...ref })),
+    pathChoiceTimeoutMs: clamp(Math.floor(input.pathChoiceTimeoutMs), 1000, 30000),
+    ...(style.background || style.roadPalette ? { style } : {}),
+  };
+};

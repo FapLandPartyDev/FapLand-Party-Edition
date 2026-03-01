@@ -3,11 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { approveDialogPath, clearApprovedDialogPathsForTests } from "./dialogPathApproval";
 
-const {
-  readFileMock,
-  getDbMock,
-  getStoreMock,
-} = vi.hoisted(() => ({
+const { readFileMock, getDbMock, getStoreMock } = vi.hoisted(() => ({
   readFileMock: vi.fn(),
   getDbMock: vi.fn(),
   getStoreMock: vi.fn(),
@@ -50,9 +46,7 @@ function makeEnvelope() {
           { name: "Exact Round", author: "Alice", type: "Normal", phash: "hash-exact" },
           { name: "Close Match Deluxe", author: "Bob", type: "Normal" },
         ],
-        cumRoundRefs: [
-          { name: "Missing Cum", author: "Nobody", type: "Cum" },
-        ],
+        cumRoundRefs: [{ name: "Missing Cum", author: "Nobody", type: "Cum" }],
       },
       perkSelection: {
         optionsPerPick: 3,
@@ -125,17 +119,26 @@ function buildDbMock() {
       },
     },
     insert: vi.fn(() => ({
-      values: vi.fn((input: { name: string; description: string | null; configJson: string; formatVersion: number }) => ({
-        returning: vi.fn(async () => [{
-          id: "playlist-created",
-          name: input.name,
-          description: input.description,
-          formatVersion: input.formatVersion,
-          configJson: input.configJson,
-          createdAt: new Date("2026-03-09T00:00:00.000Z"),
-          updatedAt: new Date("2026-03-09T00:00:00.000Z"),
-        }]),
-      })),
+      values: vi.fn(
+        (input: {
+          name: string;
+          description: string | null;
+          configJson: string;
+          formatVersion: number;
+        }) => ({
+          returning: vi.fn(async () => [
+            {
+              id: "playlist-created",
+              name: input.name,
+              description: input.description,
+              formatVersion: input.formatVersion,
+              configJson: input.configJson,
+              createdAt: new Date("2026-03-09T00:00:00.000Z"),
+              updatedAt: new Date("2026-03-09T00:00:00.000Z"),
+            },
+          ]),
+        })
+      ),
     })),
   };
 }
@@ -195,6 +198,27 @@ describe("playlist import analysis and finalize", () => {
     }
     expect(result.playlist.config.boardConfig.cumRoundRefs[0]?.idHint).toBe("round-manual");
     expect(result.playlist.config.boardConfig.normalRoundOrder[1]?.idHint).toBe("round-suggested");
+  });
+
+  it("resolves relative playlist music file paths on import", async () => {
+    const envelope = makeEnvelope() as Record<string, unknown>;
+    (envelope.config as Record<string, unknown>).music = {
+      tracks: [
+        { id: "pm1", uri: "./music/song.mp3", name: "Song" },
+        { id: "pm2", uri: "app://media/absolute.mp3", name: "Absolute" },
+      ],
+      loop: true,
+    };
+    readFileMock.mockResolvedValue(JSON.stringify(envelope));
+    approveDialogPath("playlistImportFile", "/tmp/imported.fplay");
+    const { analyzePlaylistImportFile } = await import("./playlists");
+
+    const result = await analyzePlaylistImportFile("/tmp/imported.fplay");
+
+    expect(result.config.music).toBeDefined();
+    expect(result.config.music!.tracks[0]!.uri).toContain("app://media/");
+    expect(result.config.music!.tracks[0]!.uri).toContain("music%2Fsong.mp3");
+    expect(result.config.music!.tracks[1]!.uri).toBe("app://media/absolute.mp3");
   });
 });
 

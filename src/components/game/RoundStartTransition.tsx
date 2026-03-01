@@ -1,4 +1,4 @@
-import type { GameState } from "../../game/types";
+import type { GameState, RoadPalette } from "../../game/types";
 import { useSfwMode } from "../../hooks/useSfwMode";
 import { abbreviateNsfwText } from "../../utils/sfwText";
 import { CinematicTransitionFrame } from "./CinematicTransitionFrame";
@@ -8,12 +8,14 @@ export type RoundStartTransitionProps = {
   queuedRound: GameState["queuedRound"];
   remaining: number;
   duration: number;
+  roadPalette?: RoadPalette;
 };
 
 export function RoundStartTransition({
   queuedRound,
   remaining,
   duration,
+  roadPalette,
 }: RoundStartTransitionProps) {
   const { t } = useLingui();
   if (!queuedRound) return null;
@@ -48,6 +50,7 @@ export function RoundStartTransition({
         hintText={hintText}
         countdownLabel={countdownLabel}
         progress={progress}
+        roadPalette={roadPalette}
         variant="round-start"
       />
     </div>

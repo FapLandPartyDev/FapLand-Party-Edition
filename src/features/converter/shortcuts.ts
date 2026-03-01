@@ -24,6 +24,7 @@ export type ConverterShortcutContext = {
   setMarkInAtPlayhead: () => void;
   setMarkOutAtPlayhead: () => void;
   addSegmentFromMarks: () => void;
+  addCutFromMarks: () => void;
   deleteSelectedSegment: () => void;
   setSelectedSegmentType: (type: SegmentType) => void;
   seekByMs: (amountMs: number) => void;
@@ -106,6 +107,14 @@ export const CONVERTER_SHORTCUTS: readonly ConverterShortcutBinding[] = [
     category: "Marking",
     matches: (event) => keyMatch(event, "Enter"),
     trigger: (context) => context.addSegmentFromMarks(),
+  },
+  {
+    id: "add-cut",
+    keysLabel: "C",
+    description: t`Create a cut inside the selected segment from the current IN and OUT markers.`,
+    category: "Marking",
+    matches: (event) => keyMatch(event, "c") || keyMatch(event, "C"),
+    trigger: (context) => context.addCutFromMarks(),
   },
   {
     id: "delete-segment",

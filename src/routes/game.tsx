@@ -28,6 +28,7 @@ import { db, type InstalledRound } from "../services/db";
 import { playlists } from "../services/playlists";
 import { trpc } from "../services/trpc";
 import { isGameDevelopmentMode } from "../utils/devFeatures";
+import { useGlobalMusic } from "../hooks/useGlobalMusic";
 import {
   CHEAT_MODE_ENABLED_KEY,
   DEFAULT_CHEAT_MODE_ENABLED,
@@ -376,6 +377,7 @@ function GameRoute() {
     message: string;
   } | null>(null);
   const { connected: handyConnected } = useHandy();
+  const { startTemporaryQueueOverride, stopTemporaryQueueOverride } = useGlobalMusic();
 
   const currentPlaylistSaveMode = activePlaylist.config.saveMode;
   const scoringSaveMode =
@@ -434,6 +436,29 @@ function GameRoute() {
       replace: true,
     });
   }, [navigate, resumeRedirectNotice, resumeRequested]);
+
+  useEffect(() => {
+    const playlistMusic = config.playlistMusic;
+    if (!playlistMusic || playlistMusic.tracks.length === 0) return;
+    const overrideId = `playlist:${activePlaylist.id}:${sessionStartedAtMsRef.current}`;
+    startTemporaryQueueOverride({
+      id: overrideId,
+      tracks: playlistMusic.tracks.map((track) => ({
+        id: track.id,
+        filePath: track.uri,
+        name: track.name,
+      })),
+      loop: playlistMusic.loop,
+    });
+    return () => {
+      stopTemporaryQueueOverride(overrideId);
+    };
+  }, [
+    activePlaylist.id,
+    config.playlistMusic,
+    startTemporaryQueueOverride,
+    stopTemporaryQueueOverride,
+  ]);
 
   const clearRunSnapshot = useCallback(async () => {
     if (isMapEditorTestRun) return;

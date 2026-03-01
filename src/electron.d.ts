@@ -17,6 +17,7 @@ declare global {
         selectMusicCacheDirectory: () => Promise<string | null>;
         selectMoaningCacheDirectory: () => Promise<string | null>;
         selectConverterVideoFile: () => Promise<string | null>;
+        selectMapBackgroundFile: () => Promise<string | null>;
         selectMusicFiles: () => Promise<string[]>;
         selectMoaningFiles: () => Promise<string[]>;
         addMusicFromUrl: (url: string) => Promise<{ filePath: string; title: string }>;

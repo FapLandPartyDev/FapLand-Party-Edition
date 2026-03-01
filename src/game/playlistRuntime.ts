@@ -62,6 +62,7 @@ function toBoardKind(kind: string): BoardFieldKind {
   if (kind === "randomRound") return "randomRound";
   if (kind === "perk") return "perk";
   if (kind === "event") return "event";
+  if (kind === "catapult") return "catapult";
   return "path";
 }
 
@@ -201,6 +202,7 @@ function buildLinearConfig(
   return {
     board,
     mapTextAnnotations: [],
+    mapStyle: undefined,
     runtimeGraph: buildRuntimeGraph(board, "start", edges, [], 6000),
     dice: { min: 1, max: 6 },
     perkSelection: {
@@ -256,6 +258,16 @@ function buildGraphConfig(
     checkpointRestMs: typeof node.checkpointRestMs === "number" ? node.checkpointRestMs : undefined,
     visualId: node.visualId,
     giftGuaranteedPerk: node.giftGuaranteedPerk,
+    catapultForward:
+      node.kind === "catapult"
+        ? typeof (node as { catapultForward?: number }).catapultForward === "number"
+          ? Math.max(1, Math.floor((node as { catapultForward: number }).catapultForward))
+          : undefined
+        : undefined,
+    catapultLandingOnly:
+      node.kind === "catapult"
+        ? (node as { catapultLandingOnly?: boolean }).catapultLandingOnly
+        : undefined,
     styleHint: node.styleHint,
     fixedRoundId: resolvedRoundByNodeId[node.id],
     forceStop: node.kind === "round" || node.kind === "perk" ? node.forceStop : undefined,
@@ -303,6 +315,7 @@ function buildGraphConfig(
       text: annotation.text,
       styleHint: { ...annotation.styleHint },
     })),
+    mapStyle: config.style ? { ...config.style } : undefined,
     runtimeGraph: buildRuntimeGraph(
       board,
       config.startNodeId,
@@ -376,6 +389,15 @@ export function toGameConfigFromPlaylist(
     perkPool: playlistConfig.perkPool,
     probabilityScaling: playlistConfig.probabilityScaling,
     economy: playlistConfig.economy,
+    playlistMusic:
+      playlistConfig.music && playlistConfig.music.tracks.length > 0
+        ? {
+          tracks: playlistConfig.music.tracks.map((track) => ({
+            ...track,
+          })),
+          loop: playlistConfig.music.loop,
+        }
+        : undefined,
   };
 }
 

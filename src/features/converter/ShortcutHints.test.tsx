@@ -95,8 +95,12 @@ describe("converter shortcut hints", () => {
         selectedSegmentId={null}
         selectedSegment={null}
         heroName="Hero"
+        allowOverlappingSegments={false}
         onSelectSegment={() => {}}
         onRemoveSegment={() => {}}
+        onAllowOverlappingSegmentsChange={() => {}}
+        onAddCutFromMarks={() => {}}
+        onRemoveCut={() => {}}
         onSeekToMs={() => {}}
         onMergeSegmentWithNext={() => {}}
         onSetSegmentCustomName={() => {}}

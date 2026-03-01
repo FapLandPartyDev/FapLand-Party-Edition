@@ -17,6 +17,7 @@ import { getDb } from "./db";
 import { eq, desc, isNotNull, and } from "drizzle-orm";
 import { playlist, playlistTrackPlay, round } from "./db/schema";
 import { getStore } from "./store";
+import { isPackageRelativeMediaPath, toLocalMediaUri } from "./localMedia";
 
 const ACTIVE_PLAYLIST_STORE_KEY = "game.playlist.activeId";
 
@@ -89,8 +90,9 @@ async function readPlaylistImportAnalysis(filePath: string): Promise<PlaylistImp
   const content = await fs.readFile(approvedPath, "utf8");
   const raw = JSON.parse(content) as unknown;
   const parsed = ZPlaylistEnvelopeV1.parse(raw);
+  const config = resolvePlaylistRelativeMedia(parsed.config, path.dirname(approvedPath));
   const installedRounds = await loadInstalledRounds();
-  const resolution = analyzePlaylistResolution(parsed.config, installedRounds);
+  const resolution = analyzePlaylistResolution(config, installedRounds);
 
   return {
     metadata: {
@@ -98,9 +100,56 @@ async function readPlaylistImportAnalysis(filePath: string): Promise<PlaylistImp
       description: parsed.metadata.description ?? null,
       exportedAt: parsed.metadata.exportedAt ?? null,
     },
-    config: parsed.config,
+    config,
     resolution,
   };
+}
+
+function resolvePlaylistRelativeMedia(
+  config: PlaylistConfig,
+  playlistDirectory: string
+): PlaylistConfig {
+  let result = config;
+
+  if (result.boardConfig.mode === "graph") {
+    const background = result.boardConfig.style?.background;
+    if (background && isPackageRelativeMediaPath(background.uri)) {
+      result = {
+        ...result,
+        boardConfig: {
+          ...result.boardConfig,
+          style: {
+            ...result.boardConfig.style,
+            background: {
+              ...background,
+              uri: toLocalMediaUri(path.resolve(playlistDirectory, background.uri)),
+            },
+          },
+        },
+      };
+    }
+  }
+
+  if (result.music && result.music.tracks.length > 0) {
+    const resolvedTracks = result.music.tracks.map((track) => {
+      if (isPackageRelativeMediaPath(track.uri)) {
+        return {
+          ...track,
+          uri: toLocalMediaUri(path.resolve(playlistDirectory, track.uri)),
+        };
+      }
+      return track;
+    });
+    result = {
+      ...result,
+      music: {
+        ...result.music,
+        tracks: resolvedTracks,
+      },
+    };
+  }
+
+  return result;
 }
 
 async function createDefaultConfigFromInstalledRounds(): Promise<PlaylistConfig> {
@@ -189,13 +238,16 @@ export async function createPlaylist(input: {
     ? ZPlaylistConfig.parse(input.config)
     : await createDefaultConfigFromInstalledRounds();
 
-  const [created] = await getDb().insert(playlist).values({
-    name: input.name.trim(),
-    description: input.description?.trim() || null,
-    formatVersion: 1,
-    configJson: serializeConfig(config),
-    installSourceKey: input.installSourceKey ?? null,
-  }).returning();
+  const [created] = await getDb()
+    .insert(playlist)
+    .values({
+      name: input.name.trim(),
+      description: input.description?.trim() || null,
+      formatVersion: 1,
+      configJson: serializeConfig(config),
+      installSourceKey: input.installSourceKey ?? null,
+    })
+    .returning();
 
   return rowToRecord(created);
 }
@@ -218,7 +270,11 @@ export async function updatePlaylist(input: {
     nextData.configJson = serializeConfig(ZPlaylistConfig.parse(input.config));
   }
 
-  const [updated] = await getDb().update(playlist).set(nextData).where(eq(playlist.id, input.playlistId)).returning();
+  const [updated] = await getDb()
+    .update(playlist)
+    .set(nextData)
+    .where(eq(playlist.id, input.playlistId))
+    .returning();
 
   return rowToRecord(updated);
 }
@@ -227,12 +283,15 @@ export async function duplicatePlaylist(playlistId: string): Promise<PlaylistRec
   const source = await getDb().query.playlist.findFirst({ where: eq(playlist.id, playlistId) });
   if (!source) throw new Error("Playlist not found.");
 
-  const [duplicated] = await getDb().insert(playlist).values({
-    name: `${source.name} (Copy)`,
-    description: source.description,
-    formatVersion: source.formatVersion,
-    configJson: source.configJson,
-  }).returning();
+  const [duplicated] = await getDb()
+    .insert(playlist)
+    .values({
+      name: `${source.name} (Copy)`,
+      description: source.description,
+      formatVersion: source.formatVersion,
+      configJson: source.configJson,
+    })
+    .returning();
 
   return rowToRecord(duplicated);
 }
@@ -242,7 +301,9 @@ export async function deletePlaylist(playlistId: string): Promise<void> {
 
   const active = getStore().get(ACTIVE_PLAYLIST_STORE_KEY);
   if (active === playlistId) {
-    const fallback = await getDb().query.playlist.findFirst({ orderBy: [desc(playlist.updatedAt)] });
+    const fallback = await getDb().query.playlist.findFirst({
+      orderBy: [desc(playlist.updatedAt)],
+    });
     getStore().set(ACTIVE_PLAYLIST_STORE_KEY, fallback?.id ?? null);
   }
 }
@@ -306,7 +367,7 @@ export async function importPlaylistFromFile(input: {
   const resolvedConfig = applyPlaylistResolutionMapping(
     analysis.config,
     combinedMapping,
-    installedRounds,
+    installedRounds
   );
 
   const installSourceKey = input.installSourceKey ?? null;
@@ -381,23 +442,28 @@ export async function recordPlaylistTrackPlay(input: {
   nodeId?: string | null;
   poolId?: string | null;
 }): Promise<void> {
-  await getDb().insert(playlistTrackPlay).values({
-    playlistId: input.playlistId,
-    roundId: input.roundId,
-    nodeId: input.nodeId ?? null,
-    poolId: input.poolId ?? null,
-  });
+  await getDb()
+    .insert(playlistTrackPlay)
+    .values({
+      playlistId: input.playlistId,
+      roundId: input.roundId,
+      nodeId: input.nodeId ?? null,
+      poolId: input.poolId ?? null,
+    });
 }
 
-export async function getDistinctPlayedByPool(playlistId: string): Promise<Record<string, string[]>> {
+export async function getDistinctPlayedByPool(
+  playlistId: string
+): Promise<Record<string, string[]>> {
   // Drizzle doesn't have a direct equivalent for distinct ON specific columns out of the box with the query API yet.
   // We can just fetch them and distinct in-memory, or use the query builder.
-  const rows = await getDb().select({ poolId: playlistTrackPlay.poolId, roundId: playlistTrackPlay.roundId })
+  const rows = await getDb()
+    .select({ poolId: playlistTrackPlay.poolId, roundId: playlistTrackPlay.roundId })
     .from(playlistTrackPlay)
     .where(and(eq(playlistTrackPlay.playlistId, playlistId), isNotNull(playlistTrackPlay.poolId)));
 
   const distinctPairs = new Set<string>();
-  const distinctRows: Array<{ poolId: string, roundId: string }> = [];
+  const distinctRows: Array<{ poolId: string; roundId: string }> = [];
   for (const row of rows) {
     if (!row.poolId) continue;
     const key = `${row.poolId}|${row.roundId}`;
@@ -414,13 +480,15 @@ export async function getDistinctPlayedByPool(playlistId: string): Promise<Recor
   }, {});
 }
 
-export async function getPlaylistPlayHistory(playlistId: string): Promise<Array<{
-  id: string;
-  roundId: string;
-  nodeId: string | null;
-  poolId: string | null;
-  playedAt: Date;
-}>> {
+export async function getPlaylistPlayHistory(playlistId: string): Promise<
+  Array<{
+    id: string;
+    roundId: string;
+    nodeId: string | null;
+    poolId: string | null;
+    playedAt: Date;
+  }>
+> {
   return getDb().query.playlistTrackPlay.findMany({
     where: eq(playlistTrackPlay.playlistId, playlistId),
     columns: {

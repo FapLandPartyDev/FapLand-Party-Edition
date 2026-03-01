@@ -46,6 +46,8 @@ const makeGraph = (): EditorGraphConfig => ({
   economy: { startingMoney: 120, scorePerCumRoundSuccess: 420 },
   dice: { min: 1, max: 6 },
   saveMode: "none",
+  style: {},
+  music: { tracks: [], loop: true },
 });
 
 describe("realignGraph", () => {

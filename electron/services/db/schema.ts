@@ -59,6 +59,7 @@ export const round = sqliteTable(
     phash: text("phash"),
     startTime: integer("startTime"),
     endTime: integer("endTime"),
+    cutRangesJson: text("cutRangesJson"),
     type: text("type", { enum: ["Normal", "Interjection", "Cum"] })
       .notNull()
       .default("Normal"),

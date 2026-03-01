@@ -13,7 +13,14 @@ import {
 } from "./converter";
 
 const mocks = vi.hoisted(() => {
-  const savedRounds: Array<{ id: string; phash: string | null; startTime: number; endTime: number }> = [];
+  const savedRounds: Array<{
+    id: string;
+    phash: string | null;
+    startTime: number;
+    endTime: number;
+    cutRangesJson: string | null;
+    installSourceKey: string | null;
+  }> = [];
   const savedResources: Array<{ roundId: string; videoUri: string; phash: string | null }> = [];
   const deletedRoundIds: string[] = [];
   const deletedResourceRoundIds: string[] = [];
@@ -75,6 +82,8 @@ function createMockTx() {
               phash: typeof value.phash === "string" ? value.phash : null,
               startTime: Number(value.startTime),
               endTime: Number(value.endTime),
+              cutRangesJson: typeof value.cutRangesJson === "string" ? value.cutRangesJson : null,
+              installSourceKey: typeof value.installSourceKey === "string" ? value.installSourceKey : null,
             });
             return [{ id }];
           }
@@ -168,8 +177,8 @@ describe("converter helpers", () => {
     ]);
 
     expect(normalized).toEqual([
-      { startTimeMs: 0, endTimeMs: 2000, type: "Cum", customName: null, bpm: null, difficulty: null },
-      { startTimeMs: 3000, endTimeMs: 6000, type: "Normal", customName: null, bpm: null, difficulty: null },
+      { startTimeMs: 0, endTimeMs: 2000, type: "Cum", customName: null, bpm: null, difficulty: null, cutRanges: [] },
+      { startTimeMs: 3000, endTimeMs: 6000, type: "Normal", customName: null, bpm: null, difficulty: null, cutRanges: [] },
     ]);
   });
 
@@ -228,6 +237,50 @@ describe("converter helpers", () => {
     ).toThrow(/overlap/i);
   });
 
+  it("accepts overlapping segments when enabled", () => {
+    expect(
+      validateAndNormalizeSegments(
+        [
+          { startTimeMs: 0, endTimeMs: 3000, type: "Normal" },
+          { startTimeMs: 2000, endTimeMs: 4000, type: "Interjection" },
+        ],
+        { allowOverlaps: true },
+      ),
+    ).toMatchObject([
+      { startTimeMs: 0, endTimeMs: 3000, type: "Normal" },
+      { startTimeMs: 2000, endTimeMs: 4000, type: "Interjection" },
+    ]);
+  });
+
+  it("normalizes adjacent cut ranges", () => {
+    const normalized = validateAndNormalizeSegments([
+      {
+        startTimeMs: 0,
+        endTimeMs: 10_000,
+        type: "Normal",
+        cutRanges: [
+          { startTimeMs: 3_000, endTimeMs: 4_000 },
+          { startTimeMs: 4_000, endTimeMs: 5_000 },
+        ],
+      },
+    ]);
+
+    expect(normalized[0]?.cutRanges).toEqual([{ startTimeMs: 3_000, endTimeMs: 5_000 }]);
+  });
+
+  it("rejects cut ranges outside the segment", () => {
+    expect(() =>
+      validateAndNormalizeSegments([
+        {
+          startTimeMs: 1_000,
+          endTimeMs: 5_000,
+          type: "Normal",
+          cutRanges: [{ startTimeMs: 500, endTimeMs: 2_000 }],
+        },
+      ])
+    ).toThrow(/inside/i);
+  });
+
   it("builds deterministic install source keys", () => {
     const first = toDeterministicInstallSourceKey({
       heroName: "Test Hero",
@@ -257,6 +310,41 @@ describe("converter helpers", () => {
     expect(third).not.toBe(first);
   });
 
+  it("preserves existing deterministic keys unless an overlap ordinal is supplied", () => {
+    const base = {
+      heroName: "Test Hero",
+      videoUri: "app://media/%2Ftmp%2Fvideo.mp4",
+      funscriptUri: null,
+      startTimeMs: 1000,
+      endTimeMs: 5000,
+      cutRanges: [],
+    };
+
+    const legacyKey = toDeterministicInstallSourceKey(base);
+    expect(toDeterministicInstallSourceKey({ ...base, segmentOrdinal: null })).toBe(legacyKey);
+    expect(toDeterministicInstallSourceKey({ ...base, segmentOrdinal: 0 })).not.toBe(legacyKey);
+    expect(toDeterministicInstallSourceKey({ ...base, segmentOrdinal: 1 })).not.toBe(
+      toDeterministicInstallSourceKey({ ...base, segmentOrdinal: 0 }),
+    );
+  });
+
+  it("changes deterministic install source keys when cuts change", () => {
+    const base = {
+      heroName: "Test Hero",
+      videoUri: "app://media/%2Ftmp%2Fvideo.mp4",
+      funscriptUri: null,
+      startTimeMs: 1000,
+      endTimeMs: 5000,
+    };
+
+    expect(toDeterministicInstallSourceKey({ ...base, cutRanges: [] })).not.toBe(
+      toDeterministicInstallSourceKey({
+        ...base,
+        cutRanges: [{ startTimeMs: 2000, endTimeMs: 3000 }],
+      })
+    );
+  });
+
   it("resolves app and file uris to local paths", () => {
     expect(fromUriToLocalPath("app://media/%2Ftmp%2Fvideo.mp4")).toBe("/tmp/video.mp4");
     expect(fromUriToLocalPath("https://cdn.example.com/video.mp4")).toBeNull();
@@ -264,6 +352,22 @@ describe("converter helpers", () => {
 });
 
 describe("saveConvertedRounds phash fallback", () => {
+  it("saves duplicate ranges with distinct overlap install keys", async () => {
+    const result = await saveConvertedRounds({
+      hero: { name: "Overlap Hero" },
+      source: { videoUri: "https://example.com/video.mp4" },
+      allowOverlaps: true,
+      segments: [
+        { startTimeMs: 1000, endTimeMs: 3000, type: "Normal", customName: "First" },
+        { startTimeMs: 1000, endTimeMs: 3000, type: "Interjection", customName: "Second" },
+      ],
+    });
+
+    expect(result.rounds).toHaveLength(2);
+    expect(mocks.savedRounds.map((round) => round.installSourceKey)).toHaveLength(2);
+    expect(new Set(mocks.savedRounds.map((round) => round.installSourceKey)).size).toBe(2);
+  });
+
   it("uses a sha256 fallback when video phash generation fails", async () => {
     mocks.generateVideoPhash.mockRejectedValue(new Error("phash failed"));
     const filePath = await writeTempVideo("video-data");
@@ -317,6 +421,29 @@ describe("saveConvertedRounds phash fallback", () => {
 
     expect(result.rounds[0]?.phash).toBe("phash-1");
     expect(mocks.savedRounds[0]?.phash).toBe("phash-1");
+  });
+
+  it("persists cut range metadata", async () => {
+    mocks.generateVideoPhash.mockResolvedValue("phash-1");
+    const filePath = await writeTempVideo("video-data");
+
+    const result = await saveConvertedRounds({
+      hero: { name: "Cut Hero" },
+      source: { videoUri: toAppMediaUri(filePath) },
+      segments: [
+        {
+          startTimeMs: 1000,
+          endTimeMs: 9000,
+          type: "Normal",
+          cutRanges: [{ startTimeMs: 3000, endTimeMs: 4000 }],
+        },
+      ],
+    });
+
+    expect(result.rounds[0]?.cutRanges).toEqual([{ startTimeMs: 3000, endTimeMs: 4000 }]);
+    expect(mocks.savedRounds[0]?.cutRangesJson).toBe(
+      JSON.stringify([{ startTimeMs: 3000, endTimeMs: 4000 }])
+    );
   });
 });
 

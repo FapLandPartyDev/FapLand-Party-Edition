@@ -1,4 +1,5 @@
 import type { InstalledRound, Resource } from "../../services/db";
+import type { RoundCutRange } from "../../utils/roundCuts";
 import {
   AUTOFIX_BROKEN_FUNSCRIPTS_KEY,
   normalizeAutofixBrokenFunscripts,
@@ -8,6 +9,7 @@ import { trpc } from "../../services/trpc";
 export type PlaybackResource = Pick<Resource, "videoUri" | "funscriptUri"> & {
   startTime?: number | null;
   endTime?: number | null;
+  cutRanges?: RoundCutRange[] | null;
 };
 
 export type FunscriptAction = {

@@ -250,6 +250,7 @@ describe("Settings music section", () => {
         selectMusicCacheDirectory: vi.fn(),
         selectMoaningCacheDirectory: vi.fn(),
         selectConverterVideoFile: vi.fn(),
+        selectMapBackgroundFile: vi.fn(),
         selectMusicFiles: vi.fn(async () => ["/music/three.mp3", "/music/four.mp3"]),
         selectMoaningFiles: vi.fn(async () => ["/moans/one.mp3"]),
         addMusicFromUrl: vi.fn(),

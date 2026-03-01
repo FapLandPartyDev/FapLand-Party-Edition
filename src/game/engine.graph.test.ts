@@ -22,6 +22,7 @@ function makeRound(id: string, name = id, type: InstalledRound["type"] = "Normal
     phash: null,
     startTime: null,
     endTime: null,
+    cutRangesJson: null,
     installSourceKey: null,
     previewImage: null,
     type,
@@ -277,6 +278,29 @@ describe("graph engine runtime", () => {
     expect(player.inventory[0]?.perkId).toBe("loaded-dice");
     expect(player.stats.diceMax).toBe(6);
     expect(state.pendingPerkSelection).toBeNull();
+  });
+
+  it("logs guaranteed anti-perk nodes with the alert trigger phrase", () => {
+    const config = makeGraphConfig({
+      board: [
+        { id: "start", name: "Start", kind: "start" },
+        {
+          id: "anti-perk-1",
+          name: "Anti Perk 1",
+          kind: "perk",
+          visualId: "jammed-dice",
+        },
+      ],
+      edges: [{ id: "e1", fromNodeId: "start", toNodeId: "anti-perk-1", gateCost: 0, weight: 1 }],
+    });
+
+    const state = rollTurn(createInitialGameState(config), [makeRound("round-1")], 1);
+    const player = state.players[state.currentPlayerIndex]!;
+
+    expect(player.currentNodeId).toBe("anti-perk-1");
+    expect(player.antiPerks).toContain("jammed-dice");
+    expect(state.log[0]).toBe("Guaranteed applied anti-perk: Jammed Dice.");
+    expect(state.log[0]).toContain("applied anti-perk:");
   });
 
   it("allows rolling past a queued skippable round after a forced stop", () => {

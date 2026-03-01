@@ -15,6 +15,9 @@ type SegmentCardProps = {
   onJumpStart: () => void;
   onJumpEnd: () => void;
   onMergeWithNext: () => void;
+  onRemoveCut: (cutId: string) => void;
+  onJumpCutStart: (cutId: string) => void;
+  onJumpCutEnd: (cutId: string) => void;
   onSetCustomName: (name: string) => void;
   onSetBpm: (rawValue: string) => void;
   onResetBpm: () => void;
@@ -41,6 +44,9 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
     onJumpStart,
     onJumpEnd,
     onMergeWithNext,
+    onRemoveCut,
+    onJumpCutStart,
+    onJumpCutEnd,
     onSetCustomName,
     onSetBpm,
     onResetBpm,
@@ -218,6 +224,58 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
                 className="w-20 rounded border border-zinc-700 bg-black/45 px-1 py-0.5 text-zinc-200"
               />
             </div>
+            {segment.cutRanges.length > 0 && (
+              <div className="rounded border border-rose-400/20 bg-rose-950/10 p-2">
+                <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-200">
+                  Cuts
+                </div>
+                <div className="space-y-1">
+                  {segment.cutRanges.map((cut, cutIndex) => (
+                    <div
+                      key={cut.id}
+                      className="flex flex-wrap items-center gap-2 text-[10px] text-zinc-300"
+                    >
+                      <span className="text-rose-200">C{cutIndex + 1}</span>
+                      <span>
+                        {formatMs(cut.startTimeMs)}-{formatMs(cut.endTimeMs)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          playSelectSound();
+                          onJumpCutStart(cut.id);
+                        }}
+                        className="text-cyan-300 hover:text-cyan-200"
+                      >
+                        Start
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          playSelectSound();
+                          onJumpCutEnd(cut.id);
+                        }}
+                        className="text-indigo-300 hover:text-indigo-200"
+                      >
+                        End
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveCut(cut.id);
+                        }}
+                        className="text-rose-300 hover:text-rose-200"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

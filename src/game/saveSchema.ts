@@ -80,6 +80,38 @@ const ZMapTextAnnotation = z.object({
   }),
 });
 
+const ZMapBackgroundMedia = z.object({
+  kind: z.enum(["image", "video"]),
+  uri: z.string().min(1),
+  name: z.string().optional(),
+  fit: z.enum(["cover", "contain", "stretch", "tile"]),
+  position: z.enum(["center", "top", "bottom", "left", "right"]),
+  opacity: z.number(),
+  blur: z.number(),
+  dim: z.number(),
+  scale: z.number(),
+  offsetX: z.number(),
+  offsetY: z.number(),
+  motion: z.enum(["fixed", "parallax"]).optional(),
+  parallaxStrength: z.number().optional(),
+});
+
+const ZRoadPalette = z.object({
+  presetId: z.string().optional(),
+  body: z.string(),
+  railA: z.string(),
+  railB: z.string(),
+  glow: z.string(),
+  center: z.string(),
+  gate: z.string(),
+  marker: z.string(),
+});
+
+const ZMapStyle = z.object({
+  background: ZMapBackgroundMedia.optional(),
+  roadPalette: ZRoadPalette.optional(),
+});
+
 const ZRuntimeGraphEdge = z.object({
   id: z.string().min(1),
   fromNodeId: z.string().min(1),
@@ -102,6 +134,7 @@ const ZRuntimeGraphRandomPool = z.object({
 const ZGameConfig = z.object({
   board: z.array(ZBoardField),
   mapTextAnnotations: z.array(ZMapTextAnnotation).optional(),
+  mapStyle: ZMapStyle.optional(),
   runtimeGraph: z.object({
     startNodeId: z.string().min(1),
     pathChoiceTimeoutMs: z.number().int(),

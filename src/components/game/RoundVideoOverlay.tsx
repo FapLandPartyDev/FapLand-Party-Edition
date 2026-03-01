@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { useControllerSurface, useControllerSubscription } from "../../controller";
 import type {
   ActiveRound,
   CompletedRoundSummary,
   CumRoundOutcome,
+  RoadPalette,
   PlayerState,
 } from "../../game/types";
 import type { InstalledRound } from "../../services/db";
@@ -51,6 +52,12 @@ import {
   playSelectSound,
 } from "../../utils/audio";
 import {
+  getEffectiveDurationMs,
+  getEffectiveElapsedMs,
+  parseRoundCutRangesJson,
+  skipCutIfNeeded,
+} from "../../utils/roundCuts";
+import {
   DEFAULT_ANTI_PERK_BEATBAR_ENABLED,
   DEFAULT_ROUND_PROGRESS_BAR_ALWAYS_VISIBLE,
 } from "../../constants/roundVideoOverlaySettings";
@@ -60,6 +67,7 @@ import { useSfwMode } from "../../hooks/useSfwMode";
 import { abbreviateNsfwText } from "../../utils/sfwText";
 import { SfwOneTimeOverridePrompt } from "../SfwGuard";
 import { openGlobalHandyOverlay } from "../globalHandyOverlayControls";
+import { normalizeRoadPalette } from "../../features/map-editor/EditorState";
 import {
   extractBeatbarMotionEvents,
   getAntiPerkSequenceDefinition,
@@ -103,6 +111,7 @@ export type RoundVideoOverlayProps = {
   initialShowProgressBarAlways?: boolean;
   initialShowAntiPerkBeatbar?: boolean;
   lastLogMessage?: string;
+  roadPalette?: RoadPalette;
 };
 
 type LoadingMediaItem =
@@ -156,6 +165,23 @@ const ANTI_PERK_BEATBAR_LEAD_MS = 1_800;
 const ANTI_PERK_BEATBAR_TRAIL_MS = 300;
 const BOARD_VIDEO_VOLUME = 1;
 const MEDIA_NOT_FOUND_AUTO_CLOSE_MS = 10_000;
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const match = /^#?([0-9a-f]{6})$/iu.exec(hex.trim());
+  if (!match) return null;
+  const value = Number.parseInt(match[1]!, 16);
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255,
+  };
+}
+
+function colorWithAlpha(hex: string, alpha: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return `rgba(255, 255, 255, ${alpha})`;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+}
 
 function teardownVideoElement(video: HTMLVideoElement | null) {
   if (!video) return;
@@ -360,8 +386,37 @@ export function RoundVideoOverlay({
   initialShowProgressBarAlways = DEFAULT_ROUND_PROGRESS_BAR_ALWAYS_VISIBLE,
   initialShowAntiPerkBeatbar = DEFAULT_ANTI_PERK_BEATBAR_ENABLED,
   lastLogMessage,
+  roadPalette,
 }: RoundVideoOverlayProps) {
   const { t } = useLingui();
+  const loadingPalette = useMemo(() => normalizeRoadPalette(roadPalette), [roadPalette]);
+  const loadingPaletteStyle = useMemo(
+    () =>
+      ({
+        "--loading-body": loadingPalette.body,
+        "--loading-rail-a": loadingPalette.railA,
+        "--loading-rail-b": loadingPalette.railB,
+        "--loading-glow": loadingPalette.glow,
+        "--loading-center": loadingPalette.center,
+        "--loading-gate": loadingPalette.gate,
+        "--loading-marker": loadingPalette.marker,
+        "--loading-body-98": colorWithAlpha(loadingPalette.body, 0.98),
+        "--loading-body-90": colorWithAlpha(loadingPalette.body, 0.9),
+        "--loading-body-82": colorWithAlpha(loadingPalette.body, 0.82),
+        "--loading-rail-a-50": colorWithAlpha(loadingPalette.railA, 0.5),
+        "--loading-rail-a-16": colorWithAlpha(loadingPalette.railA, 0.16),
+        "--loading-rail-b-55": colorWithAlpha(loadingPalette.railB, 0.55),
+        "--loading-rail-b-30": colorWithAlpha(loadingPalette.railB, 0.3),
+        "--loading-rail-b-15": colorWithAlpha(loadingPalette.railB, 0.15),
+        "--loading-glow-50": colorWithAlpha(loadingPalette.glow, 0.5),
+        "--loading-glow-20": colorWithAlpha(loadingPalette.glow, 0.2),
+        "--loading-gate-55": colorWithAlpha(loadingPalette.gate, 0.55),
+        "--loading-gate-18": colorWithAlpha(loadingPalette.gate, 0.18),
+        "--loading-center-60": colorWithAlpha(loadingPalette.center, 0.6),
+        "--loading-marker-90": colorWithAlpha(loadingPalette.marker, 0.9),
+      }) as CSSProperties,
+    [loadingPalette]
+  );
   const { playRandomOneShot, startContinuousLoop, stopContinuousLoop } = useGameplayMoaning();
   const {
     connectionKey,
@@ -539,6 +594,11 @@ export function RoundVideoOverlay({
       funscriptUri: resource.funscriptUri,
       startTime: resolvedRound?.startTime,
       endTime: resolvedRound?.endTime,
+      cutRanges: parseRoundCutRangesJson(
+        resolvedRound?.cutRangesJson ?? null,
+        resolvedRound?.startTime,
+        resolvedRound?.endTime
+      ),
     };
   }, [resolvedRound]);
 
@@ -565,7 +625,7 @@ export function RoundVideoOverlay({
   const intermediaryResourcePool = useMemo<PlaybackResource[]>(() => {
     const pool = installedRounds
       .filter((round) => round.type === "Interjection")
-      .map((round) => {
+      .map<PlaybackResource | null>((round) => {
         const resource = round.resources[0];
         if (!resource) return null;
         return {
@@ -573,6 +633,11 @@ export function RoundVideoOverlay({
           funscriptUri: resource.funscriptUri,
           startTime: round.startTime,
           endTime: round.endTime,
+          cutRanges: parseRoundCutRangesJson(
+            round.cutRangesJson ?? null,
+            round.startTime,
+            round.endTime
+          ),
         } satisfies PlaybackResource;
       })
       .filter((resource): resource is PlaybackResource => Boolean(resource));
@@ -2284,6 +2349,14 @@ export function RoundVideoOverlay({
           video.currentTime = startSec;
         }
 
+        const skippedToSec = skipCutIfNeeded(
+          Math.max(video.currentTime, startSec),
+          resolvedMainResource?.cutRanges
+        );
+        if (skippedToSec !== null) {
+          video.currentTime = skippedToSec;
+        }
+
         const mainCurrentTimeSec = Math.max(video.currentTime, startSec);
         if (endSec !== null && mainCurrentTimeSec >= endSec - MAIN_WINDOW_END_TOLERANCE_SEC) {
           allowPauseRef.current = true;
@@ -2292,13 +2365,26 @@ export function RoundVideoOverlay({
           return;
         }
 
-        const boundedDurationSec =
+        const rawBoundedDurationSec =
           endSec !== null
             ? Math.max(0, endSec - startSec)
             : knownDurationSec > startSec
               ? Math.max(0, knownDurationSec - startSec)
               : 0;
-        const elapsedInWindowSec = Math.max(0, mainCurrentTimeSec - startSec);
+        const boundedDurationSec =
+          endSec !== null
+            ? getEffectiveDurationMs(
+                startSec * 1000,
+                endSec * 1000,
+                resolvedMainResource?.cutRanges
+              ) / 1000
+            : rawBoundedDurationSec;
+        const elapsedInWindowSec =
+          getEffectiveElapsedMs(
+            mainCurrentTimeSec * 1000,
+            startSec * 1000,
+            resolvedMainResource?.cutRanges
+          ) / 1000;
         const nextTimeLabel = `${formatDurationLabel(elapsedInWindowSec)} / ${formatDurationLabel(boundedDurationSec)}`;
         setPlaybackTimeLabel((current) => (current === nextTimeLabel ? current : nextTimeLabel));
         const nextProgress =
@@ -2404,6 +2490,7 @@ export function RoundVideoOverlay({
     segment.kind,
     sessionModifiers,
     finishWithSummary,
+    resolvedMainResource,
     resolveMainWindowForDuration,
     startIntermediary,
     timeline,
@@ -3008,7 +3095,13 @@ export function RoundVideoOverlay({
       loadingCountdown !== null;
     const shouldRenderStandaloneBeatbar = shouldShowManualBeatbar || shouldShowHandyPositionBall;
     return (
-      <div className="fixed inset-0 z-50 pointer-events-none bg-[#07040f]">
+      <div
+        className="fixed inset-0 z-50 pointer-events-none bg-[#07040f]"
+        style={{
+          ...loadingPaletteStyle,
+          backgroundColor: "var(--loading-body-98)",
+        }}
+      >
         <div className="absolute inset-0">
           {activeLoadingMedia &&
             (isVideoMedia(activeLoadingMedia.url) ? (
@@ -3032,7 +3125,12 @@ export function RoundVideoOverlay({
               />
             ))}
         </div>
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,4,16,0.9),rgba(6,4,16,0.98))]" />
+        <div
+          className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,4,16,0.9),rgba(6,4,16,0.98))]"
+          style={{
+            background: "linear-gradient(180deg, var(--loading-body-90), var(--loading-body-98))",
+          }}
+        />
         {shouldRenderStandaloneBeatbar && activeAntiPerkSequence && (
           <AntiPerkBeatbar
             actions={activeAntiPerkSequence.actions}
@@ -3048,18 +3146,41 @@ export function RoundVideoOverlay({
           <div
             className="relative rounded-xl border border-fuchsia-300/30 bg-gradient-to-br from-[#0c0814]/80 via-[#140818]/75 to-[#0a0612]/80 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.26em] text-fuchsia-100/85 backdrop-blur-md"
             data-testid="anti-perk-sequence-card"
-            style={{ animation: "labelPulse 2.4s ease-in-out infinite" }}
+            style={{
+              animation: "labelPulse 2.4s ease-in-out infinite",
+              background:
+                "linear-gradient(135deg, var(--loading-body-82), var(--loading-glow-20), var(--loading-body-90))",
+              borderColor: "var(--loading-rail-b-30)",
+              color: "var(--loading-marker-90)",
+            }}
           >
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-pink-500/10 via-fuchsia-500/15 to-violet-500/10" />
+            <div
+              className="absolute inset-0 rounded-xl bg-gradient-to-r from-pink-500/10 via-fuchsia-500/15 to-violet-500/10"
+              style={{
+                background:
+                  "linear-gradient(90deg, var(--loading-gate-18), var(--loading-rail-b-15), var(--loading-glow-20))",
+              }}
+            />
             <span className="relative">{loadingLabel || t`Anti-perk sequence`}</span>
           </div>
           <div
             className="bg-gradient-to-r from-pink-200 via-fuchsia-200 to-violet-200 bg-clip-text pl-1 text-6xl font-black leading-none text-transparent drop-shadow-[0_0_30px_rgba(236,72,153,0.5)] sm:text-7xl"
-            style={{ animation: "counterGlow 2s ease-in-out infinite" }}
+            style={{
+              animation: "counterGlow 2s ease-in-out infinite",
+              backgroundImage:
+                "linear-gradient(90deg, var(--loading-rail-a), var(--loading-center), var(--loading-rail-b))",
+              filter: "drop-shadow(0 0 30px var(--loading-rail-b-55))",
+            }}
           >
             {loadingCountdown ?? 0}
           </div>
-          <div className="max-w-[18rem] rounded-xl border border-fuchsia-200/15 bg-gradient-to-br from-black/30 via-black/25 to-black/30 px-3.5 py-2.5 text-sm text-zinc-100/80 backdrop-blur-sm">
+          <div
+            className="max-w-[18rem] rounded-xl border border-fuchsia-200/15 bg-gradient-to-br from-black/30 via-black/25 to-black/30 px-3.5 py-2.5 text-sm text-zinc-100/80 backdrop-blur-sm"
+            style={{
+              borderColor: "var(--loading-rail-b-15)",
+              color: "var(--loading-marker-90)",
+            }}
+          >
             {status}
           </div>
         </div>
@@ -3772,9 +3893,19 @@ export function RoundVideoOverlay({
           {loadingCountdown !== null && (
             <div
               className={`pointer-events-none absolute inset-0 z-[60] overflow-hidden ${boardSequence ? "" : "bg-[#07040f]"}`}
+              style={{
+                ...loadingPaletteStyle,
+                backgroundColor: boardSequence ? undefined : "var(--loading-body-98)",
+              }}
             >
               {!boardSequence && (
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,4,16,0.9),rgba(6,4,16,0.98))]" />
+                <div
+                  className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,4,16,0.9),rgba(6,4,16,0.98))]"
+                  style={{
+                    background:
+                      "linear-gradient(180deg, var(--loading-body-90), var(--loading-body-98))",
+                  }}
+                />
               )}
               {!boardSequence && (
                 <div
@@ -3786,7 +3917,7 @@ export function RoundVideoOverlay({
                 <div
                   className="absolute -left-[30%] -top-[20%] h-[70%] w-[70%] rounded-full opacity-30 blur-[120px]"
                   style={{
-                    background: "radial-gradient(circle, rgba(236,72,153,0.55), transparent 70%)",
+                    background: "radial-gradient(circle, var(--loading-gate-55), transparent 70%)",
                     animation: "intermediaryOrb1 8s ease-in-out infinite",
                   }}
                 />
@@ -3795,7 +3926,8 @@ export function RoundVideoOverlay({
                 <div
                   className="absolute -bottom-[15%] -right-[25%] h-[60%] w-[60%] rounded-full opacity-25 blur-[100px]"
                   style={{
-                    background: "radial-gradient(circle, rgba(56,189,248,0.5), transparent 70%)",
+                    background:
+                      "radial-gradient(circle, var(--loading-rail-a-50), transparent 70%)",
                     animation: "intermediaryOrb2 10s ease-in-out infinite",
                   }}
                 />
@@ -3804,13 +3936,19 @@ export function RoundVideoOverlay({
                 <div
                   className="absolute left-[40%] top-[60%] h-[40%] w-[40%] rounded-full opacity-20 blur-[90px]"
                   style={{
-                    background: "radial-gradient(circle, rgba(168,85,247,0.5), transparent 70%)",
+                    background: "radial-gradient(circle, var(--loading-glow-50), transparent 70%)",
                     animation: "intermediaryOrb3 7s ease-in-out infinite",
                   }}
                 />
               )}
               {!boardSequence && (
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(236,72,153,0.18),transparent_48%),radial-gradient(circle_at_80%_24%,rgba(56,189,248,0.16),transparent_44%),linear-gradient(120deg,rgba(8,4,20,0.82),rgba(20,8,34,0.9))]" />
+                <div
+                  className="absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(236,72,153,0.18),transparent_48%),radial-gradient(circle_at_80%_24%,rgba(56,189,248,0.16),transparent_44%),linear-gradient(120deg,rgba(8,4,20,0.82),rgba(20,8,34,0.9))]"
+                  style={{
+                    background:
+                      "radial-gradient(circle at 22% 18%, var(--loading-gate-18), transparent 48%), radial-gradient(circle at 80% 24%, var(--loading-rail-a-16), transparent 44%), linear-gradient(120deg, var(--loading-body-82), var(--loading-body-90))",
+                  }}
+                />
               )}
               {activeLoadingMedia && (
                 <>
@@ -3851,7 +3989,13 @@ export function RoundVideoOverlay({
                 />
               )}
               {!boardSequence && (
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(190,24,93,0.12),rgba(8,5,18,0.82))]" />
+                <div
+                  className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(190,24,93,0.12),rgba(8,5,18,0.82))]"
+                  style={{
+                    background:
+                      "radial-gradient(circle at center, var(--loading-rail-b-15), var(--loading-body-82))",
+                  }}
+                />
               )}
               {shouldRenderAntiPerkBeatbar && activeAntiPerkSequence && (
                 <AntiPerkBeatbar
@@ -3868,28 +4012,60 @@ export function RoundVideoOverlay({
                 <div
                   className="relative rounded-xl border border-fuchsia-300/30 bg-gradient-to-br from-[#0c0814]/80 via-[#140818]/75 to-[#0a0612]/80 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.26em] text-fuchsia-100/85 backdrop-blur-md"
                   data-testid="anti-perk-sequence-card"
-                  style={{ animation: "labelPulse 2.4s ease-in-out infinite" }}
+                  style={{
+                    animation: "labelPulse 2.4s ease-in-out infinite",
+                    background:
+                      "linear-gradient(135deg, var(--loading-body-82), var(--loading-glow-20), var(--loading-body-90))",
+                    borderColor: "var(--loading-rail-b-30)",
+                    color: "var(--loading-marker-90)",
+                  }}
                 >
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-pink-500/10 via-fuchsia-500/15 to-violet-500/10" />
+                  <div
+                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-pink-500/10 via-fuchsia-500/15 to-violet-500/10"
+                    style={{
+                      background:
+                        "linear-gradient(90deg, var(--loading-gate-18), var(--loading-rail-b-15), var(--loading-glow-20))",
+                    }}
+                  />
                   <span className="relative">{loadingLabel}</span>
                 </div>
                 <div
                   className="bg-gradient-to-r from-pink-200 via-fuchsia-200 to-violet-200 bg-clip-text pl-1 text-6xl font-black leading-none text-transparent drop-shadow-[0_0_30px_rgba(236,72,153,0.5)] sm:text-7xl"
-                  style={{ animation: "counterGlow 2s ease-in-out infinite" }}
+                  style={{
+                    animation: "counterGlow 2s ease-in-out infinite",
+                    backgroundImage:
+                      "linear-gradient(90deg, var(--loading-rail-a), var(--loading-center), var(--loading-rail-b))",
+                    filter: "drop-shadow(0 0 30px var(--loading-rail-b-55))",
+                  }}
                 >
                   {loadingCountdown}
                 </div>
                 <div
                   className="max-w-[20rem] rounded-xl border border-fuchsia-200/15 bg-gradient-to-br from-black/30 via-black/25 to-black/30 px-3.5 py-2.5 text-xs tracking-wide text-zinc-100/80 backdrop-blur-sm"
-                  style={{ animation: "promptSlide 0.4s ease-out forwards" }}
+                  style={{
+                    animation: "promptSlide 0.4s ease-out forwards",
+                    borderColor: "var(--loading-rail-b-15)",
+                    color: "var(--loading-marker-90)",
+                  }}
                 >
-                  <span className="text-fuchsia-200/60">{t`Prompt:`}</span>{" "}
+                  <span className="text-fuchsia-200/60" style={{ color: "var(--loading-center)" }}>
+                    {t`Prompt:`}
+                  </span>{" "}
                   <span className="text-zinc-100/90">{booruSearchPrompt}</span>
                 </div>
                 {activeLoadingMedia && unsafeMediaUnlocked && (
                   <div className="flex items-center gap-2 pl-1">
-                    <div className="h-1.5 w-1.5 rounded-full bg-fuchsia-400/60 shadow-[0_0_8px_rgba(217,70,239,0.5)]" />
-                    <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-fuchsia-200/55">
+                    <div
+                      className="h-1.5 w-1.5 rounded-full bg-fuchsia-400/60 shadow-[0_0_8px_rgba(217,70,239,0.5)]"
+                      style={{
+                        backgroundColor: "var(--loading-rail-b)",
+                        boxShadow: "0 0 8px var(--loading-rail-b-55)",
+                      }}
+                    />
+                    <span
+                      className="text-[10px] font-medium uppercase tracking-[0.22em] text-fuchsia-200/55"
+                      style={{ color: "var(--loading-center-60)" }}
+                    >
                       {activeLoadingMedia.source}
                     </span>
                   </div>

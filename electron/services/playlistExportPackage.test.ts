@@ -139,7 +139,49 @@ function buildLinearConfig(
   };
 }
 
-function buildPlaylistRow(config: ReturnType<typeof buildLinearConfig>) {
+function buildGraphConfigWithBackground(backgroundUri: string, kind: "image" | "video") {
+  return {
+    ...buildLinearConfig([]),
+    boardConfig: {
+      mode: "graph" as const,
+      startNodeId: "start",
+      nodes: [
+        { id: "start", name: "Start", kind: "start" as const },
+        {
+          id: "round-1",
+          name: "Round One",
+          kind: "round" as const,
+          roundRef: { idHint: "round-1", name: "Round One", type: "Normal" as const },
+        },
+        { id: "end", name: "End", kind: "end" as const },
+      ],
+      edges: [
+        { id: "edge-start-round-1", fromNodeId: "start", toNodeId: "round-1" },
+        { id: "edge-round-1-end", fromNodeId: "round-1", toNodeId: "end" },
+      ],
+      textAnnotations: [],
+      randomRoundPools: [],
+      cumRoundRefs: [],
+      pathChoiceTimeoutMs: 6000,
+      style: {
+        background: {
+          kind,
+          uri: backgroundUri,
+          fit: "cover" as const,
+          position: "center" as const,
+          opacity: 0.55,
+          blur: 0,
+          dim: 0.35,
+          scale: 1,
+          offsetX: 0,
+          offsetY: 0,
+        },
+      },
+    },
+  };
+}
+
+function buildPlaylistRow(config: unknown) {
   return {
     id: "playlist-1",
     name: "My: Playlist?",
@@ -148,7 +190,7 @@ function buildPlaylistRow(config: ReturnType<typeof buildLinearConfig>) {
   };
 }
 
-function installDbMocks(rounds: TestRound[], config: ReturnType<typeof buildLinearConfig>) {
+function installDbMocks(rounds: TestRound[], config: unknown) {
   getDbMock.mockReturnValue({
     query: {
       playlist: {
@@ -321,6 +363,7 @@ describe("exportPlaylistPackage", () => {
     const result = await exportPlaylistPackage({
       playlistId: "playlist-1",
       directoryPath: rootDir,
+      compressionMode: "copy",
     });
 
     expect(result.videoFiles).toBe(1);
@@ -429,6 +472,98 @@ describe("exportPlaylistPackage", () => {
 
     expect(excluded.excludeFromRandom).toBe(true);
     expect(included.excludeFromRandom).toBeUndefined();
+  });
+
+  it("copies graph image backgrounds into package exports and rewrites the playlist URI", async () => {
+    const videoPath = path.join(rootDir, "local-video.mp4");
+    const backgroundPath = path.join(rootDir, "map.gif");
+    await fs.writeFile(videoPath, "video-data");
+    await fs.writeFile(backgroundPath, "gif-data");
+
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Round One",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri: toLocalMediaUri(videoPath), funscriptUri: null }],
+      },
+    ];
+    installDbMocks(rounds, buildGraphConfigWithBackground(toLocalMediaUri(backgroundPath), "image"));
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    const result = await exportPlaylistPackage({
+      playlistId: "playlist-1",
+      directoryPath: rootDir,
+      compressionMode: "copy",
+    });
+
+    const playlistFile = (await fs.readdir(result.exportDir)).find((entry) =>
+      entry.endsWith(".fplay")
+    );
+    expect(playlistFile).toBeTruthy();
+    const parsed = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, playlistFile!), "utf8")
+    ) as { config: { boardConfig: { style?: { background?: { uri?: string } } } } };
+    const backgroundUri = parsed.config.boardConfig.style?.background?.uri;
+    expect(backgroundUri?.startsWith("./")).toBe(true);
+    expect(await fs.readFile(path.join(result.exportDir, backgroundUri!.replace("./", "")), "utf8")).toBe(
+      "gif-data"
+    );
+  });
+
+  it("leaves graph background URIs untouched when package media is excluded", async () => {
+    const videoPath = path.join(rootDir, "local-video.mp4");
+    const backgroundPath = path.join(rootDir, "map.mp4");
+    await fs.writeFile(videoPath, "video-data");
+    await fs.writeFile(backgroundPath, "background-video");
+    const backgroundUri = toLocalMediaUri(backgroundPath);
+
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Round One",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri: toLocalMediaUri(videoPath), funscriptUri: null }],
+      },
+    ];
+    installDbMocks(rounds, buildGraphConfigWithBackground(backgroundUri, "video"));
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    const result = await exportPlaylistPackage({
+      playlistId: "playlist-1",
+      directoryPath: rootDir,
+      compressionMode: "copy",
+      includeMedia: false,
+    });
+
+    const playlistFile = (await fs.readdir(result.exportDir)).find((entry) =>
+      entry.endsWith(".fplay")
+    );
+    expect(playlistFile).toBeTruthy();
+    const parsed = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, playlistFile!), "utf8")
+    ) as { config: { boardConfig: { style?: { background?: { uri?: string } } } } };
+    expect(parsed.config.boardConfig.style?.background?.uri).toBe(backgroundUri);
   });
 
   it("reencodes non-AV1 videos when AV1 export is enabled and includes compression metadata in the README", async () => {

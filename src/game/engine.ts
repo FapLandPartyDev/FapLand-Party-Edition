@@ -858,6 +858,35 @@ function resolveSafePointLanding(
   return { state, stopMovement: false, stoppedAtSafePoint: false };
 }
 
+function resolveCatapultLanding(
+  state: GameState,
+  nodeId: string
+): { state: GameState; bonusSteps: number } {
+  const nodeIndex = state.config.runtimeGraph.nodeIndexById[nodeId] ?? 0;
+  const field = state.config.board[nodeIndex];
+
+  if (!field || field.kind !== "catapult") {
+    return { state, bonusSteps: 0 };
+  }
+
+  const forward =
+    typeof field.catapultForward === "number" ? Math.max(1, Math.floor(field.catapultForward)) : 0;
+  if (forward <= 0) {
+    return { state, bonusSteps: 0 };
+  }
+
+  return {
+    state: {
+      ...state,
+      log: [
+        `${state.players[state.currentPlayerIndex]?.name ?? "Player"} hit a catapult at ${field.name}! Flying forward ${forward} more node${forward !== 1 ? "s" : ""}.`,
+        ...state.log,
+      ].slice(0, 40),
+    },
+    bonusSteps: forward,
+  };
+}
+
 function resolveForcedRoundLanding(
   state: GameState,
   installedRounds: InstalledRound[],
@@ -985,7 +1014,7 @@ function resolveFinalNodeLanding(
     const configuredPerkId = typeof field.visualId === "string" ? field.visualId.trim() : "";
     if (configuredPerkId.length > 0) {
       const configuredPerk = getPerkById(configuredPerkId);
-      if (!configuredPerk || configuredPerk.kind !== "perk") {
+      if (!configuredPerk) {
         return {
           ...state,
           log: [
@@ -995,6 +1024,7 @@ function resolveFinalNodeLanding(
         };
       }
 
+      const isAntiPerk = configuredPerk.kind === "antiPerk";
       const applied = field.giftGuaranteedPerk
         ? grantPerkToInventory(state, player.id, configuredPerk)
         : applyPerkToPlayer(state, player.id, configuredPerk);
@@ -1002,14 +1032,32 @@ function resolveFinalNodeLanding(
         ...applied,
         log: [
           field.giftGuaranteedPerk
-            ? `Guaranteed perk gifted: ${configuredPerk.name}.`
-            : `Guaranteed perk: ${configuredPerk.name}.`,
+            ? isAntiPerk
+              ? `Guaranteed anti-perk gifted: ${configuredPerk.name}.`
+              : `Guaranteed perk gifted: ${configuredPerk.name}.`
+            : isAntiPerk
+              ? `Guaranteed applied anti-perk: ${configuredPerk.name}.`
+              : `Guaranteed perk: ${configuredPerk.name}.`,
           ...applied.log,
         ].slice(0, 40),
       };
     }
 
     return triggerPerkSelection(state, player.id, field.id, randoms);
+  }
+
+  if (field.kind === "catapult") {
+    const catapultResult = resolveCatapultLanding(state, nodeId);
+    if (catapultResult.bonusSteps > 0) {
+      const traversed = traverseMovement(
+        catapultResult.state,
+        installedRounds,
+        catapultResult.bonusSteps,
+        [nodeId],
+        randoms
+      );
+      return traversed.state;
+    }
   }
 
   return state;
@@ -1051,8 +1099,18 @@ function continueTraversalWithEdge(
   const moved = movePlayerToNode(afterPayment, currentPlayer.id, edge.toNodeId);
   const nextTraversed = [...traversedNodeIds, edge.toNodeId];
   const afterLanding = resolveSafePointLanding(moved, edge.toNodeId);
+  const afterCatapult = afterLanding.stoppedAtSafePoint
+    ? { state: afterLanding.state, bonusSteps: 0 }
+    : (() => {
+        const nodeIdx = afterLanding.state.config.runtimeGraph.nodeIndexById[edge.toNodeId] ?? 0;
+        const tileField = afterLanding.state.config.board[nodeIdx];
+        if (tileField?.catapultLandingOnly) {
+          return { state: afterLanding.state, bonusSteps: 0 };
+        }
+        return resolveCatapultLanding(afterLanding.state, edge.toNodeId);
+      })();
   const afterForcedRound = resolveForcedRoundLanding(
-    afterLanding.state,
+    afterCatapult.state,
     installedRounds,
     edge.toNodeId
   );
@@ -1067,7 +1125,7 @@ function continueTraversalWithEdge(
     stoppedAtSafePoint: afterLanding.stoppedAtSafePoint,
     stoppedAtForcedRound: afterForcedRound.stoppedAtForcedRound,
     stoppedAtEnd: afterTerminal.stoppedAtEnd,
-    remainingSteps: remainingSteps - 1,
+    remainingSteps: remainingSteps - 1 + afterCatapult.bonusSteps,
     traversedNodeIds: nextTraversed,
   };
 }
@@ -1700,17 +1758,23 @@ export function selectPerk(
       money: Math.max(0, player.money - selected.cost),
     })),
   };
-  const shouldApplyDirectly = selected.kind === "perk" && options?.applyDirectly !== false;
+  const shouldApplyDirectly =
+    selected.kind === "perk" ? options?.applyDirectly !== false : options?.applyDirectly === true;
   let nextState: GameState;
   if (shouldApplyDirectly) {
     const nextAfterPerk = applyPerkToPlayer(afterPayment, pending.playerId, selected);
+    const antiPerkDescription = selected.description?.trim() ?? "";
     nextState = {
       ...nextAfterPerk,
       pendingPerkSelection: null,
       log: [
-        selected.application === "immediate"
-          ? `Immediate perk triggered: ${selected.name} (-$${selected.cost}).`
-          : `Selected perk: ${selected.name} (-$${selected.cost}).`,
+        selected.kind === "antiPerk"
+          ? antiPerkDescription.length > 0
+            ? `Computer applied anti-perk: ${selected.name} - ${antiPerkDescription}`
+            : `Computer applied anti-perk: ${selected.name}.`
+          : selected.application === "immediate"
+            ? `Immediate perk triggered: ${selected.name} (-$${selected.cost}).`
+            : `Selected perk: ${selected.name} (-$${selected.cost}).`,
         ...nextAfterPerk.log,
       ].slice(0, 40),
     };

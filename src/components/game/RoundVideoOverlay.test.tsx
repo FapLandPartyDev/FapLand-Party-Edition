@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ActiveRound, PlayerState } from "../../game/types";
+import type { ActiveRound, PlayerState, RoadPalette } from "../../game/types";
 import type { InstalledRound } from "../../services/db";
 import { extractBeatbarMotionEvents, getAntiPerkSequenceDefinition } from "./antiPerkSequences";
 import * as handyRuntime from "../../services/thehandy/runtime";
@@ -231,7 +231,10 @@ function primeVideoElement(
 }
 
 function disableAnimationFrameLoop() {
-  vi.stubGlobal("requestAnimationFrame", vi.fn(() => 0));
+  vi.stubGlobal(
+    "requestAnimationFrame",
+    vi.fn(() => 0)
+  );
   vi.stubGlobal("cancelAnimationFrame", vi.fn());
 }
 
@@ -247,6 +250,7 @@ function renderOverlay({
   intermediaryLoadingDurationSec = 10,
   intermediaryReturnPauseSec = 4,
   onFinishRound = vi.fn(),
+  roadPalette,
 }: {
   activeRound?: ActiveRound | null;
   installedRounds?: InstalledRound[];
@@ -259,6 +263,7 @@ function renderOverlay({
   intermediaryLoadingDurationSec?: number;
   intermediaryReturnPauseSec?: number;
   onFinishRound?: ReturnType<typeof vi.fn>;
+  roadPalette?: RoadPalette;
 } = {}) {
   return render(
     <RoundVideoOverlay
@@ -275,6 +280,7 @@ function renderOverlay({
       onCompleteBoardSequence={onCompleteBoardSequence}
       allowDebugRoundControls={allowDebugRoundControls}
       initialShowAntiPerkBeatbar={initialShowAntiPerkBeatbar}
+      roadPalette={roadPalette}
     />
   );
 }
@@ -1184,6 +1190,29 @@ describe("RoundVideoOverlay", () => {
   it("renders a beatbar for milker sequences when enabled", async () => {
     renderOverlay({ activeRound: null, boardSequence: "milker" });
     expect(await screen.findByTestId("anti-perk-beatbar")).not.toBeNull();
+  });
+
+  it("applies playlist road palette colors to loading sequence chrome", async () => {
+    const { container } = renderOverlay({
+      activeRound: null,
+      boardSequence: "milker",
+      roadPalette: {
+        presetId: "test",
+        body: "#102030",
+        railA: "#123456",
+        railB: "#abcdef",
+        glow: "#fedcba",
+        center: "#445566",
+        gate: "#778899",
+        marker: "#ffffff",
+      },
+    });
+
+    const card = await screen.findByTestId("anti-perk-sequence-card");
+    expect((container.firstChild as HTMLElement | null)?.getAttribute("style")).toContain(
+      "--loading-rail-b: #abcdef"
+    );
+    expect(card.style.borderColor).toBe("var(--loading-rail-b-30)");
   });
 
   it("renders a beatbar for jackhammer sequences when enabled", async () => {

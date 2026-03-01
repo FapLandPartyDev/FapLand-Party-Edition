@@ -13,6 +13,7 @@ export type SaveConverterSegmentsInput = {
     sourceRoundIds?: string[] | null;
     removeSourceRound?: boolean;
   };
+  allowOverlaps?: boolean;
   segments: Array<{
     startTimeMs: number;
     endTimeMs: number;
@@ -20,6 +21,10 @@ export type SaveConverterSegmentsInput = {
     customName?: string | null;
     bpm?: number | null;
     difficulty?: number | null;
+    cutRanges?: Array<{
+      startTimeMs: number;
+      endTimeMs: number;
+    }> | null;
   }>;
 };
 

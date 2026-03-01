@@ -79,6 +79,7 @@ describe("GlobalMusicOverlay", () => {
         selectMusicCacheDirectory: vi.fn(),
         selectMoaningCacheDirectory: vi.fn(),
         selectConverterVideoFile: vi.fn(),
+        selectMapBackgroundFile: vi.fn(),
         selectMusicFiles: vi.fn(async () => ["/music/three.mp3"]),
         selectMoaningFiles: vi.fn(async () => []),
         addMusicFromUrl: vi.fn(async () => ({

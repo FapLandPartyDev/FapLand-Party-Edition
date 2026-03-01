@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("dialog:selectMoaningCacheDirectory") as Promise<string | null>,
     selectConverterVideoFile: () =>
       ipcRenderer.invoke("dialog:selectConverterVideoFile") as Promise<string | null>,
+    selectMapBackgroundFile: () =>
+      ipcRenderer.invoke("dialog:selectMapBackgroundFile") as Promise<string | null>,
     selectMusicFiles: () => ipcRenderer.invoke("dialog:selectMusicFiles") as Promise<string[]>,
     selectMoaningFiles: () => ipcRenderer.invoke("dialog:selectMoaningFiles") as Promise<string[]>,
     addMusicFromUrl: (url: string) =>
