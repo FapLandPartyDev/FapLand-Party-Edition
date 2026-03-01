@@ -140,6 +140,21 @@ export const Route = createFileRoute("/multiplayer")({
   component: MultiplayerRoute,
 });
 
+function PublicLobbyCardSkeleton() {
+  return (
+    <div className="grid gap-3 rounded-xl border border-white/8 bg-black/25 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-32 animate-pulse rounded bg-white/10" />
+          <div className="h-4 w-14 animate-pulse rounded-full bg-white/8" />
+        </div>
+        <div className="mt-1.5 h-3 w-52 animate-pulse rounded bg-white/8" />
+      </div>
+      <div className="h-9 w-32 animate-pulse rounded-xl bg-white/8 md:self-center" />
+    </div>
+  );
+}
+
 function MultiplayerRoute() {
   const { t } = useLingui();
   const navigate = useNavigate();
@@ -997,231 +1012,241 @@ function MultiplayerRoute() {
           </div>
 
           {activeTaskBlockedReason && (
-            <div className="rounded-xl border border-amber-300/35 bg-amber-500/12 px-4 py-3 text-sm text-amber-100" role="status" aria-live="polite">
+            <div
+              className="rounded-xl border border-amber-300/35 bg-amber-500/12 px-4 py-3 text-sm text-amber-100"
+              role="status"
+              aria-live="polite"
+            >
               {activeTaskBlockedReason}
             </div>
           )}
 
           {activeTaskTab === "join" && (
-          <section className="animate-entrance rounded-3xl border border-violet-400/25 bg-zinc-950/55 p-6 backdrop-blur-xl">
-            <h2 className="text-xl font-extrabold tracking-tight text-violet-100">
-              <Trans>Join Lobby</Trans>
-            </h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              <Trans>Paste the invite code from your host and enter the round.</Trans>
-            </p>
-
-            <div className="mt-5">
-              <label
-                htmlFor="multiplayer-invite-code"
-                className="text-xs font-bold uppercase tracking-[0.2em] text-violet-300"
-              >
-                <Trans>Invite Code</Trans>
-              </label>
-              <input
-                id="multiplayer-invite-code"
-                className="mt-2 w-full rounded-3xl border-2 border-violet-500/50 bg-black/50 px-5 py-4 font-[family-name:var(--font-jetbrains-mono)] text-3xl font-black tracking-[0.2em] text-violet-50 uppercase outline-none transition-all placeholder:text-violet-900/50 focus:border-violet-400 focus:bg-violet-950/40 focus:shadow-[0_0_25px_rgba(139,92,246,0.4)]"
-                value={inviteCode}
-                onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
-                placeholder={t`CODE`}
-              />
-              <p className="mt-2 text-xs text-zinc-500">
-                <Trans>
-                  Playing on{" "}
-                  <span className="text-zinc-300">
-                    {selectedServer?.name ?? t`No Server Selected`}
-                  </span>
-                  {" · "}Codes are case-insensitive.
-                </Trans>
+            <section className="animate-entrance rounded-3xl border border-violet-400/25 bg-zinc-950/55 p-6 backdrop-blur-xl">
+              <h2 className="text-xl font-extrabold tracking-tight text-violet-100">
+                <Trans>Join Lobby</Trans>
+              </h2>
+              <p className="mt-1 text-sm text-zinc-400">
+                <Trans>Paste the invite code from your host and enter the round.</Trans>
               </p>
-            </div>
 
-            <button
-              type="button"
-              disabled={joinPending || inviteCode.trim().length === 0 || !canPlay}
-              className="mt-5 w-full rounded-2xl border border-violet-400/60 bg-gradient-to-r from-violet-600/40 via-fuchsia-600/40 to-indigo-600/40 px-4 py-4 text-base font-black uppercase tracking-[0.15em] text-violet-50 drop-shadow-[0_0_10px_rgba(139,92,246,0.5)] transition-all hover:scale-[1.01] hover:border-violet-300/80 hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none active:scale-95"
-              onClick={() => {
-                void handleJoinLobby();
-              }}
-            >
-              {joinPending
-                ? t`Joining...`
-                : authBootstrapPending
-                  ? t`Preparing Account...`
-                  : t`Join Lobby`}
-            </button>
-            {joinDisabledReason && (
-              <p className="mt-3 text-xs text-zinc-400">{joinDisabledReason}</p>
-            )}
-          </section>
-          )}
-
-          {activeTaskTab === "public" && (
-          <section className="animate-entrance rounded-3xl border border-emerald-400/20 bg-zinc-950/55 p-6 backdrop-blur-xl">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-extrabold tracking-tight text-emerald-100">
-                  <Trans>Public Lobbies</Trans>
-                </h2>
-                <p className="mt-1 text-sm text-zinc-400">
-                  <Trans>Browse advertised lobbies and join with one click.</Trans>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void refreshPublicLobbies(selectedServer)}
-                disabled={publicLobbiesLoading || !selectedServer || !serverConfigured}
-                className={`${actionButtonClass} border-emerald-300/45 bg-emerald-500/15 text-emerald-100 hover:border-emerald-300/70`}
-              >
-                {publicLobbiesLoading ? t`Refreshing...` : t`Refresh`}
-              </button>
-            </div>
-
-            {publicLobbiesError && (
-              <div
-                className="mt-4 rounded-xl border border-rose-400/45 bg-rose-500/12 px-4 py-3 text-sm text-rose-100"
-                role="alert"
-              >
-                {publicLobbiesError}
-              </div>
-            )}
-
-            <div className="mt-4 max-h-[38rem] overflow-y-auto pr-2 custom-scrollbar">
-              <div className="flex flex-col gap-2">{publicLobbyCards}</div>
-            </div>
-
-            {!publicLobbiesLoading && publicLobbies.length === 0 && !publicLobbiesError && (
-              <p className="mt-4 text-sm text-zinc-500">
-                <Trans>No public lobbies available on the selected server right now.</Trans>
-              </p>
-            )}
-          </section>
-          )}
-
-          {activeTaskTab === "host" && (
-          <section className="animate-entrance rounded-3xl border border-cyan-400/20 bg-zinc-950/55 p-6 backdrop-blur-xl">
-            <h2 className="text-xl font-extrabold tracking-tight text-cyan-100">
-              <Trans>Host a Lobby</Trans>
-            </h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              <Trans>
-                Start a lobby with the current playlist, then share the invite code or advertise
-                publicly.
-              </Trans>
-            </p>
-
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div>
+              <div className="mt-5">
                 <label
-                  htmlFor="multiplayer-lobby-name"
-                  className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400"
+                  htmlFor="multiplayer-invite-code"
+                  className="text-xs font-bold uppercase tracking-[0.2em] text-violet-300"
                 >
-                  <Trans>Lobby Name</Trans>
+                  <Trans>Invite Code</Trans>
                 </label>
                 <input
-                  id="multiplayer-lobby-name"
-                  className="mt-1.5 w-full rounded-xl border border-white/15 bg-black/35 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none transition focus:border-violet-300/60 focus:ring-2 focus:ring-violet-400/25"
-                  value={lobbyName}
-                  onChange={(event) => setLobbyName(event.target.value)}
+                  id="multiplayer-invite-code"
+                  className="mt-2 w-full rounded-3xl border-2 border-violet-500/50 bg-black/50 px-5 py-4 font-[family-name:var(--font-jetbrains-mono)] text-3xl font-black tracking-[0.2em] text-violet-50 uppercase outline-none transition-all placeholder:text-violet-900/50 focus:border-violet-400 focus:bg-violet-950/40 focus:shadow-[0_0_25px_rgba(139,92,246,0.4)]"
+                  value={inviteCode}
+                  onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
+                  placeholder={t`CODE`}
                 />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
-                  <Trans>Playlist</Trans>
-                </p>
-                <GameDropdown
-                  value={selectedPlaylistId}
-                  disabled={!hasPlayablePlaylist}
-                  options={[
-                    ...(!hasPlayablePlaylist
-                      ? [{ value: "" as string, label: t`No playlists available` }]
-                      : []),
-                    ...availablePlaylists.map((playlist: { id: string; name: string }) => ({
-                      value: playlist.id,
-                      label:
-                        playlist.name + (playlist.id === activePlaylist?.id ? t` (Active)` : ""),
-                    })),
-                  ]}
-                  onChange={(value) => setSelectedPlaylistId(value)}
-                />
-              </div>
-            </div>
-
-            {hasPlayablePlaylist && selectedPlaylist && (
-              <p className="mt-3 text-xs text-zinc-400">
-                <Trans>
-                  {selectedPlaylist.name} requires {selectedPlaylistRequiredRounds} installed
-                  rounds.
-                </Trans>
-              </p>
-            )}
-
-            <div className="mt-4 flex flex-wrap gap-4">
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-cyan-500/50 bg-black/50 text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0"
-                  checked={allowLateJoin}
-                  onChange={(event) => setAllowLateJoin(event.target.checked)}
-                />
-                <Trans>Allow late join</Trans>
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-cyan-500/50 bg-black/50 text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0"
-                  checked={advertisePublicly}
-                  onChange={(event) => setAdvertisePublicly(event.target.checked)}
-                />
-                <Trans>Advertise on Public List</Trans>
-              </label>
-            </div>
-
-            {!hasPlayablePlaylist && (
-              <p className="mt-3 text-xs text-amber-200">
-                <Trans>
-                  Create a playlist in the playlist workshop or map editor before hosting a lobby.
-                </Trans>
-              </p>
-            )}
-
-            <button
-              type="button"
-              disabled={
-                createPending || !hasPlayablePlaylist || !canPlay || selectedPlaylistBlocked
-              }
-              className="mt-5 w-full rounded-2xl border border-cyan-400/60 bg-gradient-to-r from-cyan-600/40 via-sky-600/40 to-indigo-600/40 px-4 py-4 text-base font-black uppercase tracking-[0.15em] text-cyan-50 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] transition-all hover:scale-[1.01] hover:border-cyan-300/80 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none active:scale-95"
-              onClick={() => {
-                void handleCreateLobby();
-              }}
-            >
-              {createPending
-                ? t`Initializing...`
-                : authBootstrapPending
-                  ? t`Preparing Account...`
-                  : t`Create Lobby`}
-            </button>
-            {createDisabledReason && (
-              <p className="mt-3 text-xs text-zinc-400">{createDisabledReason}</p>
-            )}
-            {createWarning && <p className="mt-3 text-xs text-amber-200">{createWarning}</p>}
-          </section>
-          )}
-
-          {activeTaskTab === "server" && (
-          <section className="animate-entrance rounded-3xl border border-purple-400/15 bg-zinc-950/55 p-6 backdrop-blur-xl">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-extrabold tracking-tight text-violet-100">
-                  <Trans>Server Management</Trans>
-                </h2>
-                <p className="mt-0.5 text-xs text-zinc-400">
+                <p className="mt-2 text-xs text-zinc-500">
                   <Trans>
-                    Server selection and self-hosted setup for multiplayer.
+                    Playing on{" "}
+                    <span className="text-zinc-300">
+                      {selectedServer?.name ?? t`No Server Selected`}
+                    </span>
+                    {" · "}Codes are case-insensitive.
                   </Trans>
                 </p>
               </div>
-            </div>
+
+              <button
+                type="button"
+                disabled={joinPending || inviteCode.trim().length === 0 || !canPlay}
+                className="mt-5 w-full rounded-2xl border border-violet-400/60 bg-gradient-to-r from-violet-600/40 via-fuchsia-600/40 to-indigo-600/40 px-4 py-4 text-base font-black uppercase tracking-[0.15em] text-violet-50 drop-shadow-[0_0_10px_rgba(139,92,246,0.5)] transition-all hover:scale-[1.01] hover:border-violet-300/80 hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none active:scale-95"
+                onClick={() => {
+                  void handleJoinLobby();
+                }}
+              >
+                {joinPending
+                  ? t`Joining...`
+                  : authBootstrapPending
+                    ? t`Preparing Account...`
+                    : t`Join Lobby`}
+              </button>
+              {joinDisabledReason && (
+                <p className="mt-3 text-xs text-zinc-400">{joinDisabledReason}</p>
+              )}
+            </section>
+          )}
+
+          {activeTaskTab === "public" && (
+            <section className="animate-entrance rounded-3xl border border-emerald-400/20 bg-zinc-950/55 p-6 backdrop-blur-xl">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-extrabold tracking-tight text-emerald-100">
+                    <Trans>Public Lobbies</Trans>
+                  </h2>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    <Trans>Browse advertised lobbies and join with one click.</Trans>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void refreshPublicLobbies(selectedServer)}
+                  disabled={publicLobbiesLoading || !selectedServer || !serverConfigured}
+                  className={`${actionButtonClass} border-emerald-300/45 bg-emerald-500/15 text-emerald-100 hover:border-emerald-300/70`}
+                >
+                  {publicLobbiesLoading ? t`Refreshing...` : t`Refresh`}
+                </button>
+              </div>
+
+              {publicLobbiesError && (
+                <div
+                  className="mt-4 rounded-xl border border-rose-400/45 bg-rose-500/12 px-4 py-3 text-sm text-rose-100"
+                  role="alert"
+                >
+                  {publicLobbiesError}
+                </div>
+              )}
+
+              <div className="mt-4 max-h-[38rem] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="flex flex-col gap-2">
+                  {onboardingStatus !== "ready" ||
+                  (publicLobbiesLoading && publicLobbies.length === 0)
+                    ? Array.from({ length: 4 }, (_, i) => <PublicLobbyCardSkeleton key={i} />)
+                    : publicLobbyCards}
+                </div>
+              </div>
+
+              {onboardingStatus === "ready" &&
+                !publicLobbiesLoading &&
+                publicLobbies.length === 0 &&
+                !publicLobbiesError && (
+                  <p className="mt-4 text-sm text-zinc-500">
+                    <Trans>No public lobbies available on the selected server right now.</Trans>
+                  </p>
+                )}
+            </section>
+          )}
+
+          {activeTaskTab === "host" && (
+            <section className="animate-entrance rounded-3xl border border-cyan-400/20 bg-zinc-950/55 p-6 backdrop-blur-xl">
+              <h2 className="text-xl font-extrabold tracking-tight text-cyan-100">
+                <Trans>Host a Lobby</Trans>
+              </h2>
+              <p className="mt-1 text-sm text-zinc-400">
+                <Trans>
+                  Start a lobby with the current playlist, then share the invite code or advertise
+                  publicly.
+                </Trans>
+              </p>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="multiplayer-lobby-name"
+                    className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400"
+                  >
+                    <Trans>Lobby Name</Trans>
+                  </label>
+                  <input
+                    id="multiplayer-lobby-name"
+                    className="mt-1.5 w-full rounded-xl border border-white/15 bg-black/35 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none transition focus:border-violet-300/60 focus:ring-2 focus:ring-violet-400/25"
+                    value={lobbyName}
+                    onChange={(event) => setLobbyName(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                    <Trans>Playlist</Trans>
+                  </p>
+                  <GameDropdown
+                    value={selectedPlaylistId}
+                    disabled={!hasPlayablePlaylist}
+                    options={[
+                      ...(!hasPlayablePlaylist
+                        ? [{ value: "" as string, label: t`No playlists available` }]
+                        : []),
+                      ...availablePlaylists.map((playlist: { id: string; name: string }) => ({
+                        value: playlist.id,
+                        label:
+                          playlist.name + (playlist.id === activePlaylist?.id ? t` (Active)` : ""),
+                      })),
+                    ]}
+                    onChange={(value) => setSelectedPlaylistId(value)}
+                  />
+                </div>
+              </div>
+
+              {hasPlayablePlaylist && selectedPlaylist && (
+                <p className="mt-3 text-xs text-zinc-400">
+                  <Trans>
+                    {selectedPlaylist.name} requires {selectedPlaylistRequiredRounds} installed
+                    rounds.
+                  </Trans>
+                </p>
+              )}
+
+              <div className="mt-4 flex flex-wrap gap-4">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-cyan-500/50 bg-black/50 text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0"
+                    checked={allowLateJoin}
+                    onChange={(event) => setAllowLateJoin(event.target.checked)}
+                  />
+                  <Trans>Allow late join</Trans>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-cyan-500/50 bg-black/50 text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0"
+                    checked={advertisePublicly}
+                    onChange={(event) => setAdvertisePublicly(event.target.checked)}
+                  />
+                  <Trans>Advertise on Public List</Trans>
+                </label>
+              </div>
+
+              {!hasPlayablePlaylist && (
+                <p className="mt-3 text-xs text-amber-200">
+                  <Trans>
+                    Create a playlist in the playlist workshop or map editor before hosting a lobby.
+                  </Trans>
+                </p>
+              )}
+
+              <button
+                type="button"
+                disabled={
+                  createPending || !hasPlayablePlaylist || !canPlay || selectedPlaylistBlocked
+                }
+                className="mt-5 w-full rounded-2xl border border-cyan-400/60 bg-gradient-to-r from-cyan-600/40 via-sky-600/40 to-indigo-600/40 px-4 py-4 text-base font-black uppercase tracking-[0.15em] text-cyan-50 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] transition-all hover:scale-[1.01] hover:border-cyan-300/80 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none active:scale-95"
+                onClick={() => {
+                  void handleCreateLobby();
+                }}
+              >
+                {createPending
+                  ? t`Initializing...`
+                  : authBootstrapPending
+                    ? t`Preparing Account...`
+                    : t`Create Lobby`}
+              </button>
+              {createDisabledReason && (
+                <p className="mt-3 text-xs text-zinc-400">{createDisabledReason}</p>
+              )}
+              {createWarning && <p className="mt-3 text-xs text-amber-200">{createWarning}</p>}
+            </section>
+          )}
+
+          {activeTaskTab === "server" && (
+            <section className="animate-entrance rounded-3xl border border-purple-400/15 bg-zinc-950/55 p-6 backdrop-blur-xl">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-extrabold tracking-tight text-violet-100">
+                    <Trans>Server Management</Trans>
+                  </h2>
+                  <p className="mt-0.5 text-xs text-zinc-400">
+                    <Trans>Server selection and self-hosted setup for multiplayer.</Trans>
+                  </p>
+                </div>
+              </div>
 
               <div className="mt-5 space-y-4">
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr]">
@@ -1368,7 +1393,7 @@ function MultiplayerRoute() {
                   </label>
                   <div className="flex flex-col gap-1.5">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
-                    <Trans>Auth Requirement</Trans>
+                      <Trans>Auth Requirement</Trans>
                     </p>
                     <GameDropdown
                       value={editingAuthRequirement}
@@ -1459,7 +1484,7 @@ function MultiplayerRoute() {
                   </button>
                 </div>
               </div>
-          </section>
+            </section>
           )}
         </div>
       </div>
