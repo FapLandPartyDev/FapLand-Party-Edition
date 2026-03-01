@@ -18,6 +18,7 @@ import { createIPCHandler } from "trpc-electron/main";
 import { config as loadDotenv } from "dotenv";
 import { appRouter } from "./trpc/router";
 import { installMcp } from "./mcp/integration";
+import { multifunplayerBridge } from "./services/multifunplayer";
 import { getNodeEnv } from "../src/zod/env";
 import { isVideoExtension, SUPPORTED_VIDEO_EXTENSIONS } from "../src/constants/videoFormats";
 import { approveDialogPath } from "./services/dialogPathApproval";
@@ -1727,6 +1728,14 @@ function runNormalStartupOnce(): Promise<void> {
   normalStartupPromise = (async () => {
     await initStore();
     if (startupRecoveryActive) return;
+    if (safeStoreGet("multifunplayer.enabled") === true) {
+      const port = Number(safeStoreGet("multifunplayer.port") ?? 8080);
+      if (Number.isInteger(port) && port >= 1024 && port <= 65535) {
+        await multifunplayerBridge.start(port).catch((error: unknown) => {
+          console.error("MultiFunPlayer bridge failed to start", error);
+        });
+      }
+    }
     debugLog.info("startup", "Store initialized");
     initializeDebugLogging();
     pendingGpuRecoveryHint = safeStoreGet(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY) === true;
@@ -1868,5 +1877,6 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  void multifunplayerBridge.stop();
   void mcpRuntime?.stop();
 });

@@ -1207,7 +1207,9 @@ describe("RoundVideoOverlay", () => {
     });
 
     await waitFor(() =>
-      expect(optionsActions.find((a) => a.id === "invert-funscript")?.label).toBe("Invert Funscript")
+      expect(optionsActions.find((a) => a.id === "invert-funscript")?.label).toBe(
+        "Invert Funscript"
+      )
     );
     const invertAction = optionsActions.find((a) => a.id === "invert-funscript");
     act(() => invertAction?.onClick());
@@ -1265,7 +1267,9 @@ describe("RoundVideoOverlay", () => {
 
     await waitFor(() => expect(mocks.db.invertFunscript).toHaveBeenCalledWith("round-1"));
     await waitFor(() =>
-      expect(optionsActions.find((a) => a.id === "invert-funscript")?.label).toBe("Invert Funscript")
+      expect(optionsActions.find((a) => a.id === "invert-funscript")?.label).toBe(
+        "Invert Funscript"
+      )
     );
   });
 
@@ -1972,6 +1976,46 @@ describe("RoundVideoOverlay", () => {
         ([value]) => value?.synced === true && value?.error === null
       )
     ).toBe(false);
+  });
+
+  it("stops device playback on a cum request and blocks further sync pushes", async () => {
+    mocks.handy.connectionKey = "conn-key";
+    mocks.handy.appApiKey = "app-key";
+    mocks.handy.connected = true;
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({ actions: [{ at: 0, pos: 10 }] });
+    mocks.playback.getFunscriptPositionAtMs.mockReturnValue(10);
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
+    const activeRound = createActiveRound();
+    const installedRounds = [createInstalledRound("round-1", "/script.funscript")];
+    const onRequestCum = vi.fn();
+    const props = {
+      activeRound,
+      installedRounds,
+      currentPlayer: undefined,
+      intermediaryProbability: 0,
+      booruSearchPrompt: "animated gif webm",
+      intermediaryLoadingDurationSec: 10,
+      intermediaryReturnPauseSec: 4,
+      onFinishRound: vi.fn(),
+      onRequestCum,
+    };
+    const view = render(<RoundVideoOverlay {...props} cumRequestSignal={0} />);
+    const video = view.container.querySelector("video")!;
+    primeVideoElement(video);
+    fireEvent.loadedMetadata(video);
+    await waitFor(() => expect(handyRuntime.sendHapticsSync).toHaveBeenCalled());
+    vi.useFakeTimers();
+    view.rerender(<RoundVideoOverlay {...props} cumRequestSignal={1} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(onRequestCum).toHaveBeenCalledOnce();
+    expect(handyRuntime.stopHapticsPlayback).toHaveBeenCalled();
+    const syncCount = vi.mocked(handyRuntime.sendHapticsSync).mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(handyRuntime.sendHapticsSync).toHaveBeenCalledTimes(syncCount);
   });
 
   it("force stop blocks further sync pushes immediately until the user resumes", async () => {

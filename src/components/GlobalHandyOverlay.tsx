@@ -64,6 +64,7 @@ export function GlobalHandyOverlay() {
     connect,
     connectIntiface,
     connectTCode,
+    connectMultiFunPlayer,
     reconnect,
     disconnect,
   } = useHandy();
@@ -157,12 +158,16 @@ export function GlobalHandyOverlay() {
       void connectIntiface();
       return;
     }
+    if (provider === "multifunplayer") {
+      void connectMultiFunPlayer();
+      return;
+    }
     if (provider === "tcode") {
       void connectTCode();
       return;
     }
     void connect(connectionKey);
-  }, [connect, connectIntiface, connectTCode, connectionKey, provider]);
+  }, [connect, connectIntiface, connectTCode, connectMultiFunPlayer, connectionKey, provider]);
 
   const reconnectTheHandy = useCallback(
     (showMessage: boolean) => {
@@ -534,9 +539,11 @@ export function GlobalHandyOverlay() {
                       {connected
                         ? provider === "intiface" && intifaceDeviceName
                           ? t`Intiface device connected`
-                          : provider === "tcode"
-                            ? t`TCode device connected`
-                            : t`Device connected`
+                          : provider === "multifunplayer"
+                            ? t`MultiFunPlayer connected`
+                            : provider === "tcode"
+                              ? t`TCode device connected`
+                              : t`Device connected`
                         : t`No device connected`}
                     </p>
                     <button

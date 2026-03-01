@@ -1,5 +1,21 @@
 # What's New
 
+## v0.6.28
+
+### Added
+
+- **MultiFunPlayer support** — connect multi-axis hardware through a local OFS-compatible WebSocket bridge. Round playback sends the active funscript and matching axis scripts, with synchronized pauses, seeks, playback speed and script offset.
+- **MultiFunPlayer hardware controls** — configure the bridge port, see connected players and use the normal Connect, Stop/Resume and stroke-range controls. Setup instructions are available in docs/multifunplayer.md.
+
+### Changed
+
+- Replaced the direct TCode hardware option with MultiFunPlayer. Existing TCode device entries migrate to one MultiFunPlayer entry while preserving stroke range and offset.
+- Paused MultiFunPlayer playback during loading, buffering, seeking and manual device stops, and when playback updates stop arriving. The cum button now stops active device playback immediately.
+- Preserved primary-axis stroke limits when loading sibling scripts and cleared stale scripts when media changes.
+- Updated dependency/license metadata and completed English, German, Spanish, French and Chinese translation catalogs.
+
+---
+
 ## v0.6.27-beta.1
 
 ### Added

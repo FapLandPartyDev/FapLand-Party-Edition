@@ -40,7 +40,10 @@ export async function getEnhancedTrajectory(
     return actions;
   }
   if (!settings.enabled || settings.wildness === 0) return actions;
-  const maxRate = config.provider === "tcode" ? undefined : config.funscriptMaxRate;
+  const maxRate =
+    config.provider === "tcode" || config.provider === "multifunplayer"
+      ? undefined
+      : config.funscriptMaxRate;
   const key = `${settings.wildness}:${playbackRate}:${maxRate}`;
   const variants = cache.get(actions) ?? new Map<string, FunscriptAction[]>();
   const cached = variants.get(key);

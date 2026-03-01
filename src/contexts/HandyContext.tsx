@@ -149,6 +149,7 @@ type HapticsContextType = {
   sessionRevision: number;
   connect: (key: string, ip?: string, apiKeyOverride?: string) => Promise<boolean>;
   connectIntiface: (websocketUrl?: string, deviceIndex?: number | null) => Promise<boolean>;
+  connectMultiFunPlayer: () => Promise<boolean>;
   connectTCode: (
     input?: Partial<{
       transport: TCodeTransportKind;
@@ -188,16 +189,26 @@ const DEFAULT_STROKE_STATE = normalizeHandyStrokeState({ min: 0, max: 1 });
 
 function normalizeDeviceSlots(value: unknown): DeviceSlotConfig[] {
   if (!Array.isArray(value)) return [];
+  let hasMultiFunPlayer = false;
   return value.flatMap((entry): DeviceSlotConfig[] => {
     if (!entry || typeof entry !== "object") return [];
     const candidate = entry as Partial<DeviceSlotConfig>;
-    const config = candidate.config as HapticsConnectionConfig | undefined;
+    const originalConfig = candidate.config as HapticsConnectionConfig | undefined;
+    // TCode connections are now managed by MultiFunPlayer. Keep calibration on migration.
+    const config: HapticsConnectionConfig | undefined =
+      originalConfig?.provider === "tcode"
+        ? { provider: "multifunplayer", stroke: normalizeHandyStrokeState(candidate.stroke) }
+        : originalConfig;
     if (
       typeof candidate.id !== "string" ||
       !config ||
-      !["thehandy", "intiface", "tcode"].includes(config.provider)
+      !["thehandy", "intiface", "tcode", "multifunplayer"].includes(config.provider)
     ) {
       return [];
+    }
+    if (config.provider === "multifunplayer") {
+      if (hasMultiFunPlayer) return [];
+      hasMultiFunPlayer = true;
     }
     const normalizedConfig: HapticsConnectionConfig =
       config.provider === "thehandy" || config.provider === "intiface"
@@ -207,21 +218,22 @@ function normalizeDeviceSlots(value: unknown): DeviceSlotConfig[] {
             funscriptMaxRate: normalizeFunscriptMaxRate(config.funscriptMaxRate),
             funscriptRdpEpsilon: normalizeFunscriptRdpEpsilon(config.funscriptRdpEpsilon),
           }
-        : {
-            ...config,
-            udpHost: typeof config.udpHost === "string" ? config.udpHost : "",
-          };
+        : { ...config, stroke: normalizeHandyStrokeState(candidate.stroke) };
     return [
       {
         id: candidate.id,
         label:
           typeof candidate.label === "string" && candidate.label.trim()
-            ? candidate.label.trim()
+            ? originalConfig?.provider === "tcode"
+              ? "MultiFunPlayer"
+              : candidate.label.trim()
             : config.provider === "thehandy"
               ? "TheHandy"
               : config.provider === "intiface"
                 ? "Intiface device"
-                : "TCode device",
+                : config.provider === "multifunplayer"
+                  ? "MultiFunPlayer"
+                  : "TCode device",
         enabled: candidate.enabled !== false,
         config: normalizedConfig,
         stroke: normalizeHandyStrokeState(candidate.stroke),
@@ -236,7 +248,8 @@ async function saveDeviceSlotsToStore(slots: DeviceSlotConfig[]): Promise<void> 
 }
 
 function normalizeProvider(value: unknown): HapticsProviderId {
-  if (value === "intiface" || value === "tcode") return value;
+  if (value === "tcode") return "multifunplayer";
+  if (value === "intiface" || value === "multifunplayer") return value;
   return "thehandy";
 }
 
@@ -605,7 +618,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .map((slot) => ({
           id: slot.id,
           config:
-            slot.config.provider === "intiface" || slot.config.provider === "tcode"
+            slot.config.provider !== "thehandy"
               ? { ...slot.config, stroke: slot.stroke }
               : slot.config,
           // Round playback already applies the selected/global offset. Child targets
@@ -625,6 +638,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (candidate.provider === "intiface") {
           return `intiface:${candidate.websocketUrl.trim()}:${candidate.deviceIndex ?? "auto"}`;
         }
+        if (candidate.provider === "multifunplayer") return "multifunplayer";
         return candidate.transport === "serial"
           ? `tcode:serial:${candidate.serialPath.trim()}`
           : candidate.transport === "udp"
@@ -642,15 +656,23 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             ? "TheHandy"
             : config.provider === "intiface"
               ? (config.deviceName ?? "Intiface device")
-              : "TCode device"),
+              : config.provider === "multifunplayer"
+                ? "MultiFunPlayer"
+                : "TCode device"),
         enabled: true,
         config,
         stroke: nextStroke,
         offsetMs: existing?.offsetMs ?? globalOffsetMs,
       };
-      const saved = existing
+      const updated = existing
         ? deviceSlots.map((candidate) => (candidate.id === existing.id ? slot : candidate))
         : [...deviceSlots, slot];
+      const saved = updated.map((candidate) =>
+        (config.provider === "multifunplayer" && candidate.config.provider === "tcode") ||
+        (config.provider === "tcode" && candidate.config.provider === "multifunplayer")
+          ? { ...candidate, enabled: false }
+          : candidate
+      );
       setDeviceSlots(saved);
       setSelectedDeviceId(slot.id);
       await saveDeviceSlotsToStore(saved).catch((err) => {
@@ -700,7 +722,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setIntifaceFunscriptRdpEpsilon(
           normalizeFunscriptRdpEpsilon(slot.config.funscriptRdpEpsilon)
         );
-      } else {
+      } else if (slot.config.provider === "tcode") {
         setTCodeTransport(slot.config.transport);
         setTCodeSerialPath(slot.config.serialPath);
         setTCodeBaudRate(slot.config.baudRate);
@@ -723,7 +745,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const setFunscriptRateLimitEnabled = useCallback(
     async (value: boolean): Promise<void> => {
-      if (provider === "tcode") return;
+      if (provider === "tcode" || provider === "multifunplayer") return;
       userMutatedStateRef.current = true;
       const enabled = value !== false;
       if (provider === "thehandy") {
@@ -753,7 +775,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const setFunscriptRateLimitSettings = useCallback(
     async (maxRate: number, rdpEpsilon: number): Promise<void> => {
-      if (provider === "tcode") return;
+      if (provider === "tcode" || provider === "multifunplayer") return;
       userMutatedStateRef.current = true;
       const normalizedMaxRate = normalizeFunscriptMaxRate(maxRate);
       const normalizedRdpEpsilon = normalizeFunscriptRdpEpsilon(rdpEpsilon);
@@ -818,6 +840,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }>
     ): HapticsConnectionConfig => {
       const effectiveProvider = override?.provider ?? provider;
+      if (effectiveProvider === "multifunplayer")
+        return { provider: "multifunplayer", stroke: override?.strokeState ?? strokeState };
       if (effectiveProvider === "intiface") {
         return {
           provider: "intiface",
@@ -981,7 +1005,10 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setGlobalOffsetMs(savedOffsetMs);
 
         if (savedDeviceSlots.length > 0) {
-          const firstSlot = savedDeviceSlots[0]!;
+          const firstSlot = savedDeviceSlots.find((slot) => slot.enabled) ?? savedDeviceSlots[0]!;
+          setProviderState(firstSlot.config.provider);
+          setStrokeState(firstSlot.stroke);
+          setGlobalOffsetMs(firstSlot.offsetMs);
           if (firstSlot.config.provider === "thehandy") {
             setThehandyFunscriptRateLimitEnabled(
               firstSlot.config.funscriptRateLimitEnabled !== false
@@ -1004,7 +1031,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             );
           }
           setDeviceSlots(savedDeviceSlots);
-          setSelectedDeviceId(savedDeviceSlots[0]!.id);
+          setSelectedDeviceId(firstSlot.id);
+          await saveDeviceSlotsToStore(savedDeviceSlots);
           const enabledSlots = savedDeviceSlots.filter((slot) => slot.enabled);
           if (enabledSlots.length === 0) {
             setConnected(false);
@@ -1063,41 +1091,43 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         try {
           const config: HapticsConnectionConfig =
-            savedProvider === "intiface"
-              ? {
-                  provider: "intiface",
-                  websocketUrl: savedIntifaceUrl,
-                  deviceName: savedIntifaceDeviceName,
-                  deviceIndex: savedIntifaceDeviceIndex,
-                  stroke: DEFAULT_STROKE_STATE,
-                  vibrationSensitivity: savedIntifaceVibrationSensitivity,
-                  funscriptRateLimitEnabled: savedIntifaceFunscriptRateLimitEnabled,
-                  funscriptMaxRate: savedIntifaceFunscriptMaxRate,
-                  funscriptRdpEpsilon: savedIntifaceFunscriptRdpEpsilon,
-                }
-              : savedProvider === "tcode"
+            savedProvider === "multifunplayer"
+              ? { provider: "multifunplayer", stroke: DEFAULT_STROKE_STATE }
+              : savedProvider === "intiface"
                 ? {
-                    provider: "tcode",
-                    transport: savedTCodeTransport,
-                    serialPath: savedTCodeSerialPath,
-                    baudRate: savedTCodeBaudRate,
-                    websocketHost: savedTCodeWebsocketHost,
-                    websocketUrl: savedTCodeWebsocketUrl,
-                    udpHost: savedTCodeUdpHost,
-                    precision: savedTCodePrecision,
-                    axis: savedTCodeAxis,
+                    provider: "intiface",
+                    websocketUrl: savedIntifaceUrl,
+                    deviceName: savedIntifaceDeviceName,
+                    deviceIndex: savedIntifaceDeviceIndex,
                     stroke: DEFAULT_STROKE_STATE,
+                    vibrationSensitivity: savedIntifaceVibrationSensitivity,
+                    funscriptRateLimitEnabled: savedIntifaceFunscriptRateLimitEnabled,
+                    funscriptMaxRate: savedIntifaceFunscriptMaxRate,
+                    funscriptRdpEpsilon: savedIntifaceFunscriptRdpEpsilon,
                   }
-                : {
-                    provider: "thehandy",
-                    connectionKey: savedKey,
-                    appApiKey: effectiveAppApiKey,
-                    appApiKeyOverride: savedOverride,
-                    localIp: savedIp,
-                    funscriptRateLimitEnabled: savedThehandyFunscriptRateLimitEnabled,
-                    funscriptMaxRate: savedThehandyFunscriptMaxRate,
-                    funscriptRdpEpsilon: savedThehandyFunscriptRdpEpsilon,
-                  };
+                : savedProvider === "tcode"
+                  ? {
+                      provider: "tcode",
+                      transport: savedTCodeTransport,
+                      serialPath: savedTCodeSerialPath,
+                      baudRate: savedTCodeBaudRate,
+                      websocketHost: savedTCodeWebsocketHost,
+                      websocketUrl: savedTCodeWebsocketUrl,
+                      udpHost: savedTCodeUdpHost,
+                      precision: savedTCodePrecision,
+                      axis: savedTCodeAxis,
+                      stroke: DEFAULT_STROKE_STATE,
+                    }
+                  : {
+                      provider: "thehandy",
+                      connectionKey: savedKey,
+                      appApiKey: effectiveAppApiKey,
+                      appApiKeyOverride: savedOverride,
+                      localIp: savedIp,
+                      funscriptRateLimitEnabled: savedThehandyFunscriptRateLimitEnabled,
+                      funscriptMaxRate: savedThehandyFunscriptMaxRate,
+                      funscriptRdpEpsilon: savedThehandyFunscriptRdpEpsilon,
+                    };
           const result = await verifyHapticsConnection(config);
           if (result.success) {
             setConnected(true);
@@ -1109,7 +1139,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   ? "TheHandy"
                   : savedProvider === "intiface"
                     ? "Intiface device"
-                    : "TCode device"),
+                    : savedProvider === "multifunplayer"
+                      ? "MultiFunPlayer"
+                      : "TCode device"),
               enabled: true,
               config,
               stroke: DEFAULT_STROKE_STATE,
@@ -1124,7 +1156,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
               setIntifaceDeviceName(result.deviceName ?? savedIntifaceDeviceName);
               setIntifaceDeviceIndex(result.deviceIndex ?? savedIntifaceDeviceIndex);
               setStrokeState(DEFAULT_STROKE_STATE);
-            } else if (savedProvider === "tcode") {
+            } else if (savedProvider === "tcode" || savedProvider === "multifunplayer") {
               setStrokeState(DEFAULT_STROKE_STATE);
             } else {
               await refreshStroke({
@@ -1526,6 +1558,39 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     ]
   );
 
+  const connectMultiFunPlayer = useCallback(async (): Promise<boolean> => {
+    userMutatedStateRef.current = true;
+    const attemptId = ++connectionAttemptIdRef.current;
+    setIsConnecting(true);
+    setProviderState("multifunplayer");
+    setError(null);
+    try {
+      const config: HapticsConnectionConfig = { provider: "multifunplayer", stroke: strokeState };
+      const result = await verifyHapticsConnection(config);
+      if (attemptId !== connectionAttemptIdRef.current) return false;
+      if (!result.success) {
+        setError(result.message ?? "Could not connect MultiFunPlayer.");
+        return false;
+      }
+      if (activeSession) await stopHapticsPlayback(getActiveConnectionConfig(), activeSession);
+      setActiveSession(null);
+      await rememberDevice(config, { label: "MultiFunPlayer" });
+      await saveProviderToStore("multifunplayer");
+      setConnected(true);
+      setManuallyStopped(false);
+      setSynced(false);
+      setSyncError(null);
+      setSessionRevision((value) => value + 1);
+      return true;
+    } catch (err) {
+      if (attemptId === connectionAttemptIdRef.current)
+        setError(err instanceof Error ? err.message : String(err));
+      return false;
+    } finally {
+      if (attemptId === connectionAttemptIdRef.current) setIsConnecting(false);
+    }
+  }, [activeSession, getActiveConnectionConfig, rememberDevice, strokeState]);
+
   const abortConnect = useCallback(() => {
     connectionAttemptIdRef.current += 1;
     setIsConnecting(false);
@@ -1538,6 +1603,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // superseded or stopped. Consumers use this revision to discard their
     // current playback session and perform a full setup handshake.
     setSessionRevision((current) => current + 1);
+    if (provider === "multifunplayer") return connectMultiFunPlayer();
     if (provider === "intiface") {
       return connectIntiface(intifaceWebsocketUrl);
     }
@@ -1550,6 +1616,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     connect,
     connectIntiface,
     connectTCode,
+    connectMultiFunPlayer,
     connectionKey,
     intifaceWebsocketUrl,
     localIp,
@@ -1863,7 +1930,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const saved = deviceSlots.map((slot) => {
             if (slot.id !== selectedDeviceId) return slot;
             const config =
-              slot.config.provider === "intiface" || slot.config.provider === "tcode"
+              slot.config.provider !== "thehandy"
                 ? { ...slot.config, stroke: nextStroke }
                 : slot.config;
             return { ...slot, config, stroke: nextStroke };
@@ -1968,6 +2035,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       connect,
       connectIntiface,
       connectTCode,
+      connectMultiFunPlayer,
       refreshTCodeSerialPorts,
       autoDetectTCodeSerialPort,
       abortConnect,
@@ -2040,6 +2108,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       connect,
       connectIntiface,
       connectTCode,
+      connectMultiFunPlayer,
       refreshTCodeSerialPorts,
       autoDetectTCodeSerialPort,
       abortConnect,

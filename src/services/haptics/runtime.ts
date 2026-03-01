@@ -1,3 +1,4 @@
+import { multifunplayerAdapter, type MultiFunPlayerSession } from "./multifunplayerAdapter";
 import type { FunscriptAction } from "../../game/media/playback";
 import { enhancedSourceId, getEnhancedTrajectory } from "./enhancedTrajectory";
 import { intifaceAdapter, type IntifaceHapticsSession } from "./intifaceAdapter";
@@ -13,7 +14,7 @@ import type {
 } from "./types";
 
 export type ProviderHapticsSession =
-  TheHandyHapticsSession | IntifaceHapticsSession | TCodeHapticsSession;
+  TheHandyHapticsSession | IntifaceHapticsSession | TCodeHapticsSession | MultiFunPlayerSession;
 
 export type AnyHapticsSession = ProviderHapticsSession | HapticsGroupSession;
 
@@ -51,6 +52,8 @@ function getAdapter(
   if (provider === "intiface") {
     return intifaceAdapter as HapticsRuntimeAdapter<ProviderHapticsSession>;
   }
+  if (provider === "multifunplayer")
+    return multifunplayerAdapter as HapticsRuntimeAdapter<ProviderHapticsSession>;
   return tcodeAdapter as HapticsRuntimeAdapter<ProviderHapticsSession>;
 }
 

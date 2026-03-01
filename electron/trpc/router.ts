@@ -16,8 +16,10 @@ import { migrationRouter } from "./routers/migration";
 import { debugRouter } from "./routers/debug";
 import { progressionRouter } from "./routers/progression";
 import { acquisitionRouter } from "./routers/acquisition";
+import { multifunplayerRouter } from "./routers/multifunplayer";
 
 export const appRouter = router({
+  multifunplayer: multifunplayerRouter,
   db: dbRouter,
   store: storeRouter,
   phash: phashRouter,

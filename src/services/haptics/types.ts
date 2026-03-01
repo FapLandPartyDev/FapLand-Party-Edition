@@ -1,6 +1,6 @@
 import type { FunscriptAction } from "../../game/media/playback";
 
-export type HapticsProviderId = "thehandy" | "intiface" | "tcode";
+export type HapticsProviderId = "thehandy" | "intiface" | "tcode" | "multifunplayer";
 export type TCodeTransportKind = "serial" | "websocket" | "udp";
 export type TCodePrecision = 3 | 4;
 export type TCodeAxis = "L0";
@@ -26,6 +26,12 @@ export type HapticsConnectionResult = {
 };
 
 export type HapticsConnectionConfig =
+  | {
+      provider: "multifunplayer";
+      stroke: HapticsStrokeState;
+      videoUri?: string;
+      scriptUri?: string | null;
+    }
   | {
       provider: "thehandy";
       connectionKey: string;
@@ -66,6 +72,8 @@ export type HapticsSession = {
 };
 
 export type HapticsSyncOptions = {
+  /** Actual media state for players that extrapolate between sync frames. */
+  playing?: boolean;
   forceTimeSync?: boolean;
   /** Refresh both app and device clocks, bypassing cached measurements. */
   forceClockSync?: boolean;

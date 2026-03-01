@@ -49,6 +49,7 @@ import {
   stopHapticsPlayback,
   type AnyHapticsSession,
   type HapticsTargetConfig,
+  type HapticsDeviceTarget,
 } from "../../services/haptics/runtime";
 import {
   playDiceResultSound,
@@ -212,6 +213,7 @@ const INITIAL_UI_SHOW_MS = 5000;
 const UI_SHOW_AFTER_MOUSEMOVE_MS = 2200;
 const LOADING_MEDIA_ROTATE_MS = 2400;
 const LOADING_MEDIA_FADE_MS = 900;
+const EMPTY_HAPTICS_DEVICE_TARGETS: HapticsDeviceTarget[] = [];
 const HANDY_PUSH_INTERVAL_MS = 60;
 const INTIFACE_PUSH_INTERVAL_MS = 10;
 const HANDY_REAUTH_MARGIN_MS = 30_000;
@@ -235,9 +237,20 @@ function getHapticsSessionTopologyKey(config: HapticsTargetConfig): string {
   if (config.provider === "intiface") {
     return `intiface:${config.websocketUrl.trim()}:${config.deviceIndex ?? "auto"}`;
   }
+  if (config.provider === "multifunplayer") return "multifunplayer";
   return config.transport === "serial"
     ? `tcode:serial:${config.serialPath.trim()}:${config.baudRate}`
     : `tcode:websocket:${config.websocketUrl.trim()}`;
+}
+
+function getPlayerPlaybackState(config: HapticsTargetConfig, video: HTMLVideoElement) {
+  const hasPlayer =
+    config.provider === "multifunplayer" ||
+    (config.provider === "group" &&
+      config.devices.some((device) => device.config.provider === "multifunplayer"));
+  return hasPlayer
+    ? { playing: !video.paused && !video.ended && !video.seeking && video.readyState >= 3 }
+    : {};
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -423,7 +436,7 @@ export function RoundVideoOverlay({
   );
   const { playRandomOneShot, startContinuousLoop, stopContinuousLoop } = useGameplayMoaning();
   const {
-    activeDeviceTargets = [],
+    activeDeviceTargets = EMPTY_HAPTICS_DEVICE_TARGETS,
     provider: hapticsProvider,
     connectionKey,
     appApiKey,
@@ -1292,11 +1305,38 @@ export function RoundVideoOverlay({
     (timeline?.actions.length ?? 0) > 0;
   const hapticsConfig = useMemo<HapticsTargetConfig>(() => {
     if (activeDeviceTargets.length === 1) {
-      return activeDeviceTargets[0]!.config;
+      const config = activeDeviceTargets[0]!.config;
+      return config.provider === "multifunplayer"
+        ? {
+            ...config,
+            videoUri: activeSegmentResource?.videoUri,
+            scriptUri: activeSegmentResource?.funscriptUri,
+          }
+        : config;
     }
     if (activeDeviceTargets.length > 1) {
-      return { provider: "group", devices: activeDeviceTargets };
+      return {
+        provider: "group",
+        devices: activeDeviceTargets.map((device) => ({
+          ...device,
+          config:
+            device.config.provider === "multifunplayer"
+              ? {
+                  ...device.config,
+                  videoUri: activeSegmentResource?.videoUri,
+                  scriptUri: activeSegmentResource?.funscriptUri,
+                }
+              : device.config,
+        })),
+      };
     }
+    if (hapticsProvider === "multifunplayer")
+      return {
+        provider: "multifunplayer",
+        stroke: { min: strokeMin, max: strokeMax, minAbsolute: null, maxAbsolute: null },
+        videoUri: activeSegmentResource?.videoUri,
+        scriptUri: activeSegmentResource?.funscriptUri,
+      };
     if (hapticsProvider === "intiface") {
       return {
         provider: "intiface",
@@ -1346,6 +1386,8 @@ export function RoundVideoOverlay({
       funscriptRdpEpsilon,
     };
   }, [
+    activeSegmentResource?.videoUri,
+    activeSegmentResource?.funscriptUri,
     activeDeviceTargets,
     appApiKey,
     appApiKeyOverride,
@@ -1373,6 +1415,7 @@ export function RoundVideoOverlay({
   const hasRequiredHapticsConnection =
     activeDeviceTargets.length > 0 ||
     hapticsProvider === "intiface" ||
+    hapticsProvider === "multifunplayer" ||
     (hapticsProvider === "tcode" &&
       (tcodeTransport === "serial"
         ? tcodeSerialPath.trim().length > 0
@@ -2116,6 +2159,8 @@ export function RoundVideoOverlay({
   }, [onClose, stopHandyIfNeeded]);
 
   const handleCumRequest = useCallback(() => {
+    abortHandySyncLocally();
+    void stopHandyIfNeeded();
     if (
       showCumRoundOutcomeMenuOnCumRequest &&
       (activeRound?.phaseKind === "cum" || activeRound?.phaseKind === "cumPoint")
@@ -2131,6 +2176,7 @@ export function RoundVideoOverlay({
     annotateLastMainCumOutcome("manual_loss");
     onRequestCum?.();
   }, [
+    abortHandySyncLocally,
     activeRound?.phaseKind,
     annotateLastMainCumOutcome,
     onRequestCum,
@@ -2375,7 +2421,12 @@ export function RoundVideoOverlay({
         playbackRate,
         `${activeVideoUri}:${segment.kind}`,
         actions,
-        { forceTimeSync: true, forceClockSync: true, timeFilter: null }
+        {
+          forceTimeSync: true,
+          forceClockSync: true,
+          timeFilter: null,
+          ...getPlayerPlaybackState(hapticsConfig, video),
+        }
       );
       if (handyManuallyStoppedRef.current) return;
 
@@ -2696,8 +2747,7 @@ export function RoundVideoOverlay({
 
       const intensityCap = currentPlayer?.pendingIntensityCap ?? null;
       const shouldInvert =
-        result.invertFunscript !==
-        Boolean(currentPlayer?.antiPerks.includes("antigravity"));
+        result.invertFunscript !== Boolean(currentPlayer?.antiPerks.includes("antigravity"));
       const nextTimeline = invertTimeline(
         applyTimelineIntensityCap(rawTimeline, intensityCap),
         shouldInvert
@@ -2761,8 +2811,7 @@ export function RoundVideoOverlay({
         });
       }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t`Failed to invert the funscript.`;
+      const message = error instanceof Error ? error.message : t`Failed to invert the funscript.`;
       setStatus(message);
       showToast(message, "error");
       handyBootstrapKeyRef.current = null;
@@ -2825,8 +2874,7 @@ export function RoundVideoOverlay({
       });
     }
 
-    const isInverted =
-      overrideInvertFunscript ?? Boolean(resolvedMainResource.invertFunscript);
+    const isInverted = overrideInvertFunscript ?? Boolean(resolvedMainResource.invertFunscript);
     actions.push({
       id: "invert-funscript",
       label: isInvertingFunscript
@@ -2940,7 +2988,7 @@ export function RoundVideoOverlay({
         playbackRate,
         `${activeVideoUri}:${segment.kind}`,
         actions,
-        { forceTimeSync: true, timeFilter: null }
+        { forceTimeSync: true, timeFilter: null, ...getPlayerPlaybackState(hapticsConfig, video) }
       );
       if (handyManuallyStoppedRef.current || !isCurrentBootstrap()) return false;
 
@@ -4002,7 +4050,10 @@ export function RoundVideoOverlay({
             playbackRate,
             `${activeVideoUri}:${segment.kind}`,
             actions,
-            shouldForceTimeSync ? { forceTimeSync: true, timeFilter: null } : undefined
+            {
+              ...(shouldForceTimeSync ? { forceTimeSync: true, timeFilter: null } : {}),
+              ...getPlayerPlaybackState(hapticsConfig, video),
+            }
           );
           if (handyManuallyStoppedRef.current) return;
 
@@ -4568,9 +4619,11 @@ export function RoundVideoOverlay({
   const hapticsProviderLabel =
     hapticsProvider === "intiface"
       ? "Intiface"
-      : hapticsProvider === "tcode"
-        ? "TCode"
-        : "TheHandy";
+      : hapticsProvider === "multifunplayer"
+        ? "MultiFunPlayer"
+        : hapticsProvider === "tcode"
+          ? "TCode"
+          : "TheHandy";
   const handyStatusLabel = !handyConnected
     ? t`Disconnected`
     : handyManuallyStopped

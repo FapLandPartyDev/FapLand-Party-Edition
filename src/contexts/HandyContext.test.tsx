@@ -37,7 +37,7 @@ const mocks = vi.hoisted(() => ({
     minAbsolute: null,
     maxAbsolute: null,
   })),
-  getQuery: vi.fn(async () => null),
+  getQuery: vi.fn(async (_input: { key: string }): Promise<unknown> => null),
   setMutate: vi.fn(async () => undefined),
 }));
 
@@ -255,6 +255,44 @@ describe("HandyContext", () => {
     }));
     mocks.getQuery.mockResolvedValue(null);
     mocks.setMutate.mockResolvedValue(undefined);
+  });
+
+  it("migrates saved TCode hardware to one calibrated MultiFunPlayer entry", async () => {
+    const stroke = { min: 0.2, max: 0.8, minAbsolute: null, maxAbsolute: null };
+    mocks.getQuery.mockImplementation(async ({ key }: { key: string }) => {
+      if (key === "haptics.provider") return "tcode";
+      if (key === "haptics.deviceSlots.v1")
+        return [
+          {
+            id: "old",
+            label: "TCode device",
+            enabled: true,
+            stroke,
+            offsetMs: 125,
+            config: { provider: "tcode", transport: "websocket", websocketUrl: "ws://old/ws" },
+          },
+          {
+            id: "old2",
+            label: "TCode device",
+            enabled: true,
+            stroke,
+            offsetMs: 25,
+            config: { provider: "tcode", transport: "udp", udpHost: "old" },
+          },
+        ];
+      return null;
+    });
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+    await waitFor(() => expect(screen.getByTestId("connected").textContent).toBe("true"));
+    expect(screen.getByTestId("provider").textContent).toBe("multifunplayer");
+    expect(screen.getByTestId("device-count").textContent).toBe("1");
+    expect(screen.getByTestId("stroke-min").textContent).toBe("0.2");
+    expect(screen.getByTestId("offset-ms").textContent).toBe("125");
+    expect(mocks.verifyConnection).toHaveBeenCalledWith({ provider: "multifunplayer", stroke });
   });
 
   it("publishes a new runtime session revision for an explicit reconnect", async () => {

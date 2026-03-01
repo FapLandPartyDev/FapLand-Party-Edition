@@ -9,6 +9,7 @@ import { McpSettingsCard } from "../components/McpSettingsCard";
 import { MCP_CHANGED_EVENT } from "../mcp/types";
 import { AntiPerkBeatbar } from "../components/game/AntiPerkBeatbar";
 import { HandyStrokeRangeControl } from "../components/HandyStrokeRangeControl";
+import { MultiFunPlayerSettingsCard } from "../components/MultiFunPlayerSettingsCard";
 import { MenuButton } from "../components/MenuButton";
 import {
   ClearDataDialog,
@@ -34,21 +35,11 @@ import {
 } from "../constants/theHandy";
 import {
   DEFAULT_INTIFACE_WEBSOCKET_URL,
-  DEFAULT_TCODE_BAUD_RATE,
-  DEFAULT_TCODE_UDP_HOST,
-  DEFAULT_TCODE_UDP_PORT,
-  DEFAULT_TCODE_WEBSOCKET_HOST,
-  DEFAULT_TCODE_WEBSOCKET_URL,
   INTIFACE_DOWNLOAD_URL,
   INTIFACE_VIBRATION_SENSITIVITY_MAX,
   INTIFACE_VIBRATION_SENSITIVITY_MIN,
   INTIFACE_VIBRATION_SENSITIVITY_STEP,
 } from "../constants/haptics";
-import {
-  normalizeTCodeBaudRate,
-  normalizeTCodeUdpInput,
-  normalizeTCodeWebSocketInput,
-} from "../services/haptics/tcodeConfig";
 import {
   DEFAULT_FUNSCRIPT_MAX_RATE,
   DEFAULT_FUNSCRIPT_RDP_EPSILON,
@@ -1290,7 +1281,9 @@ export function SettingsPage() {
 
     void loadSettings();
 
-    const refreshMcpSettings = () => { void loadSettings(); };
+    const refreshMcpSettings = () => {
+      void loadSettings();
+    };
     window.addEventListener(MCP_CHANGED_EVENT, refreshMcpSettings);
 
     return () => {
@@ -3089,11 +3082,13 @@ export function SettingsPage() {
               ) : activeSection && activeSection.id === "changelog" ? (
                 <ChangelogCard />
               ) : activeSection && activeSection.id === "hardware" ? (
-                <HardwareSettingsCard
-                  section={activeSection}
-                  loading={isInitialLoading}
-                  deviceAnimationTestEnabled={deviceAnimationTestEnabled}
-                />
+                <>
+                  <HardwareSettingsCard
+                    section={activeSection}
+                    loading={isInitialLoading}
+                    deviceAnimationTestEnabled={deviceAnimationTestEnabled}
+                  />
+                </>
               ) : activeSection && activeSection.id === "advanced" ? (
                 <>
                   <SettingsSectionCard section={activeSection} loading={isInitialLoading} />
@@ -4437,7 +4432,6 @@ function HardwareSettingsCard({
   deviceAnimationTestEnabled: boolean;
 }) {
   const { t } = useLingui();
-  const { showToast } = useToast();
   const {
     deviceSlots = [],
     selectedDeviceId,
@@ -4458,15 +4452,6 @@ function HardwareSettingsCard({
     funscriptMaxRate,
     funscriptRdpEpsilon,
     setFunscriptRateLimitSettings,
-    tcodeTransport,
-    tcodeSerialPath,
-    tcodeBaudRate,
-    tcodeWebsocketHost,
-    tcodeWebsocketUrl,
-    tcodeUdpHost,
-    tcodePrecision,
-    tcodeSerialPorts,
-    tcodeSerialPortsLoading,
     offsetMs,
     strokeMin,
     strokeMax,
@@ -4484,9 +4469,7 @@ function HardwareSettingsCard({
     error,
     connect,
     connectIntiface,
-    connectTCode,
-    refreshTCodeSerialPorts,
-    autoDetectTCodeSerialPort,
+    connectMultiFunPlayer,
     disconnect,
     forceStop,
     startTestDevice,
@@ -4502,17 +4485,10 @@ function HardwareSettingsCard({
   const [inputIntifaceDeviceIndex, setInputIntifaceDeviceIndex] = useState(
     intifaceDeviceIndex === null ? "" : String(intifaceDeviceIndex)
   );
-  const [inputTCodeTransport, setInputTCodeTransport] = useState(tcodeTransport);
-  const [inputTCodeSerialPath, setInputTCodeSerialPath] = useState(tcodeSerialPath);
-  const [inputTCodeBaudRate, setInputTCodeBaudRate] = useState(String(tcodeBaudRate));
-  const [inputTCodeHost, setInputTCodeHost] = useState(tcodeWebsocketHost);
-  const [inputTCodeUdpHost, setInputTCodeUdpHost] = useState(tcodeUdpHost);
-  const [inputTCodePrecision, setInputTCodePrecision] = useState<3 | 4>(tcodePrecision);
   const [inputFunscriptMaxRate, setInputFunscriptMaxRate] = useState(String(funscriptMaxRate));
   const [inputFunscriptRdpEpsilon, setInputFunscriptRdpEpsilon] = useState(
     String(funscriptRdpEpsilon)
   );
-  const [tcodeAutoDetecting, setTCodeAutoDetecting] = useState(false);
   const [useCustomApiKey, setUseCustomApiKey] = useState(!isUsingDefaultAppApiKey);
   const [strokeMinSliderValue, setStrokeMinSliderValue] = useState(
     formatHandyStrokeBoundPercent(strokeMin)
@@ -4542,12 +4518,6 @@ function HardwareSettingsCard({
       setInputApiKeyOverride(appApiKeyOverride);
       setInputIntifaceUrl(intifaceWebsocketUrl);
       setInputIntifaceDeviceIndex(intifaceDeviceIndex === null ? "" : String(intifaceDeviceIndex));
-      setInputTCodeTransport(tcodeTransport);
-      setInputTCodeSerialPath(tcodeSerialPath);
-      setInputTCodeBaudRate(String(tcodeBaudRate));
-      setInputTCodeHost(tcodeWebsocketHost);
-      setInputTCodeUdpHost(tcodeUdpHost);
-      setInputTCodePrecision(tcodePrecision);
       setUseCustomApiKey(!isUsingDefaultAppApiKey);
     });
   }, [
@@ -4556,12 +4526,6 @@ function HardwareSettingsCard({
     intifaceWebsocketUrl,
     intifaceDeviceIndex,
     isUsingDefaultAppApiKey,
-    tcodeBaudRate,
-    tcodePrecision,
-    tcodeSerialPath,
-    tcodeTransport,
-    tcodeUdpHost,
-    tcodeWebsocketHost,
   ]);
 
   useEffect(() => {
@@ -4589,53 +4553,12 @@ function HardwareSettingsCard({
       }
       return;
     }
-    if (provider === "tcode") {
-      await connectTCode({
-        transport: inputTCodeTransport,
-        serialPath: inputTCodeSerialPath,
-        baudRate: normalizeTCodeBaudRate(inputTCodeBaudRate),
-        websocketInput: inputTCodeHost,
-        udpInput: inputTCodeUdpHost,
-        precision: inputTCodePrecision,
-      });
+    if (provider === "multifunplayer") {
+      await connectMultiFunPlayer();
       return;
     }
-
     await connect(inputKey, "", useCustomApiKey ? inputApiKeyOverride : "");
   };
-
-  const handleAutoDetectTCodeSerialPort = async () => {
-    playSelectSound();
-    setInputTCodeTransport("serial");
-    setTCodeAutoDetecting(true);
-    try {
-      const portPath = await autoDetectTCodeSerialPort(normalizeTCodeBaudRate(inputTCodeBaudRate));
-      if (!portPath) {
-        showToast(t`No toy seems connected.`, "error");
-        return;
-      }
-      setInputTCodeSerialPath(portPath);
-      showToast(t`TCode serial port detected: ${portPath}`, "success");
-    } finally {
-      setTCodeAutoDetecting(false);
-    }
-  };
-
-  const tcodeDerivedUrl = (() => {
-    try {
-      return normalizeTCodeWebSocketInput(inputTCodeHost).url;
-    } catch {
-      return DEFAULT_TCODE_WEBSOCKET_URL;
-    }
-  })();
-
-  const tcodeDerivedUdpEndpoint = (() => {
-    try {
-      return `udp://${normalizeTCodeUdpInput(inputTCodeUdpHost).endpoint}`;
-    } catch {
-      return `udp://${DEFAULT_TCODE_UDP_HOST}:${DEFAULT_TCODE_UDP_PORT}`;
-    }
-  })();
 
   const testElapsedMs =
     testDeviceRunning && testDeviceStartedAtMs !== null
@@ -4765,19 +4688,17 @@ function HardwareSettingsCard({
                 disabled={isConnecting}
                 onClick={() => {
                   playSelectSound();
-                  void setProvider("tcode");
+                  void setProvider("multifunplayer");
                 }}
-                className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                  provider === "tcode"
-                    ? "border-emerald-300/60 bg-emerald-500/25 text-emerald-100"
-                    : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
-                }`}
+                className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-50 ${provider === "multifunplayer" ? "border-cyan-300/60 bg-cyan-500/25 text-cyan-100" : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"}`}
               >
-                <Trans>TCode</Trans>
+                MultiFunPlayer
               </button>
             </div>
 
-            {provider === "intiface" ? (
+            {provider === "multifunplayer" ? (
+              <MultiFunPlayerSettingsCard />
+            ) : provider === "intiface" ? (
               <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-4">
                 <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
                   <p className="font-bold uppercase tracking-wider">
@@ -4893,196 +4814,6 @@ function HardwareSettingsCard({
                   </div>
                 </div>
               </div>
-            ) : provider === "tcode" ? (
-              <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-4">
-                <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
-                  <p className="font-bold uppercase tracking-wider">
-                    <Trans>Experimental Support</Trans>
-                  </p>
-                  <p className="mt-1">
-                    <Trans>
-                      TCode support streams the primary funscript to the L0 axis of OSR/SR-style
-                      devices.
-                    </Trans>
-                  </p>
-                </div>
-
-                <div className="mb-4 grid gap-2 sm:grid-cols-3">
-                  <button
-                    type="button"
-                    disabled={isConnecting}
-                    onClick={() => setInputTCodeTransport("websocket")}
-                    className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] transition-colors disabled:opacity-50 ${
-                      inputTCodeTransport === "websocket"
-                        ? "border-emerald-300/60 bg-emerald-500/25 text-emerald-100"
-                        : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
-                    }`}
-                  >
-                    <Trans>WebSocket</Trans>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isConnecting}
-                    onClick={() => setInputTCodeTransport("udp")}
-                    className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] transition-colors disabled:opacity-50 ${
-                      inputTCodeTransport === "udp"
-                        ? "border-emerald-300/60 bg-emerald-500/25 text-emerald-100"
-                        : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
-                    }`}
-                  >
-                    <Trans>UDP</Trans>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isConnecting}
-                    onClick={() => {
-                      setInputTCodeTransport("serial");
-                      void refreshTCodeSerialPorts();
-                    }}
-                    className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] transition-colors disabled:opacity-50 ${
-                      inputTCodeTransport === "serial"
-                        ? "border-emerald-300/60 bg-emerald-500/25 text-emerald-100"
-                        : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
-                    }`}
-                  >
-                    <Trans>Serial</Trans>
-                  </button>
-                </div>
-
-                {inputTCodeTransport === "serial" ? (
-                  <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
-                    <div className="flex flex-col gap-2">
-                      <label
-                        className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
-                        htmlFor="settings-tcode-serial-port"
-                      >
-                        <Trans>Serial Port</Trans>
-                      </label>
-                      <select
-                        id="settings-tcode-serial-port"
-                        value={inputTCodeSerialPath}
-                        onChange={(event) => setInputTCodeSerialPath(event.target.value)}
-                        disabled={isConnecting}
-                        className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
-                      >
-                        <option value="">{t`Select serial port`}</option>
-                        {tcodeSerialPorts.map((port) => (
-                          <option key={port.path} value={port.path}>
-                            {port.path}
-                            {port.manufacturer ? ` (${port.manufacturer})` : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={connected || isConnecting || tcodeSerialPortsLoading}
-                      onClick={() => void refreshTCodeSerialPorts()}
-                      className="self-end rounded-xl border border-emerald-300/40 bg-emerald-500/15 px-4 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-emerald-100 transition-colors hover:bg-emerald-500/25 disabled:opacity-50"
-                    >
-                      {tcodeSerialPortsLoading && !tcodeAutoDetecting
-                        ? t`Refreshing...`
-                        : t`Refresh`}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={connected || isConnecting || tcodeSerialPortsLoading}
-                      onClick={() => void handleAutoDetectTCodeSerialPort()}
-                      className="self-end rounded-xl border border-cyan-300/40 bg-cyan-500/15 px-4 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-cyan-100 transition-colors hover:bg-cyan-500/25 disabled:opacity-50"
-                    >
-                      {tcodeAutoDetecting ? t`Detecting...` : t`Auto Detect Toy`}
-                    </button>
-                    <div className="flex flex-col gap-2 sm:col-span-3">
-                      <label
-                        className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
-                        htmlFor="settings-tcode-baud-rate"
-                      >
-                        <Trans>Baud Rate</Trans>
-                      </label>
-                      <input
-                        id="settings-tcode-baud-rate"
-                        type="number"
-                        value={inputTCodeBaudRate}
-                        onChange={(event) => setInputTCodeBaudRate(event.target.value)}
-                        placeholder={String(DEFAULT_TCODE_BAUD_RATE)}
-                        disabled={isConnecting}
-                        className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
-                      />
-                    </div>
-                  </div>
-                ) : inputTCodeTransport === "udp" ? (
-                  <div className="flex flex-col gap-2">
-                    <label
-                      className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
-                      htmlFor="settings-tcode-udp-host"
-                    >
-                      <Trans>Device IP / Host</Trans>
-                    </label>
-                    <input
-                      id="settings-tcode-udp-host"
-                      type="text"
-                      value={inputTCodeUdpHost}
-                      onChange={(event) => setInputTCodeUdpHost(event.target.value)}
-                      placeholder={`${DEFAULT_TCODE_UDP_HOST}:${DEFAULT_TCODE_UDP_PORT}`}
-                      disabled={isConnecting}
-                      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
-                    />
-                    <p className="ml-1 text-xs text-zinc-400">
-                      <Trans>Derived UDP endpoint</Trans>: {tcodeDerivedUdpEndpoint}
-                    </p>
-                    {tcodeUdpHost ? (
-                      <p className="ml-1 text-xs text-emerald-100">
-                        <Trans>Saved UDP endpoint</Trans>: {tcodeUdpHost}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <label
-                      className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
-                      htmlFor="settings-tcode-host"
-                    >
-                      <Trans>Device IP / Host</Trans>
-                    </label>
-                    <input
-                      id="settings-tcode-host"
-                      type="text"
-                      value={inputTCodeHost}
-                      onChange={(event) => setInputTCodeHost(event.target.value)}
-                      placeholder={DEFAULT_TCODE_WEBSOCKET_HOST}
-                      disabled={isConnecting}
-                      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
-                    />
-                    <p className="ml-1 text-xs text-zinc-400">
-                      <Trans>Derived WebSocket URL</Trans>: {tcodeDerivedUrl}
-                    </p>
-                    {tcodeWebsocketUrl ? (
-                      <p className="ml-1 text-xs text-emerald-100">
-                        <Trans>Saved TCode URL</Trans>: {tcodeWebsocketUrl}
-                      </p>
-                    ) : null}
-                  </div>
-                )}
-
-                <div className="mt-4 flex flex-col gap-2">
-                  <label
-                    className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
-                    htmlFor="settings-tcode-precision"
-                  >
-                    <Trans>TCode Version</Trans>
-                  </label>
-                  <select
-                    id="settings-tcode-precision"
-                    value={inputTCodePrecision}
-                    onChange={(event) => setInputTCodePrecision(event.target.value === "3" ? 3 : 4)}
-                    disabled={isConnecting}
-                    className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
-                  >
-                    <option value={4}>{t`TCode v0.3 / 4 digit`}</option>
-                    <option value={3}>{t`TCode v0.2 / 3 digit`}</option>
-                  </select>
-                </div>
-              </div>
             ) : (
               <>
                 <div className="flex flex-col gap-2">
@@ -5186,7 +4917,7 @@ function HardwareSettingsCard({
               </>
             )}
 
-            {provider !== "tcode" ? (
+            {provider !== "tcode" && provider !== "multifunplayer" ? (
               <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
