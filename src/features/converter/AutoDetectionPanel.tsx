@@ -19,8 +19,8 @@ type AutoDetectionPanelProps = {
   onCommitPauseGapDraft: () => void;
   onCommitMinRoundDraft: () => void;
   onRunAutoDetect: () => void;
+  onRunAdaptiveAutoDetect: () => void;
   onRunTargetCountAutoDetect: () => void;
-  onRunThreeMinutePauseDetectAndApply: () => void;
   onApplyDetected: () => void;
 };
 
@@ -41,8 +41,8 @@ export const AutoDetectionPanel: React.FC<AutoDetectionPanelProps> = React.memo(
     onCommitPauseGapDraft,
     onCommitMinRoundDraft,
     onRunAutoDetect,
+    onRunAdaptiveAutoDetect,
     onRunTargetCountAutoDetect,
-    onRunThreeMinutePauseDetectAndApply,
     onApplyDetected,
   }) => {
     const { t } = useLingui();
@@ -114,7 +114,24 @@ export const AutoDetectionPanel: React.FC<AutoDetectionPanelProps> = React.memo(
           </label>
         </div>
 
-        <div className="mt-2 grid grid-cols-3 gap-2">
+        <div className="mt-2 grid grid-cols-4 gap-2">
+          <button
+            type="button"
+            disabled={detectDisabled}
+            onMouseEnter={playHoverSound}
+            onClick={() => {
+              playSelectSound();
+              onRunAdaptiveAutoDetect();
+            }}
+            className={`rounded-lg border px-2 py-1.5 text-xs transition-all duration-200 ${
+              detectDisabled
+                ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
+                : "border-violet-300/60 bg-violet-500/25 text-violet-100 hover:bg-violet-500/40"
+            }`}
+          >
+            {isDetecting ? t`Detecting...` : t`Auto Split`}
+          </button>
+
           <button
             type="button"
             disabled={detectDisabled}
@@ -193,8 +210,8 @@ export function pickAutoDetectionPanelProps(state: ConverterState): AutoDetectio
     onCommitPauseGapDraft: state.commitPauseGapDraft,
     onCommitMinRoundDraft: state.commitMinRoundDraft,
     onRunAutoDetect: () => void state.runAutoDetect(),
+    onRunAdaptiveAutoDetect: () => void state.runAdaptiveAutoDetectAndApply(),
     onRunTargetCountAutoDetect: () => void state.runTargetCountAutoDetect(),
-    onRunThreeMinutePauseDetectAndApply: () => void state.runThreeMinutePauseDetectAndApply(),
     onApplyDetected: state.applyDetectedSuggestions,
   };
 }

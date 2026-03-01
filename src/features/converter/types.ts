@@ -18,6 +18,7 @@ export type SegmentDraft = {
   cutRanges: RoundCutRangeDraft[];
   type: SegmentType;
   customName?: string | null;
+  excludeFromNumbering: boolean;
   bpm: number | null;
   difficulty: number | null;
   bpmOverride: boolean;
@@ -34,6 +35,7 @@ export type InstalledSourceOption = {
   type: SegmentType;
   bpm: number | null;
   difficulty: number | null;
+  excludeFromNumbering: boolean;
   videoUri: string;
   funscriptUri: string | null;
   cutRangesJson: string | null;
@@ -126,6 +128,17 @@ export function sortSegments(input: SegmentDraft[]): SegmentDraft[] {
     if (a.startTimeMs !== b.startTimeMs) return a.startTimeMs - b.startTimeMs;
     if (a.endTimeMs !== b.endTimeMs) return a.endTimeMs - b.endTimeMs;
     return a.id.localeCompare(b.id);
+  });
+}
+
+export function assignSegmentOrdinals(
+  input: SegmentDraft[]
+): Array<{ segment: SegmentDraft; ordinal: number | null }> {
+  let ordinal = 0;
+  return sortSegments(input).map((segment) => {
+    if (segment.excludeFromNumbering) return { segment, ordinal: null };
+    ordinal += 1;
+    return { segment, ordinal };
   });
 }
 

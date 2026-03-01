@@ -19,6 +19,7 @@ export type SaveConverterSegmentsInput = {
     endTimeMs: number;
     type: "Normal" | "Interjection" | "Cum";
     customName?: string | null;
+    excludeFromNumbering?: boolean;
     bpm?: number | null;
     difficulty?: number | null;
     cutRanges?: Array<{

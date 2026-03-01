@@ -1,5 +1,25 @@
 # What's New
 
+## v0.6.06-beta
+
+### Added
+
+- **Adaptive Round Converter splitting** — a new **Auto Split** action analyzes funscript pauses, searches for suitable pause-gap and minimum-round settings, and immediately applies a balanced set of roughly three-minute rounds. It reports when no meaningful split is available and safely ignores results if the source changes while detection is running.
+- **Rounds that do not consume a number** — converter segments can now be marked **Exclude from numbering** for named interjections or other special rounds. Excluded segments display without an `R` ordinal, require a custom name, and no longer create gaps in the generated names of the numbered rounds that follow them. The choice is persisted when converted rounds are saved and restored when they are edited again.
+
+### Changed
+
+- Reopening generated converter rounds now recognizes default names such as `Hero - round 1` as automatic names, allowing them to follow the current hero name and ordinal instead of being treated as custom titles.
+- Loading an installed round linked to a hero now consistently uses that hero's saved name, author, and description instead of stale navigation-prefilled metadata.
+- The Round Converter schema and installed-round data flow now carry the numbering-exclusion setting, including an automatic database migration for existing installations.
+
+### Fixed
+
+- Auto-detection results can no longer be applied to a different local, website, installed-round, or installed-hero source after the user changes sources while analysis is still running.
+- Converter validation now prevents an excluded, unnumbered segment from being saved without the custom round name needed to identify it.
+
+---
+
 ## v0.6.05-beta
 
 ### Added

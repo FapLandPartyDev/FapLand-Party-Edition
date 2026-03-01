@@ -33,6 +33,7 @@ export const converterRouter = router({
               endTimeMs: z.number().finite(),
               type: ZRoundType,
               customName: z.string().optional().nullable(),
+              excludeFromNumbering: z.boolean().optional(),
               bpm: z.number().finite().min(1).max(400).optional().nullable(),
               difficulty: z.number().int().min(1).max(5).optional().nullable(),
               cutRanges: z.array(ZRoundCutRange).optional().nullable(),

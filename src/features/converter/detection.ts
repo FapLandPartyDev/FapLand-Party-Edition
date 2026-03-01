@@ -49,6 +49,31 @@ export type TargetDetectionFailure = {
 
 export type TargetDetectionResult = TargetDetectionSuccess | TargetDetectionFailure;
 
+export type AdaptiveDetectionResult = {
+  pauseGapMs: number;
+  minRoundMs: number;
+  segments: DetectedSegment[];
+  evaluations: number;
+};
+
+type BestTargetDetection = {
+  pauseGapMs: number;
+  minRoundMs: number;
+  segments: DetectedSegment[];
+  minRoundDistance: number;
+  balanceScore: number;
+  idleScore: number;
+  evaluation: number;
+};
+
+type ClosestTargetDetection = {
+  pauseGapMs: number;
+  minRoundMs: number;
+  segmentCount: number;
+  countDistance: number;
+  minRoundDistance: number;
+};
+
 const CADENCE_PADDING_MIN_MS = 500;
 const CADENCE_PADDING_MAX_MS = 3_000;
 const CADENCE_PADDING_FALLBACK_MS = 1_500;
@@ -369,6 +394,94 @@ function leadingTrailingIdleScore(
   );
 }
 
+export function findAdaptiveDetectionSettings(
+  input: Omit<TargetDetectionInput, "targetCount"> & { preferredRoundMs?: number }
+): AdaptiveDetectionResult {
+  const durationMs = Math.max(0, Math.floor(input.durationMs));
+  const preferredRoundMs = Math.max(60_000, Math.floor(input.preferredRoundMs ?? 180_000));
+  const normalizedActions = normalizeActions(input.actions);
+  if (durationMs <= 0 || normalizedActions.length < 3) {
+    return {
+      pauseGapMs: input.currentPauseGapMs,
+      minRoundMs: input.currentMinRoundMs,
+      segments: [],
+      evaluations: 0,
+    };
+  }
+
+  const inferredCount = Math.max(2, Math.round(durationMs / preferredRoundMs));
+  const targetCounts = uniqueSortedNumbers([
+    inferredCount,
+    Math.max(2, inferredCount - 1),
+    inferredCount + 1,
+    Math.max(2, Math.floor(durationMs / preferredRoundMs)),
+    Math.max(2, Math.ceil(durationMs / preferredRoundMs)),
+  ]);
+
+  let evaluations = 0;
+  let best:
+    | (AdaptiveDetectionResult & {
+        score: number;
+        balance: number;
+      })
+    | null = null;
+
+  for (const targetCount of targetCounts) {
+    const result = findDetectionSettingsForTargetCount({
+      ...input,
+      actions: normalizedActions,
+      durationMs,
+      targetCount,
+      minRoundRangeMs: input.minRoundRangeMs ?? {
+        min: 60_000,
+        max: Math.max(60_000, Math.min(preferredRoundMs, Math.floor(durationMs / 2))),
+      },
+    });
+    evaluations += result.evaluations;
+    if (result.status !== "success" || result.segments.length < 2) continue;
+
+    const durations = result.segments.map((segment) => segment.endTimeMs - segment.startTimeMs);
+    const typicalDuration =
+      median(durations) ??
+      durations.reduce((sum, duration) => sum + duration, 0) / durations.length;
+    const preferredDistance = Math.abs(typicalDuration - preferredRoundMs);
+    const balance = durationBalanceScore(result.segments);
+    const idle = leadingTrailingIdleScore(result.segments, normalizedActions, durationMs);
+    // A larger qualifying pause is stronger evidence, while duration stability dominates.
+    const score =
+      preferredDistance * 4 +
+      balance +
+      idle -
+      Math.min(result.pauseGapMs, 10_000) * 20 +
+      result.segments.length;
+
+    if (
+      !best ||
+      score < best.score ||
+      (score === best.score && balance < best.balance) ||
+      (score === best.score &&
+        balance === best.balance &&
+        result.segments.length < best.segments.length)
+    ) {
+      best = { ...result, evaluations, score, balance };
+    }
+  }
+
+  return best
+    ? {
+        pauseGapMs: best.pauseGapMs,
+        minRoundMs: best.minRoundMs,
+        segments: best.segments,
+        evaluations,
+      }
+    : {
+        pauseGapMs: input.currentPauseGapMs,
+        minRoundMs: input.currentMinRoundMs,
+        segments: [],
+        evaluations,
+      };
+}
+
 export function findDetectionSettingsForTargetCount(
   input: TargetDetectionInput
 ): TargetDetectionResult {
@@ -402,22 +515,8 @@ export function findDetectionSettingsForTargetCount(
   );
 
   let evaluations = 0;
-  let bestSuccess: {
-    pauseGapMs: number;
-    minRoundMs: number;
-    segments: DetectedSegment[];
-    minRoundDistance: number;
-    balanceScore: number;
-    idleScore: number;
-    evaluation: number;
-  } | null = null;
-  let closest: {
-    pauseGapMs: number;
-    minRoundMs: number;
-    segmentCount: number;
-    countDistance: number;
-    minRoundDistance: number;
-  } | null = null;
+  let bestSuccess: BestTargetDetection | null = null;
+  let closest: ClosestTargetDetection | null = null;
 
   const evaluate = (pauseGapMs: number, minRoundMs: number) => {
     if (evaluations >= maxEvaluations) return;
@@ -506,24 +605,26 @@ export function findDetectionSettingsForTargetCount(
     }
   }
 
-  if (bestSuccess) {
+  const resolvedBest = bestSuccess as BestTargetDetection | null;
+  if (resolvedBest) {
     return {
       status: "success",
-      pauseGapMs: bestSuccess.pauseGapMs,
-      minRoundMs: bestSuccess.minRoundMs,
-      segments: bestSuccess.segments,
+      pauseGapMs: resolvedBest.pauseGapMs,
+      minRoundMs: resolvedBest.minRoundMs,
+      segments: resolvedBest.segments,
       evaluations,
     };
   }
 
+  const resolvedClosest = closest as ClosestTargetDetection | null;
   return {
     status: "failure",
     evaluations,
-    closest: closest
+    closest: resolvedClosest
       ? {
-          pauseGapMs: closest.pauseGapMs,
-          minRoundMs: closest.minRoundMs,
-          segmentCount: closest.segmentCount,
+          pauseGapMs: resolvedClosest.pauseGapMs,
+          minRoundMs: resolvedClosest.minRoundMs,
+          segmentCount: resolvedClosest.segmentCount,
         }
       : null,
   };

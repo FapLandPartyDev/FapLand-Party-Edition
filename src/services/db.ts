@@ -22,7 +22,8 @@ export type Round = RoundFromTrpc & {
   libraryLabel?: string | null;
 };
 export type Resource = NonNullable<Awaited<ReturnType<typeof trpc.db.getResource.query>>>;
-export type InstalledRound = Omit<InstalledRoundFromTrpc, "hero"> & {
+export type InstalledRound = Omit<InstalledRoundFromTrpc, "hero" | "excludeFromNumbering"> & {
+  excludeFromNumbering?: boolean;
   tags?: string[];
   libraryLabel?: string | null;
   hero:

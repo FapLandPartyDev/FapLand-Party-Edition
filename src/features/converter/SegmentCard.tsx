@@ -9,6 +9,7 @@ import { formatMs, type SegmentCutMarkDraft, type SegmentDraft, type SegmentType
 type SegmentCardProps = {
   segment: SegmentDraft;
   index: number;
+  ordinal: number | null;
   isSelected: boolean;
   hasNext: boolean;
   heroName: string;
@@ -27,6 +28,7 @@ type SegmentCardProps = {
   onJumpCutStart: (cutId: string) => void;
   onJumpCutEnd: (cutId: string) => void;
   onSetCustomName: (name: string) => void;
+  onSetExcludeFromNumbering: (excluded: boolean) => void;
   onSetBpm: (rawValue: string) => void;
   onResetBpm: () => void;
   onSetDifficulty: (rawValue: string) => void;
@@ -50,6 +52,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
   ({
     segment,
     index,
+    ordinal,
     isSelected,
     hasNext,
     heroName,
@@ -68,6 +71,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
     onJumpCutStart,
     onJumpCutEnd,
     onSetCustomName,
+    onSetExcludeFromNumbering,
     onSetBpm,
     onResetBpm,
     onSetDifficulty,
@@ -112,16 +116,32 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
             >
               ▸
             </button>
-            <span className="text-xs font-semibold text-zinc-200 shrink-0">R{index + 1}</span>
+            <span className="text-xs font-semibold text-zinc-200 shrink-0">
+              {ordinal === null ? "—" : `R${ordinal}`}
+            </span>
             <input
               type="text"
               value={segment.customName ?? ""}
               onClick={(e) => e.stopPropagation()}
               onChange={(e) => onSetCustomName(e.target.value)}
-              placeholder={t`${heroName.trim() || "Hero"} - round ${index + 1}`}
+              placeholder={
+                ordinal === null
+                  ? t`Custom round name`
+                  : t`${heroName.trim() || "Hero"} - round ${ordinal}`
+              }
               className="min-w-0 flex-1 bg-transparent text-xs text-zinc-100 outline-none border-b border-transparent focus:border-violet-400/50"
             />
           </div>
+          <label className="mt-2 flex cursor-pointer items-center gap-2 pl-5 text-[10px] text-zinc-300">
+            <input
+              type="checkbox"
+              checked={segment.excludeFromNumbering}
+              onClick={(event) => event.stopPropagation()}
+              onChange={(event) => onSetExcludeFromNumbering(event.currentTarget.checked)}
+              className="h-3.5 w-3.5 accent-violet-400"
+            />
+            <Trans>Exclude from numbering</Trans>
+          </label>
           <div className="flex items-center gap-2 text-[10px] text-zinc-500 shrink-0">
             <span>
               {formatMs(segment.startTimeMs)}–{formatMs(segment.endTimeMs)}

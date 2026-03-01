@@ -1,6 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Timeline } from "./Timeline";
+
+afterEach(cleanup);
 
 vi.mock("../../utils/audio", () => ({
   playHoverSound: vi.fn(),
@@ -60,6 +62,7 @@ describe("Timeline", () => {
             cutRanges: [{ id: "cut-1", startTimeMs: 3_000, endTimeMs: 4_000 }],
             type: "Normal",
             customName: null,
+            excludeFromNumbering: false,
             bpm: null,
             difficulty: null,
             bpmOverride: false,
@@ -97,6 +100,7 @@ describe("Timeline", () => {
             cutRanges: [{ id: "cut-1", startTimeMs: 2_000, endTimeMs: 3_000 }],
             type: "Normal",
             customName: null,
+            excludeFromNumbering: false,
             bpm: null,
             difficulty: null,
             bpmOverride: false,
@@ -109,6 +113,7 @@ describe("Timeline", () => {
             cutRanges: [],
             type: "Interjection",
             customName: null,
+            excludeFromNumbering: false,
             bpm: null,
             difficulty: null,
             bpmOverride: false,
@@ -150,6 +155,7 @@ describe("Timeline", () => {
             cutRanges: [],
             type: "Normal",
             customName: null,
+            excludeFromNumbering: false,
             bpm: null,
             difficulty: null,
             bpmOverride: false,
@@ -162,6 +168,7 @@ describe("Timeline", () => {
             cutRanges: [],
             type: "Interjection",
             customName: null,
+            excludeFromNumbering: false,
             bpm: null,
             difficulty: null,
             bpmOverride: false,
@@ -204,6 +211,7 @@ describe("Timeline", () => {
             cutRanges: [],
             type: "Normal",
             customName: null,
+            excludeFromNumbering: false,
             bpm: null,
             difficulty: null,
             bpmOverride: false,
@@ -216,6 +224,7 @@ describe("Timeline", () => {
             cutRanges: [],
             type: "Cum",
             customName: null,
+            excludeFromNumbering: false,
             bpm: null,
             difficulty: null,
             bpmOverride: false,

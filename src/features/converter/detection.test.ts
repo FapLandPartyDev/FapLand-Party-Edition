@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildDetectedSegments, findDetectionSettingsForTargetCount } from "./detection";
+import {
+  buildDetectedSegments,
+  findAdaptiveDetectionSettings,
+  findDetectionSettingsForTargetCount,
+} from "./detection";
 
 describe("buildDetectedSegments", () => {
   it("splits on pause gaps and trims the final segment to action cadence", () => {
@@ -129,6 +133,44 @@ describe("buildDetectedSegments", () => {
   });
 });
 
+describe("findAdaptiveDetectionSettings", () => {
+  it("finds stable long rounds separated by a meaningful pause", () => {
+    const actions = [
+      ...Array.from({ length: 170 }, (_, index) => ({
+        at: index * 1_000,
+        pos: index % 2 ? 80 : 20,
+      })),
+      ...Array.from({ length: 170 }, (_, index) => ({
+        at: 175_000 + index * 1_000,
+        pos: index % 2 ? 80 : 20,
+      })),
+    ];
+
+    const result = findAdaptiveDetectionSettings({
+      actions,
+      durationMs: 350_000,
+      currentPauseGapMs: 900,
+      currentMinRoundMs: 180_000,
+    });
+
+    expect(result.segments).toHaveLength(2);
+    expect(result.pauseGapMs).toBeGreaterThanOrEqual(1_000);
+    expect(result.evaluations).toBeGreaterThan(0);
+  });
+
+  it("returns no split for empty action data", () => {
+    const result = findAdaptiveDetectionSettings({
+      actions: [],
+      durationMs: 350_000,
+      currentPauseGapMs: 900,
+      currentMinRoundMs: 180_000,
+    });
+
+    expect(result.segments).toEqual([]);
+    expect(result.evaluations).toBe(0);
+  });
+});
+
 describe("findDetectionSettingsForTargetCount", () => {
   it("finds exact target count by changing pause and min round settings", () => {
     const result = findDetectionSettingsForTargetCount({
@@ -161,6 +203,7 @@ describe("findDetectionSettingsForTargetCount", () => {
     });
 
     expect(result.status).toBe("failure");
+    if (result.status !== "failure") return;
     expect(result.closest?.segmentCount).toBe(1);
   });
 

@@ -3,7 +3,7 @@ import React from "react";
 import { playSelectSound } from "../../utils/audio";
 import type { ConverterState } from "./useConverterState";
 import { SegmentCard } from "./SegmentCard";
-import type { SegmentCutMarkDraft } from "./types";
+import { assignSegmentOrdinals, type SegmentCutMarkDraft } from "./types";
 
 type SegmentListProps = {
   sortedSegments: ConverterState["sortedSegments"];
@@ -25,6 +25,7 @@ type SegmentListProps = {
   onSeekToMs: (ms: number) => void;
   onMergeSegmentWithNext: (id: string) => void;
   onSetSegmentCustomName: (id: string, name: string) => void;
+  onSetSegmentExcludeFromNumbering: (id: string, excluded: boolean) => void;
   onSetSegmentBpm: (id: string, rawValue: string) => void;
   onResetSegmentBpm: (id: string) => void;
   onSetSegmentDifficulty: (id: string, rawValue: string) => void;
@@ -56,6 +57,7 @@ export const SegmentList: React.FC<SegmentListProps> = React.memo(
     onSeekToMs,
     onMergeSegmentWithNext,
     onSetSegmentCustomName,
+    onSetSegmentExcludeFromNumbering,
     onSetSegmentBpm,
     onResetSegmentBpm,
     onSetSegmentDifficulty,
@@ -136,11 +138,12 @@ export const SegmentList: React.FC<SegmentListProps> = React.memo(
               <p className="text-xs">{t`No segments. Mark IN/OUT and add one.`}</p>
             </div>
           ) : (
-            sortedSegments.map((segment, index) => (
+            assignSegmentOrdinals(sortedSegments).map(({ segment, ordinal }, index) => (
               <SegmentCard
                 key={segment.id}
                 segment={segment}
                 index={index}
+                ordinal={ordinal}
                 isSelected={selectedSegmentId === segment.id}
                 hasNext={index < sortedSegments.length - 1}
                 heroName={heroName}
@@ -178,6 +181,9 @@ export const SegmentList: React.FC<SegmentListProps> = React.memo(
                   onSeekToMs(cut.endTimeMs);
                 }}
                 onSetCustomName={(name) => onSetSegmentCustomName(segment.id, name)}
+                onSetExcludeFromNumbering={(excluded) =>
+                  onSetSegmentExcludeFromNumbering(segment.id, excluded)
+                }
                 onSetBpm={(rawValue) => onSetSegmentBpm(segment.id, rawValue)}
                 onResetBpm={() => onResetSegmentBpm(segment.id)}
                 onSetDifficulty={(rawValue) => onSetSegmentDifficulty(segment.id, rawValue)}
@@ -221,6 +227,7 @@ export function pickSegmentListProps(state: ConverterState): SegmentListProps {
     },
     onMergeSegmentWithNext: state.mergeSegmentWithNext,
     onSetSegmentCustomName: state.setSegmentCustomName,
+    onSetSegmentExcludeFromNumbering: state.setSegmentExcludeFromNumbering,
     onSetSegmentBpm: state.setSegmentBpm,
     onResetSegmentBpm: state.resetSegmentBpm,
     onSetSegmentDifficulty: state.setSegmentDifficulty,

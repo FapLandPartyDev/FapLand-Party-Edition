@@ -52,8 +52,8 @@ describe("converter shortcut hints", () => {
           onCommitPauseGapDraft={() => {}}
           onCommitMinRoundDraft={() => {}}
           onRunAutoDetect={() => {}}
+          onRunAdaptiveAutoDetect={() => {}}
           onRunTargetCountAutoDetect={() => {}}
-          onRunThreeMinutePauseDetectAndApply={() => {}}
           onApplyDetected={() => {}}
         />
       </div>
@@ -85,8 +85,8 @@ describe("converter shortcut hints", () => {
         onCommitPauseGapDraft={() => {}}
         onCommitMinRoundDraft={() => {}}
         onRunAutoDetect={() => {}}
+        onRunAdaptiveAutoDetect={() => {}}
         onRunTargetCountAutoDetect={onRunTargetCountAutoDetect}
-        onRunThreeMinutePauseDetectAndApply={() => {}}
         onApplyDetected={() => {}}
       />
     );
@@ -151,6 +151,7 @@ describe("converter shortcut hints", () => {
         onSeekToMs={() => {}}
         onMergeSegmentWithNext={() => {}}
         onSetSegmentCustomName={() => {}}
+        onSetSegmentExcludeFromNumbering={() => {}}
         onSetSegmentBpm={() => {}}
         onResetSegmentBpm={() => {}}
         onSetSegmentDifficulty={() => {}}

@@ -22,9 +22,14 @@ describe("ConverterHeader", () => {
         selectedSourceInfo={{ kind: "local", id: "source-1", name: "Editor" }}
         segmentCount={2}
         sourceSummary="Local file"
+        canLoadPreviousUnconverted={false}
+        canLoadNextUnconverted={false}
+        unconvertedPositionLabel={null}
         showHotkeys
         onGoToSelect={() => {}}
         onAttachFunscript={() => {}}
+        onLoadPreviousUnconverted={() => {}}
+        onLoadNextUnconverted={() => {}}
         onShowHotkeys={onShowHotkeys}
         onHideHotkeys={onHideHotkeys}
       />
@@ -39,9 +44,14 @@ describe("ConverterHeader", () => {
         selectedSourceInfo={{ kind: "local", id: "source-1", name: "Editor" }}
         segmentCount={2}
         sourceSummary="Local file"
+        canLoadPreviousUnconverted={false}
+        canLoadNextUnconverted={false}
+        unconvertedPositionLabel={null}
         showHotkeys={false}
         onGoToSelect={() => {}}
         onAttachFunscript={() => {}}
+        onLoadPreviousUnconverted={() => {}}
+        onLoadNextUnconverted={() => {}}
         onShowHotkeys={onShowHotkeys}
         onHideHotkeys={onHideHotkeys}
       />
@@ -60,9 +70,14 @@ describe("ConverterHeader", () => {
         selectedSourceInfo={{ kind: "local", id: "source-1", name: "Editor" }}
         segmentCount={0}
         sourceSummary="Local file"
+        canLoadPreviousUnconverted={false}
+        canLoadNextUnconverted={false}
+        unconvertedPositionLabel={null}
         showHotkeys={false}
         onGoToSelect={() => {}}
         onAttachFunscript={onAttachFunscript}
+        onLoadPreviousUnconverted={() => {}}
+        onLoadNextUnconverted={() => {}}
         onShowHotkeys={() => {}}
         onHideHotkeys={() => {}}
       />

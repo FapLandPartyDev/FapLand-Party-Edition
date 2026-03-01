@@ -23,6 +23,7 @@ function makeSegment(overrides: Partial<SegmentDraft> = {}): SegmentDraft {
     cutRanges: [],
     type: "Normal",
     customName: "Hero - round 1",
+    excludeFromNumbering: false,
     bpm: 90,
     difficulty: 3,
     bpmOverride: false,
@@ -43,6 +44,7 @@ function renderSegmentCard({
   const props = {
     segment,
     index: 0,
+    ordinal: 1,
     isSelected: false,
     hasNext: true,
     heroName: "Hero",
@@ -61,6 +63,7 @@ function renderSegmentCard({
     onJumpCutStart: vi.fn(),
     onJumpCutEnd: vi.fn(),
     onSetCustomName: vi.fn(),
+    onSetExcludeFromNumbering: vi.fn(),
     onSetBpm: vi.fn(),
     onResetBpm: vi.fn(),
     onSetDifficulty: vi.fn(),
@@ -128,6 +131,7 @@ describe("SegmentCard", () => {
       <SegmentCard
         segment={makeSegment()}
         index={0}
+        ordinal={1}
         isSelected={false}
         hasNext={true}
         heroName="Hero"
@@ -146,6 +150,7 @@ describe("SegmentCard", () => {
         onJumpCutStart={vi.fn()}
         onJumpCutEnd={vi.fn()}
         onSetCustomName={vi.fn()}
+        onSetExcludeFromNumbering={vi.fn()}
         onSetBpm={vi.fn()}
         onResetBpm={vi.fn()}
         onSetDifficulty={vi.fn()}
@@ -161,6 +166,7 @@ describe("SegmentCard", () => {
       <SegmentCard
         segment={makeSegment()}
         index={0}
+        ordinal={1}
         isSelected={false}
         hasNext={true}
         heroName="Hero"
@@ -179,6 +185,7 @@ describe("SegmentCard", () => {
         onJumpCutStart={vi.fn()}
         onJumpCutEnd={vi.fn()}
         onSetCustomName={vi.fn()}
+        onSetExcludeFromNumbering={vi.fn()}
         onSetBpm={vi.fn()}
         onResetBpm={vi.fn()}
         onSetDifficulty={vi.fn()}

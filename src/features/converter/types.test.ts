@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { assignSegmentLanes, validateSegments, type SegmentDraft } from "./types";
+import {
+  assignSegmentLanes,
+  assignSegmentOrdinals,
+  validateSegments,
+  type SegmentDraft,
+} from "./types";
 
 function makeSegment(id: string, startTimeMs: number, endTimeMs: number): SegmentDraft {
   return {
@@ -9,6 +14,7 @@ function makeSegment(id: string, startTimeMs: number, endTimeMs: number): Segmen
     cutRanges: [],
     type: "Normal",
     customName: null,
+    excludeFromNumbering: false,
     bpm: null,
     difficulty: null,
     bpmOverride: false,
@@ -55,6 +61,26 @@ describe("converter segment helpers", () => {
       ["two", 1],
       ["three", 2],
       ["four", 0],
+    ]);
+  });
+
+  it("does not advance ordinals for excluded segments", () => {
+    const first = makeSegment("one", 0, 1_000);
+    const interjection = {
+      ...makeSegment("interjection", 1_000, 2_000),
+      excludeFromNumbering: true,
+    };
+    const second = makeSegment("two", 2_000, 3_000);
+
+    expect(
+      assignSegmentOrdinals([second, interjection, first]).map(({ segment, ordinal }) => [
+        segment.id,
+        ordinal,
+      ])
+    ).toEqual([
+      ["one", 1],
+      ["interjection", null],
+      ["two", 2],
     ]);
   });
 });

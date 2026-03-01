@@ -72,6 +72,9 @@ export const round = sqliteTable(
     previewImage: text("previewImage"),
     heroId: text("heroId").references(() => hero.id, { onDelete: "set null" }),
     excludeFromRandom: integer("excludeFromRandom", { mode: "boolean" }).notNull().default(false),
+    excludeFromNumbering: integer("excludeFromNumbering", { mode: "boolean" })
+      .notNull()
+      .default(false),
     createdAt: integer("createdAt", { mode: "timestamp" })
       .notNull()
       .$defaultFn(() => new Date()),

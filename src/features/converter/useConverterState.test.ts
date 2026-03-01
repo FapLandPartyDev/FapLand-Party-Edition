@@ -26,6 +26,12 @@ const mocks = vi.hoisted(() => ({
     evaluations: 0,
     closest: null,
   })),
+  findAdaptiveDetectionSettings: vi.fn<(...args: unknown[]) => unknown>(() => ({
+    pauseGapMs: 900,
+    minRoundMs: 180_000,
+    segments: [],
+    evaluations: 0,
+  })),
 }));
 
 vi.mock("../../services/db", () => ({
@@ -70,6 +76,7 @@ vi.mock("../../services/converter", () => ({
 vi.mock("./detection", () => ({
   buildDetectedSegments: mocks.buildDetectedSegments,
   findDetectionSettingsForTargetCount: mocks.findDetectionSettingsForTargetCount,
+  findAdaptiveDetectionSettings: mocks.findAdaptiveDetectionSettings,
 }));
 
 vi.mock("./metadata", () => ({
@@ -1676,6 +1683,88 @@ describe("useConverterState", () => {
     expect(input.source.sourceRoundIds).toEqual(["round-1"]);
     expect(input.source.removeSourceRound).toBe(true);
     expect(input.segments[0].cutRanges).toEqual([]);
+  });
+
+  it("applies adaptive pause detection only when explicitly requested", async () => {
+    mocks.db.round.findInstalled.mockResolvedValue([
+      makeInstalledRound("round-1", {
+        name: "Standalone Round",
+        startTime: 0,
+        endTime: 360_000,
+        resources: [
+          {
+            id: "resource-round-1",
+            videoUri: "file:///tmp/source.mp4",
+            funscriptUri: "file:///tmp/source.funscript",
+            disabled: false,
+          },
+        ],
+      }),
+    ]);
+    mocks.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 0, pos: 20 },
+        { at: 170_000, pos: 80 },
+        { at: 180_000, pos: 20 },
+        { at: 350_000, pos: 80 },
+      ],
+    });
+    mocks.findAdaptiveDetectionSettings.mockReturnValue({
+      pauseGapMs: 5_000,
+      minRoundMs: 120_000,
+      evaluations: 10,
+      segments: [
+        { startTimeMs: 0, endTimeMs: 175_000, type: "Normal" },
+        { startTimeMs: 175_000, endTimeMs: 355_000, type: "Normal" },
+      ],
+    });
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+    await act(async () => {
+      await result.current.selectRoundAndEdit("round-1");
+    });
+    act(() => result.current.setDurationMs(360_000));
+
+    expect(mocks.findAdaptiveDetectionSettings).not.toHaveBeenCalled();
+    expect(result.current.sortedSegments).toHaveLength(1);
+
+    await act(async () => {
+      await result.current.runAdaptiveAutoDetectAndApply();
+    });
+
+    await waitFor(() => {
+      expect(result.current.sortedSegments).toHaveLength(2);
+    });
+    expect(result.current.sortedSegments.every((segment) => !segment.excludeFromNumbering)).toBe(
+      true
+    );
+    expect(result.current.message).toBe("Adaptively detected and applied 2 rounds.");
+  });
+
+  it("uses linked hero metadata instead of a navigation-prefilled name", async () => {
+    mocks.db.round.findInstalled.mockResolvedValue([
+      makeInstalledRound("round-1", {
+        name: "Standalone Round",
+        heroId: "hero-1",
+        hero: {
+          id: "hero-1",
+          name: "Linked Hero",
+          author: "Linked Author",
+          description: "Linked Description",
+        },
+      }),
+    ]);
+
+    const { result } = renderHook(() =>
+      useConverterState({ sourceRoundId: "", heroName: "Wrong Prefill" })
+    );
+    await act(async () => {
+      await result.current.selectRoundAndEdit("round-1");
+    });
+
+    await waitFor(() => expect(result.current.heroName).toBe("Linked Hero"));
+    expect(result.current.heroAuthor).toBe("Linked Author");
+    expect(result.current.heroDescription).toBe("Linked Description");
   });
 
   it("loads and saves installed round cuts", async () => {

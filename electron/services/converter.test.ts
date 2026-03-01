@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => {
     endTime: number;
     cutRangesJson: string | null;
     installSourceKey: string | null;
+    excludeFromNumbering: boolean;
   }> = [];
   const savedResources: Array<{ roundId: string; videoUri: string; phash: string | null }> = [];
   const deletedRoundIds: string[] = [];
@@ -85,6 +86,7 @@ function createMockTx() {
               cutRangesJson: typeof value.cutRangesJson === "string" ? value.cutRangesJson : null,
               installSourceKey:
                 typeof value.installSourceKey === "string" ? value.installSourceKey : null,
+              excludeFromNumbering: Boolean(value.excludeFromNumbering),
             });
             return [{ id }];
           }
@@ -187,6 +189,7 @@ describe("converter helpers", () => {
         customName: null,
         bpm: null,
         difficulty: null,
+        excludeFromNumbering: false,
         cutRanges: [],
       },
       {
@@ -196,6 +199,7 @@ describe("converter helpers", () => {
         customName: null,
         bpm: null,
         difficulty: null,
+        excludeFromNumbering: false,
         cutRanges: [],
       },
     ]);
@@ -379,6 +383,48 @@ describe("converter helpers", () => {
 });
 
 describe("saveConvertedRounds phash fallback", () => {
+  it("skips excluded custom rounds in generated numbering", async () => {
+    const result = await saveConvertedRounds({
+      hero: { name: "Numbered Hero" },
+      source: { videoUri: "https://example.com/video.mp4" },
+      segments: [
+        { startTimeMs: 0, endTimeMs: 1000, type: "Normal" },
+        {
+          startTimeMs: 2000,
+          endTimeMs: 3000,
+          type: "Interjection",
+          customName: "Numbered Hero - interjection",
+          excludeFromNumbering: true,
+        },
+        { startTimeMs: 4000, endTimeMs: 5000, type: "Normal" },
+      ],
+    });
+
+    expect(result.rounds.map((round) => round.name)).toEqual([
+      "Numbered Hero - round 1",
+      "Numbered Hero - interjection",
+      "Numbered Hero - round 2",
+    ]);
+    expect(mocks.savedRounds[1]?.excludeFromNumbering).toBe(true);
+  });
+
+  it("rejects excluded rounds without a custom name", async () => {
+    await expect(
+      saveConvertedRounds({
+        hero: { name: "Numbered Hero" },
+        source: { videoUri: "https://example.com/video.mp4" },
+        segments: [
+          {
+            startTimeMs: 0,
+            endTimeMs: 1000,
+            type: "Interjection",
+            excludeFromNumbering: true,
+          },
+        ],
+      })
+    ).rejects.toThrow("needs a custom name");
+  });
+
   it("saves duplicate ranges with distinct overlap install keys", async () => {
     const result = await saveConvertedRounds({
       hero: { name: "Overlap Hero" },

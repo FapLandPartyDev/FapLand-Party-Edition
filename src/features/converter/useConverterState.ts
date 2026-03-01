@@ -14,7 +14,11 @@ import {
   playConverterZoomSound,
   playSelectSound,
 } from "../../utils/audio";
-import { buildDetectedSegments, findDetectionSettingsForTargetCount } from "./detection";
+import {
+  buildDetectedSegments,
+  findAdaptiveDetectionSettings,
+  findDetectionSettingsForTargetCount,
+} from "./detection";
 import { applyAutoMetadataToSegments } from "./metadata";
 import { CONVERTER_SHORTCUTS, type ConverterShortcutContext } from "./shortcuts";
 import {
@@ -96,6 +100,15 @@ function toCutDrafts(
   }));
 }
 
+function toCustomRoundName(roundName: string, heroName: string | null | undefined): string | null {
+  const normalizedHeroName = heroName?.trim();
+  if (!normalizedHeroName) return roundName;
+  const escapedHeroName = normalizedHeroName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escapedHeroName}\\s+-\\s+round\\s+\\d+$`, "i").test(roundName.trim())
+    ? null
+    : roundName;
+}
+
 function segmentOverlapsRange(
   segment: Pick<SegmentDraft, "startTimeMs" | "endTimeMs">,
   startTimeMs: number,
@@ -156,6 +169,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
   const pendingInstalledLoadMessageRef = useRef<string | null>(null);
   const pendingInstalledSegmentsRef = useRef<SegmentDraft[] | null>(null);
   const hasAppliedPreselectedSourceRef = useRef(false);
+  const sourceLoadTokenRef = useRef(0);
 
   const [sourceMode, setSourceMode] = useState<"local" | "installed">("installed");
   const [videoUri, setVideoUri] = useState("");
@@ -230,6 +244,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
   const cachingAbortRef = useRef(false);
 
   const goToSelectStep = useCallback(() => {
+    sourceLoadTokenRef.current += 1;
     setStep("select");
     setSelectedSourceInfo(null);
     setVideoUri("");
@@ -289,7 +304,8 @@ export function useConverterState(searchParams: ConverterSearchParams) {
           endTimeMs: round.endTime,
           cutRanges: toCutDrafts(round.cutRangesJson ?? null, round.startTime, round.endTime),
           type: round.type ?? "Normal",
-          customName: round.name,
+          customName: toCustomRoundName(round.name, round.hero?.name),
+          excludeFromNumbering: round.excludeFromNumbering ?? false,
           bpm: round.bpm ?? null,
           difficulty: round.difficulty ?? null,
           bpmOverride: round.bpm != null,
@@ -305,6 +321,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         setSelectedSegmentId(null);
       }
       pendingInstalledSegmentsRef.current = resetSegments;
+      sourceLoadTokenRef.current += 1;
       pendingInstalledLoadMessageRef.current = null;
 
       setDetectedSegments([]);
@@ -370,7 +387,8 @@ export function useConverterState(searchParams: ConverterSearchParams) {
           endTimeMs: round.endTime!,
           cutRanges: toCutDrafts(round.cutRangesJson ?? null, round.startTime!, round.endTime!),
           type: round.type ?? "Normal",
-          customName: round.name,
+          customName: toCustomRoundName(round.name, hero.name),
+          excludeFromNumbering: round.excludeFromNumbering ?? false,
           bpm: round.bpm ?? null,
           difficulty: round.difficulty ?? null,
           bpmOverride: round.bpm != null,
@@ -378,6 +396,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         }));
       const sortedSegmentDrafts = sortSegments(segmentDrafts);
       pendingInstalledSegmentsRef.current = sortedSegmentDrafts;
+      sourceLoadTokenRef.current += 1;
       pendingInstalledLoadMessageRef.current = `Loaded hero "${hero.name}" from installed rounds.`;
       setSegments(sortedSegmentDrafts);
       setSegmentCutMarks({});
@@ -401,6 +420,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
   const selectLocalAndEdit = useCallback(async () => {
     const path = await window.electronAPI.dialog.selectConverterVideoFile();
     if (!path) return;
+    sourceLoadTokenRef.current += 1;
 
     const converted = window.electronAPI.file.convertFileSrc(path);
     setSelectedSourceInfo({
@@ -448,6 +468,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         setError("Website video URL is required.");
         return;
       }
+      sourceLoadTokenRef.current += 1;
 
       setSelectedSourceInfo({
         kind: "url",
@@ -711,7 +732,8 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         endTimeMs: option.endTimeMs,
         cutRanges: toCutDrafts(option.cutRangesJson, option.startTimeMs, option.endTimeMs),
         type: option.type,
-        customName: option.roundName,
+        customName: toCustomRoundName(option.roundName, option.heroName),
+        excludeFromNumbering: option.excludeFromNumbering,
         bpm: option.bpm,
         difficulty: option.difficulty,
         bpmOverride: option.bpm !== null,
@@ -743,6 +765,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
             type: round.type,
             bpm: round.bpm ?? null,
             difficulty: round.difficulty ?? null,
+            excludeFromNumbering: round.excludeFromNumbering ?? false,
             cutRangesJson: round.cutRangesJson ?? null,
             videoUri: resource.videoUri,
             funscriptUri: resource.funscriptUri,
@@ -1166,6 +1189,8 @@ export function useConverterState(searchParams: ConverterSearchParams) {
       endTimeMs,
       cutRanges: [],
       type: "Normal",
+      customName: null,
+      excludeFromNumbering: false,
       bpm: null,
       difficulty: null,
       bpmOverride: false,
@@ -1364,6 +1389,20 @@ export function useConverterState(searchParams: ConverterSearchParams) {
       setSegments((previous) => {
         const next = previous.map((segment) =>
           segment.id === segmentId ? { ...segment, customName } : segment
+        );
+        undoManagerRef.current.push(next);
+        syncUndoState();
+        return next;
+      });
+    },
+    [syncUndoState]
+  );
+
+  const setSegmentExcludeFromNumbering = useCallback(
+    (segmentId: string, excludeFromNumbering: boolean) => {
+      setSegments((previous) => {
+        const next = previous.map((segment) =>
+          segment.id === segmentId ? { ...segment, excludeFromNumbering } : segment
         );
         undoManagerRef.current.push(next);
         syncUndoState();
@@ -1840,6 +1879,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         cutRanges: [],
         bpm: null,
         difficulty: null,
+        excludeFromNumbering: false,
         bpmOverride: false,
         difficultyOverride: false,
       }));
@@ -1894,6 +1934,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         cutRanges: [],
         bpm: null,
         difficulty: null,
+        excludeFromNumbering: false,
         bpmOverride: false,
         difficultyOverride: false,
       }));
@@ -1991,6 +2032,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         cutRanges: [],
         bpm: null,
         difficulty: null,
+        excludeFromNumbering: false,
         bpmOverride: false,
         difficultyOverride: false,
       }));
@@ -2024,11 +2066,73 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     targetSegmentCountDraft,
   ]);
 
+  const runAdaptiveAutoDetectAndApply = useCallback(async () => {
+    if (!funscriptUri || durationMs <= 0) {
+      setError("Load a source video with a funscript before detecting rounds.");
+      playConverterValidationErrorSound();
+      return;
+    }
+
+    const token = sourceLoadTokenRef.current;
+    setIsDetecting(true);
+    setError(null);
+    try {
+      const timeline = await loadFunscriptTimeline(funscriptUri);
+      if (sourceLoadTokenRef.current !== token) return;
+      const actions = timeline?.actions ?? [];
+      const result = findAdaptiveDetectionSettings({
+        actions,
+        durationMs,
+        currentPauseGapMs: pauseGapMs,
+        currentMinRoundMs: minRoundMs,
+        defaultType: "Normal",
+      });
+      if (sourceLoadTokenRef.current !== token) return;
+      setFunscriptActions(actions);
+      if (result.segments.length < 2) {
+        setMessage("Adaptive detection found no meaningful round split.");
+        playConverterAutoDetectSound();
+        return;
+      }
+
+      const nextSegments = applyAutoMetadataToSegments(
+        result.segments.map((segment) => ({
+          ...segment,
+          id: createSegmentId(),
+          cutRanges: [],
+          customName: null,
+          excludeFromNumbering: false,
+          bpm: null,
+          difficulty: null,
+          bpmOverride: false,
+          difficultyOverride: false,
+        })),
+        actions
+      ) as SegmentDraft[];
+      if (sourceLoadTokenRef.current !== token || !applySegments(nextSegments)) return;
+      setPauseGapMs(result.pauseGapMs);
+      setPauseGapDraft(`${result.pauseGapMs}`);
+      setMinRoundMs(result.minRoundMs);
+      setMinRoundDraft(`${result.minRoundMs}`);
+      setSelectedSegmentId(nextSegments[0]?.id ?? null);
+      setMessage(`Adaptively detected and applied ${nextSegments.length} rounds.`);
+      playConverterSegmentAddSound();
+    } catch (autoDetectError) {
+      if (sourceLoadTokenRef.current !== token) return;
+      console.error("Adaptive round detection failed", autoDetectError);
+      setError("Adaptive detection could not read this round's funscript.");
+      playConverterValidationErrorSound();
+    } finally {
+      if (sourceLoadTokenRef.current === token) setIsDetecting(false);
+    }
+  }, [applySegments, durationMs, funscriptUri, minRoundMs, pauseGapMs]);
+
   /* ─── Source selection ─────────────────────────────────────────── */
 
   const chooseLocalVideo = useCallback(async () => {
     const path = await window.electronAPI.dialog.selectConverterVideoFile();
     if (!path) return;
+    sourceLoadTokenRef.current += 1;
 
     const converted = window.electronAPI.file.convertFileSrc(path);
     setSourceMode("local");
@@ -2065,6 +2169,11 @@ export function useConverterState(searchParams: ConverterSearchParams) {
   const saveConvertedRounds = useCallback(async () => {
     if (!canSave) {
       setError("Provide hero name, valid source, and at least one segment before saving.");
+      playConverterValidationErrorSound();
+      return;
+    }
+    if (segments.some((segment) => segment.excludeFromNumbering && !segment.customName?.trim())) {
+      setError("Excluded segments need a custom round name before saving.");
       playConverterValidationErrorSound();
       return;
     }
@@ -2105,6 +2214,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
           endTimeMs: segment.endTimeMs,
           type: segment.type,
           customName: segment.customName?.trim() ? segment.customName.trim() : null,
+          excludeFromNumbering: segment.excludeFromNumbering,
           bpm: segment.bpm ?? null,
           difficulty: segment.difficulty ?? null,
           cutRanges: segment.cutRanges.map((cut) => ({
@@ -2232,9 +2342,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
 
     setVideoUri(selectedInstalledOption.videoUri);
     setFunscriptUri(selectedInstalledOption.funscriptUri ?? null);
-    setHeroName(
-      selectedInstalledOption.heroName ?? (prefilledHeroName || selectedInstalledOption.roundName)
-    );
+    setHeroName(selectedInstalledOption.heroName ?? selectedInstalledOption.roundName);
     setHeroAuthor(selectedInstalledOption.heroAuthor ?? "");
     setHeroDescription(selectedInstalledOption.heroDescription ?? "");
     setCurrentTimeMs(0);
@@ -2252,7 +2360,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     pendingInstalledLoadMessageRef.current = null;
     setMessage(nextMessage);
     setError(null);
-  }, [prefilledHeroName, selectedInstalledOption, sourceMode]);
+  }, [selectedInstalledOption, sourceMode]);
 
   const loadSelectedHero = useCallback(() => {
     if (!selectedHeroOption) {
@@ -2611,6 +2719,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     removeCut,
     setSegmentType,
     setSegmentCustomName,
+    setSegmentExcludeFromNumbering,
     setSegmentBpm,
     resetSegmentBpm,
     setSegmentDifficulty,
@@ -2640,6 +2749,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     commitMinRoundDraft,
     isDetecting,
     runAutoDetect,
+    runAdaptiveAutoDetectAndApply,
     runTargetCountAutoDetect,
     runThreeMinutePauseDetectAndApply,
     targetSegmentCountDraft,

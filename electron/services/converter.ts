@@ -20,6 +20,7 @@ export type ConverterSegmentInput = {
   endTimeMs: number;
   type: RoundType;
   customName?: string | null;
+  excludeFromNumbering?: boolean;
   bpm?: number | null;
   difficulty?: number | null;
   cutRanges?: RoundCutRange[] | null;
@@ -147,6 +148,7 @@ export function validateAndNormalizeSegments(
       endTimeMs: end,
       type: toRoundType(segment.type),
       customName: normalizeNullableText(segment.customName),
+      excludeFromNumbering: Boolean(segment.excludeFromNumbering),
       bpm: normalizeOptionalBpm(segment.bpm, index + 1),
       difficulty: normalizeOptionalDifficulty(segment.difficulty, index + 1),
       cutRanges: assertValidRoundCutRanges(
@@ -364,13 +366,22 @@ export async function saveConvertedRounds(
     const savedRoundIds = new Set<string>();
     const persistedRounds: SaveConvertedRoundsResult["rounds"] = [];
 
+    let roundNumber = 0;
     for (let index = 0; index < normalizedSegments.length; index += 1) {
       const segment = normalizedSegments[index];
       const phash = phashes[index] ?? null;
       const previewImage = previewImages[index] ?? null;
       if (!segment) continue;
 
-      const roundName = segment.customName ?? `${heroName} - round ${index + 1}`;
+      if (segment.excludeFromNumbering && !segment.customName) {
+        throw new Error(`Segment ${index + 1} needs a custom name when excluded from numbering.`);
+      }
+      if (!segment.excludeFromNumbering) roundNumber += 1;
+      const roundName =
+        segment.customName ??
+        (segment.excludeFromNumbering
+          ? `${heroName} - interjection`
+          : `${heroName} - round ${roundNumber}`);
       const installSourceKey = toDeterministicInstallSourceKey({
         heroName,
         videoUri,
@@ -399,6 +410,7 @@ export async function saveConvertedRounds(
         author: heroAuthor,
         description: heroDescription,
         heroId,
+        excludeFromNumbering: segment.excludeFromNumbering,
       };
 
       let savedRoundId = "";

@@ -149,7 +149,7 @@ async function cleanupDeletedRoundWebsiteCache(deletedRoundWebsiteUrls: string[]
 
 function isMissingInstalledLibraryColumnError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
-  return /no such column: .*(durationMs|funscriptOffsetMs|cutRangesJson|excludeFromRandom|tagsJson|libraryLabel)/i.test(
+  return /no such column: .*(durationMs|funscriptOffsetMs|cutRangesJson|excludeFromRandom|excludeFromNumbering|tagsJson|libraryLabel)/i.test(
     error.message
   );
 }
