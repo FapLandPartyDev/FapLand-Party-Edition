@@ -16,13 +16,13 @@ if (!targetKey) {
 
 const TARGETS = {
   "linux-x64": {
-    assetName: "ffmpeg-master-latest-linux64-gpl.tar.xz",
+    assetPattern: /^ffmpeg-N-\d+-g[0-9a-f]+-linux64-gpl\.tar\.xz$/,
     archiveType: "tar.xz",
     ffmpegBinaryName: "ffmpeg",
     ffprobeBinaryName: "ffprobe",
   },
   "win32-x64": {
-    assetName: "ffmpeg-master-latest-win64-gpl.zip",
+    assetPattern: /^ffmpeg-N-\d+-g[0-9a-f]+-win64-gpl\.zip$/,
     archiveType: "zip",
     ffmpegBinaryName: "ffmpeg.exe",
     ffprobeBinaryName: "ffprobe.exe",
@@ -49,17 +49,21 @@ async function fetchLatestTarget() {
 
   const release = await response.json();
   const target = TARGETS[targetKey];
-  const asset = (Array.isArray(release.assets) ? release.assets : []).find((entry) => entry?.name === target.assetName);
+  const asset = (Array.isArray(release.assets) ? release.assets : []).find(
+    (entry) => entry?.name && target.assetPattern.test(entry.name),
+  );
   const sha256 = normalizeDigest(asset?.digest);
 
   if (!asset || !sha256) {
-    throw new Error(`Latest FFmpeg release is missing asset or digest for ${target.assetName}.`);
+    throw new Error(
+      `Latest FFmpeg release is missing asset matching ${target.assetPattern} or its digest.`,
+    );
   }
 
   return {
     releaseName: String(release.name ?? "latest").trim() || "latest",
     publishedAt: String(release.published_at ?? "").trim() || null,
-    assetName: target.assetName,
+    assetName: asset.name,
     archiveType: target.archiveType,
     ffmpegBinaryName: target.ffmpegBinaryName,
     ffprobeBinaryName: target.ffprobeBinaryName,
