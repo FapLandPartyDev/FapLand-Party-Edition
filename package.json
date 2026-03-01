@@ -2,7 +2,7 @@
   "name": "f-land",
   "private": true,
   "type": "module",
-  "version": "0.2.2-beta",
+  "version": "0.2.3-beta",
   "author": "FapLandDev",
   "description": "Fap Land — Party Edition",
   "license": "AGPL-3.0-only",
@@ -11,19 +11,21 @@
   "scripts": {
     "dev": "vite",
     "dev:multiplayer": "./scripts/dev-multiplayer.sh",
+    "licenses:generate": "node ./build/generate-licenses.mjs",
     "i18n:extract": "lingui extract --clean",
     "i18n:compile": "lingui compile",
     "i18n:lint": "node ./scripts/check-i18n-labels.mjs",
     "i18n:check": "lingui extract --clean && git diff --exit-code -- src/locales && lingui compile && node ./scripts/check-i18n-labels.mjs",
     "prepare:ytdlp": "node ./build/fetch-ytdlp.mjs",
+    "prepare:ffmpeg": "node ./build/fetch-ffmpeg.mjs",
     "prepare:ytdlp:latest": "node ./build/fetch-ytdlp.mjs --latest",
-    "postinstall": "npm run prepare:ytdlp",
+    "postinstall": "npm run prepare:ytdlp && npm run prepare:ffmpeg && npm run licenses:generate",
     "build": "vite build",
     "build:release": "cross-env FLAND_BUILD_PROFILE=release vite build",
-    "build:package": "npm run prepare:ytdlp && cross-env FLAND_BUILD_PROFILE=release vite build && electron-builder --publish never",
+    "build:package": "npm run prepare:ytdlp && npm run prepare:ffmpeg && cross-env FLAND_BUILD_PROFILE=release vite build && electron-builder --publish never",
     "build:analyze": "cross-env FLAND_BUILD_PROFILE=release FLAND_BUILD_ANALYZE=true vite build",
-    "build:testers": "npm run prepare:ytdlp && cross-env FLAND_BUILD_PROFILE=release FLAND_ENABLE_DEV_FEATURES=true vite build && electron-builder --publish never",
-    "build:dev": "npm run prepare:ytdlp && cross-env FLAND_BUILD_PROFILE=default FLAND_ENABLE_DEV_FEATURES=true vite build --mode development && electron-builder --publish never",
+    "build:testers": "npm run prepare:ytdlp && npm run prepare:ffmpeg && cross-env FLAND_BUILD_PROFILE=release FLAND_ENABLE_DEV_FEATURES=true vite build && electron-builder --publish never",
+    "build:dev": "npm run prepare:ytdlp && npm run prepare:ffmpeg && cross-env FLAND_BUILD_PROFILE=default FLAND_ENABLE_DEV_FEATURES=true vite build --mode development && electron-builder --publish never",
     "preview": "vite preview",
     "test": "vitest run",
     "format": "prettier --write .",
@@ -143,6 +145,10 @@
     ],
     "extraResources": [
       "drizzle/**/*",
+      {
+        "from": "build/vendor/ffmpeg",
+        "to": "ffmpeg"
+      },
       {
         "from": "build/vendor/yt-dlp",
         "to": "yt-dlp"

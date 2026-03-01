@@ -9,6 +9,7 @@ import {
   resolveRoundCountdownDuration,
   useGameAnimation,
 } from "./useGameAnimation";
+import { resolveEffectiveRestPauseMs } from "./restPause";
 
 vi.mock("../utils/audio", () => ({
   playDiceResultSound: vi.fn(),
@@ -146,6 +147,72 @@ function withPendingPerkSelection(state: GameState): GameState {
 }
 
 describe("useGameAnimation", () => {
+  it("uses base rest time when a safe point has no extra rest", () => {
+    const config = makeConfig();
+    const state = createInitialGameState({
+      ...config,
+      board: [
+        { id: "start", name: "Start", kind: "start" },
+        { id: "safe-1", name: "Safe Point", kind: "safePoint" },
+      ],
+      runtimeGraph: {
+        ...config.runtimeGraph,
+        edges: [{ id: "e1", fromNodeId: "start", toNodeId: "safe-1", gateCost: 0, weight: 1 }],
+        edgesById: {
+          e1: { id: "e1", fromNodeId: "start", toNodeId: "safe-1", gateCost: 0, weight: 1 },
+        },
+        outgoingEdgeIdsByNodeId: { start: ["e1"] },
+        nodeIndexById: { start: 0, "safe-1": 1 },
+      },
+    });
+
+    expect(resolveEffectiveRestPauseMs(state)).toBe(20_000);
+  });
+
+  it("adds safe-point extra rest to the normal pause", () => {
+    const config = makeConfig();
+    const state = createInitialGameState({
+      ...config,
+      board: [
+        { id: "start", name: "Start", kind: "start" },
+        { id: "safe-1", name: "Safe Point", kind: "safePoint", checkpointRestMs: 4_500 },
+      ],
+      runtimeGraph: {
+        ...config.runtimeGraph,
+        edges: [{ id: "e1", fromNodeId: "start", toNodeId: "safe-1", gateCost: 0, weight: 1 }],
+        edgesById: {
+          e1: { id: "e1", fromNodeId: "start", toNodeId: "safe-1", gateCost: 0, weight: 1 },
+        },
+        outgoingEdgeIdsByNodeId: { start: ["e1"] },
+        nodeIndexById: { start: 0, "safe-1": 1 },
+      },
+    });
+
+    expect(resolveEffectiveRestPauseMs(state)).toBe(24_500);
+  });
+
+  it("adds campfire pause bonus to the normal pause", () => {
+    const config = makeConfig();
+    const state = createInitialGameState({
+      ...config,
+      board: [
+        { id: "start", name: "Start", kind: "start" },
+        { id: "camp-1", name: "Campfire", kind: "campfire", pauseBonusMs: 1_500 },
+      ],
+      runtimeGraph: {
+        ...config.runtimeGraph,
+        edges: [{ id: "e1", fromNodeId: "start", toNodeId: "camp-1", gateCost: 0, weight: 1 }],
+        edgesById: {
+          e1: { id: "e1", fromNodeId: "start", toNodeId: "camp-1", gateCost: 0, weight: 1 },
+        },
+        outgoingEdgeIdsByNodeId: { start: ["e1"] },
+        nodeIndexById: { start: 0, "camp-1": 1 },
+      },
+    });
+
+    expect(resolveEffectiveRestPauseMs(state)).toBe(21_500);
+  });
+
   it("resolves countdown duration by round type", () => {
     expect(resolveRoundCountdownDuration(null)).toBe(NORMAL_ROUND_COUNTDOWN_DURATION);
     expect(resolveRoundCountdownDuration(withQueuedRound(createInitialGameState(makeConfig()), "normal").queuedRound))

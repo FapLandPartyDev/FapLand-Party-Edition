@@ -34,6 +34,7 @@ const isKnownKind = (kind: EditorNodeKind): boolean => {
     kind === "end" ||
     kind === "path" ||
     kind === "safePoint" ||
+    kind === "campfire" ||
     kind === "round" ||
     kind === "randomRound" ||
     kind === "perk" ||
@@ -133,7 +134,7 @@ export function validateGraphConfig(
 
     if (node.kind !== "safePoint" && typeof node.checkpointRestMs === "number") {
       addError(
-        `Only safe-point nodes may define checkpoint rest`,
+        `Only safe-point nodes may define additional rest`,
         `nodes.${node.id}.checkpointRestMs`,
         node.id
       );
@@ -144,8 +145,27 @@ export function validateGraphConfig(
       (!Number.isFinite(node.checkpointRestMs) || node.checkpointRestMs < 0)
     ) {
       addError(
-        `Node "${node.id}" checkpoint rest must be a non-negative number`,
+        `Node "${node.id}" additional rest must be a non-negative number`,
         `nodes.${node.id}.checkpointRestMs`,
+        node.id
+      );
+    }
+
+    if (node.kind !== "campfire" && typeof node.pauseBonusMs === "number") {
+      addError(
+        `Only campfire nodes may define pause bonus`,
+        `nodes.${node.id}.pauseBonusMs`,
+        node.id
+      );
+    }
+
+    if (
+      typeof node.pauseBonusMs === "number" &&
+      (!Number.isFinite(node.pauseBonusMs) || node.pauseBonusMs < 0)
+    ) {
+      addError(
+        `Node "${node.id}" pause bonus must be a non-negative number`,
+        `nodes.${node.id}.pauseBonusMs`,
         node.id
       );
     }

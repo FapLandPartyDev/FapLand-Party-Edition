@@ -530,6 +530,29 @@ describe("PlaylistWorkshopRoute", () => {
     expect(updateCall.config.economy.startingMoney).toBe(410);
   });
 
+  it("switches the editable playlist when selecting from the active playlist menu", async () => {
+    const alpha = makeLinearPlaylist("alpha-playlist", "Alpha Playlist");
+    const beta = makeLinearPlaylist("beta-playlist", "Beta Playlist", 375);
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [alpha, beta],
+      activePlaylist: alpha,
+    };
+    mocks.playlists.list.mockResolvedValue([alpha, beta]);
+    mocks.playlists.getActive.mockResolvedValue(beta);
+
+    render(<Component />);
+
+    fireEvent.click(screen.getByRole("button", { name: /alpha playlist.*open/i }));
+    fireEvent.click(screen.getByRole("button", { name: /active playlist.*alpha playlist/i }));
+    fireEvent.click(screen.getByRole("button", { name: /beta playlist.*select/i }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.setActive).toHaveBeenCalledWith("beta-playlist");
+      expect(screen.getByRole("button", { name: /active playlist.*beta playlist/i })).toBeDefined();
+    });
+  });
+
   it("moves added rounds into the selected queue and auto-grows round count", async () => {
     const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
     playlist.config.boardConfig.totalIndices = 2;

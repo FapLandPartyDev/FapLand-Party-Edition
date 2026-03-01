@@ -2,6 +2,14 @@ import { collectPlaylistRefs, createPortableRoundRefResolver } from "../../game/
 import type { InstalledRound, InstalledRoundCatalogEntry } from "../../services/db";
 import type { StoredPlaylist } from "../../services/playlists";
 
+type WebsiteCacheAwareRound = {
+  id: string;
+  name: string;
+  resources: Array<{
+    websiteVideoCacheStatus?: "not_applicable" | "cached" | "pending";
+  }>;
+};
+
 export type PlaylistWebsiteCacheSummary = {
   hasPending: boolean;
   pendingRoundCount: number;
@@ -9,7 +17,7 @@ export type PlaylistWebsiteCacheSummary = {
 };
 
 export function getInstalledRoundWebsiteVideoCacheStatus(
-  round: InstalledRound | InstalledRoundCatalogEntry
+  round: WebsiteCacheAwareRound | InstalledRound | InstalledRoundCatalogEntry
 ): "not_applicable" | "cached" | "pending" {
   let hasCachedResource = false;
 

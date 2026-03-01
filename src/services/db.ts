@@ -13,6 +13,9 @@ export type InstalledRound = Awaited<ReturnType<typeof trpc.db.getInstalledRound
 export type InstalledRoundCatalogEntry = Awaited<
   ReturnType<typeof trpc.db.getInstalledRoundCatalog.query>
 >[number];
+export type InstalledRoundCardAssets = Awaited<
+  ReturnType<typeof trpc.db.getInstalledRoundCardAssets.query>
+>[number];
 export type InstalledRoundMediaResources = NonNullable<
   Awaited<ReturnType<typeof trpc.db.getRoundMediaResources.query>>
 >;
@@ -95,6 +98,8 @@ export const db = {
       trpc.db.getInstalledRounds.query({ includeDisabled, includeTemplates }),
     findInstalledCatalog: (includeDisabled = false, includeTemplates = false) =>
       trpc.db.getInstalledRoundCatalog.query({ includeDisabled, includeTemplates }),
+    findInstalledCardAssets: (roundIds: string[], includeDisabled = false) =>
+      trpc.db.getInstalledRoundCardAssets.query({ roundIds, includeDisabled }),
     getMediaResources: (roundId: string, includeDisabled = false) =>
       trpc.db.getRoundMediaResources.query({ roundId, includeDisabled }),
     countInstalled: (includeDisabled = false, includeTemplates = false) =>

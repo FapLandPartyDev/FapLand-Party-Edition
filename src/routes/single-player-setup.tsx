@@ -13,13 +13,20 @@ import {
   normalizePlaylistCacheOngoingRestrictionDisabled,
 } from "../constants/experimentalFeatures";
 import { useControllerSurface } from "../controller";
-import { buildPlaylistWebsiteCacheSummary } from "../features/webVideo/cacheStatus";
+import { collectPlaylistRefs, createPortableRoundRefResolver } from "../game/playlistResolution";
 import type { PlaylistConfig } from "../game/playlistSchema";
 import { getSaveModeEmoji } from "../game/saveMode";
 import { describePlaylistBoard } from "../game/playlistStats";
 import { resolvePortableRoundRef } from "../game/playlistRuntime";
-import { db, type InstalledRoundCatalogEntry } from "../services/db";
-import { getInstalledRoundCatalogCached } from "../services/installedRoundsCache";
+import {
+  db,
+  type InstalledRoundCardAssets,
+  type InstalledRoundCatalogEntry,
+} from "../services/db";
+import {
+  getInstalledRoundCardAssetsCached,
+  getInstalledRoundCatalogCached,
+} from "../services/installedRoundsCache";
 import { playlists, type StoredPlaylist } from "../services/playlists";
 import { trpc } from "../services/trpc";
 import { formatDurationLabel, getRoundDurationSec } from "../utils/duration";
@@ -120,6 +127,9 @@ function SinglePlayerSetupPage() {
   const [freshStartConfirmOpen, setFreshStartConfirmOpen] = useState(false);
   const [playlistCacheOngoingRestrictionDisabled, setPlaylistCacheOngoingRestrictionDisabled] =
     useState(DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED);
+  const [installedRoundCardAssetsById, setInstalledRoundCardAssetsById] = useState<
+    Map<string, InstalledRoundCardAssets>
+  >(new Map());
   const scopeRef = useRef<HTMLDivElement | null>(null);
   const goBack = () => {
     if (window.history.length > 1) {
@@ -142,8 +152,39 @@ function SinglePlayerSetupPage() {
     [selectedPlaylist]
   );
   const playlistCacheSummaryById = useMemo(
-    () => buildPlaylistWebsiteCacheSummary(availablePlaylists, installedRounds),
-    [availablePlaylists, installedRounds]
+    () => {
+      const roundResolver = createPortableRoundRefResolver(installedRounds);
+      const summaryByPlaylistId = new Map<
+        string,
+        { hasPending: boolean; pendingRoundCount: number; pendingRoundNames: string[] }
+      >();
+
+      for (const playlist of availablePlaylists) {
+        const pendingRoundNames: string[] = [];
+        const seenRoundIds = new Set<string>();
+
+        for (const entry of collectPlaylistRefs(playlist.config)) {
+          const resolvedRound = roundResolver.resolve(entry.ref);
+          if (!resolvedRound || seenRoundIds.has(resolvedRound.id)) {
+            continue;
+          }
+          seenRoundIds.add(resolvedRound.id);
+
+          if (installedRoundCardAssetsById.get(resolvedRound.id)?.websiteVideoCacheStatus === "pending") {
+            pendingRoundNames.push(resolvedRound.name);
+          }
+        }
+
+        summaryByPlaylistId.set(playlist.id, {
+          hasPending: pendingRoundNames.length > 0,
+          pendingRoundCount: pendingRoundNames.length,
+          pendingRoundNames,
+        });
+      }
+
+      return summaryByPlaylistId;
+    },
+    [availablePlaylists, installedRoundCardAssetsById, installedRounds]
   );
   const savedRunByPlaylistId = useMemo(
     () => new Map(savedRuns.map((run) => [run.playlistId, run])),
@@ -192,6 +233,26 @@ function SinglePlayerSetupPage() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const roundIds = installedRounds.map((round) => round.id);
+    if (roundIds.length === 0) {
+      setInstalledRoundCardAssetsById(new Map());
+      return;
+    }
+
+    void getInstalledRoundCardAssetsCached(roundIds).then((entries) => {
+      if (cancelled) {
+        return;
+      }
+      setInstalledRoundCardAssetsById(new Map(entries.map((entry) => [entry.roundId, entry])));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [installedRounds]);
 
   useEffect(() => {
     if (launchState.kind !== "animating") {

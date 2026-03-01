@@ -22,6 +22,46 @@ type BinaryVersion = {
 
 const binariesPromiseByPreference = new Map<VideoHashFfmpegSourcePreference, Promise<PhashBinaries>>();
 
+function getBundledBinaryRelativePaths(): { ffmpegPath: string; ffprobePath: string } | null {
+    if (process.platform === "win32") {
+        return {
+            ffmpegPath: path.join("ffmpeg", "win32-x64", "ffmpeg.exe"),
+            ffprobePath: path.join("ffmpeg", "win32-x64", "ffprobe.exe"),
+        };
+    }
+
+    if (process.platform === "linux") {
+        return {
+            ffmpegPath: path.join("ffmpeg", "linux-x64", "ffmpeg"),
+            ffprobePath: path.join("ffmpeg", "linux-x64", "ffprobe"),
+        };
+    }
+
+    return null;
+}
+
+export function getBundledFfmpegCandidatePaths(
+    relativePath: string,
+    options?: {
+        cwd?: string;
+        resourcesPath?: string;
+    },
+): string[] {
+    const cwd = path.normalize(options?.cwd ?? process.cwd());
+    const resourcesPath = typeof options?.resourcesPath === "string"
+        ? path.normalize(options.resourcesPath)
+        : typeof process.resourcesPath === "string"
+          ? path.normalize(process.resourcesPath)
+          : null;
+
+    const candidates = [
+        resourcesPath ? path.join(resourcesPath, relativePath) : null,
+        path.join(cwd, "build", "vendor", relativePath),
+    ].filter((candidate): candidate is string => Boolean(candidate));
+
+    return [...new Set(candidates.map((candidate) => path.normalize(candidate)))];
+}
+
 function patchAsarPath(inputPath: string): string {
     const normalized = path.normalize(inputPath);
     const asarSegment = `${path.sep}app.asar${path.sep}`;
@@ -44,6 +84,19 @@ function isExecutablePath(filePath: string | null | undefined): filePath is stri
 }
 
 function loadBundledBinaryPaths(): { ffmpegPath: string | null; ffprobePath: string | null } {
+    const vendorRelativePaths = getBundledBinaryRelativePaths();
+    if (vendorRelativePaths) {
+        const ffmpegCandidate = getBundledFfmpegCandidatePaths(vendorRelativePaths.ffmpegPath).find(isExecutablePath);
+        const ffprobeCandidate = getBundledFfmpegCandidatePaths(vendorRelativePaths.ffprobePath).find(isExecutablePath);
+
+        if (ffmpegCandidate && ffprobeCandidate) {
+            return {
+                ffmpegPath: ffmpegCandidate,
+                ffprobePath: ffprobeCandidate,
+            };
+        }
+    }
+
     let ffmpegPath: string | null = null;
     let ffprobePath: string | null = null;
 

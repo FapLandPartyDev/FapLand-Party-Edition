@@ -207,6 +207,24 @@ describe("graph engine runtime", () => {
     expect(state.bonusRolls).toBe(1);
   });
 
+  it("continues traversal through a campfire without granting a bonus roll", () => {
+    const config = makeGraphConfig({
+      board: [
+        { id: "start", name: "Start", kind: "start" },
+        { id: "camp", name: "Campfire", kind: "campfire", pauseBonusMs: 1500 },
+        { id: "after", name: "After", kind: "path" },
+      ],
+      edges: [
+        { id: "e1", fromNodeId: "start", toNodeId: "camp", gateCost: 0, weight: 1 },
+        { id: "e2", fromNodeId: "camp", toNodeId: "after", gateCost: 0, weight: 1 },
+      ],
+    });
+
+    const state = rollTurn(createInitialGameState(config), [makeRound("r1")], 2);
+    expect(state.players[0]?.currentNodeId).toBe("after");
+    expect(state.bonusRolls).toBe(0);
+  });
+
   it("interrupts traversal when entering a forced-stop round", () => {
     const config = makeGraphConfig({
       board: [

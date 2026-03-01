@@ -149,6 +149,21 @@ vi.mock("../components/MenuButton", () => ({
   ),
 }));
 
+vi.mock("../services/installedRoundsCache", () => ({
+  getInstalledRoundCatalogCached: vi.fn(async () => mocks.loaderData.installedRounds),
+  getInstalledRoundCardAssetsCached: vi.fn(async (roundIds: string[]) =>
+    (mocks.loaderData.installedRounds as InstalledRound[])
+      .filter((round) => roundIds.includes(round.id))
+      .map((round) => ({
+        roundId: round.id,
+        previewImage: null,
+        previewVideoUri: round.resources[0]?.videoUri ?? null,
+        websiteVideoCacheStatus: round.resources[0]?.websiteVideoCacheStatus ?? "not_applicable",
+        primaryResourceId: round.resources[0]?.id ?? null,
+      }))
+  ),
+}));
+
 vi.mock("../components/PlaylistMapPreview", () => ({
   PlaylistMapPreview: () => <div data-testid="playlist-preview" />,
 }));

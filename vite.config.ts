@@ -3,6 +3,7 @@ import { getBuildVersion } from "./build/version";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
+import { execFileSync } from "node:child_process";
 import { defineConfig, loadEnv } from "vite";
 import electron from "vite-plugin-electron/simple";
 import viteTsConfigPaths from "vite-tsconfig-paths";
@@ -39,6 +40,18 @@ function createManualChunks(id: string): string | undefined {
   }
 
   return undefined;
+}
+
+function generateLicensesPlugin() {
+  return {
+    name: "generate-licenses",
+    buildStart() {
+      execFileSync(process.execPath, ["./build/generate-licenses.mjs"], {
+        cwd: process.cwd(),
+        stdio: "inherit",
+      });
+    },
+  };
 }
 
 const releaseTerserOptions = {
@@ -104,6 +117,7 @@ export default defineConfig(({ command, mode }) => {
       viteTsConfigPaths({
         projects: ["./tsconfig.json"],
       }),
+      generateLicensesPlugin(),
       tailwindcss(),
       TanStackRouterVite({
         routeFileIgnorePattern:

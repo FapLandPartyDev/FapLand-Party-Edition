@@ -60,6 +60,7 @@ import { PerkInventoryPanel } from "./PerkInventoryPanel";
 import { buildTileDurationLabelByFieldId } from "./tileDurationLabels";
 import { getNodeScale, parseHexColorToNumber } from "../../features/map-editor/nodeVisuals";
 import { normalizeRoadPalette } from "../../features/map-editor/EditorState";
+import { resolveEffectiveRestPauseMs } from "../../game/restPause";
 import { MapBackgroundMedia } from "../MapBackgroundMedia";
 import ControllerHints from "./ControllerHints";
 
@@ -118,8 +119,14 @@ type TileC = {
 const TILE_COLOURS: Record<string, TileC> = {
   start: { accent: 0x6ef4ff, dark: 0x1f7b98, glow: 0x8de6ff, base: 0x071523 },
   path: { accent: 0x4c87ff, dark: 0x2c4aa5, glow: 0x7a9dff, base: 0x090f21 },
+  safePoint: { accent: 0x67f08c, dark: 0x1d7f40, glow: 0x98f6b1, base: 0x081a0d },
+  campfire: { accent: 0xffb15c, dark: 0xa5481f, glow: 0xffc078, base: 0x241007 },
+  round: { accent: 0x8cf4ff, dark: 0x1d8e9d, glow: 0x9ff8ff, base: 0x082028 },
+  randomRound: { accent: 0xffd05a, dark: 0xa06d13, glow: 0xffe38f, base: 0x221804 },
   event: { accent: 0xff5d8d, dark: 0xaa2859, glow: 0xff78a5, base: 0x220913 },
   perk: { accent: 0xf266ff, dark: 0x8c2cb8, glow: 0xf7a3ff, base: 0x1d0a2a },
+  end: { accent: 0xff8d5d, dark: 0x9b3e21, glow: 0xffb48f, base: 0x231108 },
+  catapult: { accent: 0x71efff, dark: 0x137b8c, glow: 0x9cf4ff, base: 0x07191d },
 };
 
 const PLAYER_COLOURS = [0xff5d8d, 0x6ef4ff, 0xb08dff, 0x6ff2bf] as const;
@@ -342,15 +349,7 @@ function buildTileLayout(
 }
 
 function resolveEffectiveRestPauseSec(state: GameState): number {
-  const currentPlayer = state.players[state.currentPlayerIndex];
-  if (!currentPlayer) return 20;
-  const currentField = state.config.board.find((field) => field.id === currentPlayer.currentNodeId);
-  const checkpointRestMs =
-    currentField?.kind === "safePoint" ? (currentField.checkpointRestMs ?? 0) : 0;
-  const roundPauseMs = Number.isFinite(currentPlayer.stats.roundPauseMs)
-    ? currentPlayer.stats.roundPauseMs
-    : 20000;
-  return Math.max(roundPauseMs, checkpointRestMs) / 1000;
+  return resolveEffectiveRestPauseMs(state) / 1000;
 }
 
 function tileOrigin(layout: TileLayout, index: number): { x: number; y: number } {

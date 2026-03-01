@@ -158,12 +158,15 @@ describe("VirtualizedRoundLibraryGrid", () => {
       };
     });
 
-    const rows: RoundRenderRow[] = Array.from({ length: 6 }, (_, index) => ({
+    const rows: Extract<RoundRenderRow, { kind: "hero-group" }>[] = Array.from(
+      { length: 6 },
+      (_, index) => ({
       kind: "hero-group",
       groupKey: `hero:${index}`,
       heroName: `Hero ${index}`,
       rounds: [makeRound(`r-${index}-1`), makeRound(`r-${index}-2`), makeRound(`r-${index}-3`)],
-    }));
+      })
+    );
 
     render(
       <VirtualizedRoundLibraryGrid
@@ -205,7 +208,10 @@ describe("VirtualizedRoundLibraryGrid", () => {
 
     render(
       <VirtualizedRoundLibraryGrid
-        rows={[{ kind: "standalone", round: makeRound("media-round") }]}
+        rows={Array.from({ length: 30 }, (_, index) => ({
+          kind: "standalone" as const,
+          round: makeRound(index === 0 ? "media-round" : `round-${index}`),
+        }))}
         expandedGroupKeys={new Set()}
         scrollContainer={container}
         renderCard={(item) => <img key={item.key} alt={item.key} src={`/${item.key}.jpg`} />}
@@ -248,7 +254,10 @@ describe("VirtualizedRoundLibraryGrid", () => {
 
     render(
       <VirtualizedRoundLibraryGrid
-        rows={[{ kind: "standalone", round: makeRound("resize-round") }]}
+        rows={Array.from({ length: 30 }, (_, index) => ({
+          kind: "standalone" as const,
+          round: makeRound(index === 0 ? "resize-round" : `round-${index}`),
+        }))}
         expandedGroupKeys={new Set()}
         scrollContainer={container}
         renderCard={(item) => <div key={item.key}>{item.key}</div>}
@@ -271,6 +280,71 @@ describe("VirtualizedRoundLibraryGrid", () => {
 
     await waitFor(() => {
       expect(measure.mock.calls.length).toBeGreaterThan(measureCallsBeforeResize);
+    });
+  });
+
+  it("does not render the full card list before the scroll container is ready", () => {
+    useVirtualizerMock.mockImplementation(() => ({
+      measure: vi.fn(),
+      measureElement: vi.fn(),
+      getTotalSize: () => 0,
+      getVirtualItems: () => [],
+    }));
+
+    const renderCard = vi.fn((item: { key: string }) => <div key={item.key}>{item.key}</div>);
+
+    render(
+      <VirtualizedRoundLibraryGrid
+        rows={Array.from({ length: 40 }, (_, index) => ({
+          kind: "standalone" as const,
+          round: makeRound(`round-${index}`),
+        }))}
+        expandedGroupKeys={new Set()}
+        scrollContainer={null}
+        renderCard={renderCard}
+        renderGroupHeader={() => null}
+      />
+    );
+
+    expect(useVirtualizerMock).toHaveBeenCalled();
+    expect(renderCard).not.toHaveBeenCalled();
+  });
+
+  it("emits visible round ids for the currently rendered virtual shelves", async () => {
+    const onVisibleRoundIdsChange = vi.fn();
+    const container = document.createElement("div");
+    Object.defineProperty(container, "clientWidth", { configurable: true, value: 900 });
+    Object.defineProperty(container, "clientHeight", { configurable: true, value: 900 });
+
+    useVirtualizerMock.mockImplementation((options: Record<string, unknown>) => {
+      const count = Number(options.count ?? 0);
+      return {
+        measure: vi.fn(),
+        measureElement: vi.fn(),
+        getTotalSize: () => count * 100,
+        getVirtualItems: () => [
+          { index: 0, start: 0 },
+          { index: 1, start: 100 },
+        ],
+      };
+    });
+
+    render(
+      <VirtualizedRoundLibraryGrid
+        rows={Array.from({ length: 30 }, (_, index) => ({
+          kind: "standalone" as const,
+          round: makeRound(`round-${index}`),
+        }))}
+        expandedGroupKeys={new Set()}
+        scrollContainer={container}
+        renderCard={(item) => <div key={item.key}>{item.key}</div>}
+        renderGroupHeader={() => null}
+        onVisibleRoundIdsChange={onVisibleRoundIdsChange}
+      />
+    );
+
+    await waitFor(() => {
+      expect(onVisibleRoundIdsChange).toHaveBeenCalledWith(["round-0", "round-1"]);
     });
   });
 });

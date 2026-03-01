@@ -20,6 +20,7 @@ import { Route as MultiplayerLobbyRouteImport } from './routes/multiplayer-lobby
 import { Route as MultiplayerBansRouteImport } from './routes/multiplayer-bans'
 import { Route as MultiplayerRouteImport } from './routes/multiplayer'
 import { Route as MapEditorRouteImport } from './routes/map-editor'
+import { Route as LicensesRouteImport } from './routes/licenses'
 import { Route as HighscoresRouteImport } from './routes/highscores'
 import { Route as GameRouteImport } from './routes/game'
 import { Route as FirstStartRouteImport } from './routes/first-start'
@@ -82,6 +83,11 @@ const MapEditorRoute = MapEditorRouteImport.update({
   path: '/map-editor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LicensesRoute = LicensesRouteImport.update({
+  id: '/licenses',
+  path: '/licenses',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HighscoresRoute = HighscoresRouteImport.update({
   id: '/highscores',
   path: '/highscores',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/first-start': typeof FirstStartRoute
   '/game': typeof GameRoute
   '/highscores': typeof HighscoresRoute
+  '/licenses': typeof LicensesRoute
   '/map-editor': typeof MapEditorRoute
   '/multiplayer': typeof MultiplayerRoute
   '/multiplayer-bans': typeof MultiplayerBansRoute
@@ -139,6 +146,7 @@ export interface FileRoutesByTo {
   '/first-start': typeof FirstStartRoute
   '/game': typeof GameRoute
   '/highscores': typeof HighscoresRoute
+  '/licenses': typeof LicensesRoute
   '/map-editor': typeof MapEditorRoute
   '/multiplayer': typeof MultiplayerRoute
   '/multiplayer-bans': typeof MultiplayerBansRoute
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/first-start': typeof FirstStartRoute
   '/game': typeof GameRoute
   '/highscores': typeof HighscoresRoute
+  '/licenses': typeof LicensesRoute
   '/map-editor': typeof MapEditorRoute
   '/multiplayer': typeof MultiplayerRoute
   '/multiplayer-bans': typeof MultiplayerBansRoute
@@ -180,6 +189,7 @@ export interface FileRouteTypes {
     | '/first-start'
     | '/game'
     | '/highscores'
+    | '/licenses'
     | '/map-editor'
     | '/multiplayer'
     | '/multiplayer-bans'
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
     | '/first-start'
     | '/game'
     | '/highscores'
+    | '/licenses'
     | '/map-editor'
     | '/multiplayer'
     | '/multiplayer-bans'
@@ -218,6 +229,7 @@ export interface FileRouteTypes {
     | '/first-start'
     | '/game'
     | '/highscores'
+    | '/licenses'
     | '/map-editor'
     | '/multiplayer'
     | '/multiplayer-bans'
@@ -238,6 +250,7 @@ export interface RootRouteChildren {
   FirstStartRoute: typeof FirstStartRoute
   GameRoute: typeof GameRoute
   HighscoresRoute: typeof HighscoresRoute
+  LicensesRoute: typeof LicensesRoute
   MapEditorRoute: typeof MapEditorRoute
   MultiplayerRoute: typeof MultiplayerRoute
   MultiplayerBansRoute: typeof MultiplayerBansRoute
@@ -330,6 +343,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MapEditorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/licenses': {
+      id: '/licenses'
+      path: '/licenses'
+      fullPath: '/licenses'
+      preLoaderRoute: typeof LicensesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/highscores': {
       id: '/highscores'
       path: '/highscores'
@@ -382,6 +402,7 @@ const rootRouteChildren: RootRouteChildren = {
   FirstStartRoute: FirstStartRoute,
   GameRoute: GameRoute,
   HighscoresRoute: HighscoresRoute,
+  LicensesRoute: LicensesRoute,
   MapEditorRoute: MapEditorRoute,
   MultiplayerRoute: MultiplayerRoute,
   MultiplayerBansRoute: MultiplayerBansRoute,

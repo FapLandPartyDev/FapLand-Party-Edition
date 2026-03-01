@@ -39,6 +39,7 @@ import {
   type InstallFolderInspectionResult,
   type InstallFolderScanResult,
   type InstallScanStatus,
+  type InstalledRoundCardAssets,
   type LibraryExportPackageAnalysis,
   type LibraryExportPackageStatus,
   type InstalledRound,
@@ -49,6 +50,7 @@ import {
   type InstalledRoundCatalogEntry,
   type InstalledRoundMediaResources,
 } from "../services/db";
+import { getInstalledRoundCardAssetsCached } from "../services/installedRoundsCache";
 import { playlists, type StoredPlaylist } from "../services/playlists";
 import { trpc } from "../services/trpc";
 import { importOpenedFile } from "../services/openedFiles";
@@ -75,7 +77,6 @@ import { playHoverSound, playSelectSound } from "../utils/audio";
 import { formatDurationLabel, getRoundDurationSec } from "../utils/duration";
 import { abbreviateNsfwText } from "../utils/sfwText";
 import { VirtualizedRoundLibraryGrid } from "../features/library/components/VirtualizedRoundLibraryGrid";
-import { getInstalledRoundWebsiteVideoCacheStatus } from "../features/webVideo/cacheStatus";
 import {
   DEFAULT_ROUND_PROGRESS_BAR_ALWAYS_VISIBLE,
   ROUND_PROGRESS_BAR_ALWAYS_VISIBLE_KEY,
@@ -208,6 +209,11 @@ type WebInstallSettings = {
 const INTERMEDIARY_LOADING_PROMPT_KEY = "game.intermediary.loadingPrompt";
 const INTERMEDIARY_LOADING_DURATION_KEY = "game.intermediary.loadingDurationSec";
 const INTERMEDIARY_RETURN_PAUSE_KEY = "game.intermediary.returnPauseSec";
+const ROUND_CARD_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 const RoundsSearchSchema = z.object({
   open: z.enum(["install-rounds", "install-web"]).optional(),
 });
@@ -891,6 +897,10 @@ export function InstalledRoundsPage() {
   );
   const [showLibraryExportOverlay, setShowLibraryExportOverlay] = useState(false);
   const [isAbortingLibraryExport, setIsAbortingLibraryExport] = useState(false);
+  const [visibleRoundIds, setVisibleRoundIds] = useState<string[]>([]);
+  const [cardAssetsByRoundId, setCardAssetsByRoundId] = useState<
+    Map<string, InstalledRoundCardAssets>
+  >(new Map());
   const [selectedRoundIds, setSelectedRoundIds] = useState<Set<string>>(new Set());
   const [selectedHeroIds, setSelectedHeroIds] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
@@ -1591,6 +1601,44 @@ export function InstalledRoundsPage() {
     };
   }, [refreshInstalledRounds]);
 
+  useEffect(() => {
+    setCardAssetsByRoundId(new Map());
+  }, [rounds, showDisabledRounds]);
+
+  useEffect(() => {
+    const nextVisibleRoundIds = [...new Set(visibleRoundIds.filter((roundId) => roundId.length > 0))];
+    if (nextVisibleRoundIds.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    void getInstalledRoundCardAssetsCached(nextVisibleRoundIds, showDisabledRounds)
+      .then((entries) => {
+        if (cancelled || entries.length === 0) {
+          return;
+        }
+        setCardAssetsByRoundId((previous) => {
+          let changed = false;
+          const next = new Map(previous);
+          for (const entry of entries) {
+            if (next.get(entry.roundId) === entry) {
+              continue;
+            }
+            next.set(entry.roundId, entry);
+            changed = true;
+          }
+          return changed ? next : previous;
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load installed round card assets", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showDisabledRounds, visibleRoundIds]);
+
   const downloadProgressByUri = useMemo(
     () => buildDownloadProgressByUri(downloadProgresses),
     [downloadProgresses]
@@ -1647,8 +1695,6 @@ export function InstalledRoundsPage() {
     [availablePlaylists, groupMode, rounds]
   );
   const playlistsByRoundId = playlistGroupingData?.playlistsByRoundId ?? null;
-  const playlistWebsiteCacheSummaryById =
-    playlistGroupingData?.cacheSummaryByPlaylistId ?? new Map();
   const activeSection =
     ROUND_SECTIONS.find((section) => section.id === activeSectionId) ?? ROUND_SECTIONS[0];
   const standaloneRoundCount = useMemo(
@@ -1757,7 +1803,8 @@ export function InstalledRoundsPage() {
   );
   const handlePlayRound = useCallback(
     (round: RoundLibraryEntry) => {
-      if (getInstalledRoundWebsiteVideoCacheStatus(round) === "pending") {
+      const cardAssets = cardAssetsByRoundId.get(round.id);
+      if (cardAssets?.websiteVideoCacheStatus === "pending") {
         return;
       }
       handleSelectSfx();
@@ -1781,6 +1828,7 @@ export function InstalledRoundsPage() {
         });
     },
     [
+      cardAssetsByRoundId,
       handleSelectSfx,
       loadFullInstalledRoundsForPreview,
       loadPreviewSettings,
@@ -3257,10 +3305,14 @@ export function InstalledRoundsPage() {
                               rows={renderRows}
                               expandedGroupKeys={expandedGroupKeySet}
                               scrollContainer={scrollContainer}
-                              renderCard={(item) => (
+                              onVisibleRoundIdsChange={setVisibleRoundIds}
+                              renderCard={(item) => {
+                                const cardAssets = cardAssetsByRoundId.get(item.round.id);
+                                return (
                                 <RoundCard
                                   key={item.key}
                                   round={item.round}
+                                  cardAssets={cardAssets}
                                   index={item.renderIndex}
                                   onHoverSfx={handleHoverSfx}
                                   onConvertToHero={handleConvertRoundToHero}
@@ -3283,18 +3335,10 @@ export function InstalledRoundsPage() {
                                   isWebsiteVideoCaching={
                                     websiteVideoScanStatus?.state === "running"
                                   }
-                                  websiteVideoCachePending={
-                                    getInstalledRoundWebsiteVideoCacheStatus(item.round) ===
-                                    "pending"
-                                  }
                                   downloadProgress={
-                                    item.round.resources
-                                      .map((r) =>
-                                        "videoUri" in r
-                                          ? getDownloadProgressForVideoUri(r.videoUri)
-                                          : null
-                                      )
-                                      .find((p): p is VideoDownloadProgress => p != null) ?? null
+                                    cardAssets?.previewVideoUri
+                                      ? getDownloadProgressForVideoUri(cardAssets.previewVideoUri)
+                                      : null
                                   }
                                   selectionMode={selectionMode}
                                   selected={selectedRoundIds.has(item.round.id)}
@@ -3311,7 +3355,8 @@ export function InstalledRoundsPage() {
                                     });
                                   }}
                                 />
-                              )}
+                                );
+                              }}
                               renderGroupHeader={(shelf) => {
                                 const row = shelf.row;
                                 const isExpanded = expandedGroupKeySet.has(row.groupKey);
@@ -3327,6 +3372,7 @@ export function InstalledRoundsPage() {
                                   const { pendingCacheCount, pendingPreviewCount } =
                                     summarizeHeroGroupPreviewState(
                                       row.rounds,
+                                      cardAssetsByRoundId,
                                       websiteVideoScanStatus?.state === "running"
                                     );
                                   return (
@@ -3397,15 +3443,16 @@ export function InstalledRoundsPage() {
                                   );
                                 }
 
+                                const { pendingCacheCount } = summarizeHeroGroupPreviewState(
+                                  row.rounds,
+                                  cardAssetsByRoundId,
+                                  websiteVideoScanStatus?.state === "running"
+                                );
                                 return (
                                   <PlaylistGroupHeader
                                     playlistName={row.playlistName}
                                     roundCount={row.rounds.length}
-                                    cachePending={
-                                      playlistWebsiteCacheSummaryById.get(
-                                        row.groupKey.replace(/^playlist:/, "")
-                                      )?.hasPending ?? false
-                                    }
+                                    cachePending={pendingCacheCount > 0}
                                     expanded={isExpanded}
                                     onHoverSfx={handleHoverSfx}
                                     onToggle={() => {
@@ -4328,6 +4375,7 @@ export function InstalledRoundsPage() {
 
 const RoundCard = memo(function RoundCard({
   round,
+  cardAssets,
   index,
   onHoverSfx,
   onConvertToHero,
@@ -4338,13 +4386,13 @@ const RoundCard = memo(function RoundCard({
   animateDifficulty,
   showDisabledBadge,
   isWebsiteVideoCaching = false,
-  websiteVideoCachePending = false,
   downloadProgress = null,
   selectionMode,
   selected,
   onToggleSelection,
 }: {
   round: RoundLibraryEntry;
+  cardAssets?: InstalledRoundCardAssets;
   index: number;
   onHoverSfx: () => void;
   onConvertToHero: (round: RoundLibraryEntry) => void;
@@ -4355,7 +4403,6 @@ const RoundCard = memo(function RoundCard({
   animateDifficulty: boolean;
   showDisabledBadge: boolean;
   isWebsiteVideoCaching?: boolean;
-  websiteVideoCachePending?: boolean;
   downloadProgress?: VideoDownloadProgress | null;
   selectionMode?: boolean;
   selected?: boolean;
@@ -4368,17 +4415,22 @@ const RoundCard = memo(function RoundCard({
   const [isPreviewActive, setIsPreviewActive] = useState(false);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const firstResource = round.resources[0];
-  const previewUri =
-    firstResource && "videoUri" in firstResource ? firstResource.videoUri : undefined;
-  const previewImage = round.previewImage;
+  const previewUri = cardAssets?.previewVideoUri;
+  const previewImage = cardAssets?.previewImage ?? null;
   const primaryResource = firstResource;
   const hasFunscript = roundHasFunscript(round);
   const isTemplate = isTemplateRound(round);
   const isWebsiteRound = round.installSourceKey?.startsWith("website:") ?? false;
-  const isPreviewBeingGenerated = isWebsiteVideoCaching && isWebsiteRound && !previewImage;
-  const showWebsiteCachingState = isWebsiteRound && websiteVideoCachePending;
+  const websiteVideoCacheStatus = cardAssets?.websiteVideoCacheStatus ?? "not_applicable";
+  const isPreviewBeingGenerated =
+    isWebsiteVideoCaching && isWebsiteRound && cardAssets != null && !previewImage;
+  const showWebsiteCachingState = isWebsiteRound && websiteVideoCacheStatus === "pending";
+  const isCardAssetLoading = cardAssets == null;
   const canPreview = Boolean(previewUri) && !showWebsiteCachingState;
-  const canPlay = roundHasPlayableResource(round) && !showWebsiteCachingState;
+  const canPlay =
+    roundHasPlayableResource(round) &&
+    (!isWebsiteRound || !isCardAssetLoading) &&
+    !showWebsiteCachingState;
   const difficulty = round.difficulty ?? 1;
   const sourceLabel = abbreviateNsfwText(
     getRoundInstallSourceLabel(round.installSourceKey, {
@@ -4472,6 +4524,11 @@ const RoundCard = memo(function RoundCard({
             endTime={round.endTime}
             active={isPreviewActive}
           />
+        ) : isCardAssetLoading ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-zinc-500 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.35em]">
+            <div className="h-16 w-32 animate-pulse rounded-2xl border border-white/10 bg-white/5" />
+            <span>{t`Loading Preview`}</span>
+          </div>
         ) : !previewImage ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-zinc-500 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.35em]">
             {showWebsiteCachingState && !downloadProgress && (
@@ -6338,6 +6395,7 @@ function getRoundDisplayType(type: string | null | undefined, normalLabel: strin
 
 function summarizeHeroGroupPreviewState(
   rounds: RoundLibraryEntry[],
+  cardAssetsByRoundId: ReadonlyMap<string, InstalledRoundCardAssets>,
   isWebsiteVideoCaching: boolean
 ): {
   pendingCacheCount: number;
@@ -6347,14 +6405,15 @@ function summarizeHeroGroupPreviewState(
   let pendingPreviewCount = 0;
 
   for (const round of rounds) {
-    const cacheStatus = getInstalledRoundWebsiteVideoCacheStatus(round);
+    const cardAssets = cardAssetsByRoundId.get(round.id);
+    const cacheStatus = cardAssets?.websiteVideoCacheStatus ?? "not_applicable";
     if (cacheStatus === "pending") {
       pendingCacheCount += 1;
       continue;
     }
 
     const isWebsiteRound = round.installSourceKey?.startsWith("website:") ?? false;
-    if (isWebsiteVideoCaching && isWebsiteRound && !round.previewImage) {
+    if (isWebsiteVideoCaching && isWebsiteRound && cardAssets != null && !cardAssets.previewImage) {
       pendingPreviewCount += 1;
     }
   }
@@ -6364,11 +6423,7 @@ function summarizeHeroGroupPreviewState(
 
 function formatDate(value: Date | string): string {
   const date = value instanceof Date ? value : new Date(value);
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(date);
+  return ROUND_CARD_DATE_FORMATTER.format(date);
 }
 
 function formatMediaTimestamp(valueMs: number): string {

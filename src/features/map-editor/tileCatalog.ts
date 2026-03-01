@@ -83,7 +83,7 @@ const FALLBACK_TILES: TileCatalogTile[] = [
     kind: "safePoint",
     visualId: "safe-point",
     label: "Safe Point",
-    description: "Safe point checkpoint.",
+    description: "Checkpoint that can optionally add extra rest time.",
     category: "core",
     color: "#22c55e",
     defaultName: "Safe Point",
@@ -91,6 +91,20 @@ const FALLBACK_TILES: TileCatalogTile[] = [
     height: 86,
     size: 1,
     tags: ["checkpoint", "core"],
+  },
+  {
+    id: "campfire-node",
+    kind: "campfire",
+    visualId: "campfire",
+    label: "Campfire",
+    description: "Adds extra pause time without acting as a checkpoint.",
+    category: "utility",
+    color: "#f97316",
+    defaultName: "Campfire",
+    width: 200,
+    height: 86,
+    size: 1,
+    tags: ["utility", "rest"],
   },
   {
     id: "round-node",
@@ -245,6 +259,7 @@ export function normalizeTileKind(kind: unknown): EditorNodeKind {
     kind === "end" ||
     kind === "path" ||
     kind === "safePoint" ||
+    kind === "campfire" ||
     kind === "round" ||
     kind === "randomRound" ||
     kind === "perk" ||

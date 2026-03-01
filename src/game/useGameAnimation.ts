@@ -27,6 +27,7 @@ import {
 } from "../utils/audio";
 import type { CompletedRoundSummary, GameState } from "./types";
 import type { InstalledRound } from "../services/db";
+import { resolveEffectiveRestPauseMs as getEffectiveRestPauseMs } from "./restPause";
 
 export type AnimPhase =
   | { kind: "idle" }
@@ -94,15 +95,7 @@ function randomInt(min: number, max: number): number {
 }
 
 function resolveEffectiveRestPauseMs(state: GameState): number {
-  const currentPlayer = state.players[state.currentPlayerIndex];
-  if (!currentPlayer) return 20000;
-  const currentField = state.config.board.find((field) => field.id === currentPlayer.currentNodeId);
-  const checkpointRestMs =
-    currentField?.kind === "safePoint" ? (currentField.checkpointRestMs ?? 0) : 0;
-  const roundPauseMs = Number.isFinite(currentPlayer.stats.roundPauseMs)
-    ? currentPlayer.stats.roundPauseMs
-    : 20000;
-  return Math.max(roundPauseMs, checkpointRestMs);
+  return getEffectiveRestPauseMs(state);
 }
 
 export function resolveRoundCountdownDuration(queuedRound: GameState["queuedRound"]): number {

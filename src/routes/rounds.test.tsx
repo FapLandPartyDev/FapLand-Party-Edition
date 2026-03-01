@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
     round: {
       findInstalled: vi.fn(),
       findInstalledCatalog: vi.fn(),
+      findInstalledCardAssets: vi.fn(),
       getMediaResources: vi.fn(),
       getDisabledIds: vi.fn(),
       update: vi.fn(),
@@ -83,6 +84,11 @@ vi.mock("../services/db", () => ({
 
 vi.mock("../services/playlists", () => ({
   playlists: mocks.playlists,
+}));
+
+vi.mock("../services/installedRoundsCache", () => ({
+  getInstalledRoundCardAssetsCached: (roundIds: string[], includeDisabled = false) =>
+    mocks.db.round.findInstalledCardAssets(roundIds, includeDisabled),
 }));
 
 vi.mock("../services/trpc", () => ({
@@ -177,10 +183,20 @@ function toCatalogRound(round: InstalledRound): InstalledRoundCatalogEntry {
       disabled: resource.disabled,
       phash: resource.phash,
       durationMs: resource.durationMs,
-      websiteVideoCacheStatus: resource.websiteVideoCacheStatus,
       hasFunscript: Boolean(resource.funscriptUri),
     })),
   } as InstalledRoundCatalogEntry;
+}
+
+function toCardAssets(round: InstalledRound) {
+  const firstResource = round.resources[0];
+  return {
+    roundId: round.id,
+    previewImage: round.previewImage ?? null,
+    previewVideoUri: firstResource?.videoUri ?? null,
+    websiteVideoCacheStatus: firstResource?.websiteVideoCacheStatus ?? "not_applicable",
+    primaryResourceId: firstResource?.id ?? null,
+  };
 }
 
 function makeRound({
@@ -381,6 +397,11 @@ beforeEach(() => {
   mocks.db.round.findInstalled.mockImplementation(async () => mocks.loaderData.rounds);
   mocks.db.round.findInstalledCatalog.mockImplementation(async () =>
     mocks.loaderData.rounds.map(toCatalogRound)
+  );
+  mocks.db.round.findInstalledCardAssets.mockImplementation(async (roundIds: string[]) =>
+    mocks.loaderData.rounds
+      .filter((round) => roundIds.includes(round.id))
+      .map(toCardAssets)
   );
   mocks.db.round.getMediaResources.mockImplementation(async (roundId: string) => {
     const round = mocks.loaderData.rounds.find((candidate) => candidate.id === roundId);

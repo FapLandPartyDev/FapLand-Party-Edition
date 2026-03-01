@@ -142,6 +142,7 @@ export const ZGraphNodeKind = z.enum([
   "end",
   "path",
   "safePoint",
+  "campfire",
   "round",
   "randomRound",
   "perk",
@@ -159,6 +160,7 @@ export const ZGraphNode = z
     skippable: z.boolean().optional(),
     randomPoolId: z.string().trim().min(1).optional(),
     checkpointRestMs: z.number().int().min(0).optional(),
+    pauseBonusMs: z.number().int().min(0).optional(),
     visualId: z.string().trim().min(1).optional(),
     giftGuaranteedPerk: z.boolean().optional(),
     catapultForward: z.number().int().min(1).optional(),
@@ -274,7 +276,15 @@ export const ZGraphBoardConfig = z
       if (node.kind !== "safePoint" && typeof node.checkpointRestMs === "number") {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only safePoint nodes may define checkpointRestMs (${node.id})`,
+          message: `Only safePoint nodes may define additional rest (${node.id})`,
+          path: ["nodes"],
+        });
+      }
+
+      if (node.kind !== "campfire" && typeof node.pauseBonusMs === "number") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only campfire nodes may define pauseBonusMs (${node.id})`,
           path: ["nodes"],
         });
       }

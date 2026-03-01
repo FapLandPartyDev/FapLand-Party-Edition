@@ -8,6 +8,7 @@ const CARD_ROW_ESTIMATE_PX = 480;
 const SHELF_GAP_PX = 20;
 const CARD_MIN_WIDTH_PX = 320;
 const MAX_COLUMNS = 2;
+const VIRTUALIZATION_MIN_ROWS = 24;
 const GROUPED_VIRTUALIZATION_MIN_SHELVES = 12;
 
 type VirtualizedRoundLibraryGridProps = {
@@ -16,7 +17,32 @@ type VirtualizedRoundLibraryGridProps = {
   scrollContainer: HTMLElement | null;
   renderCard: (item: RoundLibraryCardItem) => ReactNode;
   renderGroupHeader: (shelf: Extract<RoundLibraryShelf, { kind: "group-header" }>) => ReactNode;
+  onVisibleRoundIdsChange?: (roundIds: string[]) => void;
 };
+
+function collectRoundIdsFromShelf(shelf: RoundLibraryShelf | undefined): string[] {
+  if (!shelf) {
+    return [];
+  }
+  if (shelf.kind === "group-header") {
+    return shelf.row.rounds.map((round) => round.id);
+  }
+  return shelf.items.map((item) => item.round.id);
+}
+
+function collectRoundIdsFromRows(rows: RoundRenderRow[]): string[] {
+  const roundIds: string[] = [];
+  for (const row of rows) {
+    if (row.kind === "standalone") {
+      roundIds.push(row.round.id);
+      continue;
+    }
+    for (const round of row.rounds) {
+      roundIds.push(round.id);
+    }
+  }
+  return [...new Set(roundIds)];
+}
 
 export function VirtualizedRoundLibraryGrid({
   rows,
@@ -24,16 +50,15 @@ export function VirtualizedRoundLibraryGrid({
   scrollContainer,
   renderCard,
   renderGroupHeader,
+  onVisibleRoundIdsChange,
 }: VirtualizedRoundLibraryGridProps) {
   const [columns, setColumns] = useState(1);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [shouldVirtualize, setShouldVirtualize] = useState(false);
   const layoutContainerRef = useRef<HTMLDivElement | null>(null);
   const hasGroupedRows = useMemo(() => rows.some((row) => row.kind !== "standalone"), [rows]);
 
   useEffect(() => {
     if (!scrollContainer) {
-      setShouldVirtualize(false);
       return;
     }
 
@@ -46,7 +71,6 @@ export function VirtualizedRoundLibraryGrid({
       );
       setContainerWidth(width);
       setColumns(nextColumns);
-      setShouldVirtualize(scrollContainer.clientHeight > 0);
     };
 
     updateLayout();
@@ -67,9 +91,10 @@ export function VirtualizedRoundLibraryGrid({
     () => buildRoundLibraryShelves(rows, columns, expandedGroupKeys),
     [columns, expandedGroupKeys, rows],
   );
-  const canVirtualize =
-    shouldVirtualize &&
-    (!hasGroupedRows || shelves.length >= GROUPED_VIRTUALIZATION_MIN_SHELVES);
+  const preferVirtualization =
+    rows.length >= VIRTUALIZATION_MIN_ROWS ||
+    (hasGroupedRows && shelves.length >= GROUPED_VIRTUALIZATION_MIN_SHELVES);
+  const canVirtualize = preferVirtualization && scrollContainer != null;
 
   const shelfRenderer = useMemo(
     () => (shelf: RoundLibraryShelf) => {
@@ -165,6 +190,30 @@ export function VirtualizedRoundLibraryGrid({
       cancelled = true;
     };
   }, [canVirtualize, virtualizer]);
+
+  useEffect(() => {
+    if (!onVisibleRoundIdsChange) {
+      return;
+    }
+    if (canVirtualize) {
+      const nextRoundIds = [
+        ...new Set(
+          virtualizer.getVirtualItems().flatMap((item) => collectRoundIdsFromShelf(shelves[item.index]))
+        ),
+      ];
+      onVisibleRoundIdsChange(nextRoundIds);
+      return;
+    }
+    if (preferVirtualization) {
+      onVisibleRoundIdsChange([]);
+      return;
+    }
+    onVisibleRoundIdsChange(collectRoundIdsFromRows(rows));
+  }, [canVirtualize, onVisibleRoundIdsChange, preferVirtualization, rows, shelves, virtualizer]);
+
+  if (preferVirtualization && !scrollContainer) {
+    return <div ref={layoutContainerRef} className="relative min-h-px" aria-hidden="true" />;
+  }
 
   if (!canVirtualize) {
     return (

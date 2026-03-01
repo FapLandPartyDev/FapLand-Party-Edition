@@ -90,6 +90,7 @@ export type BoardFieldKind =
   | "end"
   | "path"
   | "safePoint"
+  | "campfire"
   | "round"
   | "randomRound"
   | "perk"
@@ -109,6 +110,7 @@ export type BoardField = {
   skippable?: boolean;
   randomPoolId?: string;
   checkpointRestMs?: number;
+  pauseBonusMs?: number;
   visualId?: string;
   giftGuaranteedPerk?: boolean;
   catapultForward?: number;

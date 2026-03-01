@@ -223,38 +223,41 @@ type CatalogRoundResource = {
   disabled: boolean;
   phash: string | null;
   durationMs: number | null;
-  videoUri: string;
   funscriptUri: string | null;
 };
 
-async function toInstalledRoundCatalogEntry(
-  entry: {
+type InstalledRoundCardAssetEntry = {
+  roundId: string;
+  previewImage: string | null;
+  previewVideoUri: string | null;
+  websiteVideoCacheStatus: WebsiteVideoCacheStatus;
+  primaryResourceId: string | null;
+};
+
+function toInstalledRoundCatalogEntry(entry: {
+  id: string;
+  name: string;
+  author: string | null;
+  description: string | null;
+  bpm: number | null;
+  difficulty: number | null;
+  phash: string | null;
+  startTime: number | null;
+  endTime: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  type: "Normal" | "Interjection" | "Cum";
+  installSourceKey: string | null;
+  heroId: string | null;
+  excludeFromRandom: boolean;
+  hero: {
     id: string;
     name: string;
     author: string | null;
     description: string | null;
-    bpm: number | null;
-    difficulty: number | null;
-    phash: string | null;
-    startTime: number | null;
-    endTime: number | null;
-    createdAt: Date;
-    updatedAt: Date;
-    type: "Normal" | "Interjection" | "Cum";
-    installSourceKey: string | null;
-    previewImage: string | null;
-    heroId: string | null;
-    excludeFromRandom: boolean;
-    hero: {
-      id: string;
-      name: string;
-      author: string | null;
-      description: string | null;
-    } | null;
-    resources: CatalogRoundResource[];
-  },
-  getCachedStateForUri: (videoUri: string) => Promise<WebsiteVideoCacheStatus>
-): Promise<{
+  } | null;
+  resources: CatalogRoundResource[];
+}): {
   id: string;
   name: string;
   author: string | null;
@@ -268,7 +271,6 @@ async function toInstalledRoundCatalogEntry(
   updatedAt: Date;
   type: "Normal" | "Interjection" | "Cum" | null;
   installSourceKey: string | null;
-  previewImage: string | null;
   heroId: string | null;
   excludeFromRandom: boolean;
   hero: {
@@ -282,9 +284,9 @@ async function toInstalledRoundCatalogEntry(
     disabled: boolean;
     phash: string | null;
     durationMs: number | null;
-    websiteVideoCacheStatus: WebsiteVideoCacheStatus;
+    hasFunscript: boolean;
   }>;
-}> {
+} {
   return {
     id: entry.id,
     name: entry.name,
@@ -299,20 +301,16 @@ async function toInstalledRoundCatalogEntry(
     updatedAt: entry.updatedAt,
     type: entry.type ?? null,
     installSourceKey: entry.installSourceKey,
-    previewImage: entry.previewImage,
     heroId: entry.heroId,
     excludeFromRandom: entry.excludeFromRandom,
     hero: entry.hero,
-    resources: await Promise.all(
-      entry.resources.map(async (resourceEntry) => ({
+    resources: entry.resources.map((resourceEntry) => ({
         id: resourceEntry.id,
         disabled: resourceEntry.disabled,
         phash: resourceEntry.phash,
         durationMs: resourceEntry.durationMs,
         hasFunscript: Boolean(resourceEntry.funscriptUri),
-        websiteVideoCacheStatus: await getCachedStateForUri(resourceEntry.videoUri),
-      }))
-    ),
+      })),
   };
 }
 
@@ -1371,7 +1369,6 @@ export const dbRouter = router({
       const includeDisabled = input?.includeDisabled ?? false;
       const includeTemplates = input?.includeTemplates ?? false;
       const disabledRoundIds = getDisabledRoundIdSet();
-      const getCachedStateForUri = createWebsiteVideoCacheStatusLoader();
 
       const rounds = await db.query.round.findMany({
         columns: {
@@ -1388,7 +1385,6 @@ export const dbRouter = router({
           updatedAt: true,
           type: true,
           installSourceKey: true,
-          previewImage: true,
           heroId: true,
           excludeFromRandom: true,
         },
@@ -1407,7 +1403,6 @@ export const dbRouter = router({
               disabled: true,
               phash: true,
               durationMs: true,
-              videoUri: true,
               funscriptUri: true,
             },
           },
@@ -1428,9 +1423,92 @@ export const dbRouter = router({
           })
         );
 
-      return await Promise.all(
-        filteredRounds.map((entry) => toInstalledRoundCatalogEntry(entry, getCachedStateForUri))
+      return filteredRounds.map((entry) => toInstalledRoundCatalogEntry(entry));
+    }),
+
+  getInstalledRoundCardAssets: publicProcedure
+    .input(
+      z.object({
+        roundIds: z.array(z.string().min(1)),
+        includeDisabled: z.boolean().optional(),
+      })
+    )
+    .query(async ({ input }) => {
+      if (input.roundIds.length === 0) {
+        return [];
+      }
+
+      const db = getDb();
+      const includeDisabled = input.includeDisabled ?? false;
+      const disabledRoundIds = getDisabledRoundIdSet();
+      const getCachedStateForUri = createWebsiteVideoCacheStatusLoader();
+      const resolveResourceUrisForRequest = createResourceUriResolver();
+      const uniqueRoundIds = [...new Set(input.roundIds)];
+
+      const rounds = await db.query.round.findMany({
+        where: inArray(round.id, uniqueRoundIds),
+        columns: {
+          id: true,
+          installSourceKey: true,
+          previewImage: true,
+        },
+        with: {
+          resources: {
+            columns: {
+              id: true,
+              disabled: true,
+              videoUri: true,
+            },
+          },
+        },
+      });
+
+      const assetsByRoundId = new Map<string, InstalledRoundCardAssetEntry>(
+        await Promise.all(
+          rounds.map(async (entry) => {
+            if (!includeDisabled && disabledRoundIds.has(entry.id)) {
+              return [
+                entry.id,
+                {
+                  roundId: entry.id,
+                  previewImage: entry.previewImage ?? null,
+                  previewVideoUri: null,
+                  websiteVideoCacheStatus: "not_applicable" as WebsiteVideoCacheStatus,
+                  primaryResourceId: null,
+                } satisfies InstalledRoundCardAssetEntry,
+              ] as const;
+            }
+
+            const visibleResources = getVisibleResources(entry.resources, includeDisabled);
+            const primaryResource = visibleResources[0] ?? null;
+            const previewVideoUri = primaryResource
+              ? resolveResourceUrisForRequest({
+                  videoUri: primaryResource.videoUri,
+                  funscriptUri: null,
+                }).videoUri
+              : null;
+            const websiteVideoCacheStatus =
+              primaryResource && entry.installSourceKey?.startsWith("website:")
+                ? await getCachedStateForUri(primaryResource.videoUri)
+                : ("not_applicable" as WebsiteVideoCacheStatus);
+
+            return [
+              entry.id,
+              {
+                roundId: entry.id,
+                previewImage: entry.previewImage ?? null,
+                previewVideoUri,
+                websiteVideoCacheStatus,
+                primaryResourceId: primaryResource?.id ?? null,
+              } satisfies InstalledRoundCardAssetEntry,
+            ] as const;
+          })
+        )
       );
+
+      return uniqueRoundIds
+        .map((roundId) => assetsByRoundId.get(roundId))
+        .filter((entry): entry is NonNullable<typeof entry> => entry != null);
     }),
 
   getRoundMediaResources: publicProcedure

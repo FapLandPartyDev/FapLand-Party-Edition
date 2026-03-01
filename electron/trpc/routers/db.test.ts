@@ -351,6 +351,7 @@ type RoundRow = {
   installSourceKey?: string | null;
   previewImage?: string | null;
   phash?: string | null;
+  excludeFromRandom?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -505,6 +506,7 @@ describe("dbRouter local highscore and multiplayer cache", () => {
           installSourceKey: null,
           previewImage: null,
           phash: null,
+          excludeFromRandom: false,
           createdAt: new Date("2026-03-05T00:00:00.000Z"),
           updatedAt: new Date("2026-03-05T00:00:00.000Z"),
         },
@@ -876,6 +878,7 @@ describe("dbRouter local highscore and multiplayer cache", () => {
                 installSourceKey: input.installSourceKey ?? null,
                 previewImage: input.previewImage ?? null,
                 phash: input.phash ?? null,
+                excludeFromRandom: input.excludeFromRandom ?? false,
                 createdAt: new Date("2026-03-06T00:00:00.000Z"),
                 updatedAt: new Date("2026-03-06T00:00:00.000Z"),
               };
@@ -1708,8 +1711,6 @@ describe("dbRouter local highscore and multiplayer cache", () => {
   it("returns installed round catalog entries without resolved media uris", async () => {
     const caller = createRendererCaller();
 
-    getWebsiteVideoCacheStateMock.mockResolvedValueOnce("cached");
-
     const result = await caller.getInstalledRoundCatalog();
 
     expect(result).toHaveLength(1);
@@ -1724,12 +1725,87 @@ describe("dbRouter local highscore and multiplayer cache", () => {
           id: "resource-1",
           disabled: false,
           hasFunscript: false,
-          websiteVideoCacheStatus: "cached",
         },
       ],
     });
     expect(result[0]?.resources[0]).not.toHaveProperty("videoUri");
     expect(result[0]?.resources[0]).not.toHaveProperty("funscriptUri");
+    expect(result[0]).not.toHaveProperty("previewImage");
+    expect(getWebsiteVideoCacheStateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns installed round card assets only for requested ids", async () => {
+    const caller = createRendererCaller();
+
+    roundsByIdRef.set("round-2", {
+      id: "round-2",
+      name: "Website Round",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: null,
+      endTime: null,
+      type: "Normal",
+      installSourceKey: "website:round-2",
+      previewImage: "data:image/jpeg;base64,preview",
+      phash: null,
+      createdAt: new Date("2026-03-06T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:00.000Z"),
+    });
+    resourcesByIdRef.set("resource-2", {
+      id: "resource-2",
+      roundId: "round-2",
+      videoUri: "https://example.com/watch?v=2",
+      funscriptUri: null,
+      phash: null,
+      durationMs: null,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:00.000Z"),
+    });
+    createResourceUriResolverMock.mockReturnValueOnce(
+      (resource: { videoUri: string; funscriptUri: string | null }) => ({
+        videoUri: `app://external/web-url?target=${encodeURIComponent(resource.videoUri)}`,
+        funscriptUri: resource.funscriptUri,
+      })
+    );
+    getWebsiteVideoCacheStateMock.mockResolvedValueOnce("pending");
+
+    const result = await caller.getInstalledRoundCardAssets({
+      roundIds: ["round-2"],
+    });
+
+    expect(result).toEqual([
+      {
+        roundId: "round-2",
+        previewImage: "data:image/jpeg;base64,preview",
+        previewVideoUri: "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3D2",
+        websiteVideoCacheStatus: "pending",
+        primaryResourceId: "resource-2",
+      },
+    ]);
+    expect(getWebsiteVideoCacheStateMock).toHaveBeenCalledTimes(1);
+    expect(getWebsiteVideoCacheStateMock).toHaveBeenCalledWith("https://example.com/watch?v=2");
+  });
+
+  it("does not resolve website cache state for non-website card assets", async () => {
+    const caller = createRendererCaller();
+
+    const result = await caller.getInstalledRoundCardAssets({
+      roundIds: ["round-1"],
+    });
+
+    expect(result).toEqual([
+      {
+        roundId: "round-1",
+        previewImage: null,
+        previewVideoUri: "file:///tmp/round-1.mp4",
+        websiteVideoCacheStatus: "not_applicable",
+        primaryResourceId: "resource-1",
+      },
+    ]);
+    expect(getWebsiteVideoCacheStateMock).not.toHaveBeenCalled();
   });
 
   it("returns round media resources with request-scoped uri resolution", async () => {

@@ -58,6 +58,7 @@ function toBoardKind(kind: string): BoardFieldKind {
   if (kind === "start") return "start";
   if (kind === "end") return "end";
   if (kind === "safePoint") return "safePoint";
+  if (kind === "campfire") return "campfire";
   if (kind === "round") return "round";
   if (kind === "randomRound") return "randomRound";
   if (kind === "perk") return "perk";
@@ -256,6 +257,7 @@ function buildGraphConfig(
     name: node.name,
     kind: toBoardKind(node.kind),
     checkpointRestMs: typeof node.checkpointRestMs === "number" ? node.checkpointRestMs : undefined,
+    pauseBonusMs: typeof node.pauseBonusMs === "number" ? node.pauseBonusMs : undefined,
     visualId: node.visualId,
     giftGuaranteedPerk: node.giftGuaranteedPerk,
     catapultForward:

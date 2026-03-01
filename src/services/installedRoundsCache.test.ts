@@ -1,8 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  getInstalledRoundCatalog: vi.fn(async () => []),
-  getRoundMediaResources: vi.fn(async () => null),
+  getInstalledRoundCatalog: vi.fn(async (): Promise<Array<{ id: string }>> => []),
+  getInstalledRoundCardAssets: vi.fn(
+    async (): Promise<
+      Array<{
+        roundId: string;
+        previewImage: string | null;
+        previewVideoUri: string | null;
+        websiteVideoCacheStatus: "not_applicable" | "cached" | "pending";
+        primaryResourceId: string | null;
+      }>
+    > => []
+  ),
+  getRoundMediaResources: vi.fn(
+    async (): Promise<{ roundId: string; resources: Array<{ id: string }> } | null> => null
+  ),
 }));
 
 vi.mock("./trpc", () => ({
@@ -10,6 +23,9 @@ vi.mock("./trpc", () => ({
     db: {
       getInstalledRoundCatalog: {
         query: mocks.getInstalledRoundCatalog,
+      },
+      getInstalledRoundCardAssets: {
+        query: mocks.getInstalledRoundCardAssets,
       },
       getRoundMediaResources: {
         query: mocks.getRoundMediaResources,
@@ -19,9 +35,11 @@ vi.mock("./trpc", () => ({
 }));
 
 import {
+  getInstalledRoundCardAssetsCached,
   getInstalledRoundCatalogCached,
   getRoundMediaResourcesCached,
   invalidateInstalledRoundCaches,
+  invalidateInstalledRoundCardAssets,
   invalidateInstalledRoundMedia,
 } from "./installedRoundsCache";
 
@@ -73,5 +91,62 @@ describe("installedRoundsCache", () => {
       resources: [{ id: "res-1" }],
     });
     expect(mocks.getRoundMediaResources).toHaveBeenCalledTimes(2);
+  });
+
+  it("caches installed round card assets per round and supports targeted invalidation", async () => {
+    mocks.getInstalledRoundCardAssets.mockResolvedValue([
+      {
+        roundId: "round-1",
+        previewImage: null,
+        previewVideoUri: "app://media/round-1.mp4",
+        websiteVideoCacheStatus: "cached",
+        primaryResourceId: "res-1",
+      },
+    ]);
+
+    const first = getInstalledRoundCardAssetsCached(["round-1"]);
+    const second = getInstalledRoundCardAssetsCached(["round-1"]);
+
+    await expect(first).resolves.toEqual([
+      {
+        roundId: "round-1",
+        previewImage: null,
+        previewVideoUri: "app://media/round-1.mp4",
+        websiteVideoCacheStatus: "cached",
+        primaryResourceId: "res-1",
+      },
+    ]);
+    await expect(second).resolves.toEqual([
+      {
+        roundId: "round-1",
+        previewImage: null,
+        previewVideoUri: "app://media/round-1.mp4",
+        websiteVideoCacheStatus: "cached",
+        primaryResourceId: "res-1",
+      },
+    ]);
+    expect(mocks.getInstalledRoundCardAssets).toHaveBeenCalledTimes(1);
+
+    invalidateInstalledRoundCardAssets("round-1");
+    mocks.getInstalledRoundCardAssets.mockResolvedValue([
+      {
+        roundId: "round-1",
+        previewImage: "data:image/jpeg;base64,preview",
+        previewVideoUri: "app://media/round-1.mp4",
+        websiteVideoCacheStatus: "cached",
+        primaryResourceId: "res-1",
+      },
+    ]);
+
+    await expect(getInstalledRoundCardAssetsCached(["round-1"])).resolves.toEqual([
+      {
+        roundId: "round-1",
+        previewImage: "data:image/jpeg;base64,preview",
+        previewVideoUri: "app://media/round-1.mp4",
+        websiteVideoCacheStatus: "cached",
+        primaryResourceId: "res-1",
+      },
+    ]);
+    expect(mocks.getInstalledRoundCardAssets).toHaveBeenCalledTimes(2);
   });
 });

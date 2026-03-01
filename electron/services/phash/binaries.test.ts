@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { PhashBinaries } from "./types";
 import {
     compareVersionTuple,
+    getBundledFfmpegCandidatePaths,
     parseToolVersionLine,
     parseVersionTuple,
     selectPhashBinaries,
@@ -39,23 +40,35 @@ describe("phash binary version parsing", () => {
         expect(parseVersionTuple(version)).toEqual([6, 1, 2]);
     });
 
-  it("compares semantic tuples", () => {
-    expect(compareVersionTuple([7, 0, 0], [6, 1, 9])).toBeGreaterThan(0);
-    expect(compareVersionTuple([6, 1, 2], [6, 1, 2])).toBe(0);
-    expect(compareVersionTuple([5, 9, 9], [6, 0, 0])).toBeLessThan(0);
-  });
+    it("compares semantic tuples", () => {
+        expect(compareVersionTuple([7, 0, 0], [6, 1, 9])).toBeGreaterThan(0);
+        expect(compareVersionTuple([6, 1, 2], [6, 1, 2])).toBe(0);
+        expect(compareVersionTuple([5, 9, 9], [6, 0, 0])).toBeLessThan(0);
+    });
 
-  it("supports forcing bundled or system binaries", () => {
-    expect(selectPhashBinaries("bundled", bundled, system).source).toBe("bundled");
-    expect(selectPhashBinaries("system", bundled, system).source).toBe("system");
-  });
+    it("supports forcing bundled or system binaries", () => {
+        expect(selectPhashBinaries("bundled", bundled, system).source).toBe("bundled");
+        expect(selectPhashBinaries("system", bundled, system).source).toBe("system");
+    });
 
-  it("keeps auto behavior preferring newer system when parseable", () => {
-    expect(selectPhashBinaries("auto", bundled, system).source).toBe("system");
-  });
+    it("builds bundled FFmpeg candidate paths from resources and local vendor directories", () => {
+        expect(
+            getBundledFfmpegCandidatePaths("ffmpeg/win32-x64/ffmpeg.exe", {
+                cwd: "/repo",
+                resourcesPath: "/package/resources",
+            }),
+        ).toEqual([
+            "/package/resources/ffmpeg/win32-x64/ffmpeg.exe",
+            "/repo/build/vendor/ffmpeg/win32-x64/ffmpeg.exe",
+        ]);
+    });
 
-  it("throws when forced source is unavailable", () => {
-    expect(() => selectPhashBinaries("bundled", null, system)).toThrow(/forced to bundled/i);
-    expect(() => selectPhashBinaries("system", bundled, null)).toThrow(/forced to system/i);
-  });
+    it("keeps auto behavior preferring newer system when parseable", () => {
+        expect(selectPhashBinaries("auto", bundled, system).source).toBe("system");
+    });
+
+    it("throws when forced source is unavailable", () => {
+        expect(() => selectPhashBinaries("bundled", null, system)).toThrow(/forced to bundled/i);
+        expect(() => selectPhashBinaries("system", bundled, null)).toThrow(/forced to system/i);
+    });
 });

@@ -22,6 +22,7 @@ const KIND_COLOR_MAP: Record<string, string> = {
     end: "bg-rose-500",
     path: "bg-zinc-500",
     safePoint: "bg-amber-500",
+    campfire: "bg-orange-500",
     round: "bg-cyan-500",
     randomRound: "bg-purple-500",
     perk: "bg-violet-500",

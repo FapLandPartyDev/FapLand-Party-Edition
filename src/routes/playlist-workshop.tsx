@@ -2075,6 +2075,7 @@ function PlaylistWorkshopPage() {
                                     void (async () => {
                                       await playlists.setActive(playlist.id);
                                       await refreshPlaylists();
+                                      setActivePlaylistId(playlist.id);
                                       setPlaylistMenuOpen(false);
                                     })();
                                   }}
@@ -3788,7 +3789,7 @@ function WorkshopRoundPreview({
   intersectionRoot?: Element | null;
 }) {
   const { t } = useLingui();
-  const previewImage = round.previewImage;
+  const previewImage = "previewImage" in round ? (round.previewImage ?? null) : null;
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [isPreviewActive, setIsPreviewActive] = useState(false);
   const { elementRef, isVisible } = useVisibilityGate<HTMLDivElement>({

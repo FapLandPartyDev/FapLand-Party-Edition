@@ -46,12 +46,13 @@ const ZGameEffect = z.discriminatedUnion("kind", [
 const ZBoardField = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  kind: z.enum(["start", "end", "path", "safePoint", "round", "randomRound", "perk", "event"]),
+  kind: z.enum(["start", "end", "path", "safePoint", "campfire", "round", "randomRound", "perk", "event"]),
   fixedRoundId: z.string().optional(),
   forceStop: z.boolean().optional(),
   skippable: z.boolean().optional(),
   randomPoolId: z.string().optional(),
   checkpointRestMs: z.number().int().optional(),
+  pauseBonusMs: z.number().int().optional(),
   visualId: z.string().optional(),
   giftGuaranteedPerk: z.boolean().optional(),
   styleHint: z

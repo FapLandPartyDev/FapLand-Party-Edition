@@ -158,6 +158,90 @@ describe("playlistSchema", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("parses campfire nodes with pause bonuses", () => {
+    const parsed = ZPlaylistConfig.safeParse(
+      buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          { id: "camp-1", name: "Campfire", kind: "campfire", pauseBonusMs: 1500 },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [
+          { id: "edge-a", fromNodeId: "start", toNodeId: "camp-1" },
+          { id: "edge-b", fromNodeId: "camp-1", toNodeId: "end" },
+        ],
+        randomRoundPools: [],
+        cumRoundRefs: [],
+        pathChoiceTimeoutMs: 6000,
+      })
+    );
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects pause bonuses on non-campfire nodes", () => {
+    const parsed = ZPlaylistConfig.safeParse(
+      buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start", pauseBonusMs: 1500 },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [{ id: "edge-a", fromNodeId: "start", toNodeId: "end" }],
+        randomRoundPools: [],
+        cumRoundRefs: [],
+        pathChoiceTimeoutMs: 6000,
+      })
+    );
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects negative campfire pause bonuses", () => {
+    const parsed = ZPlaylistConfig.safeParse(
+      buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          { id: "camp-1", name: "Campfire", kind: "campfire", pauseBonusMs: -1 },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [
+          { id: "edge-a", fromNodeId: "start", toNodeId: "camp-1" },
+          { id: "edge-b", fromNodeId: "camp-1", toNodeId: "end" },
+        ],
+        randomRoundPools: [],
+        cumRoundRefs: [],
+        pathChoiceTimeoutMs: 6000,
+      })
+    );
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects checkpoint rest on non-safe-point nodes", () => {
+    const parsed = ZPlaylistConfig.safeParse(
+      buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start", checkpointRestMs: 1000 },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [{ id: "edge-a", fromNodeId: "start", toNodeId: "end" }],
+        randomRoundPools: [],
+        cumRoundRefs: [],
+        pathChoiceTimeoutMs: 6000,
+      })
+    );
+
+    expect(parsed.success).toBe(false);
+  });
+
   it("requires graph end nodes and forbids non-end dead ends", () => {
     const missingEnd = ZPlaylistConfig.safeParse(
       buildConfig({

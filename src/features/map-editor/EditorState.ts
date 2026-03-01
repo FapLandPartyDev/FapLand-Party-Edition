@@ -100,6 +100,7 @@ export type EditorNodeKind =
   | "end"
   | "path"
   | "safePoint"
+  | "campfire"
   | "round"
   | "randomRound"
   | "perk"
@@ -124,6 +125,7 @@ export interface EditorNode {
   skippable?: boolean;
   randomPoolId?: string;
   checkpointRestMs?: number;
+  pauseBonusMs?: number;
   visualId?: string;
   giftGuaranteedPerk?: boolean;
   catapultForward?: number;
@@ -404,6 +406,7 @@ export const sanitizeNodeKind = (kind: string | undefined): EditorNodeKind => {
     kind === "end" ||
     kind === "path" ||
     kind === "safePoint" ||
+    kind === "campfire" ||
     kind === "round" ||
     kind === "randomRound" ||
     kind === "perk" ||
@@ -425,6 +428,7 @@ export const toEditorGraphConfig = (input: GraphBoardConfig): EditorGraphConfig 
     skippable: node.skippable,
     randomPoolId: node.randomPoolId,
     checkpointRestMs: typeof node.checkpointRestMs === "number" ? node.checkpointRestMs : undefined,
+    pauseBonusMs: typeof node.pauseBonusMs === "number" ? node.pauseBonusMs : undefined,
     visualId: node.visualId,
     giftGuaranteedPerk: node.giftGuaranteedPerk,
     catapultForward:
@@ -770,8 +774,12 @@ export const toGraphBoardConfig = (input: EditorGraphConfig): GraphBoardConfig =
       skippable: node.kind === "round" ? node.skippable : undefined,
       randomPoolId: node.randomPoolId,
       checkpointRestMs:
-        typeof node.checkpointRestMs === "number"
+        node.kind === "safePoint" && typeof node.checkpointRestMs === "number"
           ? Math.max(0, Math.floor(node.checkpointRestMs))
+          : undefined,
+      pauseBonusMs:
+        node.kind === "campfire" && typeof node.pauseBonusMs === "number"
+          ? Math.max(0, Math.floor(node.pauseBonusMs))
           : undefined,
       visualId: node.visualId,
       giftGuaranteedPerk: node.kind === "perk" ? node.giftGuaranteedPerk : undefined,

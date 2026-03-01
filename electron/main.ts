@@ -746,8 +746,6 @@ async function createWindow(): Promise<BrowserWindow> {
     mainWindow.loadURL(PACKAGED_RENDERER_ENTRY_URL);
   }
 
-  scheduleRendererDevTools(mainWindow);
-
   if (remoteDebuggingPort !== null) {
     mainWindow.webContents.once("did-finish-load", () => {
       setTimeout(() => {

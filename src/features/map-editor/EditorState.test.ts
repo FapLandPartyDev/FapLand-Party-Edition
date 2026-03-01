@@ -5,6 +5,7 @@ import {
   normalizeRoadPalette,
   sanitizeNodeKind,
   toEditorGraphConfig,
+  toGraphBoardConfig,
   type EditorGraphConfig,
 } from "./EditorState";
 
@@ -46,6 +47,28 @@ function makeEditorConfig(overrides: Partial<EditorGraphConfig> = {}): EditorGra
 describe("EditorState", () => {
   it("falls back legacy event nodes to path", () => {
     expect(sanitizeNodeKind("event")).toBe("path");
+  });
+
+  it("preserves campfire nodes and pause bonuses when round-tripping graph configs", () => {
+    const graph = toGraphBoardConfig(
+      makeEditorConfig({
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          { id: "camp-1", name: "Campfire", kind: "campfire", pauseBonusMs: 1750 },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [
+          { id: "edge-start-camp", fromNodeId: "start", toNodeId: "camp-1" },
+          { id: "edge-camp-end", fromNodeId: "camp-1", toNodeId: "end" },
+        ],
+      })
+    );
+
+    const roundTripped = toEditorGraphConfig(graph);
+    expect(roundTripped.nodes.find((node) => node.id === "camp-1")).toMatchObject({
+      kind: "campfire",
+      pauseBonusMs: 1750,
+    });
   });
 
   it("normalizes legacy event graph nodes when loading editor state", () => {
@@ -270,6 +293,26 @@ describe("EditorState", () => {
     expect(result.boardConfig.totalIndices).toBe(1);
     expect(result.boardConfig.normalRoundRefsByIndex).toEqual({});
     expect(result.droppedNodeIds).toEqual(["perk-1", "random-1", "catapult-1"]);
+    expect(result.warnings.some((warning) => warning.includes("Graph-only"))).toBe(true);
+  });
+
+  it("drops campfire nodes when converting to a linear board", () => {
+    const result = convertEditorGraphToLinearBoardConfig(
+      makeEditorConfig({
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          { id: "camp-1", name: "Campfire", kind: "campfire", pauseBonusMs: 1750 },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [
+          { id: "edge-start-camp", fromNodeId: "start", toNodeId: "camp-1" },
+          { id: "edge-camp-end", fromNodeId: "camp-1", toNodeId: "end" },
+        ],
+      })
+    );
+
+    expect(result.boardConfig.safePointRestMsByIndex).toEqual({});
+    expect(result.droppedNodeIds).toEqual(["camp-1"]);
     expect(result.warnings.some((warning) => warning.includes("Graph-only"))).toBe(true);
   });
 

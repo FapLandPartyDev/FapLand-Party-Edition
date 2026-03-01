@@ -20,6 +20,7 @@ const NODE_KIND_OPTIONS: EditorNode["kind"][] = [
   "end",
   "path",
   "safePoint",
+  "campfire",
   "round",
   "randomRound",
   "perk",
@@ -110,6 +111,8 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                       ? t`Path`
                       : kind === "safePoint"
                         ? t`Safe Point`
+                        : kind === "campfire"
+                          ? t`Campfire`
                         : kind === "round"
                           ? t`Round`
                           : kind === "randomRound"
@@ -125,6 +128,8 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                   kind === "round" ? (selectedNode.roundRef ?? { name: t`Round` }) : undefined,
                 forceStop: kind === "round" || kind === "perk" ? selectedNode.forceStop : undefined,
                 skippable: kind === "round" ? selectedNode.skippable : undefined,
+                checkpointRestMs: kind === "safePoint" ? selectedNode.checkpointRestMs : undefined,
+                pauseBonusMs: kind === "campfire" ? selectedNode.pauseBonusMs : undefined,
                 visualId:
                   kind === "perk" ? (selectedNode.visualId ?? perkOptions[0]?.id) : undefined,
                 giftGuaranteedPerk: kind === "perk" ? selectedNode.giftGuaranteedPerk : undefined,
@@ -320,7 +325,7 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
         {selectedNode.kind === "safePoint" && (
           <label className="block">
             <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
-              <Trans>Checkpoint Rest (sec)</Trans>
+              <Trans>Additional Rest (sec)</Trans>
             </span>
             <input
               type="number"
@@ -345,7 +350,38 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                 });
               }}
               className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
-              placeholder={t`Uses normal rest when empty`}
+              placeholder={t`Adds to normal rest when set`}
+            />
+          </label>
+        )}
+
+        {selectedNode.kind === "campfire" && (
+          <label className="block">
+            <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+              <Trans>Pause Bonus (ms)</Trans>
+            </span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={
+                typeof selectedNode.pauseBonusMs === "number" && selectedNode.pauseBonusMs > 0
+                  ? String(selectedNode.pauseBonusMs)
+                  : ""
+              }
+              onChange={(event) => {
+                const value = event.target.value.trim();
+                if (value.length === 0) {
+                  onPatchNode(selectedNode.id, { pauseBonusMs: undefined });
+                  return;
+                }
+                const ms = Number.parseInt(value, 10);
+                onPatchNode(selectedNode.id, {
+                  pauseBonusMs: Number.isFinite(ms) && ms > 0 ? ms : undefined,
+                });
+              }}
+              className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
+              placeholder={t`Adds extra pause when landed on`}
             />
           </label>
         )}
@@ -721,7 +757,8 @@ function SelectedRoundPreview({
     round?.id ?? null
   );
   const previewUri = mediaResources?.resources[0]?.videoUri ?? null;
-  const previewImage = round?.previewImage ?? null;
+  const previewImage =
+    round && "previewImage" in round ? (round.previewImage ?? null) : null;
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const [isPreviewActive, setIsPreviewActive] = React.useState(false);
   const { getVideoSrc, ensurePlayableVideo, handleVideoError } = usePlayableVideoFallback();

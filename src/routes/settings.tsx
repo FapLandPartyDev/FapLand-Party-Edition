@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { I18n } from "@lingui/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -6478,6 +6478,16 @@ function CreditsCard() {
             <span className="text-violet-100 font-bold">
               GNU Affero General Public License v3.0 (AGPL-3.0)
             </span>
+          </p>
+          <p className="mt-2 text-xs">
+            <Link
+              className="text-violet-300 underline decoration-violet-300/50 underline-offset-2 hover:text-violet-200"
+              onMouseEnter={playHoverSound}
+              onClick={playSelectSound}
+              to="/licenses"
+            >
+              View bundled dependency licenses
+            </Link>
           </p>
         </div>
       </div>

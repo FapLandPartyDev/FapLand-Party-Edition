@@ -10,6 +10,7 @@ type NodeVisualKind =
   | "end"
   | "path"
   | "safePoint"
+  | "campfire"
   | "round"
   | "randomRound"
   | "perk"
@@ -32,6 +33,7 @@ const KIND_COLORS: Record<NodeVisualKind, string> = {
   end: "#f97316",
   path: "#6b7280",
   safePoint: "#22c55e",
+  campfire: "#f97316",
   round: "#38bdf8",
   randomRound: "#f59e0b",
   perk: "#ec4899",
