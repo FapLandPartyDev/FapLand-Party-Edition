@@ -3291,6 +3291,7 @@ export function RoundVideoOverlay({
                 muted
                 loop
                 playsInline
+                preload="auto"
                 onError={() => setLoadingMediaIndex((prev) => prev + 1)}
               />
             ) : (

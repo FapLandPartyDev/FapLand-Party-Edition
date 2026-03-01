@@ -75,42 +75,62 @@ export async function createMediaResponse(
     const binaries = await resolvePhashBinaries();
     const ffmpegPath = binaries.ffmpegPath;
 
-    // Build FFmpeg arguments for live transcoding to WebM (VP9 + Opus)
-    // as suggested for modern browsers like Chromium.
-    const ffmpegArgs: string[] = ["-hide_banner", "-loglevel", "error", "-nostdin"];
+    // Try Nvidia NVDEC hardware-accelerated H.265 decode first; fall back to software.
+    // Output as H.264 ultrafast — dramatically faster than VP9 realtime for 4K content.
+    // The bundled FFmpeg (BtbN GPL build) includes --enable-ffnvcodec and --enable-cuda-llvm,
+    // so hevc_cuvid and h264_nvenc are available when the Nvidia driver is present.
+    const tryNvdecArgs = (useNvdec: boolean): string[] => {
+      const args: string[] = ["-hide_banner", "-loglevel", "error", "-nostdin"];
 
-    // If seeking is requested (via ?t=... or ?startAtMs=...)
-    const seekRequested = seekTimeSec || startAtMs;
-    if (seekRequested) {
-      const timeOffset = seekTimeSec ? parseFloat(seekTimeSec) : parseInt(startAtMs!) / 1000;
-      if (!isNaN(timeOffset) && timeOffset > 0) {
-        ffmpegArgs.push("-ss", timeOffset.toFixed(3));
+      if (seekTimeSec || startAtMs) {
+        const timeOffset = seekTimeSec ? parseFloat(seekTimeSec) : parseInt(startAtMs!) / 1000;
+        if (!isNaN(timeOffset) && timeOffset > 0) {
+          args.push("-ss", timeOffset.toFixed(3));
+        }
       }
-    }
 
-    ffmpegArgs.push(
-      "-i",
-      filePath,
-      "-c:v",
-      "libvpx-vp9",
-      "-deadline",
-      "realtime",
-      "-cpu-used",
-      "4",
-      "-c:a",
-      "libopus",
-      "-f",
-      "webm",
-      "pipe:1"
-    );
+      if (useNvdec) {
+        // hevc_cuvid decodes H.265 via NVDEC; keep frames in CUDA memory for NVENC to consume.
+        args.push("-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-c:v", "hevc_cuvid");
+      }
 
-    const ffmpeg = spawn(ffmpegPath, ffmpegArgs);
+      args.push("-i", filePath);
+
+      if (useNvdec) {
+        args.push(
+          "-c:v", "h264_nvenc",
+          "-preset", "p1",          // fastest NVENC preset
+          "-tune", "ull",           // ultra low latency — disables B-frame look-ahead
+          "-zerolatency", "1",      // no reorder buffer; first frame out immediately
+          "-pix_fmt", "yuv420p",    // Chromium requires 8-bit 4:2:0
+        );
+      } else {
+        args.push(
+          "-c:v", "libx264",
+          "-preset", "ultrafast",
+          "-pix_fmt", "yuv420p",
+        );
+      }
+
+      args.push(
+        "-c:a", "aac",
+        "-f", "mp4",
+        "-movflags", "frag_keyframe+empty_moov+faststart",
+        "pipe:1"
+      );
+      return args;
+    };
+
+    // Attempt NVDEC+NVENC first; on error restart with software decode.
+    let ffmpeg = spawn(ffmpegPath, tryNvdecArgs(true));
+    let useNvdecAttempt = true;
 
     // We don't read from stderr here to avoid buffering issues.
     // Guard the stream controller so request cancellation and FFmpeg teardown
     // cannot race each other into double close/error calls.
     let settled = false;
     let cancelled = false;
+    let receivedAnyData = false;
     let cleanup = () => {};
 
     const stream = new ReadableStream({
@@ -138,6 +158,7 @@ export async function createMediaResponse(
 
         const handleData = (chunk: Buffer) => {
           if (settled) return;
+          receivedAnyData = true;
           controller.enqueue(new Uint8Array(chunk));
         };
 
@@ -158,6 +179,23 @@ export async function createMediaResponse(
           }
           if (code === 0) {
             settleClose();
+            return;
+          }
+          // If NVDEC failed before producing any data, transparently retry with software decode.
+          if (useNvdecAttempt && !receivedAnyData) {
+            cleanup();
+            useNvdecAttempt = false;
+            ffmpeg = spawn(ffmpegPath, tryNvdecArgs(false));
+            ffmpeg.stdout.on("data", handleData);
+            ffmpeg.stdout.on("end", handleEnd);
+            ffmpeg.on("error", handleError);
+            ffmpeg.on("close", handleClose);
+            cleanup = () => {
+              ffmpeg.stdout.off("data", handleData);
+              ffmpeg.stdout.off("end", handleEnd);
+              ffmpeg.off("error", handleError);
+              ffmpeg.off("close", handleClose);
+            };
             return;
           }
           settleError(
@@ -184,7 +222,7 @@ export async function createMediaResponse(
     return new Response(stream, {
       status: 200,
       headers: {
-        "Content-Type": "video/webm",
+        "Content-Type": "video/mp4",
         "Cache-Control": "no-cache",
         "Access-Control-Allow-Origin": "*",
         "Transfer-Encoding": "chunked",
@@ -228,7 +266,7 @@ export async function createMediaResponse(
       return new Response(null, { status: 200, headers });
     }
 
-    const stream = createReadStream(filePath);
+    const stream = createReadStream(filePath, { highWaterMark: 4 * 1024 * 1024 });
     return new Response(Readable.toWeb(stream) as ReadableStream, {
       status: 200,
       headers,
@@ -250,6 +288,7 @@ export async function createMediaResponse(
   const stream = createReadStream(filePath, {
     start: range.start,
     end: range.end,
+    highWaterMark: 4 * 1024 * 1024,
   });
 
   return new Response(Readable.toWeb(stream) as ReadableStream, {

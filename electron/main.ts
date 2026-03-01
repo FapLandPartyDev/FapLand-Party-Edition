@@ -177,6 +177,15 @@ if (remoteDebuggingPort !== null) {
   app.commandLine.appendSwitch("remote-debugging-port", String(remoteDebuggingPort));
 }
 
+// GPU rendering flags — GPU-agnostic and beneficial for all vendors.
+// Note: VA-API hardware video decode flags (VaapiVideoDecodeLinuxGL/VaapiVideoDecoder) are
+// Intel/AMD-only on Linux and are intentionally omitted; they cause issues on Nvidia.
+// For Nvidia on Linux, hardware video decode inside Chromium is not supported.
+// The decode throughput improvement comes from the FFmpeg NVDEC path in mediaResponse.ts.
+app.commandLine.appendSwitch("enable-gpu-rasterization");
+app.commandLine.appendSwitch("enable-zero-copy");
+app.commandLine.appendSwitch("ignore-gpu-blocklist");
+
 function getReactDevToolsUserDataRoots(): string[] {
   const home = app.getPath("home");
   const localAppData = process.env.LOCALAPPDATA;
@@ -691,7 +700,10 @@ async function createWindow(): Promise<BrowserWindow> {
       webSecurity: true,
       allowRunningInsecureContent: false,
       spellcheck: false,
-      backgroundThrottling: true,
+      // Keeping this false prevents Chromium from throttling its internal timer
+      // resolution when the window is unfocused, which can stall the video decoder
+      // pipeline mid-playback.
+      backgroundThrottling: false,
     },
     backgroundColor: "#050508",
     autoHideMenuBar: true,

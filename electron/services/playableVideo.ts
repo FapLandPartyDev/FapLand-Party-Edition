@@ -204,32 +204,35 @@ async function transcodeToPlayableMp4(input: {
   const tempPath = `${input.outputPath}.tmp`;
   await fs.rm(tempPath, { force: true });
 
-  await runCommand(input.ffmpegPath, [
-    "-hide_banner",
-    "-loglevel",
-    "error",
-    "-nostdin",
-    "-y",
-    "-i",
-    input.sourcePath,
-    "-map",
-    "0:v:0",
-    "-map",
-    "0:a?",
-    "-c:v",
-    "libx264",
-    "-pix_fmt",
-    "yuv420p",
-    "-preset",
-    "veryfast",
-    "-movflags",
-    "+faststart",
-    "-c:a",
-    "aac",
-    "-b:a",
-    "192k",
-    tempPath,
-  ]);
+  // Try NVDEC (hevc_cuvid) + NVENC for Nvidia GPUs to speed up 4K H.265 transcoding.
+  // Falls back to software libx264 ultrafast if hardware codecs aren't available.
+  const buildArgs = (useHardware: boolean): string[] => {
+    const args = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y"];
+    if (useHardware) {
+      args.push("-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-c:v", "hevc_cuvid");
+    }
+    args.push("-i", input.sourcePath, "-map", "0:v:0", "-map", "0:a?");
+    if (useHardware) {
+      args.push("-c:v", "h264_nvenc", "-preset", "p4", "-b:v", "0");
+    } else {
+      args.push("-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "ultrafast");
+    }
+    args.push(
+      "-movflags", "+faststart",
+      "-c:a", "aac",
+      "-b:a", "192k",
+      tempPath
+    );
+    return args;
+  };
+
+  try {
+    await runCommand(input.ffmpegPath, buildArgs(true));
+  } catch {
+    // Hardware transcode failed (NVDEC/NVENC not available); retry with software.
+    await fs.rm(tempPath, { force: true });
+    await runCommand(input.ffmpegPath, buildArgs(false));
+  }
 
   if (!(await isNonEmptyFile(tempPath))) {
     throw new Error("Transcode did not produce an output file.");
