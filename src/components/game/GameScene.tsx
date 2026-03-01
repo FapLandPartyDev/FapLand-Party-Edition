@@ -2536,7 +2536,10 @@ export const GameScene = memo(function GameScene({
       stateRef.current.config.board,
       stateRef.current.config.runtimeGraph
     );
-    const boardLayout = buildTileLayout(boardProjection.board, stateRef.current.config.mapTextAnnotations ?? []);
+    const boardLayout = buildTileLayout(
+      boardProjection.board,
+      stateRef.current.config.mapTextAnnotations ?? []
+    );
     const roadPalette = resolveRoadPalette(stateRef.current.config.mapStyle?.roadPalette);
     const uiPalette = resolveUiPalette(roadPalette);
     const rawBoardW = boardLayout.width;
@@ -2989,8 +2992,7 @@ export const GameScene = memo(function GameScene({
             const pending = stateRef.current.pendingPathChoice;
             if (!pending) return;
             const option = pending.options.find(
-              (candidate) =>
-                boardProjection.displayNodeIdByNodeId[candidate.toNodeId] === field.id
+              (candidate) => boardProjection.displayNodeIdByNodeId[candidate.toNodeId] === field.id
             );
             if (!option) return;
             setHighlightedPathEdgeId(option.edgeId);
@@ -2999,8 +3001,7 @@ export const GameScene = memo(function GameScene({
             const pending = stateRef.current.pendingPathChoice;
             if (!pending) return;
             const option = pending.options.find(
-              (candidate) =>
-                boardProjection.displayNodeIdByNodeId[candidate.toNodeId] === field.id
+              (candidate) => boardProjection.displayNodeIdByNodeId[candidate.toNodeId] === field.id
             );
             if (!option) return;
             handleSelectPathEdgeRef.current(option.edgeId);
@@ -3667,8 +3668,8 @@ export const GameScene = memo(function GameScene({
             const board = boardProjection.board;
             const currentPlayer = s.players[s.currentPlayerIndex];
             const currentDisplayNodeId = currentPlayer
-              ? boardProjection.displayNodeIdByNodeId[currentPlayer.currentNodeId] ??
-                currentPlayer.currentNodeId
+              ? (boardProjection.displayNodeIdByNodeId[currentPlayer.currentNodeId] ??
+                currentPlayer.currentNodeId)
               : null;
             const currentPos = displayIndexFromNodeId(currentDisplayNodeId);
             const roundRewardElapsed = t - roundRewardStart;
@@ -3689,7 +3690,9 @@ export const GameScene = memo(function GameScene({
               const startNodeId = s.lastTraversalPathNodeIds[0];
               const startIdx = wrapIndex(
                 typeof startNodeId === "string"
-                  ? displayIndexFromNodeId(boardProjection.displayNodeIdByNodeId[startNodeId] ?? startNodeId)
+                  ? displayIndexFromNodeId(
+                      boardProjection.displayNodeIdByNodeId[startNodeId] ?? startNodeId
+                    )
                   : currentPos,
                 total
               );
@@ -3704,7 +3707,9 @@ export const GameScene = memo(function GameScene({
               const startNodeId = s.lastTraversalPathNodeIds[0];
               const startIdx = wrapIndex(
                 typeof startNodeId === "string"
-                  ? displayIndexFromNodeId(boardProjection.displayNodeIdByNodeId[startNodeId] ?? startNodeId)
+                  ? displayIndexFromNodeId(
+                      boardProjection.displayNodeIdByNodeId[startNodeId] ?? startNodeId
+                    )
                   : currentPos,
                 total
               );
@@ -3915,7 +3920,9 @@ export const GameScene = memo(function GameScene({
               const startNodeId = s.lastTraversalPathNodeIds[0];
               const startIdx = wrapIndex(
                 typeof startNodeId === "string"
-                  ? displayIndexFromNodeId(boardProjection.displayNodeIdByNodeId[startNodeId] ?? startNodeId)
+                  ? displayIndexFromNodeId(
+                      boardProjection.displayNodeIdByNodeId[startNodeId] ?? startNodeId
+                    )
                   : currentPos,
                 total
               );
@@ -4708,7 +4715,9 @@ export const GameScene = memo(function GameScene({
   return (
     <>
       <MapBackgroundMedia
-        background={state.runtimeMapOverrides.backgroundOverride ?? state.config.mapStyle?.background}
+        background={
+          state.runtimeMapOverrides.backgroundOverride ?? state.config.mapStyle?.background
+        }
         className="z-0"
         parallaxOffset={backgroundParallaxOffset}
       />

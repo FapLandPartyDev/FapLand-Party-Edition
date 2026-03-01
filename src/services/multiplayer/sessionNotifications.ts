@@ -5,10 +5,21 @@ export type MultiplayerSessionNotification = {
   message: string;
 };
 
-type CompletionReason = "finished" | "self_reported_cum" | "cum_instruction_failed" | "gave_up" | null;
+type CompletionReason =
+  | "finished"
+  | "self_reported_cum"
+  | "cum_instruction_failed"
+  | "gave_up"
+  | null;
 
 const ACTIVE_PLAYER_STATES = new Set<MultiplayerPlayerState>(["joined", "ready", "in_match"]);
-const LEAVING_PLAYER_STATES = new Set<MultiplayerPlayerState>(["disconnected", "forfeited", "finished", "came", "kicked"]);
+const LEAVING_PLAYER_STATES = new Set<MultiplayerPlayerState>([
+  "disconnected",
+  "forfeited",
+  "finished",
+  "came",
+  "kicked",
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object";
@@ -17,7 +28,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function toCompletionReason(player: MultiplayerLobbyPlayer): CompletionReason {
   if (!isRecord(player.finalPayloadJson)) return null;
   const reason = player.finalPayloadJson.completionReason;
-  if (reason === "finished" || reason === "self_reported_cum" || reason === "cum_instruction_failed" || reason === "gave_up") {
+  if (
+    reason === "finished" ||
+    reason === "self_reported_cum" ||
+    reason === "cum_instruction_failed" ||
+    reason === "gave_up"
+  ) {
     return reason;
   }
   return null;
@@ -39,7 +55,11 @@ function formatJoinMessage(player: MultiplayerLobbyPlayer, rejoined: boolean): s
 
 function formatLeaveMessage(player: MultiplayerLobbyPlayer): string {
   const completionReason = toCompletionReason(player);
-  if (player.state === "came" || completionReason === "self_reported_cum" || completionReason === "cum_instruction_failed") {
+  if (
+    player.state === "came" ||
+    completionReason === "self_reported_cum" ||
+    completionReason === "cum_instruction_failed"
+  ) {
     return `${player.displayName} came 💦`;
   }
   if (player.state === "finished" || completionReason === "finished") {
@@ -60,14 +80,18 @@ function formatLeaveMessage(player: MultiplayerLobbyPlayer): string {
   return `${player.displayName} left the session 🚪`;
 }
 
-function buildNotificationId(playerId: string, previousState: MultiplayerPlayerState | "missing", nextState: MultiplayerPlayerState | "missing"): string {
+function buildNotificationId(
+  playerId: string,
+  previousState: MultiplayerPlayerState | "missing",
+  nextState: MultiplayerPlayerState | "missing"
+): string {
   return `${playerId}:${previousState}:${nextState}`;
 }
 
 export function getMultiplayerSessionNotifications(
   previousPlayers: MultiplayerLobbyPlayer[],
   nextPlayers: MultiplayerLobbyPlayer[],
-  ownPlayerId: string,
+  ownPlayerId: string
 ): MultiplayerSessionNotification[] {
   const previousById = new Map(previousPlayers.map((player) => [player.id, player] as const));
   const notifications: MultiplayerSessionNotification[] = [];
@@ -114,4 +138,3 @@ export function getMultiplayerSessionNotifications(
 
   return notifications;
 }
-

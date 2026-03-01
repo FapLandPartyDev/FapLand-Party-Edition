@@ -693,8 +693,7 @@ describe("Settings music section", () => {
 
   it("shows Intiface connection errors in hardware settings", async () => {
     mocks.handy.provider = "intiface";
-    mocks.handy.error =
-      "Intiface connected, but no linear/position-capable device was found.";
+    mocks.handy.error = "Intiface connected, but no linear/position-capable device was found.";
     render(<SettingsPage />);
 
     fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);

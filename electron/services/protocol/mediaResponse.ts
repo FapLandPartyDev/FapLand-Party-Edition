@@ -3,7 +3,10 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { spawn } from "node:child_process";
-import { getVideoContentTypeByExtension, isVideoExtension } from "../../../src/constants/videoFormats";
+import {
+  getVideoContentTypeByExtension,
+  isVideoExtension,
+} from "../../../src/constants/videoFormats";
 import { resolvePhashBinaries } from "../phash/binaries";
 
 function resolveMediaContentType(filePath: string): string {
@@ -74,12 +77,7 @@ export async function createMediaResponse(
 
     // Build FFmpeg arguments for live transcoding to WebM (VP9 + Opus)
     // as suggested for modern browsers like Chromium.
-    const ffmpegArgs: string[] = [
-      "-hide_banner",
-      "-loglevel",
-      "error",
-      "-nostdin",
-    ];
+    const ffmpegArgs: string[] = ["-hide_banner", "-loglevel", "error", "-nostdin"];
 
     // If seeking is requested (via ?t=... or ?startAtMs=...)
     const seekRequested = seekTimeSec || startAtMs;
@@ -91,12 +89,18 @@ export async function createMediaResponse(
     }
 
     ffmpegArgs.push(
-      "-i", filePath,
-      "-c:v", "libvpx-vp9",
-      "-deadline", "realtime",
-      "-cpu-used", "4",
-      "-c:a", "libopus",
-      "-f", "webm",
+      "-i",
+      filePath,
+      "-c:v",
+      "libvpx-vp9",
+      "-deadline",
+      "realtime",
+      "-cpu-used",
+      "4",
+      "-c:a",
+      "libopus",
+      "-f",
+      "webm",
       "pipe:1"
     );
 
@@ -174,7 +178,7 @@ export async function createMediaResponse(
         settled = true;
         cleanup();
         ffmpeg.kill("SIGKILL");
-      }
+      },
     });
 
     return new Response(stream, {

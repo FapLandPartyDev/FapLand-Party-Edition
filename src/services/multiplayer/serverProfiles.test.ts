@@ -83,16 +83,18 @@ describe("multiplayer server preference resolution", () => {
   it("does not treat placeholder hosted defaults as configured", async () => {
     const { isLikelyConfiguredSupabaseServer } = await import("./defaults");
 
-    expect(isLikelyConfiguredSupabaseServer({
-      id: "default-server",
-      name: "F-Land Online",
-      url: "https://example.supabase.co",
-      anonKey: "public-anon-key-placeholder",
-      isDefault: true,
-      isBuiltIn: true,
-      createdAtIso: "2026-03-08T00:00:00.000Z",
-      updatedAtIso: "2026-03-08T00:00:00.000Z",
-    })).toBe(false);
+    expect(
+      isLikelyConfiguredSupabaseServer({
+        id: "default-server",
+        name: "F-Land Online",
+        url: "https://example.supabase.co",
+        anonKey: "public-anon-key-placeholder",
+        isDefault: true,
+        isBuiltIn: true,
+        createdAtIso: "2026-03-08T00:00:00.000Z",
+        updatedAtIso: "2026-03-08T00:00:00.000Z",
+      })
+    ).toBe(false);
   });
 
   it("refreshes stale placeholder values for built-in profiles from the current bundle", async () => {
@@ -164,11 +166,13 @@ describe("multiplayer server preference resolution", () => {
 
     const { saveMultiplayerServerProfile } = await import("./serverProfiles");
 
-    await expect(saveMultiplayerServerProfile({
-      id: "default-server",
-      name: "F-Land Online",
-      url: "https://hosted.supabase.co",
-      anonKey: "hosted-key",
-    })).rejects.toThrow("Built-in server profiles cannot be edited.");
+    await expect(
+      saveMultiplayerServerProfile({
+        id: "default-server",
+        name: "F-Land Online",
+        url: "https://hosted.supabase.co",
+        anonKey: "hosted-key",
+      })
+    ).rejects.toThrow("Built-in server profiles cannot be edited.");
   });
 });

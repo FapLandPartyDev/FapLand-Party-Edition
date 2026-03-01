@@ -275,8 +275,7 @@ async function runPositionCommand(
     supportsOutput(module.OutputType?.HwPositionWithDuration) ||
     supportsOutput("HwPositionWithDuration");
   const supportsPosition =
-    supportsOutput(module.OutputType?.Position) ||
-    supportsOutput("Position");
+    supportsOutput(module.OutputType?.Position) || supportsOutput("Position");
 
   if (
     supportsPositionWithDuration &&
@@ -389,7 +388,7 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
       await intifaceAdapter.preloadScript(config, session, sourceId, actions);
     }
     const activeActions = session.actions.length > 0 ? session.actions : actions;
-    
+
     const nextAction = getNextAction(activeActions, timeMs);
     if (!nextAction) return;
 

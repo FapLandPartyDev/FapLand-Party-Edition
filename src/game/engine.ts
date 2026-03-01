@@ -704,6 +704,7 @@ export function triggerPerkSelection(
       const antiPerkDescription = selectedAntiPerk.description.trim();
       return {
         ...next,
+        antiPerkTriggeredThisRound: true,
         log: [
           antiPerkDescription.length > 0
             ? `Computer applied anti-perk: ${selectedAntiPerk.name} - ${antiPerkDescription}`
@@ -771,7 +772,8 @@ function getValidOutgoingEdges(
     .filter((edge) => {
       if (edge.fromNodeId !== nodeId) return false;
       const targetIndex = state.config.runtimeGraph.nodeIndexById[edge.toNodeId];
-      const targetField = typeof targetIndex === "number" ? state.config.board[targetIndex] : undefined;
+      const targetField =
+        typeof targetIndex === "number" ? state.config.board[targetIndex] : undefined;
       return (
         targetField?.id === edge.toNodeId &&
         Number.isFinite(edge.gateCost) &&
@@ -1454,7 +1456,8 @@ export function resolvePathChoiceTimeout(
     const edge = state.config.runtimeGraph.edgesById[option.edgeId];
     if (!edge || edge.fromNodeId !== pending.fromNodeId) return false;
     const targetIndex = state.config.runtimeGraph.nodeIndexById[edge.toNodeId];
-    const targetField = typeof targetIndex === "number" ? state.config.board[targetIndex] : undefined;
+    const targetField =
+      typeof targetIndex === "number" ? state.config.board[targetIndex] : undefined;
     return (
       targetField?.id === edge.toNodeId &&
       Number.isFinite(edge.gateCost) &&
@@ -1543,6 +1546,7 @@ export function createInitialGameState(
       0,
       config.probabilityScaling.maxAntiPerkProbability
     ),
+    antiPerkTriggeredThisRound: false,
     queuedRound: null,
     activeRound: null,
     queuedRoundAudioEffect: null,
@@ -1778,16 +1782,38 @@ export function completeRound(
     state.config.economy.scorePerCompletedRound +
     intermediaryCount * state.config.economy.scorePerIntermediary +
     activeAntiPerkCount * state.config.economy.scorePerActiveAntiPerk;
-  const nextIntermediaryProbability = clamp(
+
+  const intermediaryTriggered = intermediaryCount > 0;
+  const antiPerkTriggered = state.antiPerkTriggeredThisRound;
+
+  const baseNextIntermediaryProbability = clamp(
     state.intermediaryProbability + state.config.probabilityScaling.intermediaryIncreasePerRound,
     0,
     state.config.probabilityScaling.maxIntermediaryProbability
   );
-  const nextAntiPerkProbability = clamp(
+  const nextIntermediaryProbability =
+    intermediaryTriggered &&
+    state.config.probabilityScaling.resetIntermediaryProbabilityAfterTrigger
+      ? clamp(
+          state.config.probabilityScaling.initialIntermediaryProbability,
+          0,
+          state.config.probabilityScaling.maxIntermediaryProbability
+        )
+      : baseNextIntermediaryProbability;
+
+  const baseNextAntiPerkProbability = clamp(
     state.antiPerkProbability + state.config.probabilityScaling.antiPerkIncreasePerRound,
     0,
     state.config.probabilityScaling.maxAntiPerkProbability
   );
+  const nextAntiPerkProbability =
+    antiPerkTriggered && state.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger
+      ? clamp(
+          state.config.probabilityScaling.initialAntiPerkProbability,
+          0,
+          state.config.probabilityScaling.maxAntiPerkProbability
+        )
+      : baseNextAntiPerkProbability;
 
   const nextPlayers = updatePlayer(state.players, currentPlayer.id, (player) => ({
     ...player,
@@ -1814,6 +1840,7 @@ export function completeRound(
       activeRoundAudioEffect: null,
       intermediaryProbability: nextIntermediaryProbability,
       antiPerkProbability: nextAntiPerkProbability,
+      antiPerkTriggeredThisRound: false,
       endlessRoundsCompleted: state.endlessRoundsCompleted + 1,
       log: [
         `Round finished. +$${moneyEarned}, +${scoreEarned} score (${intermediaryCount} intermediary, ${activeAntiPerkCount} anti-perks). Chances now ${Math.round(nextIntermediaryProbability * 100)}%/${Math.round(nextAntiPerkProbability * 100)}%.`,
@@ -1845,7 +1872,11 @@ export function completeRound(
   const activeRoundField = next.config.board.find((field) => field.id === activeRound.fieldId);
   const hasExplicitEndNodes = next.config.board.some((field) => field.kind === "end");
 
-  if (activeRoundField?.autoAdvanceAfterCompletion && currentNodeId && validOutgoingEdges.length === 1) {
+  if (
+    activeRoundField?.autoAdvanceAfterCompletion &&
+    currentNodeId &&
+    validOutgoingEdges.length === 1
+  ) {
     const outgoingEdge = validOutgoingEdges[0];
     if (outgoingEdge) {
       const traversed = continueTraversalWithEdge(next, installedRounds, outgoingEdge, 1, [

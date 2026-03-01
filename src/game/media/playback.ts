@@ -10,6 +10,7 @@ export type PlaybackResource = Pick<Resource, "videoUri" | "funscriptUri"> & {
   id?: string | null;
   roundId?: string | null;
   funscriptOffsetMs?: number | null;
+  invertFunscript?: boolean | null;
   startTime?: number | null;
   endTime?: number | null;
   cutRanges?: RoundCutRange[] | null;
@@ -52,7 +53,8 @@ export type PlaybackModifier = {
 
 const JAMMED_DICE_INTERMEDIARIES: PlaybackModifier = {
   id: "jammed-dice-intermediary-spawn",
-  isEnabled: (ctx) => ctx.playerAntiPerks.includes("jammed-dice") && ctx.intermediaryResources.length > 0,
+  isEnabled: (ctx) =>
+    ctx.playerAntiPerks.includes("jammed-dice") && ctx.intermediaryResources.length > 0,
   createIntermediaryQueue: (ctx) => {
     const markers = [0.33, 0.66];
     return markers.map((atProgress, index) => {
@@ -72,21 +74,18 @@ const HIGHSPEED_RATE: PlaybackModifier = {
   getPlaybackRateMultiplier: () => 1.2,
 };
 
-const BUILTIN_MODIFIERS: PlaybackModifier[] = [
-  JAMMED_DICE_INTERMEDIARIES,
-  HIGHSPEED_RATE,
-];
+const BUILTIN_MODIFIERS: PlaybackModifier[] = [JAMMED_DICE_INTERMEDIARIES, HIGHSPEED_RATE];
 
 export function getActivePlaybackModifiers(
   ctx: PlaybackModifierContext,
-  extraModifiers: PlaybackModifier[] = [],
+  extraModifiers: PlaybackModifier[] = []
 ): PlaybackModifier[] {
   return [...BUILTIN_MODIFIERS, ...extraModifiers].filter((modifier) => modifier.isEnabled(ctx));
 }
 
 export function computePlaybackRate(
   modifiers: PlaybackModifier[],
-  state: PlaybackRateState,
+  state: PlaybackRateState
 ): number {
   const rate = modifiers.reduce((acc, modifier) => {
     if (!modifier.getPlaybackRateMultiplier) return acc;
@@ -100,11 +99,13 @@ export function computePlaybackRate(
 
 export function buildIntermediaryQueue(
   modifiers: PlaybackModifier[],
-  ctx: PlaybackModifierContext,
+  ctx: PlaybackModifierContext
 ): IntermediaryTrigger[] {
   return modifiers
     .flatMap((modifier) => modifier.createIntermediaryQueue?.(ctx) ?? [])
-    .filter((entry) => Number.isFinite(entry.atProgress) && entry.atProgress > 0 && entry.atProgress < 1)
+    .filter(
+      (entry) => Number.isFinite(entry.atProgress) && entry.atProgress > 0 && entry.atProgress < 1
+    )
     .sort((a, b) => a.atProgress - b.atProgress);
 }
 
@@ -130,7 +131,9 @@ async function shouldAutofixBrokenFunscripts(): Promise<boolean> {
   }
 }
 
-export async function loadFunscriptTimeline(funscriptUri: string): Promise<FunscriptTimeline | null> {
+export async function loadFunscriptTimeline(
+  funscriptUri: string
+): Promise<FunscriptTimeline | null> {
   const cached = funscriptTimelineCache.get(funscriptUri);
   if (cached) return cached;
 
@@ -190,7 +193,10 @@ export async function loadFunscriptTimeline(funscriptUri: string): Promise<Funsc
   return loadPromise;
 }
 
-export function getFunscriptPositionAtMs(timeline: FunscriptTimeline | null, timeMs: number): number | null {
+export function getFunscriptPositionAtMs(
+  timeline: FunscriptTimeline | null,
+  timeMs: number
+): number | null {
   if (!timeline || timeline.actions.length === 0) return null;
 
   let lo = 0;

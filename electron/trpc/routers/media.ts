@@ -8,7 +8,7 @@ export const mediaRouter = router({
     .input(
       z.object({
         videoUri: z.string().trim().min(1),
-      }),
+      })
     )
     .query(async ({ input }) => {
       try {
@@ -16,7 +16,8 @@ export const mediaRouter = router({
       } catch (error) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: error instanceof Error ? error.message : "Failed to resolve a playable video URI.",
+          message:
+            error instanceof Error ? error.message : "Failed to resolve a playable video URI.",
         });
       }
     }),

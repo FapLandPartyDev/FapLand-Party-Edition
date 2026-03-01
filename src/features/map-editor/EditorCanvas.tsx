@@ -579,7 +579,7 @@ export function EditorCanvas({
           y: Math.min(interaction.anchorY, interaction.currentY),
           width: Math.abs(interaction.currentX - interaction.anchorX),
           height: Math.abs(interaction.currentY - interaction.anchorY),
-      }
+        }
       : null;
   const backgroundParallaxOffset = useMemo(() => {
     const background = config.style.background;

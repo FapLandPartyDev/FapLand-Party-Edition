@@ -98,7 +98,10 @@ export function getHandyStrokeFromPercent(
   };
 }
 
-export function getHandyStrokeFromBounds(minPercent: unknown, maxPercent: unknown): Pick<HandyStrokeState, "min" | "max"> {
+export function getHandyStrokeFromBounds(
+  minPercent: unknown,
+  maxPercent: unknown
+): Pick<HandyStrokeState, "min" | "max"> {
   const normalizedMin = clampHandyStrokeRatio(Number(minPercent) / 100);
   const normalizedMax = clampHandyStrokeRatio(Number(maxPercent) / 100);
   return {

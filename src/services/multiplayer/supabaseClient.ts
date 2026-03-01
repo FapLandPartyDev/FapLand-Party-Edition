@@ -1,7 +1,11 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { trpc } from "../trpc";
 import { getActiveMultiplayerServerProfile } from "./serverProfiles";
-import type { MultiplayerAuthRequirement, MultiplayerAuthStatus, MultiplayerServerProfile } from "./types";
+import type {
+  MultiplayerAuthRequirement,
+  MultiplayerAuthStatus,
+  MultiplayerServerProfile,
+} from "./types";
 
 type SupabaseClientCacheEntry = {
   cacheKey: string;
@@ -21,7 +25,12 @@ function toErrorMessage(error: unknown, fallback: string): string {
     return error.message;
   }
 
-  if (error && typeof error === "object" && "message" in error && typeof (error as { message?: unknown }).message === "string") {
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
     return (error as { message: string }).message;
   }
 
@@ -30,11 +39,13 @@ function toErrorMessage(error: unknown, fallback: string): string {
 
 function isDiscordLinkUnavailableError(error: unknown): boolean {
   const message = toErrorMessage(error, "").toLowerCase();
-  return message.includes("unsupported provider")
-    || message.includes("unrecognized oauth provider")
-    || message.includes("provider is not enabled")
-    || message.includes("manual linking is disabled")
-    || message.includes("identity linking is disabled");
+  return (
+    message.includes("unsupported provider") ||
+    message.includes("unrecognized oauth provider") ||
+    message.includes("provider is not enabled") ||
+    message.includes("manual linking is disabled") ||
+    message.includes("identity linking is disabled")
+  );
 }
 
 function isAnonymousUser(user: User): boolean {
@@ -42,7 +53,8 @@ function isAnonymousUser(user: User): boolean {
     return user.is_anonymous;
   }
 
-  const provider = typeof user.app_metadata?.provider === "string" ? user.app_metadata.provider : "";
+  const provider =
+    typeof user.app_metadata?.provider === "string" ? user.app_metadata.provider : "";
   return provider === "anonymous";
 }
 
@@ -114,7 +126,8 @@ function buildAuthStatus(input: {
       hasEmail,
       discordLinkUrl: input.discordLinkUrl ?? null,
       status: "needs_email",
-      message: "This Discord-linked account has no email attached. Add an email in Discord and recheck.",
+      message:
+        "This Discord-linked account has no email attached. Add an email in Discord and recheck.",
     };
   }
 
@@ -143,7 +156,9 @@ export function buildSupabaseClient(profile: MultiplayerServerProfile): Supabase
   });
 }
 
-export async function getSupabaseClientForProfile(profile?: MultiplayerServerProfile): Promise<{ profile: MultiplayerServerProfile; client: SupabaseClient }> {
+export async function getSupabaseClientForProfile(
+  profile?: MultiplayerServerProfile
+): Promise<{ profile: MultiplayerServerProfile; client: SupabaseClient }> {
   const resolvedProfile = profile ?? (await getActiveMultiplayerServerProfile());
   const cacheKey = toCacheKey(resolvedProfile);
   const cached = clientCache.get(resolvedProfile.id);
@@ -156,7 +171,9 @@ export async function getSupabaseClientForProfile(profile?: MultiplayerServerPro
   return { profile: resolvedProfile, client: nextClient };
 }
 
-export async function ensureMultiplayerAuth(profile?: MultiplayerServerProfile): Promise<{ profile: MultiplayerServerProfile; client: SupabaseClient; user: User }> {
+export async function ensureMultiplayerAuth(
+  profile?: MultiplayerServerProfile
+): Promise<{ profile: MultiplayerServerProfile; client: SupabaseClient; user: User }> {
   const { profile: resolvedProfile, client } = await getSupabaseClientForProfile(profile);
   const { data, error } = await client.auth.getSession();
   if (error) {
@@ -187,7 +204,11 @@ export async function ensureMultiplayerAuth(profile?: MultiplayerServerProfile):
 }
 
 export function getMultiplayerAuthRedirectUrl(): string {
-  if (typeof window !== "undefined" && window.location.protocol !== "http:" && window.location.protocol !== "https:") {
+  if (
+    typeof window !== "undefined" &&
+    window.location.protocol !== "http:" &&
+    window.location.protocol !== "https:"
+  ) {
     return "fland://auth/callback";
   }
 
@@ -198,7 +219,9 @@ export function getMultiplayerAuthRedirectUrl(): string {
   return "fland://auth/callback";
 }
 
-export async function resolveMultiplayerAuthStatus(profile?: MultiplayerServerProfile): Promise<MultiplayerAuthStatus> {
+export async function resolveMultiplayerAuthStatus(
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerAuthStatus> {
   const { profile: resolvedProfile, client } = await getSupabaseClientForProfile(profile);
 
   const requirement = resolvedProfile.authRequirement ?? "anonymous_only";
@@ -285,7 +308,8 @@ export async function resolveMultiplayerAuthStatus(profile?: MultiplayerServerPr
       hasEmail: hasUsableEmail(user),
       discordLinkUrl: null,
       status: "oauth_unavailable",
-      message: "Discord auth is configured on this server, but the OAuth link could not be prepared.",
+      message:
+        "Discord auth is configured on this server, but the OAuth link could not be prepared.",
     };
   }
 
@@ -298,7 +322,9 @@ export async function resolveMultiplayerAuthStatus(profile?: MultiplayerServerPr
   });
 }
 
-export async function startDiscordMultiplayerLink(profile?: MultiplayerServerProfile): Promise<void> {
+export async function startDiscordMultiplayerLink(
+  profile?: MultiplayerServerProfile
+): Promise<void> {
   const { profile: resolvedProfile, client } = await getSupabaseClientForProfile(profile);
   await ensureMultiplayerAuth(resolvedProfile);
 
@@ -318,7 +344,7 @@ export async function startDiscordMultiplayerLink(profile?: MultiplayerServerPro
 export async function signInWithMultiplayerEmail(
   email: string,
   password: string,
-  profile?: MultiplayerServerProfile,
+  profile?: MultiplayerServerProfile
 ): Promise<void> {
   const { client } = await getSupabaseClientForProfile(profile);
   const result = await client.auth.signInWithPassword({
@@ -336,7 +362,7 @@ export async function signInWithMultiplayerEmail(
 export async function signUpWithMultiplayerEmail(
   email: string,
   password: string,
-  profile?: MultiplayerServerProfile,
+  profile?: MultiplayerServerProfile
 ): Promise<void> {
   const { client } = await getSupabaseClientForProfile(profile);
   const result = await client.auth.signUp({
@@ -351,7 +377,10 @@ export async function signUpWithMultiplayerEmail(
   notifyAuthRefreshListeners();
 }
 
-export async function handleMultiplayerAuthCallback(callbackUrl: string, profile?: MultiplayerServerProfile): Promise<boolean> {
+export async function handleMultiplayerAuthCallback(
+  callbackUrl: string,
+  profile?: MultiplayerServerProfile
+): Promise<boolean> {
   let parsed: URL;
   try {
     parsed = new URL(callbackUrl);

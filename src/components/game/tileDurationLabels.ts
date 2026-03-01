@@ -4,7 +4,7 @@ import { formatDurationLabel, getRoundDurationSec } from "../../utils/duration";
 
 export function buildTileDurationLabelByFieldId(
   board: ReadonlyArray<BoardField>,
-  installedRounds: ReadonlyArray<InstalledRound>,
+  installedRounds: ReadonlyArray<InstalledRound>
 ): Map<string, string> {
   const durationLabelByRoundId = new Map<string, string>();
 

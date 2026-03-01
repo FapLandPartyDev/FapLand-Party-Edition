@@ -186,6 +186,8 @@ export interface EditorGraphConfig {
   perkSelection: PlaylistConfig["perkSelection"];
   perkPool: PlaylistConfig["perkPool"];
   probabilityScaling: PlaylistConfig["probabilityScaling"];
+  resetIntermediaryProbabilityAfterTrigger: boolean;
+  resetAntiPerkProbabilityAfterTrigger: boolean;
   economy: Pick<PlaylistConfig["economy"], "startingMoney" | "scorePerCumRoundSuccess">;
   dice: PlaylistConfig["dice"];
   disableDiceAnimation: boolean;
@@ -512,6 +514,8 @@ export const toEditorGraphConfig = (input: GraphBoardConfig): EditorGraphConfig 
       maxIntermediaryProbability: 1,
       maxAntiPerkProbability: 0.75,
     },
+    resetIntermediaryProbabilityAfterTrigger: false,
+    resetAntiPerkProbabilityAfterTrigger: false,
     economy: {
       startingMoney: 120,
       scorePerCumRoundSuccess: 420,
@@ -642,6 +646,8 @@ export const layoutLinearGraphFromPlaylist = (config: LinearBoardConfig): Editor
       maxIntermediaryProbability: 1,
       maxAntiPerkProbability: 0.75,
     },
+    resetIntermediaryProbabilityAfterTrigger: false,
+    resetAntiPerkProbabilityAfterTrigger: false,
     economy: {
       startingMoney: 120,
       scorePerCumRoundSuccess: 420,

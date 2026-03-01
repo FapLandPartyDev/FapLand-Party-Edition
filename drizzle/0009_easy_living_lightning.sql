@@ -1,0 +1,1 @@
+ALTER TABLE `Resource` ADD `invertFunscript` integer DEFAULT false NOT NULL;

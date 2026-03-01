@@ -21,9 +21,9 @@ export function resolveEffectiveRestPauseMs(state: GameState): number {
   const safeRoundPauseMs = clamp(baseRoundPauseMs, MIN_ROUND_PAUSE_MS, MAX_ROUND_PAUSE_MS);
   const extraPauseMs =
     currentField?.kind === "safePoint"
-      ? currentField.checkpointRestMs ?? 0
+      ? (currentField.checkpointRestMs ?? 0)
       : currentField?.kind === "campfire"
-        ? currentField.pauseBonusMs ?? 0
+        ? (currentField.pauseBonusMs ?? 0)
         : 0;
 
   return clamp(

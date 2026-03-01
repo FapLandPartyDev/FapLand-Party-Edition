@@ -254,9 +254,9 @@ describe("portable", () => {
       pathExists: (filePath: string) => filePath === "\\\\server\\share\\scene.mp4",
     };
 
-    expect(
-      resolvePortableLinkedPath("\\\\server\\share\\scene.mp4", undefined, context)
-    ).toBe("\\\\server\\share\\scene.mp4");
+    expect(resolvePortableLinkedPath("\\\\server\\share\\scene.mp4", undefined, context)).toBe(
+      "\\\\server\\share\\scene.mp4"
+    );
   });
 
   it("keeps existing external paths containing a data segment unchanged", () => {

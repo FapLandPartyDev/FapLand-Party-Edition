@@ -18,10 +18,7 @@ import { MultiplayerUpdateGuard } from "../components/multiplayer/MultiplayerUpd
 export const Route = createFileRoute("/multiplayer-bans")({
   loader: async () => {
     await assertMultiplayerAllowed();
-    const [bans, history] = await Promise.all([
-      listActiveBans(),
-      listMatchHistory(),
-    ]);
+    const [bans, history] = await Promise.all([listActiveBans(), listMatchHistory()]);
 
     return {
       bans,
@@ -47,10 +44,7 @@ function MultiplayerBansRoute() {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
-    const [nextBans, nextHistory] = await Promise.all([
-      listActiveBans(),
-      listMatchHistory(),
-    ]);
+    const [nextBans, nextHistory] = await Promise.all([listActiveBans(), listMatchHistory()]);
     setBanList(nextBans);
     setHistoryList(nextHistory);
   };
@@ -93,7 +87,11 @@ function MultiplayerBansRoute() {
             </button>
           </header>
 
-          {error && <div className="rounded border border-rose-500/60 bg-rose-500/10 p-3 text-sm text-rose-200">{error}</div>}
+          {error && (
+            <div className="rounded border border-rose-500/60 bg-rose-500/10 p-3 text-sm text-rose-200">
+              {error}
+            </div>
+          )}
 
           <section className="rounded border border-zinc-800 bg-zinc-900/60 p-4">
             <h2 className="text-lg font-semibold">
@@ -106,7 +104,10 @@ function MultiplayerBansRoute() {
                 </div>
               )}
               {banList.map((ban) => (
-                <div key={ban.id} className="rounded border border-zinc-800 bg-zinc-950/70 p-3 text-sm">
+                <div
+                  key={ban.id}
+                  className="rounded border border-zinc-800 bg-zinc-950/70 p-3 text-sm"
+                >
                   <div className="font-semibold">{t`Ban ${ban.id.slice(0, 8)}`}</div>
                   <div className="mt-1 text-xs text-zinc-400">
                     {t`User: ${ban.bannedUserId ?? "-"}`}
@@ -114,7 +115,9 @@ function MultiplayerBansRoute() {
                   <div className="text-xs text-zinc-400">
                     {t`Hardware: ${ban.bannedMachineIdHash ?? "-"}`}
                   </div>
-                  {ban.reason && <div className="text-xs text-zinc-400">{t`Reason: ${ban.reason}`}</div>}
+                  {ban.reason && (
+                    <div className="text-xs text-zinc-400">{t`Reason: ${ban.reason}`}</div>
+                  )}
                   <button
                     type="button"
                     className="mt-2 rounded border border-emerald-500/60 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-100"
@@ -152,7 +155,10 @@ function MultiplayerBansRoute() {
                 </div>
               )}
               {historyList.map((item) => (
-                <div key={item.id} className="rounded border border-zinc-800 bg-zinc-950/70 p-3 text-sm">
+                <div
+                  key={item.id}
+                  className="rounded border border-zinc-800 bg-zinc-950/70 p-3 text-sm"
+                >
                   <div className="font-semibold">{t`Lobby ${item.lobbyId.slice(0, 8)}`}</div>
                   <div className="text-xs text-zinc-400">
                     {t`Finished: ${new Date(item.finishedAt).toLocaleString()}`}

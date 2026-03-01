@@ -194,8 +194,11 @@ function unwrapStrokeResult(
     throw new Error("Stroke settings unavailable.");
   }
 
-  const result = (payload as { result?: { min?: unknown; max?: unknown; min_absolute?: unknown; max_absolute?: unknown } })
-    .result;
+  const result = (
+    payload as {
+      result?: { min?: unknown; max?: unknown; min_absolute?: unknown; max_absolute?: unknown };
+    }
+  ).result;
   if (!result && !fallback) {
     throw new Error("Stroke settings unavailable.");
   }
@@ -781,7 +784,7 @@ export async function resumeHandyPlayback(
         filter: 0.12,
       },
       query: { timeout: 5000 },
-    }).then(() => { }),
+    }).then(() => {}),
   ];
 
   if (needsRateUpdate) {
@@ -794,7 +797,7 @@ export async function resumeHandyPlayback(
         headers,
         body: { playback_rate: nextRate },
         query: { timeout: 5000 },
-      }).then(() => { })
+      }).then(() => {})
     );
   }
 
@@ -835,5 +838,5 @@ export async function stopHandyPlayback(
     query: {
       timeout: 5000,
     },
-  }).catch(() => { });
+  }).catch(() => {});
 }

@@ -27,11 +27,18 @@ function toSignedDelta(value: number): -1 | 0 | 1 {
   return 0;
 }
 
-export function extractActionsInRange(actions: FunscriptAction[], startTimeMs: number, endTimeMs: number): FunscriptAction[] {
+export function extractActionsInRange(
+  actions: FunscriptAction[],
+  startTimeMs: number,
+  endTimeMs: number
+): FunscriptAction[] {
   return actions.filter((action) => action.at >= startTimeMs && action.at <= endTimeMs);
 }
 
-export function estimateBpmFromActions(actions: FunscriptAction[], durationSec: number): number | null {
+export function estimateBpmFromActions(
+  actions: FunscriptAction[],
+  durationSec: number
+): number | null {
   if (actions.length < 3 || !Number.isFinite(durationSec) || durationSec <= 0) return null;
 
   let reversals = 0;
@@ -60,7 +67,10 @@ export function estimateBpmFromActions(actions: FunscriptAction[], durationSec: 
   return clamp(Math.round(bpmRaw), 1, 400);
 }
 
-export function estimateDifficultyFromActions(actions: FunscriptAction[], durationSec: number): number | null {
+export function estimateDifficultyFromActions(
+  actions: FunscriptAction[],
+  durationSec: number
+): number | null {
   if (actions.length < 2 || !Number.isFinite(durationSec) || durationSec <= 0) return null;
 
   const points = actions.length;
@@ -97,8 +107,16 @@ export function estimateDifficultyFromActions(actions: FunscriptAction[], durati
   const MIN_P = 2;
   const MAX_P = 40;
 
-  const pointNorm = clamp((Math.log1p(pointRate) - Math.log1p(MIN_P)) / (Math.log1p(MAX_P) - Math.log1p(MIN_P)), 0, 1);
-  const velocityNorm = clamp((Math.log1p(avgVelocity) - Math.log1p(MIN_V)) / (Math.log1p(MAX_V) - Math.log1p(MIN_V)), 0, 1);
+  const pointNorm = clamp(
+    (Math.log1p(pointRate) - Math.log1p(MIN_P)) / (Math.log1p(MAX_P) - Math.log1p(MIN_P)),
+    0,
+    1
+  );
+  const velocityNorm = clamp(
+    (Math.log1p(avgVelocity) - Math.log1p(MIN_V)) / (Math.log1p(MAX_V) - Math.log1p(MIN_V)),
+    0,
+    1
+  );
   const lengthNorm = clamp(lengthMin / 3, 0, 1);
 
   // Velocity is the most reliable predictor of difficulty in modern sets
@@ -108,7 +126,7 @@ export function estimateDifficultyFromActions(actions: FunscriptAction[], durati
 
 export function computeAutoMetadataForSegment(
   actions: FunscriptAction[],
-  segment: Pick<SegmentMetadataDraft, "startTimeMs" | "endTimeMs">,
+  segment: Pick<SegmentMetadataDraft, "startTimeMs" | "endTimeMs">
 ): SegmentAutoMetadata {
   const durationSec = Math.max((segment.endTimeMs - segment.startTimeMs) / 1000, 1);
   const segmentActions = extractActionsInRange(actions, segment.startTimeMs, segment.endTimeMs);
@@ -121,7 +139,7 @@ export function computeAutoMetadataForSegment(
 
 export function applyAutoMetadataToSegments(
   segments: SegmentMetadataDraft[],
-  actions: FunscriptAction[],
+  actions: FunscriptAction[]
 ): SegmentMetadataDraft[] {
   return segments.map((segment) => {
     const auto = computeAutoMetadataForSegment(actions, segment);

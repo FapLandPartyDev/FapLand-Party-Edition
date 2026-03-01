@@ -13,7 +13,7 @@ import {
   type RoundCutRange,
 } from "../../src/utils/roundCuts";
 export type RoundType = "Normal" | "Interjection" | "Cum";
-type TransactionClient = Parameters<Parameters<ReturnType<typeof getDb>['transaction']>[0]>[0];
+type TransactionClient = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
 
 export type ConverterSegmentInput = {
   startTimeMs: number;
@@ -78,7 +78,10 @@ function normalizeRequiredText(value: string, fieldName: string): string {
   return trimmed;
 }
 
-function normalizeOptionalBpm(value: number | null | undefined, segmentNumber: number): number | null {
+function normalizeOptionalBpm(
+  value: number | null | undefined,
+  segmentNumber: number
+): number | null {
   if (value === null || value === undefined) return null;
   if (!Number.isFinite(value)) {
     throw new Error(`Segment ${segmentNumber} has an invalid BPM.`);
@@ -92,7 +95,10 @@ function normalizeOptionalBpm(value: number | null | undefined, segmentNumber: n
   return normalized;
 }
 
-function normalizeOptionalDifficulty(value: number | null | undefined, segmentNumber: number): number | null {
+function normalizeOptionalDifficulty(
+  value: number | null | undefined,
+  segmentNumber: number
+): number | null {
   if (value === null || value === undefined) return null;
   if (!Number.isFinite(value) || !Number.isInteger(value)) {
     throw new Error(`Segment ${segmentNumber} has an invalid difficulty.`);
@@ -113,7 +119,7 @@ function toRoundType(input: string): RoundType {
 
 export function validateAndNormalizeSegments(
   input: ConverterSegmentInput[],
-  options: { allowOverlaps?: boolean } = {},
+  options: { allowOverlaps?: boolean } = {}
 ): ConverterSegmentInput[] {
   if (!Array.isArray(input) || input.length === 0) {
     throw new Error("At least one segment is required.");
@@ -147,7 +153,7 @@ export function validateAndNormalizeSegments(
         segment.cutRanges ?? [],
         start,
         end,
-        `Segment ${index + 1} cut range`,
+        `Segment ${index + 1} cut range`
       ),
     } satisfies ConverterSegmentInput;
   });
@@ -238,7 +244,7 @@ async function computeRoundPhash(
   localVideoPath: string,
   startTimeMs: number,
   endTimeMs: number,
-  fullFileHashCache: Map<string, Promise<string>>,
+  fullFileHashCache: Map<string, Promise<string>>
 ): Promise<string> {
   try {
     const result = await generateVideoPhash(localVideoPath, startTimeMs, endTimeMs);
@@ -263,15 +269,18 @@ async function computeRoundPhash(
 
 async function ensureHero(
   tx: TransactionClient,
-  heroInput: { name: string; author: string | null; description: string | null },
+  heroInput: { name: string; author: string | null; description: string | null }
 ): Promise<string> {
   const existing = await tx.query.hero.findFirst({ where: eq(hero.name, heroInput.name) });
   if (!existing) {
-    const [created] = await tx.insert(hero).values({
-      name: heroInput.name,
-      author: heroInput.author,
-      description: heroInput.description,
-    }).returning({ id: hero.id });
+    const [created] = await tx
+      .insert(hero)
+      .values({
+        name: heroInput.name,
+        author: heroInput.author,
+        description: heroInput.description,
+      })
+      .returning({ id: hero.id });
     return created.id;
   }
 
@@ -290,9 +299,7 @@ async function ensureHero(
 }
 
 function normalizeSourceRoundIds(input: SaveConvertedRoundsInput["source"]): string[] {
-  const sourceRoundIds = Array.isArray(input.sourceRoundIds)
-    ? input.sourceRoundIds
-    : [];
+  const sourceRoundIds = Array.isArray(input.sourceRoundIds) ? input.sourceRoundIds : [];
   const candidates = sourceRoundIds.length > 0 ? sourceRoundIds : [input.sourceRoundId];
   const seen = new Set<string>();
   const normalized: string[] = [];
@@ -307,7 +314,9 @@ function normalizeSourceRoundIds(input: SaveConvertedRoundsInput["source"]): str
   return normalized;
 }
 
-export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Promise<SaveConvertedRoundsResult> {
+export async function saveConvertedRounds(
+  input: SaveConvertedRoundsInput
+): Promise<SaveConvertedRoundsResult> {
   const heroName = normalizeRequiredText(input.hero.name, "Hero name");
   const heroAuthor = normalizeNullableText(input.hero.author);
   const heroDescription = normalizeNullableText(input.hero.description);
@@ -327,8 +336,8 @@ export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Prom
     const fileHashCache = new Map<string, Promise<string>>();
     phashes = await Promise.all(
       normalizedSegments.map((segment) =>
-        computeRoundPhash(localVideoPath, segment.startTimeMs, segment.endTimeMs, fileHashCache),
-      ),
+        computeRoundPhash(localVideoPath, segment.startTimeMs, segment.endTimeMs, fileHashCache)
+      )
     );
   } else {
     phashes = normalizedSegments.map(() => null);
@@ -339,8 +348,8 @@ export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Prom
         videoUri,
         startTimeMs: segment.startTimeMs,
         endTimeMs: segment.endTimeMs,
-      }),
-    ),
+      })
+    )
   );
 
   const result = await getDb().transaction(async (tx) => {
@@ -394,13 +403,18 @@ export async function saveConvertedRounds(input: SaveConvertedRoundsInput): Prom
 
       let savedRoundId = "";
       if (existing) {
-        const [updatedRow] = await tx.update(round).set({ ...roundPayload, updatedAt: new Date() })
-          .where(eq(round.id, existing.id)).returning({ id: round.id });
+        const [updatedRow] = await tx
+          .update(round)
+          .set({ ...roundPayload, updatedAt: new Date() })
+          .where(eq(round.id, existing.id))
+          .returning({ id: round.id });
         savedRoundId = updatedRow.id;
         savedRoundIds.add(savedRoundId);
         updated += 1;
       } else {
-        const [createdRow] = await tx.insert(round).values({ ...roundPayload, installSourceKey })
+        const [createdRow] = await tx
+          .insert(round)
+          .values({ ...roundPayload, installSourceKey })
           .returning({ id: round.id });
         savedRoundId = createdRow.id;
         savedRoundIds.add(savedRoundId);

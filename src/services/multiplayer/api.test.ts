@@ -152,25 +152,31 @@ describe("multiplayer api finishPlayer", () => {
       finalPayload: { completionReason: "self_reported_cum" },
     });
 
-    expect(rpcMock).toHaveBeenCalledWith("mp_finish_player", expect.objectContaining({
-      p_lobby_id: "lobby-1",
-      p_player_id: "player-1",
-      p_final_score: 420,
-      p_final_state: "came",
-      p_final_payload: { completionReason: "self_reported_cum" },
-    }));
+    expect(rpcMock).toHaveBeenCalledWith(
+      "mp_finish_player",
+      expect.objectContaining({
+        p_lobby_id: "lobby-1",
+        p_player_id: "player-1",
+        p_final_score: 420,
+        p_final_state: "came",
+        p_final_payload: { completionReason: "self_reported_cum" },
+      })
+    );
   });
 
   it("defaults to finished state when no options are provided", async () => {
     await finishPlayer("lobby-2", "player-2", 77);
 
-    expect(rpcMock).toHaveBeenCalledWith("mp_finish_player", expect.objectContaining({
-      p_lobby_id: "lobby-2",
-      p_player_id: "player-2",
-      p_final_score: 77,
-      p_final_state: "finished",
-      p_final_payload: {},
-    }));
+    expect(rpcMock).toHaveBeenCalledWith(
+      "mp_finish_player",
+      expect.objectContaining({
+        p_lobby_id: "lobby-2",
+        p_player_id: "player-2",
+        p_final_score: 77,
+        p_final_state: "finished",
+        p_final_payload: {},
+      })
+    );
   });
 
   it("forwards forfeited terminal state", async () => {
@@ -179,13 +185,16 @@ describe("multiplayer api finishPlayer", () => {
       finalPayload: { completionReason: "gave_up" },
     });
 
-    expect(rpcMock).toHaveBeenCalledWith("mp_finish_player", expect.objectContaining({
-      p_lobby_id: "lobby-3",
-      p_player_id: "player-3",
-      p_final_score: 12,
-      p_final_state: "forfeited",
-      p_final_payload: { completionReason: "gave_up" },
-    }));
+    expect(rpcMock).toHaveBeenCalledWith(
+      "mp_finish_player",
+      expect.objectContaining({
+        p_lobby_id: "lobby-3",
+        p_player_id: "player-3",
+        p_final_score: 12,
+        p_final_state: "forfeited",
+        p_final_payload: { completionReason: "gave_up" },
+      })
+    );
   });
 });
 
@@ -219,14 +228,17 @@ describe("multiplayer api sendAntiPerk", () => {
       cooldownSeconds: 0,
     });
 
-    expect(rpcMock).toHaveBeenCalledWith("mp_send_anti_perk", expect.objectContaining({
-      p_lobby_id: "lobby-1",
-      p_sender_player_id: "sender-1",
-      p_target_player_id: "target-1",
-      p_perk_id: "jammed-dice",
-      p_cost: 240,
-      p_cooldown_seconds: 0,
-    }));
+    expect(rpcMock).toHaveBeenCalledWith(
+      "mp_send_anti_perk",
+      expect.objectContaining({
+        p_lobby_id: "lobby-1",
+        p_sender_player_id: "sender-1",
+        p_target_player_id: "target-1",
+        p_perk_id: "jammed-dice",
+        p_cost: 240,
+        p_cooldown_seconds: 0,
+      })
+    );
   });
 
   it("bubbles insufficient funds error from RPC", async () => {
@@ -242,7 +254,7 @@ describe("multiplayer api sendAntiPerk", () => {
         targetPlayerId: "target-1",
         perkId: "jammed-dice",
         cost: 240,
-      }),
+      })
     ).rejects.toThrow("Not enough money");
   });
 });
@@ -282,18 +294,20 @@ describe("multiplayer api updateOwnProgress", () => {
       error: { message: "Player not allowed to update progress" },
     });
 
-    await expect(updateOwnProgress({
-      lobbyId: "lobby-1",
-      playerId: "player-1",
-      positionNodeId: "node-1",
-      positionIndex: 1,
-      money: 10,
-      score: 20,
-      statsJson: {},
-      inventoryJson: [],
-      activeEffectsJson: [],
-      lastRoll: 3,
-    })).resolves.toBeUndefined();
+    await expect(
+      updateOwnProgress({
+        lobbyId: "lobby-1",
+        playerId: "player-1",
+        positionNodeId: "node-1",
+        positionIndex: 1,
+        money: 10,
+        score: 20,
+        statsJson: {},
+        inventoryJson: [],
+        activeEffectsJson: [],
+        lastRoll: 3,
+      })
+    ).resolves.toBeUndefined();
   });
 
   it("still throws for other RPC errors", async () => {
@@ -302,17 +316,19 @@ describe("multiplayer api updateOwnProgress", () => {
       error: { message: "Failed to update player progress" },
     });
 
-    await expect(updateOwnProgress({
-      lobbyId: "lobby-1",
-      playerId: "player-1",
-      positionNodeId: "node-1",
-      positionIndex: 1,
-      money: 10,
-      score: 20,
-      statsJson: {},
-      inventoryJson: [],
-      activeEffectsJson: [],
-      lastRoll: 3,
-    })).rejects.toThrow("Failed to update player progress");
+    await expect(
+      updateOwnProgress({
+        lobbyId: "lobby-1",
+        playerId: "player-1",
+        positionNodeId: "node-1",
+        positionIndex: 1,
+        money: 10,
+        score: 20,
+        statsJson: {},
+        inventoryJson: [],
+        activeEffectsJson: [],
+        lastRoll: 3,
+      })
+    ).rejects.toThrow("Failed to update player progress");
   });
 });

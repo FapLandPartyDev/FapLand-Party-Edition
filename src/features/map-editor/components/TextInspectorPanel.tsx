@@ -18,7 +18,8 @@ interface TextInspectorPanelProps {
   ) => void;
 }
 
-const clampSize = (value: number): number => Math.min(MAX_TEXT_SIZE, Math.max(MIN_TEXT_SIZE, value));
+const clampSize = (value: number): number =>
+  Math.min(MAX_TEXT_SIZE, Math.max(MIN_TEXT_SIZE, value));
 
 export const TextInspectorPanel: React.FC<TextInspectorPanelProps> = React.memo(
   ({ selectedTextAnnotation, onPatchTextAnnotation }) => {
@@ -37,7 +38,10 @@ export const TextInspectorPanel: React.FC<TextInspectorPanelProps> = React.memo(
       );
     }
 
-    const colorValue = toColorInputValue(selectedTextAnnotation.styleHint.color, DEFAULT_TEXT_COLOR);
+    const colorValue = toColorInputValue(
+      selectedTextAnnotation.styleHint.color,
+      DEFAULT_TEXT_COLOR
+    );
     const sizeValue =
       typeof selectedTextAnnotation.styleHint.size === "number"
         ? String(selectedTextAnnotation.styleHint.size)

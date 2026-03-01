@@ -35,6 +35,11 @@ export async function generateVideoPhash(
   endTime?: number,
   options?: { lowPriority?: boolean; headers?: Record<string, string> }
 ): Promise<string> {
-  const normalizedRange = await getNormalizedVideoHashRange(path, startTime, endTime, options?.headers);
+  const normalizedRange = await getNormalizedVideoHashRange(
+    path,
+    startTime,
+    endTime,
+    options?.headers
+  );
   return generateVideoPhashForNormalizedRange(path, normalizedRange, options);
 }

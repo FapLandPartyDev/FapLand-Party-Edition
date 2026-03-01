@@ -133,7 +133,8 @@ export const ConverterHeader: React.FC<ConverterHeaderProps> = React.memo(
             }}
             className="rounded-xl border border-zinc-500/60 bg-black/35 px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] text-zinc-100 transition-all duration-200 hover:border-zinc-300/80 hover:bg-black/50"
           >
-            {showHotkeys ? t`Hide Shortcuts` : t`Show Shortcuts`} <kbd className="converter-kbd ml-1">?</kbd>
+            {showHotkeys ? t`Hide Shortcuts` : t`Show Shortcuts`}{" "}
+            <kbd className="converter-kbd ml-1">?</kbd>
           </button>
           <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.45em] text-purple-200/85">
             <Trans>Conversion Lab</Trans>
@@ -161,7 +162,10 @@ export const ConverterHeader: React.FC<ConverterHeaderProps> = React.memo(
             )}
           </div>
           <div className="rounded-xl border border-violet-200/30 bg-violet-400/10 px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] text-violet-100">
-            <Trans>{segmentCount} Segment{segmentCount === 1 ? "" : "s"}</Trans> • {sourceSummary}
+            <Trans>
+              {segmentCount} Segment{segmentCount === 1 ? "" : "s"}
+            </Trans>{" "}
+            • {sourceSummary}
           </div>
         </div>
       </header>

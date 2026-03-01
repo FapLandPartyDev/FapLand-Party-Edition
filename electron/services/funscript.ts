@@ -51,7 +51,7 @@ function calculateDifficulty(actions: FunscriptAction[]): number | null {
   const avgVelocity = velocitySum / velocitySamples;
   const pointNorm = clamp(Math.log1p(pointRate) / Math.log1p(8), 0, 1);
   const velocityNorm = clamp(Math.log1p(avgVelocity) / Math.log1p(400), 0, 1);
-  const lengthNorm = clamp((durationSec / 60) / 3, 0, 1);
+  const lengthNorm = clamp(durationSec / 60 / 3, 0, 1);
   const score = 0.55 * velocityNorm + 0.35 * pointNorm + 0.1 * lengthNorm;
   return clamp(Math.round(1 + score * 4), 1, 5);
 }
@@ -71,7 +71,9 @@ async function readFunscriptContent(uri: string): Promise<string | null> {
   return null;
 }
 
-export async function calculateFunscriptDifficultyFromUri(uri: string | null | undefined): Promise<number | null> {
+export async function calculateFunscriptDifficultyFromUri(
+  uri: string | null | undefined
+): Promise<number | null> {
   const trimmedUri = typeof uri === "string" ? uri.trim() : "";
   if (!trimmedUri) return null;
 

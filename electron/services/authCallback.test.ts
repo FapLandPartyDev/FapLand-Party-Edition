@@ -3,7 +3,9 @@ import { normalizeMultiplayerAuthCallback } from "./authCallback";
 
 describe("normalizeMultiplayerAuthCallback", () => {
   it("keeps valid multiplayer auth callbacks", () => {
-    expect(normalizeMultiplayerAuthCallback("fland://auth/callback?code=abc123")).toBe("fland://auth/callback?code=abc123");
+    expect(normalizeMultiplayerAuthCallback("fland://auth/callback?code=abc123")).toBe(
+      "fland://auth/callback?code=abc123"
+    );
   });
 
   it("rejects unrelated schemes and paths", () => {

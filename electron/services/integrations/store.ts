@@ -203,9 +203,14 @@ export function updateStashSource(input: UpdateStashSourceInput): ExternalSource
     baseUrl: input.baseUrl !== undefined ? normalizeBaseUrl(input.baseUrl) : existing.baseUrl,
     authMode: input.authMode ?? existing.authMode,
     apiKey: input.apiKey !== undefined ? normalizeNullableText(input.apiKey) : existing.apiKey,
-    username: input.username !== undefined ? normalizeNullableText(input.username) : existing.username,
-    password: input.password !== undefined ? normalizeNullableText(input.password) : existing.password,
-    tagSelections: input.tagSelections !== undefined ? sanitizeTagSelections(input.tagSelections) : existing.tagSelections,
+    username:
+      input.username !== undefined ? normalizeNullableText(input.username) : existing.username,
+    password:
+      input.password !== undefined ? normalizeNullableText(input.password) : existing.password,
+    tagSelections:
+      input.tagSelections !== undefined
+        ? sanitizeTagSelections(input.tagSelections)
+        : existing.tagSelections,
     updatedAt: new Date().toISOString(),
   };
 
@@ -257,9 +262,13 @@ export function getDisabledRoundIds(): string[] {
 }
 
 export function setDisabledRoundIds(roundIds: Iterable<string>): string[] {
-  const deduped = [...new Set(Array.from(roundIds).map((id) => id.trim()).filter((id) => id.length > 0))].sort(
-    (a, b) => a.localeCompare(b),
-  );
+  const deduped = [
+    ...new Set(
+      Array.from(roundIds)
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0)
+    ),
+  ].sort((a, b) => a.localeCompare(b));
 
   getStore().set(INTEGRATIONS_DISABLED_ROUND_IDS_KEY, deduped);
   return deduped;

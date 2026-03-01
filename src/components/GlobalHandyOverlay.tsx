@@ -9,7 +9,10 @@ import {
   THEHANDY_OFFSET_STEP_MS,
 } from "../constants/theHandy";
 import { useHandy } from "../contexts/HandyContext";
-import { subscribeToGlobalHandyOverlayOpen, getSaveOffsetToRoundCallback } from "./globalHandyOverlayControls";
+import {
+  subscribeToGlobalHandyOverlayOpen,
+  getSaveOffsetToRoundCallback,
+} from "./globalHandyOverlayControls";
 import { HandyStrokeRangeControl } from "./HandyStrokeRangeControl";
 import { playHoverSound, playSelectSound } from "../utils/audio";
 import { formatHandyStrokeBoundPercent } from "../services/theHandyConfig";
@@ -519,11 +522,11 @@ export function GlobalHandyOverlay() {
                       <Trans>Connection</Trans>
                     </p>
                     <p className="mt-0.5 text-[10px] text-zinc-400">
-                    {connected
-                      ? provider === "intiface" && intifaceDeviceName
-                        ? t`Intiface device connected`
-                        : t`Device connected`
-                      : t`No device connected`}
+                      {connected
+                        ? provider === "intiface" && intifaceDeviceName
+                          ? t`Intiface device connected`
+                          : t`Device connected`
+                        : t`No device connected`}
                     </p>
                     <button
                       type="button"

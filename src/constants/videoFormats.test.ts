@@ -10,7 +10,7 @@ import {
 describe("videoFormats", () => {
   it("includes current baseline extensions", () => {
     expect(SUPPORTED_VIDEO_EXTENSIONS).toEqual(
-      expect.arrayContaining(["mp4", "webm", "mkv", "mov", "avi", "m4v"]),
+      expect.arrayContaining(["mp4", "webm", "mkv", "mov", "avi", "m4v"])
     );
   });
 

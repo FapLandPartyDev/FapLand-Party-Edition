@@ -1,4 +1,8 @@
-import type { MultiplayerLobbySnapshot, MultiplayerMatchHistory, MultiplayerPlayerState } from "./types";
+import type {
+  MultiplayerLobbySnapshot,
+  MultiplayerMatchHistory,
+  MultiplayerPlayerState,
+} from "./types";
 
 export type MultiplayerStandingRow = {
   playerId: string;
@@ -49,7 +53,9 @@ export function hasActivePlayers(snapshot: MultiplayerLobbySnapshot): boolean {
   return snapshot.players.some((player) => !isTerminalPlayerState(player.state));
 }
 
-export function buildTemporaryStandings(snapshot: MultiplayerLobbySnapshot): MultiplayerStandingRow[] {
+export function buildTemporaryStandings(
+  snapshot: MultiplayerLobbySnapshot
+): MultiplayerStandingRow[] {
   const rows: Omit<MultiplayerStandingRow, "place">[] = snapshot.players.map((player) => {
     const progress = snapshot.progressByPlayerId[player.id];
     return {
@@ -80,17 +86,20 @@ export function parseStandingsJson(resultsJson: unknown): MultiplayerStandingRow
     if (playerId.length === 0 || userId.length === 0 || displayName.length === 0) return [];
 
     const finishAtRaw = raw.finish_at;
-    const finishAt = typeof finishAtRaw === "string" && finishAtRaw.trim().length > 0 ? finishAtRaw : null;
+    const finishAt =
+      typeof finishAtRaw === "string" && finishAtRaw.trim().length > 0 ? finishAtRaw : null;
 
-    return [{
-      playerId,
-      userId,
-      displayName,
-      state: toSafeString(raw.state, "finished"),
-      finalScore: toSafeScore(raw.final_score),
-      finishAt,
-      finalPayloadJson: raw.final_payload_json ?? {},
-    }];
+    return [
+      {
+        playerId,
+        userId,
+        displayName,
+        state: toSafeString(raw.state, "finished"),
+        finalScore: toSafeScore(raw.final_score),
+        finishAt,
+        finalPayloadJson: raw.final_payload_json ?? {},
+      },
+    ];
   });
 
   return sortRows(rows);

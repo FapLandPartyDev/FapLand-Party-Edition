@@ -76,14 +76,12 @@ describe("thehandyAdapter", () => {
       maxAbsolute: 200,
     });
 
-    await expect(thehandyAdapter.updateStroke!(config, { min: 0.2, max: 0.8 })).resolves.toEqual(
-      {
-        min: 0.2,
-        max: 0.8,
-        minAbsolute: null,
-        maxAbsolute: null,
-      }
-    );
+    await expect(thehandyAdapter.updateStroke!(config, { min: 0.2, max: 0.8 })).resolves.toEqual({
+      min: 0.2,
+      max: 0.8,
+      minAbsolute: null,
+      maxAbsolute: null,
+    });
   });
 
   it("delegates stop to the current TheHandy runtime", async () => {

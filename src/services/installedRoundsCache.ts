@@ -59,13 +59,15 @@ export function getInstalledRoundCatalogCached(
     return existing;
   }
 
-  const request = trpc.db.getInstalledRoundCatalog.query({
-    includeDisabled,
-    includeTemplates,
-  }).catch((error) => {
-    catalogRequests.delete(key);
-    throw error;
-  });
+  const request = trpc.db.getInstalledRoundCatalog
+    .query({
+      includeDisabled,
+      includeTemplates,
+    })
+    .catch((error) => {
+      catalogRequests.delete(key);
+      throw error;
+    });
   catalogRequests.set(key, request);
   return request;
 }

@@ -135,7 +135,8 @@ export function useRoundsLibraryState(
     visibleGroupKeys,
     sourceHeroOptions,
     resetFilters,
-    hasActiveFilters: queryInput.trim().length > 0 || typeFilter !== "all" || scriptFilter !== "all",
+    hasActiveFilters:
+      queryInput.trim().length > 0 || typeFilter !== "all" || scriptFilter !== "all",
     activeFilterCount:
       Number(queryInput.trim().length > 0) +
       Number(typeFilter !== "all") +

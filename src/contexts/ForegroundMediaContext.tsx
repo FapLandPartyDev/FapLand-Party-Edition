@@ -32,14 +32,19 @@ export function ForegroundMediaProvider({ children }: { children: React.ReactNod
     });
   }, []);
 
-  const value = useMemo<ForegroundMediaContextValue>(() => ({
-    activeForegroundVideoCount: Object.values(registry).filter(Boolean).length,
-    register,
-    unregister,
-    setPlaying,
-  }), [register, registry, setPlaying, unregister]);
+  const value = useMemo<ForegroundMediaContextValue>(
+    () => ({
+      activeForegroundVideoCount: Object.values(registry).filter(Boolean).length,
+      register,
+      unregister,
+      setPlaying,
+    }),
+    [register, registry, setPlaying, unregister]
+  );
 
-  return <ForegroundMediaContext.Provider value={value}>{children}</ForegroundMediaContext.Provider>;
+  return (
+    <ForegroundMediaContext.Provider value={value}>{children}</ForegroundMediaContext.Provider>
+  );
 }
 
 export function useForegroundMedia() {

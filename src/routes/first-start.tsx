@@ -57,15 +57,15 @@ type StepDefinition = {
   id: string;
   icon: string;
   interactive?:
-  | "language"
-  | "music"
-  | "moaning"
-  | "round-packs"
-  | "storage"
-  | "booru"
-  | "handy"
-  | "phash"
-  | "eroscripts";
+    | "language"
+    | "music"
+    | "moaning"
+    | "round-packs"
+    | "storage"
+    | "booru"
+    | "handy"
+    | "phash"
+    | "eroscripts";
 };
 
 function getSteps(): StepDefinition[] {
@@ -1277,10 +1277,11 @@ function FirstStartPage() {
                 playSelectSound();
                 void skip();
               }}
-              className={`group relative flex items-center gap-2 self-start rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all animate-entrance ${isSkipping
-                ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
-                : "border-zinc-500/40 bg-zinc-900/60 text-zinc-300 hover:border-violet-400/50 hover:bg-zinc-800/80 hover:text-violet-100"
-                }`}
+              className={`group relative flex items-center gap-2 self-start rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all animate-entrance ${
+                isSkipping
+                  ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                  : "border-zinc-500/40 bg-zinc-900/60 text-zinc-300 hover:border-violet-400/50 hover:bg-zinc-800/80 hover:text-violet-100"
+              }`}
               style={{ animationDelay: "0.4s" }}
             >
               <span className="absolute inset-0 rounded-xl opacity-0 transition-opacity group-hover:opacity-100 bg-gradient-to-r from-violet-500/5 to-indigo-500/5" />
@@ -1328,10 +1329,9 @@ function FirstStartPage() {
                     />
                     {idx < STEPS.length - 1 && (
                       <div
-                        className={`fs-progress-line ${idx < stepIndex
-                          ? "fs-progress-line--filled"
-                          : "fs-progress-line--empty"
-                          }`}
+                        className={`fs-progress-line ${
+                          idx < stepIndex ? "fs-progress-line--filled" : "fs-progress-line--empty"
+                        }`}
                       />
                     )}
                   </div>
@@ -1372,12 +1372,13 @@ function FirstStartPage() {
                           playSelectSound();
                           setStepIndex(index);
                         }}
-                        className={`fs-sidebar-step relative flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-all ${active
-                          ? "fs-sidebar-step--active bg-violet-500/12 text-white"
-                          : complete
-                            ? "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
-                            : "text-zinc-500 hover:bg-white/[0.03] hover:text-zinc-400"
-                          }`}
+                        className={`fs-sidebar-step relative flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-all ${
+                          active
+                            ? "fs-sidebar-step--active bg-violet-500/12 text-white"
+                            : complete
+                              ? "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
+                              : "text-zinc-500 hover:bg-white/[0.03] hover:text-zinc-400"
+                        }`}
                       >
                         {/* Active left accent */}
                         {active && (
@@ -1386,12 +1387,13 @@ function FirstStartPage() {
 
                         {/* Step Indicator */}
                         <span
-                          className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full transition-all ${active
-                            ? "fs-step-indicator-active bg-violet-500/25 ring-[1.5px] ring-violet-400/50"
-                            : complete
-                              ? "fs-step-indicator-complete bg-emerald-500/15 ring-1 ring-emerald-400/25"
-                              : "bg-zinc-800/80 ring-1 ring-zinc-700/70"
-                            }`}
+                          className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full transition-all ${
+                            active
+                              ? "fs-step-indicator-active bg-violet-500/25 ring-[1.5px] ring-violet-400/50"
+                              : complete
+                                ? "fs-step-indicator-complete bg-emerald-500/15 ring-1 ring-emerald-400/25"
+                                : "bg-zinc-800/80 ring-1 ring-zinc-700/70"
+                          }`}
                         >
                           {complete ? (
                             <span className="fs-checkmark text-[10px] text-emerald-400">✓</span>
@@ -1406,12 +1408,13 @@ function FirstStartPage() {
 
                         {/* Step Label */}
                         <span
-                          className={`text-[11px] font-medium leading-tight transition-all ${active
-                            ? "text-violet-100"
-                            : complete
-                              ? "text-zinc-400"
-                              : "text-zinc-500"
-                            }`}
+                          className={`text-[11px] font-medium leading-tight transition-all ${
+                            active
+                              ? "text-violet-100"
+                              : complete
+                                ? "text-zinc-400"
+                                : "text-zinc-500"
+                          }`}
                         >
                           {getStepShortLabel(step.id)}
                         </span>
@@ -1424,10 +1427,7 @@ function FirstStartPage() {
 
             {/* ── Content Section ── */}
             <section className="flex min-h-0 flex-col rounded-2xl fs-content-glass p-4 sm:p-5">
-              <div
-                key={contentKey}
-                className="fs-content-enter flex min-h-0 flex-1 flex-col"
-              >
+              <div key={contentKey} className="fs-content-enter flex min-h-0 flex-1 flex-col">
                 {/* Eyebrow */}
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{currentStep.icon}</span>
@@ -1496,10 +1496,11 @@ function FirstStartPage() {
                                 playSelectSound();
                                 void setLocale(entry.code);
                               }}
-                              className={`rounded-xl border px-4 py-3 text-left transition-all ${selected
-                                ? "border-emerald-300/70 bg-emerald-500/20 text-emerald-50 shadow-[0_0_20px_rgba(52,211,153,0.18)]"
-                                : "border-white/10 bg-black/20 text-zinc-200 hover:border-emerald-400/40 hover:bg-emerald-500/10"
-                                }`}
+                              className={`rounded-xl border px-4 py-3 text-left transition-all ${
+                                selected
+                                  ? "border-emerald-300/70 bg-emerald-500/20 text-emerald-50 shadow-[0_0_20px_rgba(52,211,153,0.18)]"
+                                  : "border-white/10 bg-black/20 text-zinc-200 hover:border-emerald-400/40 hover:bg-emerald-500/10"
+                              }`}
                             >
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-semibold">{entry.label}</span>
@@ -1538,8 +1539,8 @@ function FirstStartPage() {
                       </div>
                       <p className="text-sm text-zinc-400">
                         <Trans>
-                          Pick music files from your computer, or add YouTube videos and playlists to
-                          download as MP3.
+                          Pick music files from your computer, or add YouTube videos and playlists
+                          to download as MP3.
                         </Trans>
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -1551,10 +1552,11 @@ function FirstStartPage() {
                             playSelectSound();
                             void addMusicTracks();
                           }}
-                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${isBusy
-                            ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
-                            : "border-violet-400/50 bg-violet-500/20 text-violet-100 hover:border-violet-300/70 hover:bg-violet-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]"
-                            }`}
+                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                            isBusy
+                              ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                              : "border-violet-400/50 bg-violet-500/20 text-violet-100 hover:border-violet-300/70 hover:bg-violet-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]"
+                          }`}
                         >
                           {isBusy ? (
                             <>
@@ -1581,10 +1583,11 @@ function FirstStartPage() {
                             setShowUrlInput((current) => !current);
                             setUrlError(null);
                           }}
-                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${showUrlInput
-                            ? "border-cyan-400/50 bg-cyan-500/20 text-cyan-100"
-                            : "border-purple-400/50 bg-purple-500/20 text-purple-100 hover:border-purple-300/70 hover:bg-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
-                            }`}
+                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                            showUrlInput
+                              ? "border-cyan-400/50 bg-cyan-500/20 text-cyan-100"
+                              : "border-purple-400/50 bg-purple-500/20 text-purple-100 hover:border-purple-300/70 hover:bg-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+                          }`}
                         >
                           <span>⊕</span>
                           <span>
@@ -1616,20 +1619,22 @@ function FirstStartPage() {
                                 }
                               }}
                               disabled={isBusy}
-                              className={`flex-1 rounded-lg border bg-white/5 px-3 py-2 text-xs text-white placeholder-zinc-500 outline-none transition ${urlError
-                                ? "border-rose-400/40 focus:border-rose-400/60"
-                                : "border-white/10 focus:border-violet-400/60"
-                                }`}
+                              className={`flex-1 rounded-lg border bg-white/5 px-3 py-2 text-xs text-white placeholder-zinc-500 outline-none transition ${
+                                urlError
+                                  ? "border-rose-400/40 focus:border-rose-400/60"
+                                  : "border-white/10 focus:border-violet-400/60"
+                              }`}
                             />
                             <button
                               type="button"
                               onMouseEnter={playHoverSound}
                               onClick={() => void addMusicFromUrl()}
                               disabled={isBusy}
-                              className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${isBusy
-                                ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
-                                : "border-cyan-400/50 bg-cyan-500/20 text-cyan-50 hover:bg-cyan-500/30"
-                                }`}
+                              className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
+                                isBusy
+                                  ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                                  : "border-cyan-400/50 bg-cyan-500/20 text-cyan-50 hover:bg-cyan-500/30"
+                              }`}
                             >
                               {isBusy ? <Trans>Downloading...</Trans> : <Trans>Add</Trans>}
                             </button>
@@ -1640,10 +1645,11 @@ function FirstStartPage() {
 
                       {musicMessage && (
                         <div
-                          className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm ${musicMessageWasAdded
-                            ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
-                            : "border-cyan-400/30 bg-cyan-500/10 text-cyan-200"
-                            }`}
+                          className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm ${
+                            musicMessageWasAdded
+                              ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
+                              : "border-cyan-400/30 bg-cyan-500/10 text-cyan-200"
+                          }`}
                         >
                           <span>{musicMessageWasAdded ? "✓" : "ℹ"}</span>
                           <span>{musicMessage}</span>
@@ -1707,10 +1713,11 @@ function FirstStartPage() {
                             playSelectSound();
                             void addMoaningFiles();
                           }}
-                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${isBusy
-                            ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
-                            : "border-rose-400/50 bg-rose-500/20 text-rose-100 hover:border-rose-300/70 hover:bg-rose-500/30 hover:shadow-[0_0_20px_rgba(251,113,133,0.3)]"
-                            }`}
+                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                            isBusy
+                              ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                              : "border-rose-400/50 bg-rose-500/20 text-rose-100 hover:border-rose-300/70 hover:bg-rose-500/30 hover:shadow-[0_0_20px_rgba(251,113,133,0.3)]"
+                          }`}
                         >
                           {isBusy ? (
                             <>
@@ -1736,10 +1743,11 @@ function FirstStartPage() {
                             playSelectSound();
                             void previewMoaningTrack(moaningQueue[0]!.id);
                           }}
-                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${isBusy || moaningQueue.length === 0
-                            ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
-                            : "border-cyan-400/50 bg-cyan-500/20 text-cyan-100 hover:border-cyan-300/70 hover:bg-cyan-500/30"
-                            }`}
+                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                            isBusy || moaningQueue.length === 0
+                              ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                              : "border-cyan-400/50 bg-cyan-500/20 text-cyan-100 hover:border-cyan-300/70 hover:bg-cyan-500/30"
+                          }`}
                         >
                           <span>▶</span>
                           <span>
@@ -1769,10 +1777,11 @@ function FirstStartPage() {
                             setShowMoaningUrlInput((current) => !current);
                             setMoaningUrlError(null);
                           }}
-                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${showMoaningUrlInput
-                            ? "border-cyan-400/50 bg-cyan-500/20 text-cyan-100"
-                            : "border-orange-400/50 bg-orange-500/20 text-orange-100 hover:border-orange-300/70 hover:bg-orange-500/30"
-                            }`}
+                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                            showMoaningUrlInput
+                              ? "border-cyan-400/50 bg-cyan-500/20 text-cyan-100"
+                              : "border-orange-400/50 bg-orange-500/20 text-orange-100 hover:border-orange-300/70 hover:bg-orange-500/30"
+                          }`}
                         >
                           <span>⊕</span>
                           <span>
@@ -1785,8 +1794,8 @@ function FirstStartPage() {
                         <div className="mt-3 space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
                           <p className="text-xs text-zinc-400">
                             <Trans>
-                              Add from any yt-dlp-supported URL. Single tracks and playlists are both
-                              supported.
+                              Add from any yt-dlp-supported URL. Single tracks and playlists are
+                              both supported.
                             </Trans>
                           </p>
                           <div className="flex gap-1.5">
@@ -1797,10 +1806,11 @@ function FirstStartPage() {
                                 playSelectSound();
                                 setMoaningUrlMode("track");
                               }}
-                              className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${moaningUrlMode === "track"
-                                ? "border-cyan-300/60 bg-cyan-500/30 text-cyan-100"
-                                : "border-zinc-600 bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-                                }`}
+                              className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
+                                moaningUrlMode === "track"
+                                  ? "border-cyan-300/60 bg-cyan-500/30 text-cyan-100"
+                                  : "border-zinc-600 bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                              }`}
                             >
                               <Trans>Single Track</Trans>
                             </button>
@@ -1811,10 +1821,11 @@ function FirstStartPage() {
                                 playSelectSound();
                                 setMoaningUrlMode("playlist");
                               }}
-                              className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${moaningUrlMode === "playlist"
-                                ? "border-cyan-300/60 bg-cyan-500/30 text-cyan-100"
-                                : "border-zinc-600 bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-                                }`}
+                              className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
+                                moaningUrlMode === "playlist"
+                                  ? "border-cyan-300/60 bg-cyan-500/30 text-cyan-100"
+                                  : "border-zinc-600 bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                              }`}
                             >
                               <Trans>Playlist</Trans>
                             </button>
@@ -1838,20 +1849,22 @@ function FirstStartPage() {
                                 }
                               }}
                               disabled={isBusy}
-                              className={`flex-1 rounded-lg border bg-white/5 px-3 py-2 text-xs text-white placeholder-zinc-500 outline-none transition ${moaningUrlError
-                                ? "border-rose-400/40 focus:border-rose-400/60"
-                                : "border-white/10 focus:border-rose-400/60"
-                                }`}
+                              className={`flex-1 rounded-lg border bg-white/5 px-3 py-2 text-xs text-white placeholder-zinc-500 outline-none transition ${
+                                moaningUrlError
+                                  ? "border-rose-400/40 focus:border-rose-400/60"
+                                  : "border-white/10 focus:border-rose-400/60"
+                              }`}
                             />
                             <button
                               type="button"
                               onMouseEnter={playHoverSound}
                               onClick={() => void addMoaningFromUrl()}
                               disabled={isBusy}
-                              className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${isBusy
-                                ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
-                                : "border-cyan-400/50 bg-cyan-500/20 text-cyan-50 hover:bg-cyan-500/30"
-                                }`}
+                              className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
+                                isBusy
+                                  ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                                  : "border-cyan-400/50 bg-cyan-500/20 text-cyan-50 hover:bg-cyan-500/30"
+                              }`}
                             >
                               {isBusy ? <Trans>Downloading...</Trans> : <Trans>Add</Trans>}
                             </button>
@@ -1864,10 +1877,11 @@ function FirstStartPage() {
 
                       {moaningMessage && (
                         <div
-                          className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm ${moaningMessageWasAdded
-                            ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
-                            : "border-cyan-400/30 bg-cyan-500/10 text-cyan-200"
-                            }`}
+                          className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm ${
+                            moaningMessageWasAdded
+                              ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
+                              : "border-cyan-400/30 bg-cyan-500/10 text-cyan-200"
+                          }`}
                         >
                           <span>{moaningMessageWasAdded ? "✓" : "ℹ"}</span>
                           <span>{moaningMessage}</span>
@@ -1900,10 +1914,11 @@ function FirstStartPage() {
                             playSelectSound();
                             void addRoundFolder();
                           }}
-                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${isBusy
-                            ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
-                            : "border-violet-400/50 bg-violet-500/20 text-violet-100 hover:border-violet-300/70 hover:bg-violet-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]"
-                            }`}
+                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                            isBusy
+                              ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                              : "border-violet-400/50 bg-violet-500/20 text-violet-100 hover:border-violet-300/70 hover:bg-violet-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]"
+                          }`}
                         >
                           {isBusy ? (
                             <>
@@ -1929,10 +1944,11 @@ function FirstStartPage() {
                             playSelectSound();
                             void importHeroOrRound();
                           }}
-                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${isBusy
-                            ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
-                            : "border-cyan-400/50 bg-cyan-500/20 text-cyan-100 hover:border-cyan-300/70 hover:bg-cyan-500/30 hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]"
-                            }`}
+                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                            isBusy
+                              ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                              : "border-cyan-400/50 bg-cyan-500/20 text-cyan-100 hover:border-cyan-300/70 hover:bg-cyan-500/30 hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+                          }`}
                         >
                           {isBusy ? (
                             <>
@@ -1953,10 +1969,11 @@ function FirstStartPage() {
                       </div>
                       {roundMessage && (
                         <div
-                          className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm ${roundMessageWasImported
-                            ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
-                            : "border-cyan-400/30 bg-cyan-500/10 text-cyan-200"
-                            }`}
+                          className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm ${
+                            roundMessageWasImported
+                              ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
+                              : "border-cyan-400/30 bg-cyan-500/10 text-cyan-200"
+                          }`}
                         >
                           <span>{roundMessageWasImported ? "✓" : "ℹ"}</span>
                           <span>{roundMessage}</span>
@@ -2010,15 +2027,18 @@ function FirstStartPage() {
                           </div>
                         </div>
                         {eroscriptsLoginStatus?.error ? (
-                          <p className="mt-2 text-sm text-amber-200">{eroscriptsLoginStatus.error}</p>
+                          <p className="mt-2 text-sm text-amber-200">
+                            {eroscriptsLoginStatus.error}
+                          </p>
                         ) : null}
                       </div>
                       {eroscriptsAuthMessage && (
                         <div
-                          className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm ${eroscriptsLoginStatus?.loggedIn
-                            ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
-                            : "border-cyan-400/30 bg-cyan-500/10 text-cyan-200"
-                            }`}
+                          className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm ${
+                            eroscriptsLoginStatus?.loggedIn
+                              ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
+                              : "border-cyan-400/30 bg-cyan-500/10 text-cyan-200"
+                          }`}
                         >
                           <span>{eroscriptsLoginStatus?.loggedIn ? "✓" : "ℹ"}</span>
                           <span>{eroscriptsAuthMessage}</span>
@@ -2033,10 +2053,11 @@ function FirstStartPage() {
                             playSelectSound();
                             void openEroScriptsLogin();
                           }}
-                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${isEroScriptsAuthPending
-                            ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
-                            : "border-cyan-400/50 bg-cyan-500/20 text-cyan-100 hover:border-cyan-300/70 hover:bg-cyan-500/30 hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]"
-                            }`}
+                          className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                            isEroScriptsAuthPending
+                              ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                              : "border-cyan-400/50 bg-cyan-500/20 text-cyan-100 hover:border-cyan-300/70 hover:bg-cyan-500/30 hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+                          }`}
                         >
                           {isEroScriptsAuthPending ? (
                             <>
@@ -2363,7 +2384,8 @@ function FirstStartPage() {
                       </div>
                       <p className="text-sm text-zinc-400">
                         <Trans>
-                          Connect a haptics device for synchronized motion. Choose TheHandy or Intiface below.
+                          Connect a haptics device for synchronized motion. Choose TheHandy or
+                          Intiface below.
                         </Trans>
                       </p>
 
@@ -2432,7 +2454,8 @@ function FirstStartPage() {
                           </div>
                           <p className="mt-2 text-xs text-zinc-400">
                             <Trans>
-                              Start Intiface Central, start its server, then connect to a linear/position-capable device.
+                              Start Intiface Central, start its server, then connect to a
+                              linear/position-capable device.
                             </Trans>
                           </p>
                           {intifaceDeviceName && handyConnected && (
@@ -2486,12 +2509,13 @@ function FirstStartPage() {
                           playSelectSound();
                           void handleHandyConnect();
                         }}
-                        className={`mt-3 flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${handyIsConnecting
-                          ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
-                          : handyConnected
-                            ? "border-rose-400/50 bg-rose-500/20 text-rose-100 hover:border-rose-300/70 hover:bg-rose-500/30"
-                            : "border-emerald-400/50 bg-emerald-500/20 text-emerald-100 hover:border-emerald-300/70 hover:bg-emerald-500/30 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-                          }`}
+                        className={`mt-3 flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                          handyIsConnecting
+                            ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                            : handyConnected
+                              ? "border-rose-400/50 bg-rose-500/20 text-rose-100 hover:border-rose-300/70 hover:bg-rose-500/30"
+                              : "border-emerald-400/50 bg-emerald-500/20 text-emerald-100 hover:border-emerald-300/70 hover:bg-emerald-500/30 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                        }`}
                       >
                         {handyIsConnecting ? (
                           <>
@@ -2531,10 +2555,11 @@ function FirstStartPage() {
                     playSelectSound();
                     setStepIndex((current) => Math.max(0, current - 1));
                   }}
-                  className={`group flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${stepIndex === 0
-                    ? "cursor-not-allowed border-zinc-800/50 bg-zinc-900/30 text-zinc-600"
-                    : "border-zinc-600/40 bg-zinc-900/60 text-zinc-300 hover:border-zinc-500/60 hover:bg-zinc-800/80 hover:text-white"
-                    }`}
+                  className={`group flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                    stepIndex === 0
+                      ? "cursor-not-allowed border-zinc-800/50 bg-zinc-900/30 text-zinc-600"
+                      : "border-zinc-600/40 bg-zinc-900/60 text-zinc-300 hover:border-zinc-500/60 hover:bg-zinc-800/80 hover:text-white"
+                  }`}
                 >
                   <span
                     className={`transition-transform ${stepIndex === 0 ? "" : "group-hover:-translate-x-1"}`}
@@ -2555,10 +2580,11 @@ function FirstStartPage() {
                       playSelectSound();
                       void skip();
                     }}
-                    className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${isSkipping
-                      ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
-                      : "border-zinc-600/40 bg-zinc-900/60 text-zinc-400 hover:border-zinc-500/60 hover:bg-zinc-800/80 hover:text-zinc-200"
-                      }`}
+                    className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+                      isSkipping
+                        ? "cursor-not-allowed border-zinc-600/50 bg-zinc-800/50 text-zinc-500"
+                        : "border-zinc-600/40 bg-zinc-900/60 text-zinc-400 hover:border-zinc-500/60 hover:bg-zinc-800/80 hover:text-zinc-200"
+                    }`}
                   >
                     <span>⏭</span>
                     <span>
@@ -2573,10 +2599,11 @@ function FirstStartPage() {
                       playSelectSound();
                       void goNext();
                     }}
-                    className={`fs-continue-btn group relative flex items-center gap-2 overflow-hidden rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all ${isContinueDisabled
-                      ? "cursor-not-allowed border-zinc-700/50 bg-zinc-800/50 text-zinc-500"
-                      : "border-violet-400/50 bg-gradient-to-r from-violet-600/80 via-purple-600/80 to-indigo-600/80 text-white hover:border-violet-300/70 hover:shadow-[0_0_25px_rgba(139,92,246,0.4)]"
-                      }`}
+                    className={`fs-continue-btn group relative flex items-center gap-2 overflow-hidden rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all ${
+                      isContinueDisabled
+                        ? "cursor-not-allowed border-zinc-700/50 bg-zinc-800/50 text-zinc-500"
+                        : "border-violet-400/50 bg-gradient-to-r from-violet-600/80 via-purple-600/80 to-indigo-600/80 text-white hover:border-violet-300/70 hover:shadow-[0_0_25px_rgba(139,92,246,0.4)]"
+                    }`}
                   >
                     <span className="absolute inset-0 bg-gradient-to-r from-violet-500/0 via-white/10 to-violet-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                     <span>

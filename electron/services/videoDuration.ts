@@ -14,7 +14,9 @@ export function __resetVideoDurationCacheForTests(): void {
   durationByLocalPath.clear();
 }
 
-export async function resolveVideoDurationMsForLocalPath(localPath: string): Promise<number | null> {
+export async function resolveVideoDurationMsForLocalPath(
+  localPath: string
+): Promise<number | null> {
   const existing = durationByLocalPath.get(localPath);
   if (existing) return existing;
 

@@ -361,7 +361,9 @@ describe("webVideoScanService", () => {
     ensureWebsiteVideoCachedMock.mockImplementation(
       (url: string) =>
         new Promise<{ finalFilePath: string }>((resolve) => {
-          releases.set(url, () => resolve({ finalFilePath: `/tmp/${encodeURIComponent(url)}.mp4` }));
+          releases.set(url, () =>
+            resolve({ finalFilePath: `/tmp/${encodeURIComponent(url)}.mp4` })
+          );
         })
     );
 
@@ -456,7 +458,9 @@ describe("webVideoScanService", () => {
     ensureWebsiteVideoCachedMock.mockImplementation(
       (url: string) =>
         new Promise<{ finalFilePath: string }>((resolve) => {
-          releases.set(url, () => resolve({ finalFilePath: `/tmp/${encodeURIComponent(url)}.mp4` }));
+          releases.set(url, () =>
+            resolve({ finalFilePath: `/tmp/${encodeURIComponent(url)}.mp4` })
+          );
         })
     );
 

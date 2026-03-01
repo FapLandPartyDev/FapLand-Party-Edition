@@ -118,17 +118,13 @@ export async function extractSpriteBmp(
   const ssSeconds = (offsetMs / 1000).toFixed(3);
   const tSeconds = (spanMs / 1000).toFixed(3);
 
-  const args = [
-    "-hide_banner",
-    "-loglevel",
-    "error",
-    "-nostdin",
-  ];
+  const args = ["-hide_banner", "-loglevel", "error", "-nostdin"];
 
   if (options?.headers && Object.keys(options.headers).length > 0) {
-    const headerString = Object.entries(options.headers)
-      .map(([k, v]) => `${k}: ${v}`)
-      .join("\r\n") + "\r\n";
+    const headerString =
+      Object.entries(options.headers)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\r\n") + "\r\n";
     args.push("-headers", headerString);
   }
 
@@ -149,7 +145,7 @@ export async function extractSpriteBmp(
     "bmp",
     "-f",
     "image2pipe",
-    "-",
+    "-"
   );
 
   const { stdout } = await runCommand(ffmpegPath, args, { ...options, timeoutMs: 120_000 });

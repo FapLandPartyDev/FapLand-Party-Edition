@@ -62,7 +62,13 @@ function buildTestRounds(): TestRound[] {
       type: "Normal",
       heroId: null,
       hero: null,
-      resources: [{ videoUri: "https://cdn.example.com/solo.mp4", funscriptUri: "https://cdn.example.com/solo.funscript", funscriptOffsetMs: 150 }],
+      resources: [
+        {
+          videoUri: "https://cdn.example.com/solo.mp4",
+          funscriptUri: "https://cdn.example.com/solo.funscript",
+          funscriptOffsetMs: 150,
+        },
+      ],
       createdAt: new Date("2026-03-05T12:00:00.000Z"),
     },
     {
@@ -106,7 +112,12 @@ function buildTestRounds(): TestRound[] {
         description: "Hero",
         phash: null,
       },
-      resources: [{ videoUri: "https://cdn.example.com/hero2.mp4", funscriptUri: "https://cdn.example.com/hero2.funscript" }],
+      resources: [
+        {
+          videoUri: "https://cdn.example.com/hero2.mp4",
+          funscriptUri: "https://cdn.example.com/hero2.funscript",
+        },
+      ],
       createdAt: new Date("2026-03-05T12:02:00.000Z"),
     },
   ];
@@ -152,14 +163,22 @@ describe("exportInstalledDatabase", () => {
     expect(roundFile).toBeTruthy();
     expect(heroFile).toBeTruthy();
 
-    const parsedRound = JSON.parse(await fs.readFile(path.join(result.exportDir, roundFile!), "utf8")) as { resources: unknown[] };
-    const parsedHero = JSON.parse(await fs.readFile(path.join(result.exportDir, heroFile!), "utf8")) as {
+    const parsedRound = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, roundFile!), "utf8")
+    ) as { resources: unknown[] };
+    const parsedHero = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, heroFile!), "utf8")
+    ) as {
       rounds: Array<{ resources: unknown[] }>;
     };
 
     expect(parsedRound.resources).toEqual([]);
     expect(parsedHero.rounds).toHaveLength(2);
-    expect(parsedHero.rounds.every((round) => Array.isArray(round.resources) && round.resources.length === 0)).toBe(true);
+    expect(
+      parsedHero.rounds.every(
+        (round) => Array.isArray(round.resources) && round.resources.length === 0
+      )
+    ).toBe(true);
   });
 
   it("includes resource URIs when explicitly enabled", async () => {
@@ -173,10 +192,14 @@ describe("exportInstalledDatabase", () => {
     expect(roundFile).toBeTruthy();
     expect(heroFile).toBeTruthy();
 
-    const parsedRound = JSON.parse(await fs.readFile(path.join(result.exportDir, roundFile!), "utf8")) as {
+    const parsedRound = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, roundFile!), "utf8")
+    ) as {
       resources: Array<{ videoUri: string; funscriptUri?: string; funscriptOffsetMs?: number }>;
     };
-    const parsedHero = JSON.parse(await fs.readFile(path.join(result.exportDir, heroFile!), "utf8")) as {
+    const parsedHero = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, heroFile!), "utf8")
+    ) as {
       rounds: Array<{ resources: Array<{ videoUri: string; funscriptUri?: string }> }>;
     };
 
@@ -191,7 +214,9 @@ describe("exportInstalledDatabase", () => {
 
     const fileNames = await fs.readdir(result.exportDir);
     const roundFile = fileNames.find((name) => name.endsWith(".round"));
-    const parsedRound = JSON.parse(await fs.readFile(path.join(result.exportDir, roundFile!), "utf8")) as {
+    const parsedRound = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, roundFile!), "utf8")
+    ) as {
       resources: Array<{ funscriptOffsetMs?: number }>;
     };
 

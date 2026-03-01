@@ -167,9 +167,7 @@ async function findUncachedWebsiteVideos(): Promise<{
       }
     } catch (error) {
       const reason =
-        error instanceof Error
-          ? error.message
-          : "Unknown website video cache discovery error.";
+        error instanceof Error ? error.message : "Unknown website video cache discovery error.";
       discoveryErrors.push({
         resourceId: row.resourceId,
         roundId: row.roundId,

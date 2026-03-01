@@ -11,6 +11,7 @@ export const resource = sqliteTable(
     videoUri: text("videoUri").notNull(),
     funscriptUri: text("funscriptUri"),
     funscriptOffsetMs: integer("funscriptOffsetMs"),
+    invertFunscript: integer("invertFunscript", { mode: "boolean" }).notNull().default(false),
     phash: text("phash"),
     durationMs: integer("durationMs"),
     disabled: integer("disabled", { mode: "boolean" }).notNull().default(false),

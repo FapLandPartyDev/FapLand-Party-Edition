@@ -5,10 +5,7 @@ import {
   detectPortableInstallation,
   migrateToPortable,
 } from "../../services/migration";
-import {
-  assertApprovedDialogPath,
-  approveDialogPath,
-} from "../../services/dialogPathApproval";
+import { assertApprovedDialogPath, approveDialogPath } from "../../services/dialogPathApproval";
 
 export const migrationRouter = router({
   migratePaths: publicProcedure

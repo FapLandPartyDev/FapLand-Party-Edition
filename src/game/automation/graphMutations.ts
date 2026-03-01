@@ -34,7 +34,12 @@ function rebuildRuntimeGraph(
   };
 }
 
-function withConfig(state: GameState, board: BoardField[], edges: RuntimeGraphEdge[], startNodeId: string): GameState {
+function withConfig(
+  state: GameState,
+  board: BoardField[],
+  edges: RuntimeGraphEdge[],
+  startNodeId: string
+): GameState {
   return {
     ...state,
     config: {
@@ -59,7 +64,11 @@ export function applyGraphMutationAction(
   switch (step.kind) {
     case "graph.addNode": {
       if (board.some((node) => node.id === step.node.id)) {
-        return { ok: false, error: `Node "${step.node.name}" (${step.node.id}) already exists.`, state };
+        return {
+          ok: false,
+          error: `Node "${step.node.name}" (${step.node.id}) already exists.`,
+          state,
+        };
       }
       return {
         ok: true,
@@ -83,23 +92,36 @@ export function applyGraphMutationAction(
       if (!existing) return { ok: false, error: `Node ${step.nodeId} does not exist.`, state };
       const currentPlayer = state.players[state.currentPlayerIndex];
       if (currentPlayer?.currentNodeId === step.nodeId && !step.fallbackNodeId) {
-        return { ok: false, error: `Removing active node "${existing.name}" (${step.nodeId}) requires fallbackNodeId.`, state };
+        return {
+          ok: false,
+          error: `Removing active node "${existing.name}" (${step.nodeId}) requires fallbackNodeId.`,
+          state,
+        };
       }
-      const fallbackNodeId = step.fallbackNodeId ?? currentPlayer?.currentNodeId ?? state.config.runtimeGraph.startNodeId;
+      const fallbackNodeId =
+        step.fallbackNodeId ??
+        currentPlayer?.currentNodeId ??
+        state.config.runtimeGraph.startNodeId;
       const nextBoard = board.filter((node) => node.id !== step.nodeId);
       if (!nextBoard.some((node) => node.id === fallbackNodeId)) {
         return { ok: false, error: `Fallback node ${fallbackNodeId} does not exist.`, state };
       }
-      const nextEdges = edges.filter((edge) => edge.fromNodeId !== step.nodeId && edge.toNodeId !== step.nodeId);
+      const nextEdges = edges.filter(
+        (edge) => edge.fromNodeId !== step.nodeId && edge.toNodeId !== step.nodeId
+      );
       const nextStartNodeId =
-        state.config.runtimeGraph.startNodeId === step.nodeId ? fallbackNodeId : state.config.runtimeGraph.startNodeId;
+        state.config.runtimeGraph.startNodeId === step.nodeId
+          ? fallbackNodeId
+          : state.config.runtimeGraph.startNodeId;
       const nextState = withConfig(state, nextBoard, nextEdges, nextStartNodeId);
       return {
         ok: true,
         state: {
           ...nextState,
           players: nextState.players.map((player) =>
-            player.currentNodeId === step.nodeId ? { ...player, currentNodeId: fallbackNodeId } : player
+            player.currentNodeId === step.nodeId
+              ? { ...player, currentNodeId: fallbackNodeId }
+              : player
           ),
           pendingPathChoice:
             nextState.pendingPathChoice &&
@@ -138,7 +160,10 @@ export function applyGraphMutationAction(
         state: withConfig(
           state,
           board,
-          [...edges, { ...step.edge, gateCost: step.edge.gateCost ?? 0, weight: step.edge.weight ?? 1 }],
+          [
+            ...edges,
+            { ...step.edge, gateCost: step.edge.gateCost ?? 0, weight: step.edge.weight ?? 1 },
+          ],
           state.config.runtimeGraph.startNodeId
         ),
       };

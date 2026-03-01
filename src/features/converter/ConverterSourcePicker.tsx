@@ -32,7 +32,11 @@ type ConverterSourcePickerProps = {
   onSearchEroScripts?: () => void;
 };
 
-function ConverterSourcePickerSkeleton({ section }: { section: Extract<SourceSection, "round" | "hero"> }) {
+function ConverterSourcePickerSkeleton({
+  section,
+}: {
+  section: Extract<SourceSection, "round" | "hero">;
+}) {
   return (
     <div
       className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
@@ -269,10 +273,7 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
             </p>
 
             <div className="mt-4 space-y-3">
-              <label
-                className="block"
-                htmlFor="converter-website-video-url"
-              >
+              <label className="block" htmlFor="converter-website-video-url">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
                   <Trans>Video URL</Trans>
                 </span>
@@ -291,10 +292,7 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
               </label>
 
               {installWebFunscriptUrlEnabled && (
-                <label
-                  className="block"
-                  htmlFor="converter-website-funscript-url"
-                >
+                <label className="block" htmlFor="converter-website-funscript-url">
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
                     <Trans>Funscript URL</Trans>
                   </span>

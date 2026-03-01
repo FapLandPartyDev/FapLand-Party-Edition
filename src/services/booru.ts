@@ -183,7 +183,10 @@ export async function getCachedBooruMedia(prompt: string): Promise<BooruMediaIte
   return entry.media;
 }
 
-export async function searchBooruMedia(prompt: string, limitPerSource = 20): Promise<BooruMediaItem[]> {
+export async function searchBooruMedia(
+  prompt: string,
+  limitPerSource = 20
+): Promise<BooruMediaItem[]> {
   const searchPrompt = appendRandomSortTagForBooruSearch(prompt);
   if (!searchPrompt) return [];
   try {
@@ -196,7 +199,10 @@ export async function searchBooruMedia(prompt: string, limitPerSource = 20): Pro
   }
 }
 
-export async function refreshBooruMediaCache(prompt: string, limitPerSource = 20): Promise<BooruMediaItem[]> {
+export async function refreshBooruMediaCache(
+  prompt: string,
+  limitPerSource = 20
+): Promise<BooruMediaItem[]> {
   const normalizedPrompt = normalizePrompt(prompt);
   const promptKey = toPromptCacheKey(normalizedPrompt);
   if (!promptKey) return [];
@@ -227,7 +233,10 @@ export async function refreshBooruMediaCache(prompt: string, limitPerSource = 20
   }
 }
 
-export async function ensureBooruMediaCache(prompt: string, limitPerSource = 20): Promise<BooruMediaItem[]> {
+export async function ensureBooruMediaCache(
+  prompt: string,
+  limitPerSource = 20
+): Promise<BooruMediaItem[]> {
   const normalizedPrompt = normalizePrompt(prompt);
   const cachedEntry = await getCachedBooruMediaEntry(normalizedPrompt);
   if (cachedEntry && Date.now() - cachedEntry.updatedAtMs < BOORU_CACHE_MAX_AGE_MS) {
@@ -240,7 +249,7 @@ export async function ensureBooruMediaCache(prompt: string, limitPerSource = 20)
 
 export async function getCachedBooruMediaForDisplay(
   prompt: string,
-  limitPerSource = 20,
+  limitPerSource = 20
 ): Promise<BooruMediaItem[]> {
   const normalizedPrompt = normalizePrompt(prompt);
   const entry = await getCachedBooruMediaEntry(normalizedPrompt);

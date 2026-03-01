@@ -691,7 +691,8 @@ describe("dbRouter local highscore and multiplayer cache", () => {
             const [firstValue] = values;
             return (
               [...resourcesByIdRef.values()].find(
-                (entry) => entry.id === firstValue || (entry.roundId === firstValue && !entry.disabled)
+                (entry) =>
+                  entry.id === firstValue || (entry.roundId === firstValue && !entry.disabled)
               ) ?? null
             );
           }),

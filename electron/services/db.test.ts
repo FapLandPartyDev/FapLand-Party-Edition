@@ -210,7 +210,9 @@ describe("repairRoundHeroMetadataSchema", () => {
     await repairRoundHeroMetadataSchema(dbInstance);
 
     expect(execute).toHaveBeenCalledWith(
-      expect.stringContaining(`ALTER TABLE "Round" ADD COLUMN "tagsJson" text NOT NULL DEFAULT '[]'`)
+      expect.stringContaining(
+        `ALTER TABLE "Round" ADD COLUMN "tagsJson" text NOT NULL DEFAULT '[]'`
+      )
     );
     expect(execute).toHaveBeenCalledWith(
       expect.stringContaining(`ALTER TABLE "Hero" ADD COLUMN "tagsJson" text NOT NULL DEFAULT '[]'`)
@@ -279,7 +281,9 @@ describe("repairInstalledLibrarySchema", () => {
       )
     );
     expect(execute).toHaveBeenCalledWith(
-      expect.stringContaining(`ALTER TABLE "Round" ADD COLUMN "tagsJson" text NOT NULL DEFAULT '[]'`)
+      expect.stringContaining(
+        `ALTER TABLE "Round" ADD COLUMN "tagsJson" text NOT NULL DEFAULT '[]'`
+      )
     );
     expect(execute).toHaveBeenCalledWith(
       expect.stringContaining(`ALTER TABLE "Hero" ADD COLUMN "tagsJson" text NOT NULL DEFAULT '[]'`)

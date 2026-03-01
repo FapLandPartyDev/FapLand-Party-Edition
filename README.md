@@ -98,9 +98,9 @@ Packaged desktop OAuth callbacks use the `fland://auth/callback` protocol.
 
 1. Copy [`.example.env`](.
 2. /.example.env) to `.env`.
-2. Set `VITE_MULTIPLAYER_DEVELOPMENT_SUPABASE_ANON_KEY` to the anon key from your local Supabase instance.
-3. Run `npm run supabase:local:setup`.
-4. Run `npm run dev:multiplayer`.
+3. Set `VITE_MULTIPLAYER_DEVELOPMENT_SUPABASE_ANON_KEY` to the anon key from your local Supabase instance.
+4. Run `npm run supabase:local:setup`.
+5. Run `npm run dev:multiplayer`.
 
 `npm run dev:multiplayer` starts one Vite dev server and launches two Electron profiles with isolated user data (`mp1` and `mp2`) so you can test lobby flows locally.
 

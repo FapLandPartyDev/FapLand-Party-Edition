@@ -32,7 +32,9 @@ function makeConfig(): GameConfig {
       startNodeId: "start",
       pathChoiceTimeoutMs: 6000,
       edges: [{ id: "e1", fromNodeId: "start", toNodeId: "round-1", gateCost: 0, weight: 1 }],
-      edgesById: { e1: { id: "e1", fromNodeId: "start", toNodeId: "round-1", gateCost: 0, weight: 1 } },
+      edgesById: {
+        e1: { id: "e1", fromNodeId: "start", toNodeId: "round-1", gateCost: 0, weight: 1 },
+      },
       outgoingEdgeIdsByNodeId: { start: ["e1"] },
       randomRoundPoolsById: {},
       nodeIndexById: { start: 0, "round-1": 1 },

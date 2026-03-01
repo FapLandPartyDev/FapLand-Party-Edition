@@ -675,6 +675,8 @@ const ZPlaylistConfigCurrent = z
         antiPerkIncreasePerRound: z.number().min(0).max(1).default(0.015),
         maxIntermediaryProbability: z.number().min(0).max(1).default(1),
         maxAntiPerkProbability: z.number().min(0).max(1).default(0.75),
+        resetIntermediaryProbabilityAfterTrigger: z.boolean().default(false),
+        resetAntiPerkProbabilityAfterTrigger: z.boolean().default(false),
       })
       .strict(),
     economy: z

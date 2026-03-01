@@ -2113,10 +2113,7 @@ export function SettingsPage() {
                 </>
               ) : activeSection && activeSection.id === "general" ? (
                 <>
-                  <SettingsSectionCard
-                    section={activeSection}
-                    loading={isInitialLoading}
-                  />
+                  <SettingsSectionCard section={activeSection} loading={isInitialLoading} />
                   <AppZoomCard
                     zoomPercent={zoomPercent}
                     isLoading={isLoadingZoom}
@@ -2154,19 +2151,13 @@ export function SettingsPage() {
                 </>
               ) : activeSection && activeSection.id === "security-privacy" ? (
                 <>
-                  <SettingsSectionCard
-                    section={activeSection}
-                    loading={isInitialLoading}
-                  />
+                  <SettingsSectionCard section={activeSection} loading={isInitialLoading} />
                   <SecuritySettingsCard />
                 </>
               ) : activeSection && activeSection.id === "app" ? (
                 <>
                   <AppUpdateCard appUpdate={appUpdate} />
-                  <SettingsSectionCard
-                    section={activeSection}
-                    loading={isInitialLoading}
-                  />
+                  <SettingsSectionCard section={activeSection} loading={isInitialLoading} />
                   <MusicCacheLocationCard
                     configuredPath={musicCacheRootPath}
                     isLoading={isInitialLoading}
@@ -2265,10 +2256,7 @@ export function SettingsPage() {
                 />
               ) : activeSection && activeSection.id === "advanced" ? (
                 <>
-                  <SettingsSectionCard
-                    section={activeSection}
-                    loading={isInitialLoading}
-                  />
+                  <SettingsSectionCard section={activeSection} loading={isInitialLoading} />
                   <ProgramVersionsCard
                     diagnostics={binaryDiagnostics}
                     error={binaryDiagnosticsError}
@@ -2283,10 +2271,7 @@ export function SettingsPage() {
               ) : activeSection && activeSection.id === "credits" ? (
                 <CreditsCard />
               ) : activeSection ? (
-                <SettingsSectionCard
-                  section={activeSection}
-                  loading={isInitialLoading}
-                />
+                <SettingsSectionCard section={activeSection} loading={isInitialLoading} />
               ) : null}
             </div>
 
@@ -3491,8 +3476,7 @@ function HardwareSettingsCard({
       ? testAnimationNowMs - testDeviceStartedAtMs + offsetMs
       : 0;
   const normalizedTestElapsedMs =
-    ((testElapsedMs % HAPTICS_TEST_PERIOD_MS) + HAPTICS_TEST_PERIOD_MS) %
-    HAPTICS_TEST_PERIOD_MS;
+    ((testElapsedMs % HAPTICS_TEST_PERIOD_MS) + HAPTICS_TEST_PERIOD_MS) % HAPTICS_TEST_PERIOD_MS;
 
   return (
     <section
@@ -3597,7 +3581,8 @@ function HardwareSettingsCard({
                   />
                   <p className="ml-1 text-xs text-zinc-400">
                     <Trans>
-                      Start Intiface Central, start its server, then connect to a linear/position-capable device.
+                      Start Intiface Central, start its server, then connect to a
+                      linear/position-capable device.
                     </Trans>
                   </p>
                   {intifaceDeviceName || intifaceDeviceIndex !== null ? (
@@ -3689,14 +3674,14 @@ function HardwareSettingsCard({
                       </a>
                       <p className="ml-1 text-xs text-zinc-400">
                         <Trans>
-                          Do not use your access token here. Create or select an app at Handy and paste
-                          the application ID instead.
+                          Do not use your access token here. Create or select an app at Handy and
+                          paste the application ID instead.
                         </Trans>
                       </p>
                       <p className="ml-1 text-xs text-zinc-400">
                         <Trans>
-                          Leave custom mode off unless you explicitly want to override the built-in app
-                          identity.
+                          Leave custom mode off unless you explicitly want to override the built-in
+                          app identity.
                         </Trans>
                       </p>
                     </div>
@@ -3758,70 +3743,74 @@ function HardwareSettingsCard({
         </div>
 
         {deviceAnimationTestEnabled ? (
-        <div
-          className="rounded-2xl border border-fuchsia-300/20 bg-[linear-gradient(160deg,rgba(31,10,38,0.74),rgba(8,18,32,0.74))] p-4 shadow-[0_0_32px_rgba(217,70,239,0.08)] transition-colors duration-200 hover:border-fuchsia-300/35"
-          data-testid="haptics-test-device-layer"
-          onMouseEnter={playHoverSound}
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] text-fuchsia-200/80">
-                <Trans>Test Device</Trans>
-              </p>
-              <p className="mt-1 text-sm text-zinc-200">
-                <Trans>
-                  Runs a generated motion loop with a matching visual animation for sync checks.
-                </Trans>
-              </p>
+          <div
+            className="rounded-2xl border border-fuchsia-300/20 bg-[linear-gradient(160deg,rgba(31,10,38,0.74),rgba(8,18,32,0.74))] p-4 shadow-[0_0_32px_rgba(217,70,239,0.08)] transition-colors duration-200 hover:border-fuchsia-300/35"
+            data-testid="haptics-test-device-layer"
+            onMouseEnter={playHoverSound}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.22em] text-fuchsia-200/80">
+                  <Trans>Test Device</Trans>
+                </p>
+                <p className="mt-1 text-sm text-zinc-200">
+                  <Trans>
+                    Runs a generated motion loop with a matching visual animation for sync checks.
+                  </Trans>
+                </p>
+              </div>
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
+                  testDeviceRunning
+                    ? "border-fuchsia-300/40 bg-fuchsia-500/15 text-fuchsia-100"
+                    : testDeviceStarting
+                      ? "border-cyan-300/40 bg-cyan-500/15 text-cyan-100"
+                      : "border-zinc-500/40 bg-zinc-800/70 text-zinc-300"
+                }`}
+              >
+                {testDeviceRunning ? t`Running` : testDeviceStarting ? t`Syncing` : t`Stopped`}
+              </span>
             </div>
-            <span
-              className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
-                testDeviceRunning
-                  ? "border-fuchsia-300/40 bg-fuchsia-500/15 text-fuchsia-100"
+
+            <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-black/35 p-4">
+              <div className="relative h-28 rounded-lg border border-fuchsia-300/15 bg-[radial-gradient(circle_at_50%_50%,rgba(244,63,94,0.18),rgba(2,6,23,0.9)_68%)]">
+                <AntiPerkBeatbar
+                  actions={HAPTICS_TEST_ACTIONS}
+                  beatbarEvents={HAPTICS_TEST_BEATBAR_EVENTS}
+                  beatHits={HAPTICS_TEST_BEAT_HITS}
+                  elapsedMs={normalizedTestElapsedMs}
+                  showBeatbar={false}
+                  showBall
+                  style={HAPTICS_TEST_BEATBAR_STYLE}
+                  className="pointer-events-none absolute inset-x-0 top-1/2 z-10 mx-auto w-full -translate-y-1/2 px-2"
+                />
+              </div>
+            </div>
+
+            {testDeviceError ? (
+              <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm font-[family-name:var(--font-jetbrains-mono)] text-amber-300">
+                {testDeviceError}
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={!connected || isConnecting || testDeviceStarting}
+                onClick={() => {
+                  playSelectSound();
+                  void (testDeviceRunning ? stopTestDevice() : startTestDevice());
+                }}
+                className="inline-flex rounded-xl border border-fuchsia-300/40 bg-fuchsia-500/15 px-4 py-2 text-sm font-semibold text-fuchsia-100 transition-all duration-200 hover:border-fuchsia-200/70 hover:bg-fuchsia-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {testDeviceRunning
+                  ? t`Stop Test`
                   : testDeviceStarting
-                    ? "border-cyan-300/40 bg-cyan-500/15 text-cyan-100"
-                  : "border-zinc-500/40 bg-zinc-800/70 text-zinc-300"
-              }`}
-            >
-              {testDeviceRunning ? t`Running` : testDeviceStarting ? t`Syncing` : t`Stopped`}
-            </span>
-          </div>
-
-          <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-black/35 p-4">
-            <div className="relative h-28 rounded-lg border border-fuchsia-300/15 bg-[radial-gradient(circle_at_50%_50%,rgba(244,63,94,0.18),rgba(2,6,23,0.9)_68%)]">
-              <AntiPerkBeatbar
-                actions={HAPTICS_TEST_ACTIONS}
-                beatbarEvents={HAPTICS_TEST_BEATBAR_EVENTS}
-                beatHits={HAPTICS_TEST_BEAT_HITS}
-                elapsedMs={normalizedTestElapsedMs}
-                showBeatbar={false}
-                showBall
-                style={HAPTICS_TEST_BEATBAR_STYLE}
-                className="pointer-events-none absolute inset-x-0 top-1/2 z-10 mx-auto w-full -translate-y-1/2 px-2"
-              />
+                    ? t`Syncing...`
+                    : t`Start Test`}
+              </button>
             </div>
           </div>
-
-          {testDeviceError ? (
-            <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm font-[family-name:var(--font-jetbrains-mono)] text-amber-300">
-              {testDeviceError}
-            </div>
-          ) : null}
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={!connected || isConnecting || testDeviceStarting}
-              onClick={() => {
-                playSelectSound();
-                void (testDeviceRunning ? stopTestDevice() : startTestDevice());
-              }}
-              className="inline-flex rounded-xl border border-fuchsia-300/40 bg-fuchsia-500/15 px-4 py-2 text-sm font-semibold text-fuchsia-100 transition-all duration-200 hover:border-fuchsia-200/70 hover:bg-fuchsia-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {testDeviceRunning ? t`Stop Test` : testDeviceStarting ? t`Syncing...` : t`Start Test`}
-            </button>
-          </div>
-        </div>
         ) : null}
 
         <div
@@ -7249,9 +7238,7 @@ function MigrationCard() {
               <Trans>Migrate Storage Paths</Trans>
             </h2>
             <p className="mt-2 text-sm text-zinc-400">
-              <Trans>
-                All cache data will be copied to:
-              </Trans>
+              <Trans>All cache data will be copied to:</Trans>
             </p>
             <p className="mt-1 break-all font-[family-name:var(--font-jetbrains-mono)] text-sm text-violet-200">
               {targetDirectory}
@@ -7448,7 +7435,13 @@ function MigrateToPortableCard() {
         {detection?.valid ? (
           <div className="mt-3 space-y-1 rounded-xl border border-emerald-300/25 bg-black/25 p-3 text-sm">
             <div className="flex items-center gap-2 text-emerald-100">
-              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <svg
+                className="h-4 w-4 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
               <Trans>Valid portable installation detected</Trans>

@@ -130,15 +130,11 @@ function collectTreeEntries(node, entries, visitedPaths) {
 function getProductionTreeFromNpm() {
   try {
     const command = getNpmCommand();
-    const output = execFileSync(
-      command,
-      ["ls", "--omit=dev", "--all", "--json", "--long"],
-      {
-        cwd,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      }
-    );
+    const output = execFileSync(command, ["ls", "--omit=dev", "--all", "--json", "--long"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
 
     return JSON.parse(output);
   } catch (error) {

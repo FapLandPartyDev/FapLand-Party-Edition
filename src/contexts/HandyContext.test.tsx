@@ -4,7 +4,9 @@ import { HandyProvider, useHandy } from "./HandyContext";
 import type { HapticsConnectionResult } from "../services/haptics/types";
 
 const mocks = vi.hoisted(() => ({
-  verifyConnection: vi.fn(async (): Promise<HapticsConnectionResult> => ({ success: true, provider: "thehandy" })),
+  verifyConnection: vi.fn(
+    async (): Promise<HapticsConnectionResult> => ({ success: true, provider: "thehandy" })
+  ),
   issueHandySession: vi.fn(async () => ({
     provider: "thehandy" as const,
     mode: "appId" as const,

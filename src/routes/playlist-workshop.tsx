@@ -89,6 +89,8 @@ type EditableLinearSetup = {
       max: number;
     };
   };
+  resetIntermediaryProbabilityAfterTrigger: boolean;
+  resetAntiPerkProbabilityAfterTrigger: boolean;
   scorePerCumRoundSuccess: number;
   diceMin: number;
   diceMax: number;
@@ -539,6 +541,10 @@ function toEditableSetup(
           max: config.probabilityScaling.maxAntiPerkProbability,
         },
       },
+      resetIntermediaryProbabilityAfterTrigger:
+        config.probabilityScaling.resetIntermediaryProbabilityAfterTrigger ?? false,
+      resetAntiPerkProbabilityAfterTrigger:
+        config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger ?? false,
       scorePerCumRoundSuccess: config.economy.scorePerCumRoundSuccess,
       diceMin: config.dice?.min ?? 1,
       diceMax: config.dice?.max ?? 6,
@@ -584,6 +590,10 @@ function toEditableSetup(
         max: config.probabilityScaling.maxAntiPerkProbability,
       },
     },
+    resetIntermediaryProbabilityAfterTrigger:
+      config.probabilityScaling.resetIntermediaryProbabilityAfterTrigger ?? false,
+    resetAntiPerkProbabilityAfterTrigger:
+      config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger ?? false,
     scorePerCumRoundSuccess: config.economy.scorePerCumRoundSuccess,
     diceMin: config.dice?.min ?? 1,
     diceMax: config.dice?.max ?? 6,
@@ -1662,6 +1672,9 @@ function PlaylistWorkshopPage() {
           0,
           Math.min(1, normalizedSetup.probabilities.antiPerk.max)
         ),
+        resetIntermediaryProbabilityAfterTrigger:
+          normalizedSetup.resetIntermediaryProbabilityAfterTrigger,
+        resetAntiPerkProbabilityAfterTrigger: normalizedSetup.resetAntiPerkProbabilityAfterTrigger,
       },
       economy: {
         ...activePlaylist.config.economy,
@@ -3552,6 +3565,88 @@ function PlaylistWorkshopPage() {
                         }))
                       }
                     />
+                    <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="text-sm font-semibold text-white">
+                            <Trans>Reset Intermediary Chance After Trigger</Trans>
+                          </div>
+                          <p className="text-xs leading-relaxed text-white/50">
+                            <Trans>
+                              When enabled, the intermediary chance resets to its initial value
+                              after a round where intermediaries were triggered.
+                            </Trans>
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label={i18n._({
+                            id: "playlist-workshop.reset-intermediary-chance.toggle",
+                            message: "Reset intermediary chance after trigger toggle",
+                          })}
+                          onClick={() =>
+                            setSetup((prev) => ({
+                              ...prev,
+                              resetIntermediaryProbabilityAfterTrigger:
+                                !prev.resetIntermediaryProbabilityAfterTrigger,
+                            }))
+                          }
+                          disabled={!isLinearEditable}
+                          className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                            setup.resetIntermediaryProbabilityAfterTrigger
+                              ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-100"
+                              : "border-white/10 bg-black/30 text-white/70 hover:border-white/20 hover:text-white"
+                          }`}
+                        >
+                          {setup.resetIntermediaryProbabilityAfterTrigger ? (
+                            <Trans>Enabled</Trans>
+                          ) : (
+                            <Trans>Disabled</Trans>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="text-sm font-semibold text-white">
+                            <Trans>Reset Anti-Perk Chance After Trigger</Trans>
+                          </div>
+                          <p className="text-xs leading-relaxed text-white/50">
+                            <Trans>
+                              When enabled, the anti-perk chance resets to its initial value after a
+                              round where an anti-perk was triggered.
+                            </Trans>
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label={i18n._({
+                            id: "playlist-workshop.reset-antiperk-chance.toggle",
+                            message: "Reset anti-perk chance after trigger toggle",
+                          })}
+                          onClick={() =>
+                            setSetup((prev) => ({
+                              ...prev,
+                              resetAntiPerkProbabilityAfterTrigger:
+                                !prev.resetAntiPerkProbabilityAfterTrigger,
+                            }))
+                          }
+                          disabled={!isLinearEditable}
+                          className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                            setup.resetAntiPerkProbabilityAfterTrigger
+                              ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-100"
+                              : "border-white/10 bg-black/30 text-white/70 hover:border-white/20 hover:text-white"
+                          }`}
+                        >
+                          {setup.resetAntiPerkProbabilityAfterTrigger ? (
+                            <Trans>Enabled</Trans>
+                          ) : (
+                            <Trans>Disabled</Trans>
+                          )}
+                        </button>
+                      </div>
+                    </div>
                     <NumberInput
                       label={abbreviateNsfwText(t`Cum Round Bonus Score`, sfwMode)}
                       description={abbreviateNsfwText(
@@ -4338,8 +4433,8 @@ function NewPlaylistDialog({
             </div>
             <div className="mt-1 text-xs text-zinc-300">
               <Trans>
-                Infinite run with random rounds. Dice locked to 1. No dice-related perks.
-                Anti-perks can be toggled in the playlist settings.
+                Infinite run with random rounds. Dice locked to 1. No dice-related perks. Anti-perks
+                can be toggled in the playlist settings.
               </Trans>
             </div>
           </button>

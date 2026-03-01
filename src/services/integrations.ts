@@ -2,7 +2,9 @@ import { trpc } from "./trpc";
 import { invalidateInstalledRoundCaches } from "./installedRoundsCache";
 
 export type ExternalSource = Awaited<ReturnType<typeof trpc.integration.listSources.query>>[number];
-export type IntegrationSyncStatus = Awaited<ReturnType<typeof trpc.integration.getSyncStatus.query>>;
+export type IntegrationSyncStatus = Awaited<
+  ReturnType<typeof trpc.integration.getSyncStatus.query>
+>;
 export type StashTagResult = Awaited<ReturnType<typeof trpc.integration.searchStashTags.query>>;
 
 async function withInstalledRoundCacheInvalidation<T>(action: () => Promise<T>): Promise<T> {
@@ -21,7 +23,11 @@ export const integrations = {
     apiKey?: string | null;
     username?: string | null;
     password?: string | null;
-    tagSelections?: Array<{ id: string; name: string; roundTypeFallback: "Normal" | "Interjection" | "Cum" }>;
+    tagSelections?: Array<{
+      id: string;
+      name: string;
+      roundTypeFallback: "Normal" | "Interjection" | "Cum";
+    }>;
   }) => withInstalledRoundCacheInvalidation(() => trpc.integration.createStashSource.mutate(input)),
   updateStashSource: (input: {
     sourceId: string;
@@ -32,7 +38,11 @@ export const integrations = {
     apiKey?: string | null;
     username?: string | null;
     password?: string | null;
-    tagSelections?: Array<{ id: string; name: string; roundTypeFallback: "Normal" | "Interjection" | "Cum" }>;
+    tagSelections?: Array<{
+      id: string;
+      name: string;
+      roundTypeFallback: "Normal" | "Interjection" | "Cum";
+    }>;
   }) => withInstalledRoundCacheInvalidation(() => trpc.integration.updateStashSource.mutate(input)),
   deleteSource: (sourceId: string) =>
     withInstalledRoundCacheInvalidation(() => trpc.integration.deleteSource.mutate({ sourceId })),
@@ -40,7 +50,8 @@ export const integrations = {
     withInstalledRoundCacheInvalidation(() =>
       trpc.integration.setSourceEnabled.mutate({ sourceId, enabled })
     ),
-  testStashConnection: (sourceId: string) => trpc.integration.testStashConnection.mutate({ sourceId }),
+  testStashConnection: (sourceId: string) =>
+    trpc.integration.testStashConnection.mutate({ sourceId }),
   searchStashTags: (input: { sourceId: string; query: string; page?: number; perPage?: number }) =>
     trpc.integration.searchStashTags.query({
       sourceId: input.sourceId,

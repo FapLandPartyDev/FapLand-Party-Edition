@@ -22,7 +22,13 @@ function makeConfig(): GameConfig {
         { id: "edge-b", fromNodeId: "event-1", toNodeId: "end", gateCost: 0, weight: 1 },
       ],
       edgesById: {
-        "edge-a": { id: "edge-a", fromNodeId: "start", toNodeId: "event-1", gateCost: 0, weight: 1 },
+        "edge-a": {
+          id: "edge-a",
+          fromNodeId: "start",
+          toNodeId: "event-1",
+          gateCost: 0,
+          weight: 1,
+        },
         "edge-b": { id: "edge-b", fromNodeId: "event-1", toNodeId: "end", gateCost: 0, weight: 1 },
       },
       outgoingEdgeIdsByNodeId: {

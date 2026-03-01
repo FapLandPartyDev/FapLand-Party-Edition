@@ -82,9 +82,9 @@ export function SfwOneTimeOverridePrompt({
               {t`Show this ${{ mediaLabel }} anyway?`}
             </h3>
             <p className="mt-2 text-sm text-zinc-300">
-              {t`This only reveals the current ${
-                { mediaLabel }
-              } for this view. Safe mode stays enabled globally.`}
+              {t`This only reveals the current ${{
+                mediaLabel,
+              }} for this view. Safe mode stays enabled globally.`}
             </p>
             <div className="mt-5 flex items-center justify-end gap-3">
               <button

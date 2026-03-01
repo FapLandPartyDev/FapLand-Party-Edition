@@ -25,9 +25,7 @@ export const HotkeyOverlay: React.FC<HotkeyOverlayProps> = ({ visible }) => {
             <div className="space-y-1.5">
               {group.shortcuts.map((shortcut) => (
                 <div key={shortcut.id} className="flex items-center gap-2 text-xs">
-                  <kbd className="converter-kbd min-w-[6rem] text-center">
-                    {shortcut.keysLabel}
-                  </kbd>
+                  <kbd className="converter-kbd min-w-[6rem] text-center">{shortcut.keysLabel}</kbd>
                   <span className="text-zinc-300">
                     {abbreviateNsfwText(shortcut.description, sfwMode)}
                   </span>

@@ -109,19 +109,21 @@ export function useAppUpdate() {
     return "No update check has run yet.";
   }, [state.downloadUrl, state.errorMessage, state.latestVersion, state.status]);
 
-  const menuBadge = state.status === "update_available" && state.latestVersion
-    ? `v${state.latestVersion}`
-    : state.status === "error"
-      ? "Retry"
-      : undefined;
+  const menuBadge =
+    state.status === "update_available" && state.latestVersion
+      ? `v${state.latestVersion}`
+      : state.status === "error"
+        ? "Retry"
+        : undefined;
 
-  const menuTone: "default" | "success" | "warning" | "danger" = state.status === "update_available"
-    ? "warning"
-    : state.status === "error"
-      ? "danger"
-      : state.status === "up_to_date"
-        ? "success"
-        : "default";
+  const menuTone: "default" | "success" | "warning" | "danger" =
+    state.status === "update_available"
+      ? "warning"
+      : state.status === "error"
+        ? "danger"
+        : state.status === "up_to_date"
+          ? "success"
+          : "default";
 
   const triggerPrimaryAction = useCallback(async () => {
     if (isActing) return;

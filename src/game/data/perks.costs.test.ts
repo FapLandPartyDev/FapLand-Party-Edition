@@ -36,6 +36,7 @@ const EXPECTED_COSTS: Record<string, number> = {
   "sticky-fingers": 280,
   "snake-eyes": 320,
   "im-close": 690,
+  "full-heal": 350,
 };
 
 const EXPECTED_RARITIES: Record<string, PerkRarity> = {
@@ -71,6 +72,7 @@ const EXPECTED_RARITIES: Record<string, PerkRarity> = {
   "sticky-fingers": "epic",
   "snake-eyes": "legendary",
   "im-close": "legendary",
+  "full-heal": "epic",
 };
 
 describe("perk cost balance", () => {

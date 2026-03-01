@@ -1,8 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  getMultiplayerContext,
-  getSupabaseClientForProfile,
-} from "./supabaseClient";
+import { getMultiplayerContext, getSupabaseClientForProfile } from "./supabaseClient";
 import type {
   MultiplayerAntiPerkEvent,
   MultiplayerBanRecord,
@@ -20,7 +17,12 @@ import type {
 } from "./types";
 
 function toErrorMessage(error: unknown, fallback: string): string {
-  if (error && typeof error === "object" && "message" in error && typeof (error as { message: unknown }).message === "string") {
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message: unknown }).message === "string"
+  ) {
     return (error as { message: string }).message;
   }
   return fallback;
@@ -66,7 +68,12 @@ function mapLobbyPlayer(row: Record<string, unknown>): MultiplayerLobbyPlayer {
     joinedAt: String(row.joined_at),
     lastSeenAt: String(row.last_seen_at),
     finishAt: row.finish_at ? String(row.finish_at) : null,
-    finalScore: typeof row.final_score === "number" ? row.final_score : row.final_score ? Number(row.final_score) : null,
+    finalScore:
+      typeof row.final_score === "number"
+        ? row.final_score
+        : row.final_score
+          ? Number(row.final_score)
+          : null,
     finalPayloadJson: row.final_payload_json ?? {},
   };
 }
@@ -76,13 +83,19 @@ function mapProgress(row: Record<string, unknown>): MultiplayerPlayerProgress {
     lobbyId: String(row.lobby_id),
     playerId: String(row.player_id),
     positionNodeId: row.position_node_id ? String(row.position_node_id) : null,
-    positionIndex: typeof row.position_index === "number" ? row.position_index : Number(row.position_index ?? 0),
+    positionIndex:
+      typeof row.position_index === "number" ? row.position_index : Number(row.position_index ?? 0),
     money: typeof row.money === "number" ? row.money : Number(row.money ?? 0),
     score: typeof row.score === "number" ? row.score : Number(row.score ?? 0),
     statsJson: row.stats_json ?? {},
     inventoryJson: row.inventory_json ?? [],
     activeEffectsJson: row.active_effects_json ?? [],
-    lastRoll: typeof row.last_roll === "number" ? row.last_roll : row.last_roll ? Number(row.last_roll) : null,
+    lastRoll:
+      typeof row.last_roll === "number"
+        ? row.last_roll
+        : row.last_roll
+          ? Number(row.last_roll)
+          : null,
     updatedAt: String(row.updated_at),
   };
 }
@@ -162,7 +175,9 @@ function mapLobbyJoinPreview(row: Record<string, unknown>): MultiplayerLobbyJoin
   };
 }
 
-async function withClient(profile?: MultiplayerServerProfile): Promise<{ client: SupabaseClient; userId: string; machineIdHash: string }> {
+async function withClient(
+  profile?: MultiplayerServerProfile
+): Promise<{ client: SupabaseClient; userId: string; machineIdHash: string }> {
   const { client, user, machineIdHash } = await getMultiplayerContext(profile);
   return {
     client,
@@ -171,7 +186,10 @@ async function withClient(profile?: MultiplayerServerProfile): Promise<{ client:
   };
 }
 
-export async function getLobbyByInviteCode(inviteCode: string, profile?: MultiplayerServerProfile): Promise<MultiplayerLobby | null> {
+export async function getLobbyByInviteCode(
+  inviteCode: string,
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerLobby | null> {
   const { client } = await getSupabaseClientForProfile(profile);
   const { data, error } = await client
     .from("mp_lobbies")
@@ -187,7 +205,10 @@ export async function getLobbyByInviteCode(inviteCode: string, profile?: Multipl
   return mapLobby(data as Record<string, unknown>);
 }
 
-export async function getLobbyById(lobbyId: string, profile?: MultiplayerServerProfile): Promise<MultiplayerLobby | null> {
+export async function getLobbyById(
+  lobbyId: string,
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerLobby | null> {
   const { client } = await getSupabaseClientForProfile(profile);
   const { data, error } = await client
     .from("mp_lobbies")
@@ -203,7 +224,10 @@ export async function getLobbyById(lobbyId: string, profile?: MultiplayerServerP
   return mapLobby(data as Record<string, unknown>);
 }
 
-export async function listLobbyPlayers(lobbyId: string, profile?: MultiplayerServerProfile): Promise<MultiplayerLobbyPlayer[]> {
+export async function listLobbyPlayers(
+  lobbyId: string,
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerLobbyPlayer[]> {
   const { client } = await getSupabaseClientForProfile(profile);
   const { data, error } = await client
     .from("mp_lobby_players")
@@ -215,7 +239,10 @@ export async function listLobbyPlayers(lobbyId: string, profile?: MultiplayerSer
   return (data ?? []).map((row) => mapLobbyPlayer(row as Record<string, unknown>));
 }
 
-export async function listLobbyProgress(lobbyId: string, profile?: MultiplayerServerProfile): Promise<Record<string, MultiplayerPlayerProgress>> {
+export async function listLobbyProgress(
+  lobbyId: string,
+  profile?: MultiplayerServerProfile
+): Promise<Record<string, MultiplayerPlayerProgress>> {
   const { client } = await getSupabaseClientForProfile(profile);
   const { data, error } = await client
     .from("mp_player_progress")
@@ -231,7 +258,10 @@ export async function listLobbyProgress(lobbyId: string, profile?: MultiplayerSe
   }, {});
 }
 
-export async function getLobbySnapshot(lobbyId: string, profile?: MultiplayerServerProfile): Promise<MultiplayerLobbySnapshot | null> {
+export async function getLobbySnapshot(
+  lobbyId: string,
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerLobbySnapshot | null> {
   const lobby = await getLobbyById(lobbyId, profile);
   if (!lobby) return null;
 
@@ -243,7 +273,10 @@ export async function getLobbySnapshot(lobbyId: string, profile?: MultiplayerSer
   return { lobby, players, progressByPlayerId };
 }
 
-export async function getOwnLobbyPlayer(lobbyId: string, profile?: MultiplayerServerProfile): Promise<MultiplayerLobbyPlayer | null> {
+export async function getOwnLobbyPlayer(
+  lobbyId: string,
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerLobbyPlayer | null> {
   const { client, userId } = await withClient(profile);
   const { data, error } = await client
     .from("mp_lobby_players")
@@ -260,14 +293,17 @@ export async function getOwnLobbyPlayer(lobbyId: string, profile?: MultiplayerSe
   return mapLobbyPlayer(data as Record<string, unknown>);
 }
 
-export async function createLobby(input: {
-  name: string;
-  playlistSnapshotJson: unknown;
-  displayName: string;
-  allowLateJoin?: boolean;
-  isPublic?: boolean;
-  serverLabel?: string | null;
-}, profile?: MultiplayerServerProfile): Promise<MultiplayerCreateLobbyResult> {
+export async function createLobby(
+  input: {
+    name: string;
+    playlistSnapshotJson: unknown;
+    displayName: string;
+    allowLateJoin?: boolean;
+    isPublic?: boolean;
+    serverLabel?: string | null;
+  },
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerCreateLobbyResult> {
   const { client, machineIdHash } = await withClient(profile);
   const { data, error } = await client.rpc("mp_create_lobby", {
     p_name: input.name,
@@ -290,10 +326,13 @@ export async function createLobby(input: {
   };
 }
 
-export async function joinLobby(input: {
-  inviteCode: string;
-  displayName: string;
-}, profile?: MultiplayerServerProfile): Promise<MultiplayerJoinLobbyResult> {
+export async function joinLobby(
+  input: {
+    inviteCode: string;
+    displayName: string;
+  },
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerJoinLobbyResult> {
   const { client, machineIdHash } = await withClient(profile);
   const { data, error } = await client.rpc("mp_join_lobby", {
     p_invite_code: input.inviteCode,
@@ -313,12 +352,15 @@ export async function joinLobby(input: {
   };
 }
 
-export async function setLobbyReady(input: {
-  lobbyId: string;
-  playerId: string;
-  mappingJson: unknown;
-  unresolvedCount: number;
-}, profile?: MultiplayerServerProfile): Promise<void> {
+export async function setLobbyReady(
+  input: {
+    lobbyId: string;
+    playerId: string;
+    mappingJson: unknown;
+    unresolvedCount: number;
+  },
+  profile?: MultiplayerServerProfile
+): Promise<void> {
   const { client } = await withClient(profile);
   const { error } = await client.rpc("mp_set_ready", {
     p_lobby_id: input.lobbyId,
@@ -330,7 +372,10 @@ export async function setLobbyReady(input: {
   assertNoSupabaseError(error, "Failed to set ready state.");
 }
 
-export async function startLobbyForAll(lobbyId: string, profile?: MultiplayerServerProfile): Promise<void> {
+export async function startLobbyForAll(
+  lobbyId: string,
+  profile?: MultiplayerServerProfile
+): Promise<void> {
   const { client } = await withClient(profile);
   const { error } = await client.rpc("mp_start_for_all", {
     p_lobby_id: lobbyId,
@@ -339,7 +384,11 @@ export async function startLobbyForAll(lobbyId: string, profile?: MultiplayerSer
   assertNoSupabaseError(error, "Failed to start lobby for all players.");
 }
 
-export async function setLobbyOpenState(lobbyId: string, isOpen: boolean, profile?: MultiplayerServerProfile): Promise<void> {
+export async function setLobbyOpenState(
+  lobbyId: string,
+  isOpen: boolean,
+  profile?: MultiplayerServerProfile
+): Promise<void> {
   const { client } = await withClient(profile);
   const { error } = await client.rpc("mp_set_lobby_open", {
     p_lobby_id: lobbyId,
@@ -363,7 +412,11 @@ export async function setLobbyPublicState(
   assertNoSupabaseError(error, "Failed to update lobby visibility.");
 }
 
-export async function kickLobbyPlayer(lobbyId: string, targetPlayerId: string, profile?: MultiplayerServerProfile): Promise<void> {
+export async function kickLobbyPlayer(
+  lobbyId: string,
+  targetPlayerId: string,
+  profile?: MultiplayerServerProfile
+): Promise<void> {
   const { client } = await withClient(profile);
   const { error } = await client.rpc("mp_kick_player", {
     p_lobby_id: lobbyId,
@@ -373,7 +426,12 @@ export async function kickLobbyPlayer(lobbyId: string, targetPlayerId: string, p
   assertNoSupabaseError(error, "Failed to kick player.");
 }
 
-export async function banLobbyPlayer(lobbyId: string, targetPlayerId: string, reason: string | null, profile?: MultiplayerServerProfile): Promise<string> {
+export async function banLobbyPlayer(
+  lobbyId: string,
+  targetPlayerId: string,
+  reason: string | null,
+  profile?: MultiplayerServerProfile
+): Promise<string> {
   const { client } = await withClient(profile);
   const { data, error } = await client.rpc("mp_ban_player", {
     p_lobby_id: lobbyId,
@@ -385,7 +443,9 @@ export async function banLobbyPlayer(lobbyId: string, targetPlayerId: string, re
   return String(data);
 }
 
-export async function listActiveBans(profile?: MultiplayerServerProfile): Promise<MultiplayerBanRecord[]> {
+export async function listActiveBans(
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerBanRecord[]> {
   const { client } = await withClient(profile);
   const { data, error } = await client
     .from("mp_bans")
@@ -397,7 +457,10 @@ export async function listActiveBans(profile?: MultiplayerServerProfile): Promis
   return (data ?? []).map((row) => mapBan(row as Record<string, unknown>));
 }
 
-export async function unbanPlayer(banId: string, profile?: MultiplayerServerProfile): Promise<void> {
+export async function unbanPlayer(
+  banId: string,
+  profile?: MultiplayerServerProfile
+): Promise<void> {
   const { client } = await withClient(profile);
   const { error } = await client.rpc("mp_unban", {
     p_ban_id: banId,
@@ -406,14 +469,17 @@ export async function unbanPlayer(banId: string, profile?: MultiplayerServerProf
   assertNoSupabaseError(error, "Failed to unban player.");
 }
 
-export async function sendAntiPerk(input: {
-  lobbyId: string;
-  senderPlayerId: string;
-  targetPlayerId: string;
-  perkId: string;
-  cost: number;
-  cooldownSeconds?: number;
-}, profile?: MultiplayerServerProfile): Promise<MultiplayerSendAntiPerkResult> {
+export async function sendAntiPerk(
+  input: {
+    lobbyId: string;
+    senderPlayerId: string;
+    targetPlayerId: string;
+    perkId: string;
+    cost: number;
+    cooldownSeconds?: number;
+  },
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerSendAntiPerkResult> {
   const { client } = await withClient(profile);
   const { data, error } = await client.rpc("mp_send_anti_perk", {
     p_lobby_id: input.lobbyId,
@@ -440,18 +506,21 @@ export async function sendAntiPerk(input: {
   };
 }
 
-export async function updateOwnProgress(input: {
-  lobbyId: string;
-  playerId: string;
-  positionNodeId: string | null;
-  positionIndex: number;
-  money: number;
-  score: number;
-  statsJson: unknown;
-  inventoryJson: unknown;
-  activeEffectsJson: unknown;
-  lastRoll: number | null;
-}, profile?: MultiplayerServerProfile): Promise<void> {
+export async function updateOwnProgress(
+  input: {
+    lobbyId: string;
+    playerId: string;
+    positionNodeId: string | null;
+    positionIndex: number;
+    money: number;
+    score: number;
+    statsJson: unknown;
+    inventoryJson: unknown;
+    activeEffectsJson: unknown;
+    lastRoll: number | null;
+  },
+  profile?: MultiplayerServerProfile
+): Promise<void> {
   const { client } = await withClient(profile);
   const { error } = await client.rpc("mp_update_progress", {
     p_lobby_id: input.lobbyId,
@@ -472,7 +541,11 @@ export async function updateOwnProgress(input: {
   assertNoSupabaseError(error, "Failed to update player progress.");
 }
 
-export async function heartbeat(lobbyId: string, playerId: string, profile?: MultiplayerServerProfile): Promise<void> {
+export async function heartbeat(
+  lobbyId: string,
+  playerId: string,
+  profile?: MultiplayerServerProfile
+): Promise<void> {
   const { client } = await withClient(profile);
   const { error } = await client.rpc("mp_heartbeat", {
     p_lobby_id: lobbyId,
@@ -482,7 +555,11 @@ export async function heartbeat(lobbyId: string, playerId: string, profile?: Mul
   assertNoSupabaseError(error, "Failed to heartbeat.");
 }
 
-export async function markDisconnected(lobbyId: string, playerId: string, profile?: MultiplayerServerProfile): Promise<void> {
+export async function markDisconnected(
+  lobbyId: string,
+  playerId: string,
+  profile?: MultiplayerServerProfile
+): Promise<void> {
   const { client } = await withClient(profile);
   const { error } = await client.rpc("mp_mark_disconnected", {
     p_lobby_id: lobbyId,
@@ -492,7 +569,11 @@ export async function markDisconnected(lobbyId: string, playerId: string, profil
   assertNoSupabaseError(error, "Failed to mark disconnected.");
 }
 
-export async function sweepForfeits(lobbyId: string, graceSeconds = 300, profile?: MultiplayerServerProfile): Promise<number> {
+export async function sweepForfeits(
+  lobbyId: string,
+  graceSeconds = 300,
+  profile?: MultiplayerServerProfile
+): Promise<number> {
   const { client } = await withClient(profile);
   const { data, error } = await client.rpc("mp_sweep_forfeits", {
     p_lobby_id: lobbyId,
@@ -508,7 +589,7 @@ export async function finishPlayer(
   playerId: string,
   finalScore: number,
   options?: { finalState?: "finished" | "came" | "forfeited"; finalPayload?: unknown },
-  profile?: MultiplayerServerProfile,
+  profile?: MultiplayerServerProfile
 ): Promise<void> {
   const { client } = await withClient(profile);
   const { error } = await client.rpc("mp_finish_player", {
@@ -522,7 +603,10 @@ export async function finishPlayer(
   assertNoSupabaseError(error, "Failed to finish player.");
 }
 
-export async function finalizeMatchIfComplete(lobbyId: string, profile?: MultiplayerServerProfile): Promise<boolean> {
+export async function finalizeMatchIfComplete(
+  lobbyId: string,
+  profile?: MultiplayerServerProfile
+): Promise<boolean> {
   const { client } = await withClient(profile);
   const { data, error } = await client.rpc("mp_finalize_match_if_complete", {
     p_lobby_id: lobbyId,
@@ -532,7 +616,10 @@ export async function finalizeMatchIfComplete(lobbyId: string, profile?: Multipl
   return Boolean(data);
 }
 
-export async function listRecentAntiPerkEvents(lobbyId: string, profile?: MultiplayerServerProfile): Promise<MultiplayerAntiPerkEvent[]> {
+export async function listRecentAntiPerkEvents(
+  lobbyId: string,
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerAntiPerkEvent[]> {
   const { client } = await getSupabaseClientForProfile(profile);
   const { data, error } = await client
     .from("mp_anti_perk_events")
@@ -545,7 +632,9 @@ export async function listRecentAntiPerkEvents(lobbyId: string, profile?: Multip
   return (data ?? []).map((row) => mapAntiPerkEvent(row as Record<string, unknown>));
 }
 
-export async function listMatchHistory(profile?: MultiplayerServerProfile): Promise<MultiplayerMatchHistory[]> {
+export async function listMatchHistory(
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerMatchHistory[]> {
   const { client } = await withClient(profile);
   const { data, error } = await client
     .from("mp_match_history")
@@ -583,7 +672,10 @@ export async function getLobbyJoinPreview(
   return mapLobbyJoinPreview(data as Record<string, unknown>);
 }
 
-export async function getMatchHistoryByLobby(lobbyId: string, profile?: MultiplayerServerProfile): Promise<MultiplayerMatchHistory | null> {
+export async function getMatchHistoryByLobby(
+  lobbyId: string,
+  profile?: MultiplayerServerProfile
+): Promise<MultiplayerMatchHistory | null> {
   const { client } = await withClient(profile);
   const { data, error } = await client
     .from("mp_match_history")

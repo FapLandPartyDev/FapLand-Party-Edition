@@ -125,7 +125,13 @@ function steppedRange(min: number, max: number, step: number): number[] {
   return uniqueSortedNumbers(values);
 }
 
-function windowedRange(center: number, min: number, max: number, radius: number, step: number): number[] {
+function windowedRange(
+  center: number,
+  min: number,
+  max: number,
+  radius: number,
+  step: number
+): number[] {
   return steppedRange(Math.max(min, center - radius), Math.min(max, center + radius), step);
 }
 
@@ -173,25 +179,21 @@ export function findDetectionSettingsForTargetCount(
   ]);
 
   let evaluations = 0;
-  let bestSuccess:
-    | {
-        pauseGapMs: number;
-        minRoundMs: number;
-        segments: DetectedSegment[];
-        minRoundDistance: number;
-        balanceScore: number;
-        evaluation: number;
-      }
-    | null = null;
-  let closest:
-    | {
-        pauseGapMs: number;
-        minRoundMs: number;
-        segmentCount: number;
-        countDistance: number;
-        minRoundDistance: number;
-      }
-    | null = null;
+  let bestSuccess: {
+    pauseGapMs: number;
+    minRoundMs: number;
+    segments: DetectedSegment[];
+    minRoundDistance: number;
+    balanceScore: number;
+    evaluation: number;
+  } | null = null;
+  let closest: {
+    pauseGapMs: number;
+    minRoundMs: number;
+    segmentCount: number;
+    countDistance: number;
+    minRoundDistance: number;
+  } | null = null;
 
   const evaluate = (pauseGapMs: number, minRoundMs: number) => {
     if (evaluations >= maxEvaluations) return;
@@ -211,7 +213,9 @@ export function findDetectionSettingsForTargetCount(
       !closest ||
       countDistance < closest.countDistance ||
       (countDistance === closest.countDistance && pauseGapMs > closest.pauseGapMs) ||
-      (countDistance === closest.countDistance && pauseGapMs === closest.pauseGapMs && minRoundDistance < closest.minRoundDistance)
+      (countDistance === closest.countDistance &&
+        pauseGapMs === closest.pauseGapMs &&
+        minRoundDistance < closest.minRoundDistance)
     ) {
       closest = {
         pauseGapMs,

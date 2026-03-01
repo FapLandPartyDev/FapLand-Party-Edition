@@ -105,7 +105,9 @@ const mocks = vi.hoisted(() => ({
     getLobbySnapshot: vi.fn(),
     getOwnLobbyPlayer: vi.fn(),
     heartbeat: vi.fn(),
-    isTerminalPlayerState: vi.fn((state: string) => ["kicked", "forfeited", "finished", "came"].includes(state)),
+    isTerminalPlayerState: vi.fn((state: string) =>
+      ["kicked", "forfeited", "finished", "came"].includes(state)
+    ),
     kickLobbyPlayer: vi.fn(),
     markDisconnected: vi.fn(),
     resolvePlaylistConflicts: vi.fn(),
@@ -205,7 +207,9 @@ describe("MultiplayerLobbyRoute", () => {
       expect(screen.getByText("Playlist Resolution")).toBeDefined();
     });
 
-    expect(screen.getByRole("button", { name: "Ready (Manual Retry)" }).hasAttribute("disabled")).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Ready (Manual Retry)" }).hasAttribute("disabled")
+    ).toBe(true);
   });
 
   it("restores saved manual overrides from local storage and unblocks ready", async () => {
@@ -213,14 +217,16 @@ describe("MultiplayerLobbyRoute", () => {
       "multiplayer-playlist-resolution:lobby-1:player-1:2026-03-09T00:00:00.000Z",
       JSON.stringify({
         "linear.normalRoundOrder.0": "round-installed",
-      }),
+      })
     );
 
     const Component = (Route as unknown as { component: () => ReactElement }).component;
     render(<Component />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Ready (Manual Retry)" }).hasAttribute("disabled")).toBe(false);
+      expect(
+        screen.getByRole("button", { name: "Ready (Manual Retry)" }).hasAttribute("disabled")
+      ).toBe(false);
     });
   });
 
@@ -232,7 +238,9 @@ describe("MultiplayerLobbyRoute", () => {
     render(<Component />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Private Lobby (Click to Advertise)" })).toBeDefined();
+      expect(
+        screen.getByRole("button", { name: "Private Lobby (Click to Advertise)" })
+      ).toBeDefined();
     });
   });
 });

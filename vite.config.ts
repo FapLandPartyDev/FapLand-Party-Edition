@@ -133,7 +133,9 @@ export default defineConfig(({ command, mode }) => {
               return [];
             }
 
-            return [["loader", "component", "pendingComponent", "errorComponent", "notFoundComponent"]];
+            return [
+              ["loader", "component", "pendingComponent", "errorComponent", "notFoundComponent"],
+            ];
           },
         },
       }),

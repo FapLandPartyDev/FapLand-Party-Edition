@@ -69,7 +69,11 @@ function makeEndlessPlaylist(id: string, name: string) {
   };
 }
 
-function makeRound(id: string, name: string, websiteVideoCacheStatus?: "cached" | "pending"): InstalledRound {
+function makeRound(
+  id: string,
+  name: string,
+  websiteVideoCacheStatus?: "cached" | "pending"
+): InstalledRound {
   const createdAt = "2026-01-01T00:00:00.000Z";
   return {
     id,
@@ -163,7 +167,9 @@ vi.mock("../components/MenuButton", () => ({
     onClick?: () => void;
     disabled?: boolean;
   }) => (
-    <button type="button" onClick={onClick} disabled={disabled}>{label}</button>
+    <button type="button" onClick={onClick} disabled={disabled}>
+      {label}
+    </button>
   ),
 }));
 
@@ -438,7 +444,9 @@ describe("SinglePlayerSetupRoute", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/some rounds may not play, and the web version is used instead of the local cache/i)
+        screen.getByText(
+          /some rounds may not play, and the web version is used instead of the local cache/i
+        )
       ).toBeDefined();
     });
 

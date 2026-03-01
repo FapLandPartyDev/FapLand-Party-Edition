@@ -21,7 +21,10 @@ function popcount64(value: bigint): number {
   return count;
 }
 
-export function hammingDistance64Hex(a: string | null | undefined, b: string | null | undefined): number | null {
+export function hammingDistance64Hex(
+  a: string | null | undefined,
+  b: string | null | undefined
+): number | null {
   const normalizedA = normalizePhashForSimilarity(a);
   const normalizedB = normalizePhashForSimilarity(b);
   if (!normalizedA || !normalizedB) return null;
@@ -34,7 +37,7 @@ export function hammingDistance64Hex(a: string | null | undefined, b: string | n
 export function isPhashSimilar(
   a: string | null | undefined,
   b: string | null | undefined,
-  maxDistance = DEFAULT_PHASH_MAX_DISTANCE,
+  maxDistance = DEFAULT_PHASH_MAX_DISTANCE
 ): boolean {
   const distance = hammingDistance64Hex(a, b);
   if (distance === null) return false;
@@ -45,7 +48,7 @@ export function findBestSimilarPhashMatch<T>(
   targetHash: string | null | undefined,
   candidates: ReadonlyArray<T>,
   getHash: (candidate: T) => string | null | undefined,
-  maxDistance = DEFAULT_PHASH_MAX_DISTANCE,
+  maxDistance = DEFAULT_PHASH_MAX_DISTANCE
 ): { item: T; distance: number } | null {
   const normalizedTarget = normalizePhashForSimilarity(targetHash);
   if (!normalizedTarget) return null;

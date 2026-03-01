@@ -16,7 +16,10 @@ export type PlaylistExportCompressionPhase =
   | "aborted"
   | "error";
 
-export type PlaylistExportCompressionStrengthLabel = "Low compression" | "Balanced" | "High compression";
+export type PlaylistExportCompressionStrengthLabel =
+  | "Low compression"
+  | "Balanced"
+  | "High compression";
 
 export type Av1EncoderDetails = {
   name: "av1_nvenc" | "av1_qsv" | "av1_amf" | "av1_vaapi" | "libsvtav1" | "libaom-av1";
@@ -50,10 +53,7 @@ const HARDWARE_ENCODERS: ReadonlyArray<Av1EncoderDetails["name"]> = [
   "av1_vaapi",
 ];
 
-const SOFTWARE_ENCODERS: ReadonlyArray<Av1EncoderDetails["name"]> = [
-  "libsvtav1",
-  "libaom-av1",
-];
+const SOFTWARE_ENCODERS: ReadonlyArray<Av1EncoderDetails["name"]> = ["libsvtav1", "libaom-av1"];
 
 const AV1_ENCODER_PRIORITY: ReadonlyArray<Av1EncoderDetails["name"]> = [
   ...HARDWARE_ENCODERS,
@@ -69,7 +69,9 @@ export function normalizeCompressionStrength(value: number | null | undefined): 
   return Math.round(clamp(Number(value), 0, 100));
 }
 
-export function getCompressionStrengthLabel(strength: number): PlaylistExportCompressionStrengthLabel {
+export function getCompressionStrengthLabel(
+  strength: number
+): PlaylistExportCompressionStrengthLabel {
   if (strength <= 20) return "Low compression";
   if (strength <= 60) return "Balanced";
   return "High compression";
@@ -87,7 +89,7 @@ function getEncoderKind(name: Av1EncoderDetails["name"]): PlaylistExportCompress
 function appendAv1EncoderArgs(
   args: string[],
   encoderName: Av1EncoderDetails["name"],
-  strength: number,
+  strength: number
 ): void {
   switch (encoderName) {
     case "av1_nvenc": {
@@ -110,7 +112,7 @@ function appendAv1EncoderArgs(
         "-qp_i",
         `${qpi}`,
         "-qp_p",
-        `${qpi + 2}`,
+        `${qpi + 2}`
       );
       break;
     }
@@ -136,7 +138,7 @@ function appendAv1EncoderArgs(
 
 async function canUseAv1Encoder(
   ffmpegPath: string,
-  encoderName: Av1EncoderDetails["name"],
+  encoderName: Av1EncoderDetails["name"]
 ): Promise<boolean> {
   const args = [
     "-hide_banner",
@@ -166,7 +168,9 @@ export async function detectAv1Encoder(ffmpegPath: string): Promise<Av1EncoderDe
   const { stdout, stderr } = await runCommand(ffmpegPath, ["-hide_banner", "-encoders"]);
   const combined = `${stdout.toString("utf8")}\n${stderr.toString("utf8")}`.toLowerCase();
 
-  const candidates = AV1_ENCODER_PRIORITY.filter((encoder) => combined.includes(encoder.toLowerCase()));
+  const candidates = AV1_ENCODER_PRIORITY.filter((encoder) =>
+    combined.includes(encoder.toLowerCase())
+  );
   for (const encoder of candidates) {
     if (await canUseAv1Encoder(ffmpegPath, encoder)) {
       return {
@@ -190,7 +194,7 @@ function toNullableFiniteNumber(value: unknown): number | null {
 
 export async function probeLocalVideo(
   ffprobePath: string,
-  sourcePath: string,
+  sourcePath: string
 ): Promise<PlaylistExportVideoProbe> {
   let fileSizeBytes: number | null = null;
   try {
@@ -234,7 +238,9 @@ export async function probeLocalVideo(
       width: toNullableFiniteNumber(stream?.width),
       height: toNullableFiniteNumber(stream?.height),
       durationMs:
-        durationSeconds !== null && durationSeconds >= 0 ? Math.max(0, Math.floor(durationSeconds * 1000)) : null,
+        durationSeconds !== null && durationSeconds >= 0
+          ? Math.max(0, Math.floor(durationSeconds * 1000))
+          : null,
       fileSizeBytes,
     };
   } catch {
@@ -344,9 +350,10 @@ function estimateCompressionSecondsForProbe(input: {
   };
   const resolutionFactor = resolutionFactorByBucket[bucket];
   const baseSpeed = input.encoderKind === "hardware" ? 3.6 : 0.3;
-  const strengthPenalty = input.encoderKind === "hardware"
-    ? 1 - (input.strength / 100) * 0.35
-    : 1 - (input.strength / 100) * 0.45;
+  const strengthPenalty =
+    input.encoderKind === "hardware"
+      ? 1 - (input.strength / 100) * 0.35
+      : 1 - (input.strength / 100) * 0.45;
   const speed = Math.max(0.08, baseSpeed * strengthPenalty * resolutionFactor);
   return {
     seconds: Math.ceil(durationSeconds / speed),
@@ -354,10 +361,13 @@ function estimateCompressionSecondsForProbe(input: {
   };
 }
 
-export function getParallelJobsForEncoder(encoderKind: PlaylistExportCompressionEncoderKind | null): number {
-  const logicalCores = typeof os.availableParallelism === "function"
-    ? os.availableParallelism()
-    : Math.max(1, os.cpus().length);
+export function getParallelJobsForEncoder(
+  encoderKind: PlaylistExportCompressionEncoderKind | null
+): number {
+  const logicalCores =
+    typeof os.availableParallelism === "function"
+      ? os.availableParallelism()
+      : Math.max(1, os.cpus().length);
   if (encoderKind === "hardware") {
     return Math.min(3, Math.max(1, Math.floor(logicalCores / 4)));
   }
@@ -391,14 +401,21 @@ export function estimateCompressionForProbes(input: {
     });
     expectedVideoBytes += sizeEstimate.bytes;
     estimatedCompressionSeconds += timeEstimate.seconds;
-    approximate = approximate || sizeEstimate.approximate || timeEstimate.approximate || probe.fileSizeBytes === null;
+    approximate =
+      approximate ||
+      sizeEstimate.approximate ||
+      timeEstimate.approximate ||
+      probe.fileSizeBytes === null;
 
     if (probe.fileSizeBytes !== null) {
       sourceVideoBytes += probe.fileSizeBytes;
     }
   }
 
-  const parallelizedSeconds = Math.max(0, Math.ceil(estimatedCompressionSeconds / Math.max(1, input.parallelJobs)));
+  const parallelizedSeconds = Math.max(
+    0,
+    Math.ceil(estimatedCompressionSeconds / Math.max(1, input.parallelJobs))
+  );
   return {
     sourceVideoBytes,
     expectedVideoBytes,
@@ -454,7 +471,7 @@ export async function transcodeVideoToAv1(input: {
   onSpawn?: (child: ChildProcess) => void;
   onProgress?: (progress: Av1TranscodeProgress) => void;
 }): Promise<void> {
-  await fs.rm(input.outputPath, { force: true }).catch(() => { });
+  await fs.rm(input.outputPath, { force: true }).catch(() => {});
   const args = buildAv1EncodeArgs({
     encoderName: input.encoder.name,
     strength: input.strength,
@@ -483,7 +500,7 @@ export async function transcodeVideoToAv1(input: {
           const minutes = Number(match[2]);
           const seconds = Number(match[3]);
           const fraction = (match[4] ?? "").padEnd(3, "0").slice(0, 3);
-          return ((((hours * 60) + minutes) * 60) + seconds) * 1000 + Number(fraction || "0");
+          return ((hours * 60 + minutes) * 60 + seconds) * 1000 + Number(fraction || "0");
         }
       }
 
@@ -537,14 +554,16 @@ export async function transcodeVideoToAv1(input: {
       const stderrText = Buffer.concat(stderrChunks).toString("utf8").trim();
       reject(
         new Error(
-          `ffmpeg AV1 encode failed with exit code ${code}${signal ? `, signal ${signal}` : ""}: ${stderrText}`.trim(),
-        ),
+          `ffmpeg AV1 encode failed with exit code ${code}${signal ? `, signal ${signal}` : ""}: ${stderrText}`.trim()
+        )
       );
     });
   });
 
   const stats = await fs.stat(input.outputPath);
   if (!stats.isFile() || stats.size <= 0) {
-    throw new Error(`AV1 encode did not produce a valid output file: ${path.basename(input.outputPath)}`);
+    throw new Error(
+      `AV1 encode did not produce a valid output file: ${path.basename(input.outputPath)}`
+    );
   }
 }

@@ -10,7 +10,9 @@ const SingleResultSearchSchema = z.object({
   score: z.coerce.number().int().min(0).default(0),
   highscore: z.coerce.number().int().min(0).default(0),
   survivedDurationSec: z.coerce.number().int().min(0).default(0),
-  reason: z.enum(["finished", "self_reported_cum", "cum_instruction_failed", "player_ended_endless"]).default("finished"),
+  reason: z
+    .enum(["finished", "self_reported_cum", "cum_instruction_failed", "player_ended_endless"])
+    .default("finished"),
   cheatMode: z.coerce.boolean().optional(),
   assisted: z.coerce.boolean().optional(),
   assistedSaveMode: z.enum(["checkpoint", "everywhere"]).optional(),

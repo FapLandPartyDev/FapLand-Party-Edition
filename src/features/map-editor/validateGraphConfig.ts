@@ -353,7 +353,11 @@ export function validateGraphConfig(
   for (const node of config.nodes) {
     const outgoingCount = outgoingCountByNodeId.get(node.id) ?? 0;
     if (node.kind === "end" && outgoingCount > 0) {
-      addError(`End node "${node.name}" (${node.id}) must not have outgoing edges`, `nodes.${node.id}`, node.id);
+      addError(
+        `End node "${node.name}" (${node.id}) must not have outgoing edges`,
+        `nodes.${node.id}`,
+        node.id
+      );
     }
     if (node.kind !== "end" && outgoingCount === 0) {
       addError(

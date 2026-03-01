@@ -11,9 +11,12 @@ export function useForegroundVideoRegistration(id: string) {
     };
   }, [id, register, unregister]);
 
-  const markPlaying = useCallback((playing: boolean) => {
-    setPlaying(id, playing);
-  }, [id, setPlaying]);
+  const markPlaying = useCallback(
+    (playing: boolean) => {
+      setPlaying(id, playing);
+    },
+    [id, setPlaying]
+  );
 
   const handlePlay = useCallback(() => {
     setPlaying(id, true);

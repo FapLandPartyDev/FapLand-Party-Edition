@@ -2,12 +2,7 @@ import type { FunscriptAction } from "../../game/media/playback";
 
 export type HapticsProviderId = "thehandy" | "intiface";
 
-export type HapticsSyncState =
-  | "disconnected"
-  | "connecting"
-  | "missing-key"
-  | "synced"
-  | "error";
+export type HapticsSyncState = "disconnected" | "connecting" | "missing-key" | "synced" | "error";
 
 export type HapticsStrokeState = {
   min: number;

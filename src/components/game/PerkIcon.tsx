@@ -75,6 +75,8 @@ export function getPerkIconGlyph(iconKey: PerkIconKey | null | undefined): strin
       return "%";
     case "imClose":
       return "💦";
+    case "fullHeal":
+      return "✙";
     default:
       return "✦";
   }
@@ -345,6 +347,15 @@ function resolvePath(iconKey: PerkIconKey | null | undefined): ReactNode {
       return (
         <>
           <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+        </>
+      );
+    case "fullHeal":
+      return (
+        <>
+          <circle cx="12" cy="12" r="8" />
+          <path d="M12 8v8" />
+          <path d="M8 12h8" />
+          <circle cx="12" cy="12" r="4" />
         </>
       );
     default:

@@ -41,7 +41,7 @@ export function buildRoundRenderRows<TRound extends RoundLibraryEntry>(
 
 export function buildRoundRenderRowsWithOptions<TRound extends RoundLibraryEntry>(
   visibleRounds: TRound[],
-  options: BuildRoundRenderRowsOptions,
+  options: BuildRoundRenderRowsOptions
 ): RoundRenderRow<TRound>[] {
   if (options.mode === "playlist") {
     const rows: RoundRenderRow<TRound>[] = [];
@@ -81,10 +81,7 @@ export function buildRoundRenderRowsWithOptions<TRound extends RoundLibraryEntry
   }
 
   const rows: RoundRenderRow<TRound>[] = [];
-  const heroGroupByKey = new Map<
-    string,
-    Extract<RoundRenderRow<TRound>, { kind: "hero-group" }>
-  >();
+  const heroGroupByKey = new Map<string, Extract<RoundRenderRow<TRound>, { kind: "hero-group" }>>();
 
   for (const round of visibleRounds) {
     const groupKey = toHeroGroupKey(round);

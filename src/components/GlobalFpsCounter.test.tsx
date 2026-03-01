@@ -2,7 +2,10 @@ import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GlobalFpsCounter } from "./GlobalFpsCounter";
 import { trpc } from "../services/trpc";
-import { FPS_COUNTER_ENABLED_EVENT, FPS_COUNTER_ENABLED_KEY } from "../constants/experimentalFeatures";
+import {
+  FPS_COUNTER_ENABLED_EVENT,
+  FPS_COUNTER_ENABLED_KEY,
+} from "../constants/experimentalFeatures";
 
 vi.mock("../services/trpc", () => ({
   trpc: {

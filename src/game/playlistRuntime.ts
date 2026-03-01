@@ -13,7 +13,12 @@ import {
   resolvePortableRoundRefExact,
   toPortableRoundRefFromRound,
 } from "./playlistResolution";
-import { DICE_ANTIPERK_IDS, DICE_PERK_IDS, getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "./data/perks";
+import {
+  DICE_ANTIPERK_IDS,
+  DICE_PERK_IDS,
+  getSinglePlayerAntiPerkPool,
+  getSinglePlayerPerkPool,
+} from "./data/perks";
 import type {
   BoardField,
   BoardFieldKind,
@@ -404,8 +409,7 @@ function endlessNodePosition(
   totalRows: number
 ): { x: number; y: number } {
   const row = Math.floor(index / totalColumns);
-  const col =
-    row % 2 === 0 ? index % totalColumns : totalColumns - 1 - (index % totalColumns);
+  const col = row % 2 === 0 ? index % totalColumns : totalColumns - 1 - (index % totalColumns);
   return {
     x: 160 + col * ENDLESS_TILE_SIZE,
     y: 360 + (totalRows > 0 ? row : 0) * ENDLESS_ROW_GAP,
@@ -443,7 +447,12 @@ function buildEndlessNodeBatch(
 
     nodes.push({
       id: nodeId,
-      name: kind === "safePoint" ? `Checkpoint ${globalIndex}` : kind === "perk" ? `Perk ${globalIndex}` : `Round ${globalIndex}`,
+      name:
+        kind === "safePoint"
+          ? `Checkpoint ${globalIndex}`
+          : kind === "perk"
+            ? `Perk ${globalIndex}`
+            : `Round ${globalIndex}`,
       kind,
       forceStop: kind === "perk",
       randomSelectionMode: kind === "randomRound" ? "installed" : undefined,
@@ -477,14 +486,22 @@ function buildEndlessConfig(
     id: "start",
     name: "Start",
     kind: "start",
-    styleHint: endlessNodePosition(0, ENDLESS_COLUMNS, Math.ceil((batchSize + 2) / ENDLESS_COLUMNS)),
+    styleHint: endlessNodePosition(
+      0,
+      ENDLESS_COLUMNS,
+      Math.ceil((batchSize + 2) / ENDLESS_COLUMNS)
+    ),
   };
 
   const endNode: BoardField = {
     id: "end",
     name: "End",
     kind: "end",
-    styleHint: endlessNodePosition(batchSize + 1, ENDLESS_COLUMNS, Math.ceil((batchSize + 2) / ENDLESS_COLUMNS)),
+    styleHint: endlessNodePosition(
+      batchSize + 1,
+      ENDLESS_COLUMNS,
+      Math.ceil((batchSize + 2) / ENDLESS_COLUMNS)
+    ),
   };
 
   const batch = buildEndlessNodeBatch(1, batchSize, safePointEveryN, perkNodeEveryN, 2);
@@ -656,6 +673,8 @@ export function createDefaultPlaylistConfig<T extends PlaylistResolutionRoundLik
       antiPerkIncreasePerRound: 0.015,
       maxIntermediaryProbability: 1,
       maxAntiPerkProbability: 0.75,
+      resetIntermediaryProbabilityAfterTrigger: false,
+      resetAntiPerkProbabilityAfterTrigger: false,
     },
     economy: {
       startingMoney: 120,
@@ -705,6 +724,8 @@ export function createDefaultEndlessPlaylistConfig(): PlaylistConfig {
       antiPerkIncreasePerRound: 0.015,
       maxIntermediaryProbability: 1,
       maxAntiPerkProbability: 0.75,
+      resetIntermediaryProbabilityAfterTrigger: false,
+      resetAntiPerkProbabilityAfterTrigger: false,
     },
     economy: {
       startingMoney: 120,

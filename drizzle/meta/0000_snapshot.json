@@ -99,9 +99,7 @@
       "indexes": {
         "Hero_name_unique": {
           "name": "Hero_name_unique",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "isUnique": true
         }
       },
@@ -227,9 +225,7 @@
       "indexes": {
         "Playlist_installSourceKey_unique": {
           "name": "Playlist_installSourceKey_unique",
-          "columns": [
-            "installSourceKey"
-          ],
+          "columns": ["installSourceKey"],
           "isUnique": true
         }
       },
@@ -287,19 +283,12 @@
       "indexes": {
         "PlaylistTrackPlay_playlistId_playedAt_idx": {
           "name": "PlaylistTrackPlay_playlistId_playedAt_idx",
-          "columns": [
-            "playlistId",
-            "playedAt"
-          ],
+          "columns": ["playlistId", "playedAt"],
           "isUnique": false
         },
         "PlaylistTrackPlay_playlistId_poolId_roundId_idx": {
           "name": "PlaylistTrackPlay_playlistId_poolId_roundId_idx",
-          "columns": [
-            "playlistId",
-            "poolId",
-            "roundId"
-          ],
+          "columns": ["playlistId", "poolId", "roundId"],
           "isUnique": false
         }
       },
@@ -308,12 +297,8 @@
           "name": "PlaylistTrackPlay_playlistId_Playlist_id_fk",
           "tableFrom": "PlaylistTrackPlay",
           "tableTo": "Playlist",
-          "columnsFrom": [
-            "playlistId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["playlistId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "cascade"
         }
@@ -386,9 +371,7 @@
       "indexes": {
         "Resource_phash_idx": {
           "name": "Resource_phash_idx",
-          "columns": [
-            "phash"
-          ],
+          "columns": ["phash"],
           "isUnique": false
         }
       },
@@ -397,12 +380,8 @@
           "name": "Resource_roundId_Round_id_fk",
           "tableFrom": "Resource",
           "tableTo": "Round",
-          "columnsFrom": [
-            "roundId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["roundId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -555,9 +534,7 @@
       "indexes": {
         "Round_installSourceKey_unique": {
           "name": "Round_installSourceKey_unique",
-          "columns": [
-            "installSourceKey"
-          ],
+          "columns": ["installSourceKey"],
           "isUnique": true
         }
       },
@@ -566,12 +543,8 @@
           "name": "Round_heroId_Hero_id_fk",
           "tableFrom": "Round",
           "tableTo": "Hero",
-          "columnsFrom": [
-            "heroId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["heroId"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -679,9 +652,7 @@
       "indexes": {
         "SinglePlayerRunHistory_finishedAt_idx": {
           "name": "SinglePlayerRunHistory_finishedAt_idx",
-          "columns": [
-            "finishedAt"
-          ],
+          "columns": ["finishedAt"],
           "isUnique": false
         }
       },

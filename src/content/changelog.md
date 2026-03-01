@@ -1,5 +1,21 @@
 # What's New
 
+## v0.4.0-beta
+
+### Added
+
+- **"Antigravity" anti-perk** — a new anti-perk that inverts the funscript for the next round, flipping all device positions.
+- **"Full Heal" perk** — a new perk that resets intermediary chance and anti-perk chance back to 0.
+- **Per-resource funscript inversion** — each installed round resource now has an "Invert funscript" toggle that flips all device positions, available in the round editor.
+- **Probability reset options** — new settings in the Map Editor and Playlist Workshop to reset intermediary and anti-perk probabilities to their initial values after they trigger, giving playlist authors finer control over probability pacing.
+
+### Changed
+
+- Upgraded app version to v0.4.0-beta.
+- Codebase-wide formatting and lint cleanup across settings, first-start wizard, game engine, multiplayer, converter, map editor, and haptics modules.
+
+---
+
 ## v0.3.7-beta
 
 ### Changed
@@ -15,6 +31,7 @@
 - Fixed a UI issue where the settings page could sometimes remain frozen in a disabled "loading" state.
 
 ---
+
 ## v0.3.6-beta
 
 ### Added
@@ -55,8 +72,8 @@
 ### Added
 
 - **Drag-and-drop overlay** — dragging files onto the app now shows a visual drop zone and a confirmation dialog listing the files before importing, preventing accidental drops.
-- **Storage migration** — a new *Migrate Storage Paths* card in Settings lets you copy all cache folders (web videos, music, EroScripts, .fpack extractions) to a new directory and optionally delete the originals.
-- **Portable migration** (Windows only) — a *Migrate to Portable* card in Settings can move cache folders, database, and settings into an existing portable installation with automatic detection and backup of existing data.
+- **Storage migration** — a new _Migrate Storage Paths_ card in Settings lets you copy all cache folders (web videos, music, EroScripts, .fpack extractions) to a new directory and optionally delete the originals.
+- **Portable migration** (Windows only) — a _Migrate to Portable_ card in Settings can move cache folders, database, and settings into an existing portable installation with automatic detection and backup of existing data.
 
 ### Changed
 

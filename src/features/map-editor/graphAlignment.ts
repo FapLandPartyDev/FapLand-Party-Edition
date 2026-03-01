@@ -43,16 +43,22 @@ const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
 const getNodeMetrics = (node: EditorNode, index: number): NodeMetrics => {
-  const width = Math.max(64, isFiniteNumber(node.styleHint?.width) ? node.styleHint.width : DEFAULT_WIDTH);
-  const height = Math.max(40, isFiniteNumber(node.styleHint?.height) ? node.styleHint.height : DEFAULT_HEIGHT);
+  const width = Math.max(
+    64,
+    isFiniteNumber(node.styleHint?.width) ? node.styleHint.width : DEFAULT_WIDTH
+  );
+  const height = Math.max(
+    40,
+    isFiniteNumber(node.styleHint?.height) ? node.styleHint.height : DEFAULT_HEIGHT
+  );
   const x = isFiniteNumber(node.styleHint?.x) ? node.styleHint.x : index * GRID_SNAP_X;
   const y = isFiniteNumber(node.styleHint?.y) ? node.styleHint.y : 0;
   return {
     index,
     width,
     height,
-    centerX: x + (width / 2),
-    centerY: y + (height / 2),
+    centerX: x + width / 2,
+    centerY: y + height / 2,
   };
 };
 
@@ -64,15 +70,22 @@ const buildMetricsById = (nodes: EditorNode[]): Map<string, NodeMetrics> => {
   return metricsById;
 };
 
-const normalizeNodes = (nodes: EditorNode[], positions: Map<string, { x: number; y: number }>): GraphAlignmentResult => {
+const normalizeNodes = (
+  nodes: EditorNode[],
+  positions: Map<string, { x: number; y: number }>
+): GraphAlignmentResult => {
   let changed = false;
   const nextNodes = nodes.map((node, index) => {
     const nextPosition = positions.get(node.id);
     const metrics = getNodeMetrics(node, index);
-    const nextX = nextPosition?.x ?? (metrics.centerX - (metrics.width / 2));
-    const nextY = nextPosition?.y ?? (metrics.centerY - (metrics.height / 2));
-    const previousX = isFiniteNumber(node.styleHint?.x) ? node.styleHint.x : metrics.centerX - (metrics.width / 2);
-    const previousY = isFiniteNumber(node.styleHint?.y) ? node.styleHint.y : metrics.centerY - (metrics.height / 2);
+    const nextX = nextPosition?.x ?? metrics.centerX - metrics.width / 2;
+    const nextY = nextPosition?.y ?? metrics.centerY - metrics.height / 2;
+    const previousX = isFiniteNumber(node.styleHint?.x)
+      ? node.styleHint.x
+      : metrics.centerX - metrics.width / 2;
+    const previousY = isFiniteNumber(node.styleHint?.y)
+      ? node.styleHint.y
+      : metrics.centerY - metrics.height / 2;
 
     if (Math.abs(previousX - nextX) > 0.001 || Math.abs(previousY - nextY) > 0.001) {
       changed = true;
@@ -109,7 +122,10 @@ const buildAdjacency = (config: EditorGraphConfig) => {
   return { outgoing, incoming };
 };
 
-const buildRanks = (config: EditorGraphConfig, metricsById: Map<string, NodeMetrics>): RankBuildResult => {
+const buildRanks = (
+  config: EditorGraphConfig,
+  metricsById: Map<string, NodeMetrics>
+): RankBuildResult => {
   const { outgoing, incoming } = buildAdjacency(config);
 
   const reachable = new Set<string>();
@@ -125,7 +141,10 @@ const buildRanks = (config: EditorGraphConfig, metricsById: Map<string, NodeMetr
 
   const indegree = new Map<string, number>();
   for (const node of config.nodes) {
-    indegree.set(node.id, (incoming.get(node.id) ?? []).filter((fromId) => reachable.has(fromId)).length);
+    indegree.set(
+      node.id,
+      (incoming.get(node.id) ?? []).filter((fromId) => reachable.has(fromId)).length
+    );
   }
 
   const topoQueue = config.nodes
@@ -136,8 +155,13 @@ const buildRanks = (config: EditorGraphConfig, metricsById: Map<string, NodeMetr
   while (topoQueue.length > 0) {
     const currentId = topoQueue.shift();
     if (!currentId) continue;
-    const parents = (incoming.get(currentId) ?? []).filter((parentId) => reachableRanks.has(parentId));
-    const parentRank = parents.reduce((highest, parentId) => Math.max(highest, reachableRanks.get(parentId) ?? 0), -1);
+    const parents = (incoming.get(currentId) ?? []).filter((parentId) =>
+      reachableRanks.has(parentId)
+    );
+    const parentRank = parents.reduce(
+      (highest, parentId) => Math.max(highest, reachableRanks.get(parentId) ?? 0),
+      -1
+    );
     if (!reachableRanks.has(currentId)) {
       reachableRanks.set(currentId, Math.max(0, parentRank + 1));
     }
@@ -156,7 +180,10 @@ const buildRanks = (config: EditorGraphConfig, metricsById: Map<string, NodeMetr
   for (const node of config.nodes) {
     if (!reachable.has(node.id) || finalRanks.has(node.id)) continue;
     const parents = incoming.get(node.id) ?? [];
-    const inferredRank = parents.reduce((highest, parentId) => Math.max(highest, finalRanks.get(parentId) ?? -1), -1);
+    const inferredRank = parents.reduce(
+      (highest, parentId) => Math.max(highest, finalRanks.get(parentId) ?? -1),
+      -1
+    );
     finalRanks.set(node.id, Math.max(inferredRank + 1, maxReachableRank, 0));
   }
 
@@ -164,7 +191,10 @@ const buildRanks = (config: EditorGraphConfig, metricsById: Map<string, NodeMetr
   for (const node of config.nodes) {
     if (finalRanks.has(node.id)) continue;
     const parents = incoming.get(node.id) ?? [];
-    const inferredRank = parents.reduce((highest, parentId) => Math.max(highest, finalRanks.get(parentId) ?? -1), -1);
+    const inferredRank = parents.reduce(
+      (highest, parentId) => Math.max(highest, finalRanks.get(parentId) ?? -1),
+      -1
+    );
     finalRanks.set(node.id, Math.max(disconnectedRank, inferredRank + 1, 0));
     disconnectedRank += 1;
   }
@@ -186,18 +216,28 @@ const buildRanks = (config: EditorGraphConfig, metricsById: Map<string, NodeMetr
     nodeIds.sort((leftId, rightId) => {
       const leftMetrics = metricsById.get(leftId);
       const rightMetrics = metricsById.get(rightId);
-      const leftNeighbors = (incoming.get(leftId) ?? []).filter((nodeId) => previousLaneIndex.has(nodeId));
-      const rightNeighbors = (incoming.get(rightId) ?? []).filter((nodeId) => previousLaneIndex.has(nodeId));
-      const leftBarycenter = leftNeighbors.length > 0
-        ? leftNeighbors.reduce((sum, nodeId) => sum + (previousLaneIndex.get(nodeId) ?? 0), 0) / leftNeighbors.length
-        : Number.POSITIVE_INFINITY;
-      const rightBarycenter = rightNeighbors.length > 0
-        ? rightNeighbors.reduce((sum, nodeId) => sum + (previousLaneIndex.get(nodeId) ?? 0), 0) / rightNeighbors.length
-        : Number.POSITIVE_INFINITY;
+      const leftNeighbors = (incoming.get(leftId) ?? []).filter((nodeId) =>
+        previousLaneIndex.has(nodeId)
+      );
+      const rightNeighbors = (incoming.get(rightId) ?? []).filter((nodeId) =>
+        previousLaneIndex.has(nodeId)
+      );
+      const leftBarycenter =
+        leftNeighbors.length > 0
+          ? leftNeighbors.reduce((sum, nodeId) => sum + (previousLaneIndex.get(nodeId) ?? 0), 0) /
+            leftNeighbors.length
+          : Number.POSITIVE_INFINITY;
+      const rightBarycenter =
+        rightNeighbors.length > 0
+          ? rightNeighbors.reduce((sum, nodeId) => sum + (previousLaneIndex.get(nodeId) ?? 0), 0) /
+            rightNeighbors.length
+          : Number.POSITIVE_INFINITY;
 
       if (leftBarycenter !== rightBarycenter) return leftBarycenter - rightBarycenter;
-      if ((leftMetrics?.centerY ?? 0) !== (rightMetrics?.centerY ?? 0)) return (leftMetrics?.centerY ?? 0) - (rightMetrics?.centerY ?? 0);
-      if ((leftMetrics?.centerX ?? 0) !== (rightMetrics?.centerX ?? 0)) return (leftMetrics?.centerX ?? 0) - (rightMetrics?.centerX ?? 0);
+      if ((leftMetrics?.centerY ?? 0) !== (rightMetrics?.centerY ?? 0))
+        return (leftMetrics?.centerY ?? 0) - (rightMetrics?.centerY ?? 0);
+      if ((leftMetrics?.centerX ?? 0) !== (rightMetrics?.centerX ?? 0))
+        return (leftMetrics?.centerX ?? 0) - (rightMetrics?.centerX ?? 0);
       return (leftMetrics?.index ?? 0) - (rightMetrics?.index ?? 0);
     });
 
@@ -212,41 +252,55 @@ const buildRanks = (config: EditorGraphConfig, metricsById: Map<string, NodeMetr
 
 const computeLayeredPositions = (
   config: EditorGraphConfig,
-  orientation: "horizontal" | "down" | "up",
+  orientation: "horizontal" | "down" | "up"
 ): GraphAlignmentResult => {
   const metricsById = buildMetricsById(config.nodes);
   const { laneOrderByRank, sortedRanks } = buildRanks(config, metricsById);
   const positions = new Map<string, { x: number; y: number }>();
 
-  const globalMaxWidth = Math.max(DEFAULT_WIDTH, ...config.nodes.map((node, index) => getNodeMetrics(node, index).width));
-  const globalMaxHeight = Math.max(DEFAULT_HEIGHT, ...config.nodes.map((node, index) => getNodeMetrics(node, index).height));
+  const globalMaxWidth = Math.max(
+    DEFAULT_WIDTH,
+    ...config.nodes.map((node, index) => getNodeMetrics(node, index).width)
+  );
+  const globalMaxHeight = Math.max(
+    DEFAULT_HEIGHT,
+    ...config.nodes.map((node, index) => getNodeMetrics(node, index).height)
+  );
   const totalRanks = sortedRanks.length;
 
   for (const rank of sortedRanks) {
     const nodeIds = laneOrderByRank.get(rank) ?? [];
-    const rankMaxWidth = Math.max(DEFAULT_WIDTH, ...nodeIds.map((nodeId) => metricsById.get(nodeId)?.width ?? DEFAULT_WIDTH));
-    const rankMaxHeight = Math.max(DEFAULT_HEIGHT, ...nodeIds.map((nodeId) => metricsById.get(nodeId)?.height ?? DEFAULT_HEIGHT));
-    const verticalRankIndex = orientation === "up" ? (totalRanks - 1 - rank) : rank;
+    const rankMaxWidth = Math.max(
+      DEFAULT_WIDTH,
+      ...nodeIds.map((nodeId) => metricsById.get(nodeId)?.width ?? DEFAULT_WIDTH)
+    );
+    const rankMaxHeight = Math.max(
+      DEFAULT_HEIGHT,
+      ...nodeIds.map((nodeId) => metricsById.get(nodeId)?.height ?? DEFAULT_HEIGHT)
+    );
+    const verticalRankIndex = orientation === "up" ? totalRanks - 1 - rank : rank;
 
     nodeIds.forEach((nodeId, laneIndex) => {
       const metrics = metricsById.get(nodeId);
       if (!metrics) return;
 
       if (orientation === "horizontal") {
-        const centerX = CANVAS_MARGIN + (rank * (rankMaxWidth + LAYER_GAP)) + (rankMaxWidth / 2);
-        const centerY = CANVAS_MARGIN + (laneIndex * (globalMaxHeight + LANE_GAP)) + (metrics.height / 2);
+        const centerX = CANVAS_MARGIN + rank * (rankMaxWidth + LAYER_GAP) + rankMaxWidth / 2;
+        const centerY =
+          CANVAS_MARGIN + laneIndex * (globalMaxHeight + LANE_GAP) + metrics.height / 2;
         positions.set(nodeId, {
-          x: centerX - (metrics.width / 2),
-          y: centerY - (metrics.height / 2),
+          x: centerX - metrics.width / 2,
+          y: centerY - metrics.height / 2,
         });
         return;
       }
 
-      const centerX = CANVAS_MARGIN + (laneIndex * (globalMaxWidth + LANE_GAP)) + (metrics.width / 2);
-      const centerY = CANVAS_MARGIN + (verticalRankIndex * (rankMaxHeight + LAYER_GAP)) + (rankMaxHeight / 2);
+      const centerX = CANVAS_MARGIN + laneIndex * (globalMaxWidth + LANE_GAP) + metrics.width / 2;
+      const centerY =
+        CANVAS_MARGIN + verticalRankIndex * (rankMaxHeight + LAYER_GAP) + rankMaxHeight / 2;
       positions.set(nodeId, {
-        x: centerX - (metrics.width / 2),
-        y: centerY - (metrics.height / 2),
+        x: centerX - metrics.width / 2,
+        y: centerY - metrics.height / 2,
       });
     });
   }
@@ -261,7 +315,7 @@ const buildNormalizedIndices = (values: number[], snap: number): Map<number, num
   let currentAnchor = Number.NaN;
 
   for (const value of sorted) {
-    if (!Number.isFinite(currentAnchor) || Math.abs(value - currentAnchor) > (snap * 0.6)) {
+    if (!Number.isFinite(currentAnchor) || Math.abs(value - currentAnchor) > snap * 0.6) {
       currentIndex += 1;
       currentAnchor = value;
     }
@@ -278,18 +332,24 @@ const computeGridCleanupPositions = (config: EditorGraphConfig): GraphAlignmentR
     node,
     ...getNodeMetrics(node, index),
   }));
-  const xGroups = buildNormalizedIndices(metrics.map((entry) => entry.centerX), GRID_SNAP_X);
-  const yGroups = buildNormalizedIndices(metrics.map((entry) => entry.centerY), GRID_SNAP_Y);
+  const xGroups = buildNormalizedIndices(
+    metrics.map((entry) => entry.centerX),
+    GRID_SNAP_X
+  );
+  const yGroups = buildNormalizedIndices(
+    metrics.map((entry) => entry.centerY),
+    GRID_SNAP_Y
+  );
   const positions = new Map<string, { x: number; y: number }>();
 
   for (const entry of metrics) {
     const column = xGroups.get(entry.centerX) ?? 0;
     const row = yGroups.get(entry.centerY) ?? 0;
-    const centerX = CANVAS_MARGIN + (column * GRID_SNAP_X);
-    const centerY = CANVAS_MARGIN + (row * GRID_SNAP_Y);
+    const centerX = CANVAS_MARGIN + column * GRID_SNAP_X;
+    const centerY = CANVAS_MARGIN + row * GRID_SNAP_Y;
     positions.set(entry.node.id, {
-      x: centerX - (entry.width / 2),
-      y: centerY - (entry.height / 2),
+      x: centerX - entry.width / 2,
+      y: centerY - entry.height / 2,
     });
   }
 
@@ -342,15 +402,18 @@ const computeSnakePositions = (config: EditorGraphConfig): GraphAlignmentResult 
     if (!metrics) return;
     const point = computeSnakePosition(index, orderedIds.length);
     positions.set(nodeId, {
-      x: point.x - (metrics.width / 2),
-      y: point.y - (metrics.height / 2),
+      x: point.x - metrics.width / 2,
+      y: point.y - metrics.height / 2,
     });
   });
 
   return normalizeNodes(config.nodes, positions);
 };
 
-export const realignGraph = (config: EditorGraphConfig, strategy: GraphAlignmentStrategy): GraphAlignmentResult => {
+export const realignGraph = (
+  config: EditorGraphConfig,
+  strategy: GraphAlignmentStrategy
+): GraphAlignmentResult => {
   if (config.nodes.length === 0) {
     return { nodes: config.nodes, changed: false };
   }

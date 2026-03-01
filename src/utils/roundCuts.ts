@@ -48,9 +48,7 @@ export function normalizeRoundCutRanges(
     const previous = normalized[normalized.length - 1];
     if (
       previous &&
-      (mergeAdjacent
-        ? cut.startTimeMs <= previous.endTimeMs
-        : cut.startTimeMs < previous.endTimeMs)
+      (mergeAdjacent ? cut.startTimeMs <= previous.endTimeMs : cut.startTimeMs < previous.endTimeMs)
     ) {
       previous.endTimeMs = Math.max(previous.endTimeMs, cut.endTimeMs);
       if (previous.startTimeMs <= start && previous.endTimeMs >= end) {

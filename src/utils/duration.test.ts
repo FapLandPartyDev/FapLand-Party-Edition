@@ -3,35 +3,43 @@ import { formatDurationLabel, getRoundDurationSec } from "./duration";
 
 describe("getRoundDurationSec", () => {
   it("uses explicit round trim when present", () => {
-    expect(getRoundDurationSec({
-      startTime: 5_000,
-      endTime: 35_000,
-      resources: [{ durationMs: 999_000 }],
-    } as any)).toBe(30);
+    expect(
+      getRoundDurationSec({
+        startTime: 5_000,
+        endTime: 35_000,
+        resources: [{ durationMs: 999_000 }],
+      } as any)
+    ).toBe(30);
   });
 
   it("falls back to resource duration when the round has no explicit end", () => {
-    expect(getRoundDurationSec({
-      startTime: null,
-      endTime: null,
-      resources: [{ durationMs: 185_000 }],
-    } as any)).toBe(185);
+    expect(
+      getRoundDurationSec({
+        startTime: null,
+        endTime: null,
+        resources: [{ durationMs: 185_000 }],
+      } as any)
+    ).toBe(185);
   });
 
   it("subtracts round start from resource duration when only the start is known", () => {
-    expect(getRoundDurationSec({
-      startTime: 15_000,
-      endTime: null,
-      resources: [{ durationMs: 75_000 }],
-    } as any)).toBe(60);
+    expect(
+      getRoundDurationSec({
+        startTime: 15_000,
+        endTime: null,
+        resources: [{ durationMs: 75_000 }],
+      } as any)
+    ).toBe(60);
   });
 
   it("returns unknown when neither round nor resource duration is available", () => {
-    expect(getRoundDurationSec({
-      startTime: null,
-      endTime: null,
-      resources: [{ durationMs: null }],
-    } as any)).toBe(0);
+    expect(
+      getRoundDurationSec({
+        startTime: null,
+        endTime: null,
+        resources: [{ durationMs: null }],
+      } as any)
+    ).toBe(0);
   });
 });
 

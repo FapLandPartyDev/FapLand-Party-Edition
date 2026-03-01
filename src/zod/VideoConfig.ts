@@ -1,41 +1,41 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-export const ZRoundType = z.enum(['Normal', 'Interjection', 'Cum']);
+export const ZRoundType = z.enum(["Normal", "Interjection", "Cum"]);
 
 export const ZResource = z.object({
-    videoUri: z.string(),
-    funscriptUri: z.string().optional().nullable(),
+  videoUri: z.string(),
+  funscriptUri: z.string().optional().nullable(),
 });
 
 export const ZHero = z.object({
-    name: z.string(),
-    author: z.string().optional().nullable(),
-    description: z.string().optional().nullable(),
-    phash: z.string().optional().nullable(),
+  name: z.string(),
+  author: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  phash: z.string().optional().nullable(),
 });
 
 export const ZRoundCutRange = z.object({
-    startTimeMs: z.number().int().nonnegative(),
-    endTimeMs: z.number().int().nonnegative(),
+  startTimeMs: z.number().int().nonnegative(),
+  endTimeMs: z.number().int().nonnegative(),
 });
 
 export const ZRound = z.object({
-    name: z.string(),
-    author: z.string().optional().nullable(),
-    description: z.string().optional().nullable(),
-    bpm: z.number().optional().nullable(),
-    difficulty: z.number().int().optional().nullable(),
-    phash: z.string().optional().nullable(),
-    startTime: z.number().int().optional().nullable(),
-    endTime: z.number().int().optional().nullable(),
-    cutRanges: z.array(ZRoundCutRange).optional(),
-    type: ZRoundType.default('Normal').optional().nullable(),
-    resources: z.array(ZResource).default([]),
-    hero: ZHero.optional().nullable(),
+  name: z.string(),
+  author: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  bpm: z.number().optional().nullable(),
+  difficulty: z.number().int().optional().nullable(),
+  phash: z.string().optional().nullable(),
+  startTime: z.number().int().optional().nullable(),
+  endTime: z.number().int().optional().nullable(),
+  cutRanges: z.array(ZRoundCutRange).optional(),
+  type: ZRoundType.default("Normal").optional().nullable(),
+  resources: z.array(ZResource).default([]),
+  hero: ZHero.optional().nullable(),
 });
 
 export const ZVideoDatabase = z.object({
-    rounds: z.array(ZRound),
+  rounds: z.array(ZRound),
 });
 
 export type VideoDatabase = z.infer<typeof ZVideoDatabase>;

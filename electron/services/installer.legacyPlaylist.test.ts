@@ -24,7 +24,10 @@ const state = {
   heroesByName: new Map<string, HeroRow>(),
   roundsById: new Map<string, RoundRow>(),
   roundIdByInstallSourceKey: new Map<string, string>(),
-  resourcesByRoundId: new Map<string, Array<{ videoUri: string; funscriptUri: string | null; phash: string | null }>>(),
+  resourcesByRoundId: new Map<
+    string,
+    Array<{ videoUri: string; funscriptUri: string | null; phash: string | null }>
+  >(),
   nextRoundId: 1,
   nextHeroId: 1,
 };
@@ -96,7 +99,7 @@ function buildPrismaMock() {
               id: entry.id,
               installSourceKey: entry.installSourceKey,
               previewImage: entry.previewImage,
-            })),
+            }))
         ),
       },
       resource: {
@@ -142,7 +145,12 @@ function buildPrismaMock() {
           }
 
           if (table === hero) {
-            const payload = input as { name: string; author?: string | null; description?: string | null; phash?: string | null };
+            const payload = input as {
+              name: string;
+              author?: string | null;
+              description?: string | null;
+              phash?: string | null;
+            };
             const id = `hero-${state.nextHeroId++}`;
             state.heroesByName.set(payload.name, {
               id,
@@ -239,14 +247,18 @@ describe("installer legacy folder import", () => {
     await fs.writeFile(path.join(root, "10.mp4"), "video-10");
     await fs.writeFile(path.join(root, "2.mp4"), "video-2");
     await fs.writeFile(path.join(root, "1.mp4"), "video-1");
-    await fs.writeFile(path.join(root, "2.funscript"), "{\"actions\":[]}");
+    await fs.writeFile(path.join(root, "2.funscript"), '{"actions":[]}');
 
     const result = await scanInstallFolderOnceWithLegacySupport(root);
 
     expect(result.status.state).toBe("done");
     expect(result.status.stats.installed).toBe(3);
     expect(result.legacyImport?.roundIds).toHaveLength(3);
-    expect(result.legacyImport?.orderedSlots.map((slot) => slot.kind === "round" ? slot.ref.name : slot.label)).toEqual(["1", "2", "10"]);
+    expect(
+      result.legacyImport?.orderedSlots.map((slot) =>
+        slot.kind === "round" ? slot.ref.name : slot.label
+      )
+    ).toEqual(["1", "2", "10"]);
     expect(result.legacyImport?.playlistNameHint).toBe(path.basename(root));
   });
 
@@ -257,7 +269,9 @@ describe("installer legacy folder import", () => {
     await fs.writeFile(path.join(root, "25 - checkpoint.mp4"), "video-checkpoint");
     await fs.writeFile(path.join(root, "26.mp4"), "video-26");
 
-    const result = await scanInstallFolderOnceWithLegacySupport(root, { omitCheckpointRounds: true });
+    const result = await scanInstallFolderOnceWithLegacySupport(root, {
+      omitCheckpointRounds: true,
+    });
 
     expect(result.legacyImport?.roundIds).toHaveLength(2);
     expect(result.legacyImport?.orderedSlots).toEqual([
@@ -304,7 +318,11 @@ describe("installer legacy folder import", () => {
     expect(result.status.state).toBe("done");
     expect(result.status.stats.installed).toBe(2);
     expect(result.legacyImport?.roundIds).toHaveLength(2);
-    expect(result.legacyImport?.orderedSlots.map((slot) => slot.kind === "round" ? slot.ref.name : slot.label)).toEqual(["1", "3"]);
+    expect(
+      result.legacyImport?.orderedSlots.map((slot) =>
+        slot.kind === "round" ? slot.ref.name : slot.label
+      )
+    ).toEqual(["1", "3"]);
   });
 
   it("does not return legacy metadata when sidecar import already installed rounds", async () => {

@@ -192,6 +192,7 @@ function toCatalogRound(round: InstalledRound): InstalledRoundCatalogEntry {
       durationMs: resource.durationMs,
       funscriptOffsetMs: resource.funscriptOffsetMs,
       hasFunscript: Boolean(resource.funscriptUri),
+      invertFunscript: resource.invertFunscript ?? false,
     })),
   } as InstalledRoundCatalogEntry;
 }

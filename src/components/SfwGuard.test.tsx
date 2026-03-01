@@ -23,7 +23,7 @@ describe("SfwGuard", () => {
     render(
       <SfwGuard>
         <div>Hidden media</div>
-      </SfwGuard>,
+      </SfwGuard>
     );
 
     expect(screen.queryByText("Hidden media")).toBeNull();
@@ -44,7 +44,7 @@ describe("SfwGuard", () => {
     const view = render(
       <SfwGuard>
         <div>Hidden media</div>
-      </SfwGuard>,
+      </SfwGuard>
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Show Media Once" }));
@@ -56,7 +56,7 @@ describe("SfwGuard", () => {
     render(
       <SfwGuard>
         <div>Hidden media</div>
-      </SfwGuard>,
+      </SfwGuard>
     );
 
     expect(screen.queryByText("Hidden media")).toBeNull();

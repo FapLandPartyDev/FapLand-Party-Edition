@@ -7,12 +7,24 @@ function TestConsumer() {
   return (
     <div>
       <div data-testid="count">{media.activeForegroundVideoCount}</div>
-      <button type="button" onClick={() => media.register("a")}>register-a</button>
-      <button type="button" onClick={() => media.register("b")}>register-b</button>
-      <button type="button" onClick={() => media.setPlaying("a", true)}>play-a</button>
-      <button type="button" onClick={() => media.setPlaying("b", true)}>play-b</button>
-      <button type="button" onClick={() => media.setPlaying("a", false)}>pause-a</button>
-      <button type="button" onClick={() => media.unregister("b")}>unregister-b</button>
+      <button type="button" onClick={() => media.register("a")}>
+        register-a
+      </button>
+      <button type="button" onClick={() => media.register("b")}>
+        register-b
+      </button>
+      <button type="button" onClick={() => media.setPlaying("a", true)}>
+        play-a
+      </button>
+      <button type="button" onClick={() => media.setPlaying("b", true)}>
+        play-b
+      </button>
+      <button type="button" onClick={() => media.setPlaying("a", false)}>
+        pause-a
+      </button>
+      <button type="button" onClick={() => media.unregister("b")}>
+        unregister-b
+      </button>
     </div>
   );
 }
@@ -22,7 +34,7 @@ describe("ForegroundMediaContext", () => {
     render(
       <ForegroundMediaProvider>
         <TestConsumer />
-      </ForegroundMediaProvider>,
+      </ForegroundMediaProvider>
     );
 
     expect(screen.getByTestId("count").textContent).toBe("0");

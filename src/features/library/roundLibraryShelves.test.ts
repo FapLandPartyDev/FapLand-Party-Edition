@@ -42,7 +42,11 @@ describe("buildRoundLibraryShelves", () => {
     expect(shelves).toHaveLength(2);
     expect(shelves[0]).toMatchObject({
       kind: "card-row",
-      items: [{ key: "a", renderIndex: 0 }, { key: "b", renderIndex: 1 }, { key: "c", renderIndex: 2 }],
+      items: [
+        { key: "a", renderIndex: 0 },
+        { key: "b", renderIndex: 1 },
+        { key: "c", renderIndex: 2 },
+      ],
     });
     expect(shelves[1]).toMatchObject({
       kind: "card-row",

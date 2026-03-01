@@ -329,6 +329,13 @@ export async function repairInstalledLibrarySchema(
     );
   }
 
+  const resourceInvertFunscriptExists = await hasColumn(dbInstance, "Resource", "invertFunscript");
+  if (!resourceInvertFunscriptExists) {
+    await dbInstance.$client.execute(
+      `ALTER TABLE "Resource" ADD COLUMN "invertFunscript" integer DEFAULT 0 NOT NULL`
+    );
+  }
+
   const roundCutRangesJsonExists = await hasColumn(dbInstance, "Round", "cutRangesJson");
   if (!roundCutRangesJsonExists) {
     await dbInstance.$client.execute(`ALTER TABLE "Round" ADD COLUMN "cutRangesJson" text`);
@@ -422,7 +429,9 @@ export async function runPreMigrationDatabaseBackup(
   const databaseUrl = resolveDatabaseUrl();
   const databasePath = parseFileDatabasePath(databaseUrl);
   if (!databasePath) {
-    console.warn("Skipping pre-migration database backup because DATABASE_URL is not a local file.");
+    console.warn(
+      "Skipping pre-migration database backup because DATABASE_URL is not a local file."
+    );
     return;
   }
   if (!(await pathExists(databasePath))) return;

@@ -39,8 +39,7 @@ export function normalizeMultiplayerSkipRoundsCheck(value: unknown): boolean {
   return typeof value === "boolean" ? value : DEFAULT_MULTIPLAYER_SKIP_ROUNDS_CHECK;
 }
 
-export const INSTALL_WEB_FUNSCRIPT_URL_ENABLED_KEY =
-  "experimental.installWebFunscriptUrlEnabled";
+export const INSTALL_WEB_FUNSCRIPT_URL_ENABLED_KEY = "experimental.installWebFunscriptUrlEnabled";
 export const DEFAULT_INSTALL_WEB_FUNSCRIPT_URL_ENABLED = false;
 
 export function normalizeInstallWebFunscriptUrlEnabled(value: unknown): boolean {
@@ -59,9 +58,7 @@ export const PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED_KEY =
 export const DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED = false;
 
 export function normalizePlaylistCacheOngoingRestrictionDisabled(value: unknown): boolean {
-  return typeof value === "boolean"
-    ? value
-    : DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED;
+  return typeof value === "boolean" ? value : DEFAULT_PLAYLIST_CACHE_ONGOING_RESTRICTION_DISABLED;
 }
 
 export const DEVICE_ANIMATION_TEST_ENABLED_KEY = "experimental.deviceAnimationTestEnabled";

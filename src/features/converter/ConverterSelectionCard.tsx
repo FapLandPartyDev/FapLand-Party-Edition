@@ -140,9 +140,7 @@ export const ConverterSelectionCard: React.FC<ConverterSelectionCardProps> = Rea
               {displayName}
             </h3>
             {displayAuthor && (
-              <p className="mt-0.5 truncate text-xs text-zinc-400">
-                by {displayAuthor}
-              </p>
+              <p className="mt-0.5 truncate text-xs text-zinc-400">by {displayAuthor}</p>
             )}
           </div>
           {typeStyle && (
@@ -165,9 +163,7 @@ export const ConverterSelectionCard: React.FC<ConverterSelectionCardProps> = Rea
             </span>
           )}
           {bpm != null && bpm > 0 && (
-            <span className="rounded-md bg-black/30 px-1.5 py-0.5 text-zinc-300">
-              {bpm} BPM
-            </span>
+            <span className="rounded-md bg-black/30 px-1.5 py-0.5 text-zinc-300">{bpm} BPM</span>
           )}
           {kind === "hero" && roundCount != null && (
             <span className="rounded-md bg-black/30 px-1.5 py-0.5 text-cyan-200/80">
@@ -205,7 +201,9 @@ const ConverterSelectionPreviewVideo = React.memo(function ConverterSelectionPre
   const previewVideoSrc = getVideoSrc(previewUri);
   const previewWindowSec = useMemo(() => {
     const startMs =
-      typeof startTimeMs === "number" && Number.isFinite(startTimeMs) ? Math.max(0, startTimeMs) : 0;
+      typeof startTimeMs === "number" && Number.isFinite(startTimeMs)
+        ? Math.max(0, startTimeMs)
+        : 0;
     const rawEndMs =
       typeof endTimeMs === "number" && Number.isFinite(endTimeMs) ? Math.max(0, endTimeMs) : null;
     const resolvedEndMs = rawEndMs !== null && rawEndMs > startMs ? rawEndMs : null;

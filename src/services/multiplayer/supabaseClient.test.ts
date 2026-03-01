@@ -100,13 +100,15 @@ describe("multiplayer supabase client auth status", () => {
     const result = await resolveMultiplayerAuthStatus();
 
     expect(mocks.auth.signInAnonymously).toHaveBeenCalled();
-    expect(mocks.auth.linkIdentity).toHaveBeenCalledWith(expect.objectContaining({
-      provider: "discord",
-      options: expect.objectContaining({
-        skipBrowserRedirect: true,
-        scopes: "identify email",
-      }),
-    }));
+    expect(mocks.auth.linkIdentity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "discord",
+        options: expect.objectContaining({
+          skipBrowserRedirect: true,
+          scopes: "identify email",
+        }),
+      })
+    );
     expect(result.status).toBe("needs_discord");
     expect(result.requirement).toBe("discord_required");
     expect(result.discordLinkUrl).toBe("https://discord.example/link");
@@ -190,7 +192,9 @@ describe("multiplayer supabase client auth status", () => {
   });
 
   it("exchanges oauth callback codes into sessions", async () => {
-    await expect(handleMultiplayerAuthCallback("fland://auth/callback?code=pkce-code")).resolves.toBe(true);
+    await expect(
+      handleMultiplayerAuthCallback("fland://auth/callback?code=pkce-code")
+    ).resolves.toBe(true);
 
     expect(mocks.auth.exchangeCodeForSession).toHaveBeenCalledWith("pkce-code");
   });

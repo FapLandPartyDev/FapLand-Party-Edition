@@ -228,9 +228,8 @@ function HighscoresPage() {
   const [localHighscore, setLocalHighscore] = useState(initialHighscore);
   const [localHighscoreCheatMode, setLocalHighscoreCheatMode] = useState(initialHighscoreCheatMode);
   const [localHighscoreAssisted, setLocalHighscoreAssisted] = useState(initialHighscoreAssisted);
-  const [localHighscoreAssistedSaveMode, setLocalHighscoreAssistedSaveMode] = useState<
-    HighscoreAssistedSaveMode | null
-  >(initialHighscoreAssistedSaveMode);
+  const [localHighscoreAssistedSaveMode, setLocalHighscoreAssistedSaveMode] =
+    useState<HighscoreAssistedSaveMode | null>(initialHighscoreAssistedSaveMode);
   const [singleRuns, setSingleRuns] = useState<SinglePlayerRunHistoryRow[]>(initialSingleRuns);
   const [matches, setMatches] = useState<HighscoreMatchView[]>(cachedViews);
   const [syncQueueCount, setSyncQueueCount] = useState(initialSyncQueueCount);

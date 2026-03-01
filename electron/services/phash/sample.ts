@@ -1,8 +1,7 @@
 import type { NormalizedVideoHashRange } from "./types";
 
 export const SPRITE_COLUMNS = 5;
-export const SPRITE_ROWS = 5
-;
+export const SPRITE_ROWS = 5;
 export const SPRITE_FRAME_COUNT = SPRITE_COLUMNS * SPRITE_ROWS;
 export const SPRITE_SCREENSHOT_WIDTH = 64;
 

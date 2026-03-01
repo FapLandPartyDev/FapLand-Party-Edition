@@ -457,6 +457,20 @@ export const PERK_LIBRARY: PerkDefinition[] = [
     effects: [{ kind: "setPendingRollCeiling", ceiling: 2 }],
   },
   {
+    id: "antigravity",
+    name: "Antigravity",
+    description: "Anti-perk: invert the funscript for the next round.",
+    iconKey: "antigravity",
+    cost: 270,
+    rarity: "epic",
+    kind: "antiPerk",
+    target: "self",
+    durationRounds: 1,
+    application: "persistent",
+    effects: [],
+    requiresHandy: true,
+  },
+  {
     id: "im-close",
     name: "I'm close",
     description: "For two rounds, minimum dice roll increases to 9 and max to 15.",
@@ -470,6 +484,21 @@ export const PERK_LIBRARY: PerkDefinition[] = [
     effects: [
       { kind: "numericDelta", stat: "diceMin", amount: 8, min: 1, max: 15 },
       { kind: "numericDelta", stat: "diceMax", amount: 9, min: 1, max: 15 },
+    ],
+  },
+  {
+    id: "full-heal",
+    name: "Full Heal",
+    description: "Reset intermediary chance and anti-perk chance to 0.",
+    iconKey: "fullHeal",
+    cost: 350,
+    rarity: "epic",
+    kind: "perk",
+    target: "self",
+    application: "immediate",
+    effects: [
+      { kind: "probabilityDelta", stat: "intermediaryProbability", amount: -1, min: 0, max: 0 },
+      { kind: "probabilityDelta", stat: "antiPerkProbability", amount: -1, min: 0, max: 0 },
     ],
   },
 ];
@@ -708,11 +737,25 @@ const PERK_MESSAGES: Record<string, PerkMessageDescriptors> = {
       message: "Anti-perk: cap the next dice roll to 2.",
     }),
   },
+  antigravity: {
+    name: msg({ id: "perk.name.antigravity", message: "Antigravity" }),
+    description: msg({
+      id: "perk.description.antigravity",
+      message: "Anti-perk: invert the funscript for the next round.",
+    }),
+  },
   "im-close": {
     name: msg({ id: "perk.name.im-close", message: "I'm close" }),
     description: msg({
       id: "perk.description.im-close",
       message: "For two rounds, minimum dice roll increases to 9 and max to 15.",
+    }),
+  },
+  "full-heal": {
+    name: msg({ id: "perk.name.full-heal", message: "Full Heal" }),
+    description: msg({
+      id: "perk.description.full-heal",
+      message: "Reset intermediary chance and anti-perk chance to 0.",
     }),
   },
 };

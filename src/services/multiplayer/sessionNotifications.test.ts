@@ -25,7 +25,7 @@ describe("getMultiplayerSessionNotifications", () => {
     const notifications = getMultiplayerSessionNotifications(
       [],
       [makePlayer({ id: "player-2", displayName: "Ava", state: "in_match" })],
-      "player-1",
+      "player-1"
     );
 
     expect(notifications).toEqual([
@@ -40,7 +40,7 @@ describe("getMultiplayerSessionNotifications", () => {
     const notifications = getMultiplayerSessionNotifications(
       [makePlayer({ id: "player-2", displayName: "Ava", state: "in_match" })],
       [makePlayer({ id: "player-2", displayName: "Ava", state: "disconnected" })],
-      "player-1",
+      "player-1"
     );
 
     expect(notifications).toEqual([
@@ -54,13 +54,15 @@ describe("getMultiplayerSessionNotifications", () => {
   it("reports a cum completion with themed wording", () => {
     const notifications = getMultiplayerSessionNotifications(
       [makePlayer({ id: "player-2", displayName: "Ava", state: "in_match" })],
-      [makePlayer({
-        id: "player-2",
-        displayName: "Ava",
-        state: "came",
-        finalPayloadJson: { completionReason: "self_reported_cum" },
-      })],
-      "player-1",
+      [
+        makePlayer({
+          id: "player-2",
+          displayName: "Ava",
+          state: "came",
+          finalPayloadJson: { completionReason: "self_reported_cum" },
+        }),
+      ],
+      "player-1"
     );
 
     expect(notifications).toEqual([
@@ -75,7 +77,7 @@ describe("getMultiplayerSessionNotifications", () => {
     const notifications = getMultiplayerSessionNotifications(
       [makePlayer({ id: "player-2", displayName: "Ava", state: "disconnected" })],
       [makePlayer({ id: "player-2", displayName: "Ava", state: "in_match" })],
-      "player-1",
+      "player-1"
     );
 
     expect(notifications).toEqual([
@@ -90,10 +92,9 @@ describe("getMultiplayerSessionNotifications", () => {
     const notifications = getMultiplayerSessionNotifications(
       [makePlayer({ id: "player-1", displayName: "Me", state: "in_match" })],
       [makePlayer({ id: "player-1", displayName: "Me", state: "came" })],
-      "player-1",
+      "player-1"
     );
 
     expect(notifications).toEqual([]);
   });
 });
-

@@ -27,7 +27,8 @@ function asNonEmptyTrimmedString(value: unknown): string | null {
 }
 
 function getDefaultActiveServerId(profiles: MultiplayerServerProfile[]): string | null {
-  const hostedDefault = profiles.find((profile) => profile.id === MULTIPLAYER_DEFAULT_SERVER_ID) ?? null;
+  const hostedDefault =
+    profiles.find((profile) => profile.id === MULTIPLAYER_DEFAULT_SERVER_ID) ?? null;
   if (hostedDefault && isLikelyConfiguredSupabaseServer(hostedDefault)) {
     return hostedDefault.id;
   }
@@ -70,12 +71,12 @@ function normalizePersisted(value: unknown): PersistedMultiplayerServers {
   const raw = value as Partial<PersistedMultiplayerServers>;
   const normalizedProfiles = Array.isArray(raw.profiles)
     ? raw.profiles
-      .map((profile) => normalizeProfile(profile))
-      .filter((profile): profile is MultiplayerServerProfile => Boolean(profile))
+        .map((profile) => normalizeProfile(profile))
+        .filter((profile): profile is MultiplayerServerProfile => Boolean(profile))
     : [];
 
   const builtInProfileById = new Map(
-    MULTIPLAYER_BUILTIN_SERVER_PROFILES.map((profile) => [profile.id, profile] as const),
+    MULTIPLAYER_BUILTIN_SERVER_PROFILES.map((profile) => [profile.id, profile] as const)
   );
   const withBuiltIns = normalizedProfiles.map((profile) => {
     const builtIn = builtInProfileById.get(profile.id);
@@ -88,10 +89,10 @@ function normalizePersisted(value: unknown): PersistedMultiplayerServers {
       ...profile,
       ...(shouldRefreshConfiguredValues
         ? {
-          url: builtIn.url,
-          anonKey: builtIn.anonKey,
-          updatedAtIso: builtIn.updatedAtIso,
-        }
+            url: builtIn.url,
+            anonKey: builtIn.anonKey,
+            updatedAtIso: builtIn.updatedAtIso,
+          }
         : {}),
       name: builtIn.name,
       isDefault: true,
@@ -100,15 +101,14 @@ function normalizePersisted(value: unknown): PersistedMultiplayerServers {
   });
 
   const missingBuiltIns = MULTIPLAYER_BUILTIN_SERVER_PROFILES.filter(
-    (profile) => !withBuiltIns.some((existing) => existing.id === profile.id),
+    (profile) => !withBuiltIns.some((existing) => existing.id === profile.id)
   );
 
   const profiles = [...missingBuiltIns, ...withBuiltIns];
 
   const requestedActiveServerId = asNonEmptyTrimmedString(raw.activeServerId);
   const activeServerId =
-    requestedActiveServerId &&
-      profiles.some((profile) => profile.id === requestedActiveServerId)
+    requestedActiveServerId && profiles.some((profile) => profile.id === requestedActiveServerId)
       ? requestedActiveServerId
       : getDefaultActiveServerId(profiles);
 
@@ -159,20 +159,22 @@ export async function getOptionalActiveMultiplayerServerProfile(): Promise<Multi
 export async function getPreferredMultiplayerServerProfile(): Promise<MultiplayerServerProfile | null> {
   const state = await readPersistedState();
   const active = state.activeServerId
-    ? state.profiles.find((profile) => profile.id === state.activeServerId) ?? null
+    ? (state.profiles.find((profile) => profile.id === state.activeServerId) ?? null)
     : null;
 
   if (active && isLikelyConfiguredSupabaseServer(active)) {
     return active;
   }
 
-  const hostedDefault = state.profiles.find((profile) => profile.id === MULTIPLAYER_DEFAULT_SERVER_ID) ?? null;
+  const hostedDefault =
+    state.profiles.find((profile) => profile.id === MULTIPLAYER_DEFAULT_SERVER_ID) ?? null;
   if (hostedDefault && isLikelyConfiguredSupabaseServer(hostedDefault)) {
     return hostedDefault;
   }
 
   if (areDevFeaturesEnabled()) {
-    const developmentServer = state.profiles.find((profile) => profile.id === MULTIPLAYER_DEVELOPMENT_SERVER_ID) ?? null;
+    const developmentServer =
+      state.profiles.find((profile) => profile.id === MULTIPLAYER_DEVELOPMENT_SERVER_ID) ?? null;
     if (developmentServer && isLikelyConfiguredSupabaseServer(developmentServer)) {
       return developmentServer;
     }
@@ -181,7 +183,9 @@ export async function getPreferredMultiplayerServerProfile(): Promise<Multiplaye
   return active ?? state.profiles[0] ?? null;
 }
 
-export async function setActiveMultiplayerServerProfile(serverId: string): Promise<MultiplayerServerProfile> {
+export async function setActiveMultiplayerServerProfile(
+  serverId: string
+): Promise<MultiplayerServerProfile> {
   const state = await readPersistedState();
   const nextId = asNonEmptyTrimmedString(serverId);
   if (!nextId) {

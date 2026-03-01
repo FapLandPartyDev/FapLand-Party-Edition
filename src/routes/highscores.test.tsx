@@ -106,7 +106,9 @@ vi.mock("../components/AnimatedBackground", () => ({
 
 vi.mock("../components/MenuButton", () => ({
   MenuButton: ({ label, onClick }: { label: string; onClick?: () => void }) => (
-    <button type="button" onClick={onClick}>{label}</button>
+    <button type="button" onClick={onClick}>
+      {label}
+    </button>
   ),
 }));
 

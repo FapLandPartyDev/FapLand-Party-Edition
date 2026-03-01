@@ -40,7 +40,7 @@ function getErrorMessage(error: unknown): string {
 function createEmptyDiagnostic(
   tool: BinaryDiagnostic["tool"],
   preference: BinaryPreference,
-  error: string | null,
+  error: string | null
 ): BinaryDiagnostic {
   return {
     tool,
@@ -55,7 +55,7 @@ function createEmptyDiagnostic(
 function createFfmpegDiagnostic(
   tool: "ffmpeg" | "ffprobe",
   preference: VideoHashFfmpegSourcePreference,
-  binaries: PhashBinaries,
+  binaries: PhashBinaries
 ): BinaryDiagnostic {
   return {
     tool,
@@ -69,7 +69,7 @@ function createFfmpegDiagnostic(
 
 function createYtDlpDiagnostic(
   preference: YtDlpBinaryPreference,
-  binary: YtDlpBinary,
+  binary: YtDlpBinary
 ): BinaryDiagnostic {
   return {
     tool: "yt-dlp",

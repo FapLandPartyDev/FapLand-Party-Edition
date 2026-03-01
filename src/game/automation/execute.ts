@@ -1,9 +1,5 @@
 import { getPerkById } from "../data/perks";
-import {
-  adjustPlayerMoney,
-  applyPerkByIdToPlayer,
-  consumeAntiPerkById,
-} from "../engine";
+import { adjustPlayerMoney, applyPerkByIdToPlayer, consumeAntiPerkById } from "../engine";
 import { showGlobalToast } from "../../components/ui/ToastHost";
 import type { AutomationActionStep, AutomationRule } from "./schema";
 import type { AutomationRuntimeEvent, GameState, PlayerState } from "../types";
@@ -53,7 +49,10 @@ function scheduleStep(
   };
 }
 
-function withCurrentPlayer(state: GameState, updater: (player: PlayerState) => PlayerState): GameState {
+function withCurrentPlayer(
+  state: GameState,
+  updater: (player: PlayerState) => PlayerState
+): GameState {
   const player = currentPlayer(state);
   if (!player) return state;
   return {
@@ -165,8 +164,8 @@ function applyImmediateAction(
             ...state.runtimeMusicState,
             currentTrackId: action.trackId,
             currentTrackName:
-              state.config.playlistMusic?.tracks.find((track) => track.id === action.trackId)?.name ??
-              action.trackId,
+              state.config.playlistMusic?.tracks.find((track) => track.id === action.trackId)
+                ?.name ?? action.trackId,
             isPlaying: true,
           },
         },
@@ -203,7 +202,9 @@ function applyImmediateAction(
     case "music.nextTrack": {
       const tracks = state.config.playlistMusic?.tracks ?? [];
       if (tracks.length === 0) return { state };
-      const currentIndex = tracks.findIndex((track) => track.id === state.runtimeMusicState.currentTrackId);
+      const currentIndex = tracks.findIndex(
+        (track) => track.id === state.runtimeMusicState.currentTrackId
+      );
       const nextTrack = tracks[(currentIndex + 1 + tracks.length) % tracks.length] ?? tracks[0]!;
       return {
         state: {
@@ -321,7 +322,10 @@ function runRuleSteps(
   return nextState;
 }
 
-function continueScheduledRule(state: GameState, scheduled: GameState["automationState"]["scheduledSteps"][number]): GameState {
+function continueScheduledRule(
+  state: GameState,
+  scheduled: GameState["automationState"]["scheduledSteps"][number]
+): GameState {
   const rule = state.config.automations?.find((entry) => entry.id === scheduled.ruleId);
   if (!rule) return state;
   return runRuleSteps(state, rule, scheduled.event, scheduled.stepIndex);

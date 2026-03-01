@@ -24,9 +24,7 @@ const mocks = vi.hoisted(() => ({
     setStrokePercent: vi.fn(async () => undefined),
     setStrokeBounds: vi.fn(async () => undefined),
     resetStroke: vi.fn(async () => undefined),
-    toggleManualStop: vi.fn(
-      async (): Promise<"stopped" | "resumed" | "unavailable"> => "stopped"
-    ),
+    toggleManualStop: vi.fn(async (): Promise<"stopped" | "resumed" | "unavailable"> => "stopped"),
     connect: vi.fn(async () => true),
     connectIntiface: vi.fn(async () => true),
     disconnect: vi.fn(async () => undefined),

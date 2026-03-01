@@ -1,4 +1,9 @@
-import { useEffect, useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 type DragThumb = "min" | "max";
 
@@ -92,22 +97,23 @@ export function HandyStrokeRangeControl({
       dragThumbRef.current = thumb;
     };
 
-  const handleThumbKeyDown =
-    (thumb: DragThumb) => (event: KeyboardEvent<HTMLButtonElement>) => {
-      if (disabled) return;
-      const direction =
-        event.key === "ArrowLeft" || event.key === "ArrowDown"
-          ? -1
-          : event.key === "ArrowRight" || event.key === "ArrowUp"
-            ? 1
-            : 0;
-      if (direction === 0) return;
-      event.preventDefault();
-      const nextMin = thumb === "min" ? Math.max(0, Math.min(minValue + direction, maxValue)) : minValue;
-      const nextMax = thumb === "max" ? Math.min(100, Math.max(maxValue + direction, minValue)) : maxValue;
-      onPreview(nextMin, nextMax);
-      onCommit(nextMin, nextMax);
-    };
+  const handleThumbKeyDown = (thumb: DragThumb) => (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+    const direction =
+      event.key === "ArrowLeft" || event.key === "ArrowDown"
+        ? -1
+        : event.key === "ArrowRight" || event.key === "ArrowUp"
+          ? 1
+          : 0;
+    if (direction === 0) return;
+    event.preventDefault();
+    const nextMin =
+      thumb === "min" ? Math.max(0, Math.min(minValue + direction, maxValue)) : minValue;
+    const nextMax =
+      thumb === "max" ? Math.min(100, Math.max(maxValue + direction, minValue)) : maxValue;
+    onPreview(nextMin, nextMax);
+    onCommit(nextMin, nextMax);
+  };
 
   return (
     <div className="relative h-10">

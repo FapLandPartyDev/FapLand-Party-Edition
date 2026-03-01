@@ -10,7 +10,8 @@ const rawArgs = new Set(process.argv.slice(2));
 const shouldRefreshLatest = rawArgs.has("--latest");
 const config = JSON.parse(await fs.readFile(configPath, "utf8"));
 
-const targetKey = process.platform === "win32" ? "win32-x64" : process.platform === "linux" ? "linux-x64" : null;
+const targetKey =
+  process.platform === "win32" ? "win32-x64" : process.platform === "linux" ? "linux-x64" : null;
 if (!targetKey) {
   console.log(`[yt-dlp] Skipping unsupported packaging platform: ${process.platform}`);
   process.exit(0);
@@ -42,12 +43,14 @@ async function fetchLatestReleaseConfig() {
     },
   });
   if (!response.ok) {
-    throw new Error(`Failed to fetch latest yt-dlp release metadata: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch latest yt-dlp release metadata: ${response.status} ${response.statusText}`
+    );
   }
 
   const release = await response.json();
   const assets = new Map(
-    (Array.isArray(release.assets) ? release.assets : []).map((asset) => [asset.name, asset]),
+    (Array.isArray(release.assets) ? release.assets : []).map((asset) => [asset.name, asset])
   );
 
   const nextTargets = {};
@@ -118,7 +121,9 @@ async function downloadFile(url, outputFile) {
   const body = Buffer.from(await response.arrayBuffer());
   const digest = crypto.createHash("sha256").update(body).digest("hex");
   if (digest !== target.sha256) {
-    throw new Error(`Checksum mismatch for ${target.assetName}: expected ${target.sha256}, got ${digest}`);
+    throw new Error(
+      `Checksum mismatch for ${target.assetName}: expected ${target.sha256}, got ${digest}`
+    );
   }
 
   const tempPath = `${outputFile}.tmp`;

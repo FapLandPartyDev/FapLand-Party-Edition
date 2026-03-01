@@ -7,7 +7,7 @@ const cloneState = <T>(state: T): T => {
     return structuredClone(state);
   }
   return JSON.parse(JSON.stringify(state)) as T;
-}
+};
 
 export class UndoManager<T> {
   private undoStack: T[] = [];

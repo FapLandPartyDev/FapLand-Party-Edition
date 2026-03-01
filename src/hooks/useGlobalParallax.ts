@@ -11,8 +11,8 @@ export function useGlobalParallax() {
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      const normalizedX = ((event.clientX / window.innerWidth) - 0.5) * 2;
-      const normalizedY = ((event.clientY / window.innerHeight) - 0.5) * 2;
+      const normalizedX = (event.clientX / window.innerWidth - 0.5) * 2;
+      const normalizedY = (event.clientY / window.innerHeight - 0.5) * 2;
 
       if (raf) cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
@@ -40,4 +40,3 @@ export function useGlobalParallax() {
     };
   }, []);
 }
-

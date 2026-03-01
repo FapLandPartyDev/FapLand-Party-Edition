@@ -21,7 +21,7 @@ export type RoundLibraryShelf =
 export function buildRoundLibraryShelves(
   rows: RoundRenderRow[],
   columns: number,
-  expandedGroupKeys: ReadonlySet<string>,
+  expandedGroupKeys: ReadonlySet<string>
 ): RoundLibraryShelf[] {
   const safeColumns = Math.max(1, Math.floor(columns));
   const shelves: RoundLibraryShelf[] = [];
@@ -35,7 +35,7 @@ export function buildRoundLibraryShelves(
       pendingStandalone,
       safeColumns,
       "standalone",
-      nextShelfRowIndex,
+      nextShelfRowIndex
     );
     shelves.push(...nextShelves);
     nextShelfRowIndex = nextRowIndex;
@@ -76,7 +76,7 @@ export function buildRoundLibraryShelves(
       }),
       safeColumns,
       row.groupKey,
-      0,
+      0
     );
     shelves.push(...nextShelves);
   }
@@ -89,7 +89,7 @@ function chunkCardItems(
   items: RoundLibraryCardItem[],
   columns: number,
   keyPrefix: string,
-  startRowIndex: number,
+  startRowIndex: number
 ): { shelves: RoundLibraryShelf[]; nextRowIndex: number } {
   const shelves: RoundLibraryShelf[] = [];
   let nextRowIndex = startRowIndex;

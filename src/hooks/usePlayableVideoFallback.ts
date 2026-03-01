@@ -61,9 +61,9 @@ export function isLocalVideoUriForFallback(videoUri: string): boolean {
   if (isRawWebsiteVideoPageUri(videoUri)) return true;
 
   return (
-    videoUri.startsWith("app://media/")
-    || videoUri.startsWith("file://")
-    || videoUri.startsWith("app://external/")
+    videoUri.startsWith("app://media/") ||
+    videoUri.startsWith("file://") ||
+    videoUri.startsWith("app://external/")
   );
 }
 
@@ -143,7 +143,8 @@ export function usePlayableVideoFallback(resolver: PlayableResolver = defaultPla
   );
 
   const ensurePlayableVideo = useCallback(
-    async (originalUri: string | null | undefined): Promise<string | null> => resolveFallback(originalUri),
+    async (originalUri: string | null | undefined): Promise<string | null> =>
+      resolveFallback(originalUri),
     [resolveFallback]
   );
 

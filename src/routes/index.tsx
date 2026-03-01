@@ -192,10 +192,7 @@ const Home = () => {
             id: "multiplayer",
             label: t`Multiplayer`,
             experimental: true,
-            disabled:
-              sfwModeEnabled ||
-              multiplayerBlockedByUpdate ||
-              multiplayerBlockedByRounds,
+            disabled: sfwModeEnabled || multiplayerBlockedByUpdate || multiplayerBlockedByRounds,
             subLabel: sfwModeEnabled
               ? t`Blocked By SFW Mode`
               : multiplayerBlockedByUpdate

@@ -591,58 +591,55 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
     []
   );
 
-  const stopTemporaryQueueOverride = useCallback(
-    (id: string) => {
-      if (!overrideActiveRef.current) return;
-      if (activeOverrideIdRef.current !== id) return;
-      const snapshot = preOverrideSnapshotRef.current;
-      if (!snapshot) return;
-      preOverrideSnapshotRef.current = null;
-      overrideActiveRef.current = false;
-      activeOverrideIdRef.current = null;
-      const audio = audioRef.current;
-      if (audio && !audio.paused) {
-        audio.pause();
-      }
-      activeTrackPathRef.current = null;
-      shuffleBagRef.current = [];
-      setQueue(snapshot.queue);
-      setCurrentIndex(snapshot.currentIndex);
-      setLoopModeState(snapshot.loopMode);
-      setShuffleState(snapshot.shuffle);
-      userPausedRef.current = snapshot.userPaused;
-      if (snapshot.wasPlaying && latestEnabledRef.current && snapshot.queue.length > 0) {
-        userPausedRef.current = false;
-        const restoredTrack = snapshot.queue[snapshot.currentIndex];
-        if (restoredTrack) {
-          const restoredSrc = toAudioSrc(restoredTrack.filePath);
-          audio?.load();
-          if (audio && activeTrackPathRef.current !== restoredTrack.filePath) {
-            audio.src = restoredSrc;
-            audio.load();
-            activeTrackPathRef.current = restoredTrack.filePath;
-          }
-          if (snapshot.currentTime > 0 && audio) {
-            audio.addEventListener(
-              "loadedmetadata",
-              () => {
-                audio.currentTime = snapshot.currentTime;
-                void audio.play().catch((error) => {
-                  console.warn("Failed to restore global music playback", error);
-                });
-              },
-              { once: true }
-            );
-          } else {
-            void audio?.play().catch((error) => {
-              console.warn("Failed to restore global music playback", error);
-            });
-          }
+  const stopTemporaryQueueOverride = useCallback((id: string) => {
+    if (!overrideActiveRef.current) return;
+    if (activeOverrideIdRef.current !== id) return;
+    const snapshot = preOverrideSnapshotRef.current;
+    if (!snapshot) return;
+    preOverrideSnapshotRef.current = null;
+    overrideActiveRef.current = false;
+    activeOverrideIdRef.current = null;
+    const audio = audioRef.current;
+    if (audio && !audio.paused) {
+      audio.pause();
+    }
+    activeTrackPathRef.current = null;
+    shuffleBagRef.current = [];
+    setQueue(snapshot.queue);
+    setCurrentIndex(snapshot.currentIndex);
+    setLoopModeState(snapshot.loopMode);
+    setShuffleState(snapshot.shuffle);
+    userPausedRef.current = snapshot.userPaused;
+    if (snapshot.wasPlaying && latestEnabledRef.current && snapshot.queue.length > 0) {
+      userPausedRef.current = false;
+      const restoredTrack = snapshot.queue[snapshot.currentIndex];
+      if (restoredTrack) {
+        const restoredSrc = toAudioSrc(restoredTrack.filePath);
+        audio?.load();
+        if (audio && activeTrackPathRef.current !== restoredTrack.filePath) {
+          audio.src = restoredSrc;
+          audio.load();
+          activeTrackPathRef.current = restoredTrack.filePath;
+        }
+        if (snapshot.currentTime > 0 && audio) {
+          audio.addEventListener(
+            "loadedmetadata",
+            () => {
+              audio.currentTime = snapshot.currentTime;
+              void audio.play().catch((error) => {
+                console.warn("Failed to restore global music playback", error);
+              });
+            },
+            { once: true }
+          );
+        } else {
+          void audio?.play().catch((error) => {
+            console.warn("Failed to restore global music playback", error);
+          });
         }
       }
-    },
-    []
-  );
+    }
+  }, []);
 
   const seek = useCallback((time: number) => {
     const audio = audioRef.current;

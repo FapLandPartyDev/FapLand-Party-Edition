@@ -20,7 +20,11 @@ function getRange(actions: Array<{ pos: number }>): number {
   return Math.max(...positions) - Math.min(...positions);
 }
 
-function hasPattern(actions: Array<{ at: number; pos: number }>, predicate: (window: number[]) => boolean, size: number): boolean {
+function hasPattern(
+  actions: Array<{ at: number; pos: number }>,
+  predicate: (window: number[]) => boolean,
+  size: number
+): boolean {
   for (let index = 0; index <= actions.length - size; index += 1) {
     const window = actions.slice(index, index + size).map((action) => action.pos);
     if (predicate(window)) return true;
@@ -36,7 +40,10 @@ describe("generated sequence motion", () => {
       for (let seed = 1; seed <= 128; seed += 1) {
         const actions = createGeneratedSequenceActions(15_000, mode, createSeededRng(seed));
         for (let index = 1; index < actions.length; index += 1) {
-          const speed = getGeneratedSequenceTravelSpeedMmPerSec(actions[index - 1]!, actions[index]!);
+          const speed = getGeneratedSequenceTravelSpeedMmPerSec(
+            actions[index - 1]!,
+            actions[index]!
+          );
           expect(speed).toBeLessThanOrEqual(GENERATED_SEQUENCE_LIMITS.deviceMaxTravelMmPerSec);
         }
       }
@@ -51,13 +58,17 @@ describe("generated sequence motion", () => {
     }, 0);
     const hasLowBuzz = hasPattern(
       actions,
-      (window) => window[0]! <= 20 && window[1]! < window[0]! && window[2]! > window[1]! && window[3]! < window[2]!,
-      4,
+      (window) =>
+        window[0]! <= 20 &&
+        window[1]! < window[0]! &&
+        window[2]! > window[1]! &&
+        window[3]! < window[2]!,
+      4
     );
     const hasTopFlutter = hasPattern(
       actions,
       (window) => window[0]! >= 70 && window[1]! > window[0]! && window[2] === window[0],
-      3,
+      3
     );
 
     expect(getRange(actions)).toBeGreaterThanOrEqual(68);
@@ -70,7 +81,8 @@ describe("generated sequence motion", () => {
 
   it("gives milker a wide asymmetric pull-release pattern", () => {
     const actions = createGeneratedSequenceActions(15_000, "milker", createSeededRng(11));
-    const averageStepMs = (actions[actions.length - 1]!.at - actions[0]!.at) / Math.max(1, actions.length - 1);
+    const averageStepMs =
+      (actions[actions.length - 1]!.at - actions[0]!.at) / Math.max(1, actions.length - 1);
     const hasTopRegrip = actions.some((action, index) => {
       if (index < 2) return false;
       return (
@@ -81,8 +93,12 @@ describe("generated sequence motion", () => {
     });
     const hasDescendingLadder = hasPattern(
       actions,
-      (window) => window[0]! > window[1]! && window[2]! > window[1]! && window[3]! < window[2]! && window[3]! < window[0]!,
-      4,
+      (window) =>
+        window[0]! > window[1]! &&
+        window[2]! > window[1]! &&
+        window[3]! < window[2]! &&
+        window[3]! < window[0]!,
+      4
     );
 
     expect(getRange(actions)).toBeGreaterThanOrEqual(78);
@@ -96,7 +112,11 @@ describe("generated sequence motion", () => {
 
   it("keeps no-rest gentler than the harsher anti-perks", () => {
     const noRestActions = createGeneratedSequenceActions(10_000, "no-rest", createSeededRng(5));
-    const jackhammerActions = createGeneratedSequenceActions(10_000, "jackhammer", createSeededRng(5));
+    const jackhammerActions = createGeneratedSequenceActions(
+      10_000,
+      "jackhammer",
+      createSeededRng(5)
+    );
 
     expect(getRange(noRestActions)).toBeLessThan(getRange(jackhammerActions));
     expect(getRange(noRestActions)).toBeLessThanOrEqual(50);

@@ -18,7 +18,11 @@ function toPayloadRow(payload: { new: unknown; old: unknown }): Record<string, u
   return null;
 }
 
-function rowMatchesLobby(row: Record<string, unknown> | null, lobbyId: string, lobbyIdField: "id" | "lobby_id"): boolean {
+function rowMatchesLobby(
+  row: Record<string, unknown> | null,
+  lobbyId: string,
+  lobbyIdField: "id" | "lobby_id"
+): boolean {
   if (!row) return false;
   const value = row[lobbyIdField];
   return typeof value === "string" ? value === lobbyId : String(value ?? "") === lobbyId;
@@ -43,13 +47,19 @@ function mapProgress(row: Record<string, unknown>): MultiplayerPlayerProgress {
     lobbyId: String(row.lobby_id),
     playerId: String(row.player_id),
     positionNodeId: row.position_node_id ? String(row.position_node_id) : null,
-    positionIndex: typeof row.position_index === "number" ? row.position_index : Number(row.position_index ?? 0),
+    positionIndex:
+      typeof row.position_index === "number" ? row.position_index : Number(row.position_index ?? 0),
     money: typeof row.money === "number" ? row.money : Number(row.money ?? 0),
     score: typeof row.score === "number" ? row.score : Number(row.score ?? 0),
     statsJson: row.stats_json ?? {},
     inventoryJson: row.inventory_json ?? [],
     activeEffectsJson: row.active_effects_json ?? [],
-    lastRoll: typeof row.last_roll === "number" ? row.last_roll : row.last_roll ? Number(row.last_roll) : null,
+    lastRoll:
+      typeof row.last_roll === "number"
+        ? row.last_roll
+        : row.last_roll
+          ? Number(row.last_roll)
+          : null,
     updatedAt: String(row.updated_at ?? new Date().toISOString()),
   };
 }
@@ -65,7 +75,7 @@ async function unsubscribeChannel(clientChannel: RealtimeChannel): Promise<void>
 export async function subscribeLobbyRealtime(
   lobbyId: string,
   handlers: LobbyRealtimeHandlers,
-  profile?: MultiplayerServerProfile,
+  profile?: MultiplayerServerProfile
 ): Promise<() => Promise<void>> {
   const { client } = await getSupabaseClientForProfile(profile);
   const channel = client.channel(`mp-lobby:${lobbyId}:${Math.random().toString(36).slice(2, 8)}`);
@@ -84,7 +94,7 @@ export async function subscribeLobbyRealtime(
     (payload) => {
       if (!rowMatchesLobby(toPayloadRow(payload), lobbyId, "id")) return;
       handleAny();
-    },
+    }
   );
 
   channel.on(
@@ -97,7 +107,7 @@ export async function subscribeLobbyRealtime(
     (payload) => {
       if (!rowMatchesLobby(toPayloadRow(payload), lobbyId, "lobby_id")) return;
       handleAny();
-    },
+    }
   );
 
   channel.on(
@@ -114,7 +124,7 @@ export async function subscribeLobbyRealtime(
         handlers.onPlayerProgressUpsert?.(mapProgress(row));
       }
       handleAny();
-    },
+    }
   );
 
   channel.on(
@@ -129,7 +139,7 @@ export async function subscribeLobbyRealtime(
       if (!row || !rowMatchesLobby(row, lobbyId, "lobby_id")) return;
       handlers.onAntiPerkEvent?.(mapAntiPerkEvent(row));
       handleAny();
-    },
+    }
   );
 
   channel.subscribe((status) => {

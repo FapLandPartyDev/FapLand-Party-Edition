@@ -3,13 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearApprovedDialogPathsForTests } from "./dialogPathApproval";
 
-const {
-  readFileMock,
-  writeFileMock,
-  mkdirMock,
-  getDbMock,
-  getStoreMock,
-} = vi.hoisted(() => ({
+const { readFileMock, writeFileMock, mkdirMock, getDbMock, getStoreMock } = vi.hoisted(() => ({
   readFileMock: vi.fn(),
   writeFileMock: vi.fn(),
   mkdirMock: vi.fn(),
@@ -33,7 +27,11 @@ vi.mock("./store", () => ({
   getStore: getStoreMock,
 }));
 
-import { analyzePlaylistImportFile, exportPlaylistToFile, importPlaylistFromFile } from "./playlists";
+import {
+  analyzePlaylistImportFile,
+  exportPlaylistToFile,
+  importPlaylistFromFile,
+} from "./playlists";
 
 describe("playlist file path approval", () => {
   beforeEach(() => {
@@ -61,22 +59,22 @@ describe("playlist file path approval", () => {
 
   it("rejects analyzing playlists from unapproved paths", async () => {
     await expect(analyzePlaylistImportFile("/tmp/unapproved.fplay")).rejects.toThrow(
-      "Path must be selected through the system dialog.",
+      "Path must be selected through the system dialog."
     );
     expect(readFileMock).not.toHaveBeenCalled();
   });
 
   it("rejects importing playlists from unapproved paths", async () => {
     await expect(importPlaylistFromFile({ filePath: "/tmp/unapproved.fplay" })).rejects.toThrow(
-      "Path must be selected through the system dialog.",
+      "Path must be selected through the system dialog."
     );
     expect(readFileMock).not.toHaveBeenCalled();
   });
 
   it("rejects exporting playlists to unapproved paths", async () => {
-    await expect(exportPlaylistToFile({ playlistId: "playlist-1", filePath: "/tmp/unapproved.fplay" })).rejects.toThrow(
-      "Path must be selected through the system dialog.",
-    );
+    await expect(
+      exportPlaylistToFile({ playlistId: "playlist-1", filePath: "/tmp/unapproved.fplay" })
+    ).rejects.toThrow("Path must be selected through the system dialog.");
     expect(writeFileMock).not.toHaveBeenCalled();
     expect(mkdirMock).not.toHaveBeenCalled();
   });

@@ -116,6 +116,7 @@ type RoundEditDraft = {
   resourceId: string | null;
   funscriptUri: string | null;
   funscriptOffsetMs: string;
+  invertFunscript: boolean;
   excludeFromRandom: boolean;
 };
 type HeroEditDraft = {
@@ -693,6 +694,7 @@ function toRoundEditDraft(
     funscriptUri,
     funscriptOffsetMs:
       primaryResource?.funscriptOffsetMs == null ? "" : `${primaryResource.funscriptOffsetMs}`,
+    invertFunscript: (primaryResource as { invertFunscript?: boolean })?.invertFunscript ?? false,
     excludeFromRandom: round.excludeFromRandom ?? false,
   };
 }
@@ -2491,6 +2493,7 @@ export function InstalledRoundsPage() {
         endTime,
         funscriptUri: editingRound.resourceId ? editingRound.funscriptUri : undefined,
         funscriptOffsetMs: editingRound.resourceId ? funscriptOffsetMs : undefined,
+        invertFunscript: editingRound.resourceId ? editingRound.invertFunscript : undefined,
         type: editingRound.type,
         excludeFromRandom: editingRound.excludeFromRandom,
         libraryLabel: editingRound.libraryLabel,
@@ -4161,6 +4164,24 @@ export function InstalledRoundsPage() {
                     className="w-full rounded-xl border border-violet-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-200/70 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={editingRound.invertFunscript}
+                    disabled={
+                      isSavingEdit || !editingRound.resourceId || !editingRound.funscriptUri
+                    }
+                    onChange={(event) =>
+                      setEditingRound((previous) =>
+                        previous ? { ...previous, invertFunscript: event.target.checked } : previous
+                      )
+                    }
+                    className="h-4 w-4 rounded border-violet-300/40 bg-black/45 text-violet-400 focus:ring-violet-400/60 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <span className="text-sm text-zinc-300">
+                    <Trans>Invert funscript (flip all positions)</Trans>
+                  </span>
+                </label>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"

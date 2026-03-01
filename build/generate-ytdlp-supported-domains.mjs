@@ -178,7 +178,9 @@ async function main() {
   };
 
   await fs.writeFile(outputPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
-  console.log(`[yt-dlp] Wrote ${payload.domains.length} supported domains to ${path.relative(repoRoot, outputPath)}`);
+  console.log(
+    `[yt-dlp] Wrote ${payload.domains.length} supported domains to ${path.relative(repoRoot, outputPath)}`
+  );
 }
 
 await main();

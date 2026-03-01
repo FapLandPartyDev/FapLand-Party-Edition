@@ -8,7 +8,7 @@ export type VideoHashFfmpegSourcePreference =
 export const DEFAULT_VIDEOHASH_FFMPEG_SOURCE_PREFERENCE: VideoHashFfmpegSourcePreference = "auto";
 
 export function normalizeVideoHashFfmpegSourcePreference(
-  value: unknown,
+  value: unknown
 ): VideoHashFfmpegSourcePreference {
   if (typeof value !== "string") return DEFAULT_VIDEOHASH_FFMPEG_SOURCE_PREFERENCE;
 

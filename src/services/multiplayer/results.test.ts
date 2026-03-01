@@ -91,14 +91,16 @@ describe("multiplayer result helpers", () => {
     const snapshot = makeSnapshot();
     expect(hasActivePlayers(snapshot)).toBe(true);
 
-    const parsed = parseStandingsJson([{
-      player_id: "p3",
-      user_id: "u3",
-      display_name: "Gamma",
-      state: "finished",
-      final_score: 99,
-      finish_at: "2026-03-05T12:03:00.000Z",
-    }]);
+    const parsed = parseStandingsJson([
+      {
+        player_id: "p3",
+        user_id: "u3",
+        display_name: "Gamma",
+        state: "finished",
+        final_score: 99,
+        finish_at: "2026-03-05T12:03:00.000Z",
+      },
+    ]);
     expect(parsed[0]).toMatchObject({
       playerId: "p3",
       userId: "u3",

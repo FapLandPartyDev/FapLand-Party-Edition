@@ -218,7 +218,8 @@ vi.mock("../services/trpc", () => ({
         query: vi.fn(async ({ keys }: { keys: string[] }) => {
           const values: Record<string, unknown> = {};
           for (const key of keys) {
-            if (key === "game.intermediary.loadingPrompt") values[key] = "animated gif webm score:>300";
+            if (key === "game.intermediary.loadingPrompt")
+              values[key] = "animated gif webm score:>300";
             else if (key === "game.intermediary.loadingDurationSec") values[key] = 5;
             else if (key === "game.intermediary.returnPauseSec") values[key] = 4;
             else if (key === "videoHash.ffmpegSourcePreference") values[key] = "auto";

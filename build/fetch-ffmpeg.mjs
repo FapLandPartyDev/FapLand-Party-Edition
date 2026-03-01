@@ -8,7 +8,8 @@ import { spawn } from "node:child_process";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 
-const targetKey = process.platform === "win32" ? "win32-x64" : process.platform === "linux" ? "linux-x64" : null;
+const targetKey =
+  process.platform === "win32" ? "win32-x64" : process.platform === "linux" ? "linux-x64" : null;
 if (!targetKey) {
   console.log(`[ffmpeg] Skipping unsupported packaging platform: ${process.platform}`);
   process.exit(0);
@@ -44,19 +45,21 @@ async function fetchLatestTarget() {
     },
   });
   if (!response.ok) {
-    throw new Error(`Failed to fetch latest FFmpeg release metadata: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch latest FFmpeg release metadata: ${response.status} ${response.statusText}`
+    );
   }
 
   const release = await response.json();
   const target = TARGETS[targetKey];
   const asset = (Array.isArray(release.assets) ? release.assets : []).find(
-    (entry) => entry?.name && target.assetPattern.test(entry.name),
+    (entry) => entry?.name && target.assetPattern.test(entry.name)
   );
   const sha256 = normalizeDigest(asset?.digest);
 
   if (!asset || !sha256) {
     throw new Error(
-      `Latest FFmpeg release is missing asset matching ${target.assetPattern} or its digest.`,
+      `Latest FFmpeg release is missing asset matching ${target.assetPattern} or its digest.`
     );
   }
 
@@ -132,7 +135,9 @@ async function downloadFile(url, outputFile, expectedSha256) {
   const body = Buffer.from(await response.arrayBuffer());
   const digest = crypto.createHash("sha256").update(body).digest("hex");
   if (digest !== expectedSha256) {
-    throw new Error(`Checksum mismatch for ${path.basename(outputFile)}: expected ${expectedSha256}, got ${digest}`);
+    throw new Error(
+      `Checksum mismatch for ${path.basename(outputFile)}: expected ${expectedSha256}, got ${digest}`
+    );
   }
 
   const tempPath = `${outputFile}.tmp`;
@@ -196,13 +201,15 @@ const extractDir = path.join(tempRoot, "extract");
 try {
   await fs.mkdir(extractDir, { recursive: true });
   console.log(
-    `[ffmpeg] Downloading ${latestTarget.assetName} from ${latestTarget.releaseName}${latestTarget.publishedAt ? ` (${latestTarget.publishedAt})` : ""}`,
+    `[ffmpeg] Downloading ${latestTarget.assetName} from ${latestTarget.releaseName}${latestTarget.publishedAt ? ` (${latestTarget.publishedAt})` : ""}`
   );
   await downloadFile(latestTarget.downloadUrl, archivePath, latestTarget.sha256);
 
   const archiveDigest = await sha256File(archivePath);
   if (archiveDigest !== latestTarget.sha256) {
-    throw new Error(`Archive checksum mismatch after download: expected ${latestTarget.sha256}, got ${archiveDigest}`);
+    throw new Error(
+      `Archive checksum mismatch after download: expected ${latestTarget.sha256}, got ${archiveDigest}`
+    );
   }
 
   await extractArchive(archivePath, latestTarget.archiveType, extractDir);
@@ -211,7 +218,9 @@ try {
   const extractedFfprobePath = await findFileByBasename(extractDir, latestTarget.ffprobeBinaryName);
 
   if (!extractedFfmpegPath || !extractedFfprobePath) {
-    throw new Error(`Unable to locate ${latestTarget.ffmpegBinaryName} and ${latestTarget.ffprobeBinaryName} in extracted archive.`);
+    throw new Error(
+      `Unable to locate ${latestTarget.ffmpegBinaryName} and ${latestTarget.ffprobeBinaryName} in extracted archive.`
+    );
   }
 
   await fs.copyFile(extractedFfmpegPath, ffmpegOutputPath);
@@ -229,9 +238,9 @@ try {
         sha256: latestTarget.sha256,
       },
       null,
-      2,
+      2
     )}\n`,
-    "utf8",
+    "utf8"
   );
 
   console.log(`[ffmpeg] Ready at ${path.relative(repoRoot, outputDir)}`);

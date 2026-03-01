@@ -23,10 +23,9 @@ import type {
 
 export type TheHandyHapticsSession = HandySession & HapticsSession & { provider: "thehandy" };
 
-function requireTheHandyConfig(config: HapticsConnectionConfig): Extract<
-  HapticsConnectionConfig,
-  { provider: "thehandy" }
-> {
+function requireTheHandyConfig(
+  config: HapticsConnectionConfig
+): Extract<HapticsConnectionConfig, { provider: "thehandy" }> {
   if (config.provider !== "thehandy") {
     throw new Error("TheHandy adapter received non-TheHandy configuration.");
   }

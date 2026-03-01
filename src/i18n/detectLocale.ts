@@ -1,4 +1,8 @@
-import { DEFAULT_APP_LOCALE, normalizeAppLocale, type AppLocale } from "../constants/localeSettings";
+import {
+  DEFAULT_APP_LOCALE,
+  normalizeAppLocale,
+  type AppLocale,
+} from "../constants/localeSettings";
 import { getSupportedLocale } from "./config";
 
 export function detectInitialLocale(): AppLocale {

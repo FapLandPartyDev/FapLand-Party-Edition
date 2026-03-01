@@ -1,8 +1,4 @@
-import type {
-  AutomationCondition,
-  AutomationConditionGroup,
-  AutomationRule,
-} from "./schema";
+import type { AutomationCondition, AutomationConditionGroup, AutomationRule } from "./schema";
 import type { AutomationRuntimeEvent, GameState } from "../types";
 
 function compareNumeric(
@@ -72,7 +68,11 @@ export function doesTriggerMatch(rule: AutomationRule, event: AutomationRuntimeE
   }
 }
 
-function evaluateCondition(state: GameState, event: AutomationRuntimeEvent, condition: AutomationCondition): boolean {
+function evaluateCondition(
+  state: GameState,
+  event: AutomationRuntimeEvent,
+  condition: AutomationCondition
+): boolean {
   const currentPlayer = state.players[state.currentPlayerIndex];
   const currentNodeId = currentPlayer?.currentNodeId ?? null;
   const currentTrackId = state.runtimeMusicState.currentTrackId;
@@ -113,7 +113,9 @@ function evaluateCondition(state: GameState, event: AutomationRuntimeEvent, cond
     case "musicState":
       if (condition.state === "playing") return state.runtimeMusicState.isPlaying;
       if (condition.state === "paused") {
-        return !state.runtimeMusicState.isPlaying && Boolean(state.runtimeMusicState.currentTrackId);
+        return (
+          !state.runtimeMusicState.isPlaying && Boolean(state.runtimeMusicState.currentTrackId)
+        );
       }
       return !state.runtimeMusicState.isPlaying && !state.runtimeMusicState.currentTrackId;
     case "currentTrack":

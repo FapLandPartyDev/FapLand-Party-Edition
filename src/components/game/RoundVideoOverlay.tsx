@@ -261,6 +261,19 @@ function applyTimelineIntensityCap(
   };
 }
 
+function invertTimeline(
+  timeline: Awaited<ReturnType<typeof loadFunscriptTimeline>>,
+  shouldInvert: boolean
+): Awaited<ReturnType<typeof loadFunscriptTimeline>> {
+  if (!timeline || !shouldInvert) return timeline;
+  return {
+    actions: timeline.actions.map((action) => ({
+      ...action,
+      pos: 100 - action.pos,
+    })),
+  };
+}
+
 export function RoundVideoOverlay({
   activeRound,
   installedRounds,
@@ -537,6 +550,7 @@ export function RoundVideoOverlay({
       videoUri: resource.videoUri,
       funscriptUri: resource.funscriptUri,
       funscriptOffsetMs: resource.funscriptOffsetMs,
+      invertFunscript: resource.invertFunscript,
       startTime: resolvedRound?.startTime,
       endTime: resolvedRound?.endTime,
       cutRanges: parseRoundCutRangesJson(
@@ -686,7 +700,10 @@ export function RoundVideoOverlay({
       })
       .catch((error) => {
         console.error("Failed to save funscript offset", error);
-        showToast(error instanceof Error ? error.message : t`Failed to save offset to round.`, "error");
+        showToast(
+          error instanceof Error ? error.message : t`Failed to save offset to round.`,
+          "error"
+        );
       });
   }, [activeRound, activeSegmentResource, offsetMs, setResourceOffsetOverride, showToast, t]);
 
@@ -1115,13 +1132,7 @@ export function RoundVideoOverlay({
                   return;
                 }
               }
-              await preloadHapticsScript(
-                hapticsConfig,
-                session,
-                sourceId,
-                input.actions,
-                0
-              );
+              await preloadHapticsScript(hapticsConfig, session, sourceId, input.actions, 0);
               if (
                 generatedSequenceSyncTokenRef.current !== syncToken ||
                 handyManuallyStoppedRef.current
@@ -1718,7 +1729,12 @@ export function RoundVideoOverlay({
       }
 
       if ("lastSyncAtMs" in session) session.lastSyncAtMs = 0;
-      await preloadHapticsScript(hapticsConfig, session, `${activeVideoUri}:${segment.kind}`, actions);
+      await preloadHapticsScript(
+        hapticsConfig,
+        session,
+        `${activeVideoUri}:${segment.kind}`,
+        actions
+      );
       if (handyManuallyStoppedRef.current) return;
       await sendHapticsSync(
         hapticsConfig,
@@ -1816,7 +1832,13 @@ export function RoundVideoOverlay({
       const session = await ensureHandySession();
       if (!session || handyManuallyStoppedRef.current) return false;
 
-      await preloadHapticsScript(hapticsConfig, session, `${activeVideoUri}:${segment.kind}`, actions, effectiveTimeMs);
+      await preloadHapticsScript(
+        hapticsConfig,
+        session,
+        `${activeVideoUri}:${segment.kind}`,
+        actions,
+        effectiveTimeMs
+      );
       if (handyManuallyStoppedRef.current) return false;
       await sendHapticsSync(
         hapticsConfig,
@@ -2393,6 +2415,9 @@ export function RoundVideoOverlay({
     if (boardSequence && !activeRound) return;
     const funscriptUri = activeSegmentResource?.funscriptUri;
     const intensityCap = currentPlayer?.pendingIntensityCap ?? null;
+    const shouldInvert =
+      Boolean(activeSegmentResource?.invertFunscript) ||
+      Boolean(currentPlayer?.antiPerks.includes("antigravity"));
     if (!funscriptUri) {
       setTimeline(null);
       setTimelineUri(null);
@@ -2404,7 +2429,8 @@ export function RoundVideoOverlay({
 
     const cached = timelineCacheRef.current.get(funscriptUri) ?? null;
     if (cached) {
-      const resolvedTimeline = applyTimelineIntensityCap(cached, intensityCap);
+      let resolvedTimeline = applyTimelineIntensityCap(cached, intensityCap);
+      resolvedTimeline = invertTimeline(resolvedTimeline, shouldInvert);
       setTimeline(resolvedTimeline);
       setTimelineUri(funscriptUri);
       const count = resolvedTimeline?.actions.length ?? 0;
@@ -2421,7 +2447,8 @@ export function RoundVideoOverlay({
     void loadFunscriptTimeline(funscriptUri).then((loaded) => {
       if (cancelled) return;
       timelineCacheRef.current.set(funscriptUri, loaded);
-      const resolvedTimeline = applyTimelineIntensityCap(loaded, intensityCap);
+      let resolvedTimeline = applyTimelineIntensityCap(loaded, intensityCap);
+      resolvedTimeline = invertTimeline(resolvedTimeline, shouldInvert);
       setTimeline(resolvedTimeline);
       setTimelineUri(funscriptUri);
       const count = resolvedTimeline?.actions.length ?? 0;
@@ -2435,8 +2462,10 @@ export function RoundVideoOverlay({
   }, [
     activeRound,
     activeSegmentResource?.funscriptUri,
+    activeSegmentResource?.invertFunscript,
     boardSequence,
     currentPlayer?.pendingIntensityCap,
+    currentPlayer?.antiPerks,
   ]);
 
   useEffect(() => {

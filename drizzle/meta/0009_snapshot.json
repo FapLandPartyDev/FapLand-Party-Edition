@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8bc4f50e-4a6b-4e66-9142-51d484c19ca1",
-  "prevId": "b2202f52-4459-4777-bb20-6282036d256e",
+  "id": "99c3cecb-4ebb-4df5-a4de-598b9bb9f229",
+  "prevId": "8bc4f50e-4a6b-4e66-9142-51d484c19ca1",
   "tables": {
     "GameProfile": {
       "name": "GameProfile",
@@ -361,6 +361,21 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "funscriptOffsetMs": {
+          "name": "funscriptOffsetMs",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "invertFunscript": {
+          "name": "invertFunscript",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         },
         "phash": {
           "name": "phash",

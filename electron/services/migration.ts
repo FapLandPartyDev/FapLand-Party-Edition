@@ -124,10 +124,7 @@ export async function migratePathsToTarget(
   const skipped: Array<{ storeKey: string; reason: string }> = [];
 
   for (const entry of MIGRATABLE_STORAGE_PATHS) {
-    const currentPath = resolveConfiguredStoragePath(
-      store.get(entry.storeKey),
-      entry.relativeName
-    );
+    const currentPath = resolveConfiguredStoragePath(store.get(entry.storeKey), entry.relativeName);
 
     const sourceExists = await directoryExists(currentPath);
     if (!sourceExists) {
@@ -168,11 +165,19 @@ export async function migratePathsToTarget(
 
 export function detectPortableInstallation(directory: string): DetectPortableResult {
   if (isPortableMode()) {
-    return { valid: false, reason: "Already running in portable mode.", existingDatabaseExists: false };
+    return {
+      valid: false,
+      reason: "Already running in portable mode.",
+      existingDatabaseExists: false,
+    };
   }
 
   if (process.platform !== "win32") {
-    return { valid: false, reason: "Portable mode is only available on Windows.", existingDatabaseExists: false };
+    return {
+      valid: false,
+      reason: "Portable mode is only available on Windows.",
+      existingDatabaseExists: false,
+    };
   }
 
   const normalizedDir = path.resolve(directory.trim());
@@ -200,7 +205,8 @@ export function detectPortableInstallation(directory: string): DetectPortableRes
   if (!exePath && !hasDataDirectory) {
     return {
       valid: false,
-      reason: "No portable installation detected. The directory must contain the F-Land executable or a data/ folder.",
+      reason:
+        "No portable installation detected. The directory must contain the F-Land executable or a data/ folder.",
       existingDatabaseExists: false,
     };
   }
@@ -253,10 +259,7 @@ export async function migrateToPortable(
   const skippedCaches: Array<{ storeKey: string; reason: string }> = [];
 
   for (const entry of MIGRATABLE_STORAGE_PATHS) {
-    const currentPath = resolveConfiguredStoragePath(
-      store.get(entry.storeKey),
-      entry.relativeName
-    );
+    const currentPath = resolveConfiguredStoragePath(store.get(entry.storeKey), entry.relativeName);
 
     const sourceExists = await directoryExists(currentPath);
     if (!sourceExists) {

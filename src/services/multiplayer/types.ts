@@ -159,7 +159,10 @@ export type MultiplayerSendAntiPerkResult = {
   createdAt: string;
 };
 
-export type MultiplayerAuthRequirement = "anonymous_only" | "discord_required" | "email_password_required";
+export type MultiplayerAuthRequirement =
+  | "anonymous_only"
+  | "discord_required"
+  | "email_password_required";
 
 export type MultiplayerAuthStatus = {
   profile: MultiplayerServerProfile;

@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { ACTION_FIELDS, setNestedValue, type ActionKind } from "./registry";
 import { ZAutomationActionStep } from "./schema";
 
-function applyFieldEdits(action: Record<string, unknown>, kind: ActionKind): Record<string, unknown> {
+function applyFieldEdits(
+  action: Record<string, unknown>,
+  kind: ActionKind
+): Record<string, unknown> {
   let next = action;
   for (const field of ACTION_FIELDS[kind]) {
     switch (field.type) {

@@ -18,11 +18,7 @@ import type { PlaylistConfig } from "../game/playlistSchema";
 import { getSaveModeEmoji } from "../game/saveMode";
 import { describePlaylistBoard } from "../game/playlistStats";
 import { resolvePortableRoundRef } from "../game/playlistRuntime";
-import {
-  db,
-  type InstalledRoundCardAssets,
-  type InstalledRoundCatalogEntry,
-} from "../services/db";
+import { db, type InstalledRoundCardAssets, type InstalledRoundCatalogEntry } from "../services/db";
 import {
   getInstalledRoundCardAssetsCached,
   getInstalledRoundCatalogCached,
@@ -99,16 +95,12 @@ export const Route = createFileRoute("/single-player-setup")({
       db.singlePlayerSaves.list(),
     ]);
 
-    const hasEndless = availablePlaylists.some(
-      (p) => p.config.boardConfig.mode === "endless"
-    );
+    const hasEndless = availablePlaylists.some((p) => p.config.boardConfig.mode === "endless");
     if (!hasEndless) {
       await playlists.ensureEndless();
     }
 
-    const finalPlaylists = hasEndless
-      ? availablePlaylists
-      : await playlists.list();
+    const finalPlaylists = hasEndless ? availablePlaylists : await playlists.list();
     const activePlaylist = finalPlaylists.length > 0 ? await playlists.getActive() : null;
 
     return {
@@ -166,41 +158,40 @@ function SinglePlayerSetupPage() {
     () => (selectedPlaylist ? describePlaylistBoard(selectedPlaylist.config) : null),
     [selectedPlaylist]
   );
-  const playlistCacheSummaryById = useMemo(
-    () => {
-      const roundResolver = createPortableRoundRefResolver(installedRounds);
-      const summaryByPlaylistId = new Map<
-        string,
-        { hasPending: boolean; pendingRoundCount: number; pendingRoundNames: string[] }
-      >();
+  const playlistCacheSummaryById = useMemo(() => {
+    const roundResolver = createPortableRoundRefResolver(installedRounds);
+    const summaryByPlaylistId = new Map<
+      string,
+      { hasPending: boolean; pendingRoundCount: number; pendingRoundNames: string[] }
+    >();
 
-      for (const playlist of availablePlaylists) {
-        const pendingRoundNames: string[] = [];
-        const seenRoundIds = new Set<string>();
+    for (const playlist of availablePlaylists) {
+      const pendingRoundNames: string[] = [];
+      const seenRoundIds = new Set<string>();
 
-        for (const entry of collectPlaylistRefs(playlist.config)) {
-          const resolvedRound = roundResolver.resolve(entry.ref);
-          if (!resolvedRound || seenRoundIds.has(resolvedRound.id)) {
-            continue;
-          }
-          seenRoundIds.add(resolvedRound.id);
-
-          if (installedRoundCardAssetsById.get(resolvedRound.id)?.websiteVideoCacheStatus === "pending") {
-            pendingRoundNames.push(resolvedRound.name);
-          }
+      for (const entry of collectPlaylistRefs(playlist.config)) {
+        const resolvedRound = roundResolver.resolve(entry.ref);
+        if (!resolvedRound || seenRoundIds.has(resolvedRound.id)) {
+          continue;
         }
+        seenRoundIds.add(resolvedRound.id);
 
-        summaryByPlaylistId.set(playlist.id, {
-          hasPending: pendingRoundNames.length > 0,
-          pendingRoundCount: pendingRoundNames.length,
-          pendingRoundNames,
-        });
+        if (
+          installedRoundCardAssetsById.get(resolvedRound.id)?.websiteVideoCacheStatus === "pending"
+        ) {
+          pendingRoundNames.push(resolvedRound.name);
+        }
       }
 
-      return summaryByPlaylistId;
-    },
-    [availablePlaylists, installedRoundCardAssetsById, installedRounds]
-  );
+      summaryByPlaylistId.set(playlist.id, {
+        hasPending: pendingRoundNames.length > 0,
+        pendingRoundCount: pendingRoundNames.length,
+        pendingRoundNames,
+      });
+    }
+
+    return summaryByPlaylistId;
+  }, [availablePlaylists, installedRoundCardAssetsById, installedRounds]);
   const savedRunByPlaylistId = useMemo(
     () => new Map(savedRuns.map((run) => [run.playlistId, run])),
     [savedRuns]
@@ -211,7 +202,9 @@ function SinglePlayerSetupPage() {
     [installedRounds, selectedPlaylist]
   );
   const selectedPlaylistDurationLabel =
-    selectedPlaylistDurationSec != null ? formatDurationLabel(selectedPlaylistDurationSec) : "Endless";
+    selectedPlaylistDurationSec != null
+      ? formatDurationLabel(selectedPlaylistDurationSec)
+      : "Endless";
   const selectedPlaylistIsEndless = selectedPlaylist?.config.boardConfig.mode === "endless";
   const selectedPlaylistCacheSummary = selectedPlaylist
     ? (playlistCacheSummaryById.get(selectedPlaylist.id) ?? {
@@ -577,7 +570,11 @@ function SinglePlayerSetupPage() {
                           <Trans>{summary.roundNodeCount} rounds</Trans>
                         </span>
                         <span>•</span>
-                        <span>{estimatedDurationSec != null ? formatDurationLabel(estimatedDurationSec) : "Endless"}</span>
+                        <span>
+                          {estimatedDurationSec != null
+                            ? formatDurationLabel(estimatedDurationSec)
+                            : "Endless"}
+                        </span>
                         {isCachePending && (
                           <>
                             <span>•</span>

@@ -9,7 +9,9 @@ export type EroScriptsVideoCandidate = EroScriptsTopicMedia["videos"][number];
 export type EroScriptsFunscriptDownloadResult = Awaited<
   ReturnType<typeof trpc.eroscripts.downloadFunscript.mutate>
 >;
-export type EroScriptsLoginStatus = Awaited<ReturnType<typeof trpc.eroscripts.getLoginStatus.query>>;
+export type EroScriptsLoginStatus = Awaited<
+  ReturnType<typeof trpc.eroscripts.getLoginStatus.query>
+>;
 export type EroScriptsSearchInput = {
   query?: string;
   tags?: string[];

@@ -10,16 +10,22 @@ exports.default = async function afterPack(context) {
     "resources",
     "ffmpeg",
     targetPlatform === "linux" ? "linux-x64" : "win32-x64",
-    targetPlatform === "win32" ? "ffmpeg.exe" : "ffmpeg",
+    targetPlatform === "win32" ? "ffmpeg.exe" : "ffmpeg"
   );
   const bundledFfprobePath = path.join(
     context.appOutDir,
     "resources",
     "ffmpeg",
     targetPlatform === "linux" ? "linux-x64" : "win32-x64",
-    targetPlatform === "win32" ? "ffprobe.exe" : "ffprobe",
+    targetPlatform === "win32" ? "ffprobe.exe" : "ffprobe"
   );
-  const bundledYtDlpPath = path.join(context.appOutDir, "resources", "yt-dlp", "linux-x64", "yt-dlp");
+  const bundledYtDlpPath = path.join(
+    context.appOutDir,
+    "resources",
+    "yt-dlp",
+    "linux-x64",
+    "yt-dlp"
+  );
 
   try {
     await access(source);

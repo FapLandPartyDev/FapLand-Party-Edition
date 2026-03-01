@@ -26,7 +26,15 @@ describe("loadFunscriptTimeline", () => {
 
   it("adds a t=0 anchor when first action starts later", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ actions: [{ at: 11538, pos: 0 }, { at: 12000, pos: 95 }] }), { status: 200 }),
+      new Response(
+        JSON.stringify({
+          actions: [
+            { at: 11538, pos: 0 },
+            { at: 12000, pos: 95 },
+          ],
+        }),
+        { status: 200 }
+      )
     );
 
     const timeline = await loadFunscriptTimeline("app://media/test.funscript");
@@ -37,7 +45,15 @@ describe("loadFunscriptTimeline", () => {
 
   it("keeps scripts starting at t=0 unchanged", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ actions: [{ at: 0, pos: 50 }, { at: 100, pos: 90 }] }), { status: 200 }),
+      new Response(
+        JSON.stringify({
+          actions: [
+            { at: 0, pos: 50 },
+            { at: 100, pos: 90 },
+          ],
+        }),
+        { status: 200 }
+      )
     );
 
     const timeline = await loadFunscriptTimeline("app://media/test2.funscript");
@@ -49,9 +65,11 @@ describe("loadFunscriptTimeline", () => {
   });
 
   it("deduplicates concurrent fetches for the same uri", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ actions: [{ at: 100, pos: 20 }] }), { status: 200 }),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ actions: [{ at: 100, pos: 20 }] }), { status: 200 })
+      );
 
     const [first, second] = await Promise.all([
       loadFunscriptTimeline("https://cdn.example.com/shared.funscript"),
@@ -63,9 +81,11 @@ describe("loadFunscriptTimeline", () => {
   });
 
   it("reuses cached timeline for later calls", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ actions: [{ at: 120, pos: 80 }] }), { status: 200 }),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ actions: [{ at: 120, pos: 80 }] }), { status: 200 })
+      );
 
     const first = await loadFunscriptTimeline("https://cdn.example.com/cached.funscript");
     const second = await loadFunscriptTimeline("https://cdn.example.com/cached.funscript");
@@ -80,13 +100,18 @@ describe("loadFunscriptTimeline", () => {
         JSON.stringify({
           range: 200,
           inverted: true,
-          actions: [{ at: 0, pos: 200 }, { at: 100, pos: 100 }],
+          actions: [
+            { at: 0, pos: 200 },
+            { at: 100, pos: 100 },
+          ],
         }),
-        { status: 200 },
-      ),
+        { status: 200 }
+      )
     );
 
-    const timeline = await loadFunscriptTimeline("https://cdn.example.com/range-inverted.funscript");
+    const timeline = await loadFunscriptTimeline(
+      "https://cdn.example.com/range-inverted.funscript"
+    );
     expect(timeline).not.toBeNull();
     expect(timeline?.actions).toEqual([
       { at: 0, pos: 0 },
@@ -99,13 +124,18 @@ describe("loadFunscriptTimeline", () => {
       new Response(
         JSON.stringify({
           range: 90,
-          actions: [{ at: 0, pos: 90 }, { at: 100, pos: 45 }],
+          actions: [
+            { at: 0, pos: 90 },
+            { at: 100, pos: 45 },
+          ],
         }),
-        { status: 200 },
-      ),
+        { status: 200 }
+      )
     );
 
-    const timeline = await loadFunscriptTimeline("https://cdn.example.com/range-90-autofixed.funscript");
+    const timeline = await loadFunscriptTimeline(
+      "https://cdn.example.com/range-90-autofixed.funscript"
+    );
     expect(timeline).not.toBeNull();
     expect(timeline?.actions).toEqual([
       { at: 0, pos: 90 },
@@ -119,10 +149,13 @@ describe("loadFunscriptTimeline", () => {
       new Response(
         JSON.stringify({
           range: 90,
-          actions: [{ at: 0, pos: 90 }, { at: 100, pos: 45 }],
+          actions: [
+            { at: 0, pos: 90 },
+            { at: 100, pos: 45 },
+          ],
         }),
-        { status: 200 },
-      ),
+        { status: 200 }
+      )
     );
 
     const timeline = await loadFunscriptTimeline("https://cdn.example.com/range-90-raw.funscript");

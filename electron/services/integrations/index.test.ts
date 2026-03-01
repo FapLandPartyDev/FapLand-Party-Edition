@@ -54,12 +54,16 @@ vi.mock("../playableVideo", () => ({
 }));
 
 vi.mock("../webVideo", () => ({
-  buildWebsiteVideoProxyUri: vi.fn((target: string) => `app://external/web-url?target=${encodeURIComponent(target)}`),
+  buildWebsiteVideoProxyUri: vi.fn(
+    (target: string) => `app://external/web-url?target=${encodeURIComponent(target)}`
+  ),
   createWebsiteVideoStreamResponse: createWebsiteVideoStreamResponseMock,
   ensureWebsiteVideoCached: ensureWebsiteVideoCachedMock,
   getCachedWebsiteVideoLocalPath: getCachedWebsiteVideoLocalPathMock,
   isDirectRemoteMediaUri: vi.fn((uri: string) => uri.includes(".mp4")),
-  isWebsiteVideoCandidateUri: vi.fn((uri: string) => uri.includes("pornhub.com") || uri.includes("xvideos.com")),
+  isWebsiteVideoCandidateUri: vi.fn(
+    (uri: string) => uri.includes("pornhub.com") || uri.includes("xvideos.com")
+  ),
   resolveWebsiteVideoStream: resolveWebsiteVideoStreamMock,
   warmWebsiteVideoCache: warmWebsiteVideoCacheMock,
 }));
@@ -120,7 +124,10 @@ import { proxyExternalRequest, resolveMediaUri } from "./index";
 describe("integrations index", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("stream", { status: 200 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("stream", { status: 200 }))
+    );
     createMediaResponseMock.mockResolvedValue(new Response("local", { status: 200 }));
     resolvePlayableVideoUriMock.mockResolvedValue({
       videoUri: "app://media/%2Ftmp%2Fcached.mp4",
@@ -128,17 +135,19 @@ describe("integrations index", () => {
       cacheHit: true,
     });
     toLocalVideoPathMock.mockReturnValue("/tmp/cached.mp4");
-    warmWebsiteVideoCacheMock.mockReturnValue(Promise.resolve({
-      originalUrl: "https://www.pornhub.com/view_video.php?viewkey=1",
-      extractor: "PornHub",
-      title: "Scene",
-      durationMs: 1_000,
-      finalFilePath: "/tmp/cached.mp4",
-      fileExtension: "mp4",
-      ytDlpVersion: "2025.12.08",
-      createdAt: "2026-01-01T00:00:00.000Z",
-      lastAccessedAt: "2026-01-01T00:00:00.000Z",
-    }));
+    warmWebsiteVideoCacheMock.mockReturnValue(
+      Promise.resolve({
+        originalUrl: "https://www.pornhub.com/view_video.php?viewkey=1",
+        extractor: "PornHub",
+        title: "Scene",
+        durationMs: 1_000,
+        finalFilePath: "/tmp/cached.mp4",
+        fileExtension: "mp4",
+        ytDlpVersion: "2025.12.08",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        lastAccessedAt: "2026-01-01T00:00:00.000Z",
+      })
+    );
     resolveWebsiteVideoStreamMock.mockResolvedValue({
       streamUrl: "https://media.example.com/stream.mp4",
       headers: { Referer: "https://www.pornhub.com/" },
@@ -148,19 +157,23 @@ describe("integrations index", () => {
       contentType: "video/mp4",
       playbackStrategy: "remote",
     });
-    createWebsiteVideoStreamResponseMock.mockResolvedValue(new Response("yt-dlp-stream", { status: 200 }));
+    createWebsiteVideoStreamResponseMock.mockResolvedValue(
+      new Response("yt-dlp-stream", { status: 200 })
+    );
   });
 
   it("routes website video pages through the internal proxy uri", () => {
     listExternalSourcesMock.mockReturnValue([]);
     expect(resolveMediaUri("https://www.pornhub.com/view_video.php?viewkey=1", "video")).toBe(
-      "app://external/web-url?target=https%3A%2F%2Fwww.pornhub.com%2Fview_video.php%3Fviewkey%3D1",
+      "app://external/web-url?target=https%3A%2F%2Fwww.pornhub.com%2Fview_video.php%3Fviewkey%3D1"
     );
   });
 
   it("keeps direct remote media urls unchanged", () => {
     listExternalSourcesMock.mockReturnValue([]);
-    expect(resolveMediaUri("https://cdn.example.com/video.mp4", "video")).toBe("https://cdn.example.com/video.mp4");
+    expect(resolveMediaUri("https://cdn.example.com/video.mp4", "video")).toBe(
+      "https://cdn.example.com/video.mp4"
+    );
   });
 
   it("still delegates stash urls to the stash provider", () => {
@@ -183,22 +196,28 @@ describe("integrations index", () => {
     stashCanHandleUriMock.mockReturnValue(true);
     stashResolvePlayableUriMock.mockReturnValue("app://external/stash?target=1");
 
-    expect(resolveMediaUri("https://stash.example.com/api/scene/1/stream", "video")).toBe("app://external/stash?target=1");
+    expect(resolveMediaUri("https://stash.example.com/api/scene/1/stream", "video")).toBe(
+      "app://external/stash?target=1"
+    );
   });
 
   it("rejects unsupported proxy methods", async () => {
-    const response = await proxyExternalRequest(new Request("app://external/web-url?target=https%3A%2F%2Fexample.com", {
-      method: "POST",
-    }));
+    const response = await proxyExternalRequest(
+      new Request("app://external/web-url?target=https%3A%2F%2Fexample.com", {
+        method: "POST",
+      })
+    );
     expect(response.status).toBe(405);
   });
 
   it("serves a cached website video through the local media path", async () => {
     getCachedWebsiteVideoLocalPathMock.mockResolvedValue("/tmp/cached.mp4");
 
-    const response = await proxyExternalRequest(new Request(
-      "app://external/web-url?target=https%3A%2F%2Fwww.pornhub.com%2Fview_video.php%3Fviewkey%3D1",
-    ));
+    const response = await proxyExternalRequest(
+      new Request(
+        "app://external/web-url?target=https%3A%2F%2Fwww.pornhub.com%2Fview_video.php%3Fviewkey%3D1"
+      )
+    );
 
     expect(response.status).toBe(200);
     expect(resolvePlayableVideoUriMock).toHaveBeenCalled();
@@ -208,18 +227,23 @@ describe("integrations index", () => {
   it("uses the live web stream while background caching is still in progress", async () => {
     getCachedWebsiteVideoLocalPathMock.mockResolvedValue(null);
 
-    const response = await proxyExternalRequest(new Request(
-      "app://external/web-url?target=https%3A%2F%2Fwww.pornhub.com%2Fview_video.php%3Fviewkey%3D1",
-      { headers: { Range: "bytes=0-10" } },
-    ));
+    const response = await proxyExternalRequest(
+      new Request(
+        "app://external/web-url?target=https%3A%2F%2Fwww.pornhub.com%2Fview_video.php%3Fviewkey%3D1",
+        { headers: { Range: "bytes=0-10" } }
+      )
+    );
 
     expect(response.status).toBe(200);
     expect(warmWebsiteVideoCacheMock).toHaveBeenCalled();
     expect(resolveWebsiteVideoStreamMock).toHaveBeenCalled();
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith("https://media.example.com/stream.mp4", expect.objectContaining({
-      method: "GET",
-      headers: expect.any(Headers),
-    }));
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      "https://media.example.com/stream.mp4",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.any(Headers),
+      })
+    );
   });
 
   it("proxies direct browser-playable streams even when the url has no video extension", async () => {
@@ -234,16 +258,21 @@ describe("integrations index", () => {
       playbackStrategy: "remote",
     });
 
-    const response = await proxyExternalRequest(new Request(
-      "app://external/web-url?target=https%3A%2F%2Fwww.pornhub.com%2Fview_video.php%3Fviewkey%3D1",
-      { headers: { Range: "bytes=0-10" } },
-    ));
+    const response = await proxyExternalRequest(
+      new Request(
+        "app://external/web-url?target=https%3A%2F%2Fwww.pornhub.com%2Fview_video.php%3Fviewkey%3D1",
+        { headers: { Range: "bytes=0-10" } }
+      )
+    );
 
     expect(response.status).toBe(200);
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith("https://media.example.com/play?token=abc", expect.objectContaining({
-      method: "GET",
-      headers: expect.any(Headers),
-    }));
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      "https://media.example.com/play?token=abc",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.any(Headers),
+      })
+    );
     expect(createWebsiteVideoStreamResponseMock).not.toHaveBeenCalled();
   });
 });

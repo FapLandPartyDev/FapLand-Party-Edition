@@ -1,6 +1,11 @@
 import * as z from "zod";
 import { publicProcedure, router } from "../trpc";
-import { addTrustedSite, listTrustedSites, removeTrustedSite, setSecurityMode } from "../../services/security";
+import {
+  addTrustedSite,
+  listTrustedSites,
+  removeTrustedSite,
+  setSecurityMode,
+} from "../../services/security";
 import { openExternalSafe } from "../../services/shell";
 
 export const securityRouter = router({

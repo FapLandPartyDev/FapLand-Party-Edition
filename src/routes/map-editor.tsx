@@ -174,7 +174,15 @@ const toEditorConfigFromPlaylist = (playlist: StoredPlaylist): EditorGraphConfig
       ? toEditorGraphConfig(board)
       : layoutLinearGraphFromPlaylist(
           board.mode === "endless"
-            ? { mode: "linear", totalIndices: board.initialBatchSize, safePointIndices: [], safePointRestMsByIndex: {}, normalRoundRefsByIndex: {}, normalRoundOrder: [], cumRoundRefs: [] }
+            ? {
+                mode: "linear",
+                totalIndices: board.initialBatchSize,
+                safePointIndices: [],
+                safePointRestMsByIndex: {},
+                normalRoundRefsByIndex: {},
+                normalRoundOrder: [],
+                cumRoundRefs: [],
+              }
             : board
         );
   return {
@@ -195,6 +203,10 @@ const toEditorConfigFromPlaylist = (playlist: StoredPlaylist): EditorGraphConfig
       antiPerkIncreasePerRound: playlist.config.probabilityScaling.antiPerkIncreasePerRound,
       maxIntermediaryProbability: playlist.config.probabilityScaling.maxIntermediaryProbability,
       maxAntiPerkProbability: playlist.config.probabilityScaling.maxAntiPerkProbability,
+      resetIntermediaryProbabilityAfterTrigger:
+        playlist.config.probabilityScaling.resetIntermediaryProbabilityAfterTrigger ?? false,
+      resetAntiPerkProbabilityAfterTrigger:
+        playlist.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger ?? false,
     },
     economy: {
       startingMoney: playlist.config.economy.startingMoney,
@@ -323,6 +335,9 @@ const createPlaylistConfigFromEditorConfig = (editorConfig: EditorGraphConfig): 
     },
     probabilityScaling: {
       ...editorConfig.probabilityScaling,
+      resetIntermediaryProbabilityAfterTrigger:
+        editorConfig.resetIntermediaryProbabilityAfterTrigger,
+      resetAntiPerkProbabilityAfterTrigger: editorConfig.resetAntiPerkProbabilityAfterTrigger,
     },
     economy: {
       startingMoney: editorConfig.economy.startingMoney,
@@ -1439,6 +1454,26 @@ function MapEditorPage() {
     [updateGraphConfig]
   );
 
+  const setResetIntermediaryProbabilityAfterTrigger = useCallback(
+    (value: boolean) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        resetIntermediaryProbabilityAfterTrigger: value,
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const setResetAntiPerkProbabilityAfterTrigger = useCallback(
+    (value: boolean) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        resetAntiPerkProbabilityAfterTrigger: value,
+      }));
+    },
+    [updateGraphConfig]
+  );
+
   const setCumRoundBonusScore = useCallback(
     (value: number) => {
       updateGraphConfig((previous) => ({
@@ -2255,6 +2290,10 @@ function MapEditorPage() {
       probabilityScaling: {
         ...playlist.config.probabilityScaling,
         ...configRef.current.probabilityScaling,
+        resetIntermediaryProbabilityAfterTrigger:
+          configRef.current.resetIntermediaryProbabilityAfterTrigger,
+        resetAntiPerkProbabilityAfterTrigger:
+          configRef.current.resetAntiPerkProbabilityAfterTrigger,
       },
       economy: {
         ...playlist.config.economy,
@@ -3300,6 +3339,12 @@ function MapEditorPage() {
                       perkSelection={config.perkSelection}
                       perkPool={config.perkPool}
                       probabilityScaling={config.probabilityScaling}
+                      resetIntermediaryProbabilityAfterTrigger={
+                        config.resetIntermediaryProbabilityAfterTrigger
+                      }
+                      resetAntiPerkProbabilityAfterTrigger={
+                        config.resetAntiPerkProbabilityAfterTrigger
+                      }
                       economy={config.economy}
                       dice={config.dice}
                       disableDiceAnimation={config.disableDiceAnimation}
@@ -3313,6 +3358,12 @@ function MapEditorPage() {
                       selectedCumRoundIdSet={selectedCumRoundIdSet}
                       onSetPerkTriggerChance={setPerkTriggerChance}
                       onSetProbabilityScaling={setProbabilityScaling}
+                      onSetResetIntermediaryProbabilityAfterTrigger={
+                        setResetIntermediaryProbabilityAfterTrigger
+                      }
+                      onSetResetAntiPerkProbabilityAfterTrigger={
+                        setResetAntiPerkProbabilityAfterTrigger
+                      }
                       onSetDiceLimit={setDiceLimit}
                       onSetDisableDiceAnimation={setDisableDiceAnimation}
                       onSetSaveMode={setSaveMode}

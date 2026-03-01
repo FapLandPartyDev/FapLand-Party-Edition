@@ -71,18 +71,14 @@ function toRoundSidecar(round: SidecarRound, includeResourceUris: boolean) {
     phash: round.phash ?? undefined,
     startTime: round.startTime ?? undefined,
     endTime: round.endTime ?? undefined,
-    cutRanges: parseOptionalRoundCutRangesJson(
-      round.cutRangesJson,
-      round.startTime,
-      round.endTime
-    ),
+    cutRanges: parseOptionalRoundCutRangesJson(round.cutRangesJson, round.startTime, round.endTime),
     type: round.type,
     resources: includeResourceUris
       ? round.resources.map((resource) => ({
-        videoUri: resource.videoUri,
-        funscriptUri: resource.funscriptUri ?? undefined,
-        funscriptOffsetMs: resource.funscriptOffsetMs ?? undefined,
-      }))
+          videoUri: resource.videoUri,
+          funscriptUri: resource.funscriptUri ?? undefined,
+          funscriptOffsetMs: resource.funscriptOffsetMs ?? undefined,
+        }))
       : [],
   });
 }
@@ -90,7 +86,7 @@ function toRoundSidecar(round: SidecarRound, includeResourceUris: boolean) {
 function toHeroSidecar(
   hero: NonNullable<SidecarRound["hero"]>,
   rounds: SidecarRound[],
-  includeResourceUris: boolean,
+  includeResourceUris: boolean
 ) {
   return ZHeroSidecar.parse({
     name: hero.name,
@@ -106,7 +102,7 @@ async function writeJsonFile(filePath: string, payload: unknown): Promise<void> 
 }
 
 export async function exportInstalledDatabase(
-  input: ExportInstalledDatabaseInput = {},
+  input: ExportInstalledDatabaseInput = {}
 ): Promise<ExportInstalledDatabaseResult> {
   const includeResourceUris = input.includeResourceUris ?? false;
   const now = new Date();
@@ -123,7 +119,10 @@ export async function exportInstalledDatabase(
   await fs.mkdir(exportDir, { recursive: true });
 
   const standaloneRounds = rounds.filter((round) => !round.heroId || !round.hero);
-  const heroGroups = new Map<string, { hero: NonNullable<SidecarRound["hero"]>; rounds: SidecarRound[] }>();
+  const heroGroups = new Map<
+    string,
+    { hero: NonNullable<SidecarRound["hero"]>; rounds: SidecarRound[] }
+  >();
   for (const round of rounds) {
     if (!round.heroId || !round.hero) continue;
     const existing = heroGroups.get(round.heroId);

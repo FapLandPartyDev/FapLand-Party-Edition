@@ -1,8 +1,4 @@
-import {
-  ZPlaylistConfig,
-  type PlaylistConfig,
-  type PortableRoundRef,
-} from "./playlistSchema";
+import { ZPlaylistConfig, type PlaylistConfig, type PortableRoundRef } from "./playlistSchema";
 import { findBestSimilarPhashMatch } from "../utils/phashSimilarity";
 
 type PlaylistRoundType = "Normal" | "Interjection" | "Cum";
@@ -128,7 +124,7 @@ export function toPortableRoundRefFromRound(round: PlaylistResolutionRoundLike):
 }
 
 export function createPortableRoundRefResolver<T extends PlaylistResolutionRoundLike>(
-  installedRounds: ReadonlyArray<T>,
+  installedRounds: ReadonlyArray<T>
 ): PortableRoundRefResolver<T> {
   const roundById = new Map<string, T>();
   const roundByInstallSourceKey = new Map<string, T>();
@@ -148,7 +144,7 @@ export function createPortableRoundRefResolver<T extends PlaylistResolutionRound
     const metadataKey = toMetadataKey(
       normalizeText(round.name),
       normalizeRoundType(round.type),
-      normalizeText(round.author),
+      normalizeText(round.author)
     );
     if (!roundByMetadata.has(metadataKey)) {
       roundByMetadata.set(metadataKey, round);
@@ -156,7 +152,7 @@ export function createPortableRoundRefResolver<T extends PlaylistResolutionRound
     const nameAndTypeKey = toMetadataKey(
       normalizeText(round.name),
       normalizeRoundType(round.type),
-      "",
+      ""
     );
     if (!roundByNameAndType.has(nameAndTypeKey)) {
       roundByNameAndType.set(nameAndTypeKey, round);
@@ -181,10 +177,8 @@ export function createPortableRoundRefResolver<T extends PlaylistResolutionRound
         const phashMatch = roundByPhash.get(phash);
         if (phashMatch) return phashMatch;
 
-        const similarPhashMatch = findBestSimilarPhashMatch(
-          phash,
-          installedRounds,
-          (round) => resolveRoundPhash(round),
+        const similarPhashMatch = findBestSimilarPhashMatch(phash, installedRounds, (round) =>
+          resolveRoundPhash(round)
         );
         if (similarPhashMatch) return similarPhashMatch.item;
       }
@@ -213,17 +207,15 @@ export function createPortableRoundRefResolver<T extends PlaylistResolutionRound
 
 export function resolvePortableRoundRefExact<T extends PlaylistResolutionRoundLike>(
   ref: PortableRoundRef,
-  installedRounds: ReadonlyArray<T>,
+  installedRounds: ReadonlyArray<T>
 ): T | null {
   const phash = normalizeText(ref.phash);
   if (phash.length > 0) {
     const phashMatch = installedRounds.find((round) => resolveRoundPhash(round) === phash);
     if (phashMatch) return phashMatch;
 
-    const similarPhashMatch = findBestSimilarPhashMatch(
-      phash,
-      installedRounds,
-      (round) => resolveRoundPhash(round),
+    const similarPhashMatch = findBestSimilarPhashMatch(phash, installedRounds, (round) =>
+      resolveRoundPhash(round)
     );
     if (similarPhashMatch) return similarPhashMatch.item;
   }
@@ -311,9 +303,14 @@ export function collectPlaylistRefs(config: PlaylistConfig): PlaylistRefEntry[] 
   const poolRefs = config.boardConfig.randomRoundPools.flatMap((pool) =>
     pool.candidates.map((candidate, index) => ({
       key: `graph.randomPool.${pool.id}.${index}`,
-      label: buildRefLabel({ mode: "graph", kind: "graph-pool", poolName: pool.name ?? pool.id, index }),
+      label: buildRefLabel({
+        mode: "graph",
+        kind: "graph-pool",
+        poolName: pool.name ?? pool.id,
+        index,
+      }),
       ref: candidate.roundRef,
-    })),
+    }))
   );
 
   const cumRefs = config.boardConfig.cumRoundRefs.map((ref, index) => ({
@@ -328,7 +325,7 @@ export function collectPlaylistRefs(config: PlaylistConfig): PlaylistRefEntry[] 
 export function rankPlaylistResolutionSuggestions<T extends PlaylistResolutionRoundLike>(
   ref: PortableRoundRef,
   installedRounds: ReadonlyArray<T>,
-  targetDifficulty: number | null = null,
+  targetDifficulty: number | null = null
 ): PlaylistResolutionSuggestion[] {
   const refType = ref.type ? normalizeRoundType(ref.type) : null;
   const refName = normalizeText(ref.name);
@@ -341,9 +338,8 @@ export function rankPlaylistResolutionSuggestions<T extends PlaylistResolutionRo
     })
     .map((round) => {
       const nameScore = jaccardSimilarity(refName, normalizeText(round.name));
-      const authorScore = refAuthor.length > 0
-        ? jaccardSimilarity(refAuthor, normalizeText(round.author))
-        : 0.5;
+      const authorScore =
+        refAuthor.length > 0 ? jaccardSimilarity(refAuthor, normalizeText(round.author)) : 0.5;
       const roundDifficulty = typeof round.difficulty === "number" ? round.difficulty : null;
       const difficultyScore =
         typeof targetDifficulty === "number" && typeof roundDifficulty === "number"
@@ -370,7 +366,7 @@ export function rankPlaylistResolutionSuggestions<T extends PlaylistResolutionRo
 export function analyzePlaylistResolution<T extends PlaylistResolutionRoundLike>(
   config: PlaylistConfig,
   installedRounds: ReadonlyArray<T>,
-  options: AnalyzePlaylistResolutionOptions = {},
+  options: AnalyzePlaylistResolutionOptions = {}
 ): PlaylistResolutionAnalysis {
   const refs = collectPlaylistRefs(config);
   const exactMapping: Record<string, string> = {};
@@ -388,8 +384,8 @@ export function analyzePlaylistResolution<T extends PlaylistResolutionRoundLike>
       entry.ref,
       installedRounds,
       typeof options.difficultyHintsByRefKey?.[entry.key] === "number"
-        ? options.difficultyHintsByRefKey[entry.key] ?? null
-        : null,
+        ? (options.difficultyHintsByRefKey[entry.key] ?? null)
+        : null
     );
 
     if (suggestions[0]) {
@@ -424,22 +420,24 @@ export function analyzePlaylistResolution<T extends PlaylistResolutionRoundLike>
 export function applyPlaylistResolutionMapping<T extends PlaylistResolutionRoundLike>(
   config: PlaylistConfig,
   mapping: Record<string, string | null | undefined>,
-  installedRounds: ReadonlyArray<T>,
+  installedRounds: ReadonlyArray<T>
 ): PlaylistConfig {
   const nextConfig = ZPlaylistConfig.parse(config);
   const roundById = new Map(installedRounds.map((round) => [round.id, round]));
 
   if (nextConfig.boardConfig.mode === "linear") {
-    nextConfig.boardConfig.normalRoundOrder = nextConfig.boardConfig.normalRoundOrder.map((ref, index) => {
-      const round = roundById.get(mapping[`linear.normalRoundOrder.${index}`] ?? "");
-      return round ? toPortableRoundRefFromRound(round) : ref;
-    });
+    nextConfig.boardConfig.normalRoundOrder = nextConfig.boardConfig.normalRoundOrder.map(
+      (ref, index) => {
+        const round = roundById.get(mapping[`linear.normalRoundOrder.${index}`] ?? "");
+        return round ? toPortableRoundRefFromRound(round) : ref;
+      }
+    );
 
     nextConfig.boardConfig.normalRoundRefsByIndex = Object.fromEntries(
       Object.entries(nextConfig.boardConfig.normalRoundRefsByIndex).map(([fieldIndex, ref]) => {
         const round = roundById.get(mapping[`linear.normalRoundRefsByIndex.${fieldIndex}`] ?? "");
         return [fieldIndex, round ? toPortableRoundRefFromRound(round) : ref];
-      }),
+      })
     );
 
     nextConfig.boardConfig.cumRoundRefs = nextConfig.boardConfig.cumRoundRefs.map((ref, index) => {

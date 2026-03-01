@@ -77,10 +77,14 @@ describe("booru service cache behavior", () => {
     mocks.storeGetQuery.mockReset();
     mocks.storeSetMutate.mockReset();
 
-    mocks.storeGetQuery.mockImplementation(async ({ key }: { key: string }) => storedValues[key] ?? null);
-    mocks.storeSetMutate.mockImplementation(async ({ key, value }: { key: string; value: unknown }) => {
-      storedValues[key] = value;
-    });
+    mocks.storeGetQuery.mockImplementation(
+      async ({ key }: { key: string }) => storedValues[key] ?? null
+    );
+    mocks.storeSetMutate.mockImplementation(
+      async ({ key, value }: { key: string; value: unknown }) => {
+        storedValues[key] = value;
+      }
+    );
 
     vi.restoreAllMocks();
     vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
@@ -89,13 +93,13 @@ describe("booru service cache behavior", () => {
 
   it("appends sort:random when absent", () => {
     expect(appendRandomSortTagForBooruSearch("animated gif webm")).toBe(
-      "animated gif webm sort:random",
+      "animated gif webm sort:random"
     );
   });
 
   it("does not duplicate sort:random when already present", () => {
     expect(appendRandomSortTagForBooruSearch("animated gif webm sort:random")).toBe(
-      "animated gif webm sort:random",
+      "animated gif webm sort:random"
     );
   });
 
@@ -127,7 +131,7 @@ describe("booru service cache behavior", () => {
       createCacheStore({
         updatedAtMs: Date.now(),
         media: refreshedMedia,
-      }),
+      })
     );
   });
 
@@ -146,7 +150,7 @@ describe("booru service cache behavior", () => {
       createCacheStore({
         updatedAtMs: Date.now() - 8 * 24 * 60 * 60 * 1000,
         media: cachedMedia,
-      }),
+      })
     );
   });
 
@@ -165,7 +169,7 @@ describe("booru service cache behavior", () => {
       createCacheStore({
         updatedAtMs: Date.now() - 8 * 24 * 60 * 60 * 1000,
         media: cachedMedia,
-      }),
+      })
     );
   });
 

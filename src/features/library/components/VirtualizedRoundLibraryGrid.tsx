@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { buildRoundLibraryShelves, type RoundLibraryCardItem, type RoundLibraryShelf } from "../roundLibraryShelves";
+import {
+  buildRoundLibraryShelves,
+  type RoundLibraryCardItem,
+  type RoundLibraryShelf,
+} from "../roundLibraryShelves";
 import type { RoundRenderRow } from "../../../routes/roundRows";
 
 const GROUP_HEADER_ESTIMATE_PX = 88;
@@ -50,7 +54,7 @@ function estimateCardRowHeightPx(columns: number, containerWidth: number): numbe
   const totalGapWidth = SHELF_GAP_PX * Math.max(0, safeColumns - 1);
   const columnWidth = Math.max(
     CARD_MIN_WIDTH_PX,
-    Math.floor((safeWidth - totalGapWidth) / safeColumns),
+    Math.floor((safeWidth - totalGapWidth) / safeColumns)
   );
   const mediaHeight = Math.round((columnWidth * 9) / 16);
   return mediaHeight + CARD_ROW_CHROME_ESTIMATE_PX + SHELF_GAP_PX;
@@ -78,10 +82,16 @@ export function VirtualizedRoundLibraryGrid({
 
     const updateLayout = () => {
       const width =
-        layoutContainerRef.current?.clientWidth || scrollContainer.clientWidth || window.innerWidth || 0;
+        layoutContainerRef.current?.clientWidth ||
+        scrollContainer.clientWidth ||
+        window.innerWidth ||
+        0;
       const nextColumns = Math.max(
         1,
-        Math.min(MAX_COLUMNS, Math.floor((width + SHELF_GAP_PX) / (CARD_MIN_WIDTH_PX + SHELF_GAP_PX))),
+        Math.min(
+          MAX_COLUMNS,
+          Math.floor((width + SHELF_GAP_PX) / (CARD_MIN_WIDTH_PX + SHELF_GAP_PX))
+        )
       );
       setContainerWidth(width);
       setColumns(nextColumns);
@@ -103,12 +113,9 @@ export function VirtualizedRoundLibraryGrid({
 
   const shelves = useMemo(
     () => buildRoundLibraryShelves(rows, columns, expandedGroupKeys),
-    [columns, expandedGroupKeys, rows],
+    [columns, expandedGroupKeys, rows]
   );
-  const shelfSignature = useMemo(
-    () => shelves.map((shelf) => shelf.key).join("|"),
-    [shelves],
-  );
+  const shelfSignature = useMemo(() => shelves.map((shelf) => shelf.key).join("|"), [shelves]);
   const preferVirtualization =
     rows.length >= VIRTUALIZATION_MIN_ROWS ||
     (hasGroupedRows && shelves.length >= GROUPED_VIRTUALIZATION_MIN_SHELVES);
@@ -140,7 +147,7 @@ export function VirtualizedRoundLibraryGrid({
         </div>
       );
     },
-    [columns, renderCard, renderGroupHeader],
+    [columns, renderCard, renderGroupHeader]
   );
 
   const virtualizer = useVirtualizer({
@@ -170,13 +177,10 @@ export function VirtualizedRoundLibraryGrid({
     });
   }, [canVirtualize, virtualizer]);
 
-  const handleShelfMediaStateChange = useCallback(
-    () => {
-      if (!canVirtualize) return;
-      scheduleMeasure();
-    },
-    [canVirtualize, scheduleMeasure],
-  );
+  const handleShelfMediaStateChange = useCallback(() => {
+    if (!canVirtualize) return;
+    scheduleMeasure();
+  }, [canVirtualize, scheduleMeasure]);
 
   useEffect(() => {
     if (!canVirtualize) {
@@ -250,7 +254,15 @@ export function VirtualizedRoundLibraryGrid({
     }
     lastVisibleRoundIdsRef.current = nextKey;
     onVisibleRoundIdsChange(nextRoundIds);
-  }, [canVirtualize, onVisibleRoundIdsChange, preferVirtualization, rows, scrollContainer, shelves, virtualItems]);
+  }, [
+    canVirtualize,
+    onVisibleRoundIdsChange,
+    preferVirtualization,
+    rows,
+    scrollContainer,
+    shelves,
+    virtualItems,
+  ]);
 
   if (preferVirtualization && !scrollContainer) {
     return <div ref={layoutContainerRef} className="relative min-h-px" aria-hidden="true" />;
@@ -258,14 +270,15 @@ export function VirtualizedRoundLibraryGrid({
 
   if (!canVirtualize) {
     return (
-      <div
-        ref={layoutContainerRef}
-        className="space-y-5"
-      >
+      <div ref={layoutContainerRef} className="space-y-5">
         {shelves.map((shelf) => (
           <div
             key={shelf.key}
-            className={shelf.kind === "group-header" ? "relative z-10 focus-within:z-[60] hover:z-20" : undefined}
+            className={
+              shelf.kind === "group-header"
+                ? "relative z-10 focus-within:z-[60] hover:z-20"
+                : undefined
+            }
           >
             {shelfRenderer(shelf)}
           </div>

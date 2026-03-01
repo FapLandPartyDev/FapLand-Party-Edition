@@ -257,6 +257,8 @@ export type PerkIconKey =
   | "highRoller"
   | "couponClipper"
   | "imClose"
+  | "fullHeal"
+  | "antigravity"
   | "unknown";
 
 export type PerkDefinition = {
@@ -394,6 +396,8 @@ export type GameConfig = {
     antiPerkIncreasePerRound: number;
     maxIntermediaryProbability: number;
     maxAntiPerkProbability: number;
+    resetIntermediaryProbabilityAfterTrigger?: boolean;
+    resetAntiPerkProbabilityAfterTrigger?: boolean;
   };
   singlePlayer: {
     totalIndices: number;
@@ -536,4 +540,5 @@ export type GameState = {
   lastRoll: number | null;
   completionReason: GameCompletionReason | null;
   endlessRoundsCompleted: number;
+  antiPerkTriggeredThisRound: boolean;
 };

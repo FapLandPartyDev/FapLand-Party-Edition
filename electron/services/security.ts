@@ -27,7 +27,6 @@ export type InstallSidecarSecurityAnalysis = {
   unknownEntries: ImportRemoteSiteMatch[];
 };
 
-
 export type ImportSecurityWarning = {
   baseDomain: string;
   host: string;
@@ -44,9 +43,13 @@ type CollectedRemoteSite = {
 };
 
 function sortUnique(values: Iterable<string>): string[] {
-  return [...new Set(Array.from(values).map((value) => value.trim()).filter(Boolean))].sort((a, b) =>
-    a.localeCompare(b)
-  );
+  return [
+    ...new Set(
+      Array.from(values)
+        .map((value) => value.trim())
+        .filter(Boolean)
+    ),
+  ].sort((a, b) => a.localeCompare(b));
 }
 
 function normalizeHostLike(value: string): string | null {
@@ -61,11 +64,13 @@ function getStoredTrustedBaseDomains(): string[] {
     getStore().set(SECURITY_TRUSTED_BASE_DOMAINS_KEY, []);
     return [];
   }
-  const normalized = sortUnique(raw.flatMap((entry) => {
-    if (typeof entry !== "string") return [];
-    const parsed = normalizeTrustedBaseDomain(entry);
-    return parsed ? [parsed] : [];
-  }));
+  const normalized = sortUnique(
+    raw.flatMap((entry) => {
+      if (typeof entry !== "string") return [];
+      const parsed = normalizeTrustedBaseDomain(entry);
+      return parsed ? [parsed] : [];
+    })
+  );
   getStore().set(SECURITY_TRUSTED_BASE_DOMAINS_KEY, normalized);
   return normalized;
 }
@@ -166,12 +171,10 @@ export function listTrustedSites(): {
     })
   );
 
-  const builtInYtDlpDomains = sortUnique(
-    [
-      ...(Array.isArray(ytDlpSupportedDomains.domains) ? ytDlpSupportedDomains.domains : []),
-      ...DEFAULT_TRUSTED_REMOTE_SITES,
-    ]
-  );
+  const builtInYtDlpDomains = sortUnique([
+    ...(Array.isArray(ytDlpSupportedDomains.domains) ? ytDlpSupportedDomains.domains : []),
+    ...DEFAULT_TRUSTED_REMOTE_SITES,
+  ]);
 
   const userTrustedBaseDomains = getStoredTrustedBaseDomains();
   return {
@@ -271,7 +274,9 @@ export function collectUnknownRemoteSitesFromResources(
       host: entry.host,
       source: null,
       decision: "blocked" as const,
-      sampleUrls: Array.from(entry.sampleUrls).sort((a, b) => a.localeCompare(b)).slice(0, 3),
+      sampleUrls: Array.from(entry.sampleUrls)
+        .sort((a, b) => a.localeCompare(b))
+        .slice(0, 3),
       videoUrlCount: entry.videoUrlCount,
       funscriptUrlCount: entry.funscriptUrlCount,
     }))

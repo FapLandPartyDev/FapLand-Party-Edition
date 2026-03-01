@@ -19,7 +19,9 @@ export function getSaveModeLabel(saveMode: PlaylistSaveMode): string {
   return "No Saves";
 }
 
-export function getAssistedTooltip(saveMode: PlaylistSaveMode | null | undefined): string | undefined {
+export function getAssistedTooltip(
+  saveMode: PlaylistSaveMode | null | undefined
+): string | undefined {
   if (saveMode === "checkpoint") {
     return "Assisted run: checkpoint saves enabled";
   }

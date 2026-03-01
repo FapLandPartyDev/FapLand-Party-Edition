@@ -49,8 +49,18 @@ describe("playlistExportCompression", () => {
       outputPath: "/tmp/output.mp4",
     });
 
-    expect(low.slice(low.indexOf("-preset"), low.indexOf("-preset") + 4)).toEqual(["-preset", "5", "-crf", "25"]);
-    expect(high.slice(high.indexOf("-preset"), high.indexOf("-preset") + 4)).toEqual(["-preset", "7", "-crf", "37"]);
+    expect(low.slice(low.indexOf("-preset"), low.indexOf("-preset") + 4)).toEqual([
+      "-preset",
+      "5",
+      "-crf",
+      "25",
+    ]);
+    expect(high.slice(high.indexOf("-preset"), high.indexOf("-preset") + 4)).toEqual([
+      "-preset",
+      "7",
+      "-crf",
+      "37",
+    ]);
     expect(low).toContain("-progress");
     expect(low).toContain("pipe:1");
     expect(low).toContain("-nostats");
@@ -58,13 +68,15 @@ describe("playlistExportCompression", () => {
   });
 
   it("keeps sourceVideoBytes stable across slider values when file sizes are known", () => {
-    const probes = [{
-      codecName: "h264",
-      width: 1920,
-      height: 1080,
-      durationMs: 120_000,
-      fileSizeBytes: 200 * 1024 * 1024,
-    }];
+    const probes = [
+      {
+        codecName: "h264",
+        width: 1920,
+        height: 1080,
+        durationMs: 120_000,
+        fileSizeBytes: 200 * 1024 * 1024,
+      },
+    ];
 
     const low = estimateCompressionForProbes({
       probes,
@@ -85,13 +97,15 @@ describe("playlistExportCompression", () => {
   });
 
   it("does not invent slider-dependent sourceVideoBytes when file sizes are unknown", () => {
-    const probes = [{
-      codecName: "h264",
-      width: 1920,
-      height: 1080,
-      durationMs: 120_000,
-      fileSizeBytes: null,
-    }];
+    const probes = [
+      {
+        codecName: "h264",
+        width: 1920,
+        height: 1080,
+        durationMs: 120_000,
+        fileSizeBytes: null,
+      },
+    ];
 
     const low = estimateCompressionForProbes({
       probes,

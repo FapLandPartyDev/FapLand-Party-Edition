@@ -27,8 +27,13 @@ export function describePlaylistBoard(config: PlaylistConfig): PlaylistBoardDesc
       modeLabel: "Endless",
       nodeCount: config.boardConfig.initialBatchSize + 2,
       edgeCount: config.boardConfig.initialBatchSize + 1,
-      safePointCount: Math.floor(config.boardConfig.initialBatchSize / config.boardConfig.safePointEveryN),
-      roundNodeCount: config.boardConfig.initialBatchSize - Math.floor(config.boardConfig.initialBatchSize / config.boardConfig.safePointEveryN) - Math.floor(config.boardConfig.initialBatchSize / config.boardConfig.perkNodeEveryN),
+      safePointCount: Math.floor(
+        config.boardConfig.initialBatchSize / config.boardConfig.safePointEveryN
+      ),
+      roundNodeCount:
+        config.boardConfig.initialBatchSize -
+        Math.floor(config.boardConfig.initialBatchSize / config.boardConfig.safePointEveryN) -
+        Math.floor(config.boardConfig.initialBatchSize / config.boardConfig.perkNodeEveryN),
       catapultNodeCount: 0,
     };
   }

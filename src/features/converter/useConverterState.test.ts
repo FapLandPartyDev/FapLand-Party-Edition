@@ -80,7 +80,8 @@ vi.mock("./shortcuts", () => ({
   CONVERTER_SHORTCUTS: [
     {
       matches: (event: KeyboardEvent) => event.key === "k" || event.key === "K",
-      trigger: (context: { splitSegmentAtPlayhead: () => void }) => context.splitSegmentAtPlayhead(),
+      trigger: (context: { splitSegmentAtPlayhead: () => void }) =>
+        context.splitSegmentAtPlayhead(),
     },
     {
       matches: (event: KeyboardEvent) => event.key === "n" && !event.shiftKey,
@@ -92,15 +93,18 @@ vi.mock("./shortcuts", () => ({
     },
     {
       matches: (event: KeyboardEvent) => event.key === "p" || event.key === "P",
-      trigger: (context: { selectSegmentAtPlayhead: () => void }) => context.selectSegmentAtPlayhead(),
+      trigger: (context: { selectSegmentAtPlayhead: () => void }) =>
+        context.selectSegmentAtPlayhead(),
     },
     {
       matches: (event: KeyboardEvent) => event.key === "End",
-      trigger: (context: { seekToSelectedSegmentEnd: () => void }) => context.seekToSelectedSegmentEnd(),
+      trigger: (context: { seekToSelectedSegmentEnd: () => void }) =>
+        context.seekToSelectedSegmentEnd(),
     },
     {
       matches: (event: KeyboardEvent) => event.key === "Home",
-      trigger: (context: { seekToSelectedSegmentStart: () => void }) => context.seekToSelectedSegmentStart(),
+      trigger: (context: { seekToSelectedSegmentStart: () => void }) =>
+        context.seekToSelectedSegmentStart(),
     },
     {
       matches: (event: KeyboardEvent) => event.key === "s" && !event.ctrlKey && !event.metaKey,
@@ -891,11 +895,12 @@ describe("useConverterState", () => {
       result.current.addSegmentFromMarks();
     });
 
-    expect(result.current.sortedSegments.map((segment) => [segment.startTimeMs, segment.endTimeMs]))
-      .toEqual([
-        [1_000, 5_000],
-        [3_000, 7_000],
-      ]);
+    expect(
+      result.current.sortedSegments.map((segment) => [segment.startTimeMs, segment.endTimeMs])
+    ).toEqual([
+      [1_000, 5_000],
+      [3_000, 7_000],
+    ]);
     expect(result.current.error).toBeNull();
   });
 
@@ -1902,9 +1907,7 @@ describe("useConverterState", () => {
     document.body.appendChild(input);
 
     act(() => {
-      input.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "t", altKey: true, bubbles: true })
-      );
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "t", altKey: true, bubbles: true }));
     });
 
     expect(focus).toHaveBeenCalled();
@@ -2011,7 +2014,9 @@ describe("useConverterState", () => {
     });
 
     act(() => {
-      input.dispatchEvent(new KeyboardEvent("keydown", { key: "A", shiftKey: true, bubbles: true }));
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "A", shiftKey: true, bubbles: true })
+      );
     });
 
     expect(result.current.sortedSegments).toHaveLength(2);
@@ -2050,9 +2055,7 @@ describe("useConverterState", () => {
     );
     expect(result.current.minRoundDraft).toBe("60000");
     expect(result.current.sortedSegments).toHaveLength(2);
-    expect(result.current.message).toBe(
-      "Applied 2 detected segments with a 60 second minimum."
-    );
+    expect(result.current.message).toBe("Applied 2 detected segments with a 60 second minimum.");
   });
 
   it("runs target detection from shortcut and updates suggestions on success", async () => {

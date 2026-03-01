@@ -92,9 +92,12 @@ const mocks = vi.hoisted(() => ({
   listPublicLobbies: vi.fn(),
   createLobby: vi.fn(),
   startDiscordMultiplayerLink: vi.fn(),
-  subscribeToMultiplayerAuthRefresh: vi.fn(() => () => { }),
+  subscribeToMultiplayerAuthRefresh: vi.fn(() => () => {}),
   buildMultiplayerPlaylistSnapshot: vi.fn(() => ({ playlistVersion: 1 })),
-  isLikelyConfiguredSupabaseServer: vi.fn((profile: { url: string; anonKey: string }) => profile.url.length > 0 && profile.anonKey.length > 0),
+  isLikelyConfiguredSupabaseServer: vi.fn(
+    (profile: { url: string; anonKey: string }) =>
+      profile.url.length > 0 && profile.anonKey.length > 0
+  ),
   useAppUpdate: vi.fn(() => ({
     state: { status: "up_to_date" },
     isBusy: false,
@@ -259,8 +262,11 @@ beforeEach(() => {
     playerId: "player-1",
   });
   mocks.startDiscordMultiplayerLink.mockResolvedValue(undefined);
-  mocks.subscribeToMultiplayerAuthRefresh.mockReturnValue(() => { });
-  mocks.isLikelyConfiguredSupabaseServer.mockImplementation((profile: { url: string; anonKey: string }) => profile.url.length > 0 && profile.anonKey.length > 0);
+  mocks.subscribeToMultiplayerAuthRefresh.mockReturnValue(() => {});
+  mocks.isLikelyConfiguredSupabaseServer.mockImplementation(
+    (profile: { url: string; anonKey: string }) =>
+      profile.url.length > 0 && profile.anonKey.length > 0
+  );
 });
 
 afterEach(() => {
@@ -298,7 +304,9 @@ describe("MultiplayerRoute", () => {
     const publicTab = screen.getByRole("button", { name: "Public Lobbies" });
     const joinTab = screen.getByRole("button", { name: "Join Code" });
 
-    expect(publicTab.compareDocumentPosition(joinTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      publicTab.compareDocumentPosition(joinTab) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(publicTab.getAttribute("aria-pressed")).toBe("true");
   });
 
@@ -316,13 +324,17 @@ describe("MultiplayerRoute", () => {
     render(<Component />);
 
     await waitFor(() => {
-      expect(mocks.resolveMultiplayerAuthStatus).toHaveBeenCalledWith(mocks.loaderData.activeProfile);
+      expect(mocks.resolveMultiplayerAuthStatus).toHaveBeenCalledWith(
+        mocks.loaderData.activeProfile
+      );
       expect(screen.getByText("Ready")).toBeDefined();
       expect(screen.getByText("Ready to join or host")).toBeDefined();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Host Lobby" }));
-    expect(screen.getByRole("button", { name: "Create Lobby" }).hasAttribute("disabled")).toBe(false);
+    expect(screen.getByRole("button", { name: "Create Lobby" }).hasAttribute("disabled")).toBe(
+      false
+    );
     fireEvent.click(screen.getByRole("button", { name: "Join Code" }));
     expect(screen.getByRole("button", { name: "Join Lobby" }).hasAttribute("disabled")).toBe(true);
   });
@@ -344,12 +356,12 @@ describe("MultiplayerRoute", () => {
         expect.objectContaining({
           isPublic: true,
         }),
-        mocks.loaderData.activeProfile,
+        mocks.loaderData.activeProfile
       );
       expect(mocks.buildMultiplayerPlaylistSnapshot).toHaveBeenCalledWith(
         mocks.loaderData.activePlaylist.config,
         expect.any(Array),
-        { name: "Playlist One" },
+        { name: "Playlist One" }
       );
       expect(mocks.findInstalled).toHaveBeenCalled();
     });
@@ -372,7 +384,9 @@ describe("MultiplayerRoute", () => {
       expect(screen.getByText("Playlist One requires 140 installed rounds.")).toBeDefined();
     });
 
-    expect(screen.getByRole("button", { name: "Create Lobby" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Create Lobby" }).hasAttribute("disabled")).toBe(
+      true
+    );
     expect(
       screen.getAllByText("This playlist requires at least 140 installed rounds. You have 110.")
         .length
@@ -406,8 +420,13 @@ describe("MultiplayerRoute", () => {
     fireEvent.click(screen.getByRole("button", { name: "Join Lobby" }));
 
     await waitFor(() => {
-      expect(mocks.getLobbyJoinPreview).toHaveBeenCalledWith("ROOM140", mocks.loaderData.activeProfile);
-      expect(screen.getByText("This lobby requires at least 140 installed rounds. You have 110.")).toBeDefined();
+      expect(mocks.getLobbyJoinPreview).toHaveBeenCalledWith(
+        "ROOM140",
+        mocks.loaderData.activeProfile
+      );
+      expect(
+        screen.getByText("This lobby requires at least 140 installed rounds. You have 110.")
+      ).toBeDefined();
     });
 
     expect(mocks.joinLobby).not.toHaveBeenCalled();
@@ -445,7 +464,7 @@ describe("MultiplayerRoute", () => {
           inviteCode: "PUBLIC1",
           displayName: "Player",
         },
-        mocks.loaderData.activeProfile,
+        mocks.loaderData.activeProfile
       );
     });
   });
@@ -462,16 +481,20 @@ describe("MultiplayerRoute", () => {
 
     expect(screen.queryByRole("button", { name: "Load Into Editor" })).toBeNull();
     expect(screen.getAllByText("Hidden for built-in server").length).toBeGreaterThan(0);
-    expect(screen.getByText("Built-in server credentials stay hidden and cannot be edited.")).toBeDefined();
+    expect(
+      screen.getByText("Built-in server credentials stay hidden and cannot be edited.")
+    ).toBeDefined();
   });
 
   it("shows discord linking requirements and blocks play", async () => {
-    mocks.resolveMultiplayerAuthStatus.mockResolvedValue(createAuthStatus({
-      requirement: "discord_required",
-      status: "needs_discord",
-      message: "Link a Discord account with email to upgrade this anonymous multiplayer account.",
-      discordLinkUrl: "https://discord.example/auth",
-    }));
+    mocks.resolveMultiplayerAuthStatus.mockResolvedValue(
+      createAuthStatus({
+        requirement: "discord_required",
+        status: "needs_discord",
+        message: "Link a Discord account with email to upgrade this anonymous multiplayer account.",
+        discordLinkUrl: "https://discord.example/auth",
+      })
+    );
 
     const Component = (Route as unknown as { component: () => ReactElement }).component;
     render(<Component />);
@@ -482,26 +505,33 @@ describe("MultiplayerRoute", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Host Lobby" }));
-    expect(screen.getByRole("button", { name: "Create Lobby" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Create Lobby" }).hasAttribute("disabled")).toBe(
+      true
+    );
     fireEvent.click(screen.getByRole("button", { name: "Join Code" }));
     expect(screen.getByRole("button", { name: "Join Lobby" }).hasAttribute("disabled")).toBe(true);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Link Discord" })[0]!);
     await waitFor(() => {
-      expect(mocks.startDiscordMultiplayerLink).toHaveBeenCalledWith(mocks.loaderData.activeProfile);
+      expect(mocks.startDiscordMultiplayerLink).toHaveBeenCalledWith(
+        mocks.loaderData.activeProfile
+      );
     });
   });
 
   it("shows missing email state for linked discord accounts", async () => {
-    mocks.resolveMultiplayerAuthStatus.mockResolvedValue(createAuthStatus({
-      user: { id: "user-1", email: null, identities: [{ provider: "discord" }] },
-      requirement: "discord_required",
-      isAnonymous: false,
-      hasDiscordIdentity: true,
-      hasEmail: false,
-      status: "needs_email",
-      message: "This Discord-linked account has no email attached. Add an email in Discord and recheck.",
-    }));
+    mocks.resolveMultiplayerAuthStatus.mockResolvedValue(
+      createAuthStatus({
+        user: { id: "user-1", email: null, identities: [{ provider: "discord" }] },
+        requirement: "discord_required",
+        isAnonymous: false,
+        hasDiscordIdentity: true,
+        hasEmail: false,
+        status: "needs_email",
+        message:
+          "This Discord-linked account has no email attached. Add an email in Discord and recheck.",
+      })
+    );
 
     const Component = (Route as unknown as { component: () => ReactElement }).component;
     render(<Component />);
@@ -525,26 +555,32 @@ describe("MultiplayerRoute", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Unavailable")).toBeDefined();
-      expect(screen.getByRole("button", { name: "Server" }).getAttribute("aria-pressed")).toBe("true");
+      expect(screen.getByRole("button", { name: "Server" }).getAttribute("aria-pressed")).toBe(
+        "true"
+      );
     });
 
     expect(mocks.resolveMultiplayerAuthStatus).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Host Lobby" }));
-    expect(screen.getByRole("button", { name: "Create Lobby" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Create Lobby" }).hasAttribute("disabled")).toBe(
+      true
+    );
   });
 
   it("shows retry after auth failure and retries bootstrap", async () => {
     mocks.resolveMultiplayerAuthStatus
       .mockRejectedValueOnce(new Error("Boom"))
-      .mockResolvedValueOnce(createAuthStatus({
-        user: { id: "user-1", email: "test@example.com", identities: [{ provider: "discord" }] },
-        requirement: "discord_required",
-        isAnonymous: false,
-        hasDiscordIdentity: true,
-        hasEmail: true,
-        status: "ready",
-        message: "Discord is linked and ready for multiplayer.",
-      }));
+      .mockResolvedValueOnce(
+        createAuthStatus({
+          user: { id: "user-1", email: "test@example.com", identities: [{ provider: "discord" }] },
+          requirement: "discord_required",
+          isAnonymous: false,
+          hasDiscordIdentity: true,
+          hasEmail: true,
+          status: "ready",
+          message: "Discord is linked and ready for multiplayer.",
+        })
+      );
 
     const Component = (Route as unknown as { component: () => ReactElement }).component;
     render(<Component />);
@@ -573,7 +609,9 @@ describe("MultiplayerRoute", () => {
     fireEvent.click(screen.getByRole("button", { name: "Server" }));
     fireEvent.click(screen.getByRole("button", { name: "New Endpoint" }));
     fireEvent.change(screen.getByLabelText("Server Name"), { target: { value: "My Server" } });
-    fireEvent.change(screen.getByLabelText("Supabase URL"), { target: { value: "https://custom.supabase.co" } });
+    fireEvent.change(screen.getByLabelText("Supabase URL"), {
+      target: { value: "https://custom.supabase.co" },
+    });
     fireEvent.change(screen.getByLabelText("Anon Key"), { target: { value: "custom-key" } });
     fireEvent.click(screen.getByRole("button", { name: "Save Endpoint" }));
 

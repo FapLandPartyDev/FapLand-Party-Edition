@@ -17,7 +17,9 @@ afterEach(() => {
 
 describe("RoundStartTransition", () => {
   it("renders nothing without a queued round", () => {
-    const { container } = render(<RoundStartTransition queuedRound={null} remaining={1.4} duration={2.1} />);
+    const { container } = render(
+      <RoundStartTransition queuedRound={null} remaining={1.4} duration={2.1} />
+    );
     expect(container.firstChild).toBeNull();
   });
 
@@ -36,7 +38,7 @@ describe("RoundStartTransition", () => {
         }}
         remaining={1.7}
         duration={2.1}
-      />,
+      />
     );
 
     expect(view.getByTestId("round-start-transition")).toBeDefined();
@@ -61,13 +63,13 @@ describe("RoundStartTransition", () => {
         }}
         remaining={0.4}
         duration={2.1}
-      />,
+      />
     );
 
     expect(view.getByText("CUM ROUND")).toBeDefined();
     expect(view.getByTestId("cinematic-transition-title").textContent).toBe("Finale");
     expect(view.getByTestId("cinematic-transition-hint").textContent).toContain(
-      "In this round, you may cum when the video instructs you to do so.",
+      "In this round, you may cum when the video instructs you to do so."
     );
     expect(view.getByTestId("cinematic-transition-countdown").textContent).toBe("1");
   });
@@ -89,13 +91,13 @@ describe("RoundStartTransition", () => {
         }}
         remaining={0.4}
         duration={2.1}
-      />,
+      />
     );
 
     expect(view.getByText("C ROUND")).toBeDefined();
     expect(view.getByTestId("cinematic-transition-title").textContent).toBe("C Finale");
     expect(view.getByTestId("cinematic-transition-hint").textContent).toContain(
-      "In this round, you may c when the video instructs you to do so.",
+      "In this round, you may c when the video instructs you to do so."
     );
   });
 });

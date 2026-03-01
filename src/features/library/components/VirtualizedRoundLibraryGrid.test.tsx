@@ -161,10 +161,10 @@ describe("VirtualizedRoundLibraryGrid", () => {
     const rows: Extract<RoundRenderRow, { kind: "hero-group" }>[] = Array.from(
       { length: 6 },
       (_, index) => ({
-      kind: "hero-group",
-      groupKey: `hero:${index}`,
-      heroName: `Hero ${index}`,
-      rounds: [makeRound(`r-${index}-1`), makeRound(`r-${index}-2`), makeRound(`r-${index}-3`)],
+        kind: "hero-group",
+        groupKey: `hero:${index}`,
+        heroName: `Hero ${index}`,
+        rounds: [makeRound(`r-${index}-1`), makeRound(`r-${index}-2`), makeRound(`r-${index}-3`)],
       })
     );
 
@@ -346,7 +346,12 @@ describe("VirtualizedRoundLibraryGrid", () => {
     );
 
     await waitFor(() => {
-      expect(onVisibleRoundIdsChange).toHaveBeenCalledWith(["round-0", "round-1", "round-2", "round-3"]);
+      expect(onVisibleRoundIdsChange).toHaveBeenCalledWith([
+        "round-0",
+        "round-1",
+        "round-2",
+        "round-3",
+      ]);
     });
 
     virtualItems = [

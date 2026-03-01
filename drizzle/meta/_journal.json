@@ -64,6 +64,13 @@
       "when": 1778457600000,
       "tag": "0008_resource_funscript_offset",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1778687507540,
+      "tag": "0009_easy_living_lightning",
+      "breakpoints": true
     }
   ]
 }

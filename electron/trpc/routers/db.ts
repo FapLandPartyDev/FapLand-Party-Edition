@@ -315,6 +315,7 @@ type CatalogRoundResource = {
   durationMs: number | null;
   funscriptUri: string | null;
   funscriptOffsetMs: number | null;
+  invertFunscript: boolean;
 };
 
 type InstalledRoundCardAssetEntry = {
@@ -385,6 +386,7 @@ function toInstalledRoundCatalogEntry(entry: {
     durationMs: number | null;
     funscriptOffsetMs: number | null;
     hasFunscript: boolean;
+    invertFunscript: boolean;
   }>;
 } {
   return {
@@ -419,6 +421,7 @@ function toInstalledRoundCatalogEntry(entry: {
       durationMs: resourceEntry.durationMs,
       funscriptOffsetMs: resourceEntry.funscriptOffsetMs,
       hasFunscript: Boolean(resourceEntry.funscriptUri),
+      invertFunscript: resourceEntry.invertFunscript,
     })),
   };
 }
@@ -919,6 +922,7 @@ export const dbRouter = router({
         endTime: z.number().int().min(0).optional().nullable(),
         funscriptUri: z.string().trim().min(1).optional().nullable(),
         funscriptOffsetMs: z.number().int().optional().nullable(),
+        invertFunscript: z.boolean().optional(),
         type: ZRoundType,
         excludeFromRandom: z.boolean().optional(),
         libraryLabel: ZNullableText,
@@ -983,6 +987,24 @@ export const dbRouter = router({
           .update(resource)
           .set({
             funscriptOffsetMs: normalizeFunscriptOffsetMs(input.funscriptOffsetMs),
+            updatedAt: new Date(),
+          })
+          .where(eq(resource.id, primaryResource.id));
+      }
+
+      if (input.invertFunscript !== undefined) {
+        const primaryResource = existing.resources[0];
+        if (!primaryResource) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "This round has no attached resource to update.",
+          });
+        }
+
+        await db
+          .update(resource)
+          .set({
+            invertFunscript: input.invertFunscript,
             updatedAt: new Date(),
           })
           .where(eq(resource.id, primaryResource.id));
@@ -1562,6 +1584,7 @@ export const dbRouter = router({
           resources: await Promise.all(
             entry.resources.map(async (res) => ({
               ...res,
+              invertFunscript: res.invertFunscript,
               ...resolveResourceUrisForRequest({
                 videoUri: res.videoUri,
                 funscriptUri: res.funscriptUri,
@@ -1627,6 +1650,7 @@ export const dbRouter = router({
                 durationMs: true,
                 funscriptUri: true,
                 funscriptOffsetMs: true,
+                invertFunscript: true,
               },
             },
           },

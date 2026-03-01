@@ -4,9 +4,13 @@ import { usePlayableVideoFallback } from "./usePlayableVideoFallback";
 
 function FallbackHarness(props: {
   videoUri: string;
-  resolver: (videoUri: string) => Promise<{ videoUri: string; transcoded: boolean; cacheHit: boolean }>;
+  resolver: (
+    videoUri: string
+  ) => Promise<{ videoUri: string; transcoded: boolean; cacheHit: boolean }>;
 }) {
-  const { getVideoSrc, ensurePlayableVideo, handleVideoError } = usePlayableVideoFallback(props.resolver);
+  const { getVideoSrc, ensurePlayableVideo, handleVideoError } = usePlayableVideoFallback(
+    props.resolver
+  );
   return (
     <div>
       <span data-testid="src">{getVideoSrc(props.videoUri) ?? ""}</span>
@@ -88,7 +92,12 @@ describe("usePlayableVideoFallback", () => {
       cacheHit: true,
     }));
 
-    render(<FallbackHarness resolver={resolver} videoUri="app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3D1" />);
+    render(
+      <FallbackHarness
+        resolver={resolver}
+        videoUri="app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3D1"
+      />
+    );
     expect(screen.getByTestId("src").textContent).toBe(
       "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3D1"
     );
@@ -107,7 +116,9 @@ describe("usePlayableVideoFallback", () => {
       cacheHit: false,
     }));
 
-    render(<FallbackHarness resolver={resolver} videoUri="https://www.xhamster.com/videos/test-123" />);
+    render(
+      <FallbackHarness resolver={resolver} videoUri="https://www.xhamster.com/videos/test-123" />
+    );
     expect(screen.getByTestId("src").textContent).toBe(
       "app://external/web-url?target=https%3A%2F%2Fwww.xhamster.com%2Fvideos%2Ftest-123"
     );
@@ -134,13 +145,16 @@ describe("usePlayableVideoFallback", () => {
       cacheHit: true,
     }));
 
-    render(<FallbackHarness resolver={resolver} videoUri="http://localhost:9999/scene/123/stream" />);
+    render(
+      <FallbackHarness resolver={resolver} videoUri="http://localhost:9999/scene/123/stream" />
+    );
 
     expect(screen.getByTestId("src").textContent).toBe("http://localhost:9999/scene/123/stream");
   });
 
   it("retries website sources until a cached local replacement becomes available", async () => {
-    const resolver = vi.fn()
+    const resolver = vi
+      .fn()
       .mockResolvedValueOnce({
         videoUri: "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3D1",
         transcoded: false,
@@ -152,7 +166,12 @@ describe("usePlayableVideoFallback", () => {
         cacheHit: true,
       });
 
-    render(<FallbackHarness resolver={resolver} videoUri="app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3D1" />);
+    render(
+      <FallbackHarness
+        resolver={resolver}
+        videoUri="app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3D1"
+      />
+    );
     expect(screen.getByTestId("src").textContent).toBe(
       "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3D1"
     );

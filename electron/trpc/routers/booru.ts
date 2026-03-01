@@ -73,16 +73,13 @@ async function fetchText(url: string): Promise<string | null> {
 function decodeXmlEntities(value: string): string {
   return value
     .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, "\"")
+    .replace(/&quot;/g, '"')
     .replace(/&#039;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">");
 }
 
-function parseXmlPosts(
-  xml: string,
-  source: "rule34" | "gelbooru",
-): BooruMediaItem[] {
+function parseXmlPosts(xml: string, source: "rule34" | "gelbooru"): BooruMediaItem[] {
   const posts: BooruMediaItem[] = [];
   const postRegex = /<post\b([^>]*)\/?>/g;
   let match: RegExpExecArray | null;
@@ -181,7 +178,10 @@ function buildRule34FullCandidates(thumbUrl: string, postId: string): string[] {
   return candidates;
 }
 
-async function resolveBestRule34MediaFromThumb(thumbUrl: string, postId: string): Promise<string | null> {
+async function resolveBestRule34MediaFromThumb(
+  thumbUrl: string,
+  postId: string
+): Promise<string | null> {
   const candidates = buildRule34FullCandidates(thumbUrl, postId);
   for (const candidate of candidates) {
     try {
@@ -290,7 +290,8 @@ async function searchBooru(prompt: string, limitPerSource: number): Promise<Boor
     fetchGelbooru(tags, limitPerSource),
     fetchDanbooru(tags, limitPerSource),
   ]);
-  const rule34 = rule34Dapi.length > 0 ? rule34Dapi : await fetchRule34ViaHtml(tags, limitPerSource);
+  const rule34 =
+    rule34Dapi.length > 0 ? rule34Dapi : await fetchRule34ViaHtml(tags, limitPerSource);
   return shuffle(dedupe([...rule34, ...gelbooru, ...danbooru]));
 }
 
@@ -300,7 +301,7 @@ export const booruRouter = router({
       z.object({
         prompt: z.string().min(1).max(200),
         limitPerSource: z.number().int().min(1).max(50).default(16),
-      }),
+      })
     )
     .query(async ({ input }) => {
       const media = await searchBooru(input.prompt, input.limitPerSource);

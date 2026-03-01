@@ -289,8 +289,8 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
                 quality === "minimal"
                   ? undefined
                   : quality === "light"
-                  ? "orb-drift 20s ease-in-out infinite, orb-fade 6s ease-in-out infinite"
-                  : "orb-drift 20s ease-in-out infinite, pulse-glow 4s ease-in-out infinite",
+                    ? "orb-drift 20s ease-in-out infinite, orb-fade 6s ease-in-out infinite"
+                    : "orb-drift 20s ease-in-out infinite, pulse-glow 4s ease-in-out infinite",
             }}
           />
           <div
@@ -308,8 +308,8 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
                 quality === "minimal"
                   ? undefined
                   : quality === "light"
-                  ? "orb-drift-2 27s ease-in-out -6s infinite, orb-fade 6s ease-in-out -2s infinite"
-                  : "orb-drift-2 27s ease-in-out -6s infinite, pulse-glow 4s ease-in-out -3s infinite",
+                    ? "orb-drift-2 27s ease-in-out -6s infinite, orb-fade 6s ease-in-out -2s infinite"
+                    : "orb-drift-2 27s ease-in-out -6s infinite, pulse-glow 4s ease-in-out -3s infinite",
             }}
           />
           {quality === "full" && (

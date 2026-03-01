@@ -14,7 +14,7 @@ describe("CinematicTransitionFrame", () => {
         overline="RUN INITIALIZATION"
         progress={0.9}
         variant="playlist-launch"
-      />,
+      />
     );
 
     const root = view.getByTestId("cinematic-transition-root");
@@ -31,7 +31,7 @@ describe("CinematicTransitionFrame", () => {
         countdownLabel="2"
         progress={0.45}
         variant="round-start"
-      />,
+      />
     );
 
     expect(view.getByTestId("cinematic-transition-title").textContent).toBe("Round 9");
@@ -49,11 +49,11 @@ describe("CinematicTransitionFrame", () => {
         countdownLabel="4"
         progress={0.25}
         variant="round-start"
-      />,
+      />
     );
 
     expect(view.getByTestId("cinematic-transition-hint").textContent).toContain(
-      "In this round, you may cum when the video instructs you to do so.",
+      "In this round, you may cum when the video instructs you to do so."
     );
   });
 });

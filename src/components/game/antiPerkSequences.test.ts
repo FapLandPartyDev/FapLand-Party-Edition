@@ -36,7 +36,9 @@ describe("antiPerkSequences", () => {
       expect(beatHits.length).toBeGreaterThan(0);
       expect(beatHits.length).toBeLessThan(actions.length);
       expect(beatHits.every((hit) => hit.at >= 0 && hit.at <= durationMs)).toBe(true);
-      expect(beatHits.every((hit, index) => index === 0 || hit.at >= beatHits[index - 1]!.at)).toBe(true);
+      expect(beatHits.every((hit, index) => index === 0 || hit.at >= beatHits[index - 1]!.at)).toBe(
+        true
+      );
       expect(beatHits.every((hit) => hit.strength >= 0.35 && hit.strength <= 1)).toBe(true);
     }
   });

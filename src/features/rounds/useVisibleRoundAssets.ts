@@ -45,7 +45,12 @@ export function useVisibleRoundAssets({
       next.set(roundId, entry);
     }
     return next;
-  }, [cachedCardAssetsByRoundId, fetchedCardAssetsState.entries, fetchedCardAssetsState.includeDisabled, includeDisabled]);
+  }, [
+    cachedCardAssetsByRoundId,
+    fetchedCardAssetsState.entries,
+    fetchedCardAssetsState.includeDisabled,
+    includeDisabled,
+  ]);
 
   useEffect(() => {
     if (requestedRoundIds.length === 0) {

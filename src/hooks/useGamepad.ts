@@ -21,10 +21,15 @@ function toLegacyAction(action: ControllerAction): GamepadAction | null {
 }
 
 export const useGamepad = (onInput: (action: GamepadAction) => void) => {
-  useControllerSubscription(useCallback((action: ControllerAction) => {
-    const legacyAction = toLegacyAction(action);
-    if (legacyAction) {
-      onInput(legacyAction);
-    }
-  }, [onInput]));
+  useControllerSubscription(
+    useCallback(
+      (action: ControllerAction) => {
+        const legacyAction = toLegacyAction(action);
+        if (legacyAction) {
+          onInput(legacyAction);
+        }
+      },
+      [onInput]
+    )
+  );
 };

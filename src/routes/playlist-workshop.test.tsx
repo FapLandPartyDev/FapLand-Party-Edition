@@ -287,20 +287,18 @@ vi.mock("../game/playlistRuntime", () => ({
       scorePerCumRoundSuccess: 0,
     },
   })),
-  resolvePortableRoundRef: vi.fn((ref: { idHint?: string }, installedRounds: Array<{ id: string }>) =>
-    installedRounds.find((round) => round.id === ref.idHint) ?? null
+  resolvePortableRoundRef: vi.fn(
+    (ref: { idHint?: string }, installedRounds: Array<{ id: string }>) =>
+      installedRounds.find((round) => round.id === ref.idHint) ?? null
   ),
-  toPortableRoundRef: vi.fn((round: {
-    id: string;
-    name: string;
-    author?: string | null;
-    type?: string | null;
-  }) => ({
-    idHint: round.id,
-    name: round.name,
-    author: round.author ?? undefined,
-    type: round.type ?? "Normal",
-  })),
+  toPortableRoundRef: vi.fn(
+    (round: { id: string; name: string; author?: string | null; type?: string | null }) => ({
+      idHint: round.id,
+      name: round.name,
+      author: round.author ?? undefined,
+      type: round.type ?? "Normal",
+    })
+  ),
 }));
 
 vi.mock("../game/data/perks", () => ({
@@ -389,7 +387,9 @@ function getSectionByHeading(heading: string): HTMLElement {
   return section as HTMLElement;
 }
 
-function clickSidebarSection(sectionName: "Playlist" | "Rounds" | "Session" | "Timing & Probabilities") {
+function clickSidebarSection(
+  sectionName: "Playlist" | "Rounds" | "Session" | "Timing & Probabilities"
+) {
   const sectionButton = screen
     .getAllByRole("button")
     .find((button) => button.textContent?.includes(sectionName));
@@ -465,11 +465,15 @@ beforeEach(() => {
   mocks.playlists.list.mockResolvedValue([playlist]);
   mocks.playlists.getActive.mockResolvedValue(playlist);
   mocks.playlists.setActive.mockResolvedValue(undefined);
-  mocks.playlists.create.mockResolvedValue(makeGraphPlaylist("created-playlist", "Created Playlist"));
-  mocks.playlists.update.mockImplementation(async ({ playlistId, config }: { playlistId: string; config: unknown }) => ({
-    ...makeLinearPlaylist(playlistId, "Updated Playlist"),
-    config,
-  }));
+  mocks.playlists.create.mockResolvedValue(
+    makeGraphPlaylist("created-playlist", "Created Playlist")
+  );
+  mocks.playlists.update.mockImplementation(
+    async ({ playlistId, config }: { playlistId: string; config: unknown }) => ({
+      ...makeLinearPlaylist(playlistId, "Updated Playlist"),
+      config,
+    })
+  );
   mocks.playlists.analyzeImportFile.mockResolvedValue({
     metadata: { name: "Imported Playlist", description: null, exportedAt: null },
     config: makeGraphPlaylist("imported-playlist", "Imported Playlist").config,

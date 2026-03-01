@@ -61,7 +61,7 @@ export {
   stopHamp,
   streamPlay,
   streamStop,
-} from './sdk.gen'
+} from "./sdk.gen";
 export type {
   Action,
   AuthTokenResponse,
@@ -317,4 +317,4 @@ export type {
   WifiScanComplete,
   WifiStateValue,
   WifiStatus,
-} from './types.gen'
+} from "./types.gen";

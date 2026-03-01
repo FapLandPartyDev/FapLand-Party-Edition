@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getStore } from "../store";
-import { createStashSource, normalizeBaseUrl, toStashInstallSourceKey, updateStashSource } from "./store";
+import {
+  createStashSource,
+  normalizeBaseUrl,
+  toStashInstallSourceKey,
+  updateStashSource,
+} from "./store";
 
 describe("integration store helpers", () => {
   beforeEach(() => {
@@ -8,10 +13,10 @@ describe("integration store helpers", () => {
   });
 
   it("normalizes stash base URLs", () => {
-    expect(normalizeBaseUrl("https://stash.example.com/"))
-      .toBe("https://stash.example.com");
-    expect(normalizeBaseUrl("https://stash.example.com/root/path/?a=1#x"))
-      .toBe("https://stash.example.com/root/path");
+    expect(normalizeBaseUrl("https://stash.example.com/")).toBe("https://stash.example.com");
+    expect(normalizeBaseUrl("https://stash.example.com/root/path/?a=1#x")).toBe(
+      "https://stash.example.com/root/path"
+    );
   });
 
   it("rejects unsupported protocols", () => {
@@ -19,8 +24,9 @@ describe("integration store helpers", () => {
   });
 
   it("builds stash install source keys with normalized base URLs", () => {
-    expect(toStashInstallSourceKey("https://stash.example.com/", "123"))
-      .toBe("stash:https://stash.example.com:scene:123");
+    expect(toStashInstallSourceKey("https://stash.example.com/", "123")).toBe(
+      "stash:https://stash.example.com:scene:123"
+    );
   });
 
   it("allows creating no-auth stash sources without credentials", () => {

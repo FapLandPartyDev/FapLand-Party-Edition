@@ -147,6 +147,7 @@ export const db = {
       endTime?: number | null;
       funscriptUri?: string | null;
       funscriptOffsetMs?: number | null;
+      invertFunscript?: boolean;
       type: "Normal" | "Interjection" | "Cum";
       excludeFromRandom?: boolean;
       libraryLabel?: string | null;

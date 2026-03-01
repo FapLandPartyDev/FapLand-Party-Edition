@@ -83,7 +83,8 @@ function createMockTx() {
               startTime: Number(value.startTime),
               endTime: Number(value.endTime),
               cutRangesJson: typeof value.cutRangesJson === "string" ? value.cutRangesJson : null,
-              installSourceKey: typeof value.installSourceKey === "string" ? value.installSourceKey : null,
+              installSourceKey:
+                typeof value.installSourceKey === "string" ? value.installSourceKey : null,
             });
             return [{ id }];
           }
@@ -95,7 +96,9 @@ function createMockTx() {
     update: vi.fn(() => ({
       set: vi.fn(() => ({
         where: vi.fn((input: unknown) => ({
-          returning: vi.fn(async () => [{ id: String(extractFirstSqlParam(input) ?? "round-updated") }]),
+          returning: vi.fn(async () => [
+            { id: String(extractFirstSqlParam(input) ?? "round-updated") },
+          ]),
         })),
       })),
     })),
@@ -177,8 +180,24 @@ describe("converter helpers", () => {
     ]);
 
     expect(normalized).toEqual([
-      { startTimeMs: 0, endTimeMs: 2000, type: "Cum", customName: null, bpm: null, difficulty: null, cutRanges: [] },
-      { startTimeMs: 3000, endTimeMs: 6000, type: "Normal", customName: null, bpm: null, difficulty: null, cutRanges: [] },
+      {
+        startTimeMs: 0,
+        endTimeMs: 2000,
+        type: "Cum",
+        customName: null,
+        bpm: null,
+        difficulty: null,
+        cutRanges: [],
+      },
+      {
+        startTimeMs: 3000,
+        endTimeMs: 6000,
+        type: "Normal",
+        customName: null,
+        bpm: null,
+        difficulty: null,
+        cutRanges: [],
+      },
     ]);
   });
 
@@ -206,25 +225,33 @@ describe("converter helpers", () => {
 
   it("rejects invalid bpm", () => {
     expect(() =>
-      validateAndNormalizeSegments([{ startTimeMs: 0, endTimeMs: 2000, type: "Normal", bpm: 0 }]),
+      validateAndNormalizeSegments([{ startTimeMs: 0, endTimeMs: 2000, type: "Normal", bpm: 0 }])
     ).toThrow(/bpm/i);
     expect(() =>
-      validateAndNormalizeSegments([{ startTimeMs: 0, endTimeMs: 2000, type: "Normal", bpm: 401 }]),
+      validateAndNormalizeSegments([{ startTimeMs: 0, endTimeMs: 2000, type: "Normal", bpm: 401 }])
     ).toThrow(/bpm/i);
     expect(() =>
-      validateAndNormalizeSegments([{ startTimeMs: 0, endTimeMs: 2000, type: "Normal", bpm: Number.NaN }]),
+      validateAndNormalizeSegments([
+        { startTimeMs: 0, endTimeMs: 2000, type: "Normal", bpm: Number.NaN },
+      ])
     ).toThrow(/bpm/i);
   });
 
   it("rejects invalid difficulty", () => {
     expect(() =>
-      validateAndNormalizeSegments([{ startTimeMs: 0, endTimeMs: 2000, type: "Normal", difficulty: 0 }]),
+      validateAndNormalizeSegments([
+        { startTimeMs: 0, endTimeMs: 2000, type: "Normal", difficulty: 0 },
+      ])
     ).toThrow(/difficulty/i);
     expect(() =>
-      validateAndNormalizeSegments([{ startTimeMs: 0, endTimeMs: 2000, type: "Normal", difficulty: 6 }]),
+      validateAndNormalizeSegments([
+        { startTimeMs: 0, endTimeMs: 2000, type: "Normal", difficulty: 6 },
+      ])
     ).toThrow(/difficulty/i);
     expect(() =>
-      validateAndNormalizeSegments([{ startTimeMs: 0, endTimeMs: 2000, type: "Normal", difficulty: 2.5 }]),
+      validateAndNormalizeSegments([
+        { startTimeMs: 0, endTimeMs: 2000, type: "Normal", difficulty: 2.5 },
+      ])
     ).toThrow(/difficulty/i);
   });
 
@@ -233,7 +260,7 @@ describe("converter helpers", () => {
       validateAndNormalizeSegments([
         { startTimeMs: 0, endTimeMs: 3000, type: "Normal" },
         { startTimeMs: 2000, endTimeMs: 4000, type: "Interjection" },
-      ]),
+      ])
     ).toThrow(/overlap/i);
   });
 
@@ -244,8 +271,8 @@ describe("converter helpers", () => {
           { startTimeMs: 0, endTimeMs: 3000, type: "Normal" },
           { startTimeMs: 2000, endTimeMs: 4000, type: "Interjection" },
         ],
-        { allowOverlaps: true },
-      ),
+        { allowOverlaps: true }
+      )
     ).toMatchObject([
       { startTimeMs: 0, endTimeMs: 3000, type: "Normal" },
       { startTimeMs: 2000, endTimeMs: 4000, type: "Interjection" },
@@ -324,7 +351,7 @@ describe("converter helpers", () => {
     expect(toDeterministicInstallSourceKey({ ...base, segmentOrdinal: null })).toBe(legacyKey);
     expect(toDeterministicInstallSourceKey({ ...base, segmentOrdinal: 0 })).not.toBe(legacyKey);
     expect(toDeterministicInstallSourceKey({ ...base, segmentOrdinal: 1 })).not.toBe(
-      toDeterministicInstallSourceKey({ ...base, segmentOrdinal: 0 }),
+      toDeterministicInstallSourceKey({ ...base, segmentOrdinal: 0 })
     );
   });
 
@@ -405,7 +432,7 @@ describe("saveConvertedRounds phash fallback", () => {
       `sha256:${expectedHash}@5000-6000`,
     ]);
     expect(new Set(result.rounds.map((round) => round.phash?.split("@")[0]))).toEqual(
-      new Set([`sha256:${expectedHash}`]),
+      new Set([`sha256:${expectedHash}`])
     );
   });
 
@@ -470,12 +497,7 @@ describe("saveConvertedRounds source replacement", () => {
     expect(result.rounds).toHaveLength(3);
     expect(result.stats).toMatchObject({ created: 3, updated: 0, removedSources: 4 });
     expect(result.removedSourceRound).toBe(true);
-    expect(result.removedSourceRoundIds).toEqual([
-      "source-1",
-      "source-2",
-      "source-3",
-      "source-4",
-    ]);
+    expect(result.removedSourceRoundIds).toEqual(["source-1", "source-2", "source-3", "source-4"]);
     expect(mocks.deletedRoundIds).toEqual(["source-1", "source-2", "source-3", "source-4"]);
   });
 

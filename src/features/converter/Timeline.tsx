@@ -91,8 +91,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(
     );
     const segmentLanes = useMemo(() => assignSegmentLanes(sortedSegments), [sortedSegments]);
     const laneCount = Math.max(1, ...segmentLanes.map((entry) => entry.lane + 1));
-    const laneAreaHeight =
-      laneCount * SEGMENT_LANE_HEIGHT + (laneCount - 1) * SEGMENT_LANE_GAP;
+    const laneAreaHeight = laneCount * SEGMENT_LANE_HEIGHT + (laneCount - 1) * SEGMENT_LANE_GAP;
     const timelineHeight = SEGMENT_LANE_TOP + laneAreaHeight + TIMELINE_BOTTOM_PADDING;
     const [zoomDraft, setZoomDraft] = useState(() => `${zoomPxPerSec}`);
 

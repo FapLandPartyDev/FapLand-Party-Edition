@@ -24,5 +24,6 @@ export const HAPTICS_TEST_ACTIONS: FunscriptAction[] = createGeneratedSequenceAc
   createSeededRng(0x51f7c0de)
 );
 export const HAPTICS_TEST_BEATBAR_EVENTS = extractBeatbarMotionEvents(HAPTICS_TEST_ACTIONS);
-export const HAPTICS_TEST_BEAT_HITS =
-  getAntiPerkSequenceDefinition(HAPTICS_TEST_BEATBAR_STYLE).extractBeatHits(HAPTICS_TEST_ACTIONS);
+export const HAPTICS_TEST_BEAT_HITS = getAntiPerkSequenceDefinition(
+  HAPTICS_TEST_BEATBAR_STYLE
+).extractBeatHits(HAPTICS_TEST_ACTIONS);

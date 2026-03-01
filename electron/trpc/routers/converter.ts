@@ -36,10 +36,10 @@ export const converterRouter = router({
               bpm: z.number().finite().min(1).max(400).optional().nullable(),
               difficulty: z.number().int().min(1).max(5).optional().nullable(),
               cutRanges: z.array(ZRoundCutRange).optional().nullable(),
-            }),
+            })
           )
           .min(1),
-      }),
+      })
     )
     .mutation(async ({ input }) => {
       try {

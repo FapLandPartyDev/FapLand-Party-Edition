@@ -17,9 +17,11 @@ describe("dialogPathApproval", () => {
   it("normalizes approved paths and consumes approvals after one use", () => {
     approveDialogPath("playlistImportFile", "/tmp/example/../playlist.fplay");
 
-    expect(assertApprovedDialogPath("playlistImportFile", "/tmp/playlist.fplay")).toBe("/tmp/playlist.fplay");
+    expect(assertApprovedDialogPath("playlistImportFile", "/tmp/playlist.fplay")).toBe(
+      "/tmp/playlist.fplay"
+    );
     expect(() => assertApprovedDialogPath("playlistImportFile", "/tmp/playlist.fplay")).toThrow(
-      "Path must be selected through the system dialog.",
+      "Path must be selected through the system dialog."
     );
   });
 
@@ -30,7 +32,7 @@ describe("dialogPathApproval", () => {
     vi.advanceTimersByTime(10 * 60 * 1000 + 1);
 
     expect(() => assertApprovedDialogPath("playlistExportFile", "/tmp/exported.fplay")).toThrow(
-      "Path must be selected through the system dialog.",
+      "Path must be selected through the system dialog."
     );
     vi.useRealTimers();
   });

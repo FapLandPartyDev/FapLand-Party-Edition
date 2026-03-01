@@ -75,15 +75,12 @@ export function getBundledYtDlpCandidatePaths(
     appPath?: string;
     resourcesPath?: string;
     isPackaged?: boolean;
-  },
+  }
 ): string[] {
   const appPath = path.normalize(options?.appPath ?? app.getAppPath());
   const resourcesPath = path.normalize(options?.resourcesPath ?? process.resourcesPath);
   const isPackaged = options?.isPackaged ?? app.isPackaged;
-  const candidates = [
-    path.join(resourcesPath, relativePath),
-    path.join(appPath, relativePath),
-  ];
+  const candidates = [path.join(resourcesPath, relativePath), path.join(appPath, relativePath)];
 
   if (!isPackaged) {
     candidates.push(path.join(appPath, "build", "vendor", relativePath));
@@ -111,13 +108,16 @@ function resolveBundledYtDlpPath(): string | null {
 async function readVersion(command: string): Promise<string | null> {
   const { stdout, stderr } = await runCommand(command, ["--version"]);
   const output = `${stdout.toString("utf8")}\n${stderr.toString("utf8")}`.trim();
-  const versionLine = output.split(/\r?\n/).map((entry) => entry.trim()).find(Boolean);
+  const versionLine = output
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .find(Boolean);
   return versionLine && versionLine.length > 0 ? versionLine : null;
 }
 
 async function probeYtDlpBinary(
   candidate: string,
-  source: "bundled" | "system",
+  source: "bundled" | "system"
 ): Promise<YtDlpBinary | null> {
   const version = await readVersion(candidate);
   if (!version) return null;
@@ -131,7 +131,7 @@ async function probeYtDlpBinary(
 
 async function probeCandidates(
   candidates: string[],
-  source: "bundled" | "system",
+  source: "bundled" | "system"
 ): Promise<YtDlpProbeResult> {
   const attempts: string[] = [];
 
@@ -175,25 +175,29 @@ export function resetYtDlpBinaryCache(): void {
 export function selectYtDlpBinary(
   preference: YtDlpBinaryPreference,
   bundled: YtDlpBinary | null,
-  system: YtDlpBinary | null,
+  system: YtDlpBinary | null
 ): YtDlpBinary {
   const usableBundled = isUsableYtDlpBinary(bundled) ? bundled : null;
   const usableSystem = isUsableYtDlpBinary(system) ? system : null;
 
   if (!usableBundled && !usableSystem) {
     throw new Error(
-      "Unable to locate yt-dlp. Packaged builds use a bundled binary; development can fall back to a system install on PATH, common Nix profile paths, or `FLAND_YT_DLP_PATH`.",
+      "Unable to locate yt-dlp. Packaged builds use a bundled binary; development can fall back to a system install on PATH, common Nix profile paths, or `FLAND_YT_DLP_PATH`."
     );
   }
 
   if (preference === "bundled") {
     if (usableBundled) return usableBundled;
-    throw new Error("yt-dlp source is forced to bundled/local, but the local binary is unavailable.");
+    throw new Error(
+      "yt-dlp source is forced to bundled/local, but the local binary is unavailable."
+    );
   }
 
   if (preference === "system") {
     if (usableSystem) return usableSystem;
-    throw new Error("yt-dlp source is forced to system, but no runnable system binary was found on PATH, common Nix profile paths, or `FLAND_YT_DLP_PATH`.");
+    throw new Error(
+      "yt-dlp source is forced to system, but no runnable system binary was found on PATH, common Nix profile paths, or `FLAND_YT_DLP_PATH`."
+    );
   }
 
   if (usableBundled) return usableBundled;
@@ -210,7 +214,10 @@ export function getConfiguredYtDlpBinaryPreference(): YtDlpBinaryPreference {
 }
 
 async function resolveYtDlpBinaryInternal(preference: YtDlpBinaryPreference): Promise<YtDlpBinary> {
-  const [bundledResult, systemResult] = await Promise.all([resolveBundledBinary(), resolveSystemBinary()]);
+  const [bundledResult, systemResult] = await Promise.all([
+    resolveBundledBinary(),
+    resolveSystemBinary(),
+  ]);
 
   try {
     return selectYtDlpBinary(preference, bundledResult.binary, systemResult.binary);

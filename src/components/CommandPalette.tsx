@@ -436,9 +436,7 @@ export function CommandPalette() {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[300] flex items-start justify-center pt-[15vh]"
-    >
+    <div className="fixed inset-0 z-[300] flex items-start justify-center pt-[15vh]">
       <button
         type="button"
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -506,29 +504,29 @@ export function CommandPalette() {
               role="option"
               aria-selected={index === selectedIndex}
             >
-            <button
-              type="button"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-100 ${
-                index === selectedIndex
-                  ? "bg-violet-500/20 text-violet-100"
-                  : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-              }`}
-              onClick={() => execute(cmd)}
-              onMouseEnter={() => {
-                setSelectedIndex(index);
-                playHoverSound();
-              }}
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{cmd.label}</p>
-                {cmd.description && (
-                  <p className="truncate text-xs text-zinc-500">{cmd.description}</p>
-                )}
-              </div>
-              <span className="shrink-0 rounded-md bg-violet-500/10 px-2 py-0.5 font-mono text-[10px] text-violet-400/70">
-                {cmd.category}
-              </span>
-            </button>
+              <button
+                type="button"
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-100 ${
+                  index === selectedIndex
+                    ? "bg-violet-500/20 text-violet-100"
+                    : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                }`}
+                onClick={() => execute(cmd)}
+                onMouseEnter={() => {
+                  setSelectedIndex(index);
+                  playHoverSound();
+                }}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{cmd.label}</p>
+                  {cmd.description && (
+                    <p className="truncate text-xs text-zinc-500">{cmd.description}</p>
+                  )}
+                </div>
+                <span className="shrink-0 rounded-md bg-violet-500/10 px-2 py-0.5 font-mono text-[10px] text-violet-400/70">
+                  {cmd.category}
+                </span>
+              </button>
             </div>
           ))}
         </div>

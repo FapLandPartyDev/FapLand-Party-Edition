@@ -190,6 +190,8 @@ const ZGameConfig = z.object({
     antiPerkIncreasePerRound: z.number(),
     maxIntermediaryProbability: z.number(),
     maxAntiPerkProbability: z.number(),
+    resetIntermediaryProbabilityAfterTrigger: z.boolean().optional().default(false),
+    resetAntiPerkProbabilityAfterTrigger: z.boolean().optional().default(false),
   }),
   singlePlayer: z.object({
     totalIndices: z.number().int(),
@@ -427,7 +429,10 @@ export const ZPersistedGameState = z.object({
   log: z.array(z.string()),
   lastRoll: z.number().int().nullable(),
   endlessRoundsCompleted: z.number().int().default(0),
-  completionReason: z.enum(["finished", "self_reported_cum", "cum_instruction_failed", "player_ended_endless"]).nullable(),
+  antiPerkTriggeredThisRound: z.boolean().optional().default(false),
+  completionReason: z
+    .enum(["finished", "self_reported_cum", "cum_instruction_failed", "player_ended_endless"])
+    .nullable(),
 });
 
 export const ZSinglePlayerRunSaveSnapshot = z.object({

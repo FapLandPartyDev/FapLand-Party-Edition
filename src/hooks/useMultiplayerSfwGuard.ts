@@ -1,9 +1,6 @@
 import { redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import {
-  normalizeSfwModeEnabled,
-  SFW_MODE_ENABLED_KEY,
-} from "../constants/experimentalFeatures";
+import { normalizeSfwModeEnabled, SFW_MODE_ENABLED_KEY } from "../constants/experimentalFeatures";
 import { trpc } from "../services/trpc";
 import { useSfwMode } from "./useSfwMode";
 

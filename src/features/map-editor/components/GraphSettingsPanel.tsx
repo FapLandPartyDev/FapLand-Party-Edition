@@ -13,6 +13,8 @@ interface GraphSettingsPanelProps {
   perkSelection: EditorGraphConfig["perkSelection"];
   perkPool: EditorGraphConfig["perkPool"];
   probabilityScaling: EditorGraphConfig["probabilityScaling"];
+  resetIntermediaryProbabilityAfterTrigger: boolean;
+  resetAntiPerkProbabilityAfterTrigger: boolean;
   economy: EditorGraphConfig["economy"];
   dice: EditorGraphConfig["dice"];
   disableDiceAnimation: boolean;
@@ -29,6 +31,8 @@ interface GraphSettingsPanelProps {
     key: keyof EditorGraphConfig["probabilityScaling"],
     value: number
   ) => void;
+  onSetResetIntermediaryProbabilityAfterTrigger: (value: boolean) => void;
+  onSetResetAntiPerkProbabilityAfterTrigger: (value: boolean) => void;
   onSetDiceLimit: (key: keyof EditorGraphConfig["dice"], value: number) => void;
   onSetDisableDiceAnimation: (value: boolean) => void;
   onSetSaveMode: (value: EditorGraphConfig["saveMode"]) => void;
@@ -193,6 +197,8 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
     perkSelection,
     perkPool,
     probabilityScaling,
+    resetIntermediaryProbabilityAfterTrigger,
+    resetAntiPerkProbabilityAfterTrigger,
     economy,
     dice,
     disableDiceAnimation,
@@ -206,6 +212,8 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
     selectedCumRoundIdSet,
     onSetPerkTriggerChance,
     onSetProbabilityScaling,
+    onSetResetIntermediaryProbabilityAfterTrigger,
+    onSetResetAntiPerkProbabilityAfterTrigger,
     onSetDiceLimit,
     onSetDisableDiceAnimation,
     onSetSaveMode,
@@ -644,9 +652,7 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
                     }
                   }}
                   placeholder={
-                    musicUrlMode === "playlist"
-                      ? t`Paste playlist or set URL`
-                      : t`Paste track URL`
+                    musicUrlMode === "playlist" ? t`Paste playlist or set URL` : t`Paste track URL`
                   }
                   disabled={isAddingMusicUrl}
                   className={`min-w-0 flex-1 rounded-lg border bg-zinc-950/70 px-2.5 py-1.5 text-xs text-zinc-100 placeholder-zinc-600 outline-none transition ${
@@ -1004,6 +1010,76 @@ export const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = React.memo(
                 <Trans>Highest anti-perk chance allowed.</Trans>
               </p>
             </label>
+            <div className="rounded-lg border border-zinc-700/40 bg-zinc-950/60 p-3 sm:col-span-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+                    <Trans>Reset Intermediary Chance After Trigger</Trans>
+                  </p>
+                  <p className="mt-1 text-[10px] text-zinc-600">
+                    <Trans>
+                      Resets the intermediary chance to its initial value after a round where
+                      intermediaries were triggered.
+                    </Trans>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={t`Reset intermediary chance after trigger`}
+                  onMouseEnter={playHoverSound}
+                  onClick={() =>
+                    onSetResetIntermediaryProbabilityAfterTrigger(
+                      !resetIntermediaryProbabilityAfterTrigger
+                    )
+                  }
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                    resetIntermediaryProbabilityAfterTrigger
+                      ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-100"
+                      : "border-zinc-700/50 bg-zinc-950 text-zinc-300 hover:border-zinc-600/60 hover:text-zinc-100"
+                  }`}
+                >
+                  {resetIntermediaryProbabilityAfterTrigger ? (
+                    <Trans>Enabled</Trans>
+                  ) : (
+                    <Trans>Disabled</Trans>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="rounded-lg border border-zinc-700/40 bg-zinc-950/60 p-3 sm:col-span-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+                    <Trans>Reset Anti-Perk Chance After Trigger</Trans>
+                  </p>
+                  <p className="mt-1 text-[10px] text-zinc-600">
+                    <Trans>
+                      Resets the anti-perk chance to its initial value after a round where an
+                      anti-perk was triggered.
+                    </Trans>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={t`Reset anti-perk chance after trigger`}
+                  onMouseEnter={playHoverSound}
+                  onClick={() =>
+                    onSetResetAntiPerkProbabilityAfterTrigger(!resetAntiPerkProbabilityAfterTrigger)
+                  }
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                    resetAntiPerkProbabilityAfterTrigger
+                      ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-100"
+                      : "border-zinc-700/50 bg-zinc-950 text-zinc-300 hover:border-zinc-600/60 hover:text-zinc-100"
+                  }`}
+                >
+                  {resetAntiPerkProbabilityAfterTrigger ? (
+                    <Trans>Enabled</Trans>
+                  ) : (
+                    <Trans>Disabled</Trans>
+                  )}
+                </button>
+              </div>
+            </div>
             <label className="block space-y-1 sm:col-span-2">
               <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
                 <Trans>Starting Money</Trans>

@@ -21,7 +21,15 @@ describe("converter metadata", () => {
   });
 
   it("returns null bpm on insufficient action data", () => {
-    expect(estimateBpmFromActions([{ at: 0, pos: 10 }, { at: 1000, pos: 20 }], 2)).toBeNull();
+    expect(
+      estimateBpmFromActions(
+        [
+          { at: 0, pos: 10 },
+          { at: 1000, pos: 20 },
+        ],
+        2
+      )
+    ).toBeNull();
   });
 
   it("computes difficulty on 1-5 scale with calibration points", () => {

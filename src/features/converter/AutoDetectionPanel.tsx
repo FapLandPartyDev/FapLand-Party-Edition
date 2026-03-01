@@ -48,8 +48,7 @@ export const AutoDetectionPanel: React.FC<AutoDetectionPanelProps> = React.memo(
     const { t } = useLingui();
     const detectDisabled = isDetecting || !funscriptUri || durationMs <= 0;
     const targetCount = Number(targetSegmentCountDraft.trim());
-    const targetDetectDisabled =
-      detectDisabled || !Number.isFinite(targetCount) || targetCount < 1;
+    const targetDetectDisabled = detectDisabled || !Number.isFinite(targetCount) || targetCount < 1;
 
     return (
       <div>
