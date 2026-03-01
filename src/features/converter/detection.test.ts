@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDetectedSegments } from "./detection";
+import { buildDetectedSegments, findDetectionSettingsForTargetCount } from "./detection";
 
 describe("buildDetectedSegments", () => {
   it("splits on pause gaps and preserves order", () => {
@@ -92,5 +92,90 @@ describe("buildDetectedSegments", () => {
     });
 
     expect(segments).toEqual([{ startTimeMs: 0, endTimeMs: 15000, type: "Normal" }]);
+  });
+});
+
+describe("findDetectionSettingsForTargetCount", () => {
+  it("finds exact target count by changing pause and min round settings", () => {
+    const result = findDetectionSettingsForTargetCount({
+      actions: [
+        { at: 0, pos: 20 },
+        { at: 1000, pos: 40 },
+        { at: 6000, pos: 60 },
+        { at: 7000, pos: 80 },
+        { at: 12000, pos: 30 },
+      ],
+      durationMs: 16000,
+      targetCount: 3,
+      currentPauseGapMs: 900,
+      currentMinRoundMs: 1000,
+    });
+
+    expect(result.status).toBe("success");
+    if (result.status !== "success") return;
+    expect(result.segments).toHaveLength(3);
+    expect(result.evaluations).toBeGreaterThan(0);
+  });
+
+  it("returns failure when exact target count cannot be produced", () => {
+    const result = findDetectionSettingsForTargetCount({
+      actions: [{ at: 0, pos: 50 }],
+      durationMs: 5000,
+      targetCount: 3,
+      currentPauseGapMs: 900,
+      currentMinRoundMs: 1000,
+    });
+
+    expect(result.status).toBe("failure");
+    expect(result.closest?.segmentCount).toBe(1);
+  });
+
+  it("honors the evaluation cap", () => {
+    const result = findDetectionSettingsForTargetCount({
+      actions: [
+        { at: 0, pos: 20 },
+        { at: 1000, pos: 40 },
+        { at: 6000, pos: 60 },
+      ],
+      durationMs: 10000,
+      targetCount: 4,
+      currentPauseGapMs: 900,
+      currentMinRoundMs: 1000,
+      maxEvaluations: 3,
+    });
+
+    expect(result.evaluations).toBeLessThanOrEqual(3);
+  });
+
+  it("prefers exact matches close to current settings", () => {
+    const result = findDetectionSettingsForTargetCount({
+      actions: [
+        { at: 0, pos: 20 },
+        { at: 1000, pos: 40 },
+        { at: 6000, pos: 60 },
+      ],
+      durationMs: 10000,
+      targetCount: 2,
+      currentPauseGapMs: 5000,
+      currentMinRoundMs: 1000,
+    });
+
+    expect(result.status).toBe("success");
+    if (result.status !== "success") return;
+    expect(Math.abs(result.pauseGapMs - 5000)).toBeLessThanOrEqual(100);
+  });
+
+  it("handles a target count of one", () => {
+    const result = findDetectionSettingsForTargetCount({
+      actions: [],
+      durationMs: 5000,
+      targetCount: 1,
+      currentPauseGapMs: 900,
+      currentMinRoundMs: 1000,
+    });
+
+    expect(result.status).toBe("success");
+    if (result.status !== "success") return;
+    expect(result.segments).toEqual([{ startTimeMs: 0, endTimeMs: 5000, type: "Normal" }]);
   });
 });

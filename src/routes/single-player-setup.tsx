@@ -212,6 +212,7 @@ function SinglePlayerSetupPage() {
   );
   const selectedPlaylistDurationLabel =
     selectedPlaylistDurationSec != null ? formatDurationLabel(selectedPlaylistDurationSec) : "Endless";
+  const selectedPlaylistIsEndless = selectedPlaylist?.config.boardConfig.mode === "endless";
   const selectedPlaylistCacheSummary = selectedPlaylist
     ? (playlistCacheSummaryById.get(selectedPlaylist.id) ?? {
         hasPending: false,
@@ -776,20 +777,22 @@ function SinglePlayerSetupPage() {
                         controllerFocusId="single-start"
                       />
                     )}
-                    <MenuButton
-                      label={
-                        pendingAction === "workshop"
-                          ? t`Opening Workshop...`
-                          : t`Open Playlist Workshop`
-                      }
-                      subLabel={t`Edit this playlist before playing`}
-                      onHover={playHoverSound}
-                      onClick={() => {
-                        playSelectSound();
-                        void handleOpenWorkshop();
-                      }}
-                      controllerFocusId="single-workshop"
-                    />
+                    {!selectedPlaylistIsEndless && (
+                      <MenuButton
+                        label={
+                          pendingAction === "workshop"
+                            ? t`Opening Workshop...`
+                            : t`Open Playlist Workshop`
+                        }
+                        subLabel={t`Edit this playlist before playing`}
+                        onHover={playHoverSound}
+                        onClick={() => {
+                          playSelectSound();
+                          void handleOpenWorkshop();
+                        }}
+                        controllerFocusId="single-workshop"
+                      />
+                    )}
                   </div>
                 </div>
               </div>

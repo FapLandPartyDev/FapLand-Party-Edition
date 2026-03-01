@@ -42,6 +42,10 @@ export type ConverterShortcutContext = {
   seekToSelectedSegmentEnd: () => void;
   mergeSelectedSegmentWithNext: () => void;
   runAutoDetect: () => Promise<void> | void;
+  runTargetCountAutoDetect: () => Promise<void> | void;
+  focusTargetSegmentCountInput: () => void;
+  loadNextUnconvertedRound: (options?: { focusTargetInput?: boolean }) => Promise<void> | void;
+  loadPreviousUnconvertedRound: (options?: { focusTargetInput?: boolean }) => Promise<void> | void;
   applyDetectedSuggestions: () => void;
   saveConvertedRounds: () => Promise<void> | void;
   undo: () => void;
@@ -56,10 +60,11 @@ type ConverterShortcutBinding = ConverterShortcutDisplay & {
 function keyMatch(
   event: KeyboardEvent | ReactKeyboardEvent<HTMLElement>,
   key: string,
-  options?: { shiftKey?: boolean; ctrlOrMeta?: boolean }
+  options?: { shiftKey?: boolean; ctrlOrMeta?: boolean; altKey?: boolean }
 ): boolean {
   if (event.key !== key) return false;
   if ((options?.shiftKey ?? false) !== event.shiftKey) return false;
+  if ((options?.altKey ?? false) !== event.altKey) return false;
   if ((options?.ctrlOrMeta ?? false) !== (event.ctrlKey || event.metaKey)) return false;
   if (!options?.ctrlOrMeta && (event.ctrlKey || event.metaKey)) return false;
   return true;
@@ -285,6 +290,26 @@ export const CONVERTER_SHORTCUTS: readonly ConverterShortcutBinding[] = [
     trigger: (context) => context.selectPreviousSegment(),
   },
   {
+    id: "previous-unconverted-round",
+    keysLabel: "Alt+Left",
+    description: t`Load the previous unconverted round and focus target count.`,
+    category: "Segment Navigation",
+    matches: (event) => keyMatch(event, "ArrowLeft", { altKey: true }),
+    trigger: (context) => {
+      void context.loadPreviousUnconvertedRound({ focusTargetInput: true });
+    },
+  },
+  {
+    id: "next-unconverted-round",
+    keysLabel: "Alt+Right",
+    description: t`Load the next unconverted round and focus target count.`,
+    category: "Segment Navigation",
+    matches: (event) => keyMatch(event, "ArrowRight", { altKey: true }),
+    trigger: (context) => {
+      void context.loadNextUnconvertedRound({ focusTargetInput: true });
+    },
+  },
+  {
     id: "select-at-playhead",
     keysLabel: "P",
     description: t`Select the segment under the playhead.`,
@@ -348,6 +373,25 @@ export const CONVERTER_SHORTCUTS: readonly ConverterShortcutBinding[] = [
     matches: (event) => keyMatch(event, "a"),
     trigger: (context) => {
       void context.runAutoDetect();
+    },
+  },
+  {
+    id: "focus-target-count",
+    keysLabel: "Alt+T",
+    description: t`Focus the target segment count field.`,
+    category: "Detection & Save",
+    matches: (event) =>
+      keyMatch(event, "t", { altKey: true }) || keyMatch(event, "T", { altKey: true }),
+    trigger: (context) => context.focusTargetSegmentCountInput(),
+  },
+  {
+    id: "run-target-detect",
+    keysLabel: "T",
+    description: t`Detect pause settings that match the target segment count.`,
+    category: "Detection & Save",
+    matches: (event) => keyMatch(event, "t") || keyMatch(event, "T"),
+    trigger: (context) => {
+      void context.runTargetCountAutoDetect();
     },
   },
   {

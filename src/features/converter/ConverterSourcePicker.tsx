@@ -272,7 +272,6 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
               <label
                 className="block"
                 htmlFor="converter-website-video-url"
-                aria-label={t`Video URL`}
               >
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
                   <Trans>Video URL</Trans>
@@ -280,6 +279,7 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
                 <input
                   id="converter-website-video-url"
                   type="url"
+                  aria-label={t`Video URL`}
                   value={websiteVideoUrl}
                   onChange={(event) => {
                     setWebsiteVideoUrl(event.target.value);
@@ -294,7 +294,6 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
                 <label
                   className="block"
                   htmlFor="converter-website-funscript-url"
-                  aria-label={t`Funscript URL`}
                 >
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
                     <Trans>Funscript URL</Trans>
@@ -302,6 +301,7 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
                   <input
                     id="converter-website-funscript-url"
                     type="url"
+                    aria-label={t`Funscript URL`}
                     value={websiteFunscriptUrl}
                     onChange={(event) => {
                       setWebsiteFunscriptUrl(event.target.value);

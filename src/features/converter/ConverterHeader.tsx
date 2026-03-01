@@ -9,11 +9,16 @@ type ConverterHeaderBaseProps = {
   segmentCount: number;
   sourceSummary: string;
   showHotkeys: boolean;
+  canLoadPreviousUnconverted: boolean;
+  canLoadNextUnconverted: boolean;
+  unconvertedPositionLabel: string | null;
 };
 
 type ConverterHeaderProps = ConverterHeaderBaseProps & {
   onGoToSelect: () => void;
   onAttachFunscript: () => void;
+  onLoadPreviousUnconverted: () => void;
+  onLoadNextUnconverted: () => void;
   onShowHotkeys: () => void;
   onHideHotkeys: () => void;
 };
@@ -25,8 +30,13 @@ export const ConverterHeader: React.FC<ConverterHeaderProps> = React.memo(
     segmentCount,
     sourceSummary,
     showHotkeys,
+    canLoadPreviousUnconverted,
+    canLoadNextUnconverted,
+    unconvertedPositionLabel,
     onGoToSelect,
     onAttachFunscript,
+    onLoadPreviousUnconverted,
+    onLoadNextUnconverted,
     onShowHotkeys,
     onHideHotkeys,
   }) => {
@@ -56,6 +66,38 @@ export const ConverterHeader: React.FC<ConverterHeaderProps> = React.memo(
     return (
       <header className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-6 backdrop-blur-xl">
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            disabled={!canLoadPreviousUnconverted}
+            onMouseEnter={playHoverSound}
+            onClick={() => {
+              playSelectSound();
+              onLoadPreviousUnconverted();
+            }}
+            className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] transition-all duration-200 ${
+              canLoadPreviousUnconverted
+                ? "border-emerald-300/55 bg-emerald-500/18 text-emerald-100 hover:border-emerald-200/80 hover:bg-emerald-500/30"
+                : "cursor-not-allowed border-zinc-700 bg-zinc-900/70 text-zinc-500"
+            }`}
+          >
+            <Trans>Prev</Trans> <kbd className="converter-kbd ml-1">Alt+←</kbd>
+          </button>
+          <button
+            type="button"
+            disabled={!canLoadNextUnconverted}
+            onMouseEnter={playHoverSound}
+            onClick={() => {
+              playSelectSound();
+              onLoadNextUnconverted();
+            }}
+            className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] transition-all duration-200 ${
+              canLoadNextUnconverted
+                ? "border-emerald-300/55 bg-emerald-500/18 text-emerald-100 hover:border-emerald-200/80 hover:bg-emerald-500/30"
+                : "cursor-not-allowed border-zinc-700 bg-zinc-900/70 text-zinc-500"
+            }`}
+          >
+            <Trans>Next</Trans> <kbd className="converter-kbd ml-1">Alt+→</kbd>
+          </button>
           <button
             type="button"
             onMouseEnter={playHoverSound}
@@ -96,6 +138,11 @@ export const ConverterHeader: React.FC<ConverterHeaderProps> = React.memo(
           <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.45em] text-purple-200/85">
             <Trans>Conversion Lab</Trans>
           </p>
+          {unconvertedPositionLabel ? (
+            <p className="rounded-lg border border-emerald-300/30 bg-emerald-500/10 px-3 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] text-emerald-100">
+              {unconvertedPositionLabel}
+            </p>
+          ) : null}
         </div>
 
         <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
@@ -131,5 +178,8 @@ export function pickConverterHeaderProps(state: ConverterState): ConverterHeader
     segmentCount: state.sortedSegments.length,
     sourceSummary: state.sourceSummary,
     showHotkeys: state.showHotkeys,
+    canLoadPreviousUnconverted: state.canLoadPreviousUnconverted,
+    canLoadNextUnconverted: state.canLoadNextUnconverted,
+    unconvertedPositionLabel: state.unconvertedPositionLabel,
   };
 }

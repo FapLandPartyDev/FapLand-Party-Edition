@@ -1,5 +1,22 @@
 # What's New
 
+## v0.3.6-beta
+
+### Added
+
+- **Target-count auto-detection in the Round Converter** — enter a desired segment count and the converter automatically searches for pause-gap and minimum-round-duration values that produce exactly that many segments.
+- **60-second quick-detect mode** — a one-click detection pass that applies a fixed 60-second minimum round duration.
+- **Previous/Next unconverted round navigation** — new Prev/Next buttons and `Alt+←`/`Alt+→` shortcuts let you cycle through unconverted rounds without leaving the converter.
+- **Unconverted position indicator** — the converter header now shows the current unconverted round index (e.g. "Unconverted 3/12").
+
+### Changed
+
+- Endless-mode auto-generated playlists are now hidden from the Map Editor and Playlist Workshop pickers.
+- The "Open Playlist Workshop" button is hidden on the single-player setup screen when an endless playlist is selected.
+- Intiface/Buttplug haptics sync now targets the next funscript action position instead of the interpolated current position, and deduplicates redundant position commands for smoother device movement.
+
+---
+
 ## v0.3.4-beta
 
 ### Added

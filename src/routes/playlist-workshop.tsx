@@ -263,15 +263,20 @@ function toManualMappingRecord(
   ) as Record<string, string | null>;
 }
 
+const isWorkshopVisiblePlaylist = (playlist: StoredPlaylist): boolean =>
+  !(playlist.config.boardConfig.mode === "endless" && playlist.name === "Endless Run");
+
 const withActivePlaylist = (
   playlistsToShow: StoredPlaylist[],
   activePlaylist: StoredPlaylist | null
 ): StoredPlaylist[] => {
-  if (!activePlaylist) return playlistsToShow;
-  if (playlistsToShow.some((playlist) => playlist.id === activePlaylist.id)) {
-    return playlistsToShow;
+  const visiblePlaylists = playlistsToShow.filter(isWorkshopVisiblePlaylist);
+  if (!activePlaylist) return visiblePlaylists;
+  if (!isWorkshopVisiblePlaylist(activePlaylist)) return visiblePlaylists;
+  if (visiblePlaylists.some((playlist) => playlist.id === activePlaylist.id)) {
+    return visiblePlaylists;
   }
-  return [activePlaylist, ...playlistsToShow];
+  return [activePlaylist, ...visiblePlaylists];
 };
 
 function getLinearQueuePlacement(input: {
@@ -774,7 +779,7 @@ function PlaylistWorkshopRoundsSkeleton({ subTab = "library" }: { subTab?: "libr
 export const Route = createFileRoute("/playlist-workshop")({
   validateSearch: (search) => PlaylistWorkshopSearchSchema.parse(search),
   loader: async () => {
-    const availablePlaylists = await playlists.list();
+    const availablePlaylists = (await playlists.list()).filter(isWorkshopVisiblePlaylist);
     const activePlaylist = availablePlaylists.length > 0 ? await playlists.getActive() : null;
     return { availablePlaylists, activePlaylist };
   },
@@ -1260,7 +1265,7 @@ function PlaylistWorkshopPage() {
   }
 
   async function refreshPlaylists() {
-    const nextList = await playlists.list();
+    const nextList = (await playlists.list()).filter(isWorkshopVisiblePlaylist);
     const nextActive = nextList.length > 0 ? await playlists.getActive() : null;
     setPlaylistList(withActivePlaylist(nextList, nextActive));
     setActivePlaylistId((current) => {

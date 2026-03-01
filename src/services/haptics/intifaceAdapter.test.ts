@@ -28,7 +28,10 @@ function createModule(devices: unknown[]) {
         }),
       },
     },
-    ButtplugBrowserWebsocketClientConnector: vi.fn(function Connector(this: unknown, address: string) {
+    ButtplugBrowserWebsocketClientConnector: vi.fn(function Connector(
+      this: unknown,
+      address: string
+    ) {
       Object.assign(this as object, { address });
     }),
     ButtplugClient: vi.fn(function Client(this: { devices: Map<number, unknown> }) {
@@ -120,7 +123,7 @@ describe("intifaceAdapter", () => {
     expect(result.message).toContain("no linear/position-capable device");
   });
 
-  it("sends position-with-duration commands and applies stroke range", async () => {
+  it("sends position-with-duration commands to the next funscript point", async () => {
     setIntifaceButtplugModuleForTests(
       createModule([
         {
@@ -140,8 +143,60 @@ describe("intifaceAdapter", () => {
 
     expect(runOutput).toHaveBeenCalledWith({
       type: "position",
-      position: 0.5,
+      position: 0.8,
       durationMs: 500,
+    });
+  });
+
+  it("does not resend the same Intiface target on every sync tick", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule([
+        {
+          name: "Linear Device",
+          hasOutput: (type: unknown) => type === "Position",
+          runOutput,
+          stop,
+        },
+      ]) as never
+    );
+    const session = await intifaceAdapter.createSession(config);
+    const actions = [
+      { at: 0, pos: 0 },
+      { at: 1000, pos: 100 },
+    ];
+
+    await intifaceAdapter.sendSync(config, session, 500, 1, "script", actions);
+    await intifaceAdapter.sendSync(config, session, 560, 1, "script", actions);
+
+    expect(runOutput).toHaveBeenCalledTimes(1);
+  });
+
+  it("resends the current Intiface target after a seek or playback rate change", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule([
+        {
+          name: "Linear Device",
+          hasOutput: (type: unknown) => type === "Position",
+          runOutput,
+          stop,
+        },
+      ]) as never
+    );
+    const session = await intifaceAdapter.createSession(config);
+    const actions = [
+      { at: 0, pos: 0 },
+      { at: 1000, pos: 100 },
+    ];
+
+    await intifaceAdapter.sendSync(config, session, 500, 1, "script", actions);
+    await intifaceAdapter.sendSync(config, session, 300, 1, "script", actions);
+    await intifaceAdapter.sendSync(config, session, 360, 1.5, "script", actions);
+
+    expect(runOutput).toHaveBeenCalledTimes(3);
+    expect(runOutput).toHaveBeenLastCalledWith({
+      type: "position",
+      position: 0.8,
+      durationMs: 427,
     });
   });
 

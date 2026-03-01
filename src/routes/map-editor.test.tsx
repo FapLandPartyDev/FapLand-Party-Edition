@@ -95,6 +95,23 @@ function makePlaylist(id: string, name: string) {
   };
 }
 
+function makeEndlessPlaylist(id: string, name: string) {
+  const base = makePlaylist(id, name);
+  return {
+    ...base,
+    config: {
+      ...base.config,
+      boardConfig: {
+        mode: "endless" as const,
+        safePointEveryN: 25,
+        perkNodeEveryN: 5,
+        initialBatchSize: 50,
+        extendBatchSize: 25,
+      },
+    },
+  };
+}
+
 const mocks = vi.hoisted(() => ({
   loaderData: {
     installedRounds: [] as unknown[],
@@ -532,6 +549,22 @@ afterEach(() => {
 });
 
 describe("MapEditorRoute", () => {
+  it("does not list the hidden Endless Run playlist in the picker", async () => {
+    const playlist = makePlaylist("playlist-1", "Test Playlist");
+    const endlessRun = makeEndlessPlaylist("endless-run", "Endless Run");
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [endlessRun, playlist],
+      activePlaylist: endlessRun,
+    };
+
+    render(<Component />);
+
+    expect(screen.getByText("Select Playlist")).toBeDefined();
+    expect(screen.getByText("Test Playlist")).toBeDefined();
+    expect(screen.queryByText("Endless Run")).toBeNull();
+  });
+
   it("requires selecting a playlist before opening the editor", async () => {
     render(<Component />);
     expect(screen.getByText("Select Playlist")).toBeDefined();

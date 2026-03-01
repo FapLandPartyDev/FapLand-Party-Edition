@@ -221,6 +221,12 @@ function ConverterPage() {
             {...pickConverterHeaderProps(state)}
             onGoToSelect={() => state.goToSelectStep()}
             onAttachFunscript={() => void state.attachLocalFunscript()}
+            onLoadPreviousUnconverted={() =>
+              void state.loadPreviousUnconvertedRound({ focusTargetInput: true })
+            }
+            onLoadNextUnconverted={() =>
+              void state.loadNextUnconvertedRound({ focusTargetInput: true })
+            }
             onShowHotkeys={state.showHotkeysOverlay}
             onHideHotkeys={state.hideHotkeysOverlay}
           />

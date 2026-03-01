@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
     },
   },
   storeGet: vi.fn(),
+  ensureWebsiteVideoCachedForConverter: vi.fn(),
+  getWebsiteVideoDownloadProgressForUrl: vi.fn(),
+  cancelWebsiteVideoCache: vi.fn(),
   selectConverterVideoFile: vi.fn(),
   selectConverterFunscriptFile: vi.fn(),
   file: {
@@ -43,6 +46,17 @@ vi.mock("../services/trpc", () => ({
       },
       set: {
         mutate: vi.fn().mockResolvedValue(null),
+      },
+    },
+    db: {
+      ensureWebsiteVideoCachedForConverter: {
+        mutate: mocks.ensureWebsiteVideoCachedForConverter,
+      },
+      getWebsiteVideoDownloadProgressForUrl: {
+        query: mocks.getWebsiteVideoDownloadProgressForUrl,
+      },
+      cancelWebsiteVideoCache: {
+        mutate: mocks.cancelWebsiteVideoCache,
       },
     },
   },
@@ -159,7 +173,15 @@ vi.mock("../features/converter/SegmentList", () => ({
       ))}
     </div>
   ),
-  pickSegmentListProps: (state: unknown) => state,
+  pickSegmentListProps: (state: {
+    sortedSegments?: unknown[];
+    setSegmentCutMarkIn?: (segmentId: string) => void;
+    addCutToSegmentFromLocalMarks?: (segmentId: string) => void;
+  }) => ({
+    ...state,
+    onSetSegmentCutMarkIn: state.setSegmentCutMarkIn,
+    onAddCutToSegmentFromLocalMarks: state.addCutToSegmentFromLocalMarks,
+  }),
 }));
 
 vi.mock("../features/converter/StatusBar", () => ({
@@ -180,22 +202,41 @@ vi.mock("../features/converter/ConverterHeader", () => ({
   ConverterHeader: ({
     selectedSourceInfo,
     onGoToSelect,
+    onLoadPreviousUnconverted,
+    onLoadNextUnconverted,
+    unconvertedPositionLabel,
   }: {
     selectedSourceInfo: { kind: string; id: string; name: string } | null;
     onGoToSelect: () => void;
+    onLoadPreviousUnconverted: () => void;
+    onLoadNextUnconverted: () => void;
+    unconvertedPositionLabel?: string | null;
   }) => (
     <div data-testid="converter-header">
       <span>{selectedSourceInfo?.name}</span>
       <button type="button" onClick={onGoToSelect}>
         Change Source
       </button>
+      <button type="button" onClick={onLoadPreviousUnconverted}>
+        Prev
+      </button>
+      <button type="button" onClick={onLoadNextUnconverted}>
+        Next
+      </button>
+      {unconvertedPositionLabel ? <span>{unconvertedPositionLabel}</span> : null}
     </div>
   ),
   pickConverterHeaderProps: (state: {
     selectedSourceInfo?: { kind: string; id: string; name: string } | null;
+    unconvertedPositionLabel?: string | null;
   }) => ({
     selectedSourceInfo: state.selectedSourceInfo ?? null,
+    unconvertedPositionLabel: state.unconvertedPositionLabel ?? null,
   }),
+}));
+
+vi.mock("../components/EroScriptsFunscriptSearchDialog", () => ({
+  EroScriptsFunscriptSearchDialog: () => null,
 }));
 
 import { Route } from "./converter";
@@ -284,6 +325,9 @@ beforeEach(() => {
     },
   ]);
   mocks.storeGet.mockResolvedValue(null);
+  mocks.ensureWebsiteVideoCachedForConverter.mockResolvedValue(null);
+  mocks.getWebsiteVideoDownloadProgressForUrl.mockResolvedValue(null);
+  mocks.cancelWebsiteVideoCache.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -434,14 +478,17 @@ describe("ConverterPage", () => {
       expect(screen.getByRole("button", { name: "Select Funscript File" })).toBeDefined();
     });
 
-    it("shows website url inputs when switching to 'From URL' section", () => {
+    it("shows website url inputs when switching to 'From URL' section", async () => {
+      mocks.storeGet.mockResolvedValue(true);
       const Component = (Route as unknown as { component: React.FC }).component;
       render(<Component />);
 
       fireEvent.click(screen.getByRole("button", { name: /From URL/ }));
 
       expect(screen.getByLabelText("Video URL")).toBeDefined();
-      expect(screen.getByLabelText("Funscript URL")).toBeDefined();
+      await waitFor(() => {
+        expect(screen.getByLabelText("Funscript URL")).toBeDefined();
+      });
       expect(screen.getByRole("button", { name: "Use Website Source" })).toBeDefined();
     });
   });
@@ -693,12 +740,16 @@ describe("ConverterPage", () => {
     });
 
     it("transitions to edit mode when submitting a website video url", async () => {
+      mocks.storeGet.mockResolvedValue(true);
       const Component = (Route as unknown as { component: React.FC }).component;
       render(<Component />);
 
       fireEvent.click(screen.getByRole("button", { name: /From URL/ }));
       fireEvent.change(screen.getByLabelText("Video URL"), {
         target: { value: "https://www.xhamster.com/videos/test-video-123" },
+      });
+      await waitFor(() => {
+        expect(screen.getByLabelText("Funscript URL")).toBeDefined();
       });
       fireEvent.change(screen.getByLabelText("Funscript URL"), {
         target: { value: "https://cdn.example.com/test-video.funscript" },

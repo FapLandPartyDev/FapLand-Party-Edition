@@ -52,6 +52,23 @@ function makePlaylist(id: string, name: string) {
   };
 }
 
+function makeEndlessPlaylist(id: string, name: string) {
+  const base = makePlaylist(id, name);
+  return {
+    ...base,
+    config: {
+      ...base.config,
+      boardConfig: {
+        mode: "endless" as const,
+        safePointEveryN: 25,
+        perkNodeEveryN: 5,
+        initialBatchSize: 50,
+        extendBatchSize: 25,
+      },
+    },
+  };
+}
+
 function makeRound(id: string, name: string, websiteVideoCacheStatus?: "cached" | "pending"): InstalledRound {
   const createdAt = "2026-01-01T00:00:00.000Z";
   return {
@@ -264,6 +281,21 @@ describe("SinglePlayerSetupRoute", () => {
         search: { open: "active" },
       });
     });
+  });
+
+  it("hides the workshop button for an endless playlist selection", async () => {
+    const endless = makeEndlessPlaylist("endless-run", "Endless Run");
+    mocks.loaderData = {
+      availablePlaylists: [endless],
+      activePlaylist: endless,
+      installedRounds: [],
+      savedRuns: [],
+    };
+
+    render(<Component />);
+
+    expect(screen.getAllByText("Endless Run").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Open Playlist Workshop" })).toBeNull();
   });
 
   it("falls back to active playlist when active is not in list", async () => {

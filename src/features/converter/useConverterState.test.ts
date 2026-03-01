@@ -21,6 +21,11 @@ const mocks = vi.hoisted(() => ({
   converterSaveSegments: vi.fn(),
   loadFunscriptTimeline: vi.fn().mockResolvedValue(null),
   buildDetectedSegments: vi.fn<(...args: unknown[]) => unknown[]>(() => []),
+  findDetectionSettingsForTargetCount: vi.fn<(...args: unknown[]) => unknown>(() => ({
+    status: "failure",
+    evaluations: 0,
+    closest: null,
+  })),
 }));
 
 vi.mock("../../services/db", () => ({
@@ -64,6 +69,7 @@ vi.mock("../../services/converter", () => ({
 
 vi.mock("./detection", () => ({
   buildDetectedSegments: mocks.buildDetectedSegments,
+  findDetectionSettingsForTargetCount: mocks.findDetectionSettingsForTargetCount,
 }));
 
 vi.mock("./metadata", () => ({
@@ -114,6 +120,33 @@ vi.mock("./shortcuts", () => ({
     {
       matches: (event: KeyboardEvent) => event.key === "a" && !event.shiftKey,
       trigger: (context: { runAutoDetect: () => void }) => context.runAutoDetect(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "t" && event.altKey,
+      trigger: (context: { focusTargetSegmentCountInput: () => void }) =>
+        context.focusTargetSegmentCountInput(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "T" && event.altKey,
+      trigger: (context: { focusTargetSegmentCountInput: () => void }) =>
+        context.focusTargetSegmentCountInput(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "t" && !event.altKey,
+      trigger: (context: { runTargetCountAutoDetect: () => void }) =>
+        context.runTargetCountAutoDetect(),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "ArrowRight" && event.altKey,
+      trigger: (context: {
+        loadNextUnconvertedRound: (options?: { focusTargetInput?: boolean }) => void;
+      }) => context.loadNextUnconvertedRound({ focusTargetInput: true }),
+    },
+    {
+      matches: (event: KeyboardEvent) => event.key === "ArrowLeft" && event.altKey,
+      trigger: (context: {
+        loadPreviousUnconvertedRound: (options?: { focusTargetInput?: boolean }) => void;
+      }) => context.loadPreviousUnconvertedRound({ focusTargetInput: true }),
     },
     {
       matches: (event: KeyboardEvent) => event.key === "A" && event.shiftKey,
@@ -188,6 +221,11 @@ describe("useConverterState", () => {
     });
     mocks.loadFunscriptTimeline.mockResolvedValue(null);
     mocks.buildDetectedSegments.mockReturnValue([]);
+    mocks.findDetectionSettingsForTargetCount.mockReturnValue({
+      status: "failure",
+      evaluations: 0,
+      closest: null,
+    });
     mocks.storeGet.mockImplementation(async ({ key }: { key: string }) => {
       if (key === CONVERTER_ZOOM_KEY) return "1";
       if (key === CONVERTER_PAUSE_GAP_KEY) return null;
@@ -510,6 +548,8 @@ describe("useConverterState", () => {
       result.current.setDurationMs(10_000);
       result.current.setMarkInMs(1_000);
       result.current.setMarkOutMs(8_000);
+    });
+    act(() => {
       result.current.addSegmentFromMarks();
     });
 
@@ -518,9 +558,17 @@ describe("useConverterState", () => {
 
     act(() => {
       result.current.setCurrentTimeMs(3_000);
+    });
+    act(() => {
       result.current.setSegmentCutMarkIn(segmentId!);
+    });
+    act(() => {
       result.current.setCurrentTimeMs(4_000);
+    });
+    act(() => {
       result.current.setSegmentCutMarkOut(segmentId!);
+    });
+    act(() => {
       result.current.addCutToSegmentFromLocalMarks(segmentId!);
     });
 
@@ -543,9 +591,15 @@ describe("useConverterState", () => {
       result.current.setDurationMs(10_000);
       result.current.setMarkInMs(1_000);
       result.current.setMarkOutMs(6_000);
+    });
+    act(() => {
       result.current.addSegmentFromMarks();
+    });
+    act(() => {
       result.current.setMarkInMs(3_000);
       result.current.setMarkOutMs(8_000);
+    });
+    act(() => {
       result.current.addSegmentFromMarks();
     });
 
@@ -555,9 +609,17 @@ describe("useConverterState", () => {
 
     act(() => {
       result.current.setCurrentTimeMs(4_000);
+    });
+    act(() => {
       result.current.setSegmentCutMarkIn(first!.id);
+    });
+    act(() => {
       result.current.setCurrentTimeMs(5_000);
+    });
+    act(() => {
       result.current.setSegmentCutMarkOut(first!.id);
+    });
+    act(() => {
       result.current.addCutToSegmentFromLocalMarks(first!.id);
     });
 
@@ -578,6 +640,8 @@ describe("useConverterState", () => {
       result.current.setDurationMs(10_000);
       result.current.setMarkInMs(2_000);
       result.current.setMarkOutMs(8_000);
+    });
+    act(() => {
       result.current.addSegmentFromMarks();
     });
 
@@ -586,9 +650,17 @@ describe("useConverterState", () => {
 
     act(() => {
       result.current.setCurrentTimeMs(1_000);
+    });
+    act(() => {
       result.current.setSegmentCutMarkIn(segmentId!);
+    });
+    act(() => {
       result.current.setCurrentTimeMs(3_000);
+    });
+    act(() => {
       result.current.setSegmentCutMarkOut(segmentId!);
+    });
+    act(() => {
       result.current.addCutToSegmentFromLocalMarks(segmentId!);
     });
 
@@ -607,6 +679,8 @@ describe("useConverterState", () => {
       result.current.setDurationMs(10_000);
       result.current.setMarkInMs(2_000);
       result.current.setMarkOutMs(8_000);
+    });
+    act(() => {
       result.current.addSegmentFromMarks();
     });
 
@@ -615,9 +689,17 @@ describe("useConverterState", () => {
 
     act(() => {
       result.current.setCurrentTimeMs(2_000);
+    });
+    act(() => {
       result.current.setSegmentCutMarkIn(segmentId!);
+    });
+    act(() => {
       result.current.setCurrentTimeMs(8_000);
+    });
+    act(() => {
       result.current.setSegmentCutMarkOut(segmentId!);
+    });
+    act(() => {
       result.current.addCutToSegmentFromLocalMarks(segmentId!);
     });
 
@@ -637,9 +719,15 @@ describe("useConverterState", () => {
       result.current.setDurationMs(10_000);
       result.current.setMarkInMs(1_000);
       result.current.setMarkOutMs(3_000);
+    });
+    act(() => {
       result.current.addSegmentFromMarks();
+    });
+    act(() => {
       result.current.setMarkInMs(4_000);
       result.current.setMarkOutMs(6_000);
+    });
+    act(() => {
       result.current.addSegmentFromMarks();
     });
 
@@ -649,8 +737,14 @@ describe("useConverterState", () => {
 
     act(() => {
       result.current.setCurrentTimeMs(1_500);
+    });
+    act(() => {
       result.current.setSegmentCutMarkIn(first!.id);
+    });
+    act(() => {
       result.current.setCurrentTimeMs(4_500);
+    });
+    act(() => {
       result.current.setSegmentCutMarkIn(second!.id);
     });
 
@@ -676,9 +770,15 @@ describe("useConverterState", () => {
       result.current.setDurationMs(10_000);
       result.current.setMarkInMs(1_000);
       result.current.setMarkOutMs(3_000);
+    });
+    act(() => {
       result.current.addSegmentFromMarks();
+    });
+    act(() => {
       result.current.setMarkInMs(3_000);
       result.current.setMarkOutMs(6_000);
+    });
+    act(() => {
       result.current.addSegmentFromMarks();
     });
 
@@ -709,6 +809,8 @@ describe("useConverterState", () => {
       result.current.setDurationMs(10_000);
       result.current.setMarkInMs(1_000);
       result.current.setMarkOutMs(5_000);
+    });
+    act(() => {
       result.current.addSegmentFromMarks();
     });
 
@@ -717,8 +819,14 @@ describe("useConverterState", () => {
 
     act(() => {
       result.current.setCurrentTimeMs(2_000);
+    });
+    act(() => {
       result.current.setSegmentCutMarkIn(segmentId!);
+    });
+    act(() => {
       result.current.setCurrentTimeMs(3_000);
+    });
+    act(() => {
       result.current.splitSegmentAtPlayhead();
     });
 
@@ -1726,5 +1834,311 @@ describe("useConverterState", () => {
 
     expect(result.current.sortedSegments).toHaveLength(0);
     input.remove();
+  });
+
+  it("loads next and previous unconverted standalone rounds", async () => {
+    mocks.db.round.findInstalled.mockResolvedValue([
+      makeInstalledRound("one", { name: "One", heroId: null }),
+      makeInstalledRound("hero-round", { name: "Hero Round", heroId: "hero-1" }),
+      makeInstalledRound("two", { name: "Two", heroId: null }),
+    ]);
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.installedSourceOptions).toHaveLength(2);
+    });
+
+    await act(async () => {
+      await result.current.selectRoundAndEdit("one", { silent: true });
+    });
+
+    await act(async () => {
+      await result.current.loadNextUnconvertedRound();
+    });
+
+    expect(result.current.selectedInstalledId).toBe("two");
+    expect(result.current.selectedSourceInfo?.name).toBe("Two");
+
+    await act(async () => {
+      await result.current.loadPreviousUnconvertedRound();
+    });
+
+    expect(result.current.selectedInstalledId).toBe("one");
+    expect(result.current.selectedSourceInfo?.name).toBe("One");
+  });
+
+  it("reports when no unconverted candidates exist", async () => {
+    mocks.db.round.findInstalled.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    await act(async () => {
+      await result.current.loadNextUnconvertedRound();
+    });
+
+    expect(result.current.error).toBe("No unconverted rounds are available.");
+  });
+
+  it("focuses target count with Alt+T even when an input is focused", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    const focus = vi.fn();
+    const select = vi.fn();
+    result.current.targetSegmentCountInputRef.current = {
+      focus,
+      select,
+    } as unknown as HTMLInputElement;
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    act(() => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "t", altKey: true, bubbles: true })
+      );
+    });
+
+    expect(focus).toHaveBeenCalled();
+    expect(select).toHaveBeenCalled();
+    input.remove();
+  });
+
+  it("loads adjacent unconverted rounds with alt arrows while target count is focused", async () => {
+    mocks.db.round.findInstalled.mockResolvedValue([
+      makeInstalledRound("one", { name: "One", heroId: null }),
+      makeInstalledRound("two", { name: "Two", heroId: null }),
+    ]);
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.installedSourceOptions).toHaveLength(2);
+    });
+
+    await act(async () => {
+      await result.current.selectRoundAndEdit("one", { silent: true });
+    });
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    result.current.targetSegmentCountInputRef.current = input;
+    input.focus();
+
+    act(() => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", altKey: true, bubbles: true })
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedInstalledId).toBe("two");
+    });
+
+    act(() => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowLeft", altKey: true, bubbles: true })
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedInstalledId).toBe("one");
+    });
+
+    input.remove();
+  });
+
+  it("runs detection action shortcuts while target count is focused", async () => {
+    mocks.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 0, pos: 20 },
+        { at: 5000, pos: 80 },
+      ],
+    });
+    mocks.buildDetectedSegments.mockReturnValue([
+      { startTimeMs: 0, endTimeMs: 10_000, type: "Normal" },
+    ]);
+    mocks.findDetectionSettingsForTargetCount.mockReturnValue({
+      status: "success",
+      pauseGapMs: 1200,
+      minRoundMs: 2000,
+      evaluations: 4,
+      segments: [
+        { startTimeMs: 0, endTimeMs: 5000, type: "Normal" },
+        { startTimeMs: 5000, endTimeMs: 10000, type: "Normal" },
+      ],
+    });
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    result.current.targetSegmentCountInputRef.current = input;
+    input.focus();
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+      result.current.setFunscriptUri("file:///tmp/source.funscript");
+      result.current.setTargetSegmentCountDraft("2");
+    });
+
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.detectedSegments).toHaveLength(1);
+    });
+
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.detectedSegments).toHaveLength(2);
+    });
+
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "A", shiftKey: true, bubbles: true }));
+    });
+
+    expect(result.current.sortedSegments).toHaveLength(2);
+    input.remove();
+  });
+
+  it("sets min round to 60 seconds and applies pause detection from the enter fast path", async () => {
+    mocks.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 0, pos: 20 },
+        { at: 65_000, pos: 80 },
+      ],
+    });
+    mocks.buildDetectedSegments.mockReturnValue([
+      { startTimeMs: 0, endTimeMs: 65_000, type: "Normal" },
+      { startTimeMs: 65_000, endTimeMs: 130_000, type: "Normal" },
+    ]);
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setDurationMs(130_000);
+      result.current.setFunscriptUri("file:///tmp/source.funscript");
+    });
+
+    await act(async () => {
+      await result.current.runSixtySecondPauseDetectAndApply();
+    });
+
+    expect(mocks.buildDetectedSegments).toHaveBeenCalledWith(
+      expect.objectContaining({ minRoundMs: 60_000 })
+    );
+    expect(result.current.minRoundDraft).toBe("60000");
+    expect(result.current.sortedSegments).toHaveLength(2);
+    expect(result.current.message).toBe(
+      "Applied 2 detected segments with a 60 second minimum."
+    );
+  });
+
+  it("runs target detection from shortcut and updates suggestions on success", async () => {
+    mocks.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 0, pos: 20 },
+        { at: 5000, pos: 80 },
+      ],
+    });
+    mocks.findDetectionSettingsForTargetCount.mockReturnValue({
+      status: "success",
+      pauseGapMs: 1200,
+      minRoundMs: 2000,
+      evaluations: 4,
+      segments: [
+        { startTimeMs: 0, endTimeMs: 5000, type: "Normal" },
+        { startTimeMs: 5000, endTimeMs: 10000, type: "Normal" },
+      ],
+    });
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+      result.current.setFunscriptUri("file:///tmp/source.funscript");
+      result.current.setTargetSegmentCountDraft("2");
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "t" }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.detectedSegments).toHaveLength(2);
+    });
+    expect(result.current.pauseGapDraft).toBe("1200");
+    expect(result.current.minRoundDraft).toBe("2000");
+    expect(result.current.message).toBe("Detected exactly 2 target segments after 4 attempts.");
+  });
+
+  it("leaves previous target suggestions untouched on failure", async () => {
+    mocks.loadFunscriptTimeline.mockResolvedValue({ actions: [] });
+    mocks.findDetectionSettingsForTargetCount.mockReturnValueOnce({
+      status: "success",
+      pauseGapMs: 1200,
+      minRoundMs: 2000,
+      evaluations: 4,
+      segments: [{ startTimeMs: 0, endTimeMs: 10000, type: "Normal" }],
+    });
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+      result.current.setFunscriptUri("file:///tmp/source.funscript");
+      result.current.setTargetSegmentCountDraft("1");
+    });
+
+    await act(async () => {
+      await result.current.runTargetCountAutoDetect();
+    });
+
+    const previousSuggestions = result.current.detectedSegments;
+    mocks.findDetectionSettingsForTargetCount.mockReturnValueOnce({
+      status: "failure",
+      evaluations: 8,
+      closest: { pauseGapMs: 900, minRoundMs: 1000, segmentCount: 2 },
+    });
+
+    act(() => {
+      result.current.setTargetSegmentCountDraft("3");
+    });
+
+    await act(async () => {
+      await result.current.runTargetCountAutoDetect();
+    });
+
+    expect(result.current.detectedSegments).toBe(previousSuggestions);
+    expect(result.current.error).toContain("Could not detect exactly 3 segments");
   });
 });

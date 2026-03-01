@@ -1635,7 +1635,7 @@ describe("RoundVideoOverlay", () => {
       activeScriptId: "/video.mp4:main:120:0:30000",
       streamedPoints: [{ t: 0, x: 20 }],
       hspModeActive: true,
-    });
+    } as handyRuntime.AnyHapticsSession);
 
     renderOverlay({ activeRound: null, boardSequence: "milker" });
 

@@ -151,15 +151,20 @@ const getInstalledRounds = async (): Promise<InstalledRoundCatalogEntry[]> => {
   }
 };
 
+const isMapEditorVisiblePlaylist = (playlist: StoredPlaylist): boolean =>
+  !(playlist.config.boardConfig.mode === "endless" && playlist.name === "Endless Run");
+
 const withActivePlaylist = (
   playlistsToShow: StoredPlaylist[],
   activePlaylist: StoredPlaylist | null
 ): StoredPlaylist[] => {
-  if (!activePlaylist) return playlistsToShow;
-  if (playlistsToShow.some((playlist) => playlist.id === activePlaylist.id)) {
-    return playlistsToShow;
+  const visiblePlaylists = playlistsToShow.filter(isMapEditorVisiblePlaylist);
+  if (!activePlaylist) return visiblePlaylists;
+  if (!isMapEditorVisiblePlaylist(activePlaylist)) return visiblePlaylists;
+  if (visiblePlaylists.some((playlist) => playlist.id === activePlaylist.id)) {
+    return visiblePlaylists;
   }
-  return [activePlaylist, ...playlistsToShow];
+  return [activePlaylist, ...visiblePlaylists];
 };
 
 const toEditorConfigFromPlaylist = (playlist: StoredPlaylist): EditorGraphConfig => {
@@ -212,10 +217,11 @@ export const Route = createFileRoute("/map-editor")({
       getInstalledRounds(),
       playlists.list(),
     ]);
-    const activePlaylist = availablePlaylists.length > 0 ? await playlists.getActive() : null;
+    const visiblePlaylists = availablePlaylists.filter(isMapEditorVisiblePlaylist);
+    const activePlaylist = visiblePlaylists.length > 0 ? await playlists.getActive() : null;
     return {
       installedRounds,
-      availablePlaylists: withActivePlaylist(availablePlaylists, activePlaylist),
+      availablePlaylists: withActivePlaylist(visiblePlaylists, activePlaylist),
       activePlaylist,
     };
   },
@@ -469,8 +475,12 @@ function MapEditorPage() {
     availablePlaylists: StoredPlaylist[];
     activePlaylist: StoredPlaylist | null;
   };
-  const [playlistList, setPlaylistList] = useState<StoredPlaylist[]>(availablePlaylists);
-  const [activePlaylistId, setActivePlaylistId] = useState(activePlaylist?.id ?? "");
+  const [playlistList, setPlaylistList] = useState<StoredPlaylist[]>(
+    withActivePlaylist(availablePlaylists, activePlaylist)
+  );
+  const [activePlaylistId, setActivePlaylistId] = useState(
+    activePlaylist && isMapEditorVisiblePlaylist(activePlaylist) ? activePlaylist.id : ""
+  );
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [playlistNameDraft, setPlaylistNameDraft] = useState("");
   const [newPlaylistName, setNewPlaylistName] = useState("");
@@ -722,6 +732,7 @@ function MapEditorPage() {
   );
 
   const updatePlaylistListEntry = useCallback((updated: StoredPlaylist) => {
+    if (!isMapEditorVisiblePlaylist(updated)) return;
     playlistPickerRevisionRef.current += 1;
     setPlaylistList((previous) => {
       const hasEntry = previous.some((playlist) => playlist.id === updated.id);
@@ -733,7 +744,7 @@ function MapEditorPage() {
   const refreshPlaylistPickerData = useCallback(async () => {
     const revisionAtStart = playlistPickerRevisionRef.current;
     try {
-      const available = await playlists.list();
+      const available = (await playlists.list()).filter(isMapEditorVisiblePlaylist);
       const active = available.length > 0 ? await playlists.getActive() : null;
       if (
         playlistPickerRevisionRef.current !== revisionAtStart ||
@@ -742,7 +753,7 @@ function MapEditorPage() {
         return;
       }
       setPlaylistList(withActivePlaylist(available, active));
-      setActivePlaylistId(active?.id ?? "");
+      setActivePlaylistId(active && isMapEditorVisiblePlaylist(active) ? active.id : "");
     } catch (error) {
       console.error("Failed to refresh map editor playlists", error);
     }

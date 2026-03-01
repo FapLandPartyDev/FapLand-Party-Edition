@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AutoDetectionPanel } from "./AutoDetectionPanel";
 import { HeroPanel } from "./HeroPanel";
@@ -41,13 +41,19 @@ describe("converter shortcut hints", () => {
           durationMs={10_000}
           pauseGapDraft="900"
           minRoundDraft="15000"
+          targetSegmentCountDraft="3"
+          targetDetectionResultSummary={null}
+          targetSegmentCountInputRef={{ current: null }}
           isDetecting={false}
           detectedSegmentCount={3}
           onSetPauseGapDraft={() => {}}
           onSetMinRoundDraft={() => {}}
+          onSetTargetSegmentCountDraft={() => {}}
           onCommitPauseGapDraft={() => {}}
           onCommitMinRoundDraft={() => {}}
           onRunAutoDetect={() => {}}
+          onRunTargetCountAutoDetect={() => {}}
+          onRunSixtySecondPauseDetectAndApply={() => {}}
           onApplyDetected={() => {}}
         />
       </div>
@@ -55,7 +61,40 @@ describe("converter shortcut hints", () => {
 
     expect(screen.getByText("Ctrl/Cmd+S")).toBeDefined();
     expect(screen.getByText("A")).toBeDefined();
+    expect(screen.getByText("T")).toBeDefined();
+    expect(screen.getByText("Alt+T")).toBeDefined();
     expect(screen.getByText("Shift+A")).toBeDefined();
+  });
+
+  it("runs the 60 second detect-and-apply action from target count enter", () => {
+    const onRunSixtySecondPauseDetectAndApply = vi.fn();
+    render(
+      <AutoDetectionPanel
+        funscriptUri="file:///tmp/test.funscript"
+        durationMs={10_000}
+        pauseGapDraft="900"
+        minRoundDraft="15000"
+        targetSegmentCountDraft="3"
+        targetDetectionResultSummary={null}
+        targetSegmentCountInputRef={{ current: null }}
+        isDetecting={false}
+        detectedSegmentCount={3}
+        onSetPauseGapDraft={() => {}}
+        onSetMinRoundDraft={() => {}}
+        onSetTargetSegmentCountDraft={() => {}}
+        onCommitPauseGapDraft={() => {}}
+        onCommitMinRoundDraft={() => {}}
+        onRunAutoDetect={() => {}}
+        onRunTargetCountAutoDetect={() => {}}
+        onRunSixtySecondPauseDetectAndApply={onRunSixtySecondPauseDetectAndApply}
+        onApplyDetected={() => {}}
+      />
+    );
+
+    const targetInputs = screen.getAllByLabelText("Target Count");
+    fireEvent.keyDown(targetInputs[targetInputs.length - 1]!, { key: "Enter" });
+
+    expect(onRunSixtySecondPauseDetectAndApply).toHaveBeenCalledTimes(1);
   });
 
   it("renders move selected segment boundary buttons with shortcut hints", () => {

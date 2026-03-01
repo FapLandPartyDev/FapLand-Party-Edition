@@ -57,6 +57,23 @@ function makeLinearPlaylist(id: string, name: string, startingMoney = 120) {
   };
 }
 
+function makeEndlessPlaylist(id: string, name: string) {
+  const base = makeLinearPlaylist(id, name);
+  return {
+    ...base,
+    config: {
+      ...base.config,
+      boardConfig: {
+        mode: "endless" as const,
+        safePointEveryN: 25,
+        perkNodeEveryN: 5,
+        initialBatchSize: 50,
+        extendBatchSize: 25,
+      },
+    },
+  };
+}
+
 function makeGraphPlaylist(id: string, name: string) {
   return {
     id,
@@ -545,6 +562,24 @@ afterEach(() => {
 });
 
 describe("PlaylistWorkshopRoute", () => {
+  it("does not list the hidden Endless Run playlist", async () => {
+    const linear = makeLinearPlaylist("linear-playlist", "Linear Playlist");
+    const endlessRun = makeEndlessPlaylist("endless-run", "Endless Run");
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [endlessRun, linear],
+      activePlaylist: endlessRun,
+    };
+    mocks.playlists.list.mockResolvedValue([endlessRun, linear]);
+    mocks.playlists.getActive.mockResolvedValue(endlessRun);
+
+    render(<Component />);
+
+    expect(screen.getByText("Open A Playlist")).toBeDefined();
+    expect(screen.getByRole("button", { name: /linear playlist.*open/i })).toBeDefined();
+    expect(screen.queryByRole("button", { name: /endless run/i })).toBeNull();
+  });
+
   it("shows an empty state when no playlist exists", async () => {
     mocks.loaderData = {
       installedRounds: [],

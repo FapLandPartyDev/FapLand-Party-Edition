@@ -85,6 +85,9 @@ export const SegmentList: React.FC<SegmentListProps> = React.memo(
                 <kbd className="converter-kbd">Shift+N</kbd> <Trans>Next/Prev</Trans>
               </span>
               <span>
+                <kbd className="converter-kbd">Alt+←/→</kbd> <Trans>Rounds</Trans>
+              </span>
+              <span>
                 <kbd className="converter-kbd">M</kbd> <Trans>Merge</Trans>
               </span>
               <span>
@@ -224,10 +227,10 @@ export function pickSegmentListProps(state: ConverterState): SegmentListProps {
     onResetSegmentDifficulty: state.resetSegmentDifficulty,
     onSetSegmentType: state.setSegmentType,
     onUpdateSegmentTiming: state.updateSegmentTiming,
-    setMessage: (_msg: string | null) => {
+    setMessage: () => {
       // Messages are set inline via jump callbacks
     },
-    setError: (_err: string | null) => {
+    setError: () => {
       // Errors are set inline via jump callbacks
     },
   };

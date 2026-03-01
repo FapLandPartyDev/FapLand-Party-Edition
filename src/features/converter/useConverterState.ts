@@ -14,7 +14,7 @@ import {
   playConverterZoomSound,
   playSelectSound,
 } from "../../utils/audio";
-import { buildDetectedSegments } from "./detection";
+import { buildDetectedSegments, findDetectionSettingsForTargetCount } from "./detection";
 import { applyAutoMetadataToSegments } from "./metadata";
 import { CONVERTER_SHORTCUTS, type ConverterShortcutContext } from "./shortcuts";
 import {
@@ -150,6 +150,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
+  const targetSegmentCountInputRef = useRef<HTMLInputElement>(null);
   const lastZoomSoundAtRef = useRef(0);
   const dragStateRef = useRef<DragState | null>(null);
   const dragAutoScrollFrameRef = useRef<number | null>(null);
@@ -200,6 +201,10 @@ export function useConverterState(searchParams: ConverterSearchParams) {
   const [minRoundMs, setMinRoundMs] = useState(DEFAULT_MIN_ROUND_MS);
   const [pauseGapDraft, setPauseGapDraft] = useState(`${DEFAULT_PAUSE_GAP_MS}`);
   const [minRoundDraft, setMinRoundDraft] = useState(`${DEFAULT_MIN_ROUND_MS}`);
+  const [targetSegmentCountDraft, setTargetSegmentCountDraft] = useState("");
+  const [targetDetectionResultSummary, setTargetDetectionResultSummary] = useState<string | null>(
+    null
+  );
 
   const [heroName, setHeroName] = useState("");
   const [heroAuthor, setHeroAuthor] = useState("");
@@ -1601,6 +1606,17 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     playConverterSegmentAddSound();
   }, [applySegments, clearSegmentCutMarks, currentTimeMs, segments, selectedSegment]);
 
+  const focusTargetSegmentCountInput = useCallback(() => {
+    const input = targetSegmentCountInputRef.current;
+    if (!input) return;
+    input.focus();
+    input.select();
+  }, []);
+
+  const focusTargetSegmentCountInputSoon = useCallback(() => {
+    window.setTimeout(() => focusTargetSegmentCountInput(), 0);
+  }, [focusTargetSegmentCountInput]);
+
   const clearMarks = useCallback(() => {
     if (markInMs === null && markOutMs === null) return false;
     setMarkInMs(null);
@@ -1843,6 +1859,67 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     }
   }, [commitMinRoundDraft, commitPauseGapDraft, durationMs, funscriptUri]);
 
+  const runSixtySecondPauseDetectAndApply = useCallback(async () => {
+    if (!funscriptUri) {
+      setError("Attach a funscript to use automatic detection.");
+      playConverterValidationErrorSound();
+      return;
+    }
+
+    if (!durationMs) {
+      setError("Load source video first.");
+      playConverterValidationErrorSound();
+      return;
+    }
+
+    setIsDetecting(true);
+    setError(null);
+    try {
+      const effectivePauseGapMs = commitPauseGapDraft();
+      const effectiveMinRoundMs = 60_000;
+      setMinRoundMs(effectiveMinRoundMs);
+      setMinRoundDraft(`${effectiveMinRoundMs}`);
+
+      const timeline = await loadFunscriptTimeline(funscriptUri);
+      const actions = timeline?.actions ?? [];
+      setFunscriptActions(actions);
+      const suggestions = buildDetectedSegments({
+        actions,
+        durationMs,
+        pauseGapMs: effectivePauseGapMs,
+        minRoundMs: effectiveMinRoundMs,
+        defaultType: "Normal",
+      }).map((segment) => ({
+        ...segment,
+        id: createSegmentId(),
+        cutRanges: [],
+        bpm: null,
+        difficulty: null,
+        bpmOverride: false,
+        difficultyOverride: false,
+      }));
+      const nextSegments = applyAutoMetadataToSegments(suggestions, actions) as SegmentDraft[];
+
+      setDetectedSegments(nextSegments);
+      if (nextSegments.length === 0) {
+        setMessage("Detected 0 candidate rounds with a 60 second minimum.");
+        playConverterAutoDetectSound();
+        return;
+      }
+
+      if (!applySegments(nextSegments)) return;
+      setSelectedSegmentId(nextSegments[0]?.id ?? null);
+      setMessage(`Applied ${nextSegments.length} detected segments with a 60 second minimum.`);
+      playConverterSegmentAddSound();
+    } catch (detectError) {
+      console.error("Auto-detection failed", detectError);
+      setError("Failed to detect round boundaries from funscript.");
+      playConverterValidationErrorSound();
+    } finally {
+      setIsDetecting(false);
+    }
+  }, [applySegments, commitPauseGapDraft, durationMs, funscriptUri]);
+
   const applyDetectedSuggestions = useCallback(() => {
     if (detectedSegments.length === 0) {
       setError("No detection suggestions available.");
@@ -1855,6 +1932,98 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setMessage(`Applied ${detectedSegments.length} detected segments.`);
     playConverterSegmentAddSound();
   }, [applySegments, detectedSegments]);
+
+  const runTargetCountAutoDetect = useCallback(async () => {
+    if (!funscriptUri) {
+      setError("Attach a funscript to use target detection.");
+      playConverterValidationErrorSound();
+      return;
+    }
+
+    if (!durationMs) {
+      setError("Load source video first.");
+      playConverterValidationErrorSound();
+      return;
+    }
+
+    const targetCount = Number(targetSegmentCountDraft.trim());
+    if (!Number.isFinite(targetCount) || targetCount < 1) {
+      setError("Enter a target segment count before detecting.");
+      playConverterValidationErrorSound();
+      focusTargetSegmentCountInput();
+      return;
+    }
+
+    setIsDetecting(true);
+    setError(null);
+    setTargetDetectionResultSummary(null);
+    try {
+      const timeline = await loadFunscriptTimeline(funscriptUri);
+      const actions = timeline?.actions ?? [];
+      setFunscriptActions(actions);
+      const result = findDetectionSettingsForTargetCount({
+        actions,
+        durationMs,
+        targetCount: Math.floor(targetCount),
+        currentPauseGapMs: pauseGapMs,
+        currentMinRoundMs: minRoundMs,
+        defaultType: "Normal",
+      });
+
+      if (result.status === "failure") {
+        const closestText = result.closest
+          ? ` Closest result was ${result.closest.segmentCount} segments.`
+          : "";
+        setError(
+          `Could not detect exactly ${Math.floor(targetCount)} segments after ${result.evaluations} attempts.${closestText}`
+        );
+        setTargetDetectionResultSummary(
+          result.closest
+            ? `No exact match. Closest: ${result.closest.segmentCount} segments.`
+            : "No exact match."
+        );
+        playConverterValidationErrorSound();
+        return;
+      }
+
+      const suggestions = result.segments.map((segment) => ({
+        ...segment,
+        id: createSegmentId(),
+        cutRanges: [],
+        bpm: null,
+        difficulty: null,
+        bpmOverride: false,
+        difficultyOverride: false,
+      }));
+      const nextSuggestions = applyAutoMetadataToSegments(suggestions, actions) as SegmentDraft[];
+      setPauseGapMs(result.pauseGapMs);
+      setPauseGapDraft(`${result.pauseGapMs}`);
+      setMinRoundMs(result.minRoundMs);
+      setMinRoundDraft(`${result.minRoundMs}`);
+      setDetectedSegments(nextSuggestions);
+      setTargetDetectionResultSummary(
+        `Matched ${result.segments.length} segments with ${result.pauseGapMs} ms pause and ${result.minRoundMs} ms minimum.`
+      );
+      setMessage(
+        `Detected exactly ${result.segments.length} target segments after ${result.evaluations} attempts.`
+      );
+      setError(null);
+      playConverterAutoDetectSound();
+    } catch (detectError) {
+      console.error("Target auto-detection failed", detectError);
+      setError("Failed to detect target round count from funscript.");
+      playConverterValidationErrorSound();
+    } finally {
+      setIsDetecting(false);
+    }
+  }, [
+    durationMs,
+    focusTargetSegmentCountInput,
+    funscriptUri,
+    minRoundMs,
+    pauseGapMs,
+    targetSegmentCountDraft,
+  ]);
 
   /* ─── Source selection ─────────────────────────────────────────── */
 
@@ -2038,6 +2207,19 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     () => allInstalledSourceOptions.filter((option) => option.heroId === null),
     [allInstalledSourceOptions]
   );
+  const unconvertedSourceOptions = installedSourceOptions;
+  const currentUnconvertedIndex = useMemo(
+    () => unconvertedSourceOptions.findIndex((option) => option.id === selectedInstalledId),
+    [selectedInstalledId, unconvertedSourceOptions]
+  );
+  const unconvertedPositionLabel =
+    currentUnconvertedIndex >= 0
+      ? `Unconverted ${currentUnconvertedIndex + 1}/${unconvertedSourceOptions.length}`
+      : unconvertedSourceOptions.length > 0
+        ? `Unconverted ${unconvertedSourceOptions.length}`
+        : null;
+  const canLoadPreviousUnconverted = unconvertedSourceOptions.length > 0;
+  const canLoadNextUnconverted = unconvertedSourceOptions.length > 0;
   const selectedHeroOption = useMemo(
     () => heroOptions.find((option) => option.id === selectedHeroId) ?? null,
     [heroOptions, selectedHeroId]
@@ -2124,6 +2306,61 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     }
   }, []);
 
+  const loadAdjacentUnconvertedRound = useCallback(
+    async (direction: "next" | "previous", options?: { focusTargetInput?: boolean }) => {
+      if (unconvertedSourceOptions.length === 0) {
+        setError("No unconverted rounds are available.");
+        playConverterValidationErrorSound();
+        return;
+      }
+
+      const currentIndex = currentUnconvertedIndex;
+      if (unconvertedSourceOptions.length === 1 && currentIndex >= 0) {
+        setError("No other unconverted rounds.");
+        playConverterValidationErrorSound();
+        return;
+      }
+
+      const fallbackIndex = direction === "next" ? 0 : unconvertedSourceOptions.length - 1;
+      const nextIndex =
+        currentIndex < 0
+          ? fallbackIndex
+          : direction === "next"
+            ? (currentIndex + 1) % unconvertedSourceOptions.length
+            : (currentIndex - 1 + unconvertedSourceOptions.length) %
+              unconvertedSourceOptions.length;
+      const nextOption = unconvertedSourceOptions[nextIndex];
+      if (!nextOption) return;
+
+      await selectRoundAndEdit(nextOption.id);
+      setMessage(
+        `Loaded ${direction === "next" ? "next" : "previous"} unconverted round (${nextIndex + 1}/${unconvertedSourceOptions.length}).`
+      );
+      setError(null);
+      if (options?.focusTargetInput) {
+        focusTargetSegmentCountInputSoon();
+      }
+    },
+    [
+      currentUnconvertedIndex,
+      focusTargetSegmentCountInputSoon,
+      selectRoundAndEdit,
+      unconvertedSourceOptions,
+    ]
+  );
+
+  const loadNextUnconvertedRound = useCallback(
+    (options?: { focusTargetInput?: boolean }) =>
+      loadAdjacentUnconvertedRound("next", options),
+    [loadAdjacentUnconvertedRound]
+  );
+
+  const loadPreviousUnconvertedRound = useCallback(
+    (options?: { focusTargetInput?: boolean }) =>
+      loadAdjacentUnconvertedRound("previous", options),
+    [loadAdjacentUnconvertedRound]
+  );
+
   /* ─── Preselect from search params ─────────────────────────────── */
 
   useEffect(() => {
@@ -2198,6 +2435,10 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         mergeSegmentWithNext(selectedSegmentId);
       },
       runAutoDetect,
+      runTargetCountAutoDetect,
+      focusTargetSegmentCountInput,
+      loadNextUnconvertedRound,
+      loadPreviousUnconvertedRound,
       applyDetectedSuggestions,
       saveConvertedRounds,
       undo: handleUndo,
@@ -2209,15 +2450,19 @@ export function useConverterState(searchParams: ConverterSearchParams) {
       applyDetectedSuggestions,
       clearTransientEditorState,
       currentTimeMs,
+      focusTargetSegmentCountInput,
       handleUndo,
       handleRedo,
       jumpToRandomPoint,
+      loadNextUnconvertedRound,
+      loadPreviousUnconvertedRound,
       mergeSegmentWithNext,
       moveSelectedSegmentEndToPlayhead,
       moveSelectedSegmentStartToPlayhead,
       nudgeSelectedSegment,
       removeSegment,
       runAutoDetect,
+      runTargetCountAutoDetect,
       saveConvertedRounds,
       seekToMs,
       seekToSelectedSegmentEnd,
@@ -2238,7 +2483,26 @@ export function useConverterState(searchParams: ConverterSearchParams) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isEditableTarget(event.target)) return;
+      const isExplicitAltConverterShortcut =
+        event.altKey &&
+        (event.key === "t" ||
+          event.key === "T" ||
+          event.key === "ArrowLeft" ||
+          event.key === "ArrowRight");
+      const isTargetCountInput = event.target === targetSegmentCountInputRef.current;
+      const isTargetCountActionShortcut =
+        isTargetCountInput &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        (event.key === "a" || event.key === "A" || event.key === "t" || event.key === "T");
+      if (
+        isEditableTarget(event.target) &&
+        !isExplicitAltConverterShortcut &&
+        !isTargetCountActionShortcut
+      ) {
+        return;
+      }
       if (event.repeat) return;
 
       const shortcut = CONVERTER_SHORTCUTS.find((candidate) => candidate.matches(event));
@@ -2258,6 +2522,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     // Refs
     videoRef,
     timelineScrollRef,
+    targetSegmentCountInputRef,
     dragStateRef,
 
     // Step navigation
@@ -2378,6 +2643,11 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     commitMinRoundDraft,
     isDetecting,
     runAutoDetect,
+    runTargetCountAutoDetect,
+    runSixtySecondPauseDetectAndApply,
+    targetSegmentCountDraft,
+    setTargetSegmentCountDraft,
+    targetDetectionResultSummary,
     applyDetectedSuggestions,
 
     // Save
@@ -2393,6 +2663,12 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     toggleHotkeys,
     showHotkeysOverlay,
     hideHotkeysOverlay,
+    canLoadPreviousUnconverted,
+    canLoadNextUnconverted,
+    unconvertedPositionLabel,
+    loadNextUnconvertedRound,
+    loadPreviousUnconvertedRound,
+    focusTargetSegmentCountInput,
 
     // Undo/Redo
     canUndo: canUndoState,
