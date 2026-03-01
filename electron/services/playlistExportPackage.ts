@@ -140,6 +140,7 @@ export type PlaylistExportPackageAnalysis = {
   acquisition?: {
     torrentSources: number;
     megaSources: number;
+    pixeldrainSources: number;
     mappedFiles: number;
   };
   videoTotals: {
@@ -1261,7 +1262,7 @@ async function preparePlaylistExport(
     parallelJobs,
     analysis: {
       acquisition: (() => {
-        const sources = new Map<string, "torrent" | "mega">();
+        const sources = new Map<string, "torrent" | "mega" | "pixeldrain">();
         const files = new Set<string>();
         for (const entry of loaded.rounds) {
           for (const candidate of entry.acquisitionCandidates ?? []) {
@@ -1272,6 +1273,7 @@ async function preparePlaylistExport(
         return {
           torrentSources: [...sources.values()].filter((kind) => kind === "torrent").length,
           megaSources: [...sources.values()].filter((kind) => kind === "mega").length,
+          pixeldrainSources: [...sources.values()].filter((kind) => kind === "pixeldrain").length,
           mappedFiles: files.size,
         };
       })(),

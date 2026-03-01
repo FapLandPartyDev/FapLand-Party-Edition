@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   })),
   stopHandyPlayback: vi.fn(async () => undefined),
   preloadHspScript: vi.fn(async () => undefined),
+  sendHspSync: vi.fn(async () => undefined),
 }));
 
 vi.mock("../handyApi", () => ({
@@ -45,7 +46,7 @@ vi.mock("../thehandy/runtime", () => ({
   pauseHandyPlayback: vi.fn(async () => undefined),
   resumeHandyPlayback: vi.fn(async () => undefined),
   preloadHspScript: mocks.preloadHspScript,
-  sendHspSync: vi.fn(async () => undefined),
+  sendHspSync: mocks.sendHspSync,
 }));
 
 const config = {
@@ -172,5 +173,23 @@ describe("thehandyAdapter", () => {
       [unknown, unknown, string, Array<{ at: number; pos: number }>] | undefined;
     expect(disabledCall?.[2]).toContain("rate-limit=false");
     expect(disabledCall?.[3]).toEqual(actions);
+  });
+
+  it("keeps the configured movement limit at faster playback rates", async () => {
+    const session = await thehandyAdapter.createSession(config);
+    const actions = [
+      { at: 0, pos: 0 },
+      { at: 100, pos: 100 },
+    ];
+
+    await thehandyAdapter.sendSync(config, session, 0, 2, "round", actions);
+
+    const call = mocks.sendHspSync.mock.lastCall as unknown as
+      [unknown, unknown, number, number, string, Array<{ at: number; pos: number }>] | undefined;
+    expect(call?.[4]).toContain("playback-rate=2");
+    expect(call?.[5]).toEqual([
+      { at: 0, pos: 0 },
+      { at: 100, pos: 20 },
+    ]);
   });
 });

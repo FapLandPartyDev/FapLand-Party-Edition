@@ -1162,7 +1162,7 @@ function filterTrustedRemoteUri(
 }
 
 function acquisitionSourceReviewUrls(source: ExportedAcquisitionSource): string[] {
-  if (source.kind === "mega") return [source.publicUrl];
+  if (source.kind === "mega" || source.kind === "pixeldrain") return [source.publicUrl];
   try {
     return new URL(source.magnetUri).searchParams.getAll("tr");
   } catch {

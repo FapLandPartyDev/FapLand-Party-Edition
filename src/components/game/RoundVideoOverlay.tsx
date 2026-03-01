@@ -433,6 +433,7 @@ export function RoundVideoOverlay({
     tcodeBaudRate,
     tcodeWebsocketHost,
     tcodeWebsocketUrl,
+    tcodeUdpHost,
     tcodePrecision,
     tcodeAxis,
     offsetMs,
@@ -1312,6 +1313,7 @@ export function RoundVideoOverlay({
         baudRate: tcodeBaudRate,
         websocketHost: tcodeWebsocketHost,
         websocketUrl: tcodeWebsocketUrl,
+        udpHost: tcodeUdpHost,
         precision: tcodePrecision,
         axis: tcodeAxis,
         stroke: {
@@ -1354,6 +1356,7 @@ export function RoundVideoOverlay({
     tcodePrecision,
     tcodeSerialPath,
     tcodeTransport,
+    tcodeUdpHost,
     tcodeWebsocketHost,
     tcodeWebsocketUrl,
   ]);
@@ -1363,7 +1366,9 @@ export function RoundVideoOverlay({
     (hapticsProvider === "tcode" &&
       (tcodeTransport === "serial"
         ? tcodeSerialPath.trim().length > 0
-        : tcodeWebsocketUrl.trim().length > 0)) ||
+        : tcodeTransport === "udp"
+          ? tcodeUdpHost.trim().length > 0
+          : tcodeWebsocketUrl.trim().length > 0)) ||
     (connectionKey.trim().length > 0 && appApiKey.trim().length > 0);
   const hapticsPushIntervalMs =
     activeDeviceTargets.some((device) => device.config.provider === "intiface") ||

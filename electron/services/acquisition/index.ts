@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { createWriteStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { File as MegaFile } from "megajs";
@@ -22,7 +23,7 @@ import { generateVideoPhash } from "../phash";
 import { generateRoundPreviewImageDataUri } from "../roundPreview";
 import { resolveVideoDurationMsForLocalPath } from "../videoDuration";
 import { getAcquisitionSettings, resolveAcquisitionDownloadRoot } from "./settings";
-import type { CatalogFile, MegaLocator, TorrentLocator } from "./types";
+import type { CatalogFile, MegaLocator, PixeldrainLocator, TorrentLocator } from "./types";
 
 type ParsedTorrent = {
   infoHash: string;
@@ -79,7 +80,7 @@ type SourceRow = typeof acquisitionSource.$inferSelect;
 type JobRow = typeof acquisitionJob.$inferSelect;
 
 export type DefaultAcquisitionSource = {
-  kind: "torrent" | "mega";
+  kind: "torrent" | "mega" | "pixeldrain";
   name: string;
   locator: string;
   catalogUrl?: string;
@@ -94,6 +95,7 @@ const activeMegaStreams = new Map<
   string,
   NodeJS.ReadableStream & { destroy(error?: Error): void }
 >();
+const activePixeldrainControllers = new Map<string, AbortController>();
 let torrentClientPromise: Promise<TorrentClientLike> | null = null;
 let schedulerPromise: Promise<void> | null = null;
 let progressTimer: ReturnType<typeof setInterval> | null = null;
@@ -105,14 +107,19 @@ export function parseDefaultAcquisitionSources(input: string): DefaultAcquisitio
     if (!line || line.startsWith("#")) continue;
     const fields = line.split("|").map((field) => field.trim());
     const [kind, name, locator, catalogUrl, ...extra] = fields;
-    if ((kind !== "torrent" && kind !== "mega") || !name || !locator || extra.length > 0) {
+    if (
+      (kind !== "torrent" && kind !== "mega" && kind !== "pixeldrain") ||
+      !name ||
+      !locator ||
+      extra.length > 0
+    ) {
       throw new Error(`Invalid default acquisition source on line ${index + 1}.`);
     }
     if (name.length > 240 || locator.length > 16_384 || (catalogUrl?.length ?? 0) > 16_384) {
       throw new Error(`Default acquisition source on line ${index + 1} is too long.`);
     }
-    if (kind === "mega" && catalogUrl) {
-      throw new Error(`MEGA source on line ${index + 1} has an unexpected fourth field.`);
+    if (kind !== "torrent" && catalogUrl) {
+      throw new Error(`${kind} source on line ${index + 1} has an unexpected fourth field.`);
     }
     sources.push({ kind, name, locator, ...(catalogUrl ? { catalogUrl } : {}) });
   }
@@ -146,7 +153,7 @@ function safeOutputPath(root: string, relativePath: string): string {
   return output;
 }
 
-function canonicalHash(kind: "torrent" | "mega", identity: string): string {
+function canonicalHash(kind: "torrent" | "mega" | "pixeldrain", identity: string): string {
   return crypto.createHash("sha256").update(`${kind}:${identity}`).digest("hex");
 }
 
@@ -287,9 +294,9 @@ async function persistCatalog(sourceId: string, files: CatalogFile[]): Promise<v
 }
 
 async function upsertSource(input: {
-  kind: "torrent" | "mega";
+  kind: "torrent" | "mega" | "pixeldrain";
   name: string;
-  locator: TorrentLocator | MegaLocator;
+  locator: TorrentLocator | MegaLocator | PixeldrainLocator;
   identity: string;
   origin: "user" | "imported";
 }): Promise<SourceRow> {
@@ -432,6 +439,118 @@ export async function createMegaSource(
   }))!;
 }
 
+export function assertPixeldrainDirectoryUrl(input: string): PixeldrainLocator {
+  const parsed = new URL(input.trim());
+  if (!new Set(["pixeldrain.com", "www.pixeldrain.com"]).has(parsed.hostname.toLowerCase())) {
+    throw new Error("Only public PixelDrain links are supported.");
+  }
+  const match = /^\/d\/([^/]+)\/?$/u.exec(parsed.pathname);
+  if (!match) throw new Error("PixelDrain source must point to a public directory link.");
+  parsed.hash = "";
+  parsed.search = "";
+  return { publicUrl: parsed.toString(), directoryId: match[1]! };
+}
+
+function pixeldrainFilesystemUrl(filesystemPath: string, stat = false): string {
+  const encoded = filesystemPath
+    .replace(/^\/+|\/+$/gu, "")
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/");
+  return `https://pixeldrain.com/api/filesystem/${encoded}${stat ? "?stat" : ""}`;
+}
+
+type PixeldrainNode = {
+  type?: unknown;
+  path?: unknown;
+  name?: unknown;
+  file_size?: unknown;
+};
+
+export async function catalogPixeldrainFiles(locator: PixeldrainLocator): Promise<CatalogFile[]> {
+  const pending = [locator.directoryId];
+  const visited = new Set<string>();
+  const videos: CatalogFile[] = [];
+  let inspectedNodes = 0;
+
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    const response = await fetch(pixeldrainFilesystemUrl(current, true));
+    if (!response.ok) {
+      throw new Error(`PixelDrain catalog request failed with HTTP ${response.status}.`);
+    }
+    const payload = (await response.json()) as { children?: unknown };
+    if (!Array.isArray(payload.children)) {
+      throw new Error("PixelDrain directory metadata returned an invalid payload.");
+    }
+    inspectedNodes += payload.children.length;
+    if (inspectedNodes > 100_000) {
+      throw new Error("PixelDrain directory contains too many entries to catalog safely.");
+    }
+
+    for (const child of payload.children as PixeldrainNode[]) {
+      const childPath = typeof child.path === "string" ? child.path.trim() : "";
+      const rootPrefix = `/${locator.directoryId}/`;
+      const relativePath = childPath.startsWith(rootPrefix)
+        ? childPath.slice(rootPrefix.length)
+        : "";
+      if (!relativePath) continue;
+      const sourcePath = normalizeAcquisitionPath(relativePath);
+      if (child.type === "dir" && sourcePath) {
+        pending.push(`${locator.directoryId}/${sourcePath}`);
+        continue;
+      }
+      if (child.type !== "file" || mediaKindForPath(sourcePath) !== "video") continue;
+      videos.push({
+        path: sourcePath,
+        name:
+          typeof child.name === "string" && child.name.trim()
+            ? child.name.trim()
+            : path.posix.basename(sourcePath),
+        sizeBytes:
+          typeof child.file_size === "number" && Number.isFinite(child.file_size)
+            ? child.file_size
+            : null,
+        mediaKind: "video",
+      });
+    }
+  }
+
+  return videos;
+}
+
+export async function createPixeldrainSource(
+  publicUrl: string,
+  name?: string,
+  origin: "user" | "imported" = "user"
+): Promise<SourceRow> {
+  const locator = assertPixeldrainDirectoryUrl(publicUrl);
+  const source = await upsertSource({
+    kind: "pixeldrain",
+    name: name?.trim() || "PixelDrain source",
+    locator,
+    identity: locator.publicUrl,
+    origin,
+  });
+  try {
+    await persistCatalog(source.id, await catalogPixeldrainFiles(locator));
+  } catch (error) {
+    await getDb()
+      .update(acquisitionSource)
+      .set({
+        catalogError:
+          error instanceof Error ? error.message : "PixelDrain catalog could not be loaded.",
+        updatedAt: new Date(),
+      })
+      .where(eq(acquisitionSource.id, source.id));
+  }
+  return (await getDb().query.acquisitionSource.findFirst({
+    where: eq(acquisitionSource.id, source.id),
+  }))!;
+}
+
 export async function importExportedSources(
   sources: ExportedAcquisitionSource[]
 ): Promise<Map<string, string>> {
@@ -440,7 +559,9 @@ export async function importExportedSources(
     const stored =
       source.kind === "torrent"
         ? await createTorrentSourceFromUri(source.magnetUri, source.name, "imported")
-        : await createMegaSource(source.publicUrl, source.name, "imported");
+        : source.kind === "mega"
+          ? await createMegaSource(source.publicUrl, source.name, "imported")
+          : await createPixeldrainSource(source.publicUrl, source.name, "imported");
     ids.set(source.id, stored.id);
   }
   return ids;
@@ -452,6 +573,18 @@ export async function importDefaultAcquisitionSources(
   const entries = parseDefaultAcquisitionSources(await fs.readFile(manifestPath, "utf8"));
   let imported = 0;
   for (const entry of entries) {
+    if (entry.kind === "pixeldrain") {
+      const locator = assertPixeldrainDirectoryUrl(entry.locator);
+      await upsertSource({
+        kind: "pixeldrain",
+        name: entry.name,
+        locator,
+        identity: locator.publicUrl,
+        origin: "imported",
+      });
+      imported += 1;
+      continue;
+    }
     if (entry.kind === "mega") {
       const publicUrl = assertMegaUrl(entry.locator);
       await upsertSource({
@@ -684,6 +817,9 @@ export async function refreshAcquisitionSource(sourceId: string): Promise<Source
   try {
     if (source.kind === "torrent") {
       await persistCatalog(source.id, await catalogTorrentSource(source));
+    } else if (source.kind === "pixeldrain") {
+      const locator = JSON.parse(source.locatorJson) as PixeldrainLocator;
+      await persistCatalog(source.id, await catalogPixeldrainFiles(locator));
     } else {
       const locator = JSON.parse(source.locatorJson) as MegaLocator;
       const root = MegaFile.fromURL(locator.publicUrl);
@@ -932,7 +1068,7 @@ async function loadExportAcquisitionRounds() {
 export type SourceFileChoice = {
   sourceId: string;
   sourceName: string;
-  sourceKind: "torrent" | "mega";
+  sourceKind: "torrent" | "mega" | "pixeldrain";
   sourcePath: string;
   sizeBytes: number | null;
 };
@@ -1231,14 +1367,14 @@ export async function analyzeLibraryLinks(selection: ExportAcquisitionSelection)
 
 export async function searchAcquisitionVideoFiles(input: {
   query: string;
-  sourceKinds?: Array<"torrent" | "mega">;
+  sourceKinds?: Array<"torrent" | "mega" | "pixeldrain">;
   cursor?: string;
   limit?: number;
 }): Promise<{ items: SourceFileChoice[]; nextCursor: string | null }> {
   const limit = Math.max(1, Math.min(100, input.limit ?? 30));
   const offset = Math.max(0, Number.parseInt(input.cursor ?? "0", 10) || 0);
   const query = normalizedTitle(input.query);
-  const kinds = new Set(input.sourceKinds ?? ["torrent", "mega"]);
+  const kinds = new Set(input.sourceKinds ?? ["torrent", "mega", "pixeldrain"]);
   const files = await getDb().query.acquisitionFile.findMany({
     where: eq(acquisitionFile.mediaKind, "video"),
     with: { source: true },
@@ -1407,7 +1543,7 @@ export async function autoLinkExportAcquisition(selection: ExportAcquisitionSele
 export type AcquisitionMatch = {
   sourceId: string;
   sourceName: string;
-  sourceKind: "torrent" | "mega";
+  sourceKind: "torrent" | "mega" | "pixeldrain";
   path: string;
   sizeBytes: number | null;
   matchKind: "explicit" | "filename";
@@ -1936,6 +2072,61 @@ async function runMegaJob(job: JobRow, source: SourceRow): Promise<void> {
   });
 }
 
+async function runPixeldrainJob(job: JobRow, source: SourceRow): Promise<void> {
+  const locator = JSON.parse(source.locatorJson) as PixeldrainLocator;
+  const selected = JSON.parse(job.selectedPathsJson) as string[];
+  const outputRoot = path.join(resolveAcquisitionDownloadRoot(), source.canonicalLocatorHash);
+  const controller = new AbortController();
+  activePixeldrainControllers.set(job.id, controller);
+  let downloaded = 0;
+  await markJob(job.id, {
+    state: "downloading",
+    startedAt: job.startedAt ?? new Date(),
+    errorMessage: null,
+  });
+
+  try {
+    for (const selectedPath of selected) {
+      const normalizedPath = normalizeAcquisitionPath(selectedPath);
+      const response = await fetch(
+        pixeldrainFilesystemUrl(`${locator.directoryId}/${normalizedPath}`),
+        { signal: controller.signal }
+      );
+      if (!response.ok || !response.body) {
+        throw new Error(`PixelDrain download failed with HTTP ${response.status}.`);
+      }
+      const output = safeOutputPath(outputRoot, normalizedPath);
+      await fs.mkdir(path.dirname(output), { recursive: true });
+      const body = response.body;
+      const stream = Readable.from(
+        (async function* () {
+          const reader = body.getReader();
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) return;
+              downloaded += value.byteLength;
+              void markJob(job.id, { downloadedBytes: downloaded });
+              yield value;
+            }
+          } finally {
+            reader.releaseLock();
+          }
+        })()
+      );
+      await pipeline(stream, createWriteStream(output));
+      await attachCompletedPath(source.id, normalizedPath, output, job.addCompletedToLibrary);
+    }
+    await markJob(job.id, {
+      state: "completed",
+      downloadedBytes: downloaded,
+      completedAt: new Date(),
+    });
+  } finally {
+    activePixeldrainControllers.delete(job.id);
+  }
+}
+
 async function scheduleJobs(): Promise<void> {
   if (schedulerPromise) return schedulerPromise;
   schedulerPromise = (async () => {
@@ -1951,7 +2142,11 @@ async function scheduleJobs(): Promise<void> {
     });
     for (const job of jobs) {
       const pending = (
-        job.kind === "torrent" ? runTorrentJob(job, job.source) : runMegaJob(job, job.source)
+        job.kind === "torrent"
+          ? runTorrentJob(job, job.source)
+          : job.kind === "mega"
+            ? runMegaJob(job, job.source)
+            : runPixeldrainJob(job, job.source)
       )
         .catch(async (error) => {
           const current = await getDb().query.acquisitionJob.findFirst({
@@ -1969,7 +2164,7 @@ async function scheduleJobs(): Promise<void> {
           activeMegaStreams.delete(job.id);
           void scheduleJobs();
         });
-      if (job.kind === "mega") activeMegaJobs.set(job.id, pending);
+      if (job.kind !== "torrent") activeMegaJobs.set(job.id, pending);
     }
     ensureProgressTimer();
   })().finally(() => {
@@ -2065,6 +2260,8 @@ export async function pauseAcquisitionJob(jobId: string): Promise<void> {
   activeSeedingJobs.delete(jobId);
   activeMegaStreams.get(jobId)?.destroy(new Error("Download paused."));
   activeMegaStreams.delete(jobId);
+  activePixeldrainControllers.get(jobId)?.abort(new Error("Download paused."));
+  activePixeldrainControllers.delete(jobId);
 }
 
 export async function resumeAcquisitionJob(jobId: string): Promise<void> {
@@ -2087,6 +2284,8 @@ export async function cancelAcquisitionJob(jobId: string): Promise<void> {
   activeSeedingJobs.delete(jobId);
   activeMegaStreams.get(jobId)?.destroy(new Error("Download cancelled."));
   activeMegaStreams.delete(jobId);
+  activePixeldrainControllers.get(jobId)?.abort(new Error("Download cancelled."));
+  activePixeldrainControllers.delete(jobId);
 }
 
 export async function removeAcquisitionJob(jobId: string, removeData = false): Promise<void> {
@@ -2186,6 +2385,10 @@ export async function stopAcquisitionService(): Promise<void> {
   for (const stream of activeMegaStreams.values())
     stream.destroy(new Error("Application shutting down."));
   activeMegaStreams.clear();
+  for (const controller of activePixeldrainControllers.values()) {
+    controller.abort(new Error("Application shutting down."));
+  }
+  activePixeldrainControllers.clear();
 }
 
 export async function clearAcquisitionDownloadData(): Promise<void> {
@@ -2222,6 +2425,10 @@ export function exportSource(source: SourceRow): ExportedAcquisitionSource {
       infoHash: locator.infoHash,
     };
   }
-  const locator = JSON.parse(source.locatorJson) as MegaLocator;
-  return { id: source.id, kind: "mega", name: source.name, publicUrl: locator.publicUrl };
+  if (source.kind === "mega") {
+    const locator = JSON.parse(source.locatorJson) as MegaLocator;
+    return { id: source.id, kind: "mega", name: source.name, publicUrl: locator.publicUrl };
+  }
+  const locator = JSON.parse(source.locatorJson) as PixeldrainLocator;
+  return { id: source.id, kind: "pixeldrain", name: source.name, publicUrl: locator.publicUrl };
 }

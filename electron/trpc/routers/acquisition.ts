@@ -12,6 +12,7 @@ import {
   autoLinkExportAcquisition,
   approveImportDownloads,
   createMegaSource,
+  createPixeldrainSource,
   createTorrentSourceFromFile,
   createTorrentSourceFromUri,
   deleteAcquisitionSource,
@@ -114,8 +115,8 @@ export const acquisitionRouter = router({
         .object({
           query: z.string().trim().max(240).default(""),
           sourceKinds: z
-            .array(z.enum(["torrent", "mega"]))
-            .max(2)
+            .array(z.enum(["torrent", "mega", "pixeldrain"]))
+            .max(3)
             .optional(),
           cursor: z.string().regex(/^\d+$/u).optional(),
           limit: z.number().int().min(1).max(100).optional(),
@@ -210,6 +211,23 @@ export const acquisitionRouter = router({
         return await createMegaSource(input.publicUrl, input.name);
       } catch (error) {
         return badRequest(error, "Failed to create MEGA source.");
+      }
+    }),
+
+  createPixeldrainSource: publicProcedure
+    .input(
+      z
+        .object({
+          publicUrl: z.string().url().max(16_384),
+          name: z.string().trim().min(1).max(240).optional(),
+        })
+        .strict()
+    )
+    .mutation(async ({ input }) => {
+      try {
+        return await createPixeldrainSource(input.publicUrl, input.name);
+      } catch (error) {
+        return badRequest(error, "Failed to create PixelDrain source.");
       }
     }),
 

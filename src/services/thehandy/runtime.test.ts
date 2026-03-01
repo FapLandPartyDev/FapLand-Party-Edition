@@ -29,8 +29,10 @@ vi.mock("./index", () => handyIndexMocks);
 import {
   getHandyStroke,
   issueHandySession,
+  pauseHandyPlayback,
   preloadHspScript,
   resolveInitialPreloadTargetMs,
+  resumeHandyPlayback,
   sendHspSync,
   updateHandyStroke,
   type HandySession,
@@ -66,6 +68,43 @@ const longActions = Array.from({ length: 500 }, (_, index) => ({
   at: index * 500,
   pos: index % 2 === 0 ? 20 : 80,
 }));
+
+describe("pause and resume", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it("restarts the retained HSP buffer at the current media time", async () => {
+    const session = createLoadedHspSession({ lastPlaybackRate: 1.25 });
+
+    await pauseHandyPlayback({ connectionKey: "conn-key", appApiKey: "app-key" }, session);
+    await resumeHandyPlayback(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      12_345.9,
+      1.5
+    );
+
+    expect(handyIndexMocks.hspPause).toHaveBeenCalledTimes(1);
+    expect(handyIndexMocks.hspPlay).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          start_time: 12_345,
+          server_time: expect.any(Number),
+          playback_rate: 1.5,
+          pause_on_starving: true,
+          loop: false,
+        },
+        query: { timeout: 5000 },
+      })
+    );
+    expect(handyIndexMocks.hspResume).not.toHaveBeenCalled();
+    expect(session.loadedScriptId).toBe("video-1:500:0:249500");
+    expect(session.activeScriptId).toBe(session.loadedScriptId);
+    expect(session.lastPlaybackRate).toBe(1.5);
+  });
+});
 
 type HspAddCallOptions = {
   body: {
@@ -302,6 +341,55 @@ describe("sendHspSync", () => {
 
     expect(session.maxBufferPoints).toBe(800);
     expect(session.reportedBufferedUntilMs).toBe(42_000);
+  });
+
+  it("automatically restarts HSP playback after the device reports starvation", async () => {
+    const session = createLoadedHspSession();
+    let reportStarvation: (value: unknown) => void = () => {
+      throw new Error("HSP state request did not start.");
+    };
+    handyIndexMocks.getHspState.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          reportStarvation = resolve;
+        })
+    );
+
+    await sendHspSync(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      20_000,
+      1,
+      "video-1",
+      longActions
+    );
+    reportStarvation({
+      result: {
+        points: 0,
+        max_points: 1000,
+        last_point_time: 20_000,
+        play_state: 4,
+      },
+    });
+    await vi.waitFor(() => expect(session.hspStarved).toBe(true));
+
+    await sendHspSync(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      20_100,
+      1,
+      "video-1",
+      longActions
+    );
+
+    expect(handyIndexMocks.hspPlay).toHaveBeenCalledTimes(1);
+    expect(handyIndexMocks.hspPlay).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ start_time: 20_100 }),
+      })
+    );
+    expect(session.hspStarved).toBe(false);
+    expect(session.activeScriptId).toBe("video-1:500:0:249500");
   });
 
   it("forces an immediate unfiltered correction when requested", async () => {

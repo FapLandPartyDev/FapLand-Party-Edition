@@ -88,6 +88,11 @@ import {
   resetInstallationForRecovery,
   resetSettingsForRecovery,
 } from "./services/startupRecovery";
+import {
+  connectTCodeUdp,
+  disconnectTCodeUdp,
+  sendTCodeUdp,
+} from "./services/tcodeUdp";
 
 const OPENABLE_FILE_EXTENSIONS = new Set([".hero", ".round", ".fplay", ".fpack", ".torrent"]);
 const pendingOpenedFiles: string[] = [];
@@ -1179,6 +1184,13 @@ function registerWindowControlsIpc() {
   });
 
   ipcMain.handle("serial:get-selected-port-metadata", () => selectedSerialPortMetadata);
+
+  ipcMain.handle("tcode-udp:connect", (_event, input: unknown) => connectTCodeUdp(input));
+  ipcMain.on("tcode-udp:send", (_event, command: unknown) => sendTCodeUdp(command));
+  ipcMain.handle("tcode-udp:disconnect", () => {
+    disconnectTCodeUdp();
+    return { success: true };
+  });
 }
 
 function registerDialogIpc() {

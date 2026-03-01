@@ -101,7 +101,9 @@ export function LibraryExportDialog({
             onChange((current) => ({ ...current, error: null }));
             if (!userTouchedAcquisitionRef.current) {
               const hasProvenance =
-                (result.acquisition?.torrentSources ?? 0) + (result.acquisition?.megaSources ?? 0) >
+                (result.acquisition?.torrentSources ?? 0) +
+                  (result.acquisition?.megaSources ?? 0) +
+                  (result.acquisition?.pixeldrainSources ?? 0) >
                 0;
               onChange((current) => ({
                 ...current,
@@ -360,6 +362,7 @@ export function LibraryExportDialog({
                             <Trans>
                               {analysis.acquisition.torrentSources} torrent sources,{" "}
                               {analysis.acquisition.megaSources} MEGA sources,{" "}
+                              {analysis.acquisition.pixeldrainSources} PixelDrain sources,{" "}
                               {analysis.acquisition.mappedFiles} mapped files
                             </Trans>
                           </p>

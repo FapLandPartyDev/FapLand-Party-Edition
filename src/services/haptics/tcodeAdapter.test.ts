@@ -23,9 +23,16 @@ const config: HapticsConnectionConfig = {
   baudRate: 115200,
   websocketHost: "192.168.1.42",
   websocketUrl: "ws://192.168.1.42/ws",
+  udpHost: "",
   precision: 4,
   axis: "L0",
   stroke: { min: 0.2, max: 0.8, minAbsolute: null, maxAbsolute: null },
+};
+
+const udpConfig: HapticsConnectionConfig = {
+  ...config,
+  transport: "udp",
+  udpHost: "192.168.1.42",
 };
 
 describe("tcodeAdapter", () => {
@@ -54,8 +61,35 @@ describe("tcodeAdapter", () => {
       serialPath: "",
       baudRate: 115200,
       websocketUrl: "ws://192.168.1.42/ws",
+      udpHost: "",
     });
     expect(transportMocks.send).toHaveBeenCalledWith("L07999I500\n");
+  });
+
+  it("passes the udp host through to the transport", async () => {
+    await tcodeAdapter.createSession(udpConfig);
+
+    expect(transportMocks.connect).toHaveBeenCalledWith({
+      transport: "udp",
+      serialPath: "",
+      baudRate: 115200,
+      websocketUrl: "ws://192.168.1.42/ws",
+      udpHost: "192.168.1.42",
+    });
+  });
+
+  it("reports the udp host as the device name", async () => {
+    await expect(tcodeAdapter.verifyConnection(udpConfig)).resolves.toMatchObject({
+      success: true,
+      deviceName: "192.168.1.42",
+    });
+  });
+
+  it("rejects udp connections without a host", async () => {
+    await expect(tcodeAdapter.verifyConnection({ ...udpConfig, udpHost: "" })).resolves.toMatchObject({
+      success: false,
+      message: "Enter a TCode UDP device IP address before connecting.",
+    });
   });
 
   it("does not resend the same target command", async () => {

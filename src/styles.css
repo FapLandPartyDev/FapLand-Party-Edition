@@ -2670,6 +2670,24 @@ a[href]:focus-visible,
   transition: width 400ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Filters and animated SVG paint are expensive while their parent transform changes.
+   Keep the tree crisp and interactive during camera movement, then restore its idle
+   effects as soon as the gesture or programmed move settles. */
+.skill-tree-camera-moving .skill-node polygon,
+.skill-tree-camera-moving .skill-edge-live {
+  filter: none !important;
+  transition: none !important;
+}
+
+.skill-tree-camera-moving .skill-node-ready,
+.skill-tree-camera-moving .skill-node-burst,
+.skill-tree-camera-moving .skill-node-selection,
+.skill-tree-camera-moving .skill-edge-live,
+.skill-tree-camera-moving .skill-core-glow,
+.skill-tree-camera-moving .skill-core-points {
+  animation-play-state: paused !important;
+}
+
 .skill-buy-button:not(:disabled):hover {
   transform: translateY(-1px);
   filter: brightness(1.25);

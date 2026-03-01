@@ -10,7 +10,7 @@ import {
 } from "@/services/acquisition";
 
 type Filter = "all" | "ready" | "review" | "linked" | "unmatched";
-type SourceKind = "torrent" | "mega";
+type SourceKind = "torrent" | "mega" | "pixeldrain";
 type SelectedChoice = AcquisitionVideoFileChoice & { score: number | null };
 
 function targetKey(target: Pick<LibraryLinkTarget, "targetKind" | "targetId">): string {
@@ -45,16 +45,30 @@ function statusFor(target: LibraryLinkTarget): Exclude<Filter, "all"> {
 }
 
 function SourceKindChip({ kind }: { kind: SourceKind }) {
+  const presentation =
+    kind === "torrent"
+      ? {
+          className: "bg-violet-500/15 text-violet-100 ring-1 ring-violet-300/25",
+          icon: "⇅",
+          label: "Torrent",
+        }
+      : kind === "mega"
+        ? {
+            className: "bg-orange-500/15 text-orange-100 ring-1 ring-orange-300/25",
+            icon: "☁",
+            label: "MEGA",
+          }
+        : {
+            className: "bg-cyan-500/15 text-cyan-100 ring-1 ring-cyan-300/25",
+            icon: "▦",
+            label: "PixelDrain",
+          };
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[9px] font-bold uppercase tracking-wider ${
-        kind === "torrent"
-          ? "bg-violet-500/15 text-violet-100 ring-1 ring-violet-300/25"
-          : "bg-orange-500/15 text-orange-100 ring-1 ring-orange-300/25"
-      }`}
+      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 font-[family-name:var(--font-jetbrains-mono)] text-[9px] font-bold uppercase tracking-wider ${presentation.className}`}
     >
-      <span aria-hidden="true">{kind === "torrent" ? "⇅" : "☁"}</span>
-      {kind === "torrent" ? "Torrent" : "MEGA"}
+      <span aria-hidden="true">{presentation.icon}</span>
+      {presentation.label}
     </span>
   );
 }
@@ -948,7 +962,7 @@ export function SourceLinkDialog({
               )}
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              {(["torrent", "mega"] as const).map((kind) => {
+              {(["torrent", "mega", "pixeldrain"] as const).map((kind) => {
                 const isActive = pickerKinds.includes(kind);
                 return (
                   <button
@@ -964,7 +978,11 @@ export function SourceLinkDialog({
                     }
                     className={`round-library-toolbar-button ${isActive ? "is-active" : ""}`}
                   >
-                    {kind === "torrent" ? t`Torrent only` : t`MEGA only`}
+                    {kind === "torrent"
+                      ? t`Torrent only`
+                      : kind === "mega"
+                        ? t`MEGA only`
+                        : "PixelDrain only"}
                   </button>
                 );
               })}

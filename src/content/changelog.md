@@ -1,5 +1,19 @@
 # What's New
 
+## v0.6.25-beta
+
+### Added
+
+- **TCode UDP Transport** — TCode devices can now be connected over UDP in addition to WebSocket and serial. The desktop app opens a native UDP socket for the device (new `tcodeUdp` main-process service behind `tcode-udp` IPC channels), resolves hostnames, and streams TCode commands to it. Host inputs accept an optional port (default `192.168.4.1:8000`), are validated and persisted per device slot, and the First-Start wizard and Settings → Hardware & Sync both offer a UDP transport option with a derived-endpoint preview.
+
+### Changed
+
+- **More Reliable Handy Resume After Pauses** — resuming TheHandy playback now restarts the retained HSP buffer at an explicit media timestamp and playback rate via HSP play instead of HSP resume, which some devices accept while remaining paused until the connection is recreated.
+- **Automatic Handy Starvation Recovery** — when the device pauses HSP playback because its point buffer ran dry, the next sync automatically restarts playback at the current media time instead of requiring a full reconnect.
+- **Rate Limiter Honors Playback Speed** — the funscript rate limiter now applies the actual playback rate (0.25×–3×) when clamping trajectories, so the configured movement limit also holds at faster playback speeds, and scripts are reprocessed whenever the rate changes.
+
+---
+
 ## v0.6.24-beta
 
 ### Added

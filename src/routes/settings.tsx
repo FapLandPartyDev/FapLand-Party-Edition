@@ -27,6 +27,8 @@ import {
 import {
   DEFAULT_INTIFACE_WEBSOCKET_URL,
   DEFAULT_TCODE_BAUD_RATE,
+  DEFAULT_TCODE_UDP_HOST,
+  DEFAULT_TCODE_UDP_PORT,
   DEFAULT_TCODE_WEBSOCKET_HOST,
   DEFAULT_TCODE_WEBSOCKET_URL,
   INTIFACE_DOWNLOAD_URL,
@@ -36,6 +38,7 @@ import {
 } from "../constants/haptics";
 import {
   normalizeTCodeBaudRate,
+  normalizeTCodeUdpInput,
   normalizeTCodeWebSocketInput,
 } from "../services/haptics/tcodeConfig";
 import {
@@ -4428,6 +4431,7 @@ function HardwareSettingsCard({
     tcodeBaudRate,
     tcodeWebsocketHost,
     tcodeWebsocketUrl,
+    tcodeUdpHost,
     tcodePrecision,
     tcodeSerialPorts,
     tcodeSerialPortsLoading,
@@ -4470,6 +4474,7 @@ function HardwareSettingsCard({
   const [inputTCodeSerialPath, setInputTCodeSerialPath] = useState(tcodeSerialPath);
   const [inputTCodeBaudRate, setInputTCodeBaudRate] = useState(String(tcodeBaudRate));
   const [inputTCodeHost, setInputTCodeHost] = useState(tcodeWebsocketHost);
+  const [inputTCodeUdpHost, setInputTCodeUdpHost] = useState(tcodeUdpHost);
   const [inputTCodePrecision, setInputTCodePrecision] = useState<3 | 4>(tcodePrecision);
   const [inputFunscriptMaxRate, setInputFunscriptMaxRate] = useState(String(funscriptMaxRate));
   const [inputFunscriptRdpEpsilon, setInputFunscriptRdpEpsilon] = useState(
@@ -4509,6 +4514,7 @@ function HardwareSettingsCard({
       setInputTCodeSerialPath(tcodeSerialPath);
       setInputTCodeBaudRate(String(tcodeBaudRate));
       setInputTCodeHost(tcodeWebsocketHost);
+      setInputTCodeUdpHost(tcodeUdpHost);
       setInputTCodePrecision(tcodePrecision);
       setUseCustomApiKey(!isUsingDefaultAppApiKey);
     });
@@ -4522,6 +4528,7 @@ function HardwareSettingsCard({
     tcodePrecision,
     tcodeSerialPath,
     tcodeTransport,
+    tcodeUdpHost,
     tcodeWebsocketHost,
   ]);
 
@@ -4556,6 +4563,7 @@ function HardwareSettingsCard({
         serialPath: inputTCodeSerialPath,
         baudRate: normalizeTCodeBaudRate(inputTCodeBaudRate),
         websocketInput: inputTCodeHost,
+        udpInput: inputTCodeUdpHost,
         precision: inputTCodePrecision,
       });
       return;
@@ -4586,6 +4594,14 @@ function HardwareSettingsCard({
       return normalizeTCodeWebSocketInput(inputTCodeHost).url;
     } catch {
       return DEFAULT_TCODE_WEBSOCKET_URL;
+    }
+  })();
+
+  const tcodeDerivedUdpEndpoint = (() => {
+    try {
+      return `udp://${normalizeTCodeUdpInput(inputTCodeUdpHost).endpoint}`;
+    } catch {
+      return `udp://${DEFAULT_TCODE_UDP_HOST}:${DEFAULT_TCODE_UDP_PORT}`;
     }
   })();
 
@@ -4859,7 +4875,7 @@ function HardwareSettingsCard({
                   </p>
                 </div>
 
-                <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                <div className="mb-4 grid gap-2 sm:grid-cols-3">
                   <button
                     type="button"
                     disabled={isConnecting}
@@ -4871,6 +4887,18 @@ function HardwareSettingsCard({
                     }`}
                   >
                     <Trans>WebSocket</Trans>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isConnecting}
+                    onClick={() => setInputTCodeTransport("udp")}
+                    className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] transition-colors disabled:opacity-50 ${
+                      inputTCodeTransport === "udp"
+                        ? "border-emerald-300/60 bg-emerald-500/25 text-emerald-100"
+                        : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
+                    }`}
+                  >
+                    <Trans>UDP</Trans>
                   </button>
                   <button
                     type="button"
@@ -4889,33 +4917,7 @@ function HardwareSettingsCard({
                   </button>
                 </div>
 
-                {inputTCodeTransport === "websocket" ? (
-                  <div className="flex flex-col gap-2">
-                    <label
-                      className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
-                      htmlFor="settings-tcode-host"
-                    >
-                      <Trans>Device IP / Host</Trans>
-                    </label>
-                    <input
-                      id="settings-tcode-host"
-                      type="text"
-                      value={inputTCodeHost}
-                      onChange={(event) => setInputTCodeHost(event.target.value)}
-                      placeholder={DEFAULT_TCODE_WEBSOCKET_HOST}
-                      disabled={isConnecting}
-                      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
-                    />
-                    <p className="ml-1 text-xs text-zinc-400">
-                      <Trans>Derived WebSocket URL</Trans>: {tcodeDerivedUrl}
-                    </p>
-                    {tcodeWebsocketUrl ? (
-                      <p className="ml-1 text-xs text-emerald-100">
-                        <Trans>Saved TCode URL</Trans>: {tcodeWebsocketUrl}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
+                {inputTCodeTransport === "serial" ? (
                   <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
                     <div className="flex flex-col gap-2">
                       <label
@@ -4975,6 +4977,58 @@ function HardwareSettingsCard({
                         className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
                       />
                     </div>
+                  </div>
+                ) : inputTCodeTransport === "udp" ? (
+                  <div className="flex flex-col gap-2">
+                    <label
+                      className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                      htmlFor="settings-tcode-udp-host"
+                    >
+                      <Trans>Device IP / Host</Trans>
+                    </label>
+                    <input
+                      id="settings-tcode-udp-host"
+                      type="text"
+                      value={inputTCodeUdpHost}
+                      onChange={(event) => setInputTCodeUdpHost(event.target.value)}
+                      placeholder={`${DEFAULT_TCODE_UDP_HOST}:${DEFAULT_TCODE_UDP_PORT}`}
+                      disabled={isConnecting}
+                      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+                    />
+                    <p className="ml-1 text-xs text-zinc-400">
+                      <Trans>Derived UDP endpoint</Trans>: {tcodeDerivedUdpEndpoint}
+                    </p>
+                    {tcodeUdpHost ? (
+                      <p className="ml-1 text-xs text-emerald-100">
+                        <Trans>Saved UDP endpoint</Trans>: {tcodeUdpHost}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <label
+                      className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                      htmlFor="settings-tcode-host"
+                    >
+                      <Trans>Device IP / Host</Trans>
+                    </label>
+                    <input
+                      id="settings-tcode-host"
+                      type="text"
+                      value={inputTCodeHost}
+                      onChange={(event) => setInputTCodeHost(event.target.value)}
+                      placeholder={DEFAULT_TCODE_WEBSOCKET_HOST}
+                      disabled={isConnecting}
+                      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+                    />
+                    <p className="ml-1 text-xs text-zinc-400">
+                      <Trans>Derived WebSocket URL</Trans>: {tcodeDerivedUrl}
+                    </p>
+                    {tcodeWebsocketUrl ? (
+                      <p className="ml-1 text-xs text-emerald-100">
+                        <Trans>Saved TCode URL</Trans>: {tcodeWebsocketUrl}
+                      </p>
+                    ) : null}
                   </div>
                 )}
 

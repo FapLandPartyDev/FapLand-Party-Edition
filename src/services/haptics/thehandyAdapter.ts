@@ -76,16 +76,18 @@ function getProcessedActions(
   config: HapticsConnectionConfig,
   session: TheHandyHapticsSession,
   sourceId: string,
-  actions: FunscriptAction[]
+  actions: FunscriptAction[],
+  playbackRate = 1
 ): { sourceId: string; actions: FunscriptAction[] } {
   const handyConfig = requireTheHandyConfig(config);
   const enabled = handyConfig.funscriptRateLimitEnabled !== false;
+  const normalizedPlaybackRate = Math.max(0.25, Math.min(3, playbackRate));
   const sourceFingerprint = getFunscriptActionsFingerprint(actions);
-  const key = `${sourceId}:${sourceFingerprint}:rate-limit=${enabled}:max-rate=${handyConfig.funscriptMaxRate}:epsilon=${handyConfig.funscriptRdpEpsilon}`;
+  const key = `${sourceId}:${sourceFingerprint}:rate-limit=${enabled}:max-rate=${handyConfig.funscriptMaxRate}:epsilon=${handyConfig.funscriptRdpEpsilon}:playback-rate=${normalizedPlaybackRate}`;
   if (session.processedActionsKey !== key || !session.processedActions) {
     const result = processFunscriptTrajectory(actions, {
       enabled,
-      playbackRate: 1,
+      playbackRate: normalizedPlaybackRate,
       strokeSpanPercent: 100,
       maxRate: handyConfig.funscriptMaxRate,
       rdpEpsilon: handyConfig.funscriptRdpEpsilon,
@@ -98,12 +100,12 @@ function getProcessedActions(
       processedActions: result.actions.length,
       clampedActions: result.clampedActionCount,
       maximumSourceRate: Math.round(result.maximumSourceRate),
-      playbackRate: 1,
+      playbackRate: normalizedPlaybackRate,
       strokeSpanPercent: 100,
     });
   }
   return {
-    sourceId: `${sourceId}:rate-limit=${enabled}:max-rate=${handyConfig.funscriptMaxRate}:epsilon=${handyConfig.funscriptRdpEpsilon}:${getFunscriptActionsFingerprint(session.processedActions)}`,
+    sourceId: `${sourceId}:rate-limit=${enabled}:max-rate=${handyConfig.funscriptMaxRate}:epsilon=${handyConfig.funscriptRdpEpsilon}:playback-rate=${normalizedPlaybackRate}:${getFunscriptActionsFingerprint(session.processedActions)}`,
     actions: session.processedActions,
   };
 }
@@ -140,7 +142,7 @@ export const thehandyAdapter: HapticsRuntimeAdapter<TheHandyHapticsSession> = {
   },
 
   async sendSync(config, session, timeMs, playbackRate, sourceId, actions, options): Promise<void> {
-    const processed = getProcessedActions(config, session, sourceId, actions);
+    const processed = getProcessedActions(config, session, sourceId, actions, playbackRate);
     await runDeviceOperation(config, () =>
       sendHspSync(
         toAuth(config),

@@ -91,11 +91,13 @@ function resolveArchiveResourceUri(resourceUri: string, archiveEntryPath: string
 }
 
 function acquisitionReviewUrls(source: {
-  kind: "torrent" | "mega";
+  kind: "torrent" | "mega" | "pixeldrain";
   publicUrl?: string;
   magnetUri?: string;
 }): string[] {
-  if (source.kind === "mega") return source.publicUrl ? [source.publicUrl] : [];
+  if (source.kind === "mega" || source.kind === "pixeldrain") {
+    return source.publicUrl ? [source.publicUrl] : [];
+  }
   try {
     return source.magnetUri ? new URL(source.magnetUri).searchParams.getAll("tr") : [];
   } catch {

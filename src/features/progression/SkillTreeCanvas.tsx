@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -23,6 +24,17 @@ import {
   type SkillNodeState,
   type SkillTreeLayout,
 } from "./skillTree";
+import {
+  clampSkillTreeScale,
+  createLatestFrameScheduler,
+  getReadableSkillTreeScale,
+  measureSkillTreeViewport,
+  skillTreeScreenDeltaToWorld,
+  skillTreeScreenToWorld,
+  zoomSkillTreeAt,
+  type SkillTreeCamera,
+  type SkillTreeViewport,
+} from "./skillTreeCamera";
 
 export type CameraRequest = {
   x: number;
@@ -51,10 +63,6 @@ export type SkillTreeCanvasProps = {
   onRecenter: () => void;
 };
 
-const MIN_SCALE = 0.5;
-/** On-screen pixels per world unit used for the default, readable framing. */
-const READABLE_PX_PER_UNIT = 0.95;
-const MAX_SCALE = 2.4;
 const NODE_STATE_OPACITY: Record<SkillNodeState, number> = {
   locked: 0.4,
   available: 1,
@@ -71,10 +79,6 @@ function prefersReducedMotion(): boolean {
     typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true
   );
-}
-
-function clampScale(scale: number): number {
-  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
 }
 
 export function SkillTreeCanvas({
@@ -96,9 +100,19 @@ export function SkillTreeCanvas({
   onRecenter,
 }: SkillTreeCanvasProps) {
   const { t } = useLingui();
+  const canvasRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const cameraGroupRef = useRef<SVGGElement | null>(null);
-  const cameraRef = useRef({ x: 0, y: 0, scale: 1 });
+  const cameraRef = useRef<SkillTreeCamera>({ x: 0, y: 0, scale: 1 });
+  const queuedCameraRef = useRef<SkillTreeCamera | null>(null);
+  const viewportRef = useRef<SkillTreeViewport | null>(null);
+  const initialCameraAppliedRef = useRef(false);
+  const cameraSchedulerRef = useRef<ReturnType<
+    typeof createLatestFrameScheduler<SkillTreeCamera>
+  > | null>(null);
+  const cameraAnimationFrameRef = useRef(0);
+  const wheelSettledTimeoutRef = useRef(0);
+  const movementReasonsRef = useRef(new Set<"drag" | "wheel" | "animation">());
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const cursorRef = useRef({ x: 0, y: 0, flip: false });
   const dragRef = useRef<{ pointerId: number; clientX: number; clientY: number; moved: boolean }>({
@@ -144,21 +158,30 @@ export function SkillTreeCanvas({
    * A whole-tree fit is unreadable on short screens, so the first framing zooms
    * to a fixed on-screen node size instead. `scale: 0` asks for that framing.
    */
-  const measureRendered = useCallback((): number => {
-    const rect = svgRef.current?.getBoundingClientRect();
-    return rect ? Math.min(rect.width, rect.height) : 0;
+  const updateViewportMeasurement = useCallback((): SkillTreeViewport | null => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const viewport = measureSkillTreeViewport(svg.getBoundingClientRect());
+    viewportRef.current = viewport;
+    return viewport;
   }, []);
 
-  const getReadableScale = useCallback((): number => {
-    const rendered = measureRendered();
-    if (rendered <= 0) return 1.4;
-    return clampScale((TREE_VIEWBOX.size * READABLE_PX_PER_UNIT) / rendered);
-  }, [measureRendered]);
+  const setCameraMoving = useCallback(
+    (reason: "drag" | "wheel" | "animation", moving: boolean): void => {
+      if (moving) movementReasonsRef.current.add(reason);
+      else movementReasonsRef.current.delete(reason);
+      canvasRef.current?.classList.toggle(
+        "skill-tree-camera-moving",
+        movementReasonsRef.current.size > 0
+      );
+    },
+    []
+  );
 
-  // Camera movement is deliberately kept outside React state. Panning and animated
-  // zooming can run at pointer/animation-frame frequency without reconciling the
-  // entire (filter-heavy) SVG tree on every frame.
-  const applyCamera = useCallback((next: { x: number; y: number; scale: number }): void => {
+  // Camera movement stays outside React state so the filter-heavy tree is never
+  // reconciled at pointer frequency.
+  const commitCamera = useCallback((next: SkillTreeCamera): void => {
+    queuedCameraRef.current = null;
     cameraRef.current = next;
     cameraGroupRef.current?.setAttribute(
       "transform",
@@ -166,20 +189,63 @@ export function SkillTreeCanvas({
     );
   }, []);
 
-  useEffect(() => {
-    let frame = 0;
+  useLayoutEffect(() => {
+    const scheduler = createLatestFrameScheduler<SkillTreeCamera>(
+      requestAnimationFrame,
+      cancelAnimationFrame,
+      commitCamera
+    );
+    cameraSchedulerRef.current = scheduler;
+    return () => {
+      scheduler.cancel();
+      cameraSchedulerRef.current = null;
+    };
+  }, [commitCamera]);
+
+  const scheduleCamera = useCallback((next: SkillTreeCamera): void => {
+    queuedCameraRef.current = next;
+    cameraSchedulerRef.current?.schedule(next);
+  }, []);
+
+  const flushScheduledCamera = useCallback((): void => {
+    cameraSchedulerRef.current?.flush();
+  }, []);
+
+  useLayoutEffect(() => {
+    updateViewportMeasurement();
+    const svg = svgRef.current;
+    if (!svg || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(updateViewportMeasurement);
+    observer.observe(svg);
+    return () => observer.disconnect();
+  }, [updateViewportMeasurement]);
+
+  useLayoutEffect(() => {
+    flushScheduledCamera();
+    if (cameraAnimationFrameRef.current !== 0) {
+      cancelAnimationFrame(cameraAnimationFrameRef.current);
+      cameraAnimationFrameRef.current = 0;
+    }
+    const viewport = viewportRef.current ?? updateViewportMeasurement();
     const target = {
       x: cameraRequest.x,
       y: cameraRequest.y,
-      scale: cameraRequest.scale <= 0 ? getReadableScale() : clampScale(cameraRequest.scale),
+      scale:
+        cameraRequest.scale <= 0
+          ? getReadableSkillTreeScale(viewport?.rendered ?? 0)
+          : clampSkillTreeScale(cameraRequest.scale),
     };
-    // Nothing to glide over without a measurable canvas, and reduced motion opts out.
-    if (measureRendered() <= 0 || prefersReducedMotion()) {
-      frame = requestAnimationFrame(() => applyCamera(target));
-      return () => cancelAnimationFrame(frame);
+    // The initial frame must be immediately usable. Later navigation requests retain
+    // their glide animation unless the user requested reduced motion.
+    if (!initialCameraAppliedRef.current || !viewport || prefersReducedMotion()) {
+      initialCameraAppliedRef.current = true;
+      commitCamera(target);
+      setCameraMoving("animation", false);
+      return;
     }
+    setCameraMoving("animation", true);
     const step = (): void => {
-      const current = cameraRef.current;
+      const current = queuedCameraRef.current ?? cameraRef.current;
       const next = {
         x: current.x + (target.x - current.x) * 0.18,
         y: current.y + (target.y - current.y) * 0.18,
@@ -189,61 +255,95 @@ export function SkillTreeCanvas({
         Math.abs(target.x - next.x) < 0.5 &&
         Math.abs(target.y - next.y) < 0.5 &&
         Math.abs(target.scale - next.scale) < 0.002;
-      applyCamera(settled ? target : next);
-      if (!settled) frame = requestAnimationFrame(step);
+      commitCamera(settled ? target : next);
+      if (settled) {
+        cameraAnimationFrameRef.current = 0;
+        setCameraMoving("animation", false);
+      } else {
+        cameraAnimationFrameRef.current = requestAnimationFrame(step);
+      }
     };
-    frame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame);
-  }, [applyCamera, cameraRequest, getReadableScale, measureRendered]);
+    cameraAnimationFrameRef.current = requestAnimationFrame(step);
+    return () => {
+      if (cameraAnimationFrameRef.current !== 0) {
+        cancelAnimationFrame(cameraAnimationFrameRef.current);
+        cameraAnimationFrameRef.current = 0;
+      }
+      setCameraMoving("animation", false);
+    };
+  }, [
+    cameraRequest,
+    commitCamera,
+    flushScheduledCamera,
+    setCameraMoving,
+    updateViewportMeasurement,
+  ]);
 
-  const screenToWorld = useCallback(
-    (clientX: number, clientY: number): { x: number; y: number } | null => {
-      const rect = svgRef.current?.getBoundingClientRect();
-      if (!rect || rect.width <= 0 || rect.height <= 0) return null;
-      const rendered = Math.min(rect.width, rect.height);
-      const unit = TREE_VIEWBOX.size / rendered;
-      const viewX = TREE_VIEWBOX.minX + (clientX - rect.left - (rect.width - rendered) / 2) * unit;
-      const viewY = TREE_VIEWBOX.minY + (clientY - rect.top - (rect.height - rendered) / 2) * unit;
-      const current = cameraRef.current;
-      return { x: viewX / current.scale + current.x, y: viewY / current.scale + current.y };
+  useEffect(
+    () => () => {
+      if (cameraAnimationFrameRef.current !== 0) {
+        cancelAnimationFrame(cameraAnimationFrameRef.current);
+      }
+      if (wheelSettledTimeoutRef.current !== 0) {
+        window.clearTimeout(wheelSettledTimeoutRef.current);
+      }
     },
     []
   );
 
-  const screenDeltaToWorld = useCallback((deltaX: number, deltaY: number) => {
-    const rect = svgRef.current?.getBoundingClientRect();
-    const rendered = rect && rect.width > 0 ? Math.min(rect.width, rect.height) : TREE_VIEWBOX.size;
-    const unit = TREE_VIEWBOX.size / rendered / cameraRef.current.scale;
-    return { x: deltaX * unit, y: deltaY * unit };
-  }, []);
+  const screenToWorld = useCallback(
+    (
+      clientX: number,
+      clientY: number,
+      camera: SkillTreeCamera = cameraRef.current
+    ): { x: number; y: number } | null => {
+      const viewport = viewportRef.current;
+      return viewport ? skillTreeScreenToWorld(clientX, clientY, viewport, camera) : null;
+    },
+    []
+  );
+
+  const screenDeltaToWorld = useCallback(
+    (deltaX: number, deltaY: number, camera: SkillTreeCamera) => {
+      const viewport = viewportRef.current;
+      return viewport
+        ? skillTreeScreenDeltaToWorld(deltaX, deltaY, viewport, camera)
+        : { x: deltaX, y: deltaY };
+    },
+    []
+  );
 
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
     const handleWheel = (event: WheelEvent): void => {
       event.preventDefault();
-      const current = cameraRef.current;
-      const nextScale = clampScale(current.scale * (event.deltaY > 0 ? 0.88 : 1.14));
+      const current = queuedCameraRef.current ?? cameraRef.current;
+      const nextScale = clampSkillTreeScale(current.scale * (event.deltaY > 0 ? 0.88 : 1.14));
       if (nextScale === current.scale) return;
-      const anchor = screenToWorld(event.clientX, event.clientY);
+      const anchor = screenToWorld(event.clientX, event.clientY, current);
+      setCameraMoving("wheel", true);
+      if (wheelSettledTimeoutRef.current !== 0) {
+        window.clearTimeout(wheelSettledTimeoutRef.current);
+      }
+      wheelSettledTimeoutRef.current = window.setTimeout(() => {
+        wheelSettledTimeoutRef.current = 0;
+        setCameraMoving("wheel", false);
+      }, 120);
       if (!anchor) {
-        applyCamera({ ...current, scale: nextScale });
+        scheduleCamera({ ...current, scale: nextScale });
         return;
       }
-      const viewX = (anchor.x - current.x) * current.scale;
-      const viewY = (anchor.y - current.y) * current.scale;
-      applyCamera({
-        x: anchor.x - viewX / nextScale,
-        y: anchor.y - viewY / nextScale,
-        scale: nextScale,
-      });
+      scheduleCamera(zoomSkillTreeAt(current, anchor, nextScale));
     };
     svg.addEventListener("wheel", handleWheel, { passive: false });
     return () => svg.removeEventListener("wheel", handleWheel);
-  }, [applyCamera, screenToWorld]);
+  }, [scheduleCamera, screenToWorld, setCameraMoving]);
 
   const handlePointerDown = (event: PointerEvent<SVGSVGElement>): void => {
     if (event.button !== 0) return;
+    flushScheduledCamera();
+    updateViewportMeasurement();
     dragRef.current = {
       pointerId: event.pointerId,
       clientX: event.clientX,
@@ -251,6 +351,7 @@ export function SkillTreeCanvas({
       moved: false,
     };
     setIsPanning(true);
+    setCameraMoving("drag", true);
   };
 
   const handlePointerMove = (event: PointerEvent<SVGSVGElement>): void => {
@@ -262,9 +363,9 @@ export function SkillTreeCanvas({
     drag.moved = true;
     drag.clientX = event.clientX;
     drag.clientY = event.clientY;
-    const worldDelta = screenDeltaToWorld(deltaX, deltaY);
-    const previous = cameraRef.current;
-    applyCamera({
+    const previous = queuedCameraRef.current ?? cameraRef.current;
+    const worldDelta = screenDeltaToWorld(deltaX, deltaY, previous);
+    scheduleCamera({
       x: previous.x - worldDelta.x,
       y: previous.y - worldDelta.y,
       scale: previous.scale,
@@ -274,12 +375,15 @@ export function SkillTreeCanvas({
   const endPointer = (event: PointerEvent<SVGSVGElement>): void => {
     if (dragRef.current.pointerId !== event.pointerId) return;
     dragRef.current.pointerId = -1;
+    flushScheduledCamera();
     setIsPanning(false);
+    setCameraMoving("drag", false);
   };
 
   const zoomBy = (factor: number): void => {
+    flushScheduledCamera();
     const previous = cameraRef.current;
-    applyCamera({ ...previous, scale: clampScale(previous.scale * factor) });
+    commitCamera({ ...previous, scale: clampSkillTreeScale(previous.scale * factor) });
   };
 
   const moveTooltip = (x: number, y: number, flip: boolean): void => {
@@ -471,7 +575,10 @@ export function SkillTreeCanvas({
   const hoveredNode = hoveredSkillId ? layout.nodeById.get(hoveredSkillId) : null;
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_center,rgba(76,29,149,0.28),rgba(3,2,12,0.94)_70%)]">
+    <div
+      ref={canvasRef}
+      className="skill-tree-canvas relative h-full w-full overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_center,rgba(76,29,149,0.28),rgba(3,2,12,0.94)_70%)]"
+    >
       <svg
         ref={svgRef}
         viewBox={`${TREE_VIEWBOX.minX} ${TREE_VIEWBOX.minY} ${TREE_VIEWBOX.size} ${TREE_VIEWBOX.size}`}

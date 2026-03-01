@@ -38,7 +38,8 @@ export type TorrentLocator = {
   catalogUrl?: string;
 };
 export type MegaLocator = { publicUrl: string };
-export type AcquisitionLocator = TorrentLocator | MegaLocator;
+export type PixeldrainLocator = { publicUrl: string; directoryId: string };
+export type AcquisitionLocator = TorrentLocator | MegaLocator | PixeldrainLocator;
 
 export type CatalogFile = {
   path: string;

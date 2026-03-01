@@ -25,6 +25,7 @@ import {
   DEFAULT_TCODE_BAUD_RATE,
   DEFAULT_TCODE_PRECISION,
   DEFAULT_TCODE_TRANSPORT,
+  DEFAULT_TCODE_UDP_HOST,
   DEFAULT_TCODE_WEBSOCKET_HOST,
   DEFAULT_TCODE_WEBSOCKET_URL,
   HAPTICS_PROVIDER_STORE_KEY,
@@ -42,6 +43,7 @@ import {
   TCODE_PRECISION_STORE_KEY,
   TCODE_SERIAL_PATH_STORE_KEY,
   TCODE_TRANSPORT_STORE_KEY,
+  TCODE_UDP_HOST_STORE_KEY,
   TCODE_WEBSOCKET_HOST_STORE_KEY,
   TCODE_WEBSOCKET_URL_STORE_KEY,
   HAPTICS_DEVICE_SLOTS_STORE_KEY,
@@ -82,6 +84,7 @@ import {
   normalizeTCodeBaudRate,
   normalizeTCodePrecision,
   normalizeTCodeTransport,
+  normalizeTCodeUdpInput,
   normalizeTCodeWebSocketInput,
 } from "../services/haptics/tcodeConfig";
 import type {
@@ -121,6 +124,7 @@ type HapticsContextType = {
   tcodeBaudRate: number;
   tcodeWebsocketHost: string;
   tcodeWebsocketUrl: string;
+  tcodeUdpHost: string;
   tcodePrecision: TCodePrecision;
   tcodeAxis: TCodeAxis;
   tcodeSerialPorts: Array<{ path: string; manufacturer: string | null }>;
@@ -151,6 +155,7 @@ type HapticsContextType = {
       serialPath: string;
       baudRate: number;
       websocketInput: string;
+      udpInput: string;
       precision: TCodePrecision;
       axis: TCodeAxis;
     }>
@@ -202,7 +207,10 @@ function normalizeDeviceSlots(value: unknown): DeviceSlotConfig[] {
             funscriptMaxRate: normalizeFunscriptMaxRate(config.funscriptMaxRate),
             funscriptRdpEpsilon: normalizeFunscriptRdpEpsilon(config.funscriptRdpEpsilon),
           }
-        : config;
+        : {
+            ...config,
+            udpHost: typeof config.udpHost === "string" ? config.udpHost : "",
+          };
     return [
       {
         id: candidate.id,
@@ -275,6 +283,7 @@ async function loadFromStore(): Promise<{
   tcodeBaudRate: number;
   tcodeWebsocketHost: string;
   tcodeWebsocketUrl: string;
+  tcodeUdpHost: string;
   tcodePrecision: TCodePrecision;
   tcodeAxis: TCodeAxis;
   offsetMs: number;
@@ -301,6 +310,7 @@ async function loadFromStore(): Promise<{
       tcodeBaudRate,
       tcodeWebsocketHost,
       tcodeWebsocketUrl,
+      tcodeUdpHost,
       tcodePrecision,
       tcodeAxis,
       offsetMs,
@@ -325,6 +335,7 @@ async function loadFromStore(): Promise<{
       trpc.store.get.query({ key: TCODE_BAUD_RATE_STORE_KEY }),
       trpc.store.get.query({ key: TCODE_WEBSOCKET_HOST_STORE_KEY }),
       trpc.store.get.query({ key: TCODE_WEBSOCKET_URL_STORE_KEY }),
+      trpc.store.get.query({ key: TCODE_UDP_HOST_STORE_KEY }),
       trpc.store.get.query({ key: TCODE_PRECISION_STORE_KEY }),
       trpc.store.get.query({ key: TCODE_AXIS_STORE_KEY }),
       trpc.store.get.query({ key: THEHANDY_OFFSET_MS_STORE_KEY }),
@@ -364,6 +375,7 @@ async function loadFromStore(): Promise<{
       tcodeBaudRate: normalizeTCodeBaudRate(tcodeBaudRate),
       tcodeWebsocketHost: savedTCodeWebSocket.host,
       tcodeWebsocketUrl: savedTCodeWebSocket.url,
+      tcodeUdpHost: normalizeTCodeUdpInput(tcodeUdpHost).host,
       tcodePrecision: normalizeTCodePrecision(tcodePrecision),
       tcodeAxis: normalizeTCodeAxis(tcodeAxis),
       offsetMs: normalizeHandyOffsetMs(offsetMs),
@@ -391,6 +403,7 @@ async function loadFromStore(): Promise<{
       tcodeBaudRate: DEFAULT_TCODE_BAUD_RATE,
       tcodeWebsocketHost: DEFAULT_TCODE_WEBSOCKET_HOST,
       tcodeWebsocketUrl: DEFAULT_TCODE_WEBSOCKET_URL,
+      tcodeUdpHost: DEFAULT_TCODE_UDP_HOST,
       tcodePrecision: DEFAULT_TCODE_PRECISION,
       tcodeAxis: DEFAULT_TCODE_AXIS,
       offsetMs: 0,
@@ -493,6 +506,7 @@ async function saveTCodeToStore(input: {
   baudRate: number;
   websocketHost: string;
   websocketUrl: string;
+  udpHost: string;
   precision: TCodePrecision;
   axis: TCodeAxis;
 }): Promise<void> {
@@ -503,6 +517,7 @@ async function saveTCodeToStore(input: {
       trpc.store.set.mutate({ key: TCODE_BAUD_RATE_STORE_KEY, value: input.baudRate }),
       trpc.store.set.mutate({ key: TCODE_WEBSOCKET_HOST_STORE_KEY, value: input.websocketHost }),
       trpc.store.set.mutate({ key: TCODE_WEBSOCKET_URL_STORE_KEY, value: input.websocketUrl }),
+      trpc.store.set.mutate({ key: TCODE_UDP_HOST_STORE_KEY, value: input.udpHost }),
       trpc.store.set.mutate({ key: TCODE_PRECISION_STORE_KEY, value: input.precision }),
       trpc.store.set.mutate({ key: TCODE_AXIS_STORE_KEY, value: input.axis }),
     ]);
@@ -547,6 +562,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [tcodeBaudRate, setTCodeBaudRate] = useState(DEFAULT_TCODE_BAUD_RATE);
   const [tcodeWebsocketHost, setTCodeWebsocketHost] = useState(DEFAULT_TCODE_WEBSOCKET_HOST);
   const [tcodeWebsocketUrl, setTCodeWebsocketUrl] = useState(DEFAULT_TCODE_WEBSOCKET_URL);
+  const [tcodeUdpHost, setTCodeUdpHost] = useState(DEFAULT_TCODE_UDP_HOST);
   const [tcodePrecision, setTCodePrecision] = useState<TCodePrecision>(DEFAULT_TCODE_PRECISION);
   const [tcodeAxis, setTCodeAxis] = useState<TCodeAxis>(DEFAULT_TCODE_AXIS);
   const [tcodeSerialPorts, setTCodeSerialPorts] = useState<
@@ -611,7 +627,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
         return candidate.transport === "serial"
           ? `tcode:serial:${candidate.serialPath.trim()}`
-          : `tcode:websocket:${candidate.websocketUrl.trim()}`;
+          : candidate.transport === "udp"
+            ? `tcode:udp:${candidate.udpHost.trim()}`
+            : `tcode:websocket:${candidate.websocketUrl.trim()}`;
       };
       const key = identity(config);
       const nextStroke = normalizeHandyStrokeState(input?.stroke ?? strokeState);
@@ -688,6 +706,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setTCodeBaudRate(slot.config.baudRate);
         setTCodeWebsocketHost(slot.config.websocketHost);
         setTCodeWebsocketUrl(slot.config.websocketUrl);
+        setTCodeUdpHost(slot.config.udpHost);
         setTCodePrecision(slot.config.precision);
         setTCodeAxis(slot.config.axis);
       }
@@ -792,6 +811,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         tcodeBaudRate: number;
         tcodeWebsocketHost: string;
         tcodeWebsocketUrl: string;
+        tcodeUdpHost: string;
         tcodePrecision: TCodePrecision;
         tcodeAxis: TCodeAxis;
         strokeState: HandyStrokeState;
@@ -821,6 +841,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           baudRate: override?.tcodeBaudRate ?? tcodeBaudRate,
           websocketHost: override?.tcodeWebsocketHost ?? tcodeWebsocketHost,
           websocketUrl: override?.tcodeWebsocketUrl ?? tcodeWebsocketUrl,
+          udpHost: override?.tcodeUdpHost ?? tcodeUdpHost,
           precision: override?.tcodePrecision ?? tcodePrecision,
           axis: override?.tcodeAxis ?? tcodeAxis,
           stroke: override?.strokeState ?? strokeState,
@@ -860,6 +881,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       tcodePrecision,
       tcodeSerialPath,
       tcodeTransport,
+      tcodeUdpHost,
       tcodeWebsocketHost,
       tcodeWebsocketUrl,
     ]
@@ -927,6 +949,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         tcodeBaudRate: savedTCodeBaudRate,
         tcodeWebsocketHost: savedTCodeWebsocketHost,
         tcodeWebsocketUrl: savedTCodeWebsocketUrl,
+        tcodeUdpHost: savedTCodeUdpHost,
         tcodePrecision: savedTCodePrecision,
         tcodeAxis: savedTCodeAxis,
         offsetMs: savedOffsetMs,
@@ -952,6 +975,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setTCodeBaudRate(savedTCodeBaudRate);
         setTCodeWebsocketHost(savedTCodeWebsocketHost);
         setTCodeWebsocketUrl(savedTCodeWebsocketUrl);
+        setTCodeUdpHost(savedTCodeUdpHost);
         setTCodePrecision(savedTCodePrecision);
         setTCodeAxis(savedTCodeAxis);
         setGlobalOffsetMs(savedOffsetMs);
@@ -1025,6 +1049,10 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             setConnected(false);
             return;
           }
+          if (savedTCodeTransport === "udp" && !savedTCodeUdpHost) {
+            setConnected(false);
+            return;
+          }
         }
 
         setIsConnecting(true);
@@ -1055,6 +1083,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     baudRate: savedTCodeBaudRate,
                     websocketHost: savedTCodeWebsocketHost,
                     websocketUrl: savedTCodeWebsocketUrl,
+                    udpHost: savedTCodeUdpHost,
                     precision: savedTCodePrecision,
                     axis: savedTCodeAxis,
                     stroke: DEFAULT_STROKE_STATE,
@@ -1380,6 +1409,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         serialPath: string;
         baudRate: number;
         websocketInput: string;
+        udpInput: string;
         precision: TCodePrecision;
         axis: TCodeAxis;
       }>
@@ -1401,6 +1431,14 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setConnected(false);
         return false;
       }
+      let nextUdp: { host: string };
+      try {
+        nextUdp = normalizeTCodeUdpInput(input?.udpInput ?? tcodeUdpHost);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Invalid TCode UDP address.");
+        setConnected(false);
+        return false;
+      }
 
       setIsConnecting(true);
       setProviderState("tcode");
@@ -1413,6 +1451,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setTCodeBaudRate(nextBaudRate);
       setTCodeWebsocketHost(nextWebSocket.host);
       setTCodeWebsocketUrl(nextWebSocket.url);
+      setTCodeUdpHost(nextUdp.host);
       setTCodePrecision(nextPrecision);
       setTCodeAxis(nextAxis);
       await saveProviderToStore("tcode");
@@ -1422,6 +1461,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         baudRate: nextBaudRate,
         websocketHost: nextWebSocket.host,
         websocketUrl: nextWebSocket.url,
+        udpHost: nextUdp.host,
         precision: nextPrecision,
         axis: nextAxis,
       });
@@ -1434,6 +1474,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           baudRate: nextBaudRate,
           websocketHost: nextWebSocket.host,
           websocketUrl: nextWebSocket.url,
+          udpHost: nextUdp.host,
           precision: nextPrecision,
           axis: nextAxis,
           stroke: strokeState,
@@ -1449,6 +1490,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
             baudRate: nextBaudRate,
             websocketHost: nextWebSocket.host,
             websocketUrl: nextWebSocket.url,
+            udpHost: nextUdp.host,
             precision: nextPrecision,
             axis: nextAxis,
             stroke: strokeState,
@@ -1478,6 +1520,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       tcodePrecision,
       tcodeSerialPath,
       tcodeTransport,
+      tcodeUdpHost,
       tcodeWebsocketHost,
       tcodeWebsocketUrl,
     ]
@@ -1651,6 +1694,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       baudRate: tcodeBaudRate,
       websocketHost: tcodeWebsocketHost,
       websocketUrl: tcodeWebsocketUrl,
+      udpHost: tcodeUdpHost,
       precision: tcodePrecision,
       axis: tcodeAxis,
     });
@@ -1670,6 +1714,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     tcodePrecision,
     tcodeSerialPath,
     tcodeTransport,
+    tcodeUdpHost,
     tcodeWebsocketHost,
     tcodeWebsocketUrl,
   ]);
@@ -1898,6 +1943,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       tcodeBaudRate,
       tcodeWebsocketHost,
       tcodeWebsocketUrl,
+      tcodeUdpHost,
       tcodePrecision,
       tcodeAxis,
       tcodeSerialPorts,
@@ -1969,6 +2015,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       tcodeBaudRate,
       tcodeWebsocketHost,
       tcodeWebsocketUrl,
+      tcodeUdpHost,
       tcodePrecision,
       tcodeAxis,
       tcodeSerialPorts,

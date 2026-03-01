@@ -1,7 +1,7 @@
 # Default acquisition sources
 #
 # Format: kind | display name | public locator | optional catalog URL
-# Supported kinds: torrent, mega
+# Supported kinds: torrent, mega, pixeldrain
 # Torrent locators must be public magnets. The optional catalog URL may point to
 # a public .torrent file or a supported Nyaa/Sukebei detail page.
 
@@ -14,3 +14,4 @@ mega | 2022 Archive 2 | https://mega.nz/folder/UDVFVQDB#u5eRWN-kwq_FwPpnxIasWQ
 mega | 2023 Archive 1 | https://mega.nz/folder/I7Nh0BBZ#BJBhacZE4gzv8hD3fl8o4g
 mega | 2023 Archive 2 | https://mega.nz/folder/RjEUyAwB#VApn2MIrI6ENJHTJtWj8zw
 mega | 2024 Archive | https://mega.nz/folder/MM5WES6Z#CwWFbS55ZIchAvjVW7chPQ
+pixeldrain | Fap Hero Archive | https://pixeldrain.com/d/p846c1yg

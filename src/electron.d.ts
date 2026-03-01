@@ -71,6 +71,14 @@ declare global {
           productId: string | null;
         } | null>;
       };
+      tcodeUdp?: {
+        connect: (input: { host: string; port: number }) => Promise<{
+          success: boolean;
+          error?: string;
+        }>;
+        send: (command: string) => void;
+        disconnect: () => Promise<{ success: boolean }>;
+      };
       updates: {
         subscribe: (
           callback: (state: import("../electron/services/updater").AppUpdateState) => void

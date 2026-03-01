@@ -38,6 +38,9 @@ function requireTCodeConfig(
   if (config.transport === "websocket" && config.websocketUrl.trim().length === 0) {
     throw new Error("Enter a TCode WebSocket device IP address before connecting.");
   }
+  if (config.transport === "udp" && config.udpHost.trim().length === 0) {
+    throw new Error("Enter a TCode UDP device IP address before connecting.");
+  }
   return config;
 }
 
@@ -138,6 +141,7 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
         serialPath: tcodeConfig.serialPath,
         baudRate: tcodeConfig.baudRate,
         websocketUrl: tcodeConfig.websocketUrl,
+        udpHost: tcodeConfig.udpHost,
       });
       if (!result.success) {
         verificationResult = {
@@ -157,7 +161,9 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
               deviceName:
                 tcodeConfig.transport === "serial"
                   ? tcodeConfig.serialPath
-                  : tcodeConfig.websocketHost || tcodeConfig.websocketUrl,
+                  : tcodeConfig.transport === "udp"
+                    ? tcodeConfig.udpHost
+                    : tcodeConfig.websocketHost || tcodeConfig.websocketUrl,
             }
           : {
               success: false,
@@ -198,6 +204,7 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
       serialPath: tcodeConfig.serialPath,
       baudRate: tcodeConfig.baudRate,
       websocketUrl: tcodeConfig.websocketUrl,
+      udpHost: tcodeConfig.udpHost,
     });
     if (!result.success) {
       throw new Error(result.error ?? "Failed to connect to TCode device.");

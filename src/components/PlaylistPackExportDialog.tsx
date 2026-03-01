@@ -99,7 +99,9 @@ export function PlaylistPackExportDialog({
             setError(null);
             if (!userTouchedAcquisitionRef.current) {
               const hasProvenance =
-                (result.acquisition?.torrentSources ?? 0) + (result.acquisition?.megaSources ?? 0) >
+                (result.acquisition?.torrentSources ?? 0) +
+                  (result.acquisition?.megaSources ?? 0) +
+                  (result.acquisition?.pixeldrainSources ?? 0) >
                 0;
               setIncludeAcquisitionSources(hasProvenance);
             }
@@ -256,6 +258,7 @@ export function PlaylistPackExportDialog({
                           <Trans>
                             {analysis.acquisition.torrentSources} torrent sources,{" "}
                             {analysis.acquisition.megaSources} MEGA sources,{" "}
+                            {analysis.acquisition.pixeldrainSources} PixelDrain sources,{" "}
                             {analysis.acquisition.mappedFiles} mapped files
                           </Trans>
                         </p>

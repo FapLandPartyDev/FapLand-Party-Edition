@@ -2,10 +2,11 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assertPublicTracker,
   buildLibraryLinkTargets,
+  catalogPixeldrainFiles,
   damerauLevenshteinDistance,
   hasReachedSeedLimit,
   normalizeAcquisitionPath,
@@ -13,6 +14,10 @@ import {
   resolveTorrentDescriptorUrl,
   scoreAcquisitionFileName,
 } from "./index";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("acquisition safety and matching", () => {
   it("normalizes safe relative catalog paths and rejects traversal", () => {
@@ -46,6 +51,7 @@ describe("acquisition safety and matching", () => {
         # comment
         torrent | Collection | magnet:?xt=urn:btih:0123456789012345678901234567890123456789 | https://sukebei.nyaa.si/view/1
         mega | Archive | https://mega.nz/folder/example#key
+        pixeldrain | Deep Archive | https://pixeldrain.com/d/p846c1yg
       `)
     ).toEqual([
       {
@@ -59,6 +65,11 @@ describe("acquisition safety and matching", () => {
         name: "Archive",
         locator: "https://mega.nz/folder/example#key",
       },
+      {
+        kind: "pixeldrain",
+        name: "Deep Archive",
+        locator: "https://pixeldrain.com/d/p846c1yg",
+      },
     ]);
     expect(() =>
       parseDefaultAcquisitionSources("website | Unsupported | https://example.com")
@@ -71,9 +82,80 @@ describe("acquisition safety and matching", () => {
       "utf8"
     );
     const sources = parseDefaultAcquisitionSources(manifest);
-    expect(sources).toHaveLength(9);
+    expect(sources).toHaveLength(10);
     expect(sources.filter((source) => source.kind === "torrent")).toHaveLength(1);
     expect(sources.filter((source) => source.kind === "mega")).toHaveLength(8);
+    expect(sources.filter((source) => source.kind === "pixeldrain")).toEqual([
+      {
+        kind: "pixeldrain",
+        name: "Fap Hero Archive",
+        locator: "https://pixeldrain.com/d/p846c1yg",
+      },
+    ]);
+  });
+
+  it("catalogs videos recursively from PixelDrain and ignores other files", async () => {
+    const payloads = new Map<string, unknown>([
+      [
+        "https://pixeldrain.com/api/filesystem/p846c1yg?stat",
+        {
+          children: [
+            { type: "file", path: "/p846c1yg/readme.txt", name: "readme.txt", file_size: 10 },
+            { type: "dir", path: "/p846c1yg/archive", name: "archive" },
+          ],
+        },
+      ],
+      [
+        "https://pixeldrain.com/api/filesystem/p846c1yg/archive?stat",
+        {
+          children: [
+            { type: "dir", path: "/p846c1yg/archive/deep", name: "deep" },
+            {
+              type: "file",
+              path: "/p846c1yg/archive/poster.jpg",
+              name: "poster.jpg",
+              file_size: 20,
+            },
+          ],
+        },
+      ],
+      [
+        "https://pixeldrain.com/api/filesystem/p846c1yg/archive/deep?stat",
+        {
+          children: [
+            {
+              type: "file",
+              path: "/p846c1yg/archive/deep/round.mp4",
+              name: "round.mp4",
+              file_size: 1234,
+            },
+          ],
+        },
+      ],
+    ]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const payload = payloads.get(String(input));
+        return payload
+          ? new Response(JSON.stringify(payload), { status: 200 })
+          : new Response("missing", { status: 404 });
+      })
+    );
+
+    await expect(
+      catalogPixeldrainFiles({
+        publicUrl: "https://pixeldrain.com/d/p846c1yg",
+        directoryId: "p846c1yg",
+      })
+    ).resolves.toEqual([
+      {
+        path: "archive/deep/round.mp4",
+        name: "round.mp4",
+        sizeBytes: 1234,
+        mediaKind: "video",
+      },
+    ]);
   });
 
   it("ignores common release noise while scoring filenames", () => {

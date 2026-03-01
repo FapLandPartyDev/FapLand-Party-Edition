@@ -129,6 +129,27 @@ function mockWebSocket() {
   return instances;
 }
 
+const udpBridgeMocks = vi.hoisted(() => ({
+  connect: vi.fn(
+    async (): Promise<{ success: boolean; error?: string }> => ({ success: true })
+  ),
+  send: vi.fn(),
+  disconnect: vi.fn(async () => ({ success: true })),
+}));
+
+function mockTCodeUdpBridge() {
+  Object.defineProperty(globalThis.window, "electronAPI", {
+    value: {
+      tcodeUdp: {
+        connect: udpBridgeMocks.connect,
+        send: udpBridgeMocks.send,
+        disconnect: udpBridgeMocks.disconnect,
+      },
+    },
+    configurable: true,
+  });
+}
+
 describe("tcodeTransportRenderer", () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -349,5 +370,73 @@ describe("tcodeTransportRenderer", () => {
     expect(tcodeTransportRenderer.send("L05000\n")).toBe(true);
     expect(ws.sent).toEqual(["L05000\n"]);
     await tcodeTransportRenderer.disconnect();
+  });
+
+  it("connects and sends over udp via the electron bridge", async () => {
+    mockTCodeUdpBridge();
+    const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
+    const result = await tcodeTransportRenderer.connect({
+      transport: "udp",
+      udpHost: "192.168.4.1",
+    });
+    expect(result).toEqual({ success: true });
+    expect(udpBridgeMocks.connect).toHaveBeenCalledWith({ host: "192.168.4.1", port: 8000 });
+    expect(tcodeTransportRenderer.isConnected()).toBe(true);
+    expect(tcodeTransportRenderer.send("L05000\n")).toBe(true);
+    expect(udpBridgeMocks.send).toHaveBeenCalledWith("L05000\n");
+    await tcodeTransportRenderer.disconnect();
+    expect(udpBridgeMocks.disconnect).toHaveBeenCalled();
+    expect(tcodeTransportRenderer.isConnected()).toBe(false);
+  });
+
+  it("applies an explicit udp port from the host input", async () => {
+    mockTCodeUdpBridge();
+    const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
+    const result = await tcodeTransportRenderer.connect({
+      transport: "udp",
+      udpHost: "192.168.4.1:8081",
+    });
+    expect(result).toEqual({ success: true });
+    expect(udpBridgeMocks.connect).toHaveBeenCalledWith({ host: "192.168.4.1:8081", port: 8081 });
+    await tcodeTransportRenderer.disconnect();
+  });
+
+  it("fails udp connections without the desktop bridge", async () => {
+    const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
+    const result = await tcodeTransportRenderer.connect({
+      transport: "udp",
+      udpHost: "192.168.4.1",
+    });
+    expect(result).toMatchObject({ success: false, error: "TCode UDP requires the desktop app." });
+    expect(tcodeTransportRenderer.isConnected()).toBe(false);
+  });
+
+  it("rejects invalid udp hosts", async () => {
+    mockTCodeUdpBridge();
+    const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
+    const result = await tcodeTransportRenderer.connect({
+      transport: "udp",
+      udpHost: "not a host!",
+    });
+    expect(result).toMatchObject({ success: false });
+    expect(udpBridgeMocks.connect).not.toHaveBeenCalled();
+  });
+
+  it("surfaces udp bridge connect failures", async () => {
+    mockTCodeUdpBridge();
+    udpBridgeMocks.connect.mockResolvedValue({
+      success: false,
+      error: "Could not resolve the TCode device host \"tcode.local\".",
+    });
+    const { tcodeTransportRenderer } = await import("./tcodeTransportRenderer");
+    const result = await tcodeTransportRenderer.connect({
+      transport: "udp",
+      udpHost: "tcode.local",
+    });
+    expect(result).toMatchObject({
+      success: false,
+      error: "Could not resolve the TCode device host \"tcode.local\".",
+    });
+    expect(tcodeTransportRenderer.isConnected()).toBe(false);
   });
 });

@@ -1,3 +1,4 @@
+import { normalizeTCodeUdpInput } from "./tcodeConfig";
 import type { TCodeTransportKind } from "./types";
 
 export type TCodeConnectInput = {
@@ -5,6 +6,7 @@ export type TCodeConnectInput = {
   serialPath?: string;
   baudRate?: number;
   websocketUrl?: string;
+  udpHost?: string;
 };
 
 export type TCodeConnectResult = {
@@ -53,6 +55,12 @@ type NavigatorWithSerial = Navigator & {
   serial?: WebSerial;
 };
 
+type TCodeUdpBridge = {
+  connect: (input: { host: string; port: number }) => Promise<TCodeConnectResult>;
+  send: (command: string) => void;
+  disconnect: () => Promise<unknown>;
+};
+
 type PortEntry = {
   port: WebSerialPort;
   label: string;
@@ -61,6 +69,7 @@ type PortEntry = {
 const TCODE_WEBSOCKET_CONNECT_TIMEOUT_MS = 5000;
 const TCODE_SERIAL_OPERATION_TIMEOUT_MS = 5000;
 const TCODE_SERIAL_AUTO_DETECT_COMMAND = "L05000\n";
+const TCODE_UDP_CONNECT_TIMEOUT_MS = 5000;
 
 // Shared because port discovery is system-wide; connection state is per-instance.
 const sharedSerialPorts = new Map<string, PortEntry>();
@@ -75,6 +84,11 @@ function getPortLabel(port: WebSerialPort, index: number): string {
 
 function recordSerialEvent(payload: Record<string, unknown>): void {
   void globalThis.window?.electronAPI?.debug?.recordTCodeSerialEvent?.(payload).catch(() => undefined);
+}
+
+function getTCodeUdpBridge(): TCodeUdpBridge | null {
+  const bridge = globalThis.window?.electronAPI?.tcodeUdp;
+  return bridge ?? null;
 }
 
 function isLinuxRenderer(): boolean {
@@ -111,6 +125,7 @@ export class TCodeTransportRenderer {
   private operationQueue: Promise<void> = Promise.resolve();
   private readLoopActive = false;
   private ws: WebSocket | null = null;
+  private udpActive = false;
 
   async connect(input: TCodeConnectInput): Promise<TCodeConnectResult> {
     return this.enqueue(async () => {
@@ -124,6 +139,7 @@ export class TCodeTransportRenderer {
         };
       }
       if (input.transport === "serial") return this.connectSerial(input);
+      if (input.transport === "udp") return this.connectUdp(input);
       return this.connectWebSocket(input);
     });
   }
@@ -145,6 +161,16 @@ export class TCodeTransportRenderer {
         return false;
       }
     }
+    if (this.udpActive) {
+      const bridge = getTCodeUdpBridge();
+      if (!bridge) return false;
+      try {
+        bridge.send(command);
+        return true;
+      } catch {
+        return false;
+      }
+    }
     return false;
   }
 
@@ -153,7 +179,11 @@ export class TCodeTransportRenderer {
   }
 
   isConnected(): boolean {
-    return this.readLoopActive || this.ws?.readyState === WebSocket.OPEN;
+    return (
+      this.readLoopActive ||
+      this.udpActive ||
+      (this.ws !== null && this.ws.readyState === WebSocket.OPEN)
+    );
   }
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
@@ -225,6 +255,21 @@ export class TCodeTransportRenderer {
         // ignore close errors
       }
       this.ws = null;
+    }
+    if (this.udpActive) {
+      const bridge = getTCodeUdpBridge();
+      this.udpActive = false;
+      if (bridge) {
+        try {
+          await withTimeout(
+            bridge.disconnect(),
+            TCODE_UDP_CONNECT_TIMEOUT_MS,
+            "Timed out closing the TCode UDP socket."
+          );
+        } catch {
+          // ignore close errors
+        }
+      }
     }
     if (disconnectError) throw disconnectError;
   }
@@ -355,6 +400,37 @@ export class TCodeTransportRenderer {
       return {
         success: false,
         error: error instanceof Error ? error.message : "Failed to connect to TCode WebSocket.",
+      };
+    }
+  }
+
+  private async connectUdp(input: TCodeConnectInput): Promise<TCodeConnectResult> {
+    const bridge = getTCodeUdpBridge();
+    if (!bridge) {
+      return { success: false, error: "TCode UDP requires the desktop app." };
+    }
+    let endpoint: { host: string; port: number };
+    try {
+      endpoint = normalizeTCodeUdpInput(input.udpHost);
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Invalid TCode UDP device address.",
+      };
+    }
+    try {
+      const result = await withTimeout(
+        bridge.connect({ host: endpoint.host, port: endpoint.port }),
+        TCODE_UDP_CONNECT_TIMEOUT_MS,
+        "TCode UDP connection timed out."
+      );
+      this.udpActive = result.success;
+      return result;
+    } catch (error) {
+      this.udpActive = false;
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to connect to TCode UDP device.",
       };
     }
   }

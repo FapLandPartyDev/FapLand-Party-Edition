@@ -9,10 +9,15 @@ import type { EroScriptsLoginStatus } from "../services/eroscripts";
 import {
   DEFAULT_INTIFACE_WEBSOCKET_URL,
   DEFAULT_TCODE_BAUD_RATE,
+  DEFAULT_TCODE_UDP_HOST,
+  DEFAULT_TCODE_UDP_PORT,
   DEFAULT_TCODE_WEBSOCKET_HOST,
   DEFAULT_TCODE_WEBSOCKET_URL,
 } from "../constants/haptics";
-import { normalizeTCodeWebSocketInput } from "../services/haptics/tcodeConfig";
+import {
+  normalizeTCodeUdpInput,
+  normalizeTCodeWebSocketInput,
+} from "../services/haptics/tcodeConfig";
 import type { TCodePrecision, TCodeTransportKind } from "../services/haptics/types";
 import { FPACK_EXTRACTION_PATH_KEY } from "../constants/fpackSettings";
 import {
@@ -624,6 +629,7 @@ function FirstStartPage() {
     intifaceDeviceName,
     tcodeWebsocketHost,
     tcodeWebsocketUrl,
+    tcodeUdpHost,
     tcodeTransport,
     tcodeSerialPath,
     tcodeBaudRate,
@@ -688,6 +694,7 @@ function FirstStartPage() {
   const [handyInputKey, setHandyInputKey] = useState("");
   const [inputIntifaceUrl, setInputIntifaceUrl] = useState(intifaceWebsocketUrl);
   const [inputTCodeHost, setInputTCodeHost] = useState(tcodeWebsocketHost);
+  const [inputTCodeUdpHost, setInputTCodeUdpHost] = useState(tcodeUdpHost);
   const [inputTCodeTransport, setInputTCodeTransport] =
     useState<TCodeTransportKind>(tcodeTransport);
   const [inputTCodeSerialPath, setInputTCodeSerialPath] = useState(tcodeSerialPath);
@@ -705,6 +712,7 @@ function FirstStartPage() {
   useEffect(() => {
     setInputIntifaceUrl(intifaceWebsocketUrl);
     setInputTCodeHost(tcodeWebsocketHost);
+    setInputTCodeUdpHost(tcodeUdpHost);
     setInputTCodeTransport(tcodeTransport);
     setInputTCodeSerialPath(tcodeSerialPath);
     setInputTCodeBaudRate(String(tcodeBaudRate));
@@ -712,6 +720,7 @@ function FirstStartPage() {
   }, [
     intifaceWebsocketUrl,
     tcodeWebsocketHost,
+    tcodeUdpHost,
     tcodeTransport,
     tcodeSerialPath,
     tcodeBaudRate,
@@ -1192,6 +1201,7 @@ function FirstStartPage() {
         serialPath: inputTCodeSerialPath,
         baudRate: Number(inputTCodeBaudRate) || DEFAULT_TCODE_BAUD_RATE,
         websocketInput: inputTCodeHost.trim() || DEFAULT_TCODE_WEBSOCKET_HOST,
+        udpInput: inputTCodeUdpHost.trim() || DEFAULT_TCODE_UDP_HOST,
         precision: inputTCodePrecision,
       });
       return;
@@ -1204,6 +1214,14 @@ function FirstStartPage() {
       return normalizeTCodeWebSocketInput(inputTCodeHost).url;
     } catch {
       return DEFAULT_TCODE_WEBSOCKET_URL;
+    }
+  })();
+
+  const tcodeDerivedUdpEndpoint = (() => {
+    try {
+      return `udp://${normalizeTCodeUdpInput(inputTCodeUdpHost).endpoint}`;
+    } catch {
+      return `udp://${DEFAULT_TCODE_UDP_HOST}:${DEFAULT_TCODE_UDP_PORT}`;
     }
   })();
 
@@ -2688,7 +2706,7 @@ function FirstStartPage() {
                             </p>
                           </div>
 
-                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          <div className="mt-3 grid gap-2 sm:grid-cols-3">
                             <button
                               type="button"
                               disabled={handyConnected || handyIsConnecting}
@@ -2709,6 +2727,21 @@ function FirstStartPage() {
                               disabled={handyConnected || handyIsConnecting}
                               onClick={() => {
                                 playSelectSound();
+                                setInputTCodeTransport("udp");
+                              }}
+                              className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                                inputTCodeTransport === "udp"
+                                  ? "border-emerald-300/60 bg-emerald-500/25 text-emerald-100"
+                                  : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
+                              }`}
+                            >
+                              <Trans>UDP</Trans>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={handyConnected || handyIsConnecting}
+                              onClick={() => {
+                                playSelectSound();
                                 setInputTCodeTransport("serial");
                                 void refreshTCodeSerialPorts();
                               }}
@@ -2722,33 +2755,7 @@ function FirstStartPage() {
                             </button>
                           </div>
 
-                          {inputTCodeTransport === "websocket" ? (
-                            <div className="mt-3 flex flex-col gap-2">
-                              <label
-                                className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
-                                htmlFor="first-start-tcode-host"
-                              >
-                                <Trans>Device IP / Host</Trans>
-                              </label>
-                              <input
-                                id="first-start-tcode-host"
-                                type="text"
-                                value={inputTCodeHost}
-                                onChange={(event) => setInputTCodeHost(event.target.value)}
-                                placeholder={DEFAULT_TCODE_WEBSOCKET_HOST}
-                                disabled={handyConnected || handyIsConnecting}
-                                className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20 disabled:opacity-60"
-                              />
-                              <p className="text-xs text-zinc-400">
-                                <Trans>Derived WebSocket URL</Trans>: {tcodeDerivedUrl}
-                              </p>
-                              {tcodeWebsocketUrl && handyConnected && (
-                                <p className="text-xs text-emerald-100">
-                                  <Trans>Connected TCode URL</Trans>: {tcodeWebsocketUrl}
-                                </p>
-                              )}
-                            </div>
-                          ) : (
+                          {inputTCodeTransport === "serial" ? (
                             <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
                               <div className="flex flex-col gap-2">
                                 <label
@@ -2800,6 +2807,53 @@ function FirstStartPage() {
                                   className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20 disabled:opacity-60"
                                 />
                               </div>
+                            </div>
+                          ) : inputTCodeTransport === "udp" ? (
+                            <div className="mt-3 flex flex-col gap-2">
+                              <label
+                                className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                                htmlFor="first-start-tcode-udp-host"
+                              >
+                                <Trans>Device IP / Host</Trans>
+                              </label>
+                              <input
+                                id="first-start-tcode-udp-host"
+                                type="text"
+                                value={inputTCodeUdpHost}
+                                onChange={(event) => setInputTCodeUdpHost(event.target.value)}
+                                placeholder={`${DEFAULT_TCODE_UDP_HOST}:${DEFAULT_TCODE_UDP_PORT}`}
+                                disabled={handyConnected || handyIsConnecting}
+                                className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20 disabled:opacity-60"
+                              />
+                              <p className="text-xs text-zinc-400">
+                                <Trans>Derived UDP endpoint</Trans>: {tcodeDerivedUdpEndpoint}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="mt-3 flex flex-col gap-2">
+                              <label
+                                className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                                htmlFor="first-start-tcode-host"
+                              >
+                                <Trans>Device IP / Host</Trans>
+                              </label>
+                              <input
+                                id="first-start-tcode-host"
+                                type="text"
+                                value={inputTCodeHost}
+                                onChange={(event) => setInputTCodeHost(event.target.value)}
+                                placeholder={DEFAULT_TCODE_WEBSOCKET_HOST}
+                                disabled={handyConnected || handyIsConnecting}
+                                className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20 disabled:opacity-60"
+                              />
+                              <p className="text-xs text-zinc-400">
+                                <Trans>Derived WebSocket URL</Trans>: {tcodeDerivedUrl}
+                              </p>
+                              {tcodeWebsocketUrl && handyConnected && (
+                                <p className="text-xs text-emerald-100">
+                                  <Trans>Connected TCode URL</Trans>: {tcodeWebsocketUrl}
+                                </p>
+                              )}
                             </div>
                           )}
 
@@ -2866,7 +2920,9 @@ function FirstStartPage() {
                                 ? !inputIntifaceUrl.trim()
                                 : inputTCodeTransport === "serial"
                                   ? !inputTCodeSerialPath.trim()
-                                  : !inputTCodeHost.trim()))
+                                  : inputTCodeTransport === "udp"
+                                    ? !inputTCodeUdpHost.trim()
+                                    : !inputTCodeHost.trim()))
                         }
                         onMouseEnter={playHoverSound}
                         onClick={() => {

@@ -8,7 +8,6 @@ import {
   hspFlush,
   hspPause,
   hspPlay,
-  hspResume,
   hspSetup,
   hspStop,
   isConnected,
@@ -48,6 +47,8 @@ export type HandySession = {
   reportedBufferPoints?: number | null;
   reportedBufferedUntilMs?: number | null;
   hspTopupFailureCount?: number;
+  /** Set when the device pauses HSP playback because its point buffer ran dry. */
+  hspStarved?: boolean;
   streamId?: number;
   serverTimeRefreshPromise?: Promise<void> | null;
 };
@@ -686,6 +687,11 @@ async function refreshHspState(auth: HandyAuthBundle, session: HandySession): Pr
       session.reportedBufferedUntilMs = state.last_point_time;
     }
     if (state.play_state === 4) {
+      // A starved HSP stream remains paused even after more points are added. Mark
+      // it inactive so the next regular sync restarts playback at the current
+      // media time instead of requiring a full reconnect.
+      session.hspStarved = true;
+      session.activeScriptId = null;
       console.debug("[haptics] Direct Handy HSP is paused on starvation", {
         bufferedPoints: session.reportedBufferPoints,
       });
@@ -733,6 +739,7 @@ async function preloadScript(
   session.reportedBufferPoints = null;
   session.reportedBufferedUntilMs = null;
   session.hspTopupFailureCount = 0;
+  session.hspStarved = false;
 
   // Seed enough data for startup to include the first point after the requested
   // start time, even when the script begins inside a long interpolation gap.
@@ -845,6 +852,7 @@ export async function sendHspSync(
       })
     );
     session.activeScriptId = scriptId;
+    session.hspStarved = false;
     session.lastSyncAtMs = 0;
     session.lastPlaybackRate = nextRate;
   }
@@ -957,58 +965,35 @@ export async function resumeHandyPlayback(
     await refreshServerTimeOffset(auth, session);
   }
 
-  assertDeviceResponse(
-    await hspResume({
-      auth: authResolver,
-      responseStyle: "data",
-      requestValidator: undefined,
-      responseValidator: undefined,
-      headers,
-      body: { pick_up: true },
-    })
-  );
-
-  const now = Date.now();
   const nextRate = Math.max(0.25, Math.min(3, playbackRate));
-  const needsRateUpdate = Math.abs(nextRate - session.lastPlaybackRate) > 0.02;
 
-  const pending: Promise<void>[] = [
-    setHspTime({
+  // Starting the retained HSP buffer at an explicit media timestamp is more
+  // reliable than hspResume after a timed gameplay pause. Some devices accept
+  // hspResume but remain paused until the connection is recreated. hspPlay
+  // performs the same recovery as a reconnect without discarding the buffer.
+  assertDeviceResponse(
+    await hspPlay({
       auth: authResolver,
       responseStyle: "data",
       requestValidator: undefined,
       responseValidator: undefined,
       headers,
       body: {
-        current_time: Math.max(0, Math.floor(resumeAtMs)),
+        start_time: Math.max(0, Math.floor(resumeAtMs)),
         server_time: Math.round(getEstimatedServerTimeMs(session)),
+        playback_rate: nextRate,
+        pause_on_starving: true,
+        loop: false,
       },
       query: { timeout: 5000 },
-    }).then((response) => {
-      assertDeviceResponse(response);
-    }),
-  ];
+    })
+  );
 
-  if (needsRateUpdate) {
-    pending.push(
-      setHspPaybackRate({
-        auth: authResolver,
-        responseStyle: "data",
-        requestValidator: undefined,
-        responseValidator: undefined,
-        headers,
-        body: { playback_rate: nextRate },
-        query: { timeout: 5000 },
-      }).then((response) => {
-        assertDeviceResponse(response);
-      })
-    );
-  }
-
-  await Promise.all(pending);
+  const now = Date.now();
   session.activeScriptId = session.loadedScriptId;
   session.lastSyncAtMs = now;
-  if (needsRateUpdate) session.lastPlaybackRate = nextRate;
+  session.lastPlaybackRate = nextRate;
+  session.hspStarved = false;
 }
 
 export async function stopHandyPlayback(
@@ -1033,6 +1018,7 @@ export async function stopHandyPlayback(
   session.lastHspAddAtMs = 0;
   session.hspAddBackoffUntilMs = 0;
   session.hspModeActive = false;
+  session.hspStarved = false;
 
   await hspStop({
     auth: createAuthResolver(appCredential, session.clientToken),

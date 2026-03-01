@@ -71,6 +71,25 @@ export const ZExportedAcquisitionSource = z.discriminatedUnion("kind", [
         }, "MEGA source must use a public mega.nz URL."),
     })
     .strict(),
+  z
+    .object({
+      id: z.string().trim().min(1).max(128),
+      kind: z.literal("pixeldrain"),
+      name: z.string().trim().min(1).max(240),
+      publicUrl: z
+        .string()
+        .url()
+        .max(16_384)
+        .refine((value) => {
+          const parsed = new URL(value);
+          const host = parsed.hostname.toLowerCase();
+          return (
+            (host === "pixeldrain.com" || host === "www.pixeldrain.com") &&
+            /^\/d\/[^/]+\/?$/u.test(parsed.pathname)
+          );
+        }, "PixelDrain source must use a public pixeldrain.com directory URL."),
+    })
+    .strict(),
 ]);
 
 export const ZAcquisitionCandidate = z

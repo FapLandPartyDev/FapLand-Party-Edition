@@ -37,7 +37,7 @@ export const acquisitionSource = sqliteTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => createId()),
-    kind: text("kind", { enum: ["torrent", "mega"] }).notNull(),
+    kind: text("kind", { enum: ["torrent", "mega", "pixeldrain"] }).notNull(),
     name: text("name").notNull(),
     canonicalLocatorHash: text("canonicalLocatorHash").notNull(),
     locatorJson: text("locatorJson").notNull(),
@@ -128,7 +128,7 @@ export const acquisitionJob = sqliteTable(
     sourceId: text("sourceId")
       .notNull()
       .references(() => acquisitionSource.id, { onDelete: "restrict" }),
-    kind: text("kind", { enum: ["torrent", "mega"] }).notNull(),
+    kind: text("kind", { enum: ["torrent", "mega", "pixeldrain"] }).notNull(),
     state: text("state", {
       enum: [
         "queued",

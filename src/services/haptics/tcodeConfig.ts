@@ -3,6 +3,8 @@ import {
   DEFAULT_TCODE_BAUD_RATE,
   DEFAULT_TCODE_PRECISION,
   DEFAULT_TCODE_TRANSPORT,
+  DEFAULT_TCODE_UDP_HOST,
+  DEFAULT_TCODE_UDP_PORT,
   DEFAULT_TCODE_WEBSOCKET_HOST,
   DEFAULT_TCODE_WEBSOCKET_PATH,
   DEFAULT_TCODE_WEBSOCKET_URL,
@@ -14,10 +16,16 @@ export type NormalizedTCodeWebSocket = {
   url: string;
 };
 
+export type NormalizedTCodeUdp = {
+  host: string;
+  port: number;
+  endpoint: string;
+};
+
 const HOST_PATTERN = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?(?::[1-9][0-9]{0,4})?$/i;
 
 export function normalizeTCodeTransport(value: unknown): TCodeTransportKind {
-  return value === "serial" ? "serial" : DEFAULT_TCODE_TRANSPORT;
+  return value === "serial" || value === "udp" ? value : DEFAULT_TCODE_TRANSPORT;
 }
 
 export function normalizeTCodeBaudRate(value: unknown): number {
@@ -82,4 +90,36 @@ export function isValidTCodeHost(host: string): boolean {
     if (!Number.isInteger(port) || port <= 0 || port > 65535) return false;
   }
   return true;
+}
+
+export function normalizeTCodeUdpInput(value: unknown): NormalizedTCodeUdp {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (raw.length === 0) {
+    return {
+      host: DEFAULT_TCODE_UDP_HOST,
+      port: DEFAULT_TCODE_UDP_PORT,
+      endpoint: `${DEFAULT_TCODE_UDP_HOST}:${DEFAULT_TCODE_UDP_PORT}`,
+    };
+  }
+
+  const withoutScheme = raw.replace(/^udp:\/\//i, "");
+  const hostPart = withoutScheme.replace(/\/+$/, "");
+  if (!isValidTCodeHost(hostPart)) {
+    throw new Error("Enter a valid TCode device IP address or hostname.");
+  }
+
+  const portIndex = hostPart.lastIndexOf(":");
+  if (portIndex >= 0) {
+    const port = Number(hostPart.slice(portIndex + 1));
+    return {
+      host: hostPart,
+      port,
+      endpoint: hostPart,
+    };
+  }
+  return {
+    host: hostPart,
+    port: DEFAULT_TCODE_UDP_PORT,
+    endpoint: `${hostPart}:${DEFAULT_TCODE_UDP_PORT}`,
+  };
 }

@@ -41,6 +41,8 @@ export const acquisition = {
     trpc.acquisition.inspectTorrentFile.mutate({ filePath }),
   createMegaSource: (publicUrl: string, name?: string) =>
     trpc.acquisition.createMegaSource.mutate({ publicUrl, name }),
+  createPixeldrainSource: (publicUrl: string, name?: string) =>
+    trpc.acquisition.createPixeldrainSource.mutate({ publicUrl, name }),
   updateSource: (input: Parameters<typeof trpc.acquisition.updateSource.mutate>[0]) =>
     trpc.acquisition.updateSource.mutate(input),
   refreshSource: (sourceId: string) => trpc.acquisition.refreshSourceCatalog.mutate({ sourceId }),

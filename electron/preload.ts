@@ -147,6 +147,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
         productId: string | null;
       } | null>,
   },
+  tcodeUdp: {
+    connect: (input: { host: string; port: number }) =>
+      ipcRenderer.invoke("tcode-udp:connect", input) as Promise<{
+        success: boolean;
+        error?: string;
+      }>,
+    send: (command: string) => {
+      ipcRenderer.send("tcode-udp:send", command);
+    },
+    disconnect: () =>
+      ipcRenderer.invoke("tcode-udp:disconnect") as Promise<{ success: boolean }>,
+  },
   updates: {
     subscribe: (callback: (state: AppUpdateState) => void) => {
       const listener = (_event: unknown, state: AppUpdateState) => {
