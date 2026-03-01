@@ -76,6 +76,7 @@ describe("getOpenedFileKind", () => {
   it("classifies supported import file extensions", () => {
     expect(getOpenedFileKind("/tmp/example.round")).toBe("sidecar");
     expect(getOpenedFileKind("/tmp/example.hero")).toBe("sidecar");
+    expect(getOpenedFileKind("/tmp/example.fpack")).toBe("sidecar");
     expect(getOpenedFileKind("/tmp/example.fplay")).toBe("playlist");
     expect(getOpenedFileKind("/tmp/example.mp4")).toBe("unsupported");
   });

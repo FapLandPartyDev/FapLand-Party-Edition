@@ -6,11 +6,14 @@ import { getVideoContentTypeByExtension, isVideoExtension } from "../../../src/c
 
 function resolveMediaContentType(filePath: string): string {
   const extension = path.extname(filePath).toLowerCase();
-  if (extension === ".funscript" || extension === ".json") return "application/json";
+  // Ensure we don't return an extension that starts with a dot if it's not expected by lookup
+  const cleanExtension = extension.startsWith(".") ? extension.slice(1) : extension;
 
-  const mappedVideoType = getVideoContentTypeByExtension(extension);
+  if (cleanExtension === "funscript" || cleanExtension === "json") return "application/json";
+
+  const mappedVideoType = getVideoContentTypeByExtension(cleanExtension);
   if (mappedVideoType) return mappedVideoType;
-  if (isVideoExtension(extension)) {
+  if (isVideoExtension(cleanExtension)) {
     return "video/mp4";
   }
 

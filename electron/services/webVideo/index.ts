@@ -689,6 +689,8 @@ async function downloadWebsiteVideo(
     startedAt: new Date().toISOString(),
   });
 
+  console.info(`[webVideo] Cache started: ${paths.normalizedUrl}`);
+
   const binary = await resolveYtDlpBinary();
   const inspected = await inspectWebsiteVideo(paths.normalizedUrl);
   const outputTemplate = path.join(paths.cacheDir, `${DOWNLOADED_VIDEO_BASENAME}.%(ext)s`);
@@ -697,6 +699,12 @@ async function downloadWebsiteVideo(
     await runCommand(
       binary.ytDlpPath,
       [
+        "-f",
+        "(bestvideo[vcodec~='^(av01|vp9)'][dynamic_range=?SDR]+bestaudio[acodec~='^(opus|vorbis)'])/(bestvideo[vcodec~='^avc'][dynamic_range=?SDR]+bestaudio[acodec~='^mp4a'])/best",
+        "--recode-video",
+        "webm>webm/mp4>mp4/mp4",
+        "--postprocessor-args",
+        "video:-pix_fmt yuv420p",
         "--no-playlist",
         "--no-warnings",
         "--newline",
@@ -751,6 +759,8 @@ async function downloadWebsiteVideo(
 
   await writeMetadata(paths, metadata);
   await removeInProgressMarker(paths);
+
+  console.info(`[webVideo] Cache finished: ${paths.normalizedUrl}`);
 
   return metadata;
 }

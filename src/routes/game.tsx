@@ -241,7 +241,7 @@ function GameRoute() {
   const {
     installedRounds,
     initialHighscore,
-    initialHighscoreCheatMode,
+
     economyOverrides,
     intermediaryLoadingPrompt,
     intermediaryLoadingDurationSec,
@@ -400,7 +400,7 @@ function GameRoute() {
       installedRounds={installedRounds}
       onGiveUp={handleBack}
       giveUpLabel={isMapEditorTestRun ? "Back to Editor" : "Give Up"}
-      allowDebugRoundControls={isMapEditorTestRun}
+      allowDebugRoundControls={isMapEditorTestRun || cheatModeEnabled}
       showDevPerkMenu={isGameDevelopmentMode() || cheatModeEnabled}
       onHighscoreChange={handleHighscoreChange}
       onRoundPlayed={handleRoundPlayed}

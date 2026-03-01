@@ -32,6 +32,21 @@ const SUPPORTED_CHROMIUM_VIDEO_CODECS = new Set([
   "vp8",
   "vp9",
 ]);
+// H.264 streams using non-YUV420P 8-bit pixel formats (e.g. 10-bit, 4:2:2, 4:4:4)
+// cannot be decoded by Chromium's built-in decoder and must be transcoded.
+// yuv420p is the only broadly supported format.
+const H264_PIXEL_FORMATS_REQUIRING_TRANSCODE = new Set([
+  "yuv420p10le",
+  "yuv420p10be",
+  "yuv422p",
+  "yuv422p10le",
+  "yuv422p10be",
+  "yuv444p",
+  "yuv444p10le",
+  "yuv444p10be",
+  "yuvj422p",
+  "yuvj444p",
+]);
 const resolvedBySourceFingerprint = new Map<string, ResolvePlayableVideoUriResult>();
 const inFlightBySourceFingerprint = new Map<string, Promise<ResolvePlayableVideoUriResult>>();
 const inFlightByCacheKey = new Map<string, Promise<ResolvePlayableVideoUriResult>>();
@@ -112,18 +127,39 @@ function buildSourceFingerprint(input: {
   return [input.normalizedPath, `${input.fileSizeBytes}`, `${input.modifiedMs}`].join("|");
 }
 
-function isLikelyChromiumSupportedCodec(codec: string | null): boolean {
-  if (!codec) return false;
-  const normalized = codec.trim().toLowerCase();
+type VideoStreamInfo = {
+  codecName: string | null;
+  pixFmt: string | null;
+};
+
+function isLikelyChromiumSupportedStream(info: VideoStreamInfo): boolean {
+  const { codecName, pixFmt } = info;
+  if (!codecName) return false;
+  const normalized = codecName.trim().toLowerCase();
   if (!normalized) return false;
+
+  const isH264 =
+    normalized === "h264" ||
+    normalized === "avc1" ||
+    normalized.includes("h264") ||
+    normalized.includes("avc1");
+
+  if (isH264) {
+    // Only 8-bit YUV 4:2:0 is supported by Chromium's built-in H.264 decoder.
+    // Any other pixel format (10-bit, 4:2:2, 4:4:4) requires a transcode.
+    if (pixFmt && H264_PIXEL_FORMATS_REQUIRING_TRANSCODE.has(pixFmt.trim().toLowerCase())) {
+      return false;
+    }
+    return true;
+  }
+
   if (SUPPORTED_CHROMIUM_VIDEO_CODECS.has(normalized)) return true;
-  if (normalized.includes("h264") || normalized.includes("avc1")) return true;
   if (normalized.includes("av1")) return true;
   if (normalized.includes("vp8") || normalized.includes("vp9")) return true;
   return false;
 }
 
-async function probePrimaryVideoCodec(ffprobePath: string, sourcePath: string): Promise<string | null> {
+async function probePrimaryVideoStream(ffprobePath: string, sourcePath: string): Promise<VideoStreamInfo> {
   try {
     const { stdout } = await runCommand(ffprobePath, [
       "-v",
@@ -131,18 +167,26 @@ async function probePrimaryVideoCodec(ffprobePath: string, sourcePath: string): 
       "-select_streams",
       "v:0",
       "-show_entries",
-      "stream=codec_name",
+      "stream=codec_name,pix_fmt",
       "-of",
       "json",
       sourcePath,
     ]);
     const payload = JSON.parse(stdout.toString("utf8")) as {
-      streams?: Array<{ codec_name?: string | null }>;
+      streams?: Array<{ codec_name?: string | null; pix_fmt?: string | null }>;
     };
-    const codecName = payload.streams?.[0]?.codec_name;
-    return typeof codecName === "string" && codecName.trim().length > 0 ? codecName.trim().toLowerCase() : null;
+    const stream = payload.streams?.[0];
+    const codecName =
+      typeof stream?.codec_name === "string" && stream.codec_name.trim().length > 0
+        ? stream.codec_name.trim().toLowerCase()
+        : null;
+    const pixFmt =
+      typeof stream?.pix_fmt === "string" && stream.pix_fmt.trim().length > 0
+        ? stream.pix_fmt.trim().toLowerCase()
+        : null;
+    return { codecName, pixFmt };
   } catch {
-    return null;
+    return { codecName: null, pixFmt: null };
   }
 }
 
@@ -279,8 +323,8 @@ export async function resolvePlayableVideoUri(videoUri: string): Promise<Resolve
 
   const pending = (async () => {
     const binaries = await resolvePhashBinaries();
-    const codecName = await probePrimaryVideoCodec(binaries.ffprobePath, normalizedPath);
-    if (isLikelyChromiumSupportedCodec(codecName)) {
+    const streamInfo = await probePrimaryVideoStream(binaries.ffprobePath, normalizedPath);
+    if (isLikelyChromiumSupportedStream(streamInfo)) {
       const passthroughResult = {
         videoUri,
         transcoded: false,

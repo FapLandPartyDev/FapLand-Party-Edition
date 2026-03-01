@@ -33,7 +33,7 @@ import type { InstalledRound } from "../../services/db";
 import { trpc } from "../../services/trpc";
 import { describePerkEffects } from "../../game/engine";
 import { playRoundRewardSound, playRoundRewardTickSound } from "../../utils/audio";
-import { isGameDevelopmentMode } from "../../utils/devFeatures";
+
 import { formatDurationLabel } from "../../utils/duration";
 import { RoundVideoOverlay } from "./RoundVideoOverlay";
 import { RoundStartTransition } from "./RoundStartTransition";
@@ -164,9 +164,9 @@ function buildTileLayout(board: BoardField[]): TileLayout {
     const graphOrigins = board.map((field, index) =>
       hasFiniteStyleHintXY(field)
         ? {
-            x: field.styleHint!.x as number,
-            y: field.styleHint!.y as number,
-          }
+          x: field.styleHint!.x as number,
+          y: field.styleHint!.y as number,
+        }
         : fallbackOrigins[index]!
     );
     const xs = graphOrigins.map((point) => point.x);
@@ -1429,6 +1429,7 @@ export const GameScene = memo(function GameScene({
     connected: handyConnected,
     manuallyStopped: handyManuallyStopped,
     toggleManualStop,
+    forceStop,
   } = useHandy();
 
   const {
@@ -1494,6 +1495,9 @@ export const GameScene = memo(function GameScene({
   );
   const [hasConnectedGamepad, setHasConnectedGamepad] = useState(false);
   const [cumRequestSignal, setCumRequestSignal] = useState(0);
+  const [showNonCumOutcomeMenu, setShowNonCumOutcomeMenu] = useState(false);
+  const showNonCumOutcomeMenuRef = useRef(showNonCumOutcomeMenu);
+  showNonCumOutcomeMenuRef.current = showNonCumOutcomeMenu;
   const [handyNotification, setHandyNotification] = useState<string | null>(null);
   const [roundPreviewState, setRoundPreviewState] = useState({ active: false, loading: false });
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -1516,7 +1520,7 @@ export const GameScene = memo(function GameScene({
   const showDevPerkMenuModalRef = useRef(showDevPerkMenuModal);
   showDevPerkMenuModalRef.current = showDevPerkMenuModal;
   const shouldShowControllerPromptsRef = useRef(false);
-  const canShowDevPerkMenu = showDevPerkMenu && isGameDevelopmentMode();
+  const canShowDevPerkMenu = showDevPerkMenu;
   const devPerkPool = useMemo(() => getSinglePlayerPerkPool(), []);
   const devAntiPerkPool = useMemo(() => getSinglePlayerAntiPerkPool(), []);
 
@@ -1532,17 +1536,31 @@ export const GameScene = memo(function GameScene({
   }, []);
 
   const isLastCumRoundActive =
-    state.sessionPhase === "cum" && state.activeRound?.phaseKind === "cum";
+    state.sessionPhase === "cum" &&
+    state.activeRound?.phaseKind === "cum" &&
+    state.nextCumRoundIndex >= state.config.singlePlayer.cumRoundIds.length;
   const tileDurationLabelByFieldId = useMemo(
     () => buildTileDurationLabelByFieldId(initialState.config.board, installedRounds),
     [initialState.config.board, installedRounds]
   );
 
   const requestCumConfirmation = useCallback(() => {
-    const activeRound = stateRef.current.activeRound;
-    if (stateRef.current.sessionPhase === "completed" || activeRound?.phaseKind !== "cum") return;
-    setCumRequestSignal((previous) => previous + 1);
+    if (stateRef.current.sessionPhase === "completed") return;
+    if (stateRef.current.activeRound?.phaseKind === "cum") {
+      setCumRequestSignal((previous) => previous + 1);
+    } else {
+      setShowNonCumOutcomeMenu(true);
+    }
   }, []);
+
+  const handleSelfReportedCum = useCallback(() => {
+    void forceStop().catch((err) => console.warn("Failed to stop Handy after cum report", err));
+    onStateChange({
+      ...stateRef.current,
+      sessionPhase: "completed",
+      completionReason: "self_reported_cum",
+    });
+  }, [forceStop, onStateChange]);
 
   const handleHandyManualToggle = useCallback(() => {
     void toggleManualStop().then((result) => {
@@ -1585,10 +1603,7 @@ export const GameScene = memo(function GameScene({
 
     return () => {
       mounted = false;
-      window.removeEventListener(
-        CONTROLLER_SUPPORT_ENABLED_EVENT,
-        handleControllerSupportChanged
-      );
+      window.removeEventListener(CONTROLLER_SUPPORT_ENABLED_EVENT, handleControllerSupportChanged);
     };
   }, []);
 
@@ -1761,10 +1776,10 @@ export const GameScene = memo(function GameScene({
   shouldShowControllerPromptsRef.current = shouldShowControllerPrompts;
   const controllerPrimaryHint =
     !showPerkInventoryMenu &&
-    !showOptionsMenu &&
-    !showDevPerkMenuModal &&
-    !state.pendingPathChoice &&
-    !state.pendingPerkSelection
+      !showOptionsMenu &&
+      !showDevPerkMenuModal &&
+      !state.pendingPathChoice &&
+      !state.pendingPerkSelection
       ? canRollViaController
         ? "Roll Dice"
         : canStartQueuedRoundViaController
@@ -1794,11 +1809,15 @@ export const GameScene = memo(function GameScene({
     if (!state.pendingPerkSelection) return false;
 
     if (action === "LEFT") {
-      setControllerPerkSelectionIndex((previous) => Math.max(0, Math.min(perkOptionCount, previous - 1)));
+      setControllerPerkSelectionIndex((previous) =>
+        Math.max(0, Math.min(perkOptionCount, previous - 1))
+      );
       return true;
     }
     if (action === "RIGHT") {
-      setControllerPerkSelectionIndex((previous) => Math.max(0, Math.min(perkOptionCount, previous + 1)));
+      setControllerPerkSelectionIndex((previous) =>
+        Math.max(0, Math.min(perkOptionCount, previous + 1))
+      );
       return true;
     }
     if (action === "DOWN") {
@@ -1925,6 +1944,13 @@ export const GameScene = memo(function GameScene({
         }
       }
 
+      if (state.activeRound?.phaseKind === "cum") {
+        if (action === "ACTION_Y") {
+          requestCumConfirmation();
+          return true;
+        }
+      }
+
       if (action !== "PRIMARY") return false;
       return tryHandlePrimaryGameplayAction();
     },
@@ -1964,14 +1990,19 @@ export const GameScene = memo(function GameScene({
       }
       if (event.key.toLowerCase() !== "c") return;
       event.preventDefault();
-      requestCumConfirmation();
+      if (showNonCumOutcomeMenuRef.current) {
+        setShowNonCumOutcomeMenu(false);
+        handleSelfReportedCum();
+      } else {
+        requestCumConfirmation();
+      }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [handleHandyManualToggle]);
+  }, [handleHandyManualToggle, requestCumConfirmation]);
 
   useEffect(() => {
     return () => {
@@ -3620,9 +3651,9 @@ export const GameScene = memo(function GameScene({
               phase.kind === "idle" && !!s.queuedRound && !s.pendingPerkSelection && !s.activeRound;
             const controllerPrimaryTarget =
               showOptionsMenuRef.current ||
-              showDevPerkMenuModalRef.current ||
-              s.pendingPathChoice ||
-              s.pendingPerkSelection
+                showDevPerkMenuModalRef.current ||
+                s.pendingPathChoice ||
+                s.pendingPerkSelection
                 ? null
                 : canRoll
                   ? "roll"
@@ -4024,22 +4055,22 @@ export const GameScene = memo(function GameScene({
     null;
   const boardAntiPerkSequence =
     !state.activeRound &&
-    !state.pendingPathChoice &&
-    !state.pendingPerkSelection &&
-    !state.queuedRound &&
-    state.sessionPhase === "normal" &&
-    currentPlayer
+      !state.pendingPathChoice &&
+      !state.pendingPerkSelection &&
+      !state.queuedRound &&
+      state.sessionPhase === "normal" &&
+      currentPlayer
       ? ((["milker", "jackhammer"] as const).find((id) => currentPlayer.antiPerks.includes(id)) ??
         null)
       : null;
 
   const idleBoardSequence =
     !state.activeRound &&
-    !state.queuedRound &&
-    state.sessionPhase === "normal" &&
-    currentPlayer &&
-    !currentPlayer.antiPerks.includes("milker") &&
-    !currentPlayer.antiPerks.includes("jackhammer")
+      !state.queuedRound &&
+      state.sessionPhase === "normal" &&
+      currentPlayer &&
+      !currentPlayer.antiPerks.includes("milker") &&
+      !currentPlayer.antiPerks.includes("jackhammer")
       ? currentPlayer.antiPerks.includes("no-rest")
         ? "no-rest"
         : null
@@ -4168,17 +4199,25 @@ export const GameScene = memo(function GameScene({
         !isRoundCountdown &&
         state.sessionPhase !== "completed" &&
         !state.pendingPerkSelection && (
-        <div className="pointer-events-none fixed bottom-4 right-4 z-[96]">
-          <button
-            type="button"
-            className="pointer-events-auto flex h-12 items-center rounded-lg border border-indigo-300/55 bg-zinc-950/88 px-4 text-sm font-semibold text-indigo-100 backdrop-blur transition-colors hover:bg-zinc-900"
-            onClick={() => setShowOptionsMenu(true)}
-            data-controller-focus-id="game-options-open"
-          >
-            Options
-          </button>
-        </div>
-      )}
+          <div className="pointer-events-none fixed bottom-4 right-4 z-[96] flex gap-2">
+            <button
+              type="button"
+              className="pointer-events-auto flex h-12 items-center rounded-lg border border-rose-300/55 bg-rose-950/88 px-4 text-sm font-semibold text-rose-100 backdrop-blur transition-colors hover:bg-rose-900"
+              onClick={() => requestCumConfirmation()}
+              data-controller-focus-id="game-cum-open"
+            >
+              Cum (C)
+            </button>
+            <button
+              type="button"
+              className="pointer-events-auto flex h-12 items-center rounded-lg border border-indigo-300/55 bg-zinc-950/88 px-4 text-sm font-semibold text-indigo-100 backdrop-blur transition-colors hover:bg-zinc-900"
+              onClick={() => setShowOptionsMenu(true)}
+              data-controller-focus-id="game-options-open"
+            >
+              Options
+            </button>
+          </div>
+        )}
       {state.pendingPerkSelection && onApplyPerkDirectlyChange && (
         <div
           className="pointer-events-auto fixed left-1/2 top-6 z-[95] -translate-x-1/2 rounded-xl border border-cyan-300/45 bg-zinc-950/90 px-4 py-2 text-sm text-cyan-100 backdrop-blur"
@@ -4285,11 +4324,10 @@ export const GameScene = memo(function GameScene({
                     onClick={() => handleSelectPathEdgeRef.current(option.edgeId)}
                     onMouseEnter={() => setHighlightedPathEdgeId(option.edgeId)}
                     onFocus={() => setHighlightedPathEdgeId(option.edgeId)}
-                    className={`rounded-[24px] border px-4 py-4 text-left transition-all duration-150 ${
-                      isActive
-                        ? "border-amber-200/70 bg-amber-300/12 text-white shadow-[0_0_0_1px_rgba(253,224,71,0.28)]"
-                        : "border-slate-300/15 bg-slate-950/40 text-slate-100 hover:border-cyan-200/45 hover:bg-slate-900/70"
-                    }`}
+                    className={`rounded-[24px] border px-4 py-4 text-left transition-all duration-150 ${isActive
+                      ? "border-amber-200/70 bg-amber-300/12 text-white shadow-[0_0_0_1px_rgba(253,224,71,0.28)]"
+                      : "border-slate-300/15 bg-slate-950/40 text-slate-100 hover:border-cyan-200/45 hover:bg-slate-900/70"
+                      }`}
                     data-controller-focus-id={`game-path-${option.edgeId}`}
                     data-controller-initial={index === 0 ? "true" : undefined}
                   >
@@ -4334,6 +4372,49 @@ export const GameScene = memo(function GameScene({
               {activePathChoiceOption.gateCost > 0
                 ? ` • $${activePathChoiceOption.gateCost}`
                 : " • Free"}
+            </div>
+          </div>
+        </div>
+      )}
+      {showNonCumOutcomeMenu && (
+        <div className="pointer-events-none fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-4">
+          <div className="pointer-events-auto w-full max-w-xl rounded-2xl border border-rose-300/45 bg-[linear-gradient(145deg,rgba(38,6,6,0.96),rgba(36,8,8,0.96))] p-6 text-zinc-100 shadow-[0_0_55px_rgba(248,56,56,0.25)] backdrop-blur-xl">
+            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase tracking-[0.28em] text-rose-200/85">
+              Self-Reported Finish
+            </p>
+            <h3 className="mt-2 text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-rose-100 via-red-100 to-orange-100">
+              Did you cum?
+            </h3>
+            <p className="mt-2 text-sm text-zinc-200/90">
+              Confirm your orgasm. Because this is not a cum round, this will immediately end the round and the entire game as a loss.
+            </p>
+            <div className="mt-5 grid gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-rose-300/60 bg-rose-500/20 px-4 py-3 text-left text-sm font-semibold text-rose-100 hover:bg-rose-500/35 flex items-center justify-between"
+                onClick={() => {
+                  setShowNonCumOutcomeMenu(false);
+                  handleSelfReportedCum();
+                }}
+                data-controller-focus-id="non-cum-outcome-came"
+                data-controller-initial="true"
+              >
+                <span>Confirm you came</span>
+                <span className="opacity-60 text-xs">Press C</span>
+              </button>
+            </div>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-zinc-300/35 bg-zinc-500/10 px-4 py-2.5 text-sm font-semibold text-zinc-100 hover:bg-zinc-500/20"
+                onClick={() => {
+                  setShowNonCumOutcomeMenu(false);
+                  handleCompleteRoundRef.current();
+                }}
+                data-controller-focus-id="non-cum-outcome-close"
+              >
+                Proceed
+              </button>
             </div>
           </div>
         </div>
@@ -4383,11 +4464,10 @@ export const GameScene = memo(function GameScene({
                   key={action.id}
                   type="button"
                   disabled={action.disabled}
-                  className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-60 ${
-                    action.tone === "danger"
-                      ? "border-rose-400/70 bg-rose-500/20 text-rose-100 hover:bg-rose-500/35"
-                      : "border-amber-400/60 bg-amber-500/15 text-amber-100 hover:bg-amber-500/25"
-                  }`}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-60 ${action.tone === "danger"
+                    ? "border-rose-400/70 bg-rose-500/20 text-rose-100 hover:bg-rose-500/35"
+                    : "border-amber-400/60 bg-amber-500/15 text-amber-100 hover:bg-amber-500/25"
+                    }`}
                   onClick={() => {
                     setShowOptionsMenu(false);
                     action.onClick();

@@ -157,7 +157,7 @@ describe("playableVideo", () => {
     vi.mocked(runCommand).mockImplementation(async (_command, args) => {
       if (args.includes("-show_entries")) {
         return {
-          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "h264" }] }), "utf8"),
+          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "h264", pix_fmt: "yuv420p" }] }), "utf8"),
           stderr: Buffer.alloc(0),
         };
       }
@@ -187,7 +187,7 @@ describe("playableVideo", () => {
     vi.mocked(runCommand).mockImplementation(async (_command, args) => {
       if (args.includes("-show_entries")) {
         return {
-          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "hevc" }] }), "utf8"),
+          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "hevc", pix_fmt: "yuv420p" }] }), "utf8"),
           stderr: Buffer.alloc(0),
         };
       }
@@ -212,7 +212,7 @@ describe("playableVideo", () => {
     vi.mocked(runCommand).mockImplementation(async (_command, args) => {
       if (args.includes("-show_entries")) {
         return {
-          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "hevc" }] }), "utf8"),
+          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "hevc", pix_fmt: "yuv420p" }] }), "utf8"),
           stderr: Buffer.alloc(0),
         };
       }
@@ -249,7 +249,7 @@ describe("playableVideo", () => {
     vi.mocked(runCommand).mockImplementation(async (_command, args) => {
       if (args.includes("-show_entries")) {
         return {
-          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "hevc" }] }), "utf8"),
+          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "hevc", pix_fmt: "yuv420p" }] }), "utf8"),
           stderr: Buffer.alloc(0),
         };
       }
@@ -285,7 +285,7 @@ describe("playableVideo", () => {
     vi.mocked(runCommand).mockImplementation(async (_command, args) => {
       if (args.includes("-show_entries")) {
         return {
-          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "hevc" }] }), "utf8"),
+          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "hevc", pix_fmt: "yuv420p" }] }), "utf8"),
           stderr: Buffer.alloc(0),
         };
       }
@@ -338,7 +338,7 @@ describe("playableVideo", () => {
     vi.mocked(runCommand).mockImplementation(async (_command, args) => {
       if (args.includes("-show_entries")) {
         return {
-          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "hevc" }] }), "utf8"),
+          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "hevc", pix_fmt: "yuv420p" }] }), "utf8"),
           stderr: Buffer.alloc(0),
         };
       }
@@ -361,7 +361,7 @@ describe("playableVideo", () => {
     vi.mocked(runCommand).mockImplementation(async (_command, args) => {
       if (args.includes("-show_entries")) {
         return {
-          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "h264" }] }), "utf8"),
+          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "h264", pix_fmt: "yuv420p" }] }), "utf8"),
           stderr: Buffer.alloc(0),
         };
       }
@@ -377,6 +377,39 @@ describe("playableVideo", () => {
     });
     const ffmpegCalls = vi.mocked(runCommand).mock.calls.filter(([, args]) => !args.includes("-show_entries"));
     expect(ffmpegCalls).toHaveLength(0);
+  });
+
+  it("transcodes H.264 with 10-bit pixel format (yuv420p10le) as Chromium cannot decode it", async () => {
+    let outputExists = false;
+    vi.mocked(fs.stat).mockImplementation(async (targetPath?: unknown) => {
+      if (typeof targetPath === "string" && targetPath.includes("video-playback-cache") && !outputExists) {
+        throw new Error("File not found");
+      }
+      return { isFile: () => true, size: 1000, mtimeMs: 2000 } as ReturnType<typeof fs.stat> extends Promise<infer T> ? T : never;
+    });
+    vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+    vi.mocked(fs.rm).mockResolvedValue(undefined);
+    vi.mocked(runCommand).mockImplementation(async (_command, args) => {
+      if (args.includes("-show_entries")) {
+        return {
+          // yt-dlp 10-bit H.264 — looks like h264 but Chromium can't play it
+          stdout: Buffer.from(JSON.stringify({ streams: [{ codec_name: "h264", pix_fmt: "yuv420p10le" }] }), "utf8"),
+          stderr: Buffer.alloc(0),
+        };
+      }
+      outputExists = true;
+      return { stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) };
+    });
+    vi.mocked(fs.access).mockImplementation(async () => {
+      if (!outputExists) throw new Error("missing");
+    });
+
+    const result = await resolvePlayableVideoUri("app://media/%2Ftmp%2Fvideo-10bit.mp4");
+    expect(result.transcoded).toBe(true);
+    expect(result.cacheHit).toBe(false);
+    expect(result.videoUri.startsWith("app://media/")).toBe(true);
+    const ffmpegCalls = vi.mocked(runCommand).mock.calls.filter(([, args]) => !args.includes("-show_entries"));
+    expect(ffmpegCalls).toHaveLength(1);
   });
 
   it("exposes deterministic helpers", () => {

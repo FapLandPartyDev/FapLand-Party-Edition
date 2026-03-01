@@ -6,13 +6,14 @@ import {
   dialog,
   Menu,
   shell,
+  net,
   type OpenDialogOptions,
 } from "electron";
 import path from "node:path";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createIPCHandler } from "trpc-electron/main";
 import { config as loadDotenv } from "dotenv";
 import { appRouter } from "./trpc/router";
@@ -84,7 +85,7 @@ function normalizeUserDataSuffix(raw: string | undefined): string | null {
 const userDataSuffix = normalizeUserDataSuffix(process.env.FLAND_USER_DATA_SUFFIX);
 if (userDataSuffix) {
   // Allow running multiple clients on one machine with isolated session/state storage.
-  app.setPath("userData", path.join(app.getPath("appData"), `f - land - ${userDataSuffix} `));
+  app.setPath("userData", path.join(app.getPath("appData"), `f-land-${userDataSuffix}`));
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -382,6 +383,7 @@ function createWindow(): BrowserWindow {
     trpcIpcHandler = createIPCHandler({
       router: appRouter,
       windows: [mainWindow],
+      createContext: async ({ event }) => ({ event }),
     });
   } else {
     trpcIpcHandler.attachWindow(mainWindow);

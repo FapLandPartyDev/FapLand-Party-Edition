@@ -3276,14 +3276,6 @@ export function RoundVideoOverlay({
                 <div className="mt-4 flex flex-wrap justify-end gap-2">
                   <button
                     type="button"
-                    className="rounded-lg border border-cyan-300/60 bg-cyan-500/20 px-4 py-2.5 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/35"
-                    onClick={handleProceedRoundFromCumDialog}
-                    data-controller-focus-id="round-cum-outcome-proceed"
-                  >
-                    Proceed round
-                  </button>
-                  <button
-                    type="button"
                     className="rounded-lg border border-zinc-300/35 bg-zinc-500/10 px-4 py-2.5 text-sm font-semibold text-zinc-100 hover:bg-zinc-500/20"
                     onClick={handleCloseCumDialog}
                     data-controller-focus-id="round-cum-outcome-close"

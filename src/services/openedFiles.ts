@@ -7,27 +7,27 @@ export type OpenedFileKind = "sidecar" | "playlist" | "unsupported" | "cancelled
 
 export type OpenedFileImportResult =
   | {
-      kind: "sidecar";
-      filePath: string;
-      result: InstallFolderScanResult;
-    }
+    kind: "sidecar";
+    filePath: string;
+    result: InstallFolderScanResult;
+  }
   | {
-      kind: "playlist";
-      filePath: string;
-      imported: PlaylistImportResult;
-    }
+    kind: "playlist";
+    filePath: string;
+    imported: PlaylistImportResult;
+  }
   | {
-      kind: "unsupported";
-      filePath: string;
-    }
+    kind: "unsupported";
+    filePath: string;
+  }
   | {
-      kind: "cancelled";
-      filePath: string;
-    };
+    kind: "cancelled";
+    filePath: string;
+  };
 
 export function getOpenedFileKind(filePath: string): OpenedFileKind {
   const normalized = filePath.trim().toLowerCase();
-  if (normalized.endsWith(".hero") || normalized.endsWith(".round")) {
+  if (normalized.endsWith(".hero") || normalized.endsWith(".round") || normalized.endsWith(".fpack")) {
     return "sidecar";
   }
   if (normalized.endsWith(".fplay")) {
