@@ -13,8 +13,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     environment: build
     env:
-      ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
-      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+      # Keep downloaded CommonJS tools outside this ESM package's scope.
+      ELECTRON_CACHE: ${{ runner.temp }}/electron-cache
+      ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder-cache
       FLAND_UPDATE_REPOSITORY: ${{ github.repository }}
       VITE_MULTIPLAYER_DEFAULT_SUPABASE_URL: ${{ vars.VITE_MULTIPLAYER_DEFAULT_SUPABASE_URL }}
       VITE_MULTIPLAYER_DEFAULT_SUPABASE_ANON_KEY: ${{ vars.VITE_MULTIPLAYER_DEFAULT_SUPABASE_ANON_KEY }}
@@ -50,9 +51,9 @@ jobs:
           path: |
             ${{ env.ELECTRON_CACHE }}
             ${{ env.ELECTRON_BUILDER_CACHE }}
-          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-electron-v2-${{ hashFiles('package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-electron-
+            ${{ runner.os }}-electron-v2-
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
