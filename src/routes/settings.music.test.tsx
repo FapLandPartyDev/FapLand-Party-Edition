@@ -210,6 +210,11 @@ vi.mock("../hooks/useAppUpdate", () => ({
 import { trpc } from "../services/trpc";
 import { getVisibleShortcutGroups, SettingsPage } from "./settings";
 
+const testI18n = {
+  _: (descriptor: { id: string; message?: string } | string) =>
+    typeof descriptor === "string" ? descriptor : (descriptor.message ?? descriptor.id),
+} as Parameters<typeof getVisibleShortcutGroups>[0];
+
 describe("Settings music section", () => {
   beforeEach(() => {
     cleanup();
@@ -620,7 +625,11 @@ describe("Settings music section", () => {
   });
 
   it("hides debug shortcuts in production builds", () => {
-    expect(getVisibleShortcutGroups(true).some((group) => group.id === "game-debug")).toBe(false);
-    expect(getVisibleShortcutGroups(false).some((group) => group.id === "game-debug")).toBe(true);
+    expect(getVisibleShortcutGroups(testI18n, true).some((group) => group.id === "game-debug")).toBe(
+      false
+    );
+    expect(getVisibleShortcutGroups(testI18n, false).some((group) => group.id === "game-debug")).toBe(
+      true
+    );
   });
 });

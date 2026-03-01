@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { I18n } from "@lingui/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AnimatedBackground } from "../components/AnimatedBackground";
@@ -167,78 +168,219 @@ type ShortcutGroup = {
   shortcuts: ShortcutDefinition[];
 };
 
+type ShortcutI18n = Pick<I18n, "_">;
+
 export function getVisibleShortcutGroups(
-  t: ReturnType<typeof useLingui>["t"],
+  i18n: ShortcutI18n,
   isProductionBuild = import.meta.env.PROD,
   cheatModeEnabled = false
 ): ShortcutGroup[] {
   const shortcutGroups: ShortcutGroup[] = [
     {
       id: "global",
-      title: t`Global`,
-      description: t`Available anywhere unless an input field is actively being edited.`,
+      title: i18n._({ id: "settings.help.shortcuts.global.title", message: "Global" }),
+      description: i18n._({
+        id: "settings.help.shortcuts.global.description",
+        message: "Available anywhere unless an input field is actively being edited.",
+      }),
       shortcuts: [
-        { keys: "Ctrl/Cmd+M", description: t`Open or close the global music overlay.` },
-        { keys: "Ctrl/Cmd+H", description: t`Open or close the global TheHandy overlay.` },
-        { keys: "Escape", description: t`Close the global music overlay when it is open.` },
-        { keys: "F11", description: t`Toggle fullscreen for the app window.` },
-        { keys: "Ctrl/Cmd+= or Ctrl/Cmd++", description: t`Zoom the app window in.` },
-        { keys: "Ctrl/Cmd+-", description: t`Zoom the app window out.` },
+        {
+          keys: "Ctrl/Cmd+M",
+          description: i18n._({
+            id: "settings.help.shortcuts.global.music",
+            message: "Open or close the global music overlay.",
+          }),
+        },
+        {
+          keys: "Ctrl/Cmd+H",
+          description: i18n._({
+            id: "settings.help.shortcuts.global.handy",
+            message: "Open or close the global TheHandy overlay.",
+          }),
+        },
+        {
+          keys: "Escape",
+          description: i18n._({
+            id: "settings.help.shortcuts.global.closeMusic",
+            message: "Close the global music overlay when it is open.",
+          }),
+        },
+        {
+          keys: "F11",
+          description: i18n._({
+            id: "settings.help.shortcuts.global.fullscreen",
+            message: "Toggle fullscreen for the app window.",
+          }),
+        },
+        {
+          keys: "Ctrl/Cmd+= or Ctrl/Cmd++",
+          description: i18n._({
+            id: "settings.help.shortcuts.global.zoomIn",
+            message: "Zoom the app window in.",
+          }),
+        },
+        {
+          keys: "Ctrl/Cmd+-",
+          description: i18n._({
+            id: "settings.help.shortcuts.global.zoomOut",
+            message: "Zoom the app window out.",
+          }),
+        },
         {
           keys: "Ctrl/Cmd+0 or Ctrl/Cmd+O",
-          description: t`Reset the app window zoom level to default.`,
+          description: i18n._({
+            id: "settings.help.shortcuts.global.resetZoom",
+            message: "Reset the app window zoom level to default.",
+          }),
         },
       ],
     },
     {
       id: "controller",
-      title: t`Keyboard Controller Navigation`,
-      description: t`Keyboard mappings that mirror controller input when controller support surfaces are active.`,
+      title: i18n._({
+        id: "settings.help.shortcuts.controller.title",
+        message: "Keyboard Controller Navigation",
+      }),
+      description: i18n._({
+        id: "settings.help.shortcuts.controller.description",
+        message:
+          "Keyboard mappings that mirror controller input when controller support surfaces are active.",
+      }),
       shortcuts: [
-        { keys: "Arrow Keys", description: t`Move focus between controller-navigable controls.` },
+        {
+          keys: "Arrow Keys",
+          description: i18n._({
+            id: "settings.help.shortcuts.controller.moveFocus",
+            message: "Move focus between controller-navigable controls.",
+          }),
+        },
         {
           keys: "Enter or Space",
-          description: t`Trigger the primary action on the focused control.`,
+          description: i18n._({
+            id: "settings.help.shortcuts.controller.primaryAction",
+            message: "Trigger the primary action on the focused control.",
+          }),
         },
-        { keys: "Escape or Backspace", description: t`Trigger the secondary/back action.` },
-        { keys: "Q", description: t`Use the left bumper action.` },
-        { keys: "E", description: t`Use the right bumper action.` },
+        {
+          keys: "Escape or Backspace",
+          description: i18n._({
+            id: "settings.help.shortcuts.controller.backAction",
+            message: "Trigger the secondary/back action.",
+          }),
+        },
+        {
+          keys: "Q",
+          description: i18n._({
+            id: "settings.help.shortcuts.controller.leftBumper",
+            message: "Use the left bumper action.",
+          }),
+        },
+        {
+          keys: "E",
+          description: i18n._({
+            id: "settings.help.shortcuts.controller.rightBumper",
+            message: "Use the right bumper action.",
+          }),
+        },
       ],
     },
     {
       id: "game",
-      title: t`Game Session`,
-      description: t`Used during active gameplay and round playback.`,
+      title: i18n._({ id: "settings.help.shortcuts.game.title", message: "Game Session" }),
+      description: i18n._({
+        id: "settings.help.shortcuts.game.description",
+        message: "Used during active gameplay and round playback.",
+      }),
       shortcuts: [
-        { keys: "Space", description: t`Roll the dice or trigger the main gameplay action.` },
-        { keys: "1 / 2 / 3", description: t`Select a perk during the perk selection phase.` },
-        { keys: "C", description: t`Open the cum confirmation flow.` },
-        { keys: "Escape", description: t`Open the in-game options menu.` },
-        { keys: "Ctrl/Cmd+W", description: t`Toggle TheHandy manual stop state.` },
+        {
+          keys: "Space",
+          description: i18n._({
+            id: "settings.help.shortcuts.game.mainAction",
+            message: "Roll the dice or trigger the main gameplay action.",
+          }),
+        },
+        {
+          keys: "1 / 2 / 3",
+          description: i18n._({
+            id: "settings.help.shortcuts.game.selectPerk",
+            message: "Select a perk during the perk selection phase.",
+          }),
+        },
+        {
+          keys: "C",
+          description: i18n._({
+            id: "settings.help.shortcuts.game.cumConfirmation",
+            message: "Open the cum confirmation flow.",
+          }),
+        },
+        {
+          keys: "Escape",
+          description: i18n._({
+            id: "settings.help.shortcuts.game.options",
+            message: "Open the in-game options menu.",
+          }),
+        },
+        {
+          keys: "Ctrl/Cmd+W",
+          description: i18n._({
+            id: "settings.help.shortcuts.game.toggleHandyStop",
+            message: "Toggle TheHandy manual stop state.",
+          }),
+        },
         {
           keys: "[ / ] / \\\\ physical keys",
-          description: t`Adjust the global TheHandy offset; hold Shift for 1ms fine tuning.`,
+          description: i18n._({
+            id: "settings.help.shortcuts.game.adjustHandyOffset",
+            message: "Adjust the global TheHandy offset; hold Shift for 1ms fine tuning.",
+          }),
         },
-        { keys: "R", description: t`Resync TheHandy timing to the current round video.` },
+        {
+          keys: "R",
+          description: i18n._({
+            id: "settings.help.shortcuts.game.resyncHandy",
+            message: "Resync TheHandy timing to the current round video.",
+          }),
+        },
       ],
     },
     {
       id: "game-debug",
-      title: t`Game Debug`,
-      description: t`Development-only shortcuts that are only active when round debug controls are enabled.`,
+      title: i18n._({ id: "settings.help.shortcuts.gameDebug.title", message: "Game Debug" }),
+      description: i18n._({
+        id: "settings.help.shortcuts.gameDebug.description",
+        message: "Development-only shortcuts that are only active when round debug controls are enabled.",
+      }),
       shortcuts: [
-        { keys: "I", description: t`Trigger a test intermediary immediately.` },
+        {
+          keys: "I",
+          description: i18n._({
+            id: "settings.help.shortcuts.gameDebug.triggerIntermediary",
+            message: "Trigger a test intermediary immediately.",
+          }),
+        },
         {
           keys: "J",
-          description: t`End the current intermediary early and resume the main round.`,
+          description: i18n._({
+            id: "settings.help.shortcuts.gameDebug.endIntermediary",
+            message: "End the current intermediary early and resume the main round.",
+          }),
         },
-        { keys: "K", description: t`Finish the round and jump to the summary screen.` },
+        {
+          keys: "K",
+          description: i18n._({
+            id: "settings.help.shortcuts.gameDebug.finishRound",
+            message: "Finish the round and jump to the summary screen.",
+          }),
+        },
       ],
     },
     {
       id: "converter",
-      title: t`Converter`,
-      description: t`Used while trimming and classifying segments in the converter.`,
+      title: i18n._({ id: "settings.help.shortcuts.converter.title", message: "Converter" }),
+      description: i18n._({
+        id: "settings.help.shortcuts.converter.description",
+        message: "Used while trimming and classifying segments in the converter.",
+      }),
       shortcuts: CONVERTER_SHORTCUTS.map((shortcut) => ({
         keys: shortcut.keysLabel,
         description: shortcut.description,
@@ -246,31 +388,103 @@ export function getVisibleShortcutGroups(
     },
     {
       id: "map-editor",
-      title: t`Map Editor`,
-      description: t`Shortcuts for graph editing, layout, and viewport control.`,
+      title: i18n._({ id: "settings.help.shortcuts.mapEditor.title", message: "Map Editor" }),
+      description: i18n._({
+        id: "settings.help.shortcuts.mapEditor.description",
+        message: "Shortcuts for graph editing, layout, and viewport control.",
+      }),
       shortcuts: [
-        { keys: "Hold Space", description: t`Temporarily enable panning.` },
-        { keys: "Ctrl/Cmd+Z", description: t`Undo the last graph edit.` },
+        {
+          keys: "Hold Space",
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.panning",
+            message: "Temporarily enable panning.",
+          }),
+        },
+        {
+          keys: "Ctrl/Cmd+Z",
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.undo",
+            message: "Undo the last graph edit.",
+          }),
+        },
         {
           keys: "Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y",
-          description: t`Redo the last undone graph edit.`,
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.redo",
+            message: "Redo the last undone graph edit.",
+          }),
         },
-        { keys: "Ctrl/Cmd+S", description: t`Save the current playlist.` },
-        { keys: "X", description: t`Delete the current selection.` },
+        {
+          keys: "Ctrl/Cmd+S",
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.save",
+            message: "Save the current playlist.",
+          }),
+        },
+        {
+          keys: "X",
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.deleteSelection",
+            message: "Delete the current selection.",
+          }),
+        },
         {
           keys: "1-9",
-          description: t`Arm one of the first nine visible tile types for placement.`,
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.armTile",
+            message: "Arm one of the first nine visible tile types for placement.",
+          }),
         },
         {
           keys: "Escape",
-          description: t`Clear the current selection and cancel a pending connection.`,
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.clearSelection",
+            message: "Clear the current selection and cancel a pending connection.",
+          }),
         },
-        { keys: "V", description: t`Switch to the Select tool.` },
-        { keys: "P", description: t`Switch to the Place tool.` },
-        { keys: "C", description: t`Switch to the Connect tool.` },
-        { keys: "G", description: t`Show or hide the editor grid.` },
-        { keys: "L", description: t`Apply the current graph layout strategy.` },
-        { keys: "0", description: t`Reset the editor camera to the default view.` },
+        {
+          keys: "V",
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.selectTool",
+            message: "Switch to the Select tool.",
+          }),
+        },
+        {
+          keys: "P",
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.placeTool",
+            message: "Switch to the Place tool.",
+          }),
+        },
+        {
+          keys: "C",
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.connectTool",
+            message: "Switch to the Connect tool.",
+          }),
+        },
+        {
+          keys: "G",
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.grid",
+            message: "Show or hide the editor grid.",
+          }),
+        },
+        {
+          keys: "L",
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.layout",
+            message: "Apply the current graph layout strategy.",
+          }),
+        },
+        {
+          keys: "0",
+          description: i18n._({
+            id: "settings.help.shortcuts.mapEditor.resetCamera",
+            message: "Reset the editor camera to the default view.",
+          }),
+        },
       ],
     },
   ];
@@ -5350,9 +5564,9 @@ function AppZoomCard({
 }
 
 function HelpShortcutsCard({ cheatModeEnabled }: { cheatModeEnabled: boolean }) {
-  const { t } = useLingui();
+  const { i18n } = useLingui();
   const sfwMode = useSfwMode();
-  const shortcutGroups = getVisibleShortcutGroups(t, import.meta.env.PROD, cheatModeEnabled);
+  const shortcutGroups = getVisibleShortcutGroups(i18n, import.meta.env.PROD, cheatModeEnabled);
 
   return (
     <section
@@ -6017,7 +6231,7 @@ function TextRow({ setting, disabled }: { setting: TextSetting; disabled: boolea
 function CreditsCard() {
   const { t } = useLingui();
   const sfwMode = useSfwMode();
-  const playtesters = ["Kyral", "VladTheImplier", "Aodin", "woo", "edale"];
+  const playtesters = ["Kyral", "VladTheImplier", "Aodin", "woo", "edale", "Dragon0301"];
 
   return (
     <section
