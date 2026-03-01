@@ -5,9 +5,10 @@ import { z } from "zod";
 import { fromLocalMediaUri } from "./localMedia";
 import { FunlinkAnnouncer } from "./funlink";
 
-// MultiFunPlayer builds that know FapLand's native extension open with
-// mfp_hello. Older players, including the Windows release, never send it and
-// keep the plain OFS stream below.
+// RustyFunPlayer opens FapLand's native extension with rfp_hello. Builds from
+// before its rename from MultiFunPlayer send mfp_hello. Other players,
+// including the Windows MultiFunPlayer, never send it and keep the plain OFS
+// stream below.
 export const MFP_NATIVE_PROTOCOL = 1;
 
 const axisId = z.string().regex(/^[A-Z][0-9]$/);
@@ -214,7 +215,7 @@ export class MultiFunPlayerBridge {
     }
     // F-Land owns playback. OFS playback commands are deliberately ignored.
     if (message?.type !== "command") return;
-    if (message.name === "mfp_hello") {
+    if (message.name === "rfp_hello" || message.name === "mfp_hello") {
       const hello = nativeHelloSchema.safeParse(message.data);
       if (!hello.success) return;
       this.native.set(client, {
@@ -233,7 +234,7 @@ export class MultiFunPlayerBridge {
           version: this.version,
         })
       );
-    } else if (message.name === "mfp_state") {
+    } else if (message.name === "rfp_state" || message.name === "mfp_state") {
       const peer = this.native.get(client);
       const state = nativeStateSchema.safeParse(message.data);
       if (!peer || !state.success) return;

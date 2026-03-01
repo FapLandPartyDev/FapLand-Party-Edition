@@ -213,8 +213,8 @@ describe("MultiFunPlayer OFS bridge", () => {
     client.send(
       JSON.stringify({
         type: "command",
-        name: "mfp_hello",
-        data: { protocol: 1, application: "MultiFunPlayer", version: "0.1.0" },
+        name: "rfp_hello",
+        data: { protocol: 1, application: "RustyFunPlayer", version: "0.1.0" },
       })
     );
     await vi.waitFor(() =>
@@ -244,10 +244,10 @@ describe("MultiFunPlayer OFS bridge", () => {
       axes: [{ axis: "L0", name: "Up/Down", script: "F-Land.funscript", syncing: false }],
       playback: { media: "video.mp4", playing: true, position: 2.05, duration: 10, speed: 1 },
     };
-    client.send(JSON.stringify({ type: "command", name: "mfp_state", data: state }));
+    client.send(JSON.stringify({ type: "command", name: "rfp_state", data: state }));
     await vi.waitFor(() => expect(bridge.status().native?.state?.outputs).toHaveLength(1));
     const native = bridge.status().native!;
-    expect(native).toMatchObject({ application: "MultiFunPlayer", version: "0.1.0" });
+    expect(native).toMatchObject({ application: "RustyFunPlayer", version: "0.1.0" });
     expect(native.driftMs).toBeGreaterThan(0);
     expect(native.driftMs).toBeLessThan(100);
 
@@ -268,6 +268,25 @@ describe("MultiFunPlayer OFS bridge", () => {
 
     client.terminate();
     await vi.waitFor(() => expect(bridge.status().native).toBeNull());
+  });
+
+  it("accepts the native extension from builds named MultiFunPlayer", async () => {
+    const bridge = await start();
+    const { client, messages } = await connect(bridge);
+    client.send(
+      JSON.stringify({
+        type: "command",
+        name: "mfp_hello",
+        data: { protocol: 1, application: "MultiFunPlayer", version: "0.1.0" },
+      })
+    );
+    await vi.waitFor(() =>
+      expect(messages.some((message) => message.name === "fapland_hello")).toBe(true)
+    );
+    const state = { outputs: [], axes: [], playback: { playing: false, speed: 1 } };
+    client.send(JSON.stringify({ type: "command", name: "mfp_state", data: state }));
+    await vi.waitFor(() => expect(bridge.status().native?.updatedAt).not.toBeNull());
+    expect(bridge.status().native).toMatchObject({ application: "MultiFunPlayer" });
   });
 
   it("keeps legacy OFS players on the plain stream", async () => {

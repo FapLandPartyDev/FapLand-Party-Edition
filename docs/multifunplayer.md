@@ -3,8 +3,8 @@
 This build provides a local OFS-compatible WebSocket bridge. MultiFunPlayer loads
 the scripts sent by F-Land and controls your multi-axis device.
 
-**Funlink test integration:** compatible MultiFunPlayer builds can discover the
-local bridge and offer a connection. The manual OFS setup below is also available.
+**Funlink test integration:** RustyFunPlayer, the Linux port of MultiFunPlayer, can
+discover the local bridge and offer a connection. The manual OFS setup below is also available.
 
 1. In F-Land, open **Settings → Hardware & Sync → MultiFunPlayer** and enable the bridge.
 2. In MultiFunPlayer, add **OFS** under media players. Set its address to

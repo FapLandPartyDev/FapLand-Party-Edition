@@ -1,5 +1,13 @@
 # What's New
 
+## v0.6.32-beta.4
+
+### Fixed
+
+- **RustyFunPlayer link** — FapLand accepts the native link from RustyFunPlayer, the new name of the Linux MultiFunPlayer port. Its device card and state appear again after connecting. Builds from before the rename keep working.
+
+---
+
 ## v0.6.32-beta.3
 
 ### Fixed
