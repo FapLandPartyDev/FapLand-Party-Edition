@@ -11,7 +11,13 @@ vi.mock("electron", () => ({
   },
 }));
 
-import { compareVersions, resolveReleaseAssetUrl, shouldRefreshUpdateState, getReleaseConfig, type AppUpdateState } from "./updater";
+import {
+  compareVersions,
+  resolveReleaseAssetUrl,
+  shouldRefreshUpdateState,
+  getReleaseConfig,
+  type AppUpdateState,
+} from "./updater";
 
 describe("updater.getReleaseConfig", () => {
   it("parses valid repository strings", () => {
@@ -51,8 +57,14 @@ describe("updater.compareVersions", () => {
 describe("updater.resolveReleaseAssetUrl", () => {
   it("selects the Windows installer asset when both installer and portable assets exist", () => {
     const assets = [
-      { name: "Fap Land-Portable-0.2.0.exe", browser_download_url: "https://example.test/f-land-portable.exe" },
-      { name: "Fap Land-Setup-0.2.0.exe", browser_download_url: "https://example.test/f-land-setup.exe" },
+      {
+        name: "Fap Land-Portable-0.2.0.zip",
+        browser_download_url: "https://example.test/f-land-portable.zip",
+      },
+      {
+        name: "Fap Land-Setup-0.2.0.exe",
+        browser_download_url: "https://example.test/f-land-setup.exe",
+      },
     ];
 
     expect(resolveReleaseAssetUrl(assets, "windows-installer")).toBe(
@@ -62,12 +74,18 @@ describe("updater.resolveReleaseAssetUrl", () => {
 
   it("selects the Windows portable asset when both installer and portable assets exist", () => {
     const assets = [
-      { name: "Fap Land-Setup-0.2.0.exe", browser_download_url: "https://example.test/f-land-setup.exe" },
-      { name: "Fap Land-Portable-0.2.0.exe", browser_download_url: "https://example.test/f-land-portable.exe" },
+      {
+        name: "Fap Land-Setup-0.2.0.exe",
+        browser_download_url: "https://example.test/f-land-setup.exe",
+      },
+      {
+        name: "Fap Land-Portable-0.2.0.zip",
+        browser_download_url: "https://example.test/f-land-portable.zip",
+      },
     ];
 
     expect(resolveReleaseAssetUrl(assets, "windows-portable")).toBe(
-      "https://example.test/f-land-portable.exe"
+      "https://example.test/f-land-portable.zip"
     );
   });
 
@@ -80,16 +98,56 @@ describe("updater.resolveReleaseAssetUrl", () => {
     ).toBe("https://example.test/f-land.dmg");
     expect(
       resolveReleaseAssetUrl(
-        [{ name: "Fap-Land-0.2.0.AppImage", browser_download_url: "https://example.test/f-land.AppImage" }],
+        [
+          {
+            name: "Fap-Land-0.2.0.AppImage",
+            browser_download_url: "https://example.test/f-land.AppImage",
+          },
+        ],
         "linux-appimage"
       )
     ).toBe("https://example.test/f-land.AppImage");
   });
 
   it("returns null when no compatible asset exists", () => {
-    expect(resolveReleaseAssetUrl([
-      { name: "latest.yml", browser_download_url: "https://example.test/latest.yml" },
-    ], "windows-portable")).toBeNull();
+    expect(
+      resolveReleaseAssetUrl(
+        [{ name: "latest.yml", browser_download_url: "https://example.test/latest.yml" }],
+        "windows-portable"
+      )
+    ).toBeNull();
+  });
+
+  it("does not select old Windows portable exe assets for portable updates", () => {
+    expect(
+      resolveReleaseAssetUrl(
+        [
+          {
+            name: "Fap Land-Portable-0.2.0.exe",
+            browser_download_url: "https://example.test/f-land-portable.exe",
+          },
+        ],
+        "windows-portable"
+      )
+    ).toBeNull();
+  });
+
+  it("keeps Linux AppImage preference from selecting portable zip assets", () => {
+    expect(
+      resolveReleaseAssetUrl(
+        [
+          {
+            name: "Fap Land-Portable-0.2.0.zip",
+            browser_download_url: "https://example.test/f-land-portable.zip",
+          },
+          {
+            name: "Fap-Land-0.2.0.AppImage",
+            browser_download_url: "https://example.test/f-land.AppImage",
+          },
+        ],
+        "linux-appimage"
+      )
+    ).toBe("https://example.test/f-land.AppImage");
   });
 });
 
@@ -109,9 +167,11 @@ describe("updater.shouldRefreshUpdateState", () => {
     };
 
     expect(shouldRefreshUpdateState(staleState)).toBe(true);
-    expect(shouldRefreshUpdateState({
-      ...staleState,
-      checkedAtIso: new Date().toISOString(),
-    })).toBe(false);
+    expect(
+      shouldRefreshUpdateState({
+        ...staleState,
+        checkedAtIso: new Date().toISOString(),
+      })
+    ).toBe(false);
   });
 });

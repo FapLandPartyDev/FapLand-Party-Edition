@@ -1543,8 +1543,8 @@ msgid "Choose Folder and Export"
 msgstr "Choose Folder and Export"
 
 #: src/routes/settings.tsx:655
-msgid "Choose the language used for app labels, dialogs, and safe mode prompts. English stays the default unless the system language option is enabled."
-msgstr "Choose the language used for app labels, dialogs, and safe mode prompts. English stays the default unless the system language option is enabled."
+msgid "Choose the language used for app labels, dialogs, and safe mode prompts. English stays the default unless the experimental system language option is enabled."
+msgstr "Choose the language used for app labels, dialogs, and safe mode prompts. English stays the default unless the experimental system language option is enabled."
 
 #: src/routes/first-start.tsx:1199
 msgid "Choose the language used on this page and across the app. Changes apply immediately."

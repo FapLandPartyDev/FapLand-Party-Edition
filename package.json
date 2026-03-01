@@ -163,19 +163,18 @@
       "category": "Game"
     },
     "win": {
+      "artifactName": "Fap Land-Portable-${version}.${ext}",
       "target": [
         "nsis",
-        "portable"
+        "zip"
       ]
     },
     "nsis": {
       "artifactName": "Fap Land-Setup-${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "perMachine": false
-    },
-    "portable": {
-      "artifactName": "Fap Land-Portable-${version}.${ext}"
+      "perMachine": false,
+      "include": "build/installer.nsh"
     },
     "fileAssociations": [
       {

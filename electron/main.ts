@@ -24,7 +24,7 @@ import { normalizeMultiplayerAuthCallback } from "./services/authCallback";
 import { ensureAppDatabaseReady } from "./services/db";
 import { initStore } from "./services/store";
 import { scanInstallSources } from "./services/installer";
-import { getPortableDataRoot } from "./services/portable";
+import { getPortableDataRoot, normalizeUserDataSuffix } from "./services/portable";
 import { proxyExternalRequest } from "./services/integrations";
 import { startContinuousPhashScan } from "./services/phashScanService";
 import { startContinuousWebsiteVideoScan } from "./services/webVideoScanService";
@@ -80,15 +80,6 @@ protocol.registerSchemesAsPrivileged([
     },
   },
 ]);
-
-function normalizeUserDataSuffix(raw: string | undefined): string | null {
-  if (!raw) return null;
-  const trimmed = raw.trim().toLowerCase();
-  if (trimmed.length === 0) return null;
-
-  const sanitized = trimmed.replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
-  return sanitized.length > 0 ? sanitized : null;
-}
 
 const userDataSuffix = normalizeUserDataSuffix(process.env.FLAND_USER_DATA_SUFFIX);
 const portableDataRoot = getPortableDataRoot(userDataSuffix);
