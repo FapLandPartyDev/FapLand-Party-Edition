@@ -53,6 +53,7 @@ import {
   type LengthRangeFilter,
   type MetadataFilter,
   type ScriptFilter,
+  type SearchScope,
   type SortMode,
   type SourceFilter,
   type TypeFilter,
@@ -129,6 +130,7 @@ import {
 import { LegacyPlaylistReviewDialog } from "./dialogs/LegacyPlaylistReviewDialog";
 import { WebsiteRoundInstallDialog } from "./dialogs/WebsiteRoundInstallDialog";
 import { LibraryExportDialog } from "./dialogs/LibraryExportDialog";
+import { SourceLinkDialog } from "./dialogs/SourceLinkDialog";
 import { InstallImportOverlay } from "./overlays/InstallImportOverlay";
 
 function toLegacyPlaylistConfig(
@@ -233,6 +235,7 @@ export function InstalledRoundsPage({
     groupMode?: GroupMode;
     sortMode?: SortMode;
     query?: string;
+    searchScope?: SearchScope;
     showDisabled?: boolean;
   };
   navigate: (opts: {
@@ -261,6 +264,7 @@ export function InstalledRoundsPage({
   // ─── Local (non-URL) filter state ───────────────────────────────────────────
   const [queryInput, setQueryInput] = useState(search.query ?? "");
   const [query, setQuery] = useState(search.query ?? "");
+  const [searchScope, setSearchScope] = useState<SearchScope>(search.searchScope ?? "all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [scriptFilter, setScriptFilter] = useState<ScriptFilter>("all");
   const [tagFilter, setTagFilter] = useState<MetadataFilter>("all");
@@ -277,6 +281,10 @@ export function InstalledRoundsPage({
     setQueryInput(search.query ?? "");
     setQuery(search.query ?? "");
   }, [search.query]);
+
+  useEffect(() => {
+    setSearchScope(search.searchScope ?? "all");
+  }, [search.searchScope]);
 
   // ─── Data queries ───────────────────────────────────────────────────────────
   const roundsQuery = useInstalledRoundsCatalog(showDisabledRounds, true);
@@ -318,6 +326,7 @@ export function InstalledRoundsPage({
       filterAndSortRounds({
         indexedRounds,
         query: deferredQuery,
+        searchScope,
         typeFilter,
         scriptFilter,
         tagFilter,
@@ -334,6 +343,7 @@ export function InstalledRoundsPage({
       indexedRounds,
       libraryFilter,
       scriptFilter,
+      searchScope,
       sourceFilter,
       addedDateFilter,
       lengthRangeFilter,
@@ -397,6 +407,7 @@ export function InstalledRoundsPage({
 
   const hasActiveFilters =
     queryInput.trim().length > 0 ||
+    searchScope !== "all" ||
     typeFilter !== "all" ||
     scriptFilter !== "all" ||
     tagFilter !== "all" ||
@@ -408,6 +419,7 @@ export function InstalledRoundsPage({
     lengthRangeFilter.maxMinutes.trim() !== "";
   const activeFilterCount =
     Number(queryInput.trim().length > 0) +
+    Number(searchScope !== "all") +
     Number(typeFilter !== "all") +
     Number(scriptFilter !== "all") +
     Number(tagFilter !== "all") +
@@ -423,6 +435,7 @@ export function InstalledRoundsPage({
   const [selectedRoundIds, setSelectedRoundIds] = useState<Set<string>>(new Set());
   const [selectedHeroIds, setSelectedHeroIds] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
+  const [sourceLinkDialogOpen, setSourceLinkDialogOpen] = useState(false);
   const selectionAnchorIdRef = useRef<string | null>(null);
   const visibleSelectableRoundIds = useMemo(
     () => collectVisibleSelectableRoundIds(renderRows, expandedGroupKeySet),
@@ -1109,27 +1122,16 @@ export function InstalledRoundsPage({
         roundIds: exportDialog.exportMode === "selected" ? Array.from(selectedRoundIds) : undefined,
         heroIds: exportDialog.exportMode === "selected" ? Array.from(selectedHeroIds) : undefined,
       };
-      let includeAcquisitionSources =
+      const includeAcquisitionSources =
         exportDialog.includeAcquisitionSources || exportDialog.replaceOriginalLinksWithAcquisition;
       const linkAnalysis = await acquisition.analyzeExportAcquisition(acquisitionSelection);
       const shouldLinkMissing =
         exportDialog.replaceOriginalLinksWithAcquisition && linkAnalysis.unmappedRounds > 0;
       if (shouldLinkMissing) {
-        setIsExportingDatabase(true);
-        const linkResult = await acquisition.autoLinkExportAcquisition(acquisitionSelection);
-        if (linkResult.linkedRounds > 0) {
-          includeAcquisitionSources = true;
-          showToast(
-            t`Linked ${linkResult.linkedFiles} source files to ${linkResult.linkedRounds} rounds.`,
-            "success"
-          );
-        }
-        if (linkResult.unmatchedRounds > 0) {
-          showToast(
-            t`${linkResult.unmatchedRounds} rounds had no unique, high-confidence torrent or MEGA match; their original links will be kept.`,
-            "info"
-          );
-        }
+        setExportDialog(null);
+        setSourceLinkDialogOpen(true);
+        showToast(t`Review missing torrent and MEGA links before exporting.`, "info");
+        return;
       } else if (
         linkAnalysis.totalRounds > 0 &&
         linkAnalysis.mappedRounds === 0 &&
@@ -1139,20 +1141,9 @@ export function InstalledRoundsPage({
           t`This export has no torrent or MEGA download information. Search your configured sources and automatically link unique, high-confidence filename matches before exporting? No files will be downloaded. Choose Cancel to export without adding links.`
         );
         if (shouldAutoLink) {
-          setIsExportingDatabase(true);
-          const linkResult = await acquisition.autoLinkExportAcquisition(acquisitionSelection);
-          if (linkResult.linkedRounds > 0) {
-            includeAcquisitionSources = true;
-            setExportDialog((current) =>
-              current ? { ...current, includeAcquisitionSources: true } : current
-            );
-            showToast(
-              t`Linked ${linkResult.linkedFiles} source files to ${linkResult.linkedRounds} rounds.`,
-              "success"
-            );
-          } else {
-            showToast(t`No unique, high-confidence torrent or MEGA matches were found.`, "info");
-          }
+          setExportDialog(null);
+          setSourceLinkDialogOpen(true);
+          return;
         }
       }
       const directoryPath = await window.electronAPI.dialog.selectPlaylistExportDirectory(
@@ -2126,6 +2117,14 @@ export function InstalledRoundsPage({
                       openExportDatabaseDialog();
                     }}
                   />
+                  <CommandMenuButton
+                    label={t`Link torrent/MEGA sources`}
+                    description={t`Match installed heroes and rounds to catalog files`}
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      setSourceLinkDialogOpen(true);
+                    }}
+                  />
                 </div>
               )}
             </div>
@@ -2140,6 +2139,8 @@ export function InstalledRoundsPage({
                   queryInput={queryInput}
                   setQueryInput={setQueryInput}
                   setQuery={setQuery}
+                  searchScope={searchScope}
+                  setSearchScope={setSearchScope}
                   typeFilter={typeFilter}
                   setTypeFilter={setTypeFilter}
                   scriptFilter={scriptFilter}
@@ -2186,6 +2187,7 @@ export function InstalledRoundsPage({
                   openWebsiteRoundDialog={() => setWebsiteRoundDialogOpen(true)}
                   openEroScriptsDialog={() => setEroscriptsDialogContext("library")}
                   openExportDatabaseDialog={openExportDatabaseDialog}
+                  openSourceLinkDialog={() => setSourceLinkDialogOpen(true)}
                   isExportingDatabase={isExportingDatabase}
                   selectionMode={selectionMode}
                   setSelectionMode={setSelectionMode}
@@ -2515,6 +2517,31 @@ export function InstalledRoundsPage({
           selectionIds={{
             roundIds: Array.from(selectedRoundIds),
             heroIds: Array.from(selectedHeroIds),
+          }}
+        />
+      )}
+      {sourceLinkDialogOpen && (
+        <SourceLinkDialog
+          selection={
+            selectedRoundIds.size > 0 || selectedHeroIds.size > 0
+              ? {
+                  roundIds: Array.from(selectedRoundIds),
+                  heroIds: Array.from(selectedHeroIds),
+                }
+              : {}
+          }
+          onClose={() => setSourceLinkDialogOpen(false)}
+          onApplied={(result) => {
+            setSourceLinkDialogOpen(false);
+            void refreshLibrary();
+            showToast(
+              t`Linked ${result.linkedRounds} rounds across ${result.changedTargets} library items.`,
+              "success"
+            );
+          }}
+          onOpenSettings={() => {
+            setSourceLinkDialogOpen(false);
+            void routerNavigate({ to: "/settings", search: { section: "sources" } });
           }}
         />
       )}
@@ -2851,6 +2878,8 @@ type LibrarySectionProps = {
   queryInput: string;
   setQueryInput: (v: string) => void;
   setQuery: (v: string) => void;
+  searchScope: SearchScope;
+  setSearchScope: (v: SearchScope) => void;
   typeFilter: TypeFilter;
   setTypeFilter: (v: TypeFilter) => void;
   scriptFilter: ScriptFilter;
@@ -2897,6 +2926,7 @@ type LibrarySectionProps = {
   openWebsiteRoundDialog: () => void;
   openEroScriptsDialog: () => void;
   openExportDatabaseDialog: () => void;
+  openSourceLinkDialog: () => void;
   isExportingDatabase: boolean;
   selectionMode: boolean;
   setSelectionMode: (v: boolean | ((prev: boolean) => boolean)) => void;
@@ -2944,6 +2974,8 @@ function LibrarySectionContent(props: LibrarySectionProps) {
     queryInput,
     setQueryInput,
     setQuery,
+    searchScope,
+    setSearchScope,
     typeFilter,
     setTypeFilter,
     scriptFilter,
@@ -2990,6 +3022,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
     openWebsiteRoundDialog,
     openEroScriptsDialog,
     openExportDatabaseDialog,
+    openSourceLinkDialog,
     isExportingDatabase,
     selectionMode,
     setSelectionMode,
@@ -3042,6 +3075,30 @@ function LibrarySectionContent(props: LibrarySectionProps) {
             placeholder={t`Search rounds, heroes, authors…`}
             className="h-10 w-full rounded-xl border border-white/[0.08] bg-white/[0.04] pl-9 pr-3 text-sm text-zinc-100 outline-none transition focus:border-cyan-300/40 focus:bg-white/[0.06]"
           />
+        </div>
+        <div
+          className="flex rounded-xl border border-white/[0.08] bg-white/[0.03] p-1"
+          role="group"
+          aria-label={t`Search scope`}
+        >
+          {(["all", "heroes", "rounds"] as const).map((scope) => (
+            <button
+              key={scope}
+              type="button"
+              aria-pressed={searchScope === scope}
+              onClick={() => {
+                setSearchScope(scope);
+                updateSearch({ searchScope: scope === "all" ? undefined : scope });
+              }}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                searchScope === scope
+                  ? "bg-white/10 text-white"
+                  : "text-zinc-500 hover:text-zinc-200"
+              }`}
+            >
+              {scope === "all" ? t`All` : scope === "heroes" ? t`Heroes` : t`Rounds`}
+            </button>
+          ))}
         </div>
         <button
           type="button"
@@ -3135,6 +3192,13 @@ function LibrarySectionContent(props: LibrarySectionProps) {
             onClick={openBulkTagsDialog}
           >
             <Trans>Edit tags</Trans>
+          </button>
+          <button
+            className="round-library-toolbar-button"
+            disabled={selectedRoundIds.size + selectedHeroIds.size === 0}
+            onClick={openSourceLinkDialog}
+          >
+            <Trans>Link sources</Trans>
           </button>
           <button
             className="round-library-toolbar-button"
@@ -3425,6 +3489,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                   handleSelectSfx();
                   setQueryInput("");
                   setQuery("");
+                  setSearchScope("all");
                   setTypeFilter("all");
                   setScriptFilter("all");
                   setTagFilter("all");
@@ -3433,7 +3498,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                   setSourceFilter("all");
                   setAddedDateFilter({ mode: "all" });
                   setLengthRangeFilter({ minMinutes: "", maxMinutes: "" });
-                  updateSearch({ sortMode: "newest" });
+                  updateSearch({ sortMode: "newest", searchScope: undefined });
                 }}
                 disabled={!hasActiveFilters}
                 className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${

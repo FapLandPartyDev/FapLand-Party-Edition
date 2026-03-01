@@ -57,6 +57,8 @@ export const playlists = {
     compressionStrength?: number;
     audioBitrateKbps?: 128 | 192 | 256;
     includeMedia?: boolean;
+    includeAcquisitionSources?: boolean;
+    replaceOriginalLinksWithAcquisition?: boolean;
     asFpack?: boolean;
   }) => trpc.playlist.exportPackage.mutate(input),
   getExportPackageStatus: () => trpc.playlist.getExportPackageStatus.query(),

@@ -31,7 +31,10 @@ import { PlaylistResolutionModal } from "../components/PlaylistResolutionModal";
 import { RoundVideoOverlay } from "../components/game/RoundVideoOverlay";
 import { PlaylistPicker } from "../features/playlist-picker/PlaylistPicker";
 import { DifficultySectionNumberInput } from "../features/playlist-workshop/DifficultySectionNumberInput";
-import { buildDifficultySectionRoundOrder } from "../features/playlist-workshop/roundSelection";
+import {
+  buildDifficultySectionRoundOrder,
+  buildProgressiveRoundOrder,
+} from "../features/playlist-workshop/roundSelection";
 export { buildDifficultySectionRoundOrder } from "../features/playlist-workshop/roundSelection";
 import {
   countActiveWorkshopRoundFilters,
@@ -494,53 +497,7 @@ function shuffleRounds(rounds: WorkshopInstalledRound[]): WorkshopInstalledRound
 }
 
 function buildProgressiveRandomOrder(rounds: WorkshopInstalledRound[]): WorkshopInstalledRound[] {
-  if (rounds.length <= 1) return [...rounds];
-
-  const difficultyValues = rounds.map((round) => round.difficulty ?? 1);
-  const durationValues = rounds.map((round) => getRoundDurationSec(round));
-  const minDifficulty = Math.min(...difficultyValues);
-  const maxDifficulty = Math.max(...difficultyValues);
-  const minDuration = Math.min(...durationValues);
-  const maxDuration = Math.max(...durationValues);
-
-  const normalize = (value: number, min: number, max: number): number => {
-    if (max <= min) return 0.5;
-    return (value - min) / (max - min);
-  };
-
-  const pool = [...rounds];
-  const picked: WorkshopInstalledRound[] = [];
-
-  while (pool.length > 0) {
-    const progress = picked.length / Math.max(1, rounds.length - 1);
-    const biasStrength = progress * 2.5;
-    const weighted = pool.map((round) => {
-      const diffNorm = normalize(round.difficulty ?? 1, minDifficulty, maxDifficulty);
-      const durationNorm = normalize(getRoundDurationSec(round), minDuration, maxDuration);
-      const score = diffNorm * 0.7 + durationNorm * 0.3;
-      const jitter = Math.random() * 0.35;
-      return {
-        round,
-        weight: Math.max(0.01, 0.2 + jitter + score * biasStrength),
-      };
-    });
-
-    const total = weighted.reduce((sum, entry) => sum + entry.weight, 0);
-    let cursor = Math.random() * total;
-    let chosenIndex = weighted.length - 1;
-    for (let i = 0; i < weighted.length; i += 1) {
-      cursor -= weighted[i]!.weight;
-      if (cursor <= 0) {
-        chosenIndex = i;
-        break;
-      }
-    }
-
-    const [chosen] = pool.splice(chosenIndex, 1);
-    if (chosen) picked.push(chosen);
-  }
-
-  return picked;
+  return buildProgressiveRoundOrder(rounds);
 }
 
 const getInstalledRounds = async (): Promise<InstalledRoundCatalogEntry[]> => {
@@ -1836,6 +1793,8 @@ function PlaylistWorkshopPage() {
     compressionStrength: number;
     audioBitrateKbps: 128 | 192 | 256;
     includeMedia: boolean;
+    includeAcquisitionSources: boolean;
+    replaceOriginalLinksWithAcquisition: boolean;
     asFpack: boolean;
   }): Promise<boolean> => {
     if (savePending) return false;
@@ -1872,6 +1831,8 @@ function PlaylistWorkshopPage() {
           compressionStrength: input.compressionStrength,
           audioBitrateKbps: input.audioBitrateKbps,
           includeMedia: input.includeMedia,
+          includeAcquisitionSources: input.includeAcquisitionSources,
+          replaceOriginalLinksWithAcquisition: input.replaceOriginalLinksWithAcquisition,
           asFpack: input.asFpack,
         });
         showImportNotice(t`Playlist pack exported to ${result.fpackPath ?? result.exportDir}.`);
@@ -2011,24 +1972,24 @@ function PlaylistWorkshopPage() {
           startIndex: 1,
           endIndex: Math.min(25, prev.roundCount),
           minDifficulty: 1,
-          maxDifficulty: 1,
+          maxDifficulty: 2,
         },
         {
           startIndex: Math.min(26, prev.roundCount),
           endIndex: Math.min(50, prev.roundCount),
-          minDifficulty: 5,
-          maxDifficulty: 5,
+          minDifficulty: 2,
+          maxDifficulty: 3,
         },
         {
           startIndex: Math.min(51, prev.roundCount),
           endIndex: Math.min(75, prev.roundCount),
           minDifficulty: 3,
-          maxDifficulty: 3,
+          maxDifficulty: 4,
         },
         {
           startIndex: Math.min(76, prev.roundCount),
           endIndex: prev.roundCount,
-          minDifficulty: 1,
+          minDifficulty: 4,
           maxDifficulty: 5,
         },
       ].filter((section) => section.startIndex <= section.endIndex),

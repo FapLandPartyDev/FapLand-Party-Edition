@@ -22,6 +22,7 @@ import {
 import { MultiplayerUpdateGuard } from "../components/multiplayer/MultiplayerUpdateGuard";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { progression } from "../services/progression";
+import { CompletionCelebration } from "../components/results/CompletionCelebration";
 
 const MultiplayerResultSearchSchema = z.object({
   lobbyId: z.string().min(1),
@@ -261,6 +262,10 @@ function MultiplayerResultRoute() {
         ref={scopeRef}
         className="relative min-h-screen overflow-hidden bg-[#030713] text-zinc-100"
       >
+        <CompletionCelebration
+          level={progressionSummary?.level}
+          levelsGained={progressionSummary?.levelsGained}
+        />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_12%,rgba(34,211,238,0.27),transparent_40%),radial-gradient(circle_at_86%_18%,rgba(236,72,153,0.26),transparent_36%),radial-gradient(circle_at_52%_90%,rgba(56,189,248,0.18),transparent_35%),linear-gradient(140deg,#020612_0%,#06122b_55%,#18051f_100%)]" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[length:100%_4px] opacity-20" />
 

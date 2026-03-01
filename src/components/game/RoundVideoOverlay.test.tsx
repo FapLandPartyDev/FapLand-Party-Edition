@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
     setSyncStatus: vi.fn(),
     toggleManualStop: vi.fn<() => Promise<"unavailable" | "stopped">>(async () => "unavailable"),
     reconnect: vi.fn(async () => true),
+    disconnect: vi.fn(async () => undefined),
     setResourceOffsetOverride: vi.fn(),
     adjustOffset: vi.fn(async (deltaMs: number) => deltaMs),
     resetOffset: vi.fn(async () => undefined),
@@ -424,6 +425,8 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.toggleManualStop.mockResolvedValue("unavailable");
     mocks.handy.reconnect.mockReset();
     mocks.handy.reconnect.mockResolvedValue(true);
+    mocks.handy.disconnect.mockReset();
+    mocks.handy.disconnect.mockResolvedValue(undefined);
     mocks.handy.setResourceOffsetOverride.mockReset();
     mocks.handy.adjustOffset.mockReset();
     mocks.handy.adjustOffset.mockImplementation(async (deltaMs: number) => deltaMs);
@@ -1105,6 +1108,36 @@ describe("RoundVideoOverlay", () => {
       expect(mocks.playback.loadFunscriptTimeline).toHaveBeenCalledWith(
         "app://media/generated-hard-mode.funscript"
       )
+    );
+    expect(mocks.handy.disconnect).not.toHaveBeenCalled();
+    expect(mocks.handy.reconnect).not.toHaveBeenCalled();
+  });
+
+  it("disconnects and reconnects an attached Handy after hard-mode conversion", async () => {
+    let optionsActions: RoundOverlayOptionsAction[] = [];
+    mocks.handy.connected = true;
+    mocks.handy.connectionKey = "connection-key";
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 0, pos: 0 },
+        { at: 100, pos: 100 },
+      ],
+    });
+    renderOverlay({
+      installedRounds: [createInstalledRound("round-1", "file:///tmp/legacy.funscript")],
+      onOptionsActionsChange: (actions) => {
+        optionsActions = actions;
+      },
+    });
+
+    await waitFor(() => expect(optionsActions[0]?.label).toBe("Convert to Hard Mode"));
+    act(() => optionsActions[0]?.onClick());
+    fireEvent.click(await screen.findByRole("button", { name: "Convert and Attach" }));
+
+    await waitFor(() => expect(mocks.handy.reconnect).toHaveBeenCalledTimes(1));
+    expect(mocks.handy.disconnect).toHaveBeenCalledTimes(1);
+    expect(mocks.handy.disconnect.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.handy.reconnect.mock.invocationCallOrder[0]
     );
   });
 

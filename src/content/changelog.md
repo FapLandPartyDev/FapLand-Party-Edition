@@ -1,5 +1,22 @@
 # What's New
 
+## v0.6.24-beta
+
+### Added
+
+- **Interactive Source Linker for Heroes & Rounds** — a new **Link Download Sources** tool in the Installed Rounds library analyzes heroes and standalone rounds against configured BitTorrent and MEGA catalogs, scoring filename matches while ignoring generic path prefixes. Includes status filtering (Ready, Needs review, Linked, Unmatched), confidence meters, candidate review drawers, direct manual file search, and bulk source linking.
+- **Incompatible Content Format Upgrade Prompt** — opening `.fplay`, `.hero`, `.round`, or `.fpack` sidecar files that use a newer schema version than the installed app now triggers a dedicated update prompt informing the user and offering an immediate upgrade link to the latest release.
+- **Interactive Progression Skill Tree Canvas & Celebrations** — the Progression route now features an interactive SVG skill tree canvas with hexagonal branch nodes, animated connection edges, detailed skill panels, and a developer cheat console. Match completion on single-player and multiplayer result screens triggers a new completion celebration banner with level-up particle effects.
+- **Acquisition Sources in Export Packs** — playlist and library export dialogs (`.fpack`) now include options to embed acquisition source metadata and replace local file links with shareable BitTorrent and MEGA download references.
+
+### Changed
+
+- **Unified Progressive Round Selection** — consolidated map round ordering and workshop queue progressive sorting into the shared `buildProgressiveRoundOrder` module.
+- **Improved Playlist Workshop Presets** — difficulty section presets in the Playlist Workshop now distribute min/max difficulty bounds smoothly across queue ranges.
+- Translation catalogs have been regenerated.
+
+---
+
 ## v0.6.23-beta
 
 ### Added

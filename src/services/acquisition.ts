@@ -8,6 +8,16 @@ export type AcquisitionFile = Awaited<
   ReturnType<typeof trpc.acquisition.listSourceFiles.query>
 >[number];
 export type AcquisitionJob = Awaited<ReturnType<typeof trpc.acquisition.listJobs.query>>[number];
+export type LibraryLinkAnalysis = Awaited<
+  ReturnType<typeof trpc.acquisition.analyzeLibraryLinks.query>
+>;
+export type LibraryLinkAnalysisStatus = Awaited<
+  ReturnType<typeof trpc.acquisition.getLibraryLinkAnalysisStatus.query>
+>;
+export type LibraryLinkTarget = LibraryLinkAnalysis["targets"][number];
+export type AcquisitionVideoFileChoice = Awaited<
+  ReturnType<typeof trpc.acquisition.searchVideoFiles.query>
+>["items"][number];
 
 export const acquisition = {
   getSettings: () => trpc.acquisition.getSettings.query(),
@@ -16,6 +26,14 @@ export const acquisition = {
   openDownloadRoot: () => trpc.acquisition.openDownloadRoot.mutate(),
   listSources: () => trpc.acquisition.listSources.query(),
   listSourceFiles: (sourceId: string) => trpc.acquisition.listSourceFiles.query({ sourceId }),
+  analyzeLibraryLinks: (input: Parameters<typeof trpc.acquisition.analyzeLibraryLinks.query>[0]) =>
+    trpc.acquisition.analyzeLibraryLinks.query(input),
+  getLibraryLinkAnalysisStatus: () => trpc.acquisition.getLibraryLinkAnalysisStatus.query(),
+  searchVideoFiles: (input: Parameters<typeof trpc.acquisition.searchVideoFiles.query>[0]) =>
+    trpc.acquisition.searchVideoFiles.query(input),
+  applyLibraryLinks: (
+    changes: Parameters<typeof trpc.acquisition.applyLibraryLinks.mutate>[0]["changes"]
+  ) => trpc.acquisition.applyLibraryLinks.mutate({ changes }),
   listJobs: () => trpc.acquisition.listJobs.query(),
   createTorrentSource: (uri: string, name?: string) =>
     trpc.acquisition.createTorrentSource.mutate({ uri, name }),
@@ -47,4 +65,9 @@ export const acquisition = {
   approveImportDownloads: (
     selections: Parameters<typeof trpc.acquisition.approveImportDownloads.mutate>[0]["selections"]
   ) => trpc.acquisition.approveImportDownloads.mutate({ selections }),
+  mergeInstalledImportMatches: (
+    selections: Parameters<
+      typeof trpc.acquisition.mergeInstalledImportMatches.mutate
+    >[0]["selections"]
+  ) => trpc.acquisition.mergeInstalledImportMatches.mutate({ selections }),
 };

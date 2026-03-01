@@ -7,6 +7,7 @@ import type { ToastVariant } from "../components/ui/ToastHost";
 import { isVideoExtension } from "../constants/videoFormats";
 import { acquisition, type AcquisitionSource } from "./acquisition";
 import { reviewAcquisitionDownloads } from "../components/AcquisitionReviewModalHost";
+import { offerUpdateForIncompatibleContent } from "./contentFormatUpdate";
 
 export type OpenedFileKind =
   "sidecar" | "playlist" | "video" | "folder" | "torrent" | "unsupported" | "cancelled";
@@ -126,7 +127,7 @@ export function getOpenedFileKind(filePath: string): OpenedFileKind {
   return "unsupported";
 }
 
-export async function importOpenedFile(filePath: string): Promise<OpenedFileImportResult> {
+async function importOpenedFileUnchecked(filePath: string): Promise<OpenedFileImportResult> {
   const kind = getOpenedFileKind(filePath);
 
   if (kind === "sidecar") {
@@ -157,11 +158,14 @@ export async function importOpenedFile(filePath: string): Promise<OpenedFileImpo
     if ((result.roundIds?.length ?? 0) > 0) {
       const analysis = await acquisition.analyzeUnresolvedImport(result.roundIds ?? []);
       const acquisitionReview = await reviewAcquisitionDownloads(analysis);
-      if (acquisitionReview.action === "download") {
+      if (acquisitionReview.action === "apply") {
+        if (acquisitionReview.installedSelections.length > 0) {
+          await acquisition.mergeInstalledImportMatches(acquisitionReview.installedSelections);
+        }
         if (acquisitionReview.enableTorrents) {
           await acquisition.updateSettings({ torrentEnabled: true });
         }
-        const selections = acquisitionReview.selectedIndexes.flatMap((index) => {
+        const selections = acquisitionReview.downloadIndexes.flatMap((index) => {
           const match = analysis.matches[index];
           return match
             ? [
@@ -175,7 +179,9 @@ export async function importOpenedFile(filePath: string): Promise<OpenedFileImpo
               ]
             : [];
         });
-        queuedDownloads = (await acquisition.approveImportDownloads(selections)).length;
+        if (selections.length > 0) {
+          queuedDownloads = (await acquisition.approveImportDownloads(selections)).length;
+        }
       }
     }
     const feedback = summarizeImportResult(filePath, result);
@@ -256,4 +262,16 @@ export async function importOpenedFile(filePath: string): Promise<OpenedFileImpo
     kind: "unsupported",
     filePath,
   };
+}
+
+export async function importOpenedFile(filePath: string): Promise<OpenedFileImportResult> {
+  const kind = getOpenedFileKind(filePath);
+  try {
+    return await importOpenedFileUnchecked(filePath);
+  } catch (error) {
+    if (kind === "sidecar" || kind === "playlist") {
+      await offerUpdateForIncompatibleContent(filePath);
+    }
+    throw error;
+  }
 }

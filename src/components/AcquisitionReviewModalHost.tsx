@@ -5,7 +5,16 @@ import type { acquisition as acquisitionService } from "../services/acquisition"
 
 type Analysis = Awaited<ReturnType<typeof acquisitionService.analyzeUnresolvedImport>>;
 type ReviewResult =
-  { action: "skip" } | { action: "download"; selectedIndexes: number[]; enableTorrents: boolean };
+  | { action: "skip" }
+  | {
+      action: "apply";
+      downloadIndexes: number[];
+      installedSelections: Array<{
+        installedRoundId: string;
+        roundIds: string[];
+      }>;
+      enableTorrents: boolean;
+    };
 
 type PendingReview = { analysis: Analysis; resolve: (result: ReviewResult) => void };
 const listeners = new Set<(review: PendingReview | null) => void>();
@@ -30,11 +39,13 @@ function formatBytes(value: number): string {
 
 export function AcquisitionReviewModalHost() {
   const [review, setReview] = useState<PendingReview | null>(pending);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [choices, setChoices] = useState<Map<number, string>>(new Map());
   useEffect(() => {
     const listener = (next: PendingReview | null) => {
       setReview(next);
-      setSelected(new Set(next?.analysis.matches.map((_, index) => index) ?? []));
+      setChoices(
+        new Map(next?.analysis.matches.map((_, index) => [index, "download"] as const) ?? [])
+      );
     };
     listeners.add(listener);
     return () => {
@@ -44,10 +55,11 @@ export function AcquisitionReviewModalHost() {
   const total = useMemo(
     () =>
       review?.analysis.matches.reduce(
-        (sum, match, index) => sum + (selected.has(index) ? (match.sizeBytes ?? 0) : 0),
+        (sum, match, index) =>
+          sum + (choices.get(index) === "download" ? (match.sizeBytes ?? 0) : 0),
         0
       ) ?? 0,
-    [review, selected]
+    [review, choices]
   );
   if (!review) return null;
 
@@ -83,21 +95,11 @@ export function AcquisitionReviewModalHost() {
         ) : null}
         <div className="mt-4 max-h-[50vh] space-y-2 overflow-y-auto">
           {review.analysis.matches.map((match, index) => (
-            <label
+            <div
               key={`${match.sourceId}:${match.path}`}
-              className="flex gap-3 rounded-xl border border-zinc-700 bg-white/5 p-3"
+              className="rounded-xl border border-zinc-700 bg-white/5 p-3"
             >
-              <input
-                type="checkbox"
-                checked={selected.has(index)}
-                onChange={(event) => {
-                  const next = new Set(selected);
-                  if (event.target.checked) next.add(index);
-                  else next.delete(index);
-                  setSelected(next);
-                }}
-              />
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <div className="font-semibold text-zinc-100">
                   {match.sourceName} · {match.sourceKind}
                 </div>
@@ -115,8 +117,31 @@ export function AcquisitionReviewModalHost() {
                     </Trans>
                   </div>
                 ) : null}
+                <label className="mt-3 block text-xs font-semibold text-zinc-300">
+                  Use media from
+                  <select
+                    className="mt-1 block w-full rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm text-white"
+                    value={choices.get(index) ?? "skip"}
+                    onChange={(event) => {
+                      const next = new Map(choices);
+                      next.set(index, event.target.value);
+                      setChoices(next);
+                    }}
+                  >
+                    <option value="download">
+                      Download: {match.sourceName} ({formatBytes(match.sizeBytes ?? 0)})
+                    </option>
+                    {match.installedRoundSuggestions.map((suggestion) => (
+                      <option key={suggestion.roundId} value={`installed:${suggestion.roundId}`}>
+                        Installed: {suggestion.heroName ? `${suggestion.heroName} · ` : ""}
+                        {suggestion.roundName} ({Math.round(suggestion.score * 100)}% match)
+                      </option>
+                    ))}
+                    <option value="skip">Do nothing for now</option>
+                  </select>
+                </label>
               </div>
-            </label>
+            </div>
           ))}
         </div>
         <div className="mt-4 text-sm text-zinc-300">
@@ -136,21 +161,36 @@ export function AcquisitionReviewModalHost() {
           </button>
           <button
             type="button"
-            disabled={selected.size === 0}
-            onClick={() =>
+            disabled={[...choices.values()].every((choice) => choice === "skip")}
+            onClick={() => {
+              const downloadIndexes = review.analysis.matches.flatMap((_, index) =>
+                choices.get(index) === "download" ? [index] : []
+              );
+              const installedSelections = review.analysis.matches.flatMap((match, index) => {
+                const choice = choices.get(index) ?? "";
+                return choice.startsWith("installed:")
+                  ? [
+                      {
+                        installedRoundId: choice.slice("installed:".length),
+                        roundIds: match.roundIds,
+                      },
+                    ]
+                  : [];
+              });
               close({
-                action: "download",
-                selectedIndexes: [...selected],
-                enableTorrents: review.analysis.requiresTorrentEnablement,
-              })
-            }
+                action: "apply",
+                downloadIndexes,
+                installedSelections,
+                enableTorrents:
+                  review.analysis.requiresTorrentEnablement &&
+                  downloadIndexes.some(
+                    (index) => review.analysis.matches[index]?.sourceKind === "torrent"
+                  ),
+              });
+            }}
             className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-40"
           >
-            {review.analysis.requiresTorrentEnablement ? (
-              <Trans>Enable Torrent Support &amp; Download</Trans>
-            ) : (
-              <Trans>Download Selected</Trans>
-            )}
+            Apply Selections
           </button>
         </div>
       </div>

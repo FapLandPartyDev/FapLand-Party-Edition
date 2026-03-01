@@ -5,6 +5,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   assertPublicTracker,
+  buildLibraryLinkTargets,
+  damerauLevenshteinDistance,
   hasReachedSeedLimit,
   normalizeAcquisitionPath,
   parseDefaultAcquisitionSources,
@@ -83,6 +85,26 @@ describe("acquisition safety and matching", () => {
     );
   });
 
+  it("uses normalized Damerau-Levenshtein distance for typo-tolerant matching", () => {
+    expect(damerauLevenshteinDistance("hero", "hreo")).toBe(1);
+    expect(
+      scoreAcquisitionFileName("Héro Match", "archive/Fap.Hero - Hero Match 2160p x265.mp4")
+    ).toBe(1);
+    expect(scoreAcquisitionFileName("Midngiht Era", "vault/Midnight Era.mp4")).toBeGreaterThan(0.9);
+    expect(
+      scoreAcquisitionFileName("Completely Different", "vault/Midnight Hero.mp4")
+    ).toBeLessThan(0.6);
+  });
+
+  it("matches only the basename and removes generic Fap Hero branding", () => {
+    expect(scoreAcquisitionFileName("FapHero FH Era", "archive/FH - Era 1080p.mp4")).toBe(1);
+    expect(scoreAcquisitionFileName("Era", "Era Collection/Completely Different.mp4")).toBeLessThan(
+      0.6
+    );
+    expect(scoreAcquisitionFileName("Fap Hero FH PMV", "archive/FapHero Compilation.mp4")).toBe(0);
+    expect(scoreAcquisitionFileName("Era", "archive\\FH_Era.mp4")).toBe(1);
+  });
+
   it("stops seeding when either configured limit is reached", () => {
     expect(
       hasReachedSeedLimit({ ratio: 1, activeSeedTimeMs: 1, seedRatio: 1, seedTimeMs: 86_400_000 })
@@ -103,5 +125,49 @@ describe("acquisition safety and matching", () => {
         seedTimeMs: null,
       })
     ).toBe(false);
+  });
+
+  it("expands a selected hero round into one target for the complete hero", () => {
+    const hero = { id: "hero-1", name: "Complete Hero", author: "Author" };
+    const rows = [
+      {
+        id: "hero-round-1",
+        name: "Part One",
+        author: null,
+        heroId: hero.id,
+        hero,
+        acquisitionCandidates: [],
+      },
+      {
+        id: "hero-round-2",
+        name: "Part Two",
+        author: null,
+        heroId: hero.id,
+        hero,
+        acquisitionCandidates: [],
+      },
+      {
+        id: "standalone-round",
+        name: "Standalone",
+        author: null,
+        heroId: null,
+        hero: null,
+        acquisitionCandidates: [],
+      },
+    ];
+
+    const targets = buildLibraryLinkTargets(
+      rows as never,
+      { roundIds: ["hero-round-1"] },
+      new Map()
+    );
+
+    expect(targets).toHaveLength(1);
+    expect(targets[0]).toMatchObject({
+      targetKind: "hero",
+      targetId: "hero-1",
+      name: "Complete Hero",
+      roundIds: ["hero-round-1", "hero-round-2"],
+    });
   });
 });

@@ -3,6 +3,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { InstallSidecarTrustModalHost } from "./components/InstallSidecarTrustModalHost";
 import { InstallConfirmationModalHost } from "./components/InstallConfirmationModalHost";
 import { AcquisitionReviewModalHost } from "./components/AcquisitionReviewModalHost";
+import { ContentFormatUpdateModalHost } from "./components/ContentFormatUpdateModalHost";
 import { GlobalDragOverlay } from "./components/GlobalDragOverlay";
 import { showGlobalToast, ToastProvider } from "./components/ui/ToastHost";
 import { GameplayMoaningProvider } from "./contexts/GameplayMoaningContext";
@@ -198,6 +199,7 @@ export function NormalApp() {
           <GameplayMoaningProvider>
             <GlobalDragOverlay />
             <InstallConfirmationModalHost />
+            <ContentFormatUpdateModalHost />
             <AcquisitionReviewModalHost />
             <InstallSidecarTrustModalHost />
             <RouterProvider router={router} />

@@ -5,6 +5,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useControllerSurface } from "../controller";
 import { getAssistedTooltip, getSaveModeEmoji } from "../game/saveMode";
 import { formatDurationLabel } from "../utils/duration";
+import { CompletionCelebration } from "../components/results/CompletionCelebration";
 
 const SingleResultSearchSchema = z.object({
   score: z.coerce.number().int().min(0).default(0),
@@ -91,6 +92,7 @@ export function SingleResultRoute() {
       ref={scopeRef}
       className="relative min-h-screen w-full overflow-hidden bg-[#030509] text-zinc-100 font-sans select-none"
     >
+      <CompletionCelebration level={search.level} levelsGained={search.levelsGained} />
       {/* Dynamic Background */}
       <div className="absolute inset-0 z-0">
         {/* Orgasmic / Climax pulsating rings */}

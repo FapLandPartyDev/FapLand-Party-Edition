@@ -99,6 +99,23 @@ type TestRound = {
     phash?: string | null;
     durationMs?: number | null;
   }>;
+  acquisitionCandidates?: Array<{
+    sourceId: string;
+    sourcePath: string;
+    source: {
+      id: string;
+      kind: "torrent" | "mega";
+      name: string;
+      canonicalLocatorHash: string;
+      locatorJson: string;
+      enabled: boolean;
+      origin: "user" | "imported";
+      lastCatalogedAt: Date | null;
+      catalogError: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+  }>;
 };
 
 function createDeferred<T>(): {
@@ -691,6 +708,201 @@ describe("exportPlaylistPackage", () => {
     ).toBe("gif-data");
   });
 
+  it("forces linked acquisition metadata into media-less round and hero sidecars", async () => {
+    const now = new Date("2026-08-11T00:00:00.000Z");
+    const standaloneVideo = path.join(rootDir, "Standalone Match.mp4");
+    const heroVideo = path.join(rootDir, "Hero Match.mp4");
+    await fs.writeFile(standaloneVideo, "standalone-video");
+    await fs.writeFile(heroVideo, "hero-video");
+    const torrentSource = {
+      id: "torrent-source",
+      kind: "torrent" as const,
+      name: "Public Torrent",
+      canonicalLocatorHash: "torrent-hash",
+      locatorJson: JSON.stringify({
+        magnetUri: "magnet:?xt=urn:btih:0123456789012345678901234567890123456789",
+        infoHash: "0123456789012345678901234567890123456789",
+        displayName: "Public Torrent",
+      }),
+      enabled: true,
+      origin: "user" as const,
+      lastCatalogedAt: now,
+      catalogError: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const megaSource = {
+      ...torrentSource,
+      id: "mega-source",
+      kind: "mega" as const,
+      name: "Public MEGA",
+      canonicalLocatorHash: "mega-hash",
+      locatorJson: JSON.stringify({
+        publicUrl: "https://mega.nz/folder/example#public-key",
+        displayName: "Public MEGA",
+      }),
+    };
+    const hero = {
+      id: "hero-1",
+      name: "Hero Match",
+      author: null,
+      description: null,
+      phash: null,
+    };
+    const rounds: TestRound[] = [
+      {
+        id: "standalone",
+        name: "Standalone Match",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri: toLocalMediaUri(standaloneVideo), funscriptUri: null }],
+        acquisitionCandidates: [
+          {
+            sourceId: torrentSource.id,
+            sourcePath: "collection/Standalone Match.mp4",
+            source: torrentSource,
+          },
+        ],
+      },
+      {
+        id: "hero-round",
+        name: "Hero Round One",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: 0,
+        endTime: 60_000,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: hero.id,
+        hero,
+        resources: [{ videoUri: toLocalMediaUri(heroVideo), funscriptUri: null }],
+        acquisitionCandidates: [
+          {
+            sourceId: megaSource.id,
+            sourcePath: "archive/Hero Match.mp4",
+            source: megaSource,
+          },
+        ],
+      },
+    ];
+    installDbMocks(
+      rounds,
+      buildLinearConfig([
+        { idHint: "standalone", name: "Standalone Match" },
+        { idHint: "hero-round", name: "Hero Round One" },
+      ])
+    );
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    const result = await exportPlaylistPackage({
+      playlistId: "playlist-1",
+      directoryPath: rootDir,
+      includeMedia: false,
+      includeAcquisitionSources: false,
+    });
+
+    const standalone = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Standalone Match.round"), "utf8")
+    ) as {
+      resources: unknown[];
+      acquisition: { sources: Array<{ kind: string }>; candidates: Array<{ filePath: string }> };
+    };
+    const exportedHero = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Hero Match.hero"), "utf8")
+    ) as {
+      acquisition: { sources: Array<{ kind: string }> };
+      rounds: Array<{ resources: unknown[]; acquisitionCandidates: Array<{ filePath: string }> }>;
+    };
+    expect(standalone.resources).toEqual([]);
+    expect(standalone.acquisition.sources.map((source) => source.kind)).toEqual(["torrent"]);
+    expect(standalone.acquisition.candidates[0]?.filePath).toBe("collection/Standalone Match.mp4");
+    expect(exportedHero.acquisition.sources.map((source) => source.kind)).toEqual(["mega"]);
+    expect(exportedHero.rounds[0]?.resources).toEqual([]);
+    expect(exportedHero.rounds[0]?.acquisitionCandidates[0]?.filePath).toBe(
+      "archive/Hero Match.mp4"
+    );
+  });
+
+  it("removes original video links when replaceOriginalLinksWithAcquisition is true and acquisition candidates exist", async () => {
+    const now = new Date("2026-08-11T00:00:00.000Z");
+    const torrentSource = {
+      id: "torrent-source",
+      kind: "torrent" as const,
+      name: "Public Torrent",
+      canonicalLocatorHash: "torrent-hash",
+      locatorJson: JSON.stringify({
+        magnetUri: "magnet:?xt=urn:btih:0123456789012345678901234567890123456789",
+        infoHash: "0123456789012345678901234567890123456789",
+        displayName: "Public Torrent",
+      }),
+      enabled: true,
+      origin: "user" as const,
+      lastCatalogedAt: now,
+      catalogError: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const rounds: TestRound[] = [
+      {
+        id: "remote-with-torrent",
+        name: "Remote Match",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri: "https://example.com/video.mp4", funscriptUri: null }],
+        acquisitionCandidates: [
+          {
+            sourceId: torrentSource.id,
+            sourcePath: "collection/Remote Match.mp4",
+            source: torrentSource,
+          },
+        ],
+      },
+    ];
+    installDbMocks(
+      rounds,
+      buildLinearConfig([{ idHint: "remote-with-torrent", name: "Remote Match" }])
+    );
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    const result = await exportPlaylistPackage({
+      playlistId: "playlist-1",
+      directoryPath: rootDir,
+      includeMedia: false,
+      includeAcquisitionSources: true,
+      replaceOriginalLinksWithAcquisition: true,
+    });
+
+    const sidecar = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Remote Match.round"), "utf8")
+    ) as {
+      resources: unknown[];
+      acquisition: { candidates: Array<{ filePath: string }> };
+    };
+    expect(sidecar.resources).toEqual([]);
+    expect(sidecar.acquisition.candidates[0]?.filePath).toBe("collection/Remote Match.mp4");
+  });
+
   it("leaves graph background URIs untouched when package media is excluded", async () => {
     const videoPath = path.join(rootDir, "local-video.mp4");
     const backgroundPath = path.join(rootDir, "map.mp4");
@@ -1217,6 +1429,69 @@ describe("exportPlaylistPackage", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     const fileNamesAfter = await fs.readdir(result.exportDir);
     expect(fileNamesAfter.some((entry) => entry.endsWith(".round"))).toBe(true);
+  });
+
+  it("excludes Stash videos but keeps funscripts in media-less .fpack exports", async () => {
+    const videoUri = "https://stash.example.com/scene/123/stream";
+    const funscriptUri = "https://stash.example.com/scene/123/funscript";
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Stash Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: "stash-round",
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: "stash:https://stash.example.com:scene:123",
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri, funscriptUri }],
+      },
+    ];
+    installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Stash Round" }]));
+    listExternalSourcesMock.mockReturnValue([
+      {
+        id: "stash-1",
+        kind: "stash",
+        name: "Main Stash",
+        enabled: true,
+        baseUrl: "https://stash.example.com",
+        authMode: "none",
+        apiKey: null,
+        username: null,
+        password: null,
+        tagSelections: [],
+        createdAt: "2026-03-18T00:00:00.000Z",
+        updatedAt: "2026-03-18T00:00:00.000Z",
+      },
+    ]);
+    fetchStashMediaWithAuthMock.mockImplementation(
+      async () => new Response('{"actions":[{"at":0,"pos":50}]}', { status: 200 })
+    );
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    const result = await exportPlaylistPackage({
+      playlistId: "playlist-1",
+      directoryPath: rootDir,
+      compressionMode: "copy",
+      includeMedia: false,
+      asFpack: true,
+    });
+
+    const fetchedUris = fetchStashMediaWithAuthMock.mock.calls.map((call) => call[1] as string);
+    expect(fetchedUris).toEqual([funscriptUri]);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.videoFiles).toBe(0);
+    expect(result.funscriptFiles).toBe(1);
+
+    const entries = await readFpackSidecarEntries(result.fpackPath!);
+    const roundEntry = entries.find((entry) => entry.ext === ".round");
+    expect(roundEntry?.resources[0]?.videoUri).toBe(videoUri);
+    expect(roundEntry?.resources[0]?.funscriptUri).toBe("Stash Round.funscript");
   });
 
   it("reports the round name when a stash-backed resource cannot be fetched", async () => {

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import {
@@ -8,29 +8,31 @@ import {
   normalizeCheatModeEnabled,
 } from "../constants/experimentalFeatures";
 import {
+  SKILL_LIBRARY,
   getLevelProgress,
   getProgressionTitleDisplayName,
-  getRequiredBranchRanks,
-  getTotalXpForLevel,
-  MAX_CHEAT_LEVEL,
-  MAX_CHEAT_XP,
-  SKILL_LIBRARY,
   type SkillBranchId,
 } from "../game/progression";
 import { useSfwMode } from "../hooks/useSfwMode";
 import { progression, type ProgressionProfile } from "../services/progression";
 import { trpc } from "../services/trpc";
+import { ProgressionCheatConsole } from "../features/progression/ProgressionCheatConsole";
+import { SkillDetailPanel } from "../features/progression/SkillDetailPanel";
+import { SkillTreeCanvas, type CameraRequest } from "../features/progression/SkillTreeCanvas";
+import {
+  BRANCH_VISUALS,
+  SKILL_BRANCH_ORDER,
+  buildSkillTreeLayout,
+  getBranchMaxRanks,
+  getBranchRanks,
+  getDefaultSelectedSkillId,
+} from "../features/progression/skillTree";
 
-const BRANCHES: ReadonlyArray<{ id: SkillBranchId; name: string; icon: string }> = [
-  { id: "control", name: "Control", icon: "⏸" },
-  { id: "dicecraft", name: "Dicecraft", icon: "🎲" },
-  { id: "economy", name: "Economy", icon: "💰" },
-  { id: "fortune", name: "Fortune", icon: "✨" },
-  { id: "defense", name: "Defense", icon: "🛡" },
-  { id: "endurance", name: "Endurance", icon: "🔥" },
-  { id: "scoring", name: "Scoring", icon: "🏆" },
-  { id: "arsenal", name: "Starter Arsenal", icon: "🎒" },
-];
+const TREE_LAYOUT = buildSkillTreeLayout();
+const BRANCH_MAX_RANKS = getBranchMaxRanks();
+const OVERVIEW_CAMERA = { x: 0, y: 0, scale: 1 };
+// scale 0 asks the canvas for its container-aware default framing.
+const DEFAULT_CAMERA = { x: 0, y: 0, scale: 0 };
 
 export const Route = createFileRoute("/progression")({
   loader: () => progression.getProfile(),
@@ -47,24 +49,30 @@ export function ProgressionRoute() {
   const [error, setError] = useState<string | null>(null);
   const [cheatModeEnabled, setCheatModeEnabled] = useState(false);
   const [isCheatConsoleOpen, setIsCheatConsoleOpen] = useState(false);
+  const [hoveredBranch, setHoveredBranch] = useState<SkillBranchId | null>(null);
+  const [burstSkillId, setBurstSkillId] = useState<string | null>(null);
+  const [cameraRequest, setCameraRequest] = useState<CameraRequest>({
+    ...DEFAULT_CAMERA,
+    nonce: 0,
+  });
+  const cameraNonce = useRef(0);
+
+  const branchNames = useBranchNames();
   const levelProgress = getLevelProgress(profile.totalXp);
+  const levelRatio = levelProgress.currentLevelXp / Math.max(1, levelProgress.xpToNextLevel);
   const disabledSkillIds = useMemo(
     () => new Set(profile.disabledSkillIds),
     [profile.disabledSkillIds]
   );
-  const rankByBranch = useMemo(
-    () =>
-      Object.fromEntries(
-        BRANCHES.map((branch) => [
-          branch.id,
-          SKILL_LIBRARY.filter((skill) => skill.branch === branch.id).reduce(
-            (total, skill) => total + (profile.skillRanks[skill.id] ?? 0),
-            0
-          ),
-        ])
-      ) as Record<SkillBranchId, number>,
-    [profile.skillRanks]
+  const branchRanks = useMemo(() => getBranchRanks(profile.skillRanks), [profile.skillRanks]);
+  const [selectedSkillId, setSelectedSkillId] = useState(() =>
+    getDefaultSelectedSkillId(initialProfile.skillRanks, {
+      branchRanks: getBranchRanks(initialProfile.skillRanks),
+      spentSkillPoints: initialProfile.spentSkillPoints,
+    })
   );
+  const selectedSkill =
+    SKILL_LIBRARY.find((entry) => entry.id === selectedSkillId) ?? SKILL_LIBRARY[0]!;
 
   useEffect(() => {
     let mounted = true;
@@ -95,6 +103,23 @@ export function ProgressionRoute() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!burstSkillId) return;
+    const timeout = window.setTimeout(() => setBurstSkillId(null), 700);
+    return () => window.clearTimeout(timeout);
+  }, [burstSkillId]);
+
+  const moveCamera = (target: { x: number; y: number; scale: number }): void => {
+    cameraNonce.current += 1;
+    setCameraRequest({ ...target, nonce: cameraNonce.current });
+  };
+
+  const focusBranch = (branch: SkillBranchId): void => {
+    const layout = TREE_LAYOUT.branches.find((entry) => entry.id === branch);
+    if (!layout) return;
+    moveCamera({ x: layout.focusX, y: layout.focusY, scale: 1.55 });
+  };
+
   const openCheatConsole = () => {
     setError(null);
     void progression
@@ -117,6 +142,7 @@ export function ProgressionRoute() {
     setError(null);
     try {
       setProfile(await progression.purchaseSkill(skillId));
+      setBurstSkillId(skillId);
     } catch (purchaseError) {
       setError(
         purchaseError instanceof Error ? purchaseError.message : t`Failed to purchase skill.`
@@ -169,249 +195,226 @@ export function ProgressionRoute() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden text-zinc-100">
+    <div className="relative h-screen overflow-hidden text-zinc-100">
       <AnimatedBackground />
-      <main className="relative z-10 h-screen overflow-y-auto px-4 py-8 sm:px-8">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-16">
-          <header className="rounded-3xl border border-violet-300/30 bg-zinc-950/75 p-6 backdrop-blur-xl">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <div className="mb-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-                    onClick={() => void navigate({ to: "/" })}
-                  >
-                    ← <Trans>Main Menu</Trans>
-                  </button>
-                  {cheatModeEnabled && (
-                    <button
-                      type="button"
-                      className="rounded-xl border border-amber-300/40 bg-amber-500/15 px-4 py-2 text-sm font-bold text-amber-100 hover:bg-amber-500/25"
-                      onClick={openCheatConsole}
-                    >
-                      🎭 <Trans>Cheat console</Trans>
-                    </button>
-                  )}
-                </div>
-                <p className="font-mono text-xs uppercase tracking-[0.35em] text-violet-300">
-                  <Trans>Infinite Progression</Trans>
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <h1 className="text-4xl font-black sm:text-6xl">
-                    <Trans>Level {profile.level}</Trans>
-                  </h1>
-                  {profile.isCheated && (
-                    <span
-                      className="rounded-full border border-amber-300/50 bg-amber-500/15 px-3 py-1 font-mono text-xs font-black uppercase tracking-[0.2em] text-amber-100"
-                      title={t`This is a temporary cheated progression level.`}
-                    >
-                      🎭 <Trans>Cheated</Trans>
-                    </span>
-                  )}
-                </div>
-                <p className="mt-2 text-zinc-300">
-                  {getProgressionTitleDisplayName(profile.equippedTitle, safeMode)} ·{" "}
-                  {profile.unspentSkillPoints} <Trans>skill points available</Trans>
-                </p>
-                {profile.isCheated && (
-                  <p className="mt-2 text-sm text-amber-200">
-                    <Trans>
-                      Genuine profile: Level {profile.genuineLevel} · {profile.genuineTotalXp} XP
-                    </Trans>
-                  </p>
-                )}
-              </div>
-              <div className="min-w-72 rounded-2xl border border-violet-300/25 bg-black/35 p-4">
-                <div className="flex justify-between text-sm">
-                  <span>
-                    {levelProgress.currentLevelXp} / {levelProgress.xpToNextLevel} XP
-                  </span>
-                  <span>{profile.totalXp} total</span>
-                </div>
-                <div className="mt-3 h-3 overflow-hidden rounded-full bg-zinc-800">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400"
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        (levelProgress.currentLevelXp / levelProgress.xpToNextLevel) * 100
-                      )}%`,
-                    }}
-                  />
-                </div>
-                <label className="mt-4 block text-xs uppercase tracking-wider text-zinc-400">
-                  <Trans>Equipped title</Trans>
-                  <select
-                    className="mt-2 w-full rounded-xl border border-white/15 bg-zinc-950 px-3 py-2 text-zinc-100"
-                    value={profile.equippedTitle.id}
-                    onChange={(event) => {
-                      void progression
-                        .equipTitle(event.target.value)
-                        .then(setProfile)
-                        .catch((equipError: unknown) => {
-                          setError(
-                            equipError instanceof Error
-                              ? equipError.message
-                              : t`Failed to equip title.`
-                          );
-                        });
-                    }}
-                  >
-                    {profile.unlockedTitles.map((title) => (
-                      <option key={title.id} value={title.id}>
-                        {getProgressionTitleDisplayName(title, safeMode)} · Lv.{" "}
-                        {title.requiredLevel}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  className="mt-3 w-full rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100 disabled:opacity-40"
-                  disabled={profile.respecTokens < 1 || profile.spentSkillPoints === 0}
-                  onClick={() => void respec()}
-                >
-                  <Trans>Respec ({profile.respecTokens} tokens)</Trans>
-                </button>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100 disabled:opacity-40"
-                    disabled={profile.spentSkillPoints === 0 || pendingSkillId !== null}
-                    onClick={() => void setAllSkillsEnabled(false)}
-                  >
-                    <Trans>Deactivate all</Trans>
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100 disabled:opacity-40"
-                    disabled={profile.disabledSkillRanks === 0 || pendingSkillId !== null}
-                    onClick={() => void setAllSkillsEnabled(true)}
-                  >
-                    <Trans>Activate all</Trans>
-                  </button>
-                </div>
-                <p className="mt-3 text-center font-mono text-xs uppercase tracking-wider text-fuchsia-200">
-                  <Trans>
-                    +{profile.skillDeactivationXpBonusPercent}% solo XP ·{" "}
-                    {profile.disabledSkillRanks} disabled ranks
-                  </Trans>
-                </p>
-              </div>
-            </div>
-            {error && (
-              <p className="mt-4 rounded-xl border border-rose-300/30 bg-rose-500/10 px-4 py-3 text-rose-100">
-                {error}
-              </p>
-            )}
-          </header>
+      <main className="relative z-10 flex h-screen flex-col gap-3 p-3 sm:p-4">
+        <header className="flex flex-wrap items-center gap-3 rounded-3xl border border-violet-300/25 bg-zinc-950/80 px-4 py-3 backdrop-blur-xl">
+          <button
+            type="button"
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
+            onClick={() => void navigate({ to: "/" })}
+          >
+            ← <Trans>Main Menu</Trans>
+          </button>
 
-          <section className="grid gap-5 lg:grid-cols-2">
-            {BRANCHES.map((branch) => (
-              <article
-                key={branch.id}
-                className="rounded-3xl border border-white/10 bg-zinc-950/70 p-5 backdrop-blur-xl"
+          <div className="flex items-center gap-3">
+            <LevelSigil level={profile.level} ratio={levelRatio} cheated={profile.isCheated} />
+            <div className="min-w-0">
+              <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-violet-300">
+                <Trans>Skill Tree</Trans>
+              </p>
+              <select
+                className="mt-1 max-w-[15rem] rounded-lg border border-white/15 bg-zinc-950 px-2 py-1 text-sm font-bold text-zinc-100"
+                aria-label={t`Equipped title`}
+                value={profile.equippedTitle.id}
+                onChange={(event) => {
+                  void progression
+                    .equipTitle(event.target.value)
+                    .then(setProfile)
+                    .catch((equipError: unknown) => {
+                      setError(
+                        equipError instanceof Error ? equipError.message : t`Failed to equip title.`
+                      );
+                    });
+                }}
               >
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-2xl font-black">
-                    {branch.icon} {branch.name}
-                  </h2>
-                  <span className="rounded-full bg-white/5 px-3 py-1 font-mono text-xs">
-                    {rankByBranch[branch.id]} ranks
+                {profile.unlockedTitles.map((title) => (
+                  <option key={title.id} value={title.id}>
+                    {getProgressionTitleDisplayName(title, safeMode)} · Lv. {title.requiredLevel}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="min-w-[14rem] flex-1">
+            <div className="flex justify-between font-mono text-[11px] text-zinc-400">
+              <span>
+                {levelProgress.currentLevelXp} / {levelProgress.xpToNextLevel} XP
+              </span>
+              <span className="text-zinc-500">
+                <Trans>{profile.totalXp} total</Trans>
+              </span>
+              <span className="text-violet-300">
+                <Trans>→ Lv. {profile.level + 1}</Trans>
+              </span>
+            </div>
+            <div className="mt-1.5 h-2.5 overflow-hidden rounded-full border border-white/10 bg-black/60">
+              <div
+                className="skill-xp-fill h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-400 to-violet-300"
+                style={{ width: `${Math.min(100, levelRatio * 100)}%` }}
+              />
+            </div>
+          </div>
+
+          <div
+            className={`rounded-2xl border px-4 py-2 text-center ${
+              profile.unspentSkillPoints > 0
+                ? "skill-points-ready border-amber-300/60 bg-amber-500/15 text-amber-100"
+                : "border-white/10 bg-white/5 text-zinc-400"
+            }`}
+          >
+            <p className="text-2xl font-black leading-none">{profile.unspentSkillPoints}</p>
+            <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.2em]">
+              <Trans>points</Trans>
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-100 disabled:opacity-40"
+              disabled={profile.respecTokens < 1 || profile.spentSkillPoints === 0}
+              onClick={() => void respec()}
+            >
+              ♻ <Trans>Respec ({profile.respecTokens})</Trans>
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-100 disabled:opacity-40"
+              disabled={profile.spentSkillPoints === 0 || pendingSkillId !== null}
+              onClick={() => void setAllSkillsEnabled(false)}
+            >
+              <Trans>Deactivate all</Trans>
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-100 disabled:opacity-40"
+              disabled={profile.disabledSkillRanks === 0 || pendingSkillId !== null}
+              onClick={() => void setAllSkillsEnabled(true)}
+            >
+              <Trans>Activate all</Trans>
+            </button>
+            {cheatModeEnabled && (
+              <button
+                type="button"
+                className="rounded-xl border border-amber-300/40 bg-amber-500/15 px-3 py-2 text-xs font-bold text-amber-100 hover:bg-amber-500/25"
+                onClick={openCheatConsole}
+              >
+                🎭 <Trans>Cheat console</Trans>
+              </button>
+            )}
+          </div>
+        </header>
+
+        {error && (
+          <p className="rounded-2xl border border-rose-300/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-100">
+            {error}
+          </p>
+        )}
+
+        <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
+          <nav className="hidden w-52 shrink-0 flex-col gap-1.5 overflow-y-auto rounded-3xl border border-white/10 bg-zinc-950/70 p-2.5 backdrop-blur-xl lg:flex">
+            <button
+              type="button"
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold uppercase tracking-widest text-zinc-300 hover:bg-white/10"
+              onClick={() => moveCamera(OVERVIEW_CAMERA)}
+            >
+              🜲 <Trans>Full tree</Trans>
+            </button>
+            {SKILL_BRANCH_ORDER.map((branch) => {
+              const visual = BRANCH_VISUALS[branch];
+              const ranks = branchRanks[branch];
+              const maxRanks = BRANCH_MAX_RANKS[branch];
+              const isActive = hoveredBranch === branch;
+              return (
+                <button
+                  key={branch}
+                  type="button"
+                  onClick={() => focusBranch(branch)}
+                  onPointerEnter={() => setHoveredBranch(branch)}
+                  onPointerLeave={() => setHoveredBranch(null)}
+                  onFocus={() => setHoveredBranch(branch)}
+                  onBlur={() => setHoveredBranch(null)}
+                  className={`rounded-xl border px-3 py-2 text-left transition ${
+                    isActive ? visual.railActive : "border-white/10 bg-black/30 hover:bg-white/10"
+                  }`}
+                >
+                  <span className="flex items-center justify-between gap-2 text-sm font-bold">
+                    <span className={isActive ? visual.railText : "text-zinc-200"}>
+                      {visual.icon} {branchNames[branch]}
+                    </span>
+                    <span className="font-mono text-[10px] text-zinc-400">
+                      {ranks}/{maxRanks}
+                    </span>
                   </span>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {SKILL_LIBRARY.filter((skill) => skill.branch === branch.id).map((skill) => {
-                    const rank = profile.skillRanks[skill.id] ?? 0;
-                    const isPurchased = rank > 0;
-                    const isDisabled = disabledSkillIds.has(skill.id);
-                    const requiredBranchRanks =
-                      branch.id === "arsenal"
-                        ? (SKILL_LIBRARY.filter((entry) => entry.branch === "arsenal").findIndex(
-                            (entry) => entry.id === skill.id
-                          ) +
-                            1) *
-                          5
-                        : getRequiredBranchRanks(skill.tier);
-                    const unlocked =
-                      branch.id === "arsenal"
-                        ? profile.spentSkillPoints >= requiredBranchRanks
-                        : rankByBranch[branch.id] >= requiredBranchRanks;
-                    const canBuy =
-                      unlocked &&
-                      rank < skill.maxRank &&
-                      profile.unspentSkillPoints > 0 &&
-                      pendingSkillId === null;
-                    return (
-                      <div
-                        key={skill.id}
-                        className={`relative overflow-hidden rounded-2xl border transition ${
-                          isDisabled
-                            ? "border-rose-300/30 bg-rose-500/8 opacity-70"
-                            : rank >= skill.maxRank
-                              ? "border-emerald-300/35 bg-emerald-500/10"
-                              : unlocked
-                                ? "border-violet-300/25 bg-violet-500/8 hover:bg-violet-500/15"
-                                : "border-white/5 bg-black/25 opacity-55"
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          disabled={!canBuy}
-                          onClick={() => void purchaseSkill(skill.id)}
-                          className="w-full p-4 pb-12 text-left disabled:cursor-not-allowed"
-                          aria-label={`${skill.name}: purchase rank`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="font-bold">{skill.name}</span>
-                            <span className="font-mono text-xs">
-                              {rank}/{skill.maxRank}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-sm text-zinc-400">{skill.description}</p>
-                          {!unlocked && (
-                            <p className="mt-2 text-xs text-amber-200">
-                              {branch.id === "arsenal"
-                                ? `${requiredBranchRanks} total ranks required`
-                                : `${requiredBranchRanks} branch ranks required`}
-                            </p>
-                          )}
-                        </button>
-                        {isPurchased && (
-                          <button
-                            type="button"
-                            className={`absolute inset-x-3 bottom-3 rounded-lg border px-2 py-1 text-xs font-bold ${
-                              isDisabled
-                                ? "border-emerald-300/30 bg-emerald-500/10 text-emerald-100"
-                                : "border-rose-300/30 bg-rose-500/10 text-rose-100"
-                            } disabled:opacity-40`}
-                            disabled={pendingSkillId !== null}
-                            onClick={() => void setSkillEnabled(skill.id, isDisabled)}
-                            aria-pressed={!isDisabled}
-                            aria-label={
-                              isDisabled ? t`Activate ${skill.name}` : t`Deactivate ${skill.name}`
-                            }
-                          >
-                            {isDisabled ? (
-                              <Trans>Activate skill</Trans>
-                            ) : (
-                              <Trans>Deactivate skill</Trans>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </article>
-            ))}
-          </section>
+                  <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <span
+                      className="block h-full rounded-full"
+                      style={{
+                        width: `${(ranks / maxRanks) * 100}%`,
+                        background: visual.accent,
+                        boxShadow: ranks > 0 ? `0 0 8px ${visual.accent}` : undefined,
+                      }}
+                    />
+                  </span>
+                </button>
+              );
+            })}
+            <div className="mt-auto rounded-xl border border-white/10 bg-black/40 p-3 text-[11px] text-zinc-400">
+              <p>
+                <Trans>Spent: {profile.spentSkillPoints}</Trans>
+              </p>
+              <p className="mt-1 text-fuchsia-200">
+                <Trans>
+                  +{profile.skillDeactivationXpBonusPercent}% solo XP from{" "}
+                  {profile.disabledSkillRanks} muted ranks
+                </Trans>
+              </p>
+            </div>
+          </nav>
+
+          <div className="min-w-0 flex-1">
+            <SkillTreeCanvas
+              layout={TREE_LAYOUT}
+              skillRanks={profile.skillRanks}
+              disabledSkillIds={disabledSkillIds}
+              branchRanks={branchRanks}
+              spentSkillPoints={profile.spentSkillPoints}
+              unspentSkillPoints={profile.unspentSkillPoints}
+              branchNames={branchNames}
+              level={profile.level}
+              levelRatio={levelRatio}
+              selectedSkillId={selectedSkillId}
+              hoveredBranch={hoveredBranch}
+              burstSkillId={burstSkillId}
+              cameraRequest={cameraRequest}
+              onSelectSkill={setSelectedSkillId}
+              onPurchaseSkill={(skillId) => void purchaseSkill(skillId)}
+              onRecenter={() => moveCamera(DEFAULT_CAMERA)}
+            />
+          </div>
+
+          <div className="max-h-[42vh] w-full shrink-0 lg:max-h-none lg:w-[20rem] xl:w-[22rem]">
+            <SkillDetailPanel
+              skill={selectedSkill}
+              rank={profile.skillRanks[selectedSkill.id] ?? 0}
+              isDisabled={disabledSkillIds.has(selectedSkill.id)}
+              branchRanks={branchRanks}
+              spentSkillPoints={profile.spentSkillPoints}
+              unspentSkillPoints={profile.unspentSkillPoints}
+              branchName={branchNames[selectedSkill.branch]}
+              isBusy={pendingSkillId !== null}
+              onPurchase={(skillId) => void purchaseSkill(skillId)}
+              onToggleEnabled={(skillId, enabled) => void setSkillEnabled(skillId, enabled)}
+            />
+          </div>
         </div>
       </main>
       {isCheatConsoleOpen && (
         <ProgressionCheatConsole
           profile={profile}
+          branchNames={branchNames}
           onProfileChange={setProfile}
           onClose={() => setIsCheatConsoleOpen(false)}
         />
@@ -420,299 +423,44 @@ export function ProgressionRoute() {
   );
 }
 
-function ProgressionCheatConsole({
-  profile,
-  onProfileChange,
-  onClose,
-}: {
-  profile: ProgressionProfile;
-  onProfileChange: (profile: ProgressionProfile) => void;
-  onClose: () => void;
-}) {
+function useBranchNames(): Record<SkillBranchId, string> {
   const { t } = useLingui();
-  const [totalXp, setTotalXp] = useState(profile.totalXp);
-  const [respecTokens, setRespecTokens] = useState(profile.respecTokens);
-  const [titleId, setTitleId] = useState(profile.equippedTitle.id);
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const levelProgress = getLevelProgress(totalXp);
-
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
-
-  const runAction = async (action: () => Promise<ProgressionProfile>): Promise<void> => {
-    setIsPending(true);
-    setError(null);
-    try {
-      const nextProfile = await action();
-      onProfileChange(nextProfile);
-      setTotalXp(nextProfile.totalXp);
-      setRespecTokens(nextProfile.respecTokens);
-      setTitleId(nextProfile.equippedTitle.id);
-    } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : t`Cheat command failed.`);
-    } finally {
-      setIsPending(false);
-    }
+  return {
+    control: t`Control`,
+    dicecraft: t`Dicecraft`,
+    economy: t`Economy`,
+    fortune: t`Fortune`,
+    defense: t`Defense`,
+    endurance: t`Endurance`,
+    scoring: t`Scoring`,
+    arsenal: t`Starter Arsenal`,
   };
+}
 
-  const setLevel = (level: number): void => {
-    const finiteLevel = Number.isFinite(level) ? level : 1;
-    const normalizedLevel = Math.min(MAX_CHEAT_LEVEL, Math.max(1, Math.floor(finiteLevel)));
-    setTotalXp(getTotalXpForLevel(normalizedLevel));
-  };
-
-  const setBranchRanks = (branch: SkillBranchId, mode: "max" | "clear"): void => {
-    void runAction(() => progression.setCheatSkillRanks(mode, branch));
-  };
-
+function LevelSigil({ level, ratio, cheated }: { level: number; ratio: number; cheated: boolean }) {
+  const { t } = useLingui();
+  const radius = 20;
+  const circumference = 2 * Math.PI * radius;
   return (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/85 px-4 py-8 backdrop-blur-md"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t`Secret progression cheat console`}
+      className="relative h-14 w-14 shrink-0"
+      title={cheated ? t`This is a temporary cheated progression level.` : undefined}
     >
-      <div className="mx-auto w-full max-w-4xl overflow-hidden rounded-3xl border border-amber-300/40 bg-zinc-950 shadow-[0_0_100px_rgba(245,158,11,0.2)]">
-        <header className="border-b border-amber-300/20 bg-gradient-to-r from-amber-500/15 via-fuchsia-500/10 to-violet-500/15 p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="font-mono text-xs uppercase tracking-[0.35em] text-amber-200">
-                🎭 <Trans>Unauthorized progression console</Trans>
-              </p>
-              <h2 className="mt-2 text-3xl font-black text-white">
-                <Trans>Reality Override</Trans>
-              </h2>
-              <p className="mt-2 text-sm text-zinc-300">
-                <Trans>
-                  Changes are temporary, solo-only, and earn no XP. Multiplayer always uses your
-                  genuine profile.
-                </Trans>
-              </p>
-            </div>
-            <button
-              type="button"
-              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm hover:bg-white/10"
-              onClick={onClose}
-            >
-              <Trans>Close</Trans>
-            </button>
-          </div>
-        </header>
-
-        <div className="grid gap-5 p-6 lg:grid-cols-2">
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h3 className="text-xl font-black">
-              <Trans>Level forge</Trans>
-            </h3>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <label className="text-sm text-zinc-300">
-                <Trans>Level</Trans>
-                <input
-                  type="number"
-                  min={1}
-                  max={MAX_CHEAT_LEVEL}
-                  value={levelProgress.level}
-                  onChange={(event) => setLevel(Number(event.target.value))}
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-white"
-                />
-              </label>
-              <label className="text-sm text-zinc-300">
-                <Trans>Total XP</Trans>
-                <input
-                  type="number"
-                  min={0}
-                  max={MAX_CHEAT_XP}
-                  value={totalXp}
-                  onChange={(event) => {
-                    const parsedXp = Number(event.target.value);
-                    const finiteXp = Number.isFinite(parsedXp) ? parsedXp : 0;
-                    setTotalXp(Math.min(MAX_CHEAT_XP, Math.max(0, Math.floor(finiteXp))));
-                  }}
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-white"
-                />
-              </label>
-              <label className="text-sm text-zinc-300">
-                <Trans>Respec tokens</Trans>
-                <input
-                  type="number"
-                  min={0}
-                  max={999}
-                  value={respecTokens}
-                  onChange={(event) =>
-                    setRespecTokens(
-                      Math.min(999, Math.max(0, Math.floor(Number(event.target.value))))
-                    )
-                  }
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-white"
-                />
-              </label>
-              <label className="text-sm text-zinc-300">
-                <Trans>Title</Trans>
-                <select
-                  value={titleId}
-                  onChange={(event) => setTitleId(event.target.value)}
-                  className="mt-1 w-full rounded-xl border border-white/15 bg-zinc-950 px-3 py-2 text-white"
-                >
-                  {profile.unlockedTitles.map((title) => (
-                    <option key={title.id} value={title.id}>
-                      {title.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="mt-4 grid grid-cols-5 gap-2">
-              {[1, 10, 100, 500, 1000].map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  className="rounded-lg border border-violet-300/25 bg-violet-500/10 px-2 py-2 text-xs text-violet-100 hover:bg-violet-500/20"
-                  onClick={() =>
-                    setLevel(preset === 1 || preset === 10 ? levelProgress.level + preset : preset)
-                  }
-                >
-                  {preset === 1 || preset === 10 ? `+${preset}` : preset}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              disabled={isPending}
-              className="mt-4 w-full rounded-xl border border-amber-300/40 bg-amber-500/15 px-4 py-3 font-bold text-amber-100 disabled:opacity-40"
-              onClick={() =>
-                void runAction(() =>
-                  progression.setCheatProgress({ totalXp, respecTokens, titleId })
-                )
-              }
-            >
-              <Trans>Apply progression override</Trans>
-            </button>
-          </section>
-
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h3 className="text-xl font-black">
-              <Trans>Skill laboratory</Trans>
-            </h3>
-            <div className="mt-4 space-y-2">
-              {BRANCHES.map((branch) => (
-                <div
-                  key={branch.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/25 p-3"
-                >
-                  <span className="text-sm font-semibold">
-                    {branch.icon} {branch.name}
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      className="rounded-lg border border-emerald-300/25 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100"
-                      onClick={() => setBranchRanks(branch.id, "max")}
-                    >
-                      <Trans>Max</Trans>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      className="rounded-lg border border-rose-300/25 bg-rose-500/10 px-3 py-1 text-xs text-rose-100"
-                      onClick={() => setBranchRanks(branch.id, "clear")}
-                    >
-                      <Trans>Clear</Trans>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={isPending}
-                className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100"
-                onClick={() => void runAction(() => progression.setCheatSkillRanks("max"))}
-              >
-                <Trans>Max all skills</Trans>
-              </button>
-              <button
-                type="button"
-                disabled={isPending}
-                className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100"
-                onClick={() => void runAction(() => progression.setCheatSkillRanks("clear"))}
-              >
-                <Trans>Clear all skills</Trans>
-              </button>
-              <button
-                type="button"
-                disabled={isPending}
-                className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100"
-                onClick={() => void runAction(() => progression.setAllSkillsEnabled(true))}
-              >
-                <Trans>Activate all</Trans>
-              </button>
-              <button
-                type="button"
-                disabled={isPending}
-                className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100"
-                onClick={() => void runAction(() => progression.setAllSkillsEnabled(false))}
-              >
-                <Trans>Deactivate all</Trans>
-              </button>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-fuchsia-300/25 bg-fuchsia-500/8 p-5 lg:col-span-2">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-black">
-                  <Trans>One-click mayhem</Trans>
-                </h3>
-                <p className="mt-1 text-sm text-zinc-300">
-                  <Trans>
-                    Level 1000, every authored skill and title, 99 respec tokens, everything active.
-                  </Trans>
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={isPending}
-                className="rounded-xl border border-fuchsia-300/40 bg-fuchsia-500/15 px-5 py-3 font-black text-fuchsia-100"
-                onClick={() => void runAction(progression.applyCheatCompletionistPreset)}
-              >
-                <Trans>Become completionist</Trans>
-              </button>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-amber-300/20 bg-amber-500/8 p-5 lg:col-span-2">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <p className="text-sm text-amber-100">
-                <Trans>
-                  Genuine state: Level {profile.genuineLevel} · {profile.genuineTotalXp} XP. Reset
-                  discards every temporary change but keeps this console open.
-                </Trans>
-              </p>
-              <button
-                type="button"
-                disabled={isPending}
-                className="rounded-xl border border-amber-300/40 bg-amber-500/15 px-4 py-2 font-bold text-amber-100"
-                onClick={() => void runAction(progression.resetCheatProfile)}
-              >
-                <Trans>Reset to genuine profile</Trans>
-              </button>
-            </div>
-          </section>
-          {error && (
-            <p className="rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-rose-100 lg:col-span-2">
-              {error}
-            </p>
-          )}
-        </div>
-      </div>
+      <svg viewBox="-28 -28 56 56" className="h-full w-full -rotate-90">
+        <circle r={radius} fill="rgba(6,4,16,0.9)" stroke="rgba(255,255,255,0.1)" strokeWidth={4} />
+        <circle
+          r={radius}
+          fill="none"
+          stroke={cheated ? "#fbbf24" : "#a78bfa"}
+          strokeWidth={4}
+          strokeLinecap="round"
+          strokeDasharray={`${Math.min(1, Math.max(0, ratio)) * circumference} ${circumference}`}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-lg font-black">
+        {level}
+      </span>
+      {cheated && <span className="absolute -right-1 -top-1 text-xs">🎭</span>}
     </div>
   );
 }

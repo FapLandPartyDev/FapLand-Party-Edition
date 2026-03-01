@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import {
   PLAYLIST_FILE_FORMAT,
   PLAYLIST_FILE_VERSION,
@@ -19,7 +19,11 @@ import { ZHeroSidecar, ZRoundSidecar } from "../../src/zod/installSidecar";
 import { parseOptionalRoundCutRangesJson } from "../../src/utils/roundCuts";
 import { getDb } from "./db";
 import { debugLog } from "./debugLogging";
-import { acquisitionSource, playlist as playlistTable } from "./db/schema";
+import {
+  acquisitionSource,
+  playlist as playlistTable,
+  roundAcquisitionCandidate,
+} from "./db/schema";
 import { exportSource } from "./acquisition";
 import { assertApprovedDialogPath } from "./dialogPathApproval";
 import { createFpackFromDirectory } from "./fpack";
@@ -58,6 +62,7 @@ type ExportPackageInput = {
   audioBitrateKbps?: PlaylistExportAudioBitrateKbps;
   includeMedia?: boolean;
   includeAcquisitionSources?: boolean;
+  replaceOriginalLinksWithAcquisition?: boolean;
   asFpack?: boolean;
 };
 
@@ -132,6 +137,11 @@ export type ExportPackageResult = {
 };
 
 export type PlaylistExportPackageAnalysis = {
+  acquisition?: {
+    torrentSources: number;
+    megaSources: number;
+    mappedFiles: number;
+  };
   videoTotals: {
     uniqueVideos: number;
     localVideos: number;
@@ -259,7 +269,6 @@ type VideoTask = {
   sourceContexts: ResourceContext[];
   originalExtension: string;
   probe: PlaylistExportVideoProbe;
-  isStashSource: boolean;
   output: ExportedMediaFile | null;
 };
 
@@ -269,7 +278,6 @@ type FunscriptTask = {
   installSourceKey: string | null;
   preferredBaseName: string;
   sourceContexts: ResourceContext[];
-  isStashSource: boolean;
   output: ExportedMediaFile | null;
 };
 
@@ -725,7 +733,10 @@ async function loadPlaylistForExport(playlistId: string): Promise<ResolvedPlayli
     with: {
       hero: true,
       resources: true,
-      acquisitionCandidates: { with: { source: true } },
+      acquisitionCandidates: {
+        with: { source: true },
+        orderBy: [asc(roundAcquisitionCandidate.sortOrder)],
+      },
     },
   })) as ExportableRound[];
 
@@ -1050,9 +1061,6 @@ function buildResourceInventory(loaded: ResolvedPlaylistExport): {
       });
 
       const canonicalVideoKey = canonicalizeResourceKey(resource.videoUri);
-      const videoIsStash = Boolean(
-        findStashSourceForRemoteResource(resource.videoUri, round.installSourceKey)
-      );
       if (!videoTaskByKey.has(canonicalVideoKey)) {
         videoTaskByKey.set(canonicalVideoKey, {
           canonicalKey: canonicalVideoKey,
@@ -1068,7 +1076,6 @@ function buildResourceInventory(loaded: ResolvedPlaylistExport): {
             durationMs: resource.durationMs ?? null,
             fileSizeBytes: null,
           },
-          isStashSource: videoIsStash,
           output: null,
         });
       } else if (resource.durationMs && !videoTaskByKey.get(canonicalVideoKey)?.probe.durationMs) {
@@ -1087,9 +1094,6 @@ function buildResourceInventory(loaded: ResolvedPlaylistExport): {
 
       if (resource.funscriptUri) {
         const canonicalFunscriptKey = canonicalizeResourceKey(resource.funscriptUri);
-        const funscriptIsStash = Boolean(
-          findStashSourceForRemoteResource(resource.funscriptUri, round.installSourceKey)
-        );
         if (!funscriptTaskByKey.has(canonicalFunscriptKey)) {
           funscriptTaskByKey.set(canonicalFunscriptKey, {
             canonicalKey: canonicalFunscriptKey,
@@ -1097,7 +1101,6 @@ function buildResourceInventory(loaded: ResolvedPlaylistExport): {
             installSourceKey: round.installSourceKey,
             preferredBaseName,
             sourceContexts: [sourceContext],
-            isStashSource: funscriptIsStash,
             output: null,
           });
         } else {
@@ -1257,6 +1260,21 @@ async function preparePlaylistExport(
     audioBitrateKbps,
     parallelJobs,
     analysis: {
+      acquisition: (() => {
+        const sources = new Map<string, "torrent" | "mega">();
+        const files = new Set<string>();
+        for (const entry of loaded.rounds) {
+          for (const candidate of entry.acquisitionCandidates ?? []) {
+            sources.set(candidate.sourceId, candidate.source.kind);
+            files.add(`${candidate.sourceId}\0${candidate.sourcePath}`);
+          }
+        }
+        return {
+          torrentSources: [...sources.values()].filter((kind) => kind === "torrent").length,
+          megaSources: [...sources.values()].filter((kind) => kind === "mega").length,
+          mappedFiles: files.size,
+        };
+      })(),
       videoTotals: {
         uniqueVideos: videoTasks.length,
         localVideos,
@@ -1313,11 +1331,19 @@ function estimateExportWork(input: PreparedPlaylistExport, includeMedia: boolean
   };
 }
 
-function toSidecarResources(entry: RoundResourceEntry) {
+function toSidecarResources(
+  entry: RoundResourceEntry,
+  includeAcquisitionSources: boolean,
+  replaceOriginalLinksWithAcquisition: boolean
+) {
+  const candidates = includeAcquisitionSources ? (entry.round.acquisitionCandidates ?? []) : [];
+  const replaceOriginalLink = replaceOriginalLinksWithAcquisition && candidates.length > 0;
   if (
     !entry.materialized?.video &&
-    fromLocalMediaUri(entry.resource.videoUri) &&
-    (entry.round.acquisitionCandidates?.length ?? 0) > 0
+    (replaceOriginalLink ||
+      (fromLocalMediaUri(entry.resource.videoUri) &&
+        includeAcquisitionSources &&
+        candidates.length > 0))
   ) {
     return [];
   }
@@ -1334,7 +1360,11 @@ function toSidecarResources(entry: RoundResourceEntry) {
   ];
 }
 
-function toRoundSidecarPayload(entry: RoundResourceEntry, includeAcquisitionSources: boolean) {
+function toRoundSidecarPayload(
+  entry: RoundResourceEntry,
+  includeAcquisitionSources: boolean,
+  replaceOriginalLinksWithAcquisition: boolean
+) {
   const candidates = includeAcquisitionSources ? (entry.round.acquisitionCandidates ?? []) : [];
   return ZRoundSidecar.parse({
     name: entry.round.name,
@@ -1352,7 +1382,11 @@ function toRoundSidecarPayload(entry: RoundResourceEntry, includeAcquisitionSour
     ),
     type: entry.round.type,
     excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
-    resources: toSidecarResources(entry),
+    resources: toSidecarResources(
+      entry,
+      includeAcquisitionSources,
+      replaceOriginalLinksWithAcquisition
+    ),
     acquisition:
       candidates.length > 0
         ? {
@@ -1374,7 +1408,8 @@ function toRoundSidecarPayload(entry: RoundResourceEntry, includeAcquisitionSour
 function createHeroSidecarPayload(
   hero: ExportableHero,
   entries: RoundResourceEntry[],
-  includeAcquisitionSources: boolean
+  includeAcquisitionSources: boolean,
+  replaceOriginalLinksWithAcquisition: boolean
 ) {
   const candidates = includeAcquisitionSources
     ? entries.flatMap((entry) => entry.round.acquisitionCandidates ?? [])
@@ -1416,7 +1451,11 @@ function createHeroSidecarPayload(
         ),
         type: entry.round.type,
         excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
-        resources: toSidecarResources(entry),
+        resources: toSidecarResources(
+          entry,
+          includeAcquisitionSources,
+          replaceOriginalLinksWithAcquisition
+        ),
         acquisitionCandidates: includeAcquisitionSources
           ? (entry.round.acquisitionCandidates ?? []).map((candidate) => ({
               sourceId: candidate.sourceId,
@@ -2014,6 +2053,8 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
   updateExportPhase("analyzing", "Resolving playlist references...");
   const prepared = await preparePlaylistExport(input);
   const includeMedia = input.includeMedia ?? true;
+  const includeAcquisitionSources = !includeMedia || (input.includeAcquisitionSources ?? true);
+  const replaceOriginalLinksWithAcquisition = input.replaceOriginalLinksWithAcquisition ?? false;
   const workEstimate = estimateExportWork(prepared, includeMedia);
   setExportProgress({
     completed: 0,
@@ -2036,14 +2077,8 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
   try {
     await fs.mkdir(tempDir, { recursive: true });
     await fs.mkdir(workDir, { recursive: true });
-    // Stash-sourced media must always be bundled (the URLs are meaningless outside the
-    // local Stash server). For non-stash resources we respect the includeMedia flag.
-    const videoTasksToMaterialize = includeMedia
-      ? prepared.videoTasks
-      : prepared.videoTasks.filter((task) => task.isStashSource);
-    const funscriptTasksToMaterialize = includeMedia
-      ? prepared.funscriptTasks
-      : prepared.funscriptTasks.filter((task) => task.isStashSource);
+    const videoTasksToMaterialize = includeMedia ? prepared.videoTasks : [];
+    const funscriptTasksToMaterialize = prepared.funscriptTasks;
 
     allocateMediaOutputs({
       tasks: videoTasksToMaterialize,
@@ -2079,8 +2114,8 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
     let exportedVideoFiles = 0;
     let exportedFunscriptFiles = 0;
 
-    // Materialize all tasks that have been allocated an output path.
-    // Stash tasks always get allocated (see above); non-stash tasks only when includeMedia=true.
+    // Materialize all tasks that have been allocated an output path. Videos are only
+    // allocated when media is included, while funscripts are always part of the package.
     const videoTasksWithOutput = prepared.videoTasks.filter((task) => task.output !== null);
     if (videoTasksWithOutput.length > 0) {
       const compressionLiveTracker =
@@ -2159,8 +2194,6 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
         ? `funscript:${canonicalizeResourceKey(entry.resource.funscriptUri)}`
         : null;
 
-      // Stash videos are always materialized and present in the map; non-stash videos
-      // are only present when includeMedia=true.
       const videoKey = `video:${canonicalizeResourceKey(entry.resource.videoUri)}`;
       const video = videoOutputByKey.get(videoKey) ?? null;
 
@@ -2219,7 +2252,7 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
       updateExportPhase("writing", `Writing sidecar ${fileName}...`);
       await writeJsonFile(
         path.join(tempDir, fileName),
-        toRoundSidecarPayload(entry, input.includeAcquisitionSources ?? true)
+        toRoundSidecarPayload(entry, includeAcquisitionSources, replaceOriginalLinksWithAcquisition)
       );
       incrementExportStat("sidecarFiles");
       incrementExportProgress();
@@ -2240,7 +2273,12 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
       updateExportPhase("writing", `Writing sidecar ${fileName}...`);
       await writeJsonFile(
         path.join(tempDir, fileName),
-        createHeroSidecarPayload(group.hero, group.entries, input.includeAcquisitionSources ?? true)
+        createHeroSidecarPayload(
+          group.hero,
+          group.entries,
+          includeAcquisitionSources,
+          replaceOriginalLinksWithAcquisition
+        )
       );
       incrementExportStat("sidecarFiles");
       incrementExportProgress();

@@ -48,6 +48,7 @@ import {
   type ViewportState,
 } from "../features/map-editor/EditorState";
 import { UndoManager } from "../features/map-editor/UndoManager";
+import { buildProgressiveRoundOrder } from "../features/playlist-workshop/roundSelection";
 import {
   buildTileHotkeyMap,
   deleteSelectionFromConfig,
@@ -515,48 +516,7 @@ const shuffleMapRounds = (
 const buildProgressiveMapRoundOrder = (
   rounds: ReadonlyArray<MapEditorInstalledRound>
 ): MapEditorInstalledRound[] => {
-  if (rounds.length <= 1) return [...rounds];
-
-  const difficultyValues = rounds.map((round) => round.difficulty ?? 1);
-  const durationValues = rounds.map((round) => getRoundDurationSec(round));
-  const minDifficulty = Math.min(...difficultyValues);
-  const maxDifficulty = Math.max(...difficultyValues);
-  const minDuration = Math.min(...durationValues);
-  const maxDuration = Math.max(...durationValues);
-  const normalize = (value: number, min: number, max: number): number =>
-    max <= min ? 0.5 : (value - min) / (max - min);
-
-  const pool = [...rounds];
-  const picked: MapEditorInstalledRound[] = [];
-  while (pool.length > 0) {
-    const progress = picked.length / Math.max(1, rounds.length - 1);
-    const biasStrength = progress * 2.5;
-    const weighted = pool.map((round) => {
-      const diffNorm = normalize(round.difficulty ?? 1, minDifficulty, maxDifficulty);
-      const durationNorm = normalize(getRoundDurationSec(round), minDuration, maxDuration);
-      const score = diffNorm * 0.7 + durationNorm * 0.3;
-      return {
-        round,
-        weight: Math.max(0.01, 0.2 + Math.random() * 0.35 + score * biasStrength),
-      };
-    });
-
-    const total = weighted.reduce((sum, entry) => sum + entry.weight, 0);
-    let cursor = Math.random() * total;
-    let chosenIndex = weighted.length - 1;
-    for (let index = 0; index < weighted.length; index += 1) {
-      cursor -= weighted[index]!.weight;
-      if (cursor <= 0) {
-        chosenIndex = index;
-        break;
-      }
-    }
-
-    const [chosen] = pool.splice(chosenIndex, 1);
-    if (chosen) picked.push(chosen);
-  }
-
-  return picked;
+  return buildProgressiveRoundOrder(rounds);
 };
 
 const buildRepeatedRoundAssignment = (
@@ -564,14 +524,18 @@ const buildRepeatedRoundAssignment = (
   targetCount: number,
   action: Exclude<MapRoundBulkAction, "difficulty">
 ): MapEditorInstalledRound[] => {
+  if (action === "progressive") {
+    const repeated = Array.from(
+      { length: targetCount },
+      (_, index) => sourceRounds[index % sourceRounds.length]
+    ).filter((round): round is MapEditorInstalledRound => Boolean(round));
+    return buildProgressiveMapRoundOrder(repeated);
+  }
+
   const assigned: MapEditorInstalledRound[] = [];
   while (assigned.length < targetCount) {
     const ordered =
-      action === "order"
-        ? sortMapRoundsByName(sourceRounds)
-        : action === "random"
-          ? shuffleMapRounds(sourceRounds)
-          : buildProgressiveMapRoundOrder(sourceRounds);
+      action === "order" ? sortMapRoundsByName(sourceRounds) : shuffleMapRounds(sourceRounds);
     assigned.push(...ordered.slice(0, targetCount - assigned.length));
   }
   return assigned;
@@ -3296,6 +3260,11 @@ function MapEditorPage() {
     async (input: {
       compressionMode: "copy" | "av1";
       compressionStrength: number;
+      audioBitrateKbps: 128 | 192 | 256;
+      includeMedia: boolean;
+      includeAcquisitionSources: boolean;
+      replaceOriginalLinksWithAcquisition: boolean;
+      asFpack: boolean;
     }): Promise<boolean> => {
       if (!selectedPlaylist) return false;
       if (importPending || savePending || testMapPending) return false;
@@ -3322,6 +3291,11 @@ function MapEditorPage() {
               directoryPath,
               compressionMode: input.compressionMode,
               compressionStrength: input.compressionStrength,
+              audioBitrateKbps: input.audioBitrateKbps,
+              includeMedia: input.includeMedia,
+              includeAcquisitionSources: input.includeAcquisitionSources,
+              replaceOriginalLinksWithAcquisition: input.replaceOriginalLinksWithAcquisition,
+              asFpack: input.asFpack,
             });
             setSaveNotice(`Exported "${playlistToExport.name}" pack to ${result.exportDir}.`);
           } catch (error) {

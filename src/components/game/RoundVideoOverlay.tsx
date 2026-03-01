@@ -443,6 +443,8 @@ export function RoundVideoOverlay({
     sessionRevision: handySessionRevision = 0,
     setSyncStatus,
     toggleManualStop,
+    reconnect: reconnectHandy,
+    disconnect: disconnectHandy,
     setResourceOffsetOverride,
   } = useHandy();
   const { showToast } = useToast();
@@ -2449,8 +2451,12 @@ export function RoundVideoOverlay({
         setTimelineUri(result.funscriptUri);
         setFunscriptCount(nextTimeline?.actions.length ?? 0);
 
+        const handyReconnected = handyConnected
+          ? await disconnectHandy().then(() => reconnectHandy())
+          : false;
+
         if (
-          handyConnected &&
+          handyReconnected &&
           !handyManuallyStoppedRef.current &&
           hasRequiredHapticsConnection &&
           nextTimeline?.actions.length
@@ -2509,6 +2515,7 @@ export function RoundVideoOverlay({
     [
       applyHandyOffsetMs,
       currentPlayer,
+      disconnectHandy,
       disconnectHandySessionIfNeeded,
       ensureHandySession,
       handyConnected,
@@ -2516,6 +2523,7 @@ export function RoundVideoOverlay({
       hasRequiredHapticsConnection,
       isConvertingHardMode,
       resetHandySync,
+      reconnectHandy,
       resolvedMainResource,
       resolvedRound,
       segment.kind,

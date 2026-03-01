@@ -27,7 +27,7 @@ import {
 import { ensureFpackExtracted, inspectFpack, type FpackExtractionManifest } from "./fpack";
 import { approveDialogPath, assertApprovedDialogPath } from "./dialogPathApproval";
 import { getDb } from "./db";
-import { eq, asc, isNotNull } from "drizzle-orm";
+import { eq, asc, inArray, isNotNull } from "drizzle-orm";
 import { hero, round, resource, roundAcquisitionCandidate } from "./db/schema";
 import { importExportedSources } from "./acquisition";
 import {
@@ -2365,6 +2365,43 @@ export async function repairTemplateRound(
     await attachResourcesToTemplateRound(tx, context, roundRow, resources);
   });
   return { repairedRoundId: roundId };
+}
+
+export async function mergeInstalledRoundIntoImportedRounds(
+  roundIds: string[],
+  installedRoundId: string
+): Promise<{ mergedRoundIds: string[] }> {
+  const uniqueRoundIds = [...new Set(roundIds)];
+  if (uniqueRoundIds.length === 0) return { mergedRoundIds: [] };
+  if (uniqueRoundIds.includes(installedRoundId)) {
+    throw new Error("An imported round cannot be merged with itself.");
+  }
+
+  const context = await createInstallSessionContext();
+  const resources = await buildPreparedResourcesFromInstalledRound(context.db, installedRoundId);
+  const currentTargets = await context.db.query.round.findMany({
+    where: inArray(round.id, uniqueRoundIds),
+    with: { resources: true },
+    columns: { id: true },
+  });
+  if (currentTargets.length !== uniqueRoundIds.length) {
+    throw new Error("One or more imported rounds no longer exist.");
+  }
+  if (currentTargets.some((entry) => entry.resources.some((item) => !item.disabled))) {
+    throw new Error("One or more imported rounds already have usable resources.");
+  }
+  const targetRounds = await Promise.all(
+    uniqueRoundIds.map((roundId) => findRoundByIdForReconciliation(context.db, roundId))
+  );
+  if (targetRounds.some((entry) => !entry)) {
+    throw new Error("One or more imported rounds no longer exist.");
+  }
+  await context.db.transaction(async (tx) => {
+    for (const targetRound of targetRounds) {
+      await attachResourcesToTemplateRound(tx, context, targetRound!, resources);
+    }
+  });
+  return { mergedRoundIds: uniqueRoundIds };
 }
 
 export async function repairTemplateHero(

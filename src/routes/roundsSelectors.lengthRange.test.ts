@@ -6,6 +6,8 @@ function makeIndexedRound(id: string, lengthSec: number): IndexedRound {
   return {
     round: { id, name: id } as unknown as RoundLibraryEntry,
     searchText: id,
+    heroSearchText: "",
+    roundSearchText: id,
     normalizedTags: [],
     normalizedAuthor: "",
     normalizedLibraryLabel: "",

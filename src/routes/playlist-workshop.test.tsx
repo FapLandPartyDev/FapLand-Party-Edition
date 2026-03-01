@@ -215,7 +215,10 @@ vi.mock("../components/PlaylistPackExportDialog", () => ({
     onSubmit: (input: {
       compressionMode: "copy" | "av1";
       compressionStrength: number;
+      audioBitrateKbps: 128 | 192 | 256;
       includeMedia: boolean;
+      includeAcquisitionSources: boolean;
+      replaceOriginalLinksWithAcquisition: boolean;
       asFpack: boolean;
     }) => Promise<boolean>;
   }) => (
@@ -225,7 +228,10 @@ vi.mock("../components/PlaylistPackExportDialog", () => ({
         void onSubmit({
           compressionMode: "copy",
           compressionStrength: 80,
+          audioBitrateKbps: 192,
           includeMedia: true,
+          includeAcquisitionSources: true,
+          replaceOriginalLinksWithAcquisition: false,
           asFpack: true,
         });
       }}
@@ -1069,7 +1075,10 @@ describe("PlaylistWorkshopRoute", () => {
         directoryPath: "/tmp",
         compressionMode: "copy",
         compressionStrength: 80,
+        audioBitrateKbps: 192,
         includeMedia: true,
+        includeAcquisitionSources: true,
+        replaceOriginalLinksWithAcquisition: false,
         asFpack: true,
       });
     });
@@ -1252,6 +1261,12 @@ describe("PlaylistWorkshopRoute", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create Suggested Sections" }));
     expect(screen.queryByText(/replaces every existing difficulty section/i)).toBeNull();
     expect(screen.getAllByLabelText("Start")).toHaveLength(4);
+    expect(
+      screen.getAllByLabelText("Min D").map((input) => (input as HTMLInputElement).value)
+    ).toEqual(["1", "2", "3", "4"]);
+    expect(
+      screen.getAllByLabelText("Max D").map((input) => (input as HTMLInputElement).value)
+    ).toEqual(["2", "3", "4", "5"]);
 
     fireEvent.click(screen.getByRole("button", { name: "Create Suggested Sections" }));
     expect(screen.getByText(/replaces every existing difficulty section/i)).toBeDefined();

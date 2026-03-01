@@ -3,6 +3,7 @@ import {
   buildDifficultySectionResult,
   buildProgressiveRoundOrder,
   fillRoundOrderRemainderRandomly,
+  getProgressiveDifficultyBounds,
   randomizeRoundOrder,
 } from "./roundSelection";
 
@@ -25,22 +26,55 @@ describe("randomizeRoundOrder", () => {
 });
 
 describe("buildProgressiveRoundOrder", () => {
-  it("orders strict difficulty bands and puts unknown difficulty last", () => {
-    const result = buildProgressiveRoundOrder(
-      [round("hard", 5), round("unknown", null), round("medium", 3), round("easy", 1)],
-      () => 0
-    );
-
-    expect(result.map((entry) => entry.id)).toEqual(["easy", "medium", "hard", "unknown"]);
+  it("moves its lower and upper bounds at the 25-round cutoffs", () => {
+    expect(getProgressiveDifficultyBounds(0, 100)).toEqual({
+      minDifficulty: 1,
+      maxDifficulty: 2,
+    });
+    expect(getProgressiveDifficultyBounds(24, 100)).toEqual({
+      minDifficulty: 1,
+      maxDifficulty: 2,
+    });
+    expect(getProgressiveDifficultyBounds(25, 100)).toEqual({
+      minDifficulty: 2,
+      maxDifficulty: 3,
+    });
+    expect(getProgressiveDifficultyBounds(50, 100)).toEqual({
+      minDifficulty: 3,
+      maxDifficulty: 4,
+    });
+    expect(getProgressiveDifficultyBounds(75, 100)).toEqual({
+      minDifficulty: 4,
+      maxDifficulty: 5,
+    });
+    expect(getProgressiveDifficultyBounds(99, 100)).toEqual({
+      minDifficulty: 4,
+      maxDifficulty: 5,
+    });
   });
 
-  it("only randomizes within equal difficulty bands", () => {
+  it("uses bounded quarter bands across a 100-round queue", () => {
+    const input = Array.from({ length: 100 }, (_, index) =>
+      round(`round-${index}`, (index % 5) + 1)
+    );
+    const result = buildProgressiveRoundOrder(input, () => 0.5);
+
+    expect(result).toHaveLength(100);
+    for (const [index, entry] of result.entries()) {
+      const bounds = getProgressiveDifficultyBounds(index, result.length);
+      expect(entry.difficulty).toBeGreaterThanOrEqual(bounds.minDifficulty);
+      expect(entry.difficulty).toBeLessThanOrEqual(bounds.maxDifficulty);
+    }
+  });
+
+  it("keeps unavoidable out-of-band difficulties as close as possible", () => {
     const result = buildProgressiveRoundOrder(
-      [round("hard", 5), round("easy-a", 1), round("easy-b", 1), round("medium", 3)],
+      Array.from({ length: 8 }, (_, index) => round(`easy-${index}`, 1)),
       () => 0
     );
 
-    expect(result.map((entry) => entry.id)).toEqual(["easy-b", "easy-a", "medium", "hard"]);
+    expect(result.map((entry) => entry.id)).toHaveLength(8);
+    expect(new Set(result.map((entry) => entry.id)).size).toBe(8);
   });
 });
 

@@ -13,6 +13,7 @@ export type ScriptFilter = "all" | "installed" | "missing";
 export type SortMode = "newest" | "oldest" | "difficulty" | "bpm" | "length" | "name" | "excluded";
 export type MetadataFilter = "all" | string;
 export type SourceFilter = "all" | "stash" | "web" | "local";
+export type SearchScope = "all" | "heroes" | "rounds";
 export type LengthRangeFilter = {
   minMinutes: string;
   maxMinutes: string;
@@ -26,6 +27,8 @@ export type AddedDateFilter =
 export type IndexedRound = {
   round: RoundLibraryEntry;
   searchText: string;
+  heroSearchText: string;
+  roundSearchText: string;
   normalizedTags: string[];
   normalizedAuthor: string;
   normalizedLibraryLabel: string;
@@ -159,19 +162,30 @@ export function toIndexedRound(round: RoundLibraryEntry): IndexedRound {
     ...(round.tags ?? []).map((tag) => tag.toLowerCase()),
     ...((round.hero?.tags ?? []).map((tag) => tag.toLowerCase()) ?? []),
   ];
+  const roundSearchText = [
+    round.name,
+    round.author ?? "",
+    ...(round.tags ?? []),
+    round.libraryLabel ?? "",
+    round.description ?? "",
+  ]
+    .join("\n")
+    .toLowerCase();
+  const heroSearchText = round.hero
+    ? [
+        round.hero.name,
+        round.hero.author ?? "",
+        ...(round.hero.tags ?? []),
+        round.hero.description ?? "",
+      ]
+        .join("\n")
+        .toLowerCase()
+    : "";
   return {
     round,
-    searchText: [
-      round.name,
-      round.author ?? "",
-      round.hero?.name ?? "",
-      ...(round.tags ?? []),
-      ...(round.hero?.tags ?? []),
-      round.libraryLabel ?? "",
-      round.description ?? "",
-    ]
-      .join("\n")
-      .toLowerCase(),
+    searchText: `${roundSearchText}\n${heroSearchText}`,
+    heroSearchText,
+    roundSearchText,
     normalizedTags,
     normalizedAuthor: (round.author ?? round.hero?.author ?? "").toLowerCase(),
     normalizedLibraryLabel: (round.libraryLabel ?? "").toLowerCase(),
@@ -247,6 +261,7 @@ export function buildAggregateDownloadProgress(downloadProgresses: VideoDownload
 export function filterAndSortRounds({
   indexedRounds,
   query,
+  searchScope = "all",
   typeFilter,
   scriptFilter,
   tagFilter,
@@ -259,6 +274,7 @@ export function filterAndSortRounds({
 }: {
   indexedRounds: IndexedRound[];
   query: string;
+  searchScope?: SearchScope;
   typeFilter: TypeFilter;
   scriptFilter: ScriptFilter;
   tagFilter?: MetadataFilter;
@@ -277,6 +293,7 @@ export function filterAndSortRounds({
     libraryFilter && libraryFilter !== "all" ? libraryFilter.trim().toLowerCase() : "";
   const filtered =
     normalizedQuery.length === 0 &&
+    searchScope === "all" &&
     typeFilter === "all" &&
     scriptFilter === "all" &&
     (!sourceFilter || sourceFilter === "all") &&
@@ -288,6 +305,12 @@ export function filterAndSortRounds({
     !normalizedLibrary
       ? [...indexedRounds]
       : indexedRounds.filter((entry) => {
+          if (searchScope === "heroes" && !entry.round.hero) {
+            return false;
+          }
+          if (searchScope === "rounds" && entry.round.hero) {
+            return false;
+          }
           if (typeFilter !== "all" && entry.roundType !== typeFilter) {
             return false;
           }
@@ -312,7 +335,13 @@ export function filterAndSortRounds({
           if (normalizedLibrary) {
             if (entry.normalizedLibraryLabel !== normalizedLibrary) return false;
           }
-          return normalizedQuery.length === 0 || entry.searchText.includes(normalizedQuery);
+          const scopedSearchText =
+            searchScope === "heroes"
+              ? entry.heroSearchText
+              : searchScope === "rounds"
+                ? entry.roundSearchText
+                : entry.searchText;
+          return normalizedQuery.length === 0 || scopedSearchText.includes(normalizedQuery);
         });
 
   filtered.sort((left, right) => {

@@ -4,9 +4,11 @@ import { shell } from "electron";
 import * as z from "zod";
 import {
   cancelAcquisitionJob,
+  analyzeLibraryLinks,
   analyzeExportAcquisition,
   analyzeUnresolvedImport,
   applyAcquisitionRuntimeSettings,
+  applyLibraryLinks,
   autoLinkExportAcquisition,
   approveImportDownloads,
   createMegaSource,
@@ -14,6 +16,7 @@ import {
   createTorrentSourceFromUri,
   deleteAcquisitionSource,
   getAcquisitionJob,
+  getLibraryLinkAnalysisStatus,
   listAcquisitionFiles,
   listAcquisitionJobs,
   listAcquisitionSources,
@@ -22,10 +25,12 @@ import {
   refreshAcquisitionSource,
   removeAcquisitionJob,
   resumeAcquisitionJob,
+  searchAcquisitionVideoFiles,
   startAcquisitionService,
   stopTorrentNetworking,
   updateAcquisitionSource,
 } from "../../services/acquisition";
+import { mergeInstalledRoundIntoImportedRounds } from "../../services/installer";
 import {
   getAcquisitionSettings,
   resolveAcquisitionDownloadRoot,
@@ -99,6 +104,53 @@ export const acquisitionRouter = router({
   listSourceFiles: publicProcedure
     .input(z.object({ sourceId: ZSourceId }).strict())
     .query(({ input }) => listAcquisitionFiles(input.sourceId)),
+  getLibraryLinkAnalysisStatus: publicProcedure.query(() => getLibraryLinkAnalysisStatus()),
+  analyzeLibraryLinks: publicProcedure
+    .input(ZExportSelection)
+    .query(({ input }) => analyzeLibraryLinks(input)),
+  searchVideoFiles: publicProcedure
+    .input(
+      z
+        .object({
+          query: z.string().trim().max(240).default(""),
+          sourceKinds: z
+            .array(z.enum(["torrent", "mega"]))
+            .max(2)
+            .optional(),
+          cursor: z.string().regex(/^\d+$/u).optional(),
+          limit: z.number().int().min(1).max(100).optional(),
+        })
+        .strict()
+    )
+    .query(({ input }) => searchAcquisitionVideoFiles(input)),
+  applyLibraryLinks: publicProcedure
+    .input(
+      z
+        .object({
+          changes: z
+            .array(
+              z
+                .object({
+                  targetKind: z.enum(["hero", "round"]),
+                  targetId: z.string().trim().min(1).max(128),
+                  sourceId: ZSourceId,
+                  sourcePath: ZSourcePath,
+                  analyzedScore: z.number().min(0).max(1).nullable(),
+                  replaceExisting: z.boolean(),
+                })
+                .strict()
+            )
+            .max(10_000),
+        })
+        .strict()
+    )
+    .mutation(async ({ input }) => {
+      try {
+        return await applyLibraryLinks(input.changes);
+      } catch (error) {
+        return badRequest(error, "Failed to apply source links.");
+      }
+    }),
   listJobs: publicProcedure.query(() => listAcquisitionJobs()),
   getJob: publicProcedure
     .input(z.object({ jobId: ZJobId }).strict())
@@ -271,4 +323,36 @@ export const acquisitionRouter = router({
         .strict()
     )
     .mutation(({ input }) => approveImportDownloads(input.selections)),
+  mergeInstalledImportMatches: publicProcedure
+    .input(
+      z
+        .object({
+          selections: z
+            .array(
+              z
+                .object({
+                  installedRoundId: z.string().trim().min(1).max(128),
+                  roundIds: z.array(z.string().trim().min(1).max(128)).min(1).max(1000),
+                })
+                .strict()
+            )
+            .max(100),
+        })
+        .strict()
+    )
+    .mutation(async ({ input }) => {
+      const mergedRoundIds: string[] = [];
+      try {
+        for (const selection of input.selections) {
+          const result = await mergeInstalledRoundIntoImportedRounds(
+            selection.roundIds,
+            selection.installedRoundId
+          );
+          mergedRoundIds.push(...result.mergedRoundIds);
+        }
+        return { mergedRoundIds };
+      } catch (error) {
+        return badRequest(error, "Failed to merge installed rounds.");
+      }
+    }),
 });

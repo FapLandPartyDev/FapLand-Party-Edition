@@ -1111,6 +1111,11 @@ describe("MapEditorRoute", () => {
         directoryPath: "/tmp",
         compressionMode: "av1",
         compressionStrength: 80,
+        audioBitrateKbps: 192,
+        includeMedia: true,
+        includeAcquisitionSources: false,
+        replaceOriginalLinksWithAcquisition: false,
+        asFpack: false,
       });
     });
   });

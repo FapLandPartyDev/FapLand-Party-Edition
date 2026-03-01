@@ -53,6 +53,16 @@ export function randomizeRoundOrder<T>(values: ReadonlyArray<T>, random = Math.r
   return [...values.slice(1), values[0]!];
 }
 
+export function getProgressiveDifficultyBounds(
+  roundIndex: number,
+  totalRounds: number
+): { minDifficulty: number; maxDifficulty: number } {
+  const normalizedTotal = Math.max(1, Math.floor(totalRounds));
+  const normalizedIndex = Math.max(0, Math.min(normalizedTotal - 1, Math.floor(roundIndex)));
+  const minDifficulty = Math.min(4, Math.floor((normalizedIndex * 4) / normalizedTotal) + 1);
+  return { minDifficulty, maxDifficulty: minDifficulty + 1 };
+}
+
 export function buildDifficultySectionRoundOrder<T extends RoundSelectionEntry>(input: {
   sections: ReadonlyArray<DifficultySectionInput>;
   rounds: ReadonlyArray<T>;
@@ -126,31 +136,72 @@ export function buildProgressiveRoundOrder<T extends RoundSelectionEntry>(
   rounds: ReadonlyArray<T>,
   random = Math.random
 ): T[] {
-  const buckets = new Map<number, T[]>();
-  const unknown: T[] = [];
+  if (rounds.length <= 1) return [...rounds];
+
+  const bandCount = 4;
+  const bandCapacity = Array.from({ length: bandCount }, () => 0);
+  for (let roundIndex = 0; roundIndex < rounds.length; roundIndex += 1) {
+    const { minDifficulty } = getProgressiveDifficultyBounds(roundIndex, rounds.length);
+    bandCapacity[minDifficulty - 1]! += 1;
+  }
+  const bands = Array.from({ length: bandCount }, () => [] as T[]);
+  const buckets = Array.from({ length: 5 }, () => [] as T[]);
 
   for (const round of rounds) {
     const difficulty = round.difficulty;
-    if (
+    const normalizedDifficulty =
       typeof difficulty !== "number" ||
       !Number.isInteger(difficulty) ||
       difficulty < 1 ||
       difficulty > 5
-    ) {
-      unknown.push(round);
-      continue;
-    }
-    const bucket = buckets.get(difficulty);
-    if (bucket) bucket.push(round);
-    else buckets.set(difficulty, [round]);
+        ? 1
+        : difficulty;
+    buckets[normalizedDifficulty - 1]!.push(round);
   }
 
-  const output: T[] = [];
+  const unmatched: Array<{ round: T; difficulty: number }> = [];
   for (let difficulty = 1; difficulty <= 5; difficulty += 1) {
-    output.push(...shuffled(buckets.get(difficulty) ?? [], random));
+    const earliestBand = Math.max(0, difficulty - 2);
+    const latestBand = Math.min(bandCount - 1, difficulty - 1);
+
+    for (const round of shuffled(buckets[difficulty - 1]!, random)) {
+      let targetBand = -1;
+      for (let bandIndex = earliestBand; bandIndex <= latestBand; bandIndex += 1) {
+        if (bands[bandIndex]!.length < bandCapacity[bandIndex]!) {
+          targetBand = bandIndex;
+          break;
+        }
+      }
+
+      if (targetBand >= 0) bands[targetBand]!.push(round);
+      else unmatched.push({ round, difficulty });
+    }
   }
-  output.push(...shuffled(unknown, random));
-  return output;
+
+  // A strict bounded arrangement is not always possible (for example, a library
+  // containing only difficulty 1 rounds). Keep unavoidable exceptions as close
+  // to their intended band as possible instead of allowing them to drift randomly.
+  for (const { round, difficulty } of unmatched) {
+    const availableBands = bands
+      .map((band, bandIndex) => ({ bandIndex, available: band.length < bandCapacity[bandIndex]! }))
+      .filter((entry) => entry.available)
+      .sort((left, right) => {
+        const distanceFromBand = (bandIndex: number) =>
+          difficulty < bandIndex + 1
+            ? bandIndex + 1 - difficulty
+            : difficulty > bandIndex + 2
+              ? difficulty - (bandIndex + 2)
+              : 0;
+        return (
+          distanceFromBand(left.bandIndex) - distanceFromBand(right.bandIndex) ||
+          left.bandIndex - right.bandIndex
+        );
+      });
+    const targetBand = availableBands[0]?.bandIndex;
+    if (targetBand !== undefined) bands[targetBand]!.push(round);
+  }
+
+  return bands.flatMap((band) => shuffled(band, random));
 }
 
 export function fillRoundOrderRemainderRandomly<T extends RoundSelectionEntry>(input: {

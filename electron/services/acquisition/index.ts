@@ -762,23 +762,127 @@ const RELEASE_NOISE = new Set([
   "uncensored",
 ]);
 
+const GENERIC_TITLE_TOKENS = new Set([
+  "fap",
+  "hero",
+  "heroes",
+  "faphero",
+  "fapheros",
+  "fapheroes",
+  "fh",
+  "faph",
+  "faphr",
+  "fhero",
+  "fhr",
+  "fhv",
+  "fhpmv",
+  "fhmv",
+  "fhvideo",
+  "fapheropmv",
+  "fapherovideo",
+  "pmv",
+  "hmv",
+  "mv",
+  "music",
+  "musicvideo",
+  "video",
+  "videos",
+  "vid",
+  "collection",
+  "compilation",
+  "comp",
+]);
+
+function isGenericTitleToken(token: string): boolean {
+  return GENERIC_TITLE_TOKENS.has(token) || /^f+h+$/u.test(token);
+}
+
 function titleTokens(value: string): string[] {
-  return value
+  let decoded = value;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    // Catalog paths are not required to be URI encoded.
+  }
+  return decoded
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .replace(/([\p{Ll}\p{N}])([\p{Lu}])/gu, "$1 $2")
     .replace(/\.[a-z0-9]{2,5}$/iu, "")
     .toLowerCase()
     .split(/[^\p{L}\p{N}]+/u)
-    .filter((token) => token.length > 1 && !RELEASE_NOISE.has(token));
+    .filter(
+      (token) => token.length > 1 && !RELEASE_NOISE.has(token) && !isGenericTitleToken(token)
+    );
+}
+
+function normalizedTitle(value: string): string {
+  return titleTokens(value).join(" ").slice(0, 240);
+}
+
+export function damerauLevenshteinDistance(left: string, right: string): number {
+  if (left === right) return 0;
+  if (left.length === 0) return right.length;
+  if (right.length === 0) return left.length;
+  const matrix = Array.from({ length: left.length + 1 }, () =>
+    Array<number>(right.length + 1).fill(0)
+  );
+  for (let row = 0; row <= left.length; row += 1) matrix[row]![0] = row;
+  for (let column = 0; column <= right.length; column += 1) matrix[0]![column] = column;
+  for (let row = 1; row <= left.length; row += 1) {
+    for (let column = 1; column <= right.length; column += 1) {
+      const substitutionCost = left[row - 1] === right[column - 1] ? 0 : 1;
+      matrix[row]![column] = Math.min(
+        matrix[row - 1]![column]! + 1,
+        matrix[row]![column - 1]! + 1,
+        matrix[row - 1]![column - 1]! + substitutionCost
+      );
+      if (
+        row > 1 &&
+        column > 1 &&
+        left[row - 1] === right[column - 2] &&
+        left[row - 2] === right[column - 1]
+      ) {
+        matrix[row]![column] = Math.min(
+          matrix[row]![column]!,
+          matrix[row - 2]![column - 2]! + substitutionCost
+        );
+      }
+    }
+  }
+  return matrix[left.length]![right.length]!;
+}
+
+function normalizedDistanceSimilarity(left: string, right: string): number {
+  if (!left || !right) return 0;
+  if (left === right) return 1;
+  const denominator = Math.max(left.length, right.length);
+  return Math.max(0, 1 - damerauLevenshteinDistance(left, right) / denominator);
+}
+
+function bestWindowSimilarity(expected: string, actual: string): number {
+  const expectedTokens = expected.split(" ").filter(Boolean);
+  const actualTokens = actual.split(" ").filter(Boolean);
+  if (expectedTokens.length === 0 || actualTokens.length === 0) return 0;
+  if (` ${actual} `.includes(` ${expected} `)) return 1;
+  const windowSize = Math.min(expectedTokens.length, actualTokens.length);
+  let score = normalizedDistanceSimilarity(expected, actual);
+  for (let start = 0; start + windowSize <= actualTokens.length; start += 1) {
+    score = Math.max(
+      score,
+      normalizedDistanceSimilarity(
+        expected,
+        actualTokens.slice(start, start + windowSize).join(" ")
+      )
+    );
+  }
+  return score;
 }
 
 export function scoreAcquisitionFileName(query: string, filePath: string): number {
-  const expected = titleTokens(query);
-  const actual = new Set(titleTokens(path.posix.basename(filePath)));
-  if (expected.length === 0 || actual.size === 0) return 0;
-  const matches = expected.filter((token) => actual.has(token)).length;
-  const containment = path.posix.basename(filePath).toLowerCase().includes(query.toLowerCase())
-    ? 0.25
-    : 0;
-  return Math.min(1, matches / expected.length + containment);
+  const expected = normalizedTitle(query);
+  const basename = normalizedTitle(path.posix.basename(filePath.replaceAll("\\", "/")));
+  return bestWindowSimilarity(expected, basename);
 }
 
 export type ExportAcquisitionSelection = {
@@ -786,17 +890,464 @@ export type ExportAcquisitionSelection = {
   heroIds?: string[];
 };
 
-async function loadExportAcquisitionRounds(selection: ExportAcquisitionSelection) {
+export type LibraryLinkAnalysisStatus = {
+  state: "idle" | "running" | "done" | "error";
+  phase: "idle" | "cataloging" | "indexing" | "matching" | "finalizing" | "done" | "error";
+  completed: number;
+  total: number;
+  message: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+};
+
+let libraryLinkAnalysisStatus: LibraryLinkAnalysisStatus = {
+  state: "idle",
+  phase: "idle",
+  completed: 0,
+  total: 0,
+  message: null,
+  startedAt: null,
+  finishedAt: null,
+};
+
+export function getLibraryLinkAnalysisStatus(): LibraryLinkAnalysisStatus {
+  return { ...libraryLinkAnalysisStatus };
+}
+
+function setLibraryLinkAnalysisStatus(updates: Partial<LibraryLinkAnalysisStatus>): void {
+  libraryLinkAnalysisStatus = { ...libraryLinkAnalysisStatus, ...updates };
+}
+
+function yieldToEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+async function loadExportAcquisitionRounds() {
   const rows = await getDb().query.round.findMany({
-    with: { hero: true, acquisitionCandidates: true },
+    with: { hero: true, acquisitionCandidates: { with: { source: true } } },
   });
-  const selectionWasProvided = selection.roundIds !== undefined || selection.heroIds !== undefined;
-  if (!selectionWasProvided) return rows;
-  const roundIds = new Set(selection.roundIds ?? []);
-  const heroIds = new Set(selection.heroIds ?? []);
-  return rows.filter(
-    (entry) => roundIds.has(entry.id) || (entry.heroId !== null && heroIds.has(entry.heroId))
+  return rows;
+}
+
+export type SourceFileChoice = {
+  sourceId: string;
+  sourceName: string;
+  sourceKind: "torrent" | "mega";
+  sourcePath: string;
+  sizeBytes: number | null;
+};
+
+export type SourceFileSuggestion = SourceFileChoice & {
+  score: number;
+  confidence: "high" | "review";
+  collision: boolean;
+};
+
+export type LibraryLinkTarget = {
+  targetKind: "hero" | "round";
+  targetId: string;
+  name: string;
+  author: string | null;
+  roundIds: string[];
+  existing: SourceFileChoice[];
+  mixedExistingLinks: boolean;
+  suggestions: SourceFileSuggestion[];
+  autoSelected: boolean;
+};
+
+function fileChoice(
+  file: typeof acquisitionFile.$inferSelect & { source: SourceRow }
+): SourceFileChoice {
+  return {
+    sourceId: file.sourceId,
+    sourceName: file.source.name,
+    sourceKind: file.source.kind,
+    sourcePath: file.sourcePath,
+    sizeBytes: file.sizeBytes,
+  };
+}
+
+export function buildLibraryLinkTargets(
+  rows: Awaited<ReturnType<typeof loadExportAcquisitionRounds>>,
+  selection: ExportAcquisitionSelection,
+  catalogByKey: Map<string, typeof acquisitionFile.$inferSelect>
+) {
+  const selectionProvided = selection.roundIds !== undefined || selection.heroIds !== undefined;
+  const selectedHeroIds = new Set(selection.heroIds ?? []);
+  const selectedRoundIds = new Set(selection.roundIds ?? []);
+  // A round that belongs to a hero is never a standalone link target. Expand an
+  // individually selected member to its complete hero so one source mapping is
+  // shown and subsequently applied to every round in that hero.
+  for (const entry of rows) {
+    if (entry.heroId !== null && selectedRoundIds.has(entry.id)) {
+      selectedHeroIds.add(entry.heroId);
+    }
+  }
+  const groups = new Map<string, typeof rows>();
+  for (const entry of rows) {
+    const groupAsHero = entry.heroId !== null;
+    const selectedAsHero = groupAsHero && selectedHeroIds.has(entry.heroId!);
+    if (selectionProvided && !selectedAsHero && !selectedRoundIds.has(entry.id)) continue;
+    const key = groupAsHero ? `hero:${entry.heroId}` : `round:${entry.id}`;
+    const group = groups.get(key) ?? [];
+    group.push(entry);
+    groups.set(key, group);
+  }
+  return [...groups.entries()].map(([key, entries]) => {
+    const first = entries[0]!;
+    const targetKind = key.startsWith("hero:") ? "hero" : "round";
+    const existingByKey = new Map<string, SourceFileChoice>();
+    const perRoundKeys = entries.map((entry) => {
+      const keys = new Set<string>();
+      for (const candidate of entry.acquisitionCandidates) {
+        const candidateKey = `${candidate.sourceId}\0${candidate.sourcePath}`;
+        keys.add(candidateKey);
+        const catalog = catalogByKey.get(candidateKey);
+        existingByKey.set(candidateKey, {
+          sourceId: candidate.sourceId,
+          sourceName: candidate.source.name,
+          sourceKind: candidate.source.kind,
+          sourcePath: candidate.sourcePath,
+          sizeBytes: catalog?.sizeBytes ?? null,
+        });
+      }
+      return [...keys].sort().join("\0\0");
+    });
+    return {
+      targetKind,
+      targetId: targetKind === "hero" ? first.heroId! : first.id,
+      name: targetKind === "hero" ? first.hero!.name : first.name,
+      author: targetKind === "hero" ? first.hero!.author : first.author,
+      roundIds: entries.map((entry) => entry.id),
+      existing: [...existingByKey.values()],
+      mixedExistingLinks: new Set(perRoundKeys).size > 1,
+      suggestions: [] as SourceFileSuggestion[],
+      autoSelected: false,
+    } satisfies LibraryLinkTarget;
+  });
+}
+
+export async function analyzeLibraryLinks(selection: ExportAcquisitionSelection): Promise<{
+  scope: {
+    heroes: number;
+    standaloneRounds: number;
+    linked: number;
+    ready: number;
+    needsReview: number;
+    unmatched: number;
+  };
+  sources: {
+    enabled: number;
+    refreshed: number;
+    refreshErrors: Array<{ sourceId: string; sourceName: string; message: string }>;
+  };
+  targets: LibraryLinkTarget[];
+}> {
+  const startedAt = new Date().toISOString();
+  setLibraryLinkAnalysisStatus({
+    state: "running",
+    phase: "cataloging",
+    completed: 0,
+    total: 0,
+    message: "Checking source catalogs...",
+    startedAt,
+    finishedAt: null,
+  });
+  try {
+    const [sources, catalogSourceRows] = await Promise.all([
+      getDb().query.acquisitionSource.findMany({
+        where: eq(acquisitionSource.enabled, true),
+      }),
+      getDb().selectDistinct({ sourceId: acquisitionFile.sourceId }).from(acquisitionFile),
+    ]);
+    const catalogSourceIds = new Set(catalogSourceRows.map((entry) => entry.sourceId));
+    const sourcesToRefresh = sources.filter((source) => !catalogSourceIds.has(source.id));
+    setLibraryLinkAnalysisStatus({ total: sourcesToRefresh.length, completed: 0 });
+    let refreshed = 0;
+    const refreshErrors: Array<{ sourceId: string; sourceName: string; message: string }> = [];
+    for (let sourceIndex = 0; sourceIndex < sourcesToRefresh.length; sourceIndex += 1) {
+      const source = sourcesToRefresh[sourceIndex]!;
+      setLibraryLinkAnalysisStatus({ message: `Refreshing ${source.name}...` });
+      try {
+        await refreshAcquisitionSource(source.id);
+        refreshed += 1;
+      } catch (error) {
+        refreshErrors.push({
+          sourceId: source.id,
+          sourceName: source.name,
+          message: error instanceof Error ? error.message : "Catalog refresh failed.",
+        });
+      }
+      setLibraryLinkAnalysisStatus({ completed: sourceIndex + 1 });
+      await yieldToEventLoop();
+    }
+
+    const [rows, allFiles] = await Promise.all([
+      loadExportAcquisitionRounds(),
+      getDb().query.acquisitionFile.findMany({
+        where: eq(acquisitionFile.mediaKind, "video"),
+        with: { source: true },
+      }),
+    ]);
+    const files: typeof allFiles = [];
+    const normalizedFileNames = new Map<string, string>();
+    setLibraryLinkAnalysisStatus({
+      phase: "indexing",
+      completed: 0,
+      total: allFiles.length,
+      message: `Preparing ${allFiles.length} source filenames...`,
+    });
+    let lastYieldAt = Date.now();
+    for (let fileIndex = 0; fileIndex < allFiles.length; fileIndex += 1) {
+      const file = allFiles[fileIndex]!;
+      if (file.source.enabled) {
+        files.push(file);
+        normalizedFileNames.set(
+          file.id,
+          normalizedTitle(path.posix.basename(file.sourcePath.replaceAll("\\", "/")))
+        );
+      }
+      if (Date.now() - lastYieldAt >= 8) {
+        setLibraryLinkAnalysisStatus({ completed: fileIndex + 1 });
+        await yieldToEventLoop();
+        lastYieldAt = Date.now();
+      }
+    }
+    const catalogByKey = new Map(
+      files.map((file) => [`${file.sourceId}\0${file.sourcePath}`, file])
+    );
+    const targets = buildLibraryLinkTargets(rows, selection, catalogByKey);
+    const targetsToMatch = targets.filter((target) => target.existing.length === 0);
+    const totalComparisons = targetsToMatch.length * files.length;
+    let completedComparisons = 0;
+    lastYieldAt = Date.now();
+    setLibraryLinkAnalysisStatus({
+      phase: "matching",
+      completed: 0,
+      total: totalComparisons,
+      message: `Matching ${targetsToMatch.length} library items against ${files.length} files...`,
+    });
+
+    for (const target of targetsToMatch) {
+      const queries = [target.name];
+      if (target.author) {
+        queries.push(`${target.name} ${target.author}`, `${target.author} ${target.name}`);
+      }
+      const expectedNames = queries.map(normalizedTitle).filter(Boolean);
+      const ranked: Array<{ file: (typeof files)[number]; score: number }> = [];
+      for (const file of files) {
+        const actual = normalizedFileNames.get(file.id) ?? "";
+        const score = expectedNames.reduce(
+          (best, expected) => Math.max(best, bestWindowSimilarity(expected, actual)),
+          0
+        );
+        if (score >= 0.6) {
+          ranked.push({ file, score });
+          ranked.sort(
+            (left, right) =>
+              right.score - left.score ||
+              left.file.source.name.localeCompare(right.file.source.name) ||
+              left.file.sourcePath.localeCompare(right.file.sourcePath)
+          );
+          if (ranked.length > 5) ranked.length = 5;
+        }
+        completedComparisons += 1;
+        if (Date.now() - lastYieldAt >= 8) {
+          setLibraryLinkAnalysisStatus({ completed: completedComparisons });
+          await yieldToEventLoop();
+          lastYieldAt = Date.now();
+        }
+      }
+      const runnerUp = ranked[1]?.score ?? 0;
+      target.suggestions = ranked.map(({ file, score }, index) => ({
+        ...fileChoice(file),
+        score,
+        confidence: index === 0 && score >= 0.82 && score - runnerUp >= 0.08 ? "high" : "review",
+        collision: false,
+      }));
+    }
+
+    setLibraryLinkAnalysisStatus({
+      phase: "finalizing",
+      completed: totalComparisons,
+      total: totalComparisons,
+      message: "Checking ambiguous matches...",
+    });
+    await yieldToEventLoop();
+    const bestFileTargets = new Map<string, LibraryLinkTarget[]>();
+    for (const target of targets) {
+      const best = target.suggestions[0];
+      if (!best || best.confidence !== "high") continue;
+      const key = `${best.sourceId}\0${best.sourcePath}`;
+      const owners = bestFileTargets.get(key) ?? [];
+      owners.push(target);
+      bestFileTargets.set(key, owners);
+    }
+    for (const owners of bestFileTargets.values()) {
+      const collision = owners.length > 1;
+      for (const target of owners) {
+        const best = target.suggestions[0];
+        if (best) best.collision = collision;
+        target.autoSelected = !collision;
+      }
+    }
+
+    const result = {
+      scope: {
+        heroes: targets.filter((target) => target.targetKind === "hero").length,
+        standaloneRounds: targets.filter((target) => target.targetKind === "round").length,
+        linked: targets.filter((target) => target.existing.length > 0).length,
+        ready: targets.filter((target) => target.autoSelected).length,
+        needsReview: targets.filter(
+          (target) =>
+            target.existing.length === 0 && target.suggestions.length > 0 && !target.autoSelected
+        ).length,
+        unmatched: targets.filter(
+          (target) => target.existing.length === 0 && target.suggestions.length === 0
+        ).length,
+      },
+      sources: { enabled: sources.length, refreshed, refreshErrors },
+      targets,
+    };
+    setLibraryLinkAnalysisStatus({
+      state: "done",
+      phase: "done",
+      completed: totalComparisons,
+      total: totalComparisons,
+      message: "Source-link analysis complete.",
+      finishedAt: new Date().toISOString(),
+    });
+    return result;
+  } catch (error) {
+    setLibraryLinkAnalysisStatus({
+      state: "error",
+      phase: "error",
+      message: error instanceof Error ? error.message : "Source-link analysis failed.",
+      finishedAt: new Date().toISOString(),
+    });
+    throw error;
+  }
+}
+
+export async function searchAcquisitionVideoFiles(input: {
+  query: string;
+  sourceKinds?: Array<"torrent" | "mega">;
+  cursor?: string;
+  limit?: number;
+}): Promise<{ items: SourceFileChoice[]; nextCursor: string | null }> {
+  const limit = Math.max(1, Math.min(100, input.limit ?? 30));
+  const offset = Math.max(0, Number.parseInt(input.cursor ?? "0", 10) || 0);
+  const query = normalizedTitle(input.query);
+  const kinds = new Set(input.sourceKinds ?? ["torrent", "mega"]);
+  const files = await getDb().query.acquisitionFile.findMany({
+    where: eq(acquisitionFile.mediaKind, "video"),
+    with: { source: true },
+  });
+  const pageEnd = offset + limit;
+  const ranked: typeof files = [];
+  let matchCount = 0;
+  let lastYieldAt = Date.now();
+  const compareFiles = (left: (typeof files)[number], right: (typeof files)[number]) =>
+    left.source.name.localeCompare(right.source.name) ||
+    left.sourcePath.localeCompare(right.sourcePath);
+  for (const file of files) {
+    if (
+      file.source.enabled &&
+      kinds.has(file.source.kind) &&
+      (!query ||
+        normalizedTitle(path.posix.basename(file.sourcePath.replaceAll("\\", "/"))).includes(query))
+    ) {
+      matchCount += 1;
+      const insertAt = ranked.findIndex((entry) => compareFiles(file, entry) < 0);
+      ranked.splice(insertAt < 0 ? ranked.length : insertAt, 0, file);
+      // Retain just enough sorted entries for the requested page and a next-page marker.
+      if (ranked.length > pageEnd + 1) ranked.length = pageEnd + 1;
+    }
+    if (Date.now() - lastYieldAt >= 8) {
+      await yieldToEventLoop();
+      lastYieldAt = Date.now();
+    }
+  }
+  const page = ranked.slice(offset, pageEnd);
+  return {
+    items: page.map(fileChoice),
+    nextCursor: matchCount > offset + page.length ? String(offset + page.length) : null,
+  };
+}
+
+export async function applyLibraryLinks(
+  changes: Array<{
+    targetKind: "hero" | "round";
+    targetId: string;
+    sourceId: string;
+    sourcePath: string;
+    analyzedScore: number | null;
+    replaceExisting: boolean;
+  }>
+): Promise<{ changedTargets: number; linkedRounds: number }> {
+  if (changes.length === 0) return { changedTargets: 0, linkedRounds: 0 };
+  const db = getDb();
+  const [allRounds, catalogFiles] = await Promise.all([
+    db.query.round.findMany({ with: { acquisitionCandidates: true } }),
+    db.query.acquisitionFile.findMany({
+      where: eq(acquisitionFile.mediaKind, "video"),
+      with: { source: true },
+    }),
+  ]);
+  const availableFileKeys = new Set(
+    catalogFiles
+      .filter((file) => file.source.enabled)
+      .map((file) => `${file.sourceId}\0${file.sourcePath}`)
   );
+  const resolved: Array<(typeof changes)[number] & { roundIds: string[] }> = [];
+  const seenTargets = new Set<string>();
+  for (const change of changes) {
+    const key = `${change.targetKind}:${change.targetId}`;
+    if (seenTargets.has(key)) throw new Error("A source-link target was submitted more than once.");
+    seenTargets.add(key);
+    const targetRounds = allRounds.filter((entry) =>
+      change.targetKind === "hero" ? entry.heroId === change.targetId : entry.id === change.targetId
+    );
+    if (targetRounds.length === 0) throw new Error("A selected hero or round no longer exists.");
+    const sourcePath = normalizeAcquisitionPath(change.sourcePath);
+    if (!availableFileKeys.has(`${change.sourceId}\0${sourcePath}`)) {
+      throw new Error("A selected source video is unavailable.");
+    }
+    const exactForEveryRound = targetRounds.every((entry) =>
+      entry.acquisitionCandidates.some(
+        (candidate) => candidate.sourceId === change.sourceId && candidate.sourcePath === sourcePath
+      )
+    );
+    if (exactForEveryRound) continue;
+    const hasExisting = targetRounds.some((entry) => entry.acquisitionCandidates.length > 0);
+    if (hasExisting && !change.replaceExisting) {
+      throw new Error("An existing mapping changed. Review it again before replacing it.");
+    }
+    resolved.push({ ...change, sourcePath, roundIds: targetRounds.map((entry) => entry.id) });
+  }
+  await db.transaction(async (tx) => {
+    for (const change of resolved) {
+      if (change.replaceExisting) {
+        await tx
+          .delete(roundAcquisitionCandidate)
+          .where(inArray(roundAcquisitionCandidate.roundId, change.roundIds));
+      }
+      await tx.insert(roundAcquisitionCandidate).values(
+        change.roundIds.map((roundId) => ({
+          roundId,
+          sourceId: change.sourceId,
+          sourcePath: change.sourcePath,
+          matchKind: "filename" as const,
+          matchScore: change.analyzedScore,
+          sortOrder: 0,
+        }))
+      );
+    }
+  });
+  return {
+    changedTargets: resolved.length,
+    linkedRounds: resolved.reduce((sum, entry) => sum + entry.roundIds.length, 0),
+  };
 }
 
 export async function analyzeExportAcquisition(selection: ExportAcquisitionSelection): Promise<{
@@ -805,16 +1356,16 @@ export async function analyzeExportAcquisition(selection: ExportAcquisitionSelec
   unmappedRounds: number;
   enabledSources: number;
 }> {
-  const [rounds, sources] = await Promise.all([
-    loadExportAcquisitionRounds(selection),
-    getDb().query.acquisitionSource.findMany({ where: eq(acquisitionSource.enabled, true) }),
-  ]);
-  const mappedRounds = rounds.filter((entry) => entry.acquisitionCandidates.length > 0).length;
+  const analysis = await analyzeLibraryLinks(selection);
+  const totalRounds = analysis.targets.reduce((sum, target) => sum + target.roundIds.length, 0);
+  const mappedRounds = analysis.targets
+    .filter((target) => target.existing.length > 0)
+    .reduce((sum, target) => sum + target.roundIds.length, 0);
   return {
-    totalRounds: rounds.length,
+    totalRounds,
     mappedRounds,
-    unmappedRounds: rounds.length - mappedRounds,
-    enabledSources: sources.length,
+    unmappedRounds: totalRounds - mappedRounds,
+    enabledSources: analysis.sources.enabled,
   };
 }
 
@@ -825,120 +1376,31 @@ export async function autoLinkExportAcquisition(selection: ExportAcquisitionSele
   refreshedSources: number;
   refreshErrors: number;
 }> {
-  const sources = await getDb().query.acquisitionSource.findMany({
-    where: eq(acquisitionSource.enabled, true),
-    with: { files: true },
+  const analysis = await analyzeLibraryLinks(selection);
+  const changes = analysis.targets.flatMap((target) => {
+    const best = target.autoSelected ? target.suggestions[0] : undefined;
+    if (!best || target.existing.length > 0) return [];
+    return [
+      {
+        targetKind: target.targetKind,
+        targetId: target.targetId,
+        sourceId: best.sourceId,
+        sourcePath: best.sourcePath,
+        analyzedScore: best.score,
+        replaceExisting: false,
+      },
+    ];
   });
-  let refreshedSources = 0;
-  let refreshErrors = 0;
-  for (const source of sources) {
-    if (source.files.length > 0) continue;
-    try {
-      await refreshAcquisitionSource(source.id);
-      refreshedSources += 1;
-    } catch {
-      // A missing/temporarily unavailable catalog must not prevent matching
-      // against the other configured sources.
-      refreshErrors += 1;
-    }
-  }
-
-  const [rounds, allFiles] = await Promise.all([
-    loadExportAcquisitionRounds(selection),
-    getDb().query.acquisitionFile.findMany({
-      where: eq(acquisitionFile.mediaKind, "video"),
-      with: { source: true },
-    }),
-  ]);
-  const enabledFiles = allFiles.filter((file) => file.source.enabled);
-  const groups = new Map<string, typeof rounds>();
-  for (const entry of rounds) {
-    const key = entry.heroId ? `hero:${entry.heroId}` : `round:${entry.id}`;
-    const group = groups.get(key) ?? [];
-    group.push(entry);
-    groups.set(key, group);
-  }
-
-  const links: Array<{
-    roundId: string;
-    sourceId: string;
-    sourcePath: string;
-    matchScore: number;
-  }> = [];
-  const linkedFileKeys = new Set<string>();
-  for (const group of groups.values()) {
-    const unmapped = group.filter((entry) => entry.acquisitionCandidates.length === 0);
-    if (unmapped.length === 0) continue;
-    // An existing hero-level mapping is authoritative for its remaining rounds.
-    const existing = group
-      .flatMap((entry) => entry.acquisitionCandidates)
-      .sort((a, b) => a.sortOrder - b.sortOrder)[0];
-    if (existing) {
-      for (const entry of unmapped) {
-        links.push({
-          roundId: entry.id,
-          sourceId: existing.sourceId,
-          sourcePath: existing.sourcePath,
-          matchScore: existing.matchScore ?? 1,
-        });
-      }
-      linkedFileKeys.add(`${existing.sourceId}\0${existing.sourcePath}`);
-      continue;
-    }
-
-    const first = group[0];
-    if (!first) continue;
-    const scoreFile = (filePath: string) => {
-      const primary = scoreAcquisitionFileName(first.hero?.name || first.name, filePath);
-      if (first.hero || !first.author) return primary;
-      return Math.max(primary, scoreAcquisitionFileName(`${first.name} ${first.author}`, filePath));
-    };
-    const ranked = enabledFiles
-      .map((file) => ({ file, score: scoreFile(file.sourcePath) }))
-      .sort(
-        (a, b) =>
-          b.score - a.score ||
-          a.file.source.name.localeCompare(b.file.source.name) ||
-          a.file.sourcePath.localeCompare(b.file.sourcePath)
-      );
-    const best = ranked[0];
-    if (!best || best.score < 0.6 || ranked[1]?.score === best.score) continue;
-    for (const entry of unmapped) {
-      links.push({
-        roundId: entry.id,
-        sourceId: best.file.sourceId,
-        sourcePath: best.file.sourcePath,
-        matchScore: best.score,
-      });
-    }
-    linkedFileKeys.add(`${best.file.sourceId}\0${best.file.sourcePath}`);
-  }
-
-  if (links.length > 0) {
-    await getDb().transaction(async (tx) => {
-      for (let index = 0; index < links.length; index += 500) {
-        await tx
-          .insert(roundAcquisitionCandidate)
-          .values(
-            links.slice(index, index + 500).map((link) => ({
-              ...link,
-              matchKind: "filename" as const,
-              sortOrder: 0,
-            }))
-          )
-          .onConflictDoNothing();
-      }
-    });
-  }
+  const result = await applyLibraryLinks(changes);
+  const linkedFileKeys = new Set(changes.map((entry) => `${entry.sourceId}\0${entry.sourcePath}`));
   return {
-    linkedRounds: links.length,
+    linkedRounds: result.linkedRounds,
     linkedFiles: linkedFileKeys.size,
-    unmatchedRounds: Math.max(
-      0,
-      rounds.filter((entry) => entry.acquisitionCandidates.length === 0).length - links.length
-    ),
-    refreshedSources,
-    refreshErrors,
+    unmatchedRounds: analysis.targets
+      .filter((target) => target.existing.length === 0 && !target.autoSelected)
+      .reduce((sum, target) => sum + target.roundIds.length, 0),
+    refreshedSources: analysis.sources.refreshed,
+    refreshErrors: analysis.sources.refreshErrors.length,
   };
 }
 
@@ -954,7 +1416,25 @@ export type AcquisitionMatch = {
   tied: boolean;
   roundIds: string[];
   roundNames: string[];
+  installedRoundSuggestions: InstalledRoundSuggestion[];
 };
+
+export type InstalledRoundSuggestion = {
+  roundId: string;
+  roundName: string;
+  heroName: string | null;
+  score: number;
+  resourceCount: number;
+};
+
+function normalizeInstalledMatchName(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
 
 export async function analyzeUnresolvedImport(roundIds: string[]): Promise<{
   matches: AcquisitionMatch[];
@@ -970,10 +1450,13 @@ export async function analyzeUnresolvedImport(roundIds: string[]): Promise<{
       requiresTorrentEnablement: false,
     };
   }
-  const rows = await getDb().query.round.findMany({
-    where: inArray(round.id, roundIds),
-    with: { hero: true, resources: true, acquisitionCandidates: { with: { source: true } } },
-  });
+  const [rows, installedRows] = await Promise.all([
+    getDb().query.round.findMany({
+      where: inArray(round.id, roundIds),
+      with: { hero: true, resources: true, acquisitionCandidates: { with: { source: true } } },
+    }),
+    getDb().query.round.findMany({ with: { hero: true, resources: true } }),
+  ]);
   const unresolved = rows.filter(
     (entry) => entry.resources.filter((item) => !item.disabled).length === 0
   );
@@ -983,6 +1466,43 @@ export async function analyzeUnresolvedImport(roundIds: string[]): Promise<{
   });
   const enabledFiles = allFiles.filter((file) => file.source.enabled);
   const preliminary: AcquisitionMatch[] = [];
+  const importedRoundIds = new Set(roundIds);
+  const installedSuggestionsFor = (query: string): InstalledRoundSuggestion[] =>
+    installedRows
+      .filter(
+        (entry) =>
+          !importedRoundIds.has(entry.id) && entry.resources.some((resource) => !resource.disabled)
+      )
+      .map((entry) => {
+        const candidateNames = [entry.name, entry.hero?.name].filter((value): value is string =>
+          Boolean(value)
+        );
+        const exactNameMatch = candidateNames.some(
+          (name) => normalizeInstalledMatchName(name) === normalizeInstalledMatchName(query)
+        );
+        const score = exactNameMatch
+          ? 1
+          : Math.max(
+              scoreAcquisitionFileName(query, entry.name),
+              entry.hero?.name ? scoreAcquisitionFileName(query, entry.hero.name) : 0
+            );
+        return {
+          roundId: entry.id,
+          roundName: entry.name,
+          heroName: entry.hero?.name ?? null,
+          score,
+          resourceCount: entry.resources.filter((resource) => !resource.disabled).length,
+        };
+      })
+      .filter((entry) => entry.score >= 0.6)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          (a.heroName ?? "").localeCompare(b.heroName ?? "") ||
+          a.roundName.localeCompare(b.roundName) ||
+          a.roundId.localeCompare(b.roundId)
+      )
+      .slice(0, 5);
 
   const heroGroups = new Map<string, typeof unresolved>();
   for (const entry of unresolved) {
@@ -995,6 +1515,8 @@ export async function analyzeUnresolvedImport(roundIds: string[]): Promise<{
   for (const group of heroGroups.values()) {
     const first = group[0];
     if (!first) continue;
+    const query = first.hero?.name || first.name;
+    const installedRoundSuggestions = installedSuggestionsFor(query);
     const explicit = group
       .flatMap((entry) => entry.acquisitionCandidates)
       .sort((a, b) => a.sortOrder - b.sortOrder)[0];
@@ -1015,11 +1537,11 @@ export async function analyzeUnresolvedImport(roundIds: string[]): Promise<{
           tied: false,
           roundIds: group.map((entry) => entry.id),
           roundNames: group.map((entry) => entry.name),
+          installedRoundSuggestions,
         });
         continue;
       }
     }
-    const query = first.hero?.name || first.name;
     const ranked = enabledFiles
       .map((file) => ({ file, score: scoreAcquisitionFileName(query, file.sourcePath) }))
       .sort(
@@ -1042,6 +1564,7 @@ export async function analyzeUnresolvedImport(roundIds: string[]): Promise<{
       tied: ranked[1]?.score === best.score,
       roundIds: group.map((entry) => entry.id),
       roundNames: group.map((entry) => entry.name),
+      installedRoundSuggestions,
     });
   }
 
@@ -1054,6 +1577,18 @@ export async function analyzeUnresolvedImport(roundIds: string[]): Promise<{
       existing.roundNames.push(...match.roundNames);
       existing.weak ||= match.weak;
       existing.tied ||= match.tied;
+      for (const suggestion of match.installedRoundSuggestions) {
+        if (
+          !existing.installedRoundSuggestions.some((item) => item.roundId === suggestion.roundId)
+        ) {
+          existing.installedRoundSuggestions.push(suggestion);
+        }
+      }
+      existing.installedRoundSuggestions.sort((a, b) => b.score - a.score);
+      existing.installedRoundSuggestions.length = Math.min(
+        existing.installedRoundSuggestions.length,
+        5
+      );
     } else grouped.set(key, { ...match });
   }
   const matches = [...grouped.values()];

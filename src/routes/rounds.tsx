@@ -9,6 +9,7 @@ const RoundsSearchSchema = z.object({
     .enum(["newest", "oldest", "difficulty", "bpm", "length", "name", "excluded"])
     .optional(),
   query: z.string().optional(),
+  searchScope: z.enum(["all", "heroes", "rounds"]).optional(),
   showDisabled: z.boolean().optional(),
 });
 
@@ -27,6 +28,7 @@ function RoundsRouteComponent() {
         groupMode: search.groupMode,
         sortMode: search.sortMode,
         query: search.query,
+        searchScope: search.searchScope,
         showDisabled: search.showDisabled,
       }}
       navigate={(opts) =>

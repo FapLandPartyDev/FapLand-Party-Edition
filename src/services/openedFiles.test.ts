@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   },
   reviewInstallSidecarTrust: vi.fn(),
   confirmInstallSidecar: vi.fn(),
+  offerUpdateForIncompatibleContent: vi.fn(),
 }));
 
 vi.mock("./db", () => ({
@@ -39,6 +40,10 @@ vi.mock("../components/InstallSidecarTrustModalHost", () => ({
 
 vi.mock("../components/InstallConfirmationModalHost", () => ({
   confirmInstallSidecar: mocks.confirmInstallSidecar,
+}));
+
+vi.mock("./contentFormatUpdate", () => ({
+  offerUpdateForIncompatibleContent: mocks.offerUpdateForIncompatibleContent,
 }));
 
 import { getOpenedFileKind, importOpenedFile, summarizeImportResult } from "./openedFiles";
@@ -111,6 +116,7 @@ beforeEach(() => {
     },
   });
   mocks.playlists.setActive.mockResolvedValue(undefined);
+  mocks.offerUpdateForIncompatibleContent.mockResolvedValue(false);
 });
 
 describe("getOpenedFileKind", () => {
@@ -127,6 +133,24 @@ describe("getOpenedFileKind", () => {
 });
 
 describe("importOpenedFile", () => {
+  it("checks for an app update when a hero format cannot be read", async () => {
+    const formatError = new Error("Unrecognized hero format");
+    mocks.db.install.inspectSidecarFile.mockRejectedValue(formatError);
+
+    await expect(importOpenedFile("/tmp/future.hero")).rejects.toBe(formatError);
+
+    expect(mocks.offerUpdateForIncompatibleContent).toHaveBeenCalledWith("/tmp/future.hero");
+  });
+
+  it("checks for an app update when a playlist format cannot be read", async () => {
+    const formatError = new Error("Unrecognized playlist format");
+    mocks.playlists.importFromFile.mockRejectedValue(formatError);
+
+    await expect(importOpenedFile("/tmp/future.fplay")).rejects.toBe(formatError);
+
+    expect(mocks.offerUpdateForIncompatibleContent).toHaveBeenCalledWith("/tmp/future.fplay");
+  });
+
   it("routes sidecars through the install importer", async () => {
     const result = await importOpenedFile("/tmp/example.hero");
 

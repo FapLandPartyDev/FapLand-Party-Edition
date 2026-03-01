@@ -190,6 +190,7 @@ export const playlistRouter = router({
         audioBitrateKbps: z.union([z.literal(128), z.literal(192), z.literal(256)]).optional(),
         includeMedia: z.boolean().optional(),
         includeAcquisitionSources: z.boolean().optional(),
+        replaceOriginalLinksWithAcquisition: z.boolean().optional(),
         asFpack: z.boolean().optional(),
       })
     )
