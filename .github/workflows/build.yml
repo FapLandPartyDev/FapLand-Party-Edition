@@ -50,6 +50,37 @@ jobs:
       - name: Build app
         run: npm run build
 
+      - name: Patch Electron headers for MSVC compatibility
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $electronVersion = node -p "require('./node_modules/electron/package.json').version"
+          $gypDir = "$env:USERPROFILE\.electron-gyp\$electronVersion"
+          $heapHeader = Join-Path $gypDir 'include\node\cppgc\heap.h'
+
+          if (-not (Test-Path $heapHeader)) {
+            $headersUrl = "https://electronjs.org/headers/v$electronVersion/node-v$electronVersion-headers.tar.gz"
+            $tempFile = "$env:TEMP\node-v$electronVersion-headers.tar.gz"
+            Write-Host "Downloading Electron v$electronVersion headers..."
+            Invoke-WebRequest -Uri $headersUrl -OutFile $tempFile
+            New-Item -ItemType Directory -Path $gypDir -Force | Out-Null
+            tar -xzf $tempFile -C $gypDir --strip-components=1
+          }
+
+          if (Test-Path $heapHeader) {
+            $content = [System.IO.File]::ReadAllText($heapHeader)
+            if ($content.Contains('__builtin_frame_address')) {
+              $content = $content.Replace('__builtin_frame_address(0)', 'nullptr')
+              [System.IO.File]::WriteAllText($heapHeader, $content)
+              Write-Host "Patched cppgc/heap.h to fix MSVC compatibility"
+            } else {
+              Write-Host "cppgc/heap.h already patched or not needed"
+            }
+          } else {
+            Write-Error "cppgc/heap.h not found at $heapHeader"
+            exit 1
+          }
+
       - name: Package Electron app
         run: npx electron-builder --publish never
 
