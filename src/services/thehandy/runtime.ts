@@ -529,6 +529,9 @@ export async function sendHspSync(
   const needsRateUpdate = Math.abs(nextRate - session.lastPlaybackRate) > 0.02;
   const needsTimeSync = now - session.lastSyncAtMs >= 2000;
 
+  if (needsRateUpdate) session.lastPlaybackRate = nextRate;
+  if (needsTimeSync) session.lastSyncAtMs = now;
+
   if (needsRateUpdate && needsTimeSync) {
     await Promise.all([
       setHspPaybackRate({
@@ -539,8 +542,6 @@ export async function sendHspSync(
         headers,
         body: { playback_rate: nextRate },
         query: { timeout: 5000 },
-      }).then(() => {
-        session.lastPlaybackRate = nextRate;
       }),
       setHspTime({
         auth: authResolver,
@@ -554,8 +555,6 @@ export async function sendHspSync(
           filter: 0.12,
         },
         query: { timeout: 5000 },
-      }).then(() => {
-        session.lastSyncAtMs = now;
       }),
     ]);
   } else if (needsRateUpdate) {
@@ -568,7 +567,6 @@ export async function sendHspSync(
       body: { playback_rate: nextRate },
       query: { timeout: 5000 },
     });
-    session.lastPlaybackRate = nextRate;
   } else if (needsTimeSync) {
     await setHspTime({
       auth: authResolver,
@@ -583,7 +581,6 @@ export async function sendHspSync(
       },
       query: { timeout: 5000 },
     });
-    session.lastSyncAtMs = now;
   }
 }
 
@@ -645,6 +642,10 @@ export async function resumeHandyPlayback(
   const nextRate = Math.max(0.25, Math.min(3, playbackRate));
   const needsRateUpdate = Math.abs(nextRate - session.lastPlaybackRate) > 0.02;
 
+  session.activeScriptId = session.loadedScriptId;
+  session.lastSyncAtMs = now;
+  if (needsRateUpdate) session.lastPlaybackRate = nextRate;
+
   const pending: Promise<void>[] = [
     setHspTime({
       auth: authResolver,
@@ -658,7 +659,7 @@ export async function resumeHandyPlayback(
         filter: 0.12,
       },
       query: { timeout: 5000 },
-    }).then(() => {}),
+    }).then(() => { }),
   ];
 
   if (needsRateUpdate) {
@@ -671,16 +672,11 @@ export async function resumeHandyPlayback(
         headers,
         body: { playback_rate: nextRate },
         query: { timeout: 5000 },
-      }).then(() => {
-        session.lastPlaybackRate = nextRate;
-      })
+      }).then(() => { })
     );
   }
 
   await Promise.all(pending);
-
-  session.activeScriptId = session.loadedScriptId;
-  session.lastSyncAtMs = now;
 }
 
 export async function stopHandyPlayback(
@@ -691,6 +687,18 @@ export async function stopHandyPlayback(
 
   const connectionRef = requireConnectionRef(auth.connectionKey);
   const appCredential = requireAppCredential(auth.appApiKey);
+
+  // CRITICAL: We modify local state BEFORE the network request so that
+  // if network fails/timeouts, we don't end up with desynchronized tracking state.
+  session.loadedScriptId = null;
+  session.activeScriptId = null;
+  session.lastSyncAtMs = 0;
+  session.lastPlaybackRate = 1;
+  session.streamedPoints = null;
+  session.nextStreamPointIndex = 0;
+  session.tailPointStreamIndex = 0;
+  session.uploadedUntilMs = 0;
+  session.hspModeActive = false;
 
   await hspStop({
     auth: createAuthResolver(appCredential, session.clientToken),
@@ -703,15 +711,5 @@ export async function stopHandyPlayback(
     query: {
       timeout: 5000,
     },
-  });
-
-  session.loadedScriptId = null;
-  session.activeScriptId = null;
-  session.lastSyncAtMs = 0;
-  session.lastPlaybackRate = 1;
-  session.streamedPoints = null;
-  session.nextStreamPointIndex = 0;
-  session.tailPointStreamIndex = 0;
-  session.uploadedUntilMs = 0;
-  session.hspModeActive = false;
+  }).catch(() => { });
 }
