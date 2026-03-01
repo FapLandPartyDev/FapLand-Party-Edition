@@ -2120,7 +2120,7 @@ function PlaylistWorkshopPage() {
               {activeSectionId === "playlist" && (
                 <>
                   <div
-                    className={`relative rounded-[1.75rem] border border-white/5 bg-black/20 p-6 backdrop-blur-2xl shadow-2xl ${playlistMenuOpen || manageMenuOpen || transferMenuOpen ? "z-20" : "z-0"}`}
+                    className={`playlist-theme-card relative rounded-[1.75rem] border p-6 backdrop-blur-2xl shadow-2xl ${playlistMenuOpen || manageMenuOpen || transferMenuOpen ? "z-20" : "z-0"}`}
                   >
                     <div className="space-y-4">
                       <div ref={playlistMenuRef} className="relative">
@@ -2133,11 +2133,11 @@ function PlaylistWorkshopPage() {
                             setManageMenuOpen(false);
                             setTransferMenuOpen(false);
                           }}
-                          className="w-full rounded-2xl border border-violet-300/50 bg-gradient-to-b from-violet-500/25 to-indigo-500/20 px-4 py-3 text-left text-zinc-100 shadow-[0_0_24px_rgba(139,92,246,0.25)]"
+                          className="playlist-theme-select w-full rounded-2xl border px-4 py-3 text-left text-zinc-100"
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div>
-                              <div className="text-[10px] uppercase tracking-[0.2em] text-violet-200/80">
+                              <div className="playlist-theme-select-label text-[10px] uppercase tracking-[0.2em]">
                                 <Trans>Active Playlist</Trans>
                               </div>
                               <div className="mt-2 truncate text-lg font-semibold">
@@ -2145,14 +2145,14 @@ function PlaylistWorkshopPage() {
                               </div>
                             </div>
                             <span
-                              className={`mt-5 text-xs text-violet-200 transition-transform ${playlistMenuOpen ? "rotate-180" : ""}`}
+                              className={`playlist-theme-select-arrow mt-5 text-xs transition-transform ${playlistMenuOpen ? "rotate-180" : ""}`}
                             >
                               ▼
                             </span>
                           </div>
                         </button>
                         {playlistMenuOpen && (
-                          <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-[120] max-h-80 overflow-y-auto rounded-xl border border-violet-300/45 bg-zinc-950/95 p-2 shadow-2xl backdrop-blur-xl">
+                          <div className="playlist-theme-menu absolute left-0 right-0 top-[calc(100%+8px)] z-[120] max-h-80 overflow-y-auto rounded-xl border bg-zinc-950/95 p-2 backdrop-blur-xl">
                             {playlistList.map((playlist) => {
                               const selected = playlist.id === activePlaylist.id;
                               return (
@@ -2172,7 +2172,7 @@ function PlaylistWorkshopPage() {
                                   className={`mb-1 w-full rounded-lg border px-3 py-2 text-left text-sm last:mb-0 ${
                                     selected
                                       ? "border-emerald-300/60 bg-emerald-500/20 text-emerald-100"
-                                      : "border-zinc-700 bg-black/40 text-zinc-200 hover:border-violet-300/60 hover:bg-violet-500/20"
+                                      : "playlist-theme-menu-item border-zinc-700 bg-black/40 text-zinc-200"
                                   }`}
                                 >
                                   <div className="truncate font-semibold">{playlist.name}</div>
@@ -2187,7 +2187,7 @@ function PlaylistWorkshopPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.12em] text-zinc-300">
-                        <span className="rounded-full border border-violet-300/35 bg-violet-500/10 px-3 py-1">
+                        <span className="playlist-theme-pill rounded-full border px-3 py-1">
                           <Trans>Playlist Version {activePlaylist.config.playlistVersion}</Trans>
                         </span>
                         <span
@@ -4501,13 +4501,13 @@ const ActionMenu = forwardRef<
         playSelectSound();
         onToggle();
       }}
-      className="flex w-full items-center justify-between rounded-xl border border-violet-300/45 bg-violet-500/20 px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] text-violet-100 hover:border-violet-200/80 hover:bg-violet-500/35"
+      className="playlist-theme-action flex w-full items-center justify-between rounded-xl border px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em]"
     >
       <span>{label}</span>
       <span className={`text-[10px] transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
     </button>
     {open && (
-      <div className="absolute right-0 top-[calc(100%+8px)] z-[120] min-w-full rounded-xl border border-violet-300/45 bg-zinc-950/95 p-2 shadow-2xl backdrop-blur-xl">
+      <div className="playlist-theme-menu absolute right-0 top-[calc(100%+8px)] z-[120] min-w-full rounded-xl border bg-zinc-950/95 p-2 backdrop-blur-xl">
         {items.map((item) => (
           <button
             key={item.label}
@@ -4520,7 +4520,7 @@ const ActionMenu = forwardRef<
             className={`mb-1 w-full rounded-lg border px-3 py-2 text-left text-sm last:mb-0 ${
               item.tone === "danger"
                 ? "border-rose-300/45 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20"
-                : "border-zinc-700 bg-black/40 text-zinc-200 hover:border-violet-300/60 hover:bg-violet-500/20"
+                : "playlist-theme-menu-item border-zinc-700 bg-black/40 text-zinc-200"
             }`}
           >
             {item.label}

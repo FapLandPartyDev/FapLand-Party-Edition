@@ -155,6 +155,7 @@ vi.mock("../utils/audio", () => ({
 
 import { Route } from "./index";
 import { trpc } from "../services/trpc";
+import { MENU_THEME_CHANGED_EVENT, MENU_THEME_KEY } from "../constants/menuThemeSettings";
 
 describe("Home route update menu", () => {
   beforeEach(() => {
@@ -266,6 +267,55 @@ describe("Home route update menu", () => {
     await waitFor(() => {
       expect(mocks.findBackgroundVideos).toHaveBeenCalledWith(6);
       expect(mocks.countInstalled).toHaveBeenCalled();
+    });
+  });
+
+  it("loads and applies the stored main menu theme", async () => {
+    vi.mocked(trpc.store.get.query).mockImplementation(async ({ key }: { key: string }) => {
+      if (key === MENU_THEME_KEY) return "ember";
+      return true;
+    });
+
+    const Component = (Route as unknown as { component: () => ReactElement }).component;
+    render(<Component />);
+
+    await waitFor(() => {
+      expect(trpc.store.get.query).toHaveBeenCalledWith({ key: MENU_THEME_KEY });
+      expect(screen.getByTestId("home-route").getAttribute("data-main-menu-theme")).toBe("ember");
+    });
+  });
+
+  it("falls back to classic for an invalid stored main menu theme", async () => {
+    vi.mocked(trpc.store.get.query).mockImplementation(async ({ key }: { key: string }) => {
+      if (key === MENU_THEME_KEY) return "purple-blue";
+      return true;
+    });
+
+    const Component = (Route as unknown as { component: () => ReactElement }).component;
+    render(<Component />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("home-route").getAttribute("data-main-menu-theme")).toBe(
+        "classic"
+      );
+    });
+  });
+
+  it("updates the main menu theme when settings dispatches a theme change", async () => {
+    const Component = (Route as unknown as { component: () => ReactElement }).component;
+    render(<Component />);
+
+    await waitFor(() => {
+      expect(trpc.store.get.query).toHaveBeenCalledWith({ key: MENU_THEME_KEY });
+    });
+    expect(screen.getByTestId("home-route").getAttribute("data-main-menu-theme")).toBe("classic");
+
+    window.dispatchEvent(new CustomEvent(MENU_THEME_CHANGED_EVENT, { detail: "verdant" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("home-route").getAttribute("data-main-menu-theme")).toBe(
+        "verdant"
+      );
     });
   });
 

@@ -4849,7 +4849,7 @@ const RoundCard = memo(function RoundCard({
 
   return (
     <article
-      className={`group relative flex h-full w-full min-w-0 flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(14,10,25,0.94),rgba(5,7,14,0.98))] shadow-[0_22px_60px_rgba(2,6,23,0.44)] backdrop-blur-xl transition-all duration-300 hover:border-violet-300/55 hover:shadow-[0_28px_72px_rgba(76,29,149,0.34)] ${index < 12 ? "animate-entrance" : ""}`}
+      className={`round-library-card group relative flex h-full w-full min-w-0 flex-col overflow-hidden rounded-[28px] border border-white/10 backdrop-blur-xl transition-all duration-300 ${index < 12 ? "animate-entrance" : ""}`}
       style={animationDelay ? { animationDelay } : undefined}
       onMouseEnter={() => {
         onHoverSfx();
@@ -4879,7 +4879,7 @@ const RoundCard = memo(function RoundCard({
         setIsPreviewActive(false);
       }}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.14),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.18),transparent_38%)]" />
+      <div className="round-library-card-wash pointer-events-none absolute inset-0" />
 
       {selectionMode && (
         <button
@@ -4899,7 +4899,7 @@ const RoundCard = memo(function RoundCard({
         </button>
       )}
 
-      <div className="group/video relative aspect-video shrink-0 overflow-hidden border-b border-white/10 bg-gradient-to-br from-[#1b1130] via-[#120a25] to-[#0d1a33]">
+      <div className="round-library-media group/video relative aspect-video shrink-0 overflow-hidden border-b border-white/10">
         {previewImage && (
           <SfwGuard>
             <DeferredImage
@@ -4989,7 +4989,7 @@ const RoundCard = memo(function RoundCard({
         ) : null}
 
         <div className="absolute right-3 top-3 flex flex-col items-end gap-1.5">
-          <span className="rounded-full border border-violet-300/35 bg-violet-500/18 px-2.5 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.28em] text-violet-100 backdrop-blur-md">
+          <span className="round-library-accent-pill rounded-full border px-2.5 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.28em] backdrop-blur-md">
             {displayType}
           </span>
           <span className="rounded-full border border-cyan-300/35 bg-cyan-500/18 px-2.5 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.24em] text-cyan-100 backdrop-blur-md">
@@ -5141,7 +5141,7 @@ const RoundCard = memo(function RoundCard({
             <Trans>Edit Round</Trans>
           </button>
           <button
-            className="rounded-[1.6rem] border border-violet-300/35 bg-violet-500/12 px-2.5 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] text-violet-100 transition-all duration-200 hover:border-violet-200/75 hover:bg-violet-500/24"
+            className="round-library-accent-button rounded-[1.6rem] border px-2.5 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] transition-all duration-200"
             onClick={() => setShowTechnicalDetails((prev) => !prev)}
             onMouseEnter={onHoverSfx}
             type="button"
@@ -5578,9 +5578,9 @@ function DifficultyBadge({ difficulty, animate }: { difficulty: number; animate:
   const level = Math.max(1, Math.min(5, difficulty));
   return (
     <div
-      className={`absolute left-3 top-3 flex items-center gap-2 rounded-full border border-pink-200/45 bg-pink-400/22 px-3 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] text-white shadow-[0_0_30px_rgba(236,72,153,0.45)] backdrop-blur-md ${animate ? "animate-difficulty-pop" : ""}`}
+      className={`round-library-difficulty absolute left-3 top-3 flex items-center gap-2 rounded-full border px-3 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] text-white backdrop-blur-md ${animate ? "animate-difficulty-pop" : ""}`}
     >
-      <span className="text-pink-100/90">
+      <span className="round-library-difficulty-label">
         <Trans>Difficulty</Trans>
       </span>
       <span className="text-yellow-200 drop-shadow-[0_0_8px_rgba(253,224,71,0.85)]">

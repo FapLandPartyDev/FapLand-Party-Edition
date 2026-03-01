@@ -26,11 +26,11 @@ interface Particle {
 }
 
 const PARTICLE_COLORS = [
-  "rgba(139,92,246,0.7)",
-  "rgba(99,102,241,0.6)",
-  "rgba(167,139,250,0.5)",
-  "rgba(236,72,153,0.4)",
-  "rgba(255,255,255,0.3)",
+  "var(--main-menu-particle-1, rgba(139,92,246,0.7))",
+  "var(--main-menu-particle-2, rgba(99,102,241,0.6))",
+  "var(--main-menu-particle-3, rgba(167,139,250,0.5))",
+  "var(--main-menu-particle-4, rgba(236,72,153,0.4))",
+  "var(--main-menu-particle-5, rgba(255,255,255,0.3))",
 ];
 
 const LIGHT_BACKGROUND_VIDEO_LIMIT = 6;
@@ -256,7 +256,7 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
     return (
       <div
         className={`fixed inset-0 overflow-hidden pointer-events-none -z-10 ${quality === "full" ? "parallax-bg" : ""}`}
-        style={{ background: "#050508" }}
+        style={{ background: "var(--main-menu-bg, #050508)" }}
       >
         {backgroundVideoEnabled && !sfwMode && effectiveVideoUris.length > 0 && (
           <div className="absolute inset-0" data-testid="animated-background-video-layer">
@@ -282,8 +282,7 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
               width: "65vw",
               height: "65vw",
               borderRadius: "50%",
-              background:
-                "radial-gradient(circle, rgba(139,92,246,0.35) 0%, rgba(139,92,246,0.08) 60%, transparent 80%)",
+              background: "var(--main-menu-orb-a)",
               filter: quality === "minimal" ? "blur(34px)" : "blur(60px)",
               animation:
                 quality === "minimal"
@@ -301,8 +300,7 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
               width: "55vw",
               height: "55vw",
               borderRadius: "50%",
-              background:
-                "radial-gradient(circle, rgba(99,102,241,0.28) 0%, rgba(99,102,241,0.06) 60%, transparent 80%)",
+              background: "var(--main-menu-orb-b)",
               filter: quality === "minimal" ? "blur(38px)" : "blur(70px)",
               animation:
                 quality === "minimal"
@@ -322,8 +320,7 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
                   width: "70vw",
                   height: "70vw",
                   borderRadius: "50%",
-                  background:
-                    "radial-gradient(circle, rgba(236,72,153,0.18) 0%, rgba(236,72,153,0.04) 60%, transparent 80%)",
+                  background: "var(--main-menu-orb-c)",
                   filter: "blur(80px)",
                   animation:
                     "orb-drift 20s ease-in-out -10s infinite, pulse-glow 4s ease-in-out -5s infinite",
@@ -337,7 +334,7 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
                   width: "35vw",
                   height: "35vw",
                   borderRadius: "50%",
-                  background: "radial-gradient(circle, rgba(167,139,250,0.2) 0%, transparent 70%)",
+                  background: "var(--main-menu-orb-d)",
                   filter: "blur(50px)",
                   animationDelay: "-14s",
                 }}
@@ -391,9 +388,15 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
         <div
           className="absolute inset-0 z-20"
           style={{
-            background: `
-                        radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(5,5,8,0.7) 100%),
-                        linear-gradient(to bottom, rgba(5,5,8,0.6) 0%, transparent 20%, transparent 80%, rgba(5,5,8,0.9) 100%)
+            background:
+              quality === "minimal"
+                ? `
+                        radial-gradient(ellipse at 50% 48%, transparent 44%, rgba(0,0,0,0.42) 100%),
+                        linear-gradient(to bottom, rgba(0,0,0,0.34) 0%, transparent 26%, transparent 78%, rgba(0,0,0,0.66) 100%)
+                    `
+                : `
+                        radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.62) 100%),
+                        linear-gradient(to bottom, rgba(0,0,0,0.52) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.82) 100%)
                     `,
           }}
           aria-hidden

@@ -6,8 +6,11 @@ import path from "node:path";
 import si from "systeminformation";
 import {
   DEBUG_LOG_LEVEL_KEY,
+  DEBUG_LOG_MAX_FILE_SIZE_MB_KEY,
   DEFAULT_DEBUG_LOG_LEVEL,
+  DEFAULT_DEBUG_LOG_MAX_FILE_SIZE_MB,
   normalizeDebugLogLevel,
+  normalizeDebugLogMaxFileSizeMb,
   type DebugLogLevel,
 } from "../../src/constants/debugSettings";
 import {
@@ -69,8 +72,6 @@ export type DebugLoggingOptions = {
   rotatedFiles?: number;
 };
 
-const DEFAULT_MAX_BYTES = 5 * 1024 * 1024;
-const DEFAULT_ROTATED_FILES = 3;
 const RECENT_LOG_LINES = 300;
 const levelRank: Record<DebugLogLevel, number> = {
   off: 0,
@@ -81,15 +82,13 @@ const levelRank: Record<DebugLogLevel, number> = {
 };
 
 let activeLogLevel: DebugLogLevel = DEFAULT_DEBUG_LOG_LEVEL;
+let activeMaxFileSizeMb: number = DEFAULT_DEBUG_LOG_MAX_FILE_SIZE_MB;
 let options: DebugLoggingOptions = {};
 let writeQueue: Promise<void> = Promise.resolve();
 
 function getMaxBytes(): number {
-  return options.maxBytes ?? DEFAULT_MAX_BYTES;
-}
-
-function getRotatedFiles(): number {
-  return options.rotatedFiles ?? DEFAULT_ROTATED_FILES;
+  if (options.maxBytes != null) return options.maxBytes;
+  return activeMaxFileSizeMb * 1024 * 1024;
 }
 
 export function configureDebugLoggingForTests(nextOptions: DebugLoggingOptions): void {
@@ -102,9 +101,24 @@ export function getDebugLogFilePath(): string {
   return options.logFilePath ?? path.join(resolveAppStorageBaseDir(), "logs", "f-land.log");
 }
 
-function rotatedPath(logFilePath: string, index: number): string {
-  const parsed = path.parse(logFilePath);
-  return path.join(parsed.dir, `${parsed.name}.${index}${parsed.ext}`);
+async function pruneLogFile(logFilePath: string): Promise<void> {
+  const maxBytes = getMaxBytes();
+  const stats = await fs.stat(logFilePath).catch(() => null);
+  if (!stats || stats.size < maxBytes) return;
+
+  const content = await fs.readFile(logFilePath, "utf8");
+  const lines = content.split("\n");
+  let totalBytes = Buffer.byteLength(content, "utf8");
+  let pruneFrom = 0;
+
+  while (totalBytes > maxBytes * 0.8 && pruneFrom < lines.length - 1) {
+    totalBytes -= Buffer.byteLength(lines[pruneFrom] + "\n", "utf8");
+    pruneFrom += 1;
+  }
+
+  if (pruneFrom > 0) {
+    await fs.writeFile(logFilePath, lines.slice(pruneFrom).join("\n"), "utf8");
+  }
 }
 
 function shouldLog(level: DebugLogEntry["level"]): boolean {
@@ -117,15 +131,27 @@ export function getDebugLogLevel(): DebugLogLevel {
 
 export function initializeDebugLogging(): void {
   try {
-    activeLogLevel = normalizeDebugLogLevel(getStore().get(DEBUG_LOG_LEVEL_KEY));
+    const store = getStore();
+    activeLogLevel = normalizeDebugLogLevel(store.get(DEBUG_LOG_LEVEL_KEY));
+    activeMaxFileSizeMb = normalizeDebugLogMaxFileSizeMb(store.get(DEBUG_LOG_MAX_FILE_SIZE_MB_KEY));
   } catch {
     activeLogLevel = DEFAULT_DEBUG_LOG_LEVEL;
+    activeMaxFileSizeMb = DEFAULT_DEBUG_LOG_MAX_FILE_SIZE_MB;
   }
 }
 
 export function setDebugLogLevel(level: DebugLogLevel): void {
   activeLogLevel = normalizeDebugLogLevel(level);
   getStore().set(DEBUG_LOG_LEVEL_KEY, activeLogLevel);
+}
+
+export function getDebugLogMaxFileSizeMb(): number {
+  return activeMaxFileSizeMb;
+}
+
+export function setDebugLogMaxFileSizeMb(mb: number): void {
+  activeMaxFileSizeMb = normalizeDebugLogMaxFileSizeMb(mb);
+  getStore().set(DEBUG_LOG_MAX_FILE_SIZE_MB_KEY, activeMaxFileSizeMb);
 }
 
 function serializeError(error: Error): Record<string, unknown> {
@@ -141,31 +167,10 @@ function normalizeLogData(data: unknown): unknown {
   return data;
 }
 
-async function rotateLogs(logFilePath: string): Promise<void> {
-  const maxBytes = getMaxBytes();
-  const stats = await fs.stat(logFilePath).catch(() => null);
-  if (!stats || stats.size < maxBytes) return;
-
-  const rotatedFiles = getRotatedFiles();
-  await fs.rm(rotatedPath(logFilePath, rotatedFiles), { force: true }).catch(() => undefined);
-  for (let index = rotatedFiles - 1; index >= 1; index -= 1) {
-    await fs
-      .rename(rotatedPath(logFilePath, index), rotatedPath(logFilePath, index + 1))
-      .catch((error: NodeJS.ErrnoException) => {
-        if (error.code !== "ENOENT") throw error;
-      });
-  }
-  await fs
-    .rename(logFilePath, rotatedPath(logFilePath, 1))
-    .catch((error: NodeJS.ErrnoException) => {
-      if (error.code !== "ENOENT") throw error;
-    });
-}
-
 async function appendEntry(entry: DebugLogEntry): Promise<void> {
   const logFilePath = getDebugLogFilePath();
   await fs.mkdir(path.dirname(logFilePath), { recursive: true });
-  await rotateLogs(logFilePath);
+  await pruneLogFile(logFilePath);
   const sanitized = sanitizeForPublicDebug(entry);
   await fs.appendFile(logFilePath, `${JSON.stringify(sanitized)}\n`, "utf8");
 }
@@ -438,6 +443,7 @@ export async function getDebugState(): Promise<{
   anonymizedLogFilePath: string;
   logFileExists: boolean;
   logFileSizeBytes: number;
+  maxFileSizeMb: number;
 }> {
   const logFilePath = getDebugLogFilePath();
   const stats = await fs.stat(logFilePath).catch(() => null);
@@ -447,6 +453,7 @@ export async function getDebugState(): Promise<{
     anonymizedLogFilePath: sanitizeForPublicDebug(logFilePath),
     logFileExists: Boolean(stats),
     logFileSizeBytes: stats?.size ?? 0,
+    maxFileSizeMb: activeMaxFileSizeMb,
   };
 }
 

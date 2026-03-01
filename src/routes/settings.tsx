@@ -79,6 +79,14 @@ import {
   DEFAULT_BACKGROUND_VIDEO_ENABLED,
 } from "../constants/backgroundSettings";
 import {
+  DEFAULT_MENU_THEME_ID,
+  MAIN_MENU_THEMES,
+  MENU_THEME_CHANGED_EVENT,
+  MENU_THEME_KEY,
+  normalizeMainMenuThemeId,
+  type MainMenuThemeId,
+} from "../constants/menuThemeSettings";
+import {
   AUTOFIX_BROKEN_FUNSCRIPTS_KEY,
   DEFAULT_AUTOFIX_BROKEN_FUNSCRIPTS,
   normalizeAutofixBrokenFunscripts,
@@ -710,6 +718,8 @@ export function SettingsPage() {
   const [backgroundVideoEnabled, setBackgroundVideoEnabled] = useState(
     DEFAULT_BACKGROUND_VIDEO_ENABLED
   );
+  const [mainMenuThemeId, setMainMenuThemeId] =
+    useState<MainMenuThemeId>(DEFAULT_MENU_THEME_ID);
   const [autofixBrokenFunscripts, setAutofixBrokenFunscripts] = useState(
     DEFAULT_AUTOFIX_BROKEN_FUNSCRIPTS
   );
@@ -774,6 +784,7 @@ export function SettingsPage() {
   const [isLoadingBinaryDiagnostics, setIsLoadingBinaryDiagnostics] = useState(true);
   const [isRefreshingBinaryDiagnostics, setIsRefreshingBinaryDiagnostics] = useState(false);
   const [debugLogLevel, setDebugLogLevel] = useState<DebugLogLevel>("off");
+  const [debugLogMaxFileSizeMb, setDebugLogMaxFileSizeMb] = useState(200);
   const [debugState, setDebugState] = useState<DebugState | null>(null);
   const [debugDiagnostics, setDebugDiagnostics] = useState<DebugDiagnostics | null>(null);
   const [debugAllSettings, setDebugAllSettings] = useState<Record<string, unknown> | null>(null);
@@ -843,6 +854,7 @@ export function SettingsPage() {
       ]);
       setDebugState(nextState);
       setDebugLogLevel(normalizeDebugLogLevel(nextState.logLevel));
+      setDebugLogMaxFileSizeMb(nextState.maxFileSizeMb);
       setDebugDiagnostics(nextDiagnostics);
       setDebugAllSettings(nextAllSettings);
     } catch (error) {
@@ -864,6 +876,7 @@ export function SettingsPage() {
         VIDEOHASH_FFMPEG_SOURCE_PREFERENCE_KEY,
         YT_DLP_BINARY_PREFERENCE_KEY,
         BACKGROUND_VIDEO_ENABLED_KEY,
+        MENU_THEME_KEY,
         AUTOFIX_BROKEN_FUNSCRIPTS_KEY,
         ROUND_PROGRESS_BAR_ALWAYS_VISIBLE_KEY,
         ANTI_PERK_BEATBAR_ENABLED_KEY,
@@ -907,6 +920,7 @@ export function SettingsPage() {
         const rawVideoHashPreference = storeValues[VIDEOHASH_FFMPEG_SOURCE_PREFERENCE_KEY];
         const rawYtDlpPreference = storeValues[YT_DLP_BINARY_PREFERENCE_KEY];
         const rawBackgroundVideoEnabled = storeValues[BACKGROUND_VIDEO_ENABLED_KEY];
+        const rawMainMenuTheme = storeValues[MENU_THEME_KEY];
         const rawAutofixBrokenFunscripts = storeValues[AUTOFIX_BROKEN_FUNSCRIPTS_KEY];
         const rawRoundProgressBarAlwaysVisible = storeValues[ROUND_PROGRESS_BAR_ALWAYS_VISIBLE_KEY];
         const rawAntiPerkBeatbarEnabled = storeValues[ANTI_PERK_BEATBAR_ENABLED_KEY];
@@ -963,6 +977,7 @@ export function SettingsPage() {
             ? rawBackgroundVideoEnabled
             : DEFAULT_BACKGROUND_VIDEO_ENABLED
         );
+        setMainMenuThemeId(normalizeMainMenuThemeId(rawMainMenuTheme));
         setAutofixBrokenFunscripts(normalizeAutofixBrokenFunscripts(rawAutofixBrokenFunscripts));
         setRoundProgressBarAlwaysVisible(
           normalizeRoundProgressBarAlwaysVisible(rawRoundProgressBarAlwaysVisible)
@@ -1138,6 +1153,25 @@ export function SettingsPage() {
               setBackgroundVideoEnabled(next);
               window.dispatchEvent(
                 new CustomEvent<boolean>(BACKGROUND_VIDEO_ENABLED_EVENT, { detail: next })
+              );
+            },
+          },
+          {
+            id: "main-menu-theme",
+            type: "select",
+            label: t`App Theme`,
+            description: t`Choose the color scheme used outside the gameboard.`,
+            value: mainMenuThemeId,
+            options: MAIN_MENU_THEMES.map((theme) => ({
+              value: theme.id,
+              label: theme.label,
+            })),
+            onChange: async (next: string) => {
+              const value = normalizeMainMenuThemeId(next);
+              await trpc.store.set.mutate({ key: MENU_THEME_KEY, value });
+              setMainMenuThemeId(value);
+              window.dispatchEvent(
+                new CustomEvent<MainMenuThemeId>(MENU_THEME_CHANGED_EVENT, { detail: value })
               );
             },
           },
@@ -1627,6 +1661,20 @@ export function SettingsPage() {
               await refreshDebugInfo();
             },
           },
+          {
+            id: "debug-log-max-file-size",
+            type: "number",
+            label: t`Max Log File Size (MB)`,
+            description: t`When the log file exceeds this size, the oldest entries are pruned.`,
+            value: debugLogMaxFileSizeMb,
+            min: 1,
+            max: 10000,
+            onChange: async (next: number) => {
+              await trpc.debug.setMaxFileSizeMb.mutate({ maxFileSizeMb: next });
+              setDebugLogMaxFileSizeMb(next);
+              await refreshDebugInfo();
+            },
+          },
         ],
       },
       {
@@ -1746,6 +1794,7 @@ export function SettingsPage() {
     ],
     [
       backgroundVideoEnabled,
+      mainMenuThemeId,
       antiPerkBeatbarEnabled,
       applyPerkDirectly,
       autofixBrokenFunscripts,
@@ -1779,6 +1828,7 @@ export function SettingsPage() {
       t,
       refreshBinaryDiagnostics,
       debugLogLevel,
+      debugLogMaxFileSizeMb,
       refreshDebugInfo,
     ]
   );
@@ -2162,13 +2212,13 @@ export function SettingsPage() {
 
       <div className="relative z-10 flex h-screen flex-col overflow-hidden lg:flex-row">
         {/* ── Sidebar (vertical on lg+, horizontal strip on small) ── */}
-        <nav className="animate-entrance flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-purple-400/20 bg-zinc-950/70 px-3 py-2 backdrop-blur-xl lg:w-60 lg:flex-col lg:gap-0.5 lg:overflow-x-visible lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-3 lg:py-6">
+        <nav className="app-theme-shell-border animate-entrance flex shrink-0 flex-row gap-1 overflow-x-auto border-b bg-zinc-950/70 px-3 py-2 backdrop-blur-xl lg:w-60 lg:flex-col lg:gap-0.5 lg:overflow-x-visible lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-3 lg:py-6">
           {/* Title — only visible on lg+ */}
           <div className="hidden lg:block lg:mb-5 lg:px-3">
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[0.6rem] uppercase tracking-[0.45em] text-purple-200/70">
+            <p className="app-theme-eyebrow font-[family-name:var(--font-jetbrains-mono)] text-[0.6rem] uppercase tracking-[0.45em]">
               <Trans>System Config</Trans>
             </p>
-            <h1 className="mt-1.5 text-xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-violet-200 via-purple-100 to-indigo-200 drop-shadow-[0_0_20px_rgba(139,92,246,0.45)]">
+            <h1 className="app-theme-heading mt-1.5 text-xl font-black tracking-tight">
               <Trans>Settings</Trans>
             </h1>
           </div>
@@ -2222,7 +2272,7 @@ export function SettingsPage() {
             {/* Section header */}
             {activeSection && (
               <header className="settings-panel-enter mb-1" key={`header-${activeSection.id}`}>
-                <h2 className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-violet-200 via-purple-100 to-indigo-200 drop-shadow-[0_0_20px_rgba(139,92,246,0.4)] sm:text-3xl">
+                <h2 className="app-theme-heading text-2xl font-black tracking-tight sm:text-3xl">
                   {activeSection.title}
                 </h2>
                 <p className="mt-1.5 text-sm text-zinc-400">{activeSection.description}</p>
@@ -2481,6 +2531,54 @@ export function SettingsPage() {
           </main>
         </div>
       </div>
+
+      <SelectiveClearDialog
+        isOpen={isClearDataDialogOpen}
+        isPending={isClearingData}
+        selections={clearSelections}
+        onSelectionChange={(next) => setClearSelections(next)}
+        onCancel={() => {
+          if (isClearingData) return;
+          playSelectSound();
+          setIsClearDataDialogOpen(false);
+        }}
+        onConfirm={() => {
+          playSelectSound();
+          void clearData();
+        }}
+      />
+      <CheatModeConfirmDialog
+        isOpen={isCheatModeConfirmDialogOpen}
+        onCancel={() => {
+          playSelectSound();
+          setIsCheatModeConfirmDialogOpen(false);
+        }}
+        onConfirm={async () => {
+          playSelectSound();
+          await trpc.store.set.mutate({ key: CHEAT_MODE_ENABLED_KEY, value: true });
+          setCheatModeEnabled(true);
+          window.dispatchEvent(
+            new CustomEvent<boolean>(CHEAT_MODE_ENABLED_EVENT, { detail: true })
+          );
+          setIsCheatModeConfirmDialogOpen(false);
+        }}
+      />
+      <SkipRoundsCheckConfirmDialog
+        isOpen={isSkipRoundsCheckDialogOpen}
+        onCancel={() => {
+          playSelectSound();
+          setIsSkipRoundsCheckDialogOpen(false);
+        }}
+        onConfirm={async () => {
+          playSelectSound();
+          await trpc.store.set.mutate({ key: MULTIPLAYER_SKIP_ROUNDS_CHECK_KEY, value: true });
+          setMultiplayerSkipRoundsCheck(true);
+          window.dispatchEvent(
+            new CustomEvent<boolean>(MULTIPLAYER_SKIP_ROUNDS_CHECK_EVENT, { detail: true })
+          );
+          setIsSkipRoundsCheckDialogOpen(false);
+        }}
+      />
     </div>
   );
 }
@@ -2660,6 +2758,99 @@ function EroScriptsCacheLocationCard({
               !isStoragePathResettable(
                 configuredPath,
                 PORTABLE_DEFAULTS.get(EROSCRIPTS_CACHE_ROOT_PATH_KEY) ?? null
+              )
+            }
+            onMouseEnter={playHoverSound}
+            onClick={onReset}
+            className="rounded-xl border border-zinc-500/60 bg-zinc-700/40 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-300/70 hover:bg-zinc-700/60 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Trans>Use Default</Trans>
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FpackExtractionLocationCard({
+  configuredPath,
+  isLoading,
+  isPending,
+  isOpening,
+  onChooseFolder,
+  onOpenCurrentLocation,
+  onReset,
+}: {
+  configuredPath: string | null;
+  isLoading: boolean;
+  isPending: boolean;
+  isOpening: boolean;
+  onChooseFolder: () => void;
+  onOpenCurrentLocation: () => void;
+  onReset: () => void;
+}) {
+  const { t } = useLingui();
+
+  return (
+    <section
+      className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl"
+      style={{ animationDelay: "0.1s" }}
+    >
+      <div className="mb-4">
+        <h2 className="text-lg font-extrabold tracking-tight text-violet-100">
+          <Trans>Fpack Extraction Location</Trans>
+        </h2>
+        <p className="mt-1 text-sm text-zinc-300">
+          <Trans>
+            Store extracted .fpack contents in a custom folder, or leave this unset to use the default
+            app data location.
+          </Trans>
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-violet-300/25 bg-black/35 p-4">
+        <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+          <Trans>Current Location</Trans>
+        </div>
+        <div className="mt-2 break-all font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-100">
+          {isLoading
+            ? t`Loading...`
+            : formatStoragePathDisplay(configuredPath, t`Default app data folder`)}
+        </div>
+        <p className="mt-2 text-xs text-zinc-500">
+          <Trans>
+            Changing this only affects future .fpack extractions. Existing extracted files are not
+            moved automatically.
+          </Trans>
+        </p>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={isLoading || isPending}
+            onMouseEnter={playHoverSound}
+            onClick={onChooseFolder}
+            className="rounded-xl border border-violet-300/60 bg-violet-500/30 px-4 py-2 text-sm font-semibold text-violet-100 transition hover:border-violet-200/80 hover:bg-violet-500/45 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isPending ? t`Updating...` : t`Choose Folder`}
+          </button>
+          <button
+            type="button"
+            disabled={isLoading || isPending || isOpening}
+            onMouseEnter={playHoverSound}
+            onClick={onOpenCurrentLocation}
+            className="rounded-xl border border-cyan-300/60 bg-cyan-500/20 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/80 hover:bg-cyan-500/35 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isOpening ? t`Opening...` : t`Open Current Folder`}
+          </button>
+          <button
+            type="button"
+            disabled={
+              isLoading ||
+              isPending ||
+              !isStoragePathResettable(
+                configuredPath,
+                PORTABLE_DEFAULTS.get(FPACK_EXTRACTION_PATH_KEY) ?? null
               )
             }
             onMouseEnter={playHoverSound}
@@ -3435,6 +3626,7 @@ function HardwareSettingsCard({
   deviceAnimationTestEnabled: boolean;
 }) {
   const { t } = useLingui();
+  const { showToast } = useToast();
   const {
     provider,
     setProvider,
@@ -3471,6 +3663,7 @@ function HardwareSettingsCard({
     connectIntiface,
     connectTCode,
     refreshTCodeSerialPorts,
+    autoDetectTCodeSerialPort,
     disconnect,
     forceStop,
     startTestDevice,
@@ -3488,6 +3681,7 @@ function HardwareSettingsCard({
   const [inputTCodeBaudRate, setInputTCodeBaudRate] = useState(String(tcodeBaudRate));
   const [inputTCodeHost, setInputTCodeHost] = useState(tcodeWebsocketHost);
   const [inputTCodePrecision, setInputTCodePrecision] = useState<3 | 4>(tcodePrecision);
+  const [tcodeAutoDetecting, setTCodeAutoDetecting] = useState(false);
   const [useCustomApiKey, setUseCustomApiKey] = useState(!isUsingDefaultAppApiKey);
   const [strokeMinSliderValue, setStrokeMinSliderValue] = useState(
     formatHandyStrokeBoundPercent(strokeMin)
@@ -3563,6 +3757,23 @@ function HardwareSettingsCard({
     await connect(inputKey, "", useCustomApiKey ? inputApiKeyOverride : "");
   };
 
+  const handleAutoDetectTCodeSerialPort = async () => {
+    playSelectSound();
+    setInputTCodeTransport("serial");
+    setTCodeAutoDetecting(true);
+    try {
+      const portPath = await autoDetectTCodeSerialPort(normalizeTCodeBaudRate(inputTCodeBaudRate));
+      if (!portPath) {
+        showToast(t`No toy seems connected.`, "error");
+        return;
+      }
+      setInputTCodeSerialPath(portPath);
+      showToast(t`TCode serial port detected: ${portPath}`, "success");
+    } finally {
+      setTCodeAutoDetecting(false);
+    }
+  };
+
   const tcodeDerivedUrl = (() => {
     try {
       return normalizeTCodeWebSocketInput(inputTCodeHost).url;
@@ -3619,7 +3830,7 @@ function HardwareSettingsCard({
             <div className="grid gap-2 sm:grid-cols-3">
               <button
                 type="button"
-                disabled={connected || isConnecting}
+                disabled={provider === "thehandy" && (connected || isConnecting)}
                 onClick={() => {
                   playSelectSound();
                   void setProvider("thehandy");
@@ -3634,7 +3845,7 @@ function HardwareSettingsCard({
               </button>
               <button
                 type="button"
-                disabled={connected || isConnecting}
+                disabled={provider === "intiface" && (connected || isConnecting)}
                 onClick={() => {
                   playSelectSound();
                   void setProvider("intiface");
@@ -3649,7 +3860,7 @@ function HardwareSettingsCard({
               </button>
               <button
                 type="button"
-                disabled={connected || isConnecting}
+                disabled={provider === "tcode" && (connected || isConnecting)}
                 onClick={() => {
                   playSelectSound();
                   void setProvider("tcode");
@@ -3779,7 +3990,7 @@ function HardwareSettingsCard({
                     ) : null}
                   </div>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
                     <div className="flex flex-col gap-2">
                       <label
                         className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
@@ -3809,9 +4020,19 @@ function HardwareSettingsCard({
                       onClick={() => void refreshTCodeSerialPorts()}
                       className="self-end rounded-xl border border-emerald-300/40 bg-emerald-500/15 px-4 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-emerald-100 transition-colors hover:bg-emerald-500/25 disabled:opacity-50"
                     >
-                      {tcodeSerialPortsLoading ? t`Refreshing...` : t`Refresh`}
+                      {tcodeSerialPortsLoading && !tcodeAutoDetecting
+                        ? t`Refreshing...`
+                        : t`Refresh`}
                     </button>
-                    <div className="flex flex-col gap-2 sm:col-span-2">
+                    <button
+                      type="button"
+                      disabled={connected || isConnecting || tcodeSerialPortsLoading}
+                      onClick={() => void handleAutoDetectTCodeSerialPort()}
+                      className="self-end rounded-xl border border-cyan-300/40 bg-cyan-500/15 px-4 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-cyan-100 transition-colors hover:bg-cyan-500/25 disabled:opacity-50"
+                    >
+                      {tcodeAutoDetecting ? t`Detecting...` : t`Auto Detect Toy`}
+                    </button>
+                    <div className="flex flex-col gap-2 sm:col-span-3">
                       <label
                         className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
                         htmlFor="settings-tcode-baud-rate"
@@ -6756,7 +6977,7 @@ function ChangelogCard() {
             <p className="font-[family-name:var(--font-jetbrains-mono)] text-[0.65rem] uppercase tracking-[0.35em] text-fuchsia-200/80">
               <Trans>Release Notes</Trans>
             </p>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
+            <h2 className="app-theme-heading mt-2 text-2xl font-black tracking-tight sm:text-3xl">
               <Trans>What&apos;s New</Trans>
             </h2>
             <p className="mt-2 text-sm text-fuchsia-50/80">
@@ -7434,7 +7655,7 @@ function CreditsCard() {
           {playtesters.map((playtester) => (
             <span
               key={playtester}
-              className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-white"
+              className="rounded-full border border-fuchsia-300/30 bg-fuchsia-500/10 px-3 py-1 text-xs font-semibold text-fuchsia-100"
             >
               {playtester}
             </span>

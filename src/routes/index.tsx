@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { MenuButton } from "../components/MenuButton";
 import { openGlobalCommandPalette } from "../components/CommandPalette";
@@ -11,6 +11,14 @@ import {
   MULTIPLAYER_MINIMUM_ROUNDS,
   MULTIPLAYER_SKIP_ROUNDS_CHECK_KEY,
 } from "../constants/experimentalFeatures";
+import {
+  DEFAULT_MENU_THEME_ID,
+  MENU_THEME_CHANGED_EVENT,
+  MENU_THEME_KEY,
+  getMainMenuTheme,
+  normalizeMainMenuThemeId,
+  type MainMenuThemeId,
+} from "../constants/menuThemeSettings";
 import { useHandy } from "../contexts/HandyContext";
 import { useAppUpdate } from "../hooks/useAppUpdate";
 import { useIdleScreenPerformance } from "../hooks/useIdleScreenPerformance";
@@ -142,6 +150,8 @@ const loadHomeData = async (): Promise<HomeData> => {
 const Home = () => {
   useIdleScreenPerformance("home", { reduceEffects: false });
   const [homeData, setHomeData] = useState<HomeData>(DEFAULT_HOME_DATA);
+  const [mainMenuThemeId, setMainMenuThemeId] =
+    useState<MainMenuThemeId>(DEFAULT_MENU_THEME_ID);
   const navigate = useNavigate();
   const { t } = useLingui();
   const {
@@ -149,24 +159,14 @@ const Home = () => {
     isConnecting,
     error,
     connectionKey,
-    tcodeSerialPath,
-    tcodeSerialPorts,
-    tcodeSerialPortsLoading,
-    refreshTCodeSerialPorts,
-    connectTCode,
-    disconnect,
   } = useHandy();
   const appUpdate = useAppUpdate();
   const sfwModeEnabled = useSfwMode();
   const scopeRef = useRef<HTMLDivElement | null>(null);
   const [compactSystemOpen, setCompactSystemOpen] = useState(false);
-  const [inputSerialPath, setInputSerialPath] = useState(tcodeSerialPath);
-
-  useEffect(() => {
-    setInputSerialPath(tcodeSerialPath);
-  }, [tcodeSerialPath]);
 
   const { videos, overallHighscore, cumLoadCount, installedRoundCount, skipRoundsCheck } = homeData;
+  const mainMenuTheme = useMemo(() => getMainMenuTheme(mainMenuThemeId), [mainMenuThemeId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -185,6 +185,31 @@ const Home = () => {
 
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void trpc.store.get
+      .query({ key: MENU_THEME_KEY })
+      .then((value) => {
+        if (cancelled) return;
+        setMainMenuThemeId(normalizeMainMenuThemeId(value));
+      })
+      .catch((loadError) => {
+        console.error("Failed to read main menu theme setting", loadError);
+      });
+
+    const handleThemeChange = (event: Event) => {
+      setMainMenuThemeId(normalizeMainMenuThemeId((event as CustomEvent<unknown>).detail));
+    };
+
+    window.addEventListener(MENU_THEME_CHANGED_EVENT, handleThemeChange);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(MENU_THEME_CHANGED_EVENT, handleThemeChange);
     };
   }, []);
 
@@ -390,7 +415,10 @@ const Home = () => {
   return (
     <div
       ref={scopeRef}
+      data-testid="home-route"
+      data-main-menu-theme={mainMenuTheme.id}
       className="relative min-h-screen flex flex-col items-center justify-center select-none overflow-hidden"
+      style={mainMenuTheme.cssVars as CSSProperties}
     >
       <AnimatedBackground videoUris={videos} quality="light" />
 
@@ -418,8 +446,8 @@ const Home = () => {
           >
             {/* Eyebrow */}
             <p
-              className="text-[0.65rem] sm:text-xs font-[family-name:var(--font-jetbrains-mono)] tracking-[0.6em] uppercase text-purple-400/70 mb-3 animate-entrance"
-              style={{ animationDelay: "0.1s" }}
+              className="text-[0.65rem] sm:text-xs font-[family-name:var(--font-jetbrains-mono)] tracking-[0.6em] uppercase mb-3 animate-entrance"
+              style={{ animationDelay: "0.1s", color: "var(--main-menu-eyebrow)" }}
             >
               {sfwModeEnabled
                 ? t`✦ \u00a0 Safe Experience \u00a0 ✦`
@@ -430,13 +458,11 @@ const Home = () => {
             <h1
               className="text-7xl sm:text-8xl md:text-[5.25rem] font-black tracking-tighter leading-none cursor-default animate-title"
               style={{
-                backgroundImage:
-                  "linear-gradient(135deg, #e8d5ff 0%, #a78bfa 20%, #f5f3ff 40%, #818cf8 60%, #c4b5fd 80%, #f0f9ff 100%)",
+                backgroundImage: "var(--main-menu-title-gradient)",
                 backgroundClip: "text",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
-                filter:
-                  "drop-shadow(0 0 40px rgba(139,92,246,0.5)) drop-shadow(0 0 80px rgba(139,92,246,0.2))",
+                filter: "var(--main-menu-title-shadow)",
                 backgroundSize: "200% auto",
               }}
             >
@@ -449,8 +475,7 @@ const Home = () => {
               style={{
                 width: "120px",
                 height: "2px",
-                background:
-                  "linear-gradient(to right, transparent, rgba(139,92,246,0.8), rgba(99,102,241,0.6), transparent)",
+                background: "var(--main-menu-divider)",
                 animationDelay: "0.3s",
               }}
             />
@@ -495,28 +520,54 @@ const Home = () => {
         className="absolute right-6 top-1/2 z-10 hidden w-80 -translate-y-1/2 animate-entrance-fade lg:block"
         style={{ animationDelay: "0.8s", animationDuration: "1.2s" }}
       >
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/30 via-zinc-900/25 to-zinc-800/20 p-3 backdrop-blur-xl shadow-2xl">
+        <div
+          className="rounded-2xl border p-3 backdrop-blur-xl shadow-2xl"
+          style={{
+            background: "var(--main-menu-system-panel-bg)",
+            borderColor: "var(--main-menu-system-panel-border)",
+          }}
+        >
           <div className="mb-2 flex items-center gap-2">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-400/40 to-transparent" />
-            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.18em] text-violet-200/80 font-semibold">
+            <div className="h-px flex-1" style={{ background: "var(--main-menu-system-divider)" }} />
+            <p
+              className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.18em] font-semibold"
+              style={{ color: "var(--main-menu-system-label)" }}
+            >
               <Trans>System</Trans>
             </p>
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-400/40 to-transparent" />
+            <div className="h-px flex-1" style={{ background: "var(--main-menu-system-divider)" }} />
           </div>
 
           <div className="space-y-1.5">
-            <div className="rounded-lg border border-indigo-300/20 bg-indigo-950/8 px-3 py-1.5 backdrop-blur-sm">
+            <div
+              className="rounded-lg border px-3 py-1.5 backdrop-blur-sm"
+              style={{
+                background: "var(--main-menu-system-card-bg)",
+                borderColor: "var(--main-menu-system-card-border)",
+              }}
+            >
               <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-indigo-300/80 text-[8px]">◆</span>
-                <p className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.14em] text-indigo-200/70 font-medium">
+                <span className="text-[8px]" style={{ color: "var(--main-menu-system-accent)" }}>
+                  ◆
+                </span>
+                <p
+                  className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.14em] font-medium"
+                  style={{ color: "var(--main-menu-system-accent-muted)" }}
+                >
                   <Trans>Program Version</Trans>
                 </p>
               </div>
               <div className="pl-3.5 space-y-0">
-                <div className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] tracking-wide text-indigo-100/90">
+                <div
+                  className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] tracking-wide"
+                  style={{ color: "var(--main-menu-system-text)" }}
+                >
                   v{import.meta.env.VITE_APP_VERSION}
                 </div>
-                <div className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] tracking-wide text-indigo-200/60">
+                <div
+                  className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] tracking-wide"
+                  style={{ color: "var(--main-menu-system-text-muted)" }}
+                >
                   <Trans>Early Access</Trans>
                 </div>
               </div>
@@ -580,54 +631,6 @@ const Home = () => {
                     {handyWarning}
                   </div>
                 )}
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-sky-400/30 bg-sky-950/8 px-3 py-1.5 backdrop-blur-sm">
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-sky-300/80 text-[8px]">◆</span>
-                <p className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.14em] text-sky-200/70 font-medium">
-                  <Trans>TCode Serial</Trans>
-                </p>
-              </div>
-              <div className="pl-3.5 space-y-1">
-                <select
-                  value={inputSerialPath}
-                  onChange={(event) => setInputSerialPath(event.target.value)}
-                  disabled={connected || isConnecting}
-                  className="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-[9px] text-white outline-none focus:border-sky-500"
-                >
-                  <option value="">{t`Select serial port`}</option>
-                  {tcodeSerialPorts.map((port) => (
-                    <option key={port.path} value={port.path}>
-                      {port.path}
-                      {port.manufacturer ? ` (${port.manufacturer})` : ""}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    disabled={connected || isConnecting || tcodeSerialPortsLoading}
-                    onClick={() => void refreshTCodeSerialPorts()}
-                    className="rounded border border-sky-300/40 bg-sky-500/15 px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-sky-100 hover:bg-sky-500/25 disabled:opacity-50"
-                  >
-                    {tcodeSerialPortsLoading ? t`Refreshing...` : t`Refresh`}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (connected) {
-                        void disconnect();
-                      } else {
-                        void connectTCode({ transport: "serial", serialPath: inputSerialPath });
-                      }
-                    }}
-                    className="rounded border border-violet-300/40 bg-violet-500/15 px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-violet-100 hover:bg-violet-500/25 disabled:opacity-50"
-                  >
-                    {connected ? t`Disconnect` : isConnecting ? t`Connecting...` : t`Connect`}
-                  </button>
-                </div>
               </div>
             </div>
 
@@ -740,7 +743,13 @@ const Home = () => {
       </aside>
 
       <div className="absolute left-4 right-4 top-4 z-20 lg:hidden">
-        <div className="rounded-2xl border border-white/10 bg-zinc-950/80 p-2 shadow-2xl backdrop-blur-xl">
+        <div
+          className="rounded-2xl border p-2 shadow-2xl backdrop-blur-xl"
+          style={{
+            background: "var(--main-menu-system-panel-bg)",
+            borderColor: "var(--main-menu-system-panel-border)",
+          }}
+        >
           <button
             type="button"
             className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] text-zinc-300"
@@ -749,7 +758,7 @@ const Home = () => {
             data-controller-focus-id="home-system-status"
           >
             <span className="flex items-center gap-2">
-              <span className="text-violet-300">◆</span>
+              <span style={{ color: "var(--main-menu-system-accent)" }}>◆</span>
               <Trans>System</Trans>
             </span>
             <span className="text-zinc-500">
@@ -764,50 +773,6 @@ const Home = () => {
                 </span>
                 <span className="ml-2">{handyLabel}</span>
                 {handyWarning && <span className="ml-2 text-amber-200">{handyWarning}</span>}
-              </div>
-              <div className="rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-xs text-zinc-300">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-semibold text-zinc-100">
-                    <Trans>TCode Serial</Trans>
-                  </span>
-                </div>
-                <select
-                  value={inputSerialPath}
-                  onChange={(event) => setInputSerialPath(event.target.value)}
-                  disabled={connected || isConnecting}
-                  className="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-white outline-none focus:border-sky-500"
-                >
-                  <option value="">{t`Select serial port`}</option>
-                  {tcodeSerialPorts.map((port) => (
-                    <option key={port.path} value={port.path}>
-                      {port.path}
-                      {port.manufacturer ? ` (${port.manufacturer})` : ""}
-                    </option>
-                  ))}
-                </select>
-                <div className="mt-1 flex gap-1">
-                  <button
-                    type="button"
-                    disabled={connected || isConnecting || tcodeSerialPortsLoading}
-                    onClick={() => void refreshTCodeSerialPorts()}
-                    className="rounded border border-sky-300/40 bg-sky-500/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-sky-100 hover:bg-sky-500/25 disabled:opacity-50"
-                  >
-                    {tcodeSerialPortsLoading ? t`Refreshing...` : t`Refresh`}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (connected) {
-                        void disconnect();
-                      } else {
-                        void connectTCode({ transport: "serial", serialPath: inputSerialPath });
-                      }
-                    }}
-                    className="rounded border border-violet-300/40 bg-violet-500/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-violet-100 hover:bg-violet-500/25 disabled:opacity-50"
-                  >
-                    {connected ? t`Disconnect` : isConnecting ? t`Connecting...` : t`Connect`}
-                  </button>
-                </div>
               </div>
               <div className="rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-xs text-zinc-300">
                 <span className="font-semibold text-zinc-100">

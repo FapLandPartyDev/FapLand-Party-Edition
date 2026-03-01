@@ -125,22 +125,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     updateState: (state: { route: string; visible: boolean; idleSensitive: boolean }) =>
       ipcRenderer.invoke("performance:updateState", state) as Promise<void>,
   },
-  tcode: {
-    listPorts: () =>
-      ipcRenderer.invoke("tcode:listPorts") as Promise<
-        Array<{ path: string; manufacturer: string | null }>
-      >,
-    connect: (config: {
-      transport: "serial" | "websocket";
-      serialPath?: string;
-      baudRate?: number;
-      websocketUrl?: string;
-    }) =>
-      ipcRenderer.invoke("tcode:connect", config) as Promise<{ success: boolean; error?: string }>,
-    send: (command: string) => ipcRenderer.invoke("tcode:send", command) as Promise<boolean>,
-    disconnect: () => ipcRenderer.invoke("tcode:disconnect") as Promise<void>,
-    isConnected: () => ipcRenderer.invoke("tcode:isConnected") as Promise<boolean>,
-  },
   updates: {
     subscribe: (callback: (state: AppUpdateState) => void) => {
       const listener = (_event: unknown, state: AppUpdateState) => {

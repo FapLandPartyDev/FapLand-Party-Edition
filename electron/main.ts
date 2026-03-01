@@ -51,7 +51,6 @@ import {
   downloadPlaylistFromUrl,
   isSupportedMusicUrl,
 } from "./services/musicDownload";
-import { tcodeTransport, type TCodeConnectInput } from "./services/tcodeTransport";
 
 const OPENABLE_FILE_EXTENSIONS = new Set([".hero", ".round", ".fplay", ".fpack"]);
 const pendingOpenedFiles: string[] = [];
@@ -706,8 +705,37 @@ function logRendererConsoleMessage(details: Electron.ConsoleMessageEvent): void 
   }
 }
 
+function isAllowedSerialOrigin(origin: string): boolean {
+  if (origin === "app://renderer") return true;
+  if (!isDevServerEnabled || !VITE_DEV_SERVER_URL) return false;
+
+  try {
+    return origin === new URL(VITE_DEV_SERVER_URL).origin;
+  } catch {
+    return false;
+  }
+}
+
+function configureSerialDeviceAccess(): void {
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => {
+    return permission === "serial" && isAllowedSerialOrigin(requestingOrigin);
+  });
+
+  session.defaultSession.setPermissionRequestHandler(
+    (_webContents, permission, callback, details) => {
+      callback(String(permission) === "serial" && isAllowedSerialOrigin(details.requestingUrl));
+    }
+  );
+
+  session.defaultSession.setDevicePermissionHandler((details) => {
+    return details.deviceType === "serial" && isAllowedSerialOrigin(details.origin);
+  });
+}
+
 async function createWindow(): Promise<BrowserWindow> {
   await installReactDevTools();
+
+  configureSerialDeviceAccess();
 
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -745,6 +773,11 @@ async function createWindow(): Promise<BrowserWindow> {
 
   mainWindow.webContents.on("console-message", (details) => {
     logRendererConsoleMessage(details);
+  });
+
+  mainWindow.webContents.on("select-serial-port", (event, portList, _webContents, callback) => {
+    event.preventDefault();
+    callback(portList[0]?.portId ?? "");
   });
 
   // Forward renderer console logs to terminal during development
@@ -986,26 +1019,6 @@ function registerWindowControlsIpc() {
     debugLog.error("renderer", "Renderer error", payload);
   });
 
-  ipcMain.handle("tcode:listPorts", async () => tcodeTransport.listPorts());
-
-  ipcMain.handle("tcode:connect", async (_event, rawInput: TCodeConnectInput) => {
-    const transport = rawInput?.transport === "serial" ? "serial" : "websocket";
-    return tcodeTransport.connect({
-      transport,
-      serialPath: typeof rawInput?.serialPath === "string" ? rawInput.serialPath : "",
-      baudRate: typeof rawInput?.baudRate === "number" ? rawInput.baudRate : undefined,
-      websocketUrl: typeof rawInput?.websocketUrl === "string" ? rawInput.websocketUrl : "",
-    });
-  });
-
-  ipcMain.handle("tcode:send", (_event, command: string) => {
-    if (typeof command !== "string" || command.length > 512) return false;
-    return tcodeTransport.send(command);
-  });
-
-  ipcMain.handle("tcode:disconnect", async () => tcodeTransport.disconnect());
-
-  ipcMain.handle("tcode:isConnected", () => tcodeTransport.isConnected());
 }
 
 function registerDialogIpc() {

@@ -43,7 +43,7 @@ function createManualChunks(id: string): string | undefined {
 }
 
 function isElectronMainExternalDependency(id: string): boolean {
-  return id === "@libsql/client" || id === "serialport" || id.startsWith("@serialport/");
+  return id === "@libsql/client";
 }
 
 function generateLicensesPlugin() {

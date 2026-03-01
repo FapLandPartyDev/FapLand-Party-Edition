@@ -2,12 +2,13 @@ import {
   Component,
   Suspense,
   lazy,
+  type CSSProperties,
   type ErrorInfo,
   type ReactNode,
   useEffect,
   useState,
 } from "react";
-import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Trans } from "@lingui/react/macro";
 import { CommandPalette } from "../components/CommandPalette";
@@ -17,6 +18,15 @@ import { ForegroundMediaProvider } from "../contexts/ForegroundMediaContext";
 import { GlobalMusicProvider } from "../contexts/GlobalMusicContext";
 import { HandyProvider } from "../contexts/HandyContext";
 import { useGlobalParallax } from "../hooks/useGlobalParallax";
+import {
+  DEFAULT_MENU_THEME_ID,
+  MENU_THEME_CHANGED_EVENT,
+  MENU_THEME_KEY,
+  getMainMenuTheme,
+  normalizeMainMenuThemeId,
+  type MainMenuThemeId,
+} from "../constants/menuThemeSettings";
+import { trpc } from "../services/trpc";
 import "../styles.css";
 
 let queryClient: QueryClient | null = null;
@@ -160,6 +170,54 @@ function DeferredGlobalOverlayHost() {
   );
 }
 
+function isGameboardPath(pathname: string): boolean {
+  return pathname === "/game" || pathname === "/multiplayer-match";
+}
+
+function AppThemeScope({ children }: { children: ReactNode }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const [themeId, setThemeId] = useState<MainMenuThemeId>(DEFAULT_MENU_THEME_ID);
+  const theme = getMainMenuTheme(themeId);
+  const gameboardPath = isGameboardPath(pathname);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void trpc.store.get
+      .query({ key: MENU_THEME_KEY })
+      .then((value) => {
+        if (!cancelled) {
+          setThemeId(normalizeMainMenuThemeId(value));
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to read app theme setting", error);
+      });
+
+    const handleThemeChange = (event: Event) => {
+      setThemeId(normalizeMainMenuThemeId((event as CustomEvent<unknown>).detail));
+    };
+
+    window.addEventListener(MENU_THEME_CHANGED_EVENT, handleThemeChange);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(MENU_THEME_CHANGED_EVENT, handleThemeChange);
+    };
+  }, []);
+
+  return (
+    <div
+      className={gameboardPath ? undefined : "app-theme-scope"}
+      data-app-theme={gameboardPath ? undefined : theme.id}
+      data-app-theme-disabled={gameboardPath ? "gameboard" : undefined}
+      style={gameboardPath ? undefined : (theme.cssVars as CSSProperties)}
+    >
+      {children}
+    </div>
+  );
+}
+
 function RootComponent() {
   useGlobalParallax();
 
@@ -171,8 +229,10 @@ function RootComponent() {
             <GlobalMusicProvider>
               <HandyProvider>
                 <CommandPaletteGuardProvider>
-                  <Outlet />
-                  <CommandPalette />
+                  <AppThemeScope>
+                    <Outlet />
+                    <CommandPalette />
+                  </AppThemeScope>
                 </CommandPaletteGuardProvider>
                 <DeferredGlobalOverlayHost />
               </HandyProvider>

@@ -121,6 +121,8 @@ type HapticsContextType = {
     }>
   ) => Promise<boolean>;
   refreshTCodeSerialPorts: () => Promise<void>;
+  autoDetectTCodeSerialPort: (baudRate?: number) => Promise<string | null>;
+  abortConnect: () => void;
   reconnect: () => Promise<boolean>;
   disconnect: () => Promise<void>;
   forceStop: () => Promise<void>;
@@ -358,6 +360,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const testDeviceTimerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null);
   const testDeviceSessionRef = useRef<AnyHapticsSession | null>(null);
   const testDeviceTickBusyRef = useRef(false);
+  const connectionAttemptIdRef = useRef(0);
   const offsetMsRef = useRef(0);
 
   const appApiKey = resolveHandyAppApiKey(appApiKeyOverride);
@@ -603,21 +606,43 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return normalized;
   }, []);
 
-  const setProvider = useCallback(async (nextProvider: HapticsProviderId): Promise<void> => {
-    userMutatedStateRef.current = true;
-    setProviderState(nextProvider);
-    setConnected(false);
-    setManuallyStopped(false);
-    setSynced(false);
-    setError(null);
-    setSyncError(null);
-    setActiveSession(null);
-    await saveProviderToStore(nextProvider);
-  }, []);
+  const setProvider = useCallback(
+    async (nextProvider: HapticsProviderId): Promise<void> => {
+      userMutatedStateRef.current = true;
+      connectionAttemptIdRef.current += 1;
+      const previousSession = activeSession;
+      const previousConfig = previousSession ? getConnectionConfig() : null;
+
+      setIsConnecting(false);
+      setProviderState(nextProvider);
+      setConnected(false);
+      setManuallyStopped(false);
+      setSynced(false);
+      setError(null);
+      setSyncError(null);
+      setActiveSession(null);
+
+      if (testDeviceTimerRef.current) {
+        globalThis.clearInterval(testDeviceTimerRef.current);
+        testDeviceTimerRef.current = null;
+      }
+      testDeviceTickBusyRef.current = false;
+      testDeviceSessionRef.current = null;
+      setTestDeviceStarting(false);
+      setTestDeviceRunning(false);
+      setTestDeviceStartedAtMs(null);
+      if (previousSession && previousConfig) {
+        await disconnectHapticsSession(previousConfig, previousSession).catch(() => undefined);
+      }
+      await saveProviderToStore(nextProvider);
+    },
+    [activeSession, getConnectionConfig]
+  );
 
   const connect = useCallback(
     async (key: string, ip?: string, apiKeyOverride?: string): Promise<boolean> => {
       userMutatedStateRef.current = true;
+      const attemptId = (connectionAttemptIdRef.current += 1);
       setIsConnecting(true);
       setProviderState("thehandy");
       setError(null);
@@ -644,6 +669,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           appApiKeyOverride: nextOverride,
           localIp: nextIp,
         });
+        if (attemptId !== connectionAttemptIdRef.current) return false;
         if (result.success) {
           setConnected(true);
           await saveToStore(nextKey, nextOverride, nextIp);
@@ -658,12 +684,15 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return false;
         }
       } catch (err) {
+        if (attemptId !== connectionAttemptIdRef.current) return false;
         const message = err instanceof Error ? err.message : "Failed to connect to TheHandy";
         setError(message);
         setConnected(false);
         return false;
       } finally {
-        setIsConnecting(false);
+        if (attemptId === connectionAttemptIdRef.current) {
+          setIsConnecting(false);
+        }
       }
     },
     [appApiKeyOverride, localIp, refreshStroke]
@@ -672,6 +701,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const connectIntiface = useCallback(
     async (websocketUrl?: string): Promise<boolean> => {
       userMutatedStateRef.current = true;
+      const attemptId = (connectionAttemptIdRef.current += 1);
       const nextUrl =
         (websocketUrl ?? intifaceWebsocketUrl).trim() || DEFAULT_INTIFACE_WEBSOCKET_URL;
       setIsConnecting(true);
@@ -692,6 +722,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           deviceIndex: intifaceDeviceIndex,
           stroke: strokeState,
         });
+        if (attemptId !== connectionAttemptIdRef.current) return false;
         if (result.success) {
           const nextDeviceName = result.deviceName ?? intifaceDeviceName;
           const nextDeviceIndex = result.deviceIndex ?? intifaceDeviceIndex;
@@ -705,12 +736,15 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setConnected(false);
         return false;
       } catch (err) {
+        if (attemptId !== connectionAttemptIdRef.current) return false;
         const message = err instanceof Error ? err.message : "Failed to connect to Intiface.";
         setError(message);
         setConnected(false);
         return false;
       } finally {
-        setIsConnecting(false);
+        if (attemptId === connectionAttemptIdRef.current) {
+          setIsConnecting(false);
+        }
       }
     },
     [intifaceDeviceIndex, intifaceDeviceName, intifaceWebsocketUrl, strokeState]
@@ -719,7 +753,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const refreshTCodeSerialPorts = useCallback(async (): Promise<void> => {
     setTCodeSerialPortsLoading(true);
     try {
-      const ports = await window.electronAPI.tcode?.listPorts();
+      const { tcodeTransportRenderer } = await import("../services/haptics/tcodeTransportRenderer");
+      const ports = await tcodeTransportRenderer.listPorts();
       setTCodeSerialPorts(ports ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to list TCode serial ports.");
@@ -727,6 +762,35 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setTCodeSerialPortsLoading(false);
     }
   }, []);
+
+  const autoDetectTCodeSerialPort = useCallback(
+    async (baudRate?: number): Promise<string | null> => {
+      setTCodeSerialPortsLoading(true);
+      setError(null);
+      try {
+        const { tcodeTransportRenderer } =
+          await import("../services/haptics/tcodeTransportRenderer");
+        const result = await tcodeTransportRenderer.autoDetectSerialPort({
+          baudRate: normalizeTCodeBaudRate(baudRate ?? tcodeBaudRate),
+        });
+        const ports = await tcodeTransportRenderer.listPorts();
+        setTCodeSerialPorts(ports ?? []);
+        if (!result.port) {
+          setError(result.error ?? "Could not find a usable TCode serial port.");
+          return null;
+        }
+        setTCodeTransport("serial");
+        setTCodeSerialPath(result.port.path);
+        return result.port.path;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to auto-detect TCode serial port.");
+        return null;
+      } finally {
+        setTCodeSerialPortsLoading(false);
+      }
+    },
+    [tcodeBaudRate]
+  );
 
   const connectTCode = useCallback(
     async (
@@ -740,6 +804,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }>
     ): Promise<boolean> => {
       userMutatedStateRef.current = true;
+      const attemptId = (connectionAttemptIdRef.current += 1);
       const nextTransport = input?.transport ?? tcodeTransport;
       const nextSerialPath = (input?.serialPath ?? tcodeSerialPath).trim();
       const nextBaudRate = normalizeTCodeBaudRate(input?.baudRate ?? tcodeBaudRate);
@@ -792,6 +857,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           axis: nextAxis,
           stroke: strokeState,
         });
+        if (attemptId !== connectionAttemptIdRef.current) return false;
         if (result.success) {
           setConnected(true);
           setStrokeState(DEFAULT_STROKE_STATE);
@@ -801,12 +867,15 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setConnected(false);
         return false;
       } catch (err) {
+        if (attemptId !== connectionAttemptIdRef.current) return false;
         const message = err instanceof Error ? err.message : "Failed to connect to TCode device.";
         setError(message);
         setConnected(false);
         return false;
       } finally {
-        setIsConnecting(false);
+        if (attemptId === connectionAttemptIdRef.current) {
+          setIsConnecting(false);
+        }
       }
     },
     [
@@ -820,6 +889,13 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       tcodeWebsocketUrl,
     ]
   );
+
+  const abortConnect = useCallback(() => {
+    connectionAttemptIdRef.current += 1;
+    setIsConnecting(false);
+    setConnected(false);
+    setError(null);
+  }, []);
 
   const reconnect = useCallback(async (): Promise<boolean> => {
     if (provider === "intiface") {
@@ -945,6 +1021,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const disconnect = useCallback(async () => {
     userMutatedStateRef.current = true;
+    connectionAttemptIdRef.current += 1;
     await stopTestDevice();
     const session = activeSession;
     setConnected(false);
@@ -1192,6 +1269,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       connectIntiface,
       connectTCode,
       refreshTCodeSerialPorts,
+      autoDetectTCodeSerialPort,
+      abortConnect,
       reconnect,
       disconnect,
       forceStop,
@@ -1247,6 +1326,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       connectIntiface,
       connectTCode,
       refreshTCodeSerialPorts,
+      autoDetectTCodeSerialPort,
+      abortConnect,
       reconnect,
       disconnect,
       forceStop,

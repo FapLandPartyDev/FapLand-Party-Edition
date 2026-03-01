@@ -7,6 +7,7 @@ import type {
   HapticsSession,
   HapticsStrokeState,
 } from "./types";
+import { tcodeTransportRenderer } from "./tcodeTransportRenderer";
 
 export type TCodeHapticsSession = HapticsSession & {
   provider: "tcode";
@@ -40,11 +41,7 @@ function requireTCodeConfig(
 }
 
 function getBridge() {
-  const bridge = window.electronAPI.tcode;
-  if (!bridge) {
-    throw new Error("TCode transport bridge is unavailable.");
-  }
-  return bridge;
+  return tcodeTransportRenderer;
 }
 
 function scriptId(sourceId: string, actions: FunscriptAction[]): string {
@@ -123,6 +120,14 @@ function formatStopCommand(config: Extract<HapticsConnectionConfig, { provider: 
   return `DSTOP\n${formatTCodeAxisCommand(config.axis, 50, config.precision)}`;
 }
 
+function sendBestEffort(command: string): void {
+  try {
+    getBridge().send(command);
+  } catch {
+    // Playback teardown should not fail because a stop command could not be sent.
+  }
+}
+
 export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
   provider: "tcode",
 
@@ -160,7 +165,7 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
         message: error instanceof Error ? error.message : "Failed to connect to TCode device.",
       };
     } finally {
-      await window.electronAPI.tcode?.disconnect().catch(() => undefined);
+      await tcodeTransportRenderer.disconnect().catch(() => undefined);
     }
   },
 
@@ -233,9 +238,7 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
   },
 
   async pausePlayback(config): Promise<void> {
-    await getBridge()
-      .send(formatStopCommand(requireTCodeConfig(config)))
-      .catch(() => undefined);
+    sendBestEffort(formatStopCommand(requireTCodeConfig(config)));
   },
 
   async resumePlayback(config, session, resumeAtMs, playbackRate = 1): Promise<void> {
@@ -260,18 +263,14 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
     session.lastPlaybackRate = null;
     session.lastPosition = null;
     session.lastTargetActionAt = null;
-    await getBridge()
-      .send(formatStopCommand(requireTCodeConfig(config)))
-      .catch(() => undefined);
+    sendBestEffort(formatStopCommand(requireTCodeConfig(config)));
   },
 
   async disconnect(config, session): Promise<void> {
     if (session) {
-      await getBridge()
-        .send(formatStopCommand(requireTCodeConfig(config)))
-        .catch(() => undefined);
+      sendBestEffort(formatStopCommand(requireTCodeConfig(config)));
     }
-    await getBridge()
+    await tcodeTransportRenderer
       .disconnect()
       .catch(() => undefined);
   },

@@ -12,10 +12,12 @@ import {
   getDebugState,
   sanitizeForPublicDebug,
   setDebugLogLevel,
+  setDebugLogMaxFileSizeMb,
 } from "../../services/debugLogging";
 import {
   DEBUG_LOG_LEVELS,
   normalizeDebugLogLevel,
+  normalizeDebugLogMaxFileSizeMb,
   type DebugLogLevel,
 } from "../../../src/constants/debugSettings";
 import { publicProcedure, router } from "../trpc";
@@ -29,6 +31,14 @@ export const debugRouter = router({
     setDebugLogLevel(normalizeDebugLogLevel(input.level) as DebugLogLevel);
     debugLog.info("debug", "Debug log level changed", { level: input.level });
   }),
+
+  setMaxFileSizeMb: publicProcedure
+    .input(z.object({ maxFileSizeMb: z.number().int().min(1).max(10000) }))
+    .mutation(({ input }) => {
+      const mb = normalizeDebugLogMaxFileSizeMb(input.maxFileSizeMb);
+      setDebugLogMaxFileSizeMb(mb);
+      debugLog.info("debug", "Max log file size changed", { maxFileSizeMb: mb });
+    }),
 
   getDiagnostics: publicProcedure.query(() => collectDebugDiagnostics()),
 

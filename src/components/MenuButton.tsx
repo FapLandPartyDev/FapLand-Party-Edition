@@ -82,7 +82,14 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
       data-controller-back={controllerBack ? "true" : undefined}
       style={
         {
-          "--glow": primary ? "rgba(139,92,246,0.7)" : "rgba(255,255,255,0.15)",
+          "--glow": primary
+            ? "var(--main-menu-primary-glow, rgba(139,92,246,0.7))"
+            : "var(--main-menu-secondary-glow, rgba(255,255,255,0.15))",
+          boxShadow: isActive
+            ? primary
+              ? "0 0 40px var(--main-menu-primary-glow, rgba(139,92,246,0.65)), 0 0 80px var(--main-menu-primary-glow-soft, rgba(139,92,246,0.2))"
+              : "0 0 20px var(--main-menu-secondary-glow, rgba(255,255,255,0.12))"
+            : undefined,
         } as React.CSSProperties
       }
       className={[
@@ -90,12 +97,12 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
         "rounded-xl px-10 py-4",
         "font-[family-name:var(--font-jetbrains-mono)] text-base font-bold uppercase tracking-[0.2em] sm:text-lg",
         "transition-all duration-200 ease-out",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--main-menu-focus-ring)]",
         disabled ? "cursor-not-allowed opacity-55" : "group cursor-pointer",
         isActive
           ? primary
-            ? "scale-[1.03] -translate-y-0.5 shadow-[0_0_40px_rgba(139,92,246,0.65),0_0_80px_rgba(139,92,246,0.2)]"
-            : "scale-[1.02] -translate-y-0.5 shadow-[0_0_20px_rgba(255,255,255,0.12)]"
+            ? "scale-[1.03] -translate-y-0.5"
+            : "scale-[1.02] -translate-y-0.5"
           : disabled
             ? ""
             : "hover:scale-[1.01]",
@@ -104,27 +111,33 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
       <div
         className={[
           "absolute inset-0 rounded-xl transition-all duration-200",
-          primary
-            ? isActive
-              ? "bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500"
-              : "bg-gradient-to-r from-violet-600/80 via-purple-600/80 to-indigo-600/80"
-            : isActive
-              ? "bg-zinc-800/80"
-              : "bg-zinc-900/60",
+          primary || isActive ? "" : "bg-zinc-900/60",
         ].join(" ")}
+        style={{
+          background: primary
+            ? isActive
+              ? "var(--main-menu-primary-gradient-active)"
+              : "var(--main-menu-primary-gradient)"
+            : isActive
+              ? "var(--main-menu-secondary-active-bg)"
+              : "var(--main-menu-secondary-bg)",
+        }}
       />
 
       <div
         className={[
           "absolute inset-0 rounded-xl border transition-all duration-300",
-          primary
-            ? isActive
-              ? "border-violet-400/60"
-              : "border-purple-600/40"
-            : isActive
-              ? "border-zinc-500/50"
-              : "border-zinc-700/30",
+          primary || isActive ? "" : "border-zinc-700/30",
         ].join(" ")}
+        style={{
+          borderColor: primary
+            ? isActive
+              ? "var(--main-menu-primary-border-active)"
+              : "var(--main-menu-primary-border)"
+            : isActive
+              ? "var(--main-menu-secondary-border-active)"
+              : "var(--main-menu-secondary-border)",
+        }}
       />
 
       <div
@@ -132,23 +145,29 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
           "absolute inset-x-0 top-0 h-[1px] transition-opacity duration-300",
           primary
             ? isActive
-              ? "bg-gradient-to-r from-transparent via-violet-300/60 to-transparent opacity-100"
-              : "bg-gradient-to-r from-transparent via-purple-400/40 to-transparent opacity-40"
+              ? "opacity-100"
+              : "opacity-40"
             : isActive
               ? "bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-100"
               : "opacity-0",
         ].join(" ")}
+        style={{
+          background: primary
+            ? "linear-gradient(to right, transparent, var(--main-menu-primary-border-active), transparent)"
+            : undefined,
+        }}
       />
 
       {isActive && (
         <div
           className={[
             "absolute inset-0 -z-10 rounded-xl blur-xl opacity-60 transition-opacity duration-300",
-            primary
-              ? "bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600"
-              : "bg-zinc-700",
+            primary ? "" : "bg-zinc-700",
           ].join(" ")}
-          style={{ transform: "scaleY(1.4) scaleX(1.1)" }}
+          style={{
+            background: primary ? "var(--main-menu-primary-gradient-active)" : undefined,
+            transform: "scaleY(1.4) scaleX(1.1)",
+          }}
         />
       )}
 
@@ -159,8 +178,9 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
           className={[
             "text-xs transition-all duration-200",
             isActive ? "w-3 opacity-100" : "w-0 opacity-0",
-            primary ? "text-violet-200" : "text-zinc-400",
+            primary ? "" : "text-zinc-400",
           ].join(" ")}
+          style={{ color: primary ? "var(--main-menu-primary-arrow)" : undefined }}
         >
           ▶
         </span>
@@ -170,12 +190,19 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
             "flex items-center gap-3 transition-colors duration-200",
             primary
               ? isActive
-                ? "text-white"
-                : "text-violet-100"
+                ? ""
+                : ""
               : isActive
                 ? "text-white"
                 : "text-zinc-400",
           ].join(" ")}
+          style={{
+            color: primary
+              ? isActive
+                ? "var(--main-menu-primary-text-active)"
+                : "var(--main-menu-primary-text)"
+              : undefined,
+          }}
         >
           <span className="flex flex-col items-start gap-1">
             <span className="flex items-center gap-3">
@@ -206,7 +233,8 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
 
         {primary && (
           <span
-            className={`text-sm transition-all duration-300 ${isActive ? "translate-x-0.5 opacity-100" : "translate-x-0 opacity-50"} text-violet-200`}
+            className={`text-sm transition-all duration-300 ${isActive ? "translate-x-0.5 opacity-100" : "translate-x-0 opacity-50"}`}
+            style={{ color: "var(--main-menu-primary-arrow)" }}
           >
             →
           </span>

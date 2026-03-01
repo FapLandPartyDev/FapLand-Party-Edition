@@ -150,7 +150,7 @@ describe("debugLogging", () => {
     await expect(fs.stat(logFilePath)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("rotates the log file", async () => {
+  it("prunes old entries when the log file exceeds max size", async () => {
     setDebugLogLevel("debug");
     for (let index = 0; index < 8; index += 1) {
       debugLog.debug("test", `entry ${index}`, { payload: "x".repeat(80) });
@@ -158,7 +158,12 @@ describe("debugLogging", () => {
     await flushDebugLog();
 
     await expect(fs.stat(logFilePath)).resolves.toBeTruthy();
-    await expect(fs.stat(path.join(tmpDir, "f-land.1.log"))).resolves.toBeTruthy();
+    const content = await fs.readFile(logFilePath, "utf8");
+    const lines = content.trim().split("\n");
+    expect(lines.length).toBeLessThan(8);
+    expect(lines.length).toBeGreaterThan(0);
+    const lastEntry = JSON.parse(lines[lines.length - 1] ?? "{}");
+    expect(lastEntry.message).toBe("entry 7");
   });
 
   it("sanitizes public debug output", () => {
