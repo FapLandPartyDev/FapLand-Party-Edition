@@ -202,12 +202,14 @@ vi.mock("../features/converter/ConverterHeader", () => ({
   ConverterHeader: ({
     selectedSourceInfo,
     onGoToSelect,
+    onSearchEroScripts,
     onLoadPreviousUnconverted,
     onLoadNextUnconverted,
     unconvertedPositionLabel,
   }: {
     selectedSourceInfo: { kind: string; id: string; name: string } | null;
     onGoToSelect: () => void;
+    onSearchEroScripts: () => void;
     onLoadPreviousUnconverted: () => void;
     onLoadNextUnconverted: () => void;
     unconvertedPositionLabel?: string | null;
@@ -216,6 +218,9 @@ vi.mock("../features/converter/ConverterHeader", () => ({
       <span>{selectedSourceInfo?.name}</span>
       <button type="button" onClick={onGoToSelect}>
         Change Source
+      </button>
+      <button type="button" onClick={onSearchEroScripts}>
+        Search EroScripts
       </button>
       <button type="button" onClick={onLoadPreviousUnconverted}>
         Prev
@@ -236,7 +241,30 @@ vi.mock("../features/converter/ConverterHeader", () => ({
 }));
 
 vi.mock("../components/EroScriptsFunscriptSearchDialog", () => ({
-  EroScriptsFunscriptSearchDialog: () => null,
+  EroScriptsFunscriptSearchDialog: ({
+    open,
+    onAttachFunscript,
+  }: {
+    open: boolean;
+    onAttachFunscript?: (result: { funscriptUri: string; filename: string }) => void;
+  }) =>
+    open ? (
+      <div data-testid="eroscripts-dialog">
+        {onAttachFunscript ? (
+          <button
+            type="button"
+            onClick={() =>
+              onAttachFunscript({
+                funscriptUri: "app://media/eroscripts/downloaded.funscript",
+                filename: "downloaded.funscript",
+              })
+            }
+          >
+            Attach downloaded EroScripts funscript
+          </button>
+        ) : null}
+      </div>
+    ) : null,
 }));
 
 import { Route } from "./converter";
@@ -541,6 +569,49 @@ describe("ConverterPage", () => {
       });
 
       expect(screen.getByDisplayValue("Standalone Source")).toBeDefined();
+    });
+
+    it("attaches an EroScripts funscript without replacing the active source", async () => {
+      mocks.db.round.findInstalled.mockResolvedValue([
+        makeRound("round-1", "Standalone Source", {
+          videoUri: "file:///tmp/source.mp4",
+          funscriptUri: null,
+          startTime: 1_000,
+          endTime: 9_000,
+        }),
+      ]);
+
+      const Component = (Route as unknown as { component: React.FC }).component;
+      render(<Component />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Standalone Source/ })).toBeDefined();
+      });
+      fireEvent.click(screen.getByRole("button", { name: /Standalone Source/ }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("video-preview").getAttribute("data-video-uri")).toBe(
+          "file:///tmp/source.mp4"
+        );
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Search EroScripts" }));
+      expect(screen.getByTestId("eroscripts-dialog")).toBeDefined();
+      fireEvent.click(
+        screen.getByRole("button", { name: "Attach downloaded EroScripts funscript" })
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("auto-detection-panel").getAttribute("data-funscript-uri")).toBe(
+          "app://media/eroscripts/downloaded.funscript"
+        );
+      });
+      expect(screen.getByTestId("video-preview").getAttribute("data-video-uri")).toBe(
+        "file:///tmp/source.mp4"
+      );
+      expect(screen.getByTestId("status-message").textContent).toContain(
+        "EroScripts funscript attached."
+      );
     });
 
     it("passes local segment cutting controls into the edit-step segment list", async () => {

@@ -1000,7 +1000,7 @@ describe("RoundVideoOverlay", () => {
 
     renderOverlay();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Handy Menu" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Haptics Menu" }));
 
     expect(mocks.openGlobalHandyOverlay).toHaveBeenCalledTimes(1);
   });
@@ -1182,15 +1182,16 @@ describe("RoundVideoOverlay", () => {
         expect.anything(),
         "/video.mp4:main",
         [{ at: 0, pos: 10 }],
-        625
+        125
       );
       expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
-        625,
+        125,
         expect.any(Number),
         "/video.mp4:main",
-        [{ at: 0, pos: 10 }]
+        [{ at: 0, pos: 10 }],
+        { forceTimeSync: true, timeFilter: null }
       );
     });
   });

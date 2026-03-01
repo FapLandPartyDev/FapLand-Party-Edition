@@ -524,20 +524,22 @@ export function EroScriptsFunscriptSearchDialog({
                                     </p>
                                   ) : null}
                                   <div className="mt-3 flex flex-wrap gap-2">
-                                    <button
-                                      type="button"
-                                      disabled={!candidate.supported || busy}
-                                      onMouseEnter={playHoverSound}
-                                      onClick={() => {
-                                        playSelectSound();
-                                        void downloadFunscript(candidate, "select");
-                                      }}
-                                      className="rounded-lg border border-emerald-300/50 bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:border-emerald-200/80 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      {busyActionKey === selectKey
-                                        ? t`Downloading...`
-                                        : t`Use with Video`}
-                                    </button>
+                                    {canInstallRounds ? (
+                                      <button
+                                        type="button"
+                                        disabled={!candidate.supported || busy}
+                                        onMouseEnter={playHoverSound}
+                                        onClick={() => {
+                                          playSelectSound();
+                                          void downloadFunscript(candidate, "select");
+                                        }}
+                                        className="rounded-lg border border-emerald-300/50 bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:border-emerald-200/80 disabled:cursor-not-allowed disabled:opacity-50"
+                                      >
+                                        {busyActionKey === selectKey
+                                          ? t`Downloading...`
+                                          : t`Use with Video`}
+                                      </button>
+                                    ) : null}
                                     {canAttachFunscript ? (
                                       <button
                                         type="button"

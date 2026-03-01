@@ -182,6 +182,23 @@ const MANUAL_PAUSE_DURATION_MS = 15_000;
 const BOARD_VIDEO_VOLUME = 1;
 const MEDIA_NOT_FOUND_AUTO_CLOSE_MS = 10_000;
 
+function getHapticsSessionTopologyKey(config: HapticsTargetConfig): string {
+  if (config.provider === "group") {
+    return JSON.stringify(
+      config.devices.map((device) => [device.id, getHapticsSessionTopologyKey(device.config)])
+    );
+  }
+  if (config.provider === "thehandy") {
+    return `thehandy:${config.connectionKey.trim()}:${config.appApiKey.trim()}`;
+  }
+  if (config.provider === "intiface") {
+    return `intiface:${config.websocketUrl.trim()}:${config.deviceIndex ?? "auto"}`;
+  }
+  return config.transport === "serial"
+    ? `tcode:serial:${config.serialPath.trim()}:${config.baudRate}`
+    : `tcode:websocket:${config.websocketUrl.trim()}`;
+}
+
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const match = /^#?([0-9a-f]{6})$/iu.exec(hex.trim());
   if (!match) return null;
@@ -434,11 +451,16 @@ export function RoundVideoOverlay({
   const handySessionRef = useRef<AnyHapticsSession | null>(null);
   const handySessionConfigRef = useRef<HapticsTargetConfig | null>(null);
   const handyInitPromiseRef = useRef<Promise<AnyHapticsSession | null> | null>(null);
+  const handyTeardownPromiseRef = useRef<Promise<void>>(Promise.resolve());
   const disconnectHandySessionRef = useRef<() => Promise<void>>(async () => undefined);
   const handyPushInFlightRef = useRef(false);
   const handyLastPushAtRef = useRef(0);
   const handyLastPushPosRef = useRef<number | null>(null);
   const handyLastSuccessAtRef = useRef(0);
+  const handyOffsetRevisionRef = useRef(0);
+  const handyOffsetChangedAtRef = useRef(0);
+  const handyLastForcedSyncAtRef = useRef(0);
+  const handyForceTimeSyncRef = useRef(false);
   const handySyncStateRef = useRef<HandySyncState>("disconnected");
   const handyManuallyStoppedRef = useRef(handyManuallyStopped);
   const handyBootstrapKeyRef = useRef<string | null>(null);
@@ -547,9 +569,15 @@ export function RoundVideoOverlay({
   const [awaitingPlaybackUnmute, setAwaitingPlaybackUnmute] = useState(false);
   const { getVideoSrc, ensurePlayableVideo, handleVideoError } = usePlayableVideoFallback();
 
+  useEffect(() => {
+    handyOffsetRevisionRef.current += 1;
+    handyOffsetChangedAtRef.current = Date.now();
+    handyForceTimeSyncRef.current = true;
+  }, [offsetMs]);
+
   const recordVideoDiagnosticEvent = useCallback(
     (eventName: string, params: { role: "main" | "intermediary"; src?: string | null }) => {
-      void window.electronAPI.debug?.recordVideoEvent({
+      void window.electronAPI?.debug?.recordVideoEvent({
         event: eventName,
         role: params.role,
         route: window.location.pathname,
@@ -695,9 +723,7 @@ export function RoundVideoOverlay({
     };
   }, [resolvedRound]);
   const isHardModeConverted = Boolean(
-    hardModeStatus &&
-      hardModeStatus.roundId === resolvedRound?.id &&
-      hardModeStatus.converted
+    hardModeStatus && hardModeStatus.roundId === resolvedRound?.id && hardModeStatus.converted
   );
   const resolvedMainResource = useMemo<PlaybackResource | null>(() => {
     const resource = resolvedRound?.resources[0];
@@ -1230,15 +1256,24 @@ export function RoundVideoOverlay({
 
   const disconnectHandySessionIfNeeded = useCallback(async () => {
     const session = handySessionRef.current;
-    if (!session) return;
+    if (!session) {
+      await handyTeardownPromiseRef.current;
+      return;
+    }
     const config = handySessionConfigRef.current ?? hapticsConfig;
     handySessionRef.current = null;
     handySessionConfigRef.current = null;
-    try {
-      await disconnectHapticsSession(config, session);
-    } catch {
-      // ignore teardown failures
-    }
+    const teardown = handyTeardownPromiseRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        try {
+          await disconnectHapticsSession(config, session);
+        } catch {
+          // ignore teardown failures
+        }
+      });
+    handyTeardownPromiseRef.current = teardown;
+    await teardown;
   }, [hapticsConfig]);
   disconnectHandySessionRef.current = disconnectHandySessionIfNeeded;
 
@@ -1311,6 +1346,7 @@ export function RoundVideoOverlay({
     if (!handyConnected) return null;
     if (!hasRequiredHapticsConnection) return null;
 
+    await handyTeardownPromiseRef.current.catch(() => undefined);
     const now = Date.now();
     const existing = handySessionRef.current;
     if (existing && existing.expiresAtMs - now > HANDY_REAUTH_MARGIN_MS) {
@@ -2040,7 +2076,8 @@ export function RoundVideoOverlay({
         effectiveTimeMs,
         playbackRate,
         `${activeVideoUri}:${segment.kind}`,
-        actions
+        actions,
+        { forceTimeSync: true, timeFilter: null }
       );
       if (handyManuallyStoppedRef.current) return;
 
@@ -2386,6 +2423,7 @@ export function RoundVideoOverlay({
     if (handyBootstrapInFlightRef.current === bootstrapKey) return false;
 
     handyBootstrapInFlightRef.current = bootstrapKey;
+    const isCurrentBootstrap = () => handyBootstrapInFlightRef.current === bootstrapKey;
     setHandySyncState("connecting");
     setHandySyncError(null);
     setSyncStatus({ synced: false, error: null });
@@ -2423,7 +2461,7 @@ export function RoundVideoOverlay({
       }
 
       const session = await ensureHandySession();
-      if (!session || handyManuallyStoppedRef.current) return false;
+      if (!session || handyManuallyStoppedRef.current || !isCurrentBootstrap()) return false;
 
       await preloadHapticsScript(
         hapticsConfig,
@@ -2432,16 +2470,17 @@ export function RoundVideoOverlay({
         actions,
         effectiveTimeMs
       );
-      if (handyManuallyStoppedRef.current) return false;
+      if (handyManuallyStoppedRef.current || !isCurrentBootstrap()) return false;
       await sendHapticsSync(
         hapticsConfig,
         session,
         effectiveTimeMs,
         playbackRate,
         `${activeVideoUri}:${segment.kind}`,
-        actions
+        actions,
+        { forceTimeSync: true, timeFilter: null }
       );
-      if (handyManuallyStoppedRef.current) return false;
+      if (handyManuallyStoppedRef.current || !isCurrentBootstrap()) return false;
 
       const syncedAt = Date.now();
       handyLastPushAtRef.current = syncedAt;
@@ -3273,11 +3312,13 @@ export function RoundVideoOverlay({
       resetHandySync("missing-key", t`Missing haptics connection settings.`);
       return;
     }
-    if (
-      handySessionRef.current &&
-      handySessionConfigRef.current &&
-      handySessionConfigRef.current !== hapticsConfig
-    ) {
+    if (handySessionRef.current && handySessionConfigRef.current) {
+      const currentTopology = getHapticsSessionTopologyKey(handySessionConfigRef.current);
+      const nextTopology = getHapticsSessionTopologyKey(hapticsConfig);
+      if (currentTopology === nextTopology) {
+        handySessionConfigRef.current = hapticsConfig;
+        return;
+      }
       handyBootstrapKeyRef.current = null;
       handyBootstrapInFlightRef.current = null;
       void disconnectHandySessionIfNeeded();
@@ -3485,6 +3526,13 @@ export function RoundVideoOverlay({
       const now = Date.now();
       if (now - handyLastPushAtRef.current < hapticsPushIntervalMs) return;
 
+      const offsetRevision = handyOffsetRevisionRef.current;
+      const shouldForceTimeSync =
+        handyForceTimeSyncRef.current &&
+        (handyLastForcedSyncAtRef.current === 0 ||
+          now - handyLastForcedSyncAtRef.current >= 500 ||
+          now - handyOffsetChangedAtRef.current >= 150);
+
       const playbackRate = video.playbackRate ?? 1;
       handyPushInFlightRef.current = true;
 
@@ -3502,7 +3550,8 @@ export function RoundVideoOverlay({
             effectiveTimeMs,
             playbackRate,
             `${activeVideoUri}:${segment.kind}`,
-            actions
+            actions,
+            shouldForceTimeSync ? { forceTimeSync: true, timeFilter: null } : undefined
           );
           if (handyManuallyStoppedRef.current) return;
 
@@ -3510,12 +3559,20 @@ export function RoundVideoOverlay({
           handyLastPushAtRef.current = sentAt;
           handyLastPushPosRef.current = position;
           handyLastSuccessAtRef.current = sentAt;
+          if (shouldForceTimeSync) {
+            handyLastForcedSyncAtRef.current = sentAt;
+            if (handyOffsetRevisionRef.current === offsetRevision) {
+              handyForceTimeSyncRef.current = false;
+            }
+          }
           forceHandySyncMsRef.current = null;
           setHandySyncState("synced");
           setHandySyncError(null);
           setSyncStatus({ synced: true, error: null });
         } catch (error) {
           if (handyManuallyStoppedRef.current) return;
+          handyBootstrapKeyRef.current = null;
+          void disconnectHandySessionIfNeeded();
           const message =
             error instanceof Error ? error.message : t`Failed to stream sync position to haptics.`;
           setHandySyncState("error");
@@ -3535,6 +3592,7 @@ export function RoundVideoOverlay({
     activeRound,
     activeVideoUri,
     applyHandyOffsetMs,
+    disconnectHandySessionIfNeeded,
     ensureHandySession,
     handyManuallyStopped,
     hapticsConfig,
@@ -3625,13 +3683,6 @@ export function RoundVideoOverlay({
     resolvedMainVideoSrc,
     resolvedIntermediaryVideoSrc,
   ]);
-
-  useEffect(() => {
-    return () => {
-      void stopHandyIfNeeded();
-      setSyncStatus({ synced: false, error: null });
-    };
-  }, [setSyncStatus, stopHandyIfNeeded]);
 
   useEffect(() => {
     if (!activeRound) return;

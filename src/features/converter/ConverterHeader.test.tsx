@@ -28,6 +28,7 @@ describe("ConverterHeader", () => {
         showHotkeys
         onGoToSelect={() => {}}
         onAttachFunscript={() => {}}
+        onSearchEroScripts={() => {}}
         onLoadPreviousUnconverted={() => {}}
         onLoadNextUnconverted={() => {}}
         onShowHotkeys={onShowHotkeys}
@@ -50,6 +51,7 @@ describe("ConverterHeader", () => {
         showHotkeys={false}
         onGoToSelect={() => {}}
         onAttachFunscript={() => {}}
+        onSearchEroScripts={() => {}}
         onLoadPreviousUnconverted={() => {}}
         onLoadNextUnconverted={() => {}}
         onShowHotkeys={onShowHotkeys}
@@ -76,6 +78,7 @@ describe("ConverterHeader", () => {
         showHotkeys={false}
         onGoToSelect={() => {}}
         onAttachFunscript={onAttachFunscript}
+        onSearchEroScripts={() => {}}
         onLoadPreviousUnconverted={() => {}}
         onLoadNextUnconverted={() => {}}
         onShowHotkeys={() => {}}
@@ -85,5 +88,32 @@ describe("ConverterHeader", () => {
 
     fireEvent.click(getByText("Attach Funscript"));
     expect(onAttachFunscript).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes EroScripts search while editing", () => {
+    const onSearchEroScripts = vi.fn();
+
+    render(
+      <ConverterHeader
+        step="edit"
+        selectedSourceInfo={{ kind: "local", id: "source-1", name: "Editor" }}
+        segmentCount={0}
+        sourceSummary="Local file"
+        canLoadPreviousUnconverted={false}
+        canLoadNextUnconverted={false}
+        unconvertedPositionLabel={null}
+        showHotkeys={false}
+        onGoToSelect={() => {}}
+        onAttachFunscript={() => {}}
+        onSearchEroScripts={onSearchEroScripts}
+        onLoadPreviousUnconverted={() => {}}
+        onLoadNextUnconverted={() => {}}
+        onShowHotkeys={() => {}}
+        onHideHotkeys={() => {}}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Search EroScripts"));
+    expect(onSearchEroScripts).toHaveBeenCalledTimes(1);
   });
 });

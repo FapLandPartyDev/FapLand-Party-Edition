@@ -68,8 +68,8 @@ export const thehandyAdapter: HapticsRuntimeAdapter<TheHandyHapticsSession> = {
     await preloadHspScript(toAuth(config), session, sourceId, actions, skipToMs);
   },
 
-  async sendSync(config, session, timeMs, playbackRate, sourceId, actions): Promise<void> {
-    await sendHspSync(toAuth(config), session, timeMs, playbackRate, sourceId, actions);
+  async sendSync(config, session, timeMs, playbackRate, sourceId, actions, options): Promise<void> {
+    await sendHspSync(toAuth(config), session, timeMs, playbackRate, sourceId, actions, options);
   },
 
   async pausePlayback(config, session): Promise<void> {

@@ -1,5 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import React, { type RefObject, useId } from "react";
+import React, { type RefObject, useEffect, useId, useRef } from "react";
 import {
   playConverterMarkInSound,
   playConverterMarkOutSound,
@@ -9,12 +9,14 @@ import {
 import { useForegroundVideoRegistration } from "../../hooks/useForegroundVideoRegistration";
 import { SfwGuard } from "../../components/SfwGuard";
 import type { ConverterState } from "./useConverterState";
+import { getFunscriptPositionAtMs, type FunscriptAction } from "../../game/media/playback";
 
 type VideoPreviewProps = {
   videoRef: RefObject<HTMLVideoElement | null>;
   videoUri: string;
   durationMs: number;
   currentTimeMs: number;
+  funscriptActions: FunscriptAction[];
   markInMs: number | null;
   markOutMs: number | null;
   hasSelectedSegment: boolean;
@@ -39,6 +41,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
     videoUri,
     durationMs,
     currentTimeMs,
+    funscriptActions,
     markInMs,
     markOutMs,
     hasSelectedSegment,
@@ -61,8 +64,45 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
     const foregroundVideo = useForegroundVideoRegistration(
       `converter-preview:${foregroundVideoId}`
     );
+    const handyPreviewOrbRef = useRef<HTMLDivElement | null>(null);
     const progressPercent =
       durationMs > 0 ? Math.max(0, Math.min(100, (currentTimeMs / durationMs) * 100)) : 0;
+
+    useEffect(() => {
+      const orb = handyPreviewOrbRef.current;
+      if (!orb || funscriptActions.length === 0) {
+        if (orb) orb.style.visibility = "hidden";
+        return;
+      }
+
+      const timeline = { actions: funscriptActions };
+      let animationFrameId = 0;
+      let cancelled = false;
+
+      const updatePosition = () => {
+        if (cancelled) return;
+
+        const videoTimeMs = videoRef.current ? videoRef.current.currentTime * 1000 : currentTimeMs;
+        const position = getFunscriptPositionAtMs(timeline, videoTimeMs);
+
+        if (typeof position === "number") {
+          const clampedPosition = Math.max(0, Math.min(100, position));
+          orb.style.visibility = "visible";
+          orb.style.top = `${100 - clampedPosition}%`;
+        } else {
+          orb.style.visibility = "hidden";
+        }
+
+        animationFrameId = window.requestAnimationFrame(updatePosition);
+      };
+
+      updatePosition();
+
+      return () => {
+        cancelled = true;
+        window.cancelAnimationFrame(animationFrameId);
+      };
+    }, [currentTimeMs, funscriptActions, videoRef, videoUri]);
 
     return (
       <div>
@@ -97,6 +137,18 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
               <span className="text-sm">{t`Select a source video to start editing.`}</span>
             </div>
           )}
+          <div
+            className="pointer-events-none absolute bottom-4 right-4 top-4 z-10 w-0.5 rounded-full bg-cyan-200/20 shadow-[0_0_8px_rgba(34,211,238,0.12)]"
+            data-testid="converter-handy-motion-rail"
+            aria-hidden="true"
+          >
+            <div
+              ref={handyPreviewOrbRef}
+              className="absolute left-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/90 shadow-[0_0_10px_rgba(34,211,238,0.65)]"
+              data-testid="converter-handy-motion-orb"
+              style={{ top: "50%", visibility: "hidden" }}
+            />
+          </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -207,6 +259,7 @@ export function pickVideoPreviewProps(state: ConverterState): VideoPreviewProps 
     videoUri: state.videoUri,
     durationMs: state.durationMs,
     currentTimeMs: state.currentTimeMs,
+    funscriptActions: state.funscriptActions,
     markInMs: state.markInMs,
     markOutMs: state.markOutMs,
     hasSelectedSegment: state.selectedSegment !== null,

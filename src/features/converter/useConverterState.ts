@@ -470,7 +470,19 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     if (!path) return;
     const converted = window.electronAPI.file.convertFileSrc(path);
     setFunscriptUri(converted);
+    setError(null);
     setMessage("Funscript attached.");
+  }, []);
+
+  const attachEroScriptsFunscript = useCallback((nextFunscriptUri: string) => {
+    const normalizedFunscriptUri = nextFunscriptUri.trim();
+    if (!normalizedFunscriptUri) {
+      setError("The downloaded EroScripts funscript is unavailable.");
+      return;
+    }
+    setFunscriptUri(normalizedFunscriptUri);
+    setError(null);
+    setMessage("EroScripts funscript attached.");
   }, []);
 
   const selectWebsiteAndEdit = useCallback(
@@ -2797,6 +2809,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     selectLocalAndEdit,
     selectWebsiteAndEdit,
     attachLocalFunscript,
+    attachEroScriptsFunscript,
 
     // Caching
     cachingUrl,

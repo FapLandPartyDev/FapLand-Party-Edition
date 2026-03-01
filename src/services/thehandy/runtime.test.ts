@@ -76,8 +76,7 @@ type HspAddCallOptions = {
 
 function getHspAddCall(index: number): HspAddCallOptions {
   const call = handyIndexMocks.hspAdd.mock.calls[index] as unknown as
-    | [HspAddCallOptions]
-    | undefined;
+    [HspAddCallOptions] | undefined;
   const options = call?.[0];
   if (!options) {
     throw new Error(`Missing hspAdd call ${index}`);
@@ -276,6 +275,61 @@ describe("sendHspSync", () => {
         }),
       })
     );
+  });
+
+  it("forces an immediate unfiltered correction when requested", async () => {
+    const session = createLoadedHspSession({ lastSyncAtMs: Date.now() });
+
+    await sendHspSync(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      750,
+      1,
+      "video-1",
+      longActions,
+      { forceTimeSync: true, timeFilter: null }
+    );
+
+    expect(handyIndexMocks.setHspTime).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.not.objectContaining({ filter: expect.anything() }),
+      })
+    );
+  });
+
+  it("does not throttle the retry after a device-level sync error", async () => {
+    const lastSyncAtMs = Date.now() - 10_000;
+    const session = createLoadedHspSession({ lastSyncAtMs });
+    handyIndexMocks.setHspTime.mockResolvedValueOnce({
+      error: {
+        code: 1002,
+        name: "DeviceTimeout",
+        message: "Device timeout",
+        connected: true,
+      },
+    } as never);
+
+    await expect(
+      sendHspSync(
+        { connectionKey: "conn-key", appApiKey: "app-key" },
+        session,
+        750,
+        1,
+        "video-1",
+        longActions
+      )
+    ).rejects.toThrow("Device timeout");
+
+    expect(session.lastSyncAtMs).toBe(lastSyncAtMs);
+    await sendHspSync(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      760,
+      1,
+      "video-1",
+      longActions
+    );
+    expect(handyIndexMocks.setHspTime).toHaveBeenCalledTimes(2);
   });
 
   it("advances HSP stream state only after a successful top-up append", async () => {
@@ -639,6 +693,27 @@ describe("prepareHspMode retries", () => {
     expect(session.hspModeActive).toBe(true);
   });
 
+  it("uses the session's unique stream id during HSP setup", async () => {
+    const session = createLoadedHspSession({
+      loadedScriptId: null,
+      activeScriptId: null,
+      streamedPoints: null,
+      hspModeActive: false,
+      streamId: 4242,
+    });
+
+    await preloadHspScript(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      "new-stream",
+      [{ at: 0, pos: 50 }]
+    );
+
+    expect(handyIndexMocks.hspSetup).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { stream_id: 4242 } })
+    );
+  });
+
   it("retries hspFlush on transient failure during preload", async () => {
     handyIndexMocks.hspFlush
       .mockRejectedValueOnce(new Error("transient flush failure"))
@@ -667,11 +742,7 @@ describe("prepareHspMode retries", () => {
     expect(session.hspModeActive).toBe(true);
   });
 
-  it("retries setMode on transient failure when entering HSP mode", async () => {
-    handyIndexMocks.setMode
-      .mockRejectedValueOnce(new Error("transient mode failure"))
-      .mockResolvedValueOnce({ result: {} });
-
+  it("lets HSP setup select the device mode without an explicit mode command", async () => {
     const session = createLoadedHspSession({
       loadedScriptId: null,
       activeScriptId: null,
@@ -691,7 +762,8 @@ describe("prepareHspMode retries", () => {
       0
     );
 
-    expect(handyIndexMocks.setMode).toHaveBeenCalledTimes(2);
+    expect(handyIndexMocks.setMode).not.toHaveBeenCalled();
+    expect(handyIndexMocks.hspSetup).toHaveBeenCalledTimes(1);
     expect(session.hspModeActive).toBe(true);
   });
 });

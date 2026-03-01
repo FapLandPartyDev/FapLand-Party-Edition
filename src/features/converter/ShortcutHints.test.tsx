@@ -202,6 +202,7 @@ describe("converter shortcut hints", () => {
         videoUri=""
         durationMs={10_000}
         currentTimeMs={2_000}
+        funscriptActions={[]}
         markInMs={1_000}
         markOutMs={3_000}
         hasSelectedSegment

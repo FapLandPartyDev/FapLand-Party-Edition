@@ -564,6 +564,22 @@ describe("HandyContext", () => {
     });
   });
 
+  it("accumulates rapid offset adjustments from the latest in-memory value", async () => {
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+
+    const adjustButton = screen.getByRole("button", { name: "adjust-offset" });
+    await act(async () => {
+      fireEvent.click(adjustButton);
+      fireEvent.click(adjustButton);
+    });
+
+    expect(screen.getByTestId("offset-ms").textContent).toBe("50");
+  });
+
   it("adjusts the resource override instead of the global offset when override is active", async () => {
     render(
       <HandyProvider>

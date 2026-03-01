@@ -14,10 +14,10 @@ import {
   issueToken,
   setHspPaybackRate,
   setHspTime,
-  setMode,
   setStroke,
 } from "./index";
 import type { FunscriptAction } from "../../game/media/playback";
+import type { HapticsSyncOptions } from "../haptics/types";
 import { normalizeHandyStrokeState, type HandyStrokeState } from "../theHandyConfig";
 
 export type HandyAuthBundle = {
@@ -43,7 +43,28 @@ export type HandySession = {
   lastHspAddAtMs: number;
   hspAddBackoffUntilMs: number;
   hspModeActive: boolean;
+  streamId?: number;
+  serverTimeRefreshPromise?: Promise<void> | null;
 };
+
+export class HandyDeviceError extends Error {
+  readonly code: number | null;
+  readonly errorName: string | null;
+  readonly connected: boolean | null;
+
+  constructor(input: {
+    message: string;
+    code?: number | null;
+    name?: string | null;
+    connected?: boolean | null;
+  }) {
+    super(input.message);
+    this.name = "HandyDeviceError";
+    this.code = input.code ?? null;
+    this.errorName = input.name ?? null;
+    this.connected = input.connected ?? null;
+  }
+}
 
 const HSP_CHUNK_SIZE = 100;
 const DEFAULT_HSP_MAX_POINTS = 4000;
@@ -119,6 +140,39 @@ function unwrapPayload<T>(payload: HandyPayload<T>): T | undefined {
   return payload as T;
 }
 
+function assertDeviceResponse<T>(payload: HandyPayload<T>): T {
+  const value = unwrapPayload(payload);
+  if (!value || typeof value !== "object") {
+    throw new HandyDeviceError({ message: "TheHandy returned an empty response." });
+  }
+  const error = "error" in value ? (value as { error?: unknown }).error : undefined;
+  if (error && typeof error === "object") {
+    const details = error as {
+      code?: unknown;
+      name?: unknown;
+      message?: unknown;
+      connected?: unknown;
+    };
+    throw new HandyDeviceError({
+      message:
+        typeof details.message === "string" && details.message.trim()
+          ? details.message
+          : "TheHandy rejected the command.",
+      code: typeof details.code === "number" ? details.code : null,
+      name: typeof details.name === "string" ? details.name : null,
+      connected: typeof details.connected === "boolean" ? details.connected : null,
+    });
+  }
+  return value;
+}
+
+function createStreamId(): number {
+  const bytes = new Uint32Array(1);
+  globalThis.crypto?.getRandomValues?.(bytes);
+  const generated = bytes[0] ?? 0;
+  return generated === 0 ? Math.max(1, Math.floor(Math.random() * 0xffff_ffff)) : generated;
+}
+
 function toScriptId(sourceId: string, actions: FunscriptAction[]): string {
   const first = actions[0]?.at ?? 0;
   const last = actions[actions.length - 1]?.at ?? 0;
@@ -154,46 +208,61 @@ async function refreshServerTimeOffset(
     return;
   }
 
-  const appCredential = requireAppCredential(auth.appApiKey);
-  const samples: Array<{ offsetMs: number; roundTripMs: number }> = [];
+  if (session.serverTimeRefreshPromise) return session.serverTimeRefreshPromise;
 
-  for (let index = 0; index < SERVER_TIME_SAMPLE_COUNT; index += 1) {
-    try {
-      const sentAtMs = Date.now();
-      const response = unwrapPayload(
-        await getServerTime({
-          auth: appCredential,
-          responseStyle: "data",
-          requestValidator: undefined,
-          responseValidator: undefined,
-        })
-      );
-      const receivedAtMs = Date.now();
-      const serverTimeMs = extractServerTimeMs(response);
-      if (serverTimeMs === null) continue;
-      const roundTripMs = Math.max(0, receivedAtMs - sentAtMs);
-      const estimatedServerTimeAtReceiveMs = serverTimeMs + roundTripMs / 2;
-      samples.push({
-        offsetMs: estimatedServerTimeAtReceiveMs - receivedAtMs,
-        roundTripMs,
-      });
-    } catch {
-      // Time sampling is an accuracy improvement, not a hard dependency.
+  const refreshPromise = (async () => {
+    const appCredential = requireAppCredential(auth.appApiKey);
+    const samples: Array<{ offsetMs: number; roundTripMs: number }> = [];
+
+    for (let index = 0; index < SERVER_TIME_SAMPLE_COUNT; index += 1) {
+      try {
+        const sentAtMs = Date.now();
+        const sentAtMonotonicMs = globalThis.performance?.now?.() ?? sentAtMs;
+        const response = unwrapPayload(
+          await getServerTime({
+            auth: appCredential,
+            responseStyle: "data",
+            requestValidator: undefined,
+            responseValidator: undefined,
+          })
+        );
+        const receivedAtMs = Date.now();
+        const receivedAtMonotonicMs = globalThis.performance?.now?.() ?? receivedAtMs;
+        const serverTimeMs = extractServerTimeMs(response);
+        if (serverTimeMs === null) continue;
+        const roundTripMs = Math.max(0, receivedAtMonotonicMs - sentAtMonotonicMs);
+        const estimatedServerTimeAtReceiveMs = serverTimeMs + roundTripMs / 2;
+        samples.push({
+          offsetMs: estimatedServerTimeAtReceiveMs - receivedAtMs,
+          roundTripMs,
+        });
+      } catch {
+        // Time sampling is an accuracy improvement, not a hard dependency.
+      }
+    }
+
+    if (samples.length === 0) {
+      if (session.serverTimeOffsetMeasuredAtMs === 0) session.serverTimeOffsetMs = 0;
+      session.serverTimeOffsetMeasuredAtMs = now;
+      return;
+    }
+
+    samples.sort((left, right) => left.roundTripMs - right.roundTripMs);
+    const bestSamples = samples.slice(0, Math.min(SERVER_TIME_SAMPLE_KEEP_COUNT, samples.length));
+    const offsetSum = bestSamples.reduce((sum, sample) => sum + sample.offsetMs, 0);
+
+    session.serverTimeOffsetMs = offsetSum / bestSamples.length;
+    session.serverTimeOffsetMeasuredAtMs = now;
+  })();
+
+  session.serverTimeRefreshPromise = refreshPromise;
+  try {
+    await refreshPromise;
+  } finally {
+    if (session.serverTimeRefreshPromise === refreshPromise) {
+      session.serverTimeRefreshPromise = null;
     }
   }
-
-  if (samples.length === 0) {
-    session.serverTimeOffsetMs = 0;
-    session.serverTimeOffsetMeasuredAtMs = now;
-    return;
-  }
-
-  samples.sort((left, right) => left.roundTripMs - right.roundTripMs);
-  const bestSamples = samples.slice(0, Math.min(SERVER_TIME_SAMPLE_KEEP_COUNT, samples.length));
-  const offsetSum = bestSamples.reduce((sum, sample) => sum + sample.offsetMs, 0);
-
-  session.serverTimeOffsetMs = offsetSum / bestSamples.length;
-  session.serverTimeOffsetMeasuredAtMs = now;
 }
 
 function getEstimatedServerTimeMs(session: HandySession): number {
@@ -224,7 +293,7 @@ function unwrapStrokeResult(
       result?: { min?: unknown; max?: unknown; min_absolute?: unknown; max_absolute?: unknown };
     }
   ).result;
-  if (!result && !fallback) {
+  if (!fallback && (!result || typeof result.min !== "number" || typeof result.max !== "number")) {
     throw new Error("Stroke settings unavailable.");
   }
 
@@ -297,6 +366,8 @@ export async function issueHandySession(auth: HandyAuthBundle): Promise<HandySes
         lastHspAddAtMs: 0,
         hspAddBackoffUntilMs: 0,
         hspModeActive: false,
+        streamId: createStreamId(),
+        serverTimeRefreshPromise: null,
       };
       await refreshServerTimeOffset(auth, session);
       return session;
@@ -323,6 +394,8 @@ export async function issueHandySession(auth: HandyAuthBundle): Promise<HandySes
     lastHspAddAtMs: 0,
     hspAddBackoffUntilMs: 0,
     hspModeActive: false,
+    streamId: createStreamId(),
+    serverTimeRefreshPromise: null,
   };
   await refreshServerTimeOffset(auth, session);
   return session;
@@ -356,10 +429,16 @@ export async function verifyHandyV3Connection(
     }),
   ]);
 
-  const connected = Boolean(unwrapPayload(connectionResponse)?.result?.connected);
+  const connectionPayload = assertDeviceResponse(connectionResponse) as {
+    result?: { connected?: unknown };
+  };
+  const connected = Boolean(connectionPayload.result?.connected);
+  const infoPayload = connected
+    ? (assertDeviceResponse(infoResponse) as { result?: { fw_version?: string } })
+    : null;
   return {
     connected,
-    firmwareVersion: connected ? (unwrapPayload(infoResponse)?.result?.fw_version ?? null) : null,
+    firmwareVersion: connected ? (infoPayload?.result?.fw_version ?? null) : null,
   };
 }
 
@@ -367,7 +446,7 @@ export async function getHandyStroke(auth: HandyAuthBundle): Promise<HandyStroke
   const connectionRef = requireConnectionRef(auth.connectionKey);
   const appCredential = requireAppCredential(auth.appApiKey);
   const session = await issueHandySession(auth);
-  const response = unwrapPayload(
+  const response = assertDeviceResponse(
     await getStroke({
       auth: createAuthResolver(appCredential, session.clientToken),
       responseStyle: "data",
@@ -391,7 +470,7 @@ export async function updateHandyStroke(
   const appCredential = requireAppCredential(auth.appApiKey);
   const session = await issueHandySession(auth);
   const normalizedInput = normalizeHandyStrokeState(input);
-  const response = unwrapPayload(
+  const response = assertDeviceResponse(
     await setStroke({
       auth: createAuthResolver(appCredential, session.clientToken),
       responseStyle: "data",
@@ -417,54 +496,51 @@ async function prepareHspMode(auth: HandyAuthBundle, session: HandySession): Pro
   const authResolver = createAuthResolver(appCredential, session.clientToken);
   const headers = { "X-Connection-Key": connectionRef };
 
-  if (!session.hspModeActive) {
+  const streamId = session.streamId ?? createStreamId();
+  session.streamId = streamId;
+  const setupResponse = assertDeviceResponse(
     await withRetry(
-      () =>
-        setMode({
-          auth: authResolver,
-          responseStyle: "data",
-          requestValidator: undefined,
-          responseValidator: undefined,
-          headers,
-          body: { mode: 4 },
-        }),
+      async () =>
+        assertDeviceResponse(
+          await hspSetup({
+            auth: authResolver,
+            responseStyle: "data",
+            requestValidator: undefined,
+            responseValidator: undefined,
+            headers,
+            body: { stream_id: streamId },
+            query: { timeout: 5000 },
+          })
+        ),
       HSP_MODE_MAX_RETRIES,
       HSP_MODE_RETRY_BASE_DELAY_MS
-    );
+    )
+  ) as { result?: { max_points?: number; stream_id?: number } };
+
+  if (
+    typeof setupResponse.result?.stream_id === "number" &&
+    setupResponse.result.stream_id !== streamId
+  ) {
+    throw new HandyDeviceError({ message: "TheHandy HSP session was replaced by another stream." });
   }
 
-  const setupResponse = unwrapPayload(
+  const flushResponse = assertDeviceResponse(
     await withRetry(
-      () =>
-        hspSetup({
-          auth: authResolver,
-          responseStyle: "data",
-          requestValidator: undefined,
-          responseValidator: undefined,
-          headers,
-          body: { stream_id: 1 },
-          query: { timeout: 5000 },
-        }),
+      async () =>
+        assertDeviceResponse(
+          await hspFlush({
+            auth: authResolver,
+            responseStyle: "data",
+            requestValidator: undefined,
+            responseValidator: undefined,
+            headers,
+            query: { timeout: 5000 },
+          })
+        ),
       HSP_MODE_MAX_RETRIES,
       HSP_MODE_RETRY_BASE_DELAY_MS
     )
-  ) as { result?: { max_points?: number } } | undefined;
-
-  const flushResponse = unwrapPayload(
-    await withRetry(
-      () =>
-        hspFlush({
-          auth: authResolver,
-          responseStyle: "data",
-          requestValidator: undefined,
-          responseValidator: undefined,
-          headers,
-          query: { timeout: 5000 },
-        }),
-      HSP_MODE_MAX_RETRIES,
-      HSP_MODE_RETRY_BASE_DELAY_MS
-    )
-  ) as { result?: { max_points?: number } } | undefined;
+  ) as { result?: { max_points?: number } };
 
   const maxPoints = clampMaxBufferPoints(
     flushResponse?.result?.max_points ?? setupResponse?.result?.max_points
@@ -531,24 +607,26 @@ async function appendPointsUpToTime(
     const nextTailPointStreamIndex = session.tailPointStreamIndex + chunk.length;
     try {
       await withRetry(
-        () =>
-          hspAdd({
-            auth: createAuthResolver(appCredential, session.clientToken),
-            responseStyle: "data",
-            requestValidator: undefined,
-            responseValidator: undefined,
-            headers: {
-              "X-Connection-Key": connectionRef,
-            },
-            body: {
-              points: chunk,
-              tail_point_stream_index: nextTailPointStreamIndex,
-              flush: false,
-            },
-            query: {
-              timeout: 5000,
-            },
-          }),
+        async () =>
+          assertDeviceResponse(
+            await hspAdd({
+              auth: createAuthResolver(appCredential, session.clientToken),
+              responseStyle: "data",
+              requestValidator: undefined,
+              responseValidator: undefined,
+              headers: {
+                "X-Connection-Key": connectionRef,
+              },
+              body: {
+                points: chunk,
+                tail_point_stream_index: nextTailPointStreamIndex,
+                flush: false,
+              },
+              query: {
+                timeout: 5000,
+              },
+            })
+          ),
         HSP_ADD_MAX_RETRIES,
         HSP_ADD_RETRY_BASE_DELAY_MS
       );
@@ -637,7 +715,8 @@ export async function sendHspSync(
   timeMs: number,
   playbackRate: number,
   sourceId: string,
-  actions: FunscriptAction[]
+  actions: FunscriptAction[],
+  options: HapticsSyncOptions = {}
 ): Promise<void> {
   if (actions.length === 0) return;
 
@@ -645,7 +724,7 @@ export async function sendHspSync(
   const appCredential = requireAppCredential(auth.appApiKey);
   const scriptId = toScriptId(sourceId, actions);
   if (Date.now() - session.serverTimeOffsetMeasuredAtMs >= SERVER_TIME_OFFSET_TTL_MS) {
-    void refreshServerTimeOffset(auth, session);
+    await refreshServerTimeOffset(auth, session);
   }
   await preloadScript(auth, session, sourceId, actions, timeMs);
 
@@ -675,21 +754,23 @@ export async function sendHspSync(
   const headers = { "X-Connection-Key": connectionRef };
 
   if (session.activeScriptId !== scriptId) {
-    await hspPlay({
-      auth: authResolver,
-      responseStyle: "data",
-      requestValidator: undefined,
-      responseValidator: undefined,
-      headers,
-      body: {
-        start_time: Math.max(0, Math.floor(timeMs)),
-        server_time: Math.round(getEstimatedServerTimeMs(session)),
-        playback_rate: nextRate,
-        pause_on_starving: false,
-        loop: false,
-      },
-      query: { timeout: 5000 },
-    });
+    assertDeviceResponse(
+      await hspPlay({
+        auth: authResolver,
+        responseStyle: "data",
+        requestValidator: undefined,
+        responseValidator: undefined,
+        headers,
+        body: {
+          start_time: Math.max(0, Math.floor(timeMs)),
+          server_time: Math.round(getEstimatedServerTimeMs(session)),
+          playback_rate: nextRate,
+          pause_on_starving: false,
+          loop: false,
+        },
+        query: { timeout: 5000 },
+      })
+    );
     session.activeScriptId = scriptId;
     session.lastSyncAtMs = 0;
     session.lastPlaybackRate = nextRate;
@@ -697,10 +778,12 @@ export async function sendHspSync(
 
   const now = Date.now();
   const needsRateUpdate = Math.abs(nextRate - session.lastPlaybackRate) > 0.02;
-  const needsTimeSync = now - session.lastSyncAtMs >= 2000;
-
-  if (needsRateUpdate) session.lastPlaybackRate = nextRate;
-  if (needsTimeSync) session.lastSyncAtMs = now;
+  const needsTimeSync = options.forceTimeSync === true || now - session.lastSyncAtMs >= 2000;
+  const timeBody = {
+    current_time: Math.max(0, Math.floor(timeMs)),
+    server_time: Math.round(getEstimatedServerTimeMs(session)),
+    ...(options.timeFilter === null ? {} : { filter: options.timeFilter ?? 0.12 }),
+  };
 
   if (needsRateUpdate && needsTimeSync) {
     await Promise.all([
@@ -712,45 +795,45 @@ export async function sendHspSync(
         headers,
         body: { playback_rate: nextRate },
         query: { timeout: 5000 },
-      }),
+      }).then(assertDeviceResponse),
       setHspTime({
         auth: authResolver,
         responseStyle: "data",
         requestValidator: undefined,
         responseValidator: undefined,
         headers,
-        body: {
-          current_time: Math.max(0, Math.floor(timeMs)),
-          server_time: Math.round(getEstimatedServerTimeMs(session)),
-          filter: 0.12,
-        },
+        body: timeBody,
         query: { timeout: 5000 },
-      }),
+      }).then(assertDeviceResponse),
     ]);
+    session.lastPlaybackRate = nextRate;
+    session.lastSyncAtMs = Date.now();
   } else if (needsRateUpdate) {
-    await setHspPaybackRate({
-      auth: authResolver,
-      responseStyle: "data",
-      requestValidator: undefined,
-      responseValidator: undefined,
-      headers,
-      body: { playback_rate: nextRate },
-      query: { timeout: 5000 },
-    });
+    assertDeviceResponse(
+      await setHspPaybackRate({
+        auth: authResolver,
+        responseStyle: "data",
+        requestValidator: undefined,
+        responseValidator: undefined,
+        headers,
+        body: { playback_rate: nextRate },
+        query: { timeout: 5000 },
+      })
+    );
+    session.lastPlaybackRate = nextRate;
   } else if (needsTimeSync) {
-    await setHspTime({
-      auth: authResolver,
-      responseStyle: "data",
-      requestValidator: undefined,
-      responseValidator: undefined,
-      headers,
-      body: {
-        current_time: Math.max(0, Math.floor(timeMs)),
-        server_time: Math.round(getEstimatedServerTimeMs(session)),
-        filter: 0.12,
-      },
-      query: { timeout: 5000 },
-    });
+    assertDeviceResponse(
+      await setHspTime({
+        auth: authResolver,
+        responseStyle: "data",
+        requestValidator: undefined,
+        responseValidator: undefined,
+        headers,
+        body: timeBody,
+        query: { timeout: 5000 },
+      })
+    );
+    session.lastSyncAtMs = Date.now();
   }
 }
 
@@ -766,15 +849,17 @@ export async function pauseHandyPlayback(
   // Use the native HSP pause endpoint instead of hspStop.
   // hspPause keeps the current position AND the entire point buffer intact
   // on the device, so a subsequent hspResume is near-instant.
-  await hspPause({
-    auth: createAuthResolver(appCredential, session.clientToken),
-    responseStyle: "data",
-    requestValidator: undefined,
-    responseValidator: undefined,
-    headers: {
-      "X-Connection-Key": connectionRef,
-    },
-  });
+  assertDeviceResponse(
+    await hspPause({
+      auth: createAuthResolver(appCredential, session.clientToken),
+      responseStyle: "data",
+      requestValidator: undefined,
+      responseValidator: undefined,
+      headers: {
+        "X-Connection-Key": connectionRef,
+      },
+    })
+  );
 
   // Keep ALL session state intact — loadedScriptId, streamedPoints, buffer
   // indices, etc. Only mark activeScriptId as paused so the next sync knows
@@ -796,25 +881,23 @@ export async function resumeHandyPlayback(
   const headers = { "X-Connection-Key": connectionRef };
 
   if (Date.now() - session.serverTimeOffsetMeasuredAtMs >= SERVER_TIME_OFFSET_TTL_MS) {
-    void refreshServerTimeOffset(auth, session);
+    await refreshServerTimeOffset(auth, session);
   }
 
-  await hspResume({
-    auth: authResolver,
-    responseStyle: "data",
-    requestValidator: undefined,
-    responseValidator: undefined,
-    headers,
-    body: { pick_up: true },
-  });
+  assertDeviceResponse(
+    await hspResume({
+      auth: authResolver,
+      responseStyle: "data",
+      requestValidator: undefined,
+      responseValidator: undefined,
+      headers,
+      body: { pick_up: true },
+    })
+  );
 
   const now = Date.now();
   const nextRate = Math.max(0.25, Math.min(3, playbackRate));
   const needsRateUpdate = Math.abs(nextRate - session.lastPlaybackRate) > 0.02;
-
-  session.activeScriptId = session.loadedScriptId;
-  session.lastSyncAtMs = now;
-  if (needsRateUpdate) session.lastPlaybackRate = nextRate;
 
   const pending: Promise<void>[] = [
     setHspTime({
@@ -826,10 +909,11 @@ export async function resumeHandyPlayback(
       body: {
         current_time: Math.max(0, Math.floor(resumeAtMs)),
         server_time: Math.round(getEstimatedServerTimeMs(session)),
-        filter: 0.12,
       },
       query: { timeout: 5000 },
-    }).then(() => {}),
+    }).then((response) => {
+      assertDeviceResponse(response);
+    }),
   ];
 
   if (needsRateUpdate) {
@@ -842,11 +926,16 @@ export async function resumeHandyPlayback(
         headers,
         body: { playback_rate: nextRate },
         query: { timeout: 5000 },
-      }).then(() => {})
+      }).then((response) => {
+        assertDeviceResponse(response);
+      })
     );
   }
 
   await Promise.all(pending);
+  session.activeScriptId = session.loadedScriptId;
+  session.lastSyncAtMs = now;
+  if (needsRateUpdate) session.lastPlaybackRate = nextRate;
 }
 
 export async function stopHandyPlayback(

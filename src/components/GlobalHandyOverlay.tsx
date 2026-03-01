@@ -56,6 +56,7 @@ export function GlobalHandyOverlay() {
     strokeLoading,
     strokeError,
     adjustOffset,
+    setOffset,
     resetOffset,
     setStrokeBounds,
     resetStroke,
@@ -113,7 +114,10 @@ export function GlobalHandyOverlay() {
   }, [t]);
 
   useEffect(() => {
-    return subscribeToSaveOffsetAvailability(setHasSaveOffsetToRound);
+    const unsubscribe = subscribeToSaveOffsetAvailability(setHasSaveOffsetToRound);
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const commitStrokeSlider = useCallback(
@@ -385,9 +389,8 @@ export function GlobalHandyOverlay() {
                       onChange={(event) => {
                         const nextOffsetMs = Number(event.target.value);
                         if (!Number.isFinite(nextOffsetMs)) return;
-                        const deltaMs = nextOffsetMs - offsetMs;
-                        if (deltaMs === 0) return;
-                        void adjustOffset(deltaMs);
+                        if (nextOffsetMs === offsetMs) return;
+                        void setOffset(nextOffsetMs);
                       }}
                       className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-cyan-400"
                     />

@@ -17,6 +17,7 @@ type ConverterHeaderBaseProps = {
 type ConverterHeaderProps = ConverterHeaderBaseProps & {
   onGoToSelect: () => void;
   onAttachFunscript: () => void;
+  onSearchEroScripts: () => void;
   onLoadPreviousUnconverted: () => void;
   onLoadNextUnconverted: () => void;
   onShowHotkeys: () => void;
@@ -35,6 +36,7 @@ export const ConverterHeader: React.FC<ConverterHeaderProps> = React.memo(
     unconvertedPositionLabel,
     onGoToSelect,
     onAttachFunscript,
+    onSearchEroScripts,
     onLoadPreviousUnconverted,
     onLoadNextUnconverted,
     onShowHotkeys,
@@ -119,6 +121,17 @@ export const ConverterHeader: React.FC<ConverterHeaderProps> = React.memo(
             className="rounded-xl border border-cyan-300/55 bg-cyan-500/20 px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] text-cyan-100 transition-all duration-200 hover:border-cyan-200/80 hover:bg-cyan-500/35"
           >
             <Trans>Attach Funscript</Trans>
+          </button>
+          <button
+            type="button"
+            onMouseEnter={playHoverSound}
+            onClick={() => {
+              playSelectSound();
+              onSearchEroScripts();
+            }}
+            className="rounded-xl border border-emerald-300/55 bg-emerald-500/20 px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] text-emerald-100 transition-all duration-200 hover:border-emerald-200/80 hover:bg-emerald-500/35"
+          >
+            <Trans>Search EroScripts</Trans>
           </button>
           <button
             type="button"

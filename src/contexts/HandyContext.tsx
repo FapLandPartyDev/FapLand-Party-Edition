@@ -143,6 +143,7 @@ type HapticsContextType = {
   forceStop: () => Promise<void>;
   toggleManualStop: () => Promise<"stopped" | "resumed" | "unavailable">;
   setSyncStatus: (next: { synced: boolean; error?: string | null }) => void;
+  setOffset: (offsetMs: number) => Promise<number>;
   adjustOffset: (deltaMs: number) => Promise<number>;
   resetOffset: () => Promise<void>;
   setResourceOffsetOverride: (offsetMs: number | null) => void;
@@ -445,6 +446,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const testDeviceTickBusyRef = useRef(false);
   const connectionAttemptIdRef = useRef(0);
   const offsetMsRef = useRef(0);
+  const offsetPersistenceRef = useRef<Promise<void>>(Promise.resolve());
 
   const appApiKey = resolveHandyAppApiKey(appApiKeyOverride);
   const isUsingDefaultAppApiKey = normalizeHandyAppApiKeyOverride(appApiKeyOverride).length === 0;
@@ -849,6 +851,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const persistOffset = useCallback(
     async (nextOffsetMs: number): Promise<number> => {
       const normalized = normalizeHandyOffsetMs(nextOffsetMs);
+      offsetMsRef.current = normalized;
       setGlobalOffsetMs(normalized);
       const saved = selectedDeviceId
         ? deviceSlots.map((slot) =>
@@ -857,14 +860,19 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         : deviceSlots;
       if (selectedDeviceId) setDeviceSlots(saved);
 
-      try {
-        await Promise.all([
-          trpc.store.set.mutate({ key: THEHANDY_OFFSET_MS_STORE_KEY, value: normalized }),
-          selectedDeviceId ? saveDeviceSlotsToStore(saved) : Promise.resolve(),
-        ]);
-      } catch (err) {
-        console.error("Failed to save haptics offset", err);
-      }
+      offsetPersistenceRef.current = offsetPersistenceRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          try {
+            await Promise.all([
+              trpc.store.set.mutate({ key: THEHANDY_OFFSET_MS_STORE_KEY, value: normalized }),
+              selectedDeviceId ? saveDeviceSlotsToStore(saved) : Promise.resolve(),
+            ]);
+          } catch (err) {
+            console.error("Failed to save haptics offset", err);
+          }
+        });
+      await offsetPersistenceRef.current;
 
       return normalized;
     },
@@ -1441,33 +1449,46 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setSyncError(next.error ?? null);
   }, []);
 
-  const adjustOffset = useCallback(
-    async (deltaMs: number): Promise<number> => {
+  const setOffset = useCallback(
+    async (nextOffsetMs: number): Promise<number> => {
       userMutatedStateRef.current = true;
-      const nextOffsetMs = offsetMs + deltaMs;
+      const normalized = normalizeHandyOffsetMs(nextOffsetMs);
+      offsetMsRef.current = normalized;
       if (resourceOffsetOverrideMs !== null) {
-        const normalized = normalizeHandyOffsetMs(nextOffsetMs);
         setResourceOffsetOverrideMs(normalized);
         return normalized;
       }
-      return persistOffset(nextOffsetMs);
+      return persistOffset(normalized);
     },
-    [offsetMs, persistOffset, resourceOffsetOverrideMs]
+    [persistOffset, resourceOffsetOverrideMs]
+  );
+
+  const adjustOffset = useCallback(
+    async (deltaMs: number): Promise<number> => {
+      return setOffset(offsetMsRef.current + deltaMs);
+    },
+    [setOffset]
   );
 
   const resetOffset = useCallback(async () => {
     userMutatedStateRef.current = true;
     if (resourceOffsetOverrideMs !== null) {
+      offsetMsRef.current = 0;
       setResourceOffsetOverrideMs(0);
       return;
     }
     await persistOffset(0);
   }, [persistOffset, resourceOffsetOverrideMs]);
 
-  const setResourceOffsetOverride = useCallback((nextOffsetMs: number | null) => {
-    userMutatedStateRef.current = true;
-    setResourceOffsetOverrideMs(nextOffsetMs == null ? null : normalizeHandyOffsetMs(nextOffsetMs));
-  }, []);
+  const setResourceOffsetOverride = useCallback(
+    (nextOffsetMs: number | null) => {
+      userMutatedStateRef.current = true;
+      const normalized = nextOffsetMs == null ? null : normalizeHandyOffsetMs(nextOffsetMs);
+      setResourceOffsetOverrideMs(normalized);
+      offsetMsRef.current = normalized ?? globalOffsetMs;
+    },
+    [globalOffsetMs]
+  );
 
   const setStrokeBounds = useCallback(
     async (minPercent: number, maxPercent: number): Promise<void> => {
@@ -1606,6 +1627,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       forceStop,
       toggleManualStop,
       setSyncStatus,
+      setOffset,
       adjustOffset,
       resetOffset,
       setResourceOffsetOverride,
@@ -1670,6 +1692,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       forceStop,
       toggleManualStop,
       setSyncStatus,
+      setOffset,
       adjustOffset,
       resetOffset,
       setResourceOffsetOverride,

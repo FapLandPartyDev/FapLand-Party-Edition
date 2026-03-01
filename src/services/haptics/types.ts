@@ -58,6 +58,12 @@ export type HapticsSession = {
   expiresAtMs: number;
 };
 
+export type HapticsSyncOptions = {
+  forceTimeSync?: boolean;
+  /** `null` deliberately omits the provider's smoothing filter. */
+  timeFilter?: number | null;
+};
+
 export type DeviceSlotConfig = {
   id: string;
   label: string;
@@ -93,7 +99,8 @@ export type HapticsRuntimeAdapter<TSession extends HapticsSession> = {
     timeMs: number,
     playbackRate: number,
     sourceId: string,
-    actions: FunscriptAction[]
+    actions: FunscriptAction[],
+    options?: HapticsSyncOptions
   ): Promise<void>;
   pausePlayback(config: HapticsConnectionConfig, session: TSession | null): Promise<void>;
   resumePlayback(

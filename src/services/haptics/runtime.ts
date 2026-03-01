@@ -7,6 +7,7 @@ import type {
   HapticsConnectionResult,
   HapticsRuntimeAdapter,
   HapticsSession,
+  HapticsSyncOptions,
   HapticsStrokeState,
 } from "./types";
 
@@ -135,7 +136,8 @@ export async function sendHapticsSync(
   timeMs: number,
   playbackRate: number,
   sourceId: string,
-  actions: FunscriptAction[]
+  actions: FunscriptAction[],
+  options?: HapticsSyncOptions
 ): Promise<void> {
   if (config.provider === "group" && session.provider === "group") {
     await runGroup(
@@ -146,7 +148,8 @@ export async function sendHapticsSync(
           Math.max(0, timeMs + target.offsetMs),
           playbackRate,
           sourceId,
-          actions
+          actions,
+          options
         )
       )
     );
@@ -156,14 +159,12 @@ export async function sendHapticsSync(
     throw new Error("Haptics group configuration does not match its session.");
   }
   assertMatchingProvider(config, session);
-  await getAdapter(session.provider).sendSync(
-    config,
-    session,
-    timeMs,
-    playbackRate,
-    sourceId,
-    actions
-  );
+  const adapter = getAdapter(session.provider);
+  if (options === undefined) {
+    await adapter.sendSync(config, session, timeMs, playbackRate, sourceId, actions);
+  } else {
+    await adapter.sendSync(config, session, timeMs, playbackRate, sourceId, actions, options);
+  }
 }
 
 export async function pauseHapticsPlayback(
@@ -295,7 +296,8 @@ export async function sendHapticsSyncAll(
   timeMs: number,
   playbackRate: number,
   sourceId: string,
-  actions: FunscriptAction[]
+  actions: FunscriptAction[],
+  options?: HapticsSyncOptions
 ): Promise<void> {
   const results = await Promise.allSettled(
     devices.map((device) => {
@@ -306,7 +308,8 @@ export async function sendHapticsSyncAll(
         adjustedTimeMs,
         playbackRate,
         sourceId,
-        actions
+        actions,
+        options
       );
     })
   );
@@ -353,4 +356,9 @@ export async function disconnectHapticsAll(devices: readonly ActiveDevice[]): Pr
   if (errors.length > 0) throw new Error(errors.join("; "));
 }
 
-export type { HapticsConnectionConfig, HapticsConnectionResult, HapticsStrokeState };
+export type {
+  HapticsConnectionConfig,
+  HapticsConnectionResult,
+  HapticsStrokeState,
+  HapticsSyncOptions,
+};

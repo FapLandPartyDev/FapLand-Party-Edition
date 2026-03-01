@@ -28,6 +28,7 @@ import {
 } from "../features/converter/sourceFilter";
 
 type SourceSection = "round" | "hero" | "file" | "url";
+type EroScriptsDialogMode = "source" | "attach" | null;
 
 export const Route = createFileRoute("/converter")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -72,7 +73,7 @@ function ConverterPage() {
     useState(readMinimumVideoLength);
   const state = useConverterState({ sourceRoundId, heroName, minimumVideoLengthMinutes });
   const [activeSectionId, setActiveSectionId] = useState<SourceSection>("round");
-  const [eroscriptsOpen, setEroScriptsOpen] = useState(false);
+  const [eroscriptsDialogMode, setEroScriptsDialogMode] = useState<EroScriptsDialogMode>(null);
 
   const updateMinimumVideoLength = (minutes: number) => {
     setMinimumVideoLengthMinutes(normalizeMinimumVideoLength(minutes));
@@ -188,7 +189,7 @@ function ConverterPage() {
                   onSelectWebsiteSource={(videoUri, funscriptUri) =>
                     void state.selectWebsiteAndEdit(videoUri, funscriptUri)
                   }
-                  onSearchEroScripts={() => setEroScriptsOpen(true)}
+                  onSearchEroScripts={() => setEroScriptsDialogMode("source")}
                   minimumVideoLengthMinutes={minimumVideoLengthMinutes}
                   onMinimumVideoLengthChange={updateMinimumVideoLength}
                 />
@@ -219,12 +220,12 @@ function ConverterPage() {
           )}
         </AnimatePresence>
         <EroScriptsFunscriptSearchDialog
-          open={eroscriptsOpen}
+          open={eroscriptsDialogMode === "source"}
           initialQuery={heroName || ""}
-          onClose={() => setEroScriptsOpen(false)}
+          onClose={() => setEroScriptsDialogMode(null)}
           onInstallRound={async (input) => {
             await state.selectWebsiteAndEdit(input.videoUri, input.funscriptUri);
-            setEroScriptsOpen(false);
+            setEroScriptsDialogMode(null);
           }}
         />
       </div>
@@ -241,6 +242,7 @@ function ConverterPage() {
             {...pickConverterHeaderProps(state)}
             onGoToSelect={() => state.goToSelectStep()}
             onAttachFunscript={() => void state.attachLocalFunscript()}
+            onSearchEroScripts={() => setEroScriptsDialogMode("attach")}
             onLoadPreviousUnconverted={() =>
               void state.loadPreviousUnconvertedRound({ focusTargetInput: true })
             }
@@ -290,6 +292,16 @@ function ConverterPage() {
 
           <StatusBar message={state.message} error={state.error} />
           <HotkeyOverlay visible={state.showHotkeys} />
+
+          <EroScriptsFunscriptSearchDialog
+            open={eroscriptsDialogMode === "attach"}
+            initialQuery={state.heroName.trim() || state.selectedSourceInfo?.name || heroName || ""}
+            currentFunscriptUri={state.funscriptUri}
+            onClose={() => setEroScriptsDialogMode(null)}
+            onAttachFunscript={(result) => {
+              state.attachEroScriptsFunscript(result.funscriptUri);
+            }}
+          />
 
           <div className="mx-auto grid w-full max-w-md grid-cols-1 gap-2 pb-6">
             <MenuButton

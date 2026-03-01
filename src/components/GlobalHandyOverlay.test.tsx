@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
     strokePercent: 76,
     strokeLoading: false,
     strokeError: null as string | null,
+    setOffset: vi.fn(async (offsetMs: number) => offsetMs),
     adjustOffset: vi.fn(async (deltaMs: number) => deltaMs),
     resetOffset: vi.fn(async () => undefined),
     setStrokePercent: vi.fn(async () => undefined),
@@ -116,12 +117,12 @@ describe("GlobalHandyOverlay", () => {
     fireEvent.click(screen.getByRole("button", { name: "+25ms" }));
 
     await waitFor(() => {
-      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(1, 45);
-      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(2, -25);
-      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(3, -1);
+      expect(mocks.handy.setOffset).toHaveBeenCalledWith(120);
+      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(1, -25);
+      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(2, -1);
       expect(mocks.handy.resetOffset).toHaveBeenCalledTimes(1);
-      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(4, 1);
-      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(5, 25);
+      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(3, 1);
+      expect(mocks.handy.adjustOffset).toHaveBeenNthCalledWith(4, 25);
     });
   });
 
