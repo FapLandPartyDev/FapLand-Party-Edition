@@ -5,14 +5,11 @@ import { reviewInstallSidecarTrust } from "../components/InstallSidecarTrustModa
 import { confirmInstallSidecar } from "../components/InstallConfirmationModalHost";
 import type { ToastVariant } from "../components/ui/ToastHost";
 import { isVideoExtension } from "../constants/videoFormats";
+import { acquisition, type AcquisitionSource } from "./acquisition";
+import { reviewAcquisitionDownloads } from "../components/AcquisitionReviewModalHost";
 
 export type OpenedFileKind =
-  | "sidecar"
-  | "playlist"
-  | "video"
-  | "folder"
-  | "unsupported"
-  | "cancelled";
+  "sidecar" | "playlist" | "video" | "folder" | "torrent" | "unsupported" | "cancelled";
 
 export type OpenedFileImportResult =
   | {
@@ -31,6 +28,12 @@ export type OpenedFileImportResult =
       kind: "video" | "folder";
       filePath: string;
       result: InstallFolderScanResult;
+      feedback: ImportFeedback;
+    }
+  | {
+      kind: "torrent";
+      filePath: string;
+      source: AcquisitionSource;
       feedback: ImportFeedback;
     }
   | {
@@ -112,6 +115,7 @@ export function getOpenedFileKind(filePath: string): OpenedFileKind {
   if (normalized.endsWith(".fplay")) {
     return "playlist";
   }
+  if (normalized.endsWith(".torrent")) return "torrent";
   const extension = normalized.split(/[/\\]/).pop()?.split(".").pop() ?? "";
   if (extension && isVideoExtension(extension)) {
     return "video";
@@ -149,11 +153,43 @@ export async function importOpenedFile(filePath: string): Promise<OpenedFileImpo
       review.trustedBaseDomains.map((baseDomain) => security.addTrustedSite(baseDomain))
     );
     const result = await db.install.importSidecarFile(filePath, review.trustedBaseDomains);
+    let queuedDownloads = 0;
+    if ((result.roundIds?.length ?? 0) > 0) {
+      const analysis = await acquisition.analyzeUnresolvedImport(result.roundIds ?? []);
+      const acquisitionReview = await reviewAcquisitionDownloads(analysis);
+      if (acquisitionReview.action === "download") {
+        if (acquisitionReview.enableTorrents) {
+          await acquisition.updateSettings({ torrentEnabled: true });
+        }
+        const selections = acquisitionReview.selectedIndexes.flatMap((index) => {
+          const match = analysis.matches[index];
+          return match
+            ? [
+                {
+                  sourceId: match.sourceId,
+                  path: match.path,
+                  roundIds: match.roundIds,
+                  matchKind: match.matchKind,
+                  score: match.score,
+                },
+              ]
+            : [];
+        });
+        queuedDownloads = (await acquisition.approveImportDownloads(selections)).length;
+      }
+    }
+    const feedback = summarizeImportResult(filePath, result);
     return {
       kind,
       filePath,
       result,
-      feedback: summarizeImportResult(filePath, result),
+      feedback:
+        queuedDownloads > 0
+          ? {
+              ...feedback,
+              message: `${feedback.message} Queued ${queuedDownloads} download${queuedDownloads === 1 ? "" : "s"}.`,
+            }
+          : feedback,
     };
   }
 
@@ -190,6 +226,19 @@ export async function importOpenedFile(filePath: string): Promise<OpenedFileImpo
       filePath,
       result,
       feedback: summarizeImportResult(filePath, result),
+    };
+  }
+
+  if (kind === "torrent") {
+    const inspected = await acquisition.inspectTorrentFile(filePath);
+    return {
+      kind,
+      filePath,
+      source: inspected.source,
+      feedback: {
+        variant: "success",
+        message: `Added torrent "${inspected.source.name}". Choose individual files under Settings → Sources & Library.`,
+      },
     };
   }
 

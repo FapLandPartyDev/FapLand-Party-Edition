@@ -19,7 +19,8 @@ import { ZHeroSidecar, ZRoundSidecar } from "../../src/zod/installSidecar";
 import { parseOptionalRoundCutRangesJson } from "../../src/utils/roundCuts";
 import { getDb } from "./db";
 import { debugLog } from "./debugLogging";
-import { playlist as playlistTable } from "./db/schema";
+import { acquisitionSource, playlist as playlistTable } from "./db/schema";
+import { exportSource } from "./acquisition";
 import { assertApprovedDialogPath } from "./dialogPathApproval";
 import { createFpackFromDirectory } from "./fpack";
 import { fetchStashMediaWithAuth } from "./integrations/stashClient";
@@ -56,6 +57,7 @@ type ExportPackageInput = {
   compressionStrength?: number;
   audioBitrateKbps?: PlaylistExportAudioBitrateKbps;
   includeMedia?: boolean;
+  includeAcquisitionSources?: boolean;
   asFpack?: boolean;
 };
 
@@ -189,6 +191,13 @@ type ExportableRound = {
   heroId: string | null;
   hero: ExportableHero | null;
   resources: ExportableResource[];
+  acquisitionCandidates: ExportableCandidate[];
+};
+
+type ExportableCandidate = {
+  sourceId: string;
+  sourcePath: string;
+  source: typeof acquisitionSource.$inferSelect;
 };
 
 type PlaylistRow = {
@@ -716,6 +725,7 @@ async function loadPlaylistForExport(playlistId: string): Promise<ResolvedPlayli
     with: {
       hero: true,
       resources: true,
+      acquisitionCandidates: { with: { source: true } },
     },
   })) as ExportableRound[];
 
@@ -1303,7 +1313,29 @@ function estimateExportWork(input: PreparedPlaylistExport, includeMedia: boolean
   };
 }
 
-function toRoundSidecarPayload(entry: RoundResourceEntry) {
+function toSidecarResources(entry: RoundResourceEntry) {
+  if (
+    !entry.materialized?.video &&
+    fromLocalMediaUri(entry.resource.videoUri) &&
+    (entry.round.acquisitionCandidates?.length ?? 0) > 0
+  ) {
+    return [];
+  }
+  return [
+    {
+      videoUri: entry.materialized?.video
+        ? entry.materialized.video.relativePath
+        : entry.resource.videoUri,
+      funscriptUri: entry.materialized?.funscript
+        ? entry.materialized.funscript.relativePath
+        : entry.resource.funscriptUri,
+      funscriptOffsetMs: entry.resource.funscriptOffsetMs ?? undefined,
+    },
+  ];
+}
+
+function toRoundSidecarPayload(entry: RoundResourceEntry, includeAcquisitionSources: boolean) {
+  const candidates = includeAcquisitionSources ? (entry.round.acquisitionCandidates ?? []) : [];
   return ZRoundSidecar.parse({
     name: entry.round.name,
     author: entry.round.author ?? undefined,
@@ -1320,26 +1352,49 @@ function toRoundSidecarPayload(entry: RoundResourceEntry) {
     ),
     type: entry.round.type,
     excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
-    resources: [
-      {
-        videoUri: entry.materialized?.video
-          ? entry.materialized.video.relativePath
-          : entry.resource.videoUri,
-        funscriptUri: entry.materialized?.funscript
-          ? entry.materialized.funscript.relativePath
-          : entry.resource.funscriptUri,
-        funscriptOffsetMs: entry.resource.funscriptOffsetMs ?? undefined,
-      },
-    ],
+    resources: toSidecarResources(entry),
+    acquisition:
+      candidates.length > 0
+        ? {
+            version: 1,
+            sources: [
+              ...new Map(
+                candidates.map((candidate) => [candidate.sourceId, exportSource(candidate.source)])
+              ).values(),
+            ],
+            candidates: candidates.map((candidate) => ({
+              sourceId: candidate.sourceId,
+              filePath: candidate.sourcePath,
+            })),
+          }
+        : undefined,
   });
 }
 
-function createHeroSidecarPayload(hero: ExportableHero, entries: RoundResourceEntry[]) {
+function createHeroSidecarPayload(
+  hero: ExportableHero,
+  entries: RoundResourceEntry[],
+  includeAcquisitionSources: boolean
+) {
+  const candidates = includeAcquisitionSources
+    ? entries.flatMap((entry) => entry.round.acquisitionCandidates ?? [])
+    : [];
   return ZHeroSidecar.parse({
     name: hero.name,
     author: hero.author ?? undefined,
     description: hero.description ?? undefined,
     phash: hero.phash ?? undefined,
+    acquisition:
+      candidates.length > 0
+        ? {
+            version: 1,
+            sources: [
+              ...new Map(
+                candidates.map((candidate) => [candidate.sourceId, exportSource(candidate.source)])
+              ).values(),
+            ],
+          }
+        : undefined,
     rounds: entries
       .slice()
       .sort((a, b) =>
@@ -1361,17 +1416,13 @@ function createHeroSidecarPayload(hero: ExportableHero, entries: RoundResourceEn
         ),
         type: entry.round.type,
         excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
-        resources: [
-          {
-            videoUri: entry.materialized?.video
-              ? entry.materialized.video.relativePath
-              : entry.resource.videoUri,
-            funscriptUri: entry.materialized?.funscript
-              ? entry.materialized.funscript.relativePath
-              : entry.resource.funscriptUri,
-            funscriptOffsetMs: entry.resource.funscriptOffsetMs ?? undefined,
-          },
-        ],
+        resources: toSidecarResources(entry),
+        acquisitionCandidates: includeAcquisitionSources
+          ? (entry.round.acquisitionCandidates ?? []).map((candidate) => ({
+              sourceId: candidate.sourceId,
+              filePath: candidate.sourcePath,
+            }))
+          : undefined,
       })),
   });
 }
@@ -2166,7 +2217,10 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
       const sidecarBaseName = sanitizeFileSystemName(entry.round.name, `round__${entry.round.id}`);
       const fileName = toUniqueCaseInsensitiveFileName(usedSidecarNames, sidecarBaseName, ".round");
       updateExportPhase("writing", `Writing sidecar ${fileName}...`);
-      await writeJsonFile(path.join(tempDir, fileName), toRoundSidecarPayload(entry));
+      await writeJsonFile(
+        path.join(tempDir, fileName),
+        toRoundSidecarPayload(entry, input.includeAcquisitionSources ?? true)
+      );
       incrementExportStat("sidecarFiles");
       incrementExportProgress();
       sidecarFiles += 1;
@@ -2186,7 +2240,7 @@ async function runExportPlaylistPackage(input: ExportPackageInput): Promise<Expo
       updateExportPhase("writing", `Writing sidecar ${fileName}...`);
       await writeJsonFile(
         path.join(tempDir, fileName),
-        createHeroSidecarPayload(group.hero, group.entries)
+        createHeroSidecarPayload(group.hero, group.entries, input.includeAcquisitionSources ?? true)
       );
       incrementExportStat("sidecarFiles");
       incrementExportProgress();

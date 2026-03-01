@@ -49,6 +49,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     selectFolders: () => ipcRenderer.invoke("dialog:selectFolders") as Promise<string[]>,
     selectInstallImportFile: () =>
       ipcRenderer.invoke("dialog:selectInstallImportFile") as Promise<string | null>,
+    selectTorrentFile: () =>
+      ipcRenderer.invoke("dialog:selectTorrentFile") as Promise<string | null>,
+    selectAcquisitionDownloadDirectory: () =>
+      ipcRenderer.invoke("dialog:selectAcquisitionDownloadDirectory") as Promise<string | null>,
     selectPlaylistImportFile: () =>
       ipcRenderer.invoke("dialog:selectPlaylistImportFile") as Promise<string | null>,
     selectPlaylistExportPath: (defaultName: string) =>

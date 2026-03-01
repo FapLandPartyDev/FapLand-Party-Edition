@@ -2,7 +2,7 @@
   "name": "f-land",
   "private": true,
   "type": "module",
-  "version": "0.6.22-beta",
+  "version": "0.6.23-beta",
   "author": "FapLandDev",
   "description": "Fap Land - Party Edition",
   "license": "AGPL-3.0-only",
@@ -78,6 +78,7 @@
     "electron-store": "^11.0.2",
     "framer-motion": "^12.35.2",
     "megajs": "^1.3.9",
+    "parse-torrent": "^11.0.24",
     "pixi.js": "^8.17.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -86,6 +87,7 @@
     "systeminformation": "^5.31.4",
     "tailwindcss": "^4.2.0",
     "trpc-electron": "^0.1.2",
+    "webtorrent": "^3.0.21",
     "yauzl": "^3.2.1",
     "zod": "^4.3.6"
   },
@@ -98,6 +100,7 @@
     "@types/node": "^25.4.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/webtorrent": "^0.110.2",
     "@types/yauzl": "^2.10.3",
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
@@ -134,6 +137,9 @@
     "productName": "Fap Land",
     "afterPack": "./build/after-pack-hook.cjs",
     "asar": true,
+    "asarUnpack": [
+      "node_modules/node-datachannel/**/*"
+    ],
     "compression": "normal",
     "electronFuses": {
       "runAsNode": false,
@@ -153,6 +159,7 @@
     ],
     "extraResources": [
       "drizzle/**/*",
+      "acquisition-sources.txt",
       {
         "from": "build/vendor/ffmpeg",
         "to": "ffmpeg"
@@ -209,6 +216,11 @@
       {
         "ext": "fpack",
         "name": "F-Land Export Pack",
+        "role": "Viewer"
+      },
+      {
+        "ext": "torrent",
+        "name": "BitTorrent Metadata",
         "role": "Viewer"
       }
     ],

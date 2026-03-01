@@ -78,6 +78,7 @@ import {
 import { clearMusicCache, resolveMusicCacheRoot } from "../../services/musicDownload";
 import { clearFpackExtractionCache, getFpackExtractionRoot } from "../../services/fpack";
 import { clearEroScriptsCache, resolveEroScriptsCacheRoot } from "../../services/eroscripts";
+import { clearAcquisitionDownloadData } from "../../services/acquisition";
 import { publicProcedure, router } from "../trpc";
 import { and, eq, desc, asc, inArray } from "drizzle-orm";
 import {
@@ -2001,6 +2002,31 @@ export const dbRouter = router({
       return { ...updated, tags: parseTagsJson(updated.tagsJson) };
     }),
 
+  updateRoundDifficulty: publicProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        difficulty: z.number().int().min(1).max(5),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const [updated] = await db
+        .update(round)
+        .set({ difficulty: input.difficulty, updatedAt: new Date() })
+        .where(eq(round.id, input.id))
+        .returning({ id: round.id, difficulty: round.difficulty });
+
+      if (!updated) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Round not found.",
+        });
+      }
+
+      return updated;
+    }),
+
   bulkUpdateRoundTags: publicProcedure
     .input(
       z.object({
@@ -3407,11 +3433,19 @@ export const dbRouter = router({
     }),
 
   exportInstalledDatabase: publicProcedure
-    .input(z.object({ includeResourceUris: z.boolean().optional() }).optional())
+    .input(
+      z
+        .object({
+          includeResourceUris: z.boolean().optional(),
+          includeAcquisitionSources: z.boolean().optional(),
+        })
+        .optional()
+    )
     .mutation(async ({ input }) => {
       try {
         return await exportInstalledDatabase({
           includeResourceUris: input?.includeResourceUris ?? false,
+          includeAcquisitionSources: input?.includeAcquisitionSources ?? true,
         });
       } catch (error) {
         throw new TRPCError({
@@ -3432,6 +3466,8 @@ export const dbRouter = router({
         compressionMode: z.enum(["copy", "av1"]).optional(),
         compressionStrength: z.number().optional(),
         audioBitrateKbps: z.union([z.literal(128), z.literal(192), z.literal(256)]).optional(),
+        includeAcquisitionSources: z.boolean().optional(),
+        replaceOriginalLinksWithAcquisition: z.boolean().optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -3445,6 +3481,8 @@ export const dbRouter = router({
           compressionMode: input.compressionMode,
           compressionStrength: input.compressionStrength,
           audioBitrateKbps: input.audioBitrateKbps,
+          includeAcquisitionSources: input.includeAcquisitionSources ?? true,
+          replaceOriginalLinksWithAcquisition: input.replaceOriginalLinksWithAcquisition ?? false,
         });
       } catch (error) {
         throw new TRPCError({
@@ -3626,6 +3664,7 @@ export const dbRouter = router({
           musicCache: z.boolean().optional(),
           fpackExtraction: z.boolean().optional(),
           eroscriptsCache: z.boolean().optional(),
+          acquisitionDownloads: z.boolean().optional(),
           settings: z.boolean().optional(),
         })
         .optional()
@@ -3649,6 +3688,7 @@ export const dbRouter = router({
         musicCache = true,
         fpackExtraction = true,
         eroscriptsCache = true,
+        acquisitionDownloads = true,
         settings = true,
       } = input ?? {};
 
@@ -3706,6 +3746,9 @@ export const dbRouter = router({
       }
       if (eroscriptsCache) {
         cacheClearTasks.push(clearEroScriptsCache());
+      }
+      if (acquisitionDownloads) {
+        cacheClearTasks.push(clearAcquisitionDownloadData());
       }
       await Promise.all(cacheClearTasks);
 

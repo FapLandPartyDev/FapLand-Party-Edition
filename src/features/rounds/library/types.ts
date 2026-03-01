@@ -134,6 +134,8 @@ export type LegacyPlaylistReviewState = {
 export type LibraryExportDialogState = {
   exportMode: "all" | "selected";
   includeMedia: boolean;
+  includeAcquisitionSources: boolean;
+  replaceOriginalLinksWithAcquisition: boolean;
   asFpack: boolean;
   compressionMode: "copy" | "av1" | null;
   compressionStrength: number;

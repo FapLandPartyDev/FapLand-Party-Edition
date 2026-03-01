@@ -13,12 +13,14 @@ export const EROSCRIPTS_CACHE_RELATIVE_PATH = "eroscripts-cache";
 export const FPACK_EXTRACTION_RELATIVE_PATH = "fpacks";
 export const PLAYABLE_VIDEO_CACHE_RELATIVE_PATH = "video-playback-cache";
 export const HARDMODE_FUNSCRIPT_RELATIVE_PATH = "hardmode-funscripts";
+export const ACQUISITION_DOWNLOAD_RELATIVE_PATH = "acquisition-downloads";
 
 export const PORTABLE_STORAGE_DEFAULTS: ReadonlyMap<string, string> = new Map([
   ["webVideo.cacheRootPath", WEBSITE_VIDEO_CACHE_RELATIVE_PATH],
   ["music.cacheRootPath", MUSIC_CACHE_RELATIVE_PATH],
   ["eroscripts.cacheRootPath", EROSCRIPTS_CACHE_RELATIVE_PATH],
   ["fpack.extractionPath", FPACK_EXTRACTION_RELATIVE_PATH],
+  ["acquisition.downloadRootPath", ACQUISITION_DOWNLOAD_RELATIVE_PATH],
 ]);
 
 function getUserDataSuffix(): string | null {

@@ -6,10 +6,13 @@ import { resolveInstallExportBaseDir } from "./appPaths";
 import { asc } from "drizzle-orm";
 import { round } from "./db/schema";
 import { parseOptionalRoundCutRangesJson } from "../../src/utils/roundCuts";
+import { exportSource } from "./acquisition";
+import type { acquisitionSource } from "./db/schema";
 export type RoundType = "Normal" | "Interjection" | "Cum";
 
 export type ExportInstalledDatabaseInput = {
   includeResourceUris?: boolean;
+  includeAcquisitionSources?: boolean;
 };
 
 export type ExportInstalledDatabaseResult = {
@@ -18,6 +21,7 @@ export type ExportInstalledDatabaseResult = {
   roundFiles: number;
   exportedRounds: number;
   includeResourceUris: boolean;
+  acquisitionSources: number;
 };
 
 type SidecarResource = {
@@ -47,6 +51,11 @@ type SidecarRound = {
     description: string | null;
     phash: string | null;
   } | null;
+  acquisitionCandidates?: Array<{
+    sourceId: string;
+    sourcePath: string;
+    source: typeof acquisitionSource.$inferSelect;
+  }>;
 };
 
 function toSafeIsoTimestamp(date: Date): string {
@@ -61,7 +70,27 @@ function toSlug(value: string): string {
   return normalized || "unnamed";
 }
 
-function toRoundSidecar(round: SidecarRound, includeResourceUris: boolean) {
+function uniqueSources(rounds: SidecarRound[]) {
+  const byId = new Map<string, typeof acquisitionSource.$inferSelect>();
+  for (const entry of rounds) {
+    for (const candidate of entry.acquisitionCandidates ?? [])
+      byId.set(candidate.sourceId, candidate.source);
+  }
+  return [...byId.values()].map(exportSource);
+}
+
+function toRoundSidecar(
+  round: SidecarRound,
+  includeResourceUris: boolean,
+  includeAcquisitionSources: boolean,
+  standalone = false
+) {
+  const candidates = includeAcquisitionSources
+    ? (round.acquisitionCandidates ?? []).map((candidate) => ({
+        sourceId: candidate.sourceId,
+        filePath: candidate.sourcePath,
+      }))
+    : [];
   return ZRoundSidecar.parse({
     name: round.name,
     author: round.author ?? undefined,
@@ -80,20 +109,42 @@ function toRoundSidecar(round: SidecarRound, includeResourceUris: boolean) {
           funscriptOffsetMs: resource.funscriptOffsetMs ?? undefined,
         }))
       : [],
+    ...(standalone && candidates.length > 0
+      ? {
+          acquisition: {
+            version: 1,
+            sources: uniqueSources([round]),
+            candidates,
+          },
+        }
+      : {}),
   });
 }
 
 function toHeroSidecar(
   hero: NonNullable<SidecarRound["hero"]>,
   rounds: SidecarRound[],
-  includeResourceUris: boolean
+  includeResourceUris: boolean,
+  includeAcquisitionSources: boolean
 ) {
+  const sources = includeAcquisitionSources ? uniqueSources(rounds) : [];
   return ZHeroSidecar.parse({
     name: hero.name,
     author: hero.author ?? undefined,
     description: hero.description ?? undefined,
     phash: hero.phash ?? undefined,
-    rounds: rounds.map((round) => toRoundSidecar(round, includeResourceUris)),
+    ...(sources.length > 0 ? { acquisition: { version: 1, sources } } : {}),
+    rounds: rounds.map((round) => ({
+      ...toRoundSidecar(round, includeResourceUris, false),
+      ...(includeAcquisitionSources && (round.acquisitionCandidates?.length ?? 0) > 0
+        ? {
+            acquisitionCandidates: (round.acquisitionCandidates ?? []).map((candidate) => ({
+              sourceId: candidate.sourceId,
+              filePath: candidate.sourcePath,
+            })),
+          }
+        : {}),
+    })),
   });
 }
 
@@ -105,6 +156,7 @@ export async function exportInstalledDatabase(
   input: ExportInstalledDatabaseInput = {}
 ): Promise<ExportInstalledDatabaseResult> {
   const includeResourceUris = input.includeResourceUris ?? false;
+  const includeAcquisitionSources = input.includeAcquisitionSources ?? true;
   const now = new Date();
   const exportDir = path.join(resolveInstallExportBaseDir(), toSafeIsoTimestamp(now));
 
@@ -112,6 +164,7 @@ export async function exportInstalledDatabase(
     with: {
       hero: true,
       resources: true,
+      acquisitionCandidates: { with: { source: true } },
     },
     orderBy: [asc(round.createdAt), asc(round.id)],
   })) as SidecarRound[];
@@ -135,7 +188,7 @@ export async function exportInstalledDatabase(
 
   let roundFiles = 0;
   for (const round of standaloneRounds) {
-    const sidecar = toRoundSidecar(round, includeResourceUris);
+    const sidecar = toRoundSidecar(round, includeResourceUris, includeAcquisitionSources, true);
     const fileName = `${toSlug(round.name)}__${round.id}.round`;
     await writeJsonFile(path.join(exportDir, fileName), sidecar);
     roundFiles += 1;
@@ -143,7 +196,12 @@ export async function exportInstalledDatabase(
 
   let heroFiles = 0;
   for (const [heroId, entry] of heroGroups) {
-    const sidecar = toHeroSidecar(entry.hero, entry.rounds, includeResourceUris);
+    const sidecar = toHeroSidecar(
+      entry.hero,
+      entry.rounds,
+      includeResourceUris,
+      includeAcquisitionSources
+    );
     const fileName = `${toSlug(entry.hero.name)}__${heroId}.hero`;
     await writeJsonFile(path.join(exportDir, fileName), sidecar);
     heroFiles += 1;
@@ -155,5 +213,6 @@ export async function exportInstalledDatabase(
     roundFiles,
     exportedRounds: rounds.length,
     includeResourceUris,
+    acquisitionSources: includeAcquisitionSources ? uniqueSources(rounds).length : 0,
   };
 }

@@ -1,16 +1,32 @@
 # What's New
 
+## v0.6.23-beta
+
+### Added
+
+- **BitTorrent & Magnet Link Media Acquisition** — integrated native BitTorrent downloading (via WebTorrent) and public magnet link / `.torrent` file parsing, enabling direct background acquisition of missing video assets for rounds and heroes.
+- **Default Acquisition Sources Manifest** — ships with an editable `acquisition-sources.txt` manifest containing default public torrent collections and MEGA archive folders, automatically imported on startup.
+- **Interactive Media Acquisition Review Modal** — importing sidecars (`.hero`, `.round`, `.fpack`, `.fplay`) or opening playlists with missing video assets now presents an interactive review dialog to resolve missing media by downloading candidate files from matching torrent and MEGA sources.
+- **Acquisition Settings Panel** — a new Acquisition & Downloads section in Settings allows configuring maximum active downloads, download/upload bandwidth limits (MB/s), seed ratio and seed time limits, and choosing custom download directories.
+- **Shareable Download Sources in Exports** — sidecar exports (`.fpack`, `.hero`, `.round`, `.fplay`, library packages) can now embed shareable magnet and MEGA acquisition source metadata so recipients can automatically fetch missing video assets.
+- **BitTorrent File Association (`.torrent`)** — added system file association support for `.torrent` metadata files on Windows and Electron desktop builds.
+- **Installed-Round Range Selection** — Select mode in the installed rounds library now supports Shift-click range selection between the anchor round and clicked card, respecting current filters, sorting, and collapsed groups.
+
+### Changed
+
+- **Automatic Anti-Perk Selection** — successful anti-perk rolls now select from the eligible pool with weighted probabilities (8/4/2/1 for common/rare/epic/legendary) instead of using a hardcoded index range that could select nothing from small pools.
+- **Playlist Queue Reconciliation** — intentionally editing or clearing a normal or cum-round queue now removes stale references to deleted hero rounds instead of forcing them through auto-resolution again.
+- **Map Editor Autosave Rework** — draft autosaving now runs on a deferred idle timer (1.5 s delay, 2 s idle timeout) driven by an explicit autosave revision counter, so viewport pan/zoom and sidebar search/filter changes are bundled into the next snapshot instead of triggering a full graph save mid-interaction.
+- Translation catalogs have been regenerated.
+
+---
+
 ## v0.6.22-beta
 
 ### Added
 
 - **"Do not play interjections in a cum round" toggle** — the Map Editor's Graph Settings panel and the Playlist Workshop now expose a `disableInterjectionsDuringCumRounds` option (on by default). When enabled, automatic interjections are skipped during final cum rounds and Cum Point rounds. The setting is persisted in the playlist config and defaults to enabled for legacy configs and endless playlists.
 - **"Allow pausing during the final cum round" toggle** — a new `allowPausingDuringFinalCumRound` option (off by default) in both authoring surfaces. When enabled, the in-round overlay grants unlimited pauses during the End-node cum round without consuming pause charges (the pause button shows "∞"), and that round forgoes the Cum Round Bonus Score. Cum Points are unaffected.
-
-### Changed
-
-- **Map Editor autosave rework** — draft autosaving now runs on a deferred idle timer (1.5 s delay, 2 s idle timeout) driven by an explicit autosave revision counter, so viewport pan/zoom and sidebar search/filter changes are bundled into the next snapshot instead of triggering a full graph save mid-interaction. Opening a playlist suppresses the next autosave, and the dirty status now reads "Autosave pending…".
-- Translation catalogs have been regenerated.
 
 ---
 

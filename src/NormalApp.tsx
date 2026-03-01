@@ -2,6 +2,7 @@ import { StrictMode, useEffect, useMemo } from "react";
 import { RouterProvider } from "@tanstack/react-router";
 import { InstallSidecarTrustModalHost } from "./components/InstallSidecarTrustModalHost";
 import { InstallConfirmationModalHost } from "./components/InstallConfirmationModalHost";
+import { AcquisitionReviewModalHost } from "./components/AcquisitionReviewModalHost";
 import { GlobalDragOverlay } from "./components/GlobalDragOverlay";
 import { showGlobalToast, ToastProvider } from "./components/ui/ToastHost";
 import { GameplayMoaningProvider } from "./contexts/GameplayMoaningContext";
@@ -61,6 +62,8 @@ function registerOpenedFileHandler(router: ReturnType<typeof getRouter>) {
     const kind = getOpenedFileKind(filePath);
     if (kind === "sidecar" || kind === "video" || kind === "folder") {
       await router.navigate({ to: "/rounds" });
+    } else if (kind === "torrent") {
+      await router.navigate({ to: "/settings" });
     } else if (kind === "playlist") {
       await router.navigate({ to: "/playlist-workshop" });
     }
@@ -78,7 +81,8 @@ function registerOpenedFileHandler(router: ReturnType<typeof getRouter>) {
             result.kind === "sidecar" ||
             result.kind === "playlist" ||
             result.kind === "video" ||
-            result.kind === "folder"
+            result.kind === "folder" ||
+            result.kind === "torrent"
           ) {
             showGlobalToast(result.feedback.message, result.feedback.variant);
             await router.invalidate();
@@ -194,6 +198,7 @@ export function NormalApp() {
           <GameplayMoaningProvider>
             <GlobalDragOverlay />
             <InstallConfirmationModalHost />
+            <AcquisitionReviewModalHost />
             <InstallSidecarTrustModalHost />
             <RouterProvider router={router} />
           </GameplayMoaningProvider>

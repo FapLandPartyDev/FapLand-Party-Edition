@@ -82,6 +82,23 @@ type TestRound = {
     funscriptOffsetMs?: number | null;
     durationMs?: number | null;
   }>;
+  acquisitionCandidates?: Array<{
+    sourceId: string;
+    sourcePath: string;
+    source: {
+      id: string;
+      kind: "torrent" | "mega";
+      name: string;
+      canonicalLocatorHash: string;
+      locatorJson: string;
+      enabled: boolean;
+      origin: "user" | "imported";
+      lastCatalogedAt: Date | null;
+      catalogError: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+  }>;
 };
 
 function installDbMocks(rounds: TestRound[]) {
@@ -352,6 +369,64 @@ describe("libraryExportPackage", () => {
     expect(
       parsedHero.rounds.find((round) => round.name === "Round B")?.excludeFromRandom
     ).toBeUndefined();
+  });
+
+  it("replaces an original video link when acquisition provenance is exported", async () => {
+    const now = new Date("2026-08-10T00:00:00.000Z");
+    installDbMocks([
+      {
+        id: "round-1",
+        name: "Linked Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri: "https://example.com/original.mp4", funscriptUri: null }],
+        acquisitionCandidates: [
+          {
+            sourceId: "source-1",
+            sourcePath: "collection/Linked Round.mp4",
+            source: {
+              id: "source-1",
+              kind: "torrent",
+              name: "Public collection",
+              canonicalLocatorHash: "hash",
+              locatorJson: JSON.stringify({
+                magnetUri: "magnet:?xt=urn:btih:0123456789012345678901234567890123456789",
+                infoHash: "0123456789012345678901234567890123456789",
+                displayName: "Public collection",
+              }),
+              enabled: true,
+              origin: "user",
+              lastCatalogedAt: now,
+              catalogError: null,
+              createdAt: now,
+              updatedAt: now,
+            },
+          },
+        ],
+      },
+    ]);
+
+    const result = await exportLibraryPackage({
+      directoryPath: rootDir,
+      includeMedia: false,
+      includeAcquisitionSources: true,
+      replaceOriginalLinksWithAcquisition: true,
+    });
+    const parsed = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Linked Round.round"), "utf8")
+    ) as { resources: unknown[]; acquisition?: { candidates: unknown[] } };
+
+    expect(parsed.resources).toEqual([]);
+    expect(parsed.acquisition?.candidates).toHaveLength(1);
   });
 
   it("copies Stash proxy media when media is included", async () => {

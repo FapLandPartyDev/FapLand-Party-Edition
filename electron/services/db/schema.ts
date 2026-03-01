@@ -31,6 +31,143 @@ export const resource = sqliteTable(
   })
 );
 
+export const acquisitionSource = sqliteTable(
+  "AcquisitionSource",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    kind: text("kind", { enum: ["torrent", "mega"] }).notNull(),
+    name: text("name").notNull(),
+    canonicalLocatorHash: text("canonicalLocatorHash").notNull(),
+    locatorJson: text("locatorJson").notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    origin: text("origin", { enum: ["user", "imported"] })
+      .notNull()
+      .default("user"),
+    lastCatalogedAt: integer("lastCatalogedAt", { mode: "timestamp" }),
+    catalogError: text("catalogError"),
+    createdAt: integer("createdAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updatedAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    locatorHashUnique: uniqueIndex("AcquisitionSource_locatorHash_unique").on(
+      table.canonicalLocatorHash
+    ),
+  })
+);
+
+export const acquisitionFile = sqliteTable(
+  "AcquisitionFile",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    sourceId: text("sourceId")
+      .notNull()
+      .references(() => acquisitionSource.id, { onDelete: "cascade" }),
+    sourcePath: text("sourcePath").notNull(),
+    displayName: text("displayName").notNull(),
+    sizeBytes: integer("sizeBytes"),
+    mediaKind: text("mediaKind", { enum: ["video", "other"] })
+      .notNull()
+      .default("other"),
+    createdAt: integer("createdAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updatedAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    sourcePathUnique: uniqueIndex("AcquisitionFile_sourceId_sourcePath_unique").on(
+      table.sourceId,
+      table.sourcePath
+    ),
+    sourceIdIdx: index("AcquisitionFile_sourceId_idx").on(table.sourceId),
+  })
+);
+
+export const roundAcquisitionCandidate = sqliteTable(
+  "RoundAcquisitionCandidate",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    roundId: text("roundId")
+      .notNull()
+      .references(() => round.id, { onDelete: "cascade" }),
+    sourceId: text("sourceId")
+      .notNull()
+      .references(() => acquisitionSource.id, { onDelete: "restrict" }),
+    sourcePath: text("sourcePath").notNull(),
+    matchKind: text("matchKind", { enum: ["explicit", "filename"] }).notNull(),
+    matchScore: real("matchScore"),
+    sortOrder: integer("sortOrder").notNull().default(0),
+  },
+  (table) => ({
+    roundSourcePathUnique: uniqueIndex("RoundAcquisitionCandidate_round_source_path_unique").on(
+      table.roundId,
+      table.sourceId,
+      table.sourcePath
+    ),
+    roundIdIdx: index("RoundAcquisitionCandidate_roundId_idx").on(table.roundId),
+  })
+);
+
+export const acquisitionJob = sqliteTable(
+  "AcquisitionJob",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    sourceId: text("sourceId")
+      .notNull()
+      .references(() => acquisitionSource.id, { onDelete: "restrict" }),
+    kind: text("kind", { enum: ["torrent", "mega"] }).notNull(),
+    state: text("state", {
+      enum: [
+        "queued",
+        "fetching_metadata",
+        "downloading",
+        "paused",
+        "seeding",
+        "completed",
+        "failed",
+        "cancelled",
+      ],
+    })
+      .notNull()
+      .default("queued"),
+    selectedPathsJson: text("selectedPathsJson").notNull().default("[]"),
+    addCompletedToLibrary: integer("addCompletedToLibrary", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    downloadedBytes: integer("downloadedBytes").notNull().default(0),
+    totalBytes: integer("totalBytes").notNull().default(0),
+    uploadedBytes: integer("uploadedBytes").notNull().default(0),
+    downloadSpeed: integer("downloadSpeed").notNull().default(0),
+    uploadSpeed: integer("uploadSpeed").notNull().default(0),
+    peerCount: integer("peerCount").notNull().default(0),
+    ratio: real("ratio").notNull().default(0),
+    activeSeedTimeMs: integer("activeSeedTimeMs").notNull().default(0),
+    errorMessage: text("errorMessage"),
+    createdAt: integer("createdAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    startedAt: integer("startedAt", { mode: "timestamp" }),
+    completedAt: integer("completedAt", { mode: "timestamp" }),
+    updatedAt: integer("updatedAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({ sourceIdIdx: index("AcquisitionJob_sourceId_idx").on(table.sourceId) })
+);
+
 export const hero = sqliteTable("Hero", {
   id: text("id")
     .primaryKey()
@@ -390,12 +527,44 @@ export const roundRelations = relations(round, ({ one, many }) => ({
     references: [hero.id],
   }),
   resources: many(resource),
+  acquisitionCandidates: many(roundAcquisitionCandidate),
 }));
 
 export const resourceRelations = relations(resource, ({ one }) => ({
   round: one(round, {
     fields: [resource.roundId],
     references: [round.id],
+  }),
+}));
+
+export const acquisitionSourceRelations = relations(acquisitionSource, ({ many }) => ({
+  files: many(acquisitionFile),
+  candidates: many(roundAcquisitionCandidate),
+  jobs: many(acquisitionJob),
+}));
+
+export const acquisitionFileRelations = relations(acquisitionFile, ({ one }) => ({
+  source: one(acquisitionSource, {
+    fields: [acquisitionFile.sourceId],
+    references: [acquisitionSource.id],
+  }),
+}));
+
+export const roundAcquisitionCandidateRelations = relations(
+  roundAcquisitionCandidate,
+  ({ one }) => ({
+    round: one(round, { fields: [roundAcquisitionCandidate.roundId], references: [round.id] }),
+    source: one(acquisitionSource, {
+      fields: [roundAcquisitionCandidate.sourceId],
+      references: [acquisitionSource.id],
+    }),
+  })
+);
+
+export const acquisitionJobRelations = relations(acquisitionJob, ({ one }) => ({
+  source: one(acquisitionSource, {
+    fields: [acquisitionJob.sourceId],
+    references: [acquisitionSource.id],
   }),
 }));
 

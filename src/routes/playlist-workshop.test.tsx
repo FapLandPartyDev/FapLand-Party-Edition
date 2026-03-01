@@ -751,6 +751,62 @@ describe("PlaylistWorkshopRoute", () => {
     ]);
   });
 
+  it("discards stale hero-round references when the normal queue is intentionally cleared", async () => {
+    const remaining = makeRound("hero-round-1", "Hero Round 1");
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
+    playlist.config.boardConfig.normalRoundOrder = [
+      buildRoundRef(remaining),
+      { idHint: "hero-round-2", name: "Hero Round 2", type: "Normal" },
+    ];
+    mocks.loaderData = {
+      installedRounds: [remaining],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    await openLinearPlaylistAndSection("Linear Playlist", "Rounds");
+    fireEvent.click(screen.getByRole("button", { name: /clear/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    fireEvent.click(screen.getByRole("button", { name: "💾 Save" }));
+
+    await waitFor(() => expect(mocks.playlists.update).toHaveBeenCalledTimes(1));
+    expect(mocks.playlists.update.mock.calls[0]?.[0]?.config.boardConfig.normalRoundOrder).toEqual(
+      []
+    );
+  });
+
+  it("discards stale cum-round references when the cum pool is intentionally edited", async () => {
+    const remaining = makeRound("cum-round-1", "Cum Round 1", { type: "Cum" });
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
+    playlist.config.boardConfig.cumRoundRefs = [
+      buildRoundRef(remaining),
+      { idHint: "cum-round-2", name: "Cum Round 2", type: "Cum" },
+    ];
+    mocks.loaderData = {
+      installedRounds: [remaining],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    render(<Component />);
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist/i }));
+    const cumSectionButton = screen
+      .getAllByRole("button")
+      .find((button) => button.textContent?.includes("Cum Rounds"));
+    if (!cumSectionButton) throw new Error("Cum Rounds section button was not found");
+    fireEvent.click(cumSectionButton);
+    await waitFor(() => expect(screen.getByText("How cum rounds work")).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "Enabled" }));
+    fireEvent.click(screen.getByRole("button", { name: "💾 Save" }));
+
+    await waitFor(() => expect(mocks.playlists.update).toHaveBeenCalledTimes(1));
+    expect(mocks.playlists.update.mock.calls[0]?.[0]?.config.boardConfig.cumRoundRefs).toEqual([]);
+  });
+
   it("cannot overwrite a playlist when catalog loading fails", async () => {
     const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
     mocks.loaderData = {

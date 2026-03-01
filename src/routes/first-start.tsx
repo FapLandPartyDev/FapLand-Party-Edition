@@ -43,6 +43,7 @@ import { useGameplayMoaning } from "../hooks/useGameplayMoaning";
 import { useGlobalMusic } from "../hooks/useGlobalMusic";
 import { useSfwMode } from "../hooks/useSfwMode";
 import { db } from "../services/db";
+import { acquisition } from "../services/acquisition";
 import { importOpenedFile } from "../services/openedFiles";
 import { trpc } from "../services/trpc";
 import { playHoverSound, playSelectSound } from "../utils/audio";
@@ -57,6 +58,7 @@ const PORTABLE_DEFAULTS: ReadonlyMap<string, string> = new Map([
   [MUSIC_CACHE_ROOT_PATH_KEY, "music-cache"],
   [EROSCRIPTS_CACHE_ROOT_PATH_KEY, "eroscripts-cache"],
   [FPACK_EXTRACTION_PATH_KEY, "fpacks"],
+  ["acquisition.downloadRootPath", "acquisition-downloads"],
 ]);
 
 const FIRST_START_COMPLETED_KEY = "app.firstStart.completed";
@@ -662,20 +664,32 @@ function FirstStartPage() {
   const [musicCacheRootPath, setMusicCacheRootPath] = useState<string | null>(null);
   const [fpackExtractionPath, setFpackExtractionPath] = useState<string | null>(null);
   const [eroscriptsCacheRootPath, setEroscriptsCacheRootPath] = useState<string | null>(null);
+  const [acquisitionDownloadRootPath, setAcquisitionDownloadRootPath] = useState<string | null>(
+    null
+  );
+  const [acquisitionResolvedDownloadRoot, setAcquisitionResolvedDownloadRoot] = useState<
+    string | null
+  >(null);
   const [isLoadingBackgroundPhashScanningEnabled, setIsLoadingBackgroundPhashScanningEnabled] =
     useState(true);
   const [isLoadingPhashPerformanceSettings, setIsLoadingPhashPerformanceSettings] = useState(true);
   const [isApplyingWeakHardwareSettings, setIsApplyingWeakHardwareSettings] = useState(false);
   const [isLoadingStorageSettings, setIsLoadingStorageSettings] = useState(true);
   const [updatingStorageTarget, setUpdatingStorageTarget] = useState<
-    "music-cache" | "website-video-cache" | "fpack-extraction" | "eroscripts-cache" | null
+    | "music-cache"
+    | "website-video-cache"
+    | "fpack-extraction"
+    | "eroscripts-cache"
+    | "acquisition-downloads"
+    | null
   >(null);
   const [isSkipping, setIsSkipping] = useState(false);
   const [contentKey, setContentKey] = useState(0);
   const [handyInputKey, setHandyInputKey] = useState("");
   const [inputIntifaceUrl, setInputIntifaceUrl] = useState(intifaceWebsocketUrl);
   const [inputTCodeHost, setInputTCodeHost] = useState(tcodeWebsocketHost);
-  const [inputTCodeTransport, setInputTCodeTransport] = useState<TCodeTransportKind>(tcodeTransport);
+  const [inputTCodeTransport, setInputTCodeTransport] =
+    useState<TCodeTransportKind>(tcodeTransport);
   const [inputTCodeSerialPath, setInputTCodeSerialPath] = useState(tcodeSerialPath);
   const [inputTCodeBaudRate, setInputTCodeBaudRate] = useState(String(tcodeBaudRate));
   const [inputTCodePrecision, setInputTCodePrecision] = useState<TCodePrecision>(tcodePrecision);
@@ -695,7 +709,14 @@ function FirstStartPage() {
     setInputTCodeSerialPath(tcodeSerialPath);
     setInputTCodeBaudRate(String(tcodeBaudRate));
     setInputTCodePrecision(tcodePrecision);
-  }, [intifaceWebsocketUrl, tcodeWebsocketHost, tcodeTransport, tcodeSerialPath, tcodeBaudRate, tcodePrecision]);
+  }, [
+    intifaceWebsocketUrl,
+    tcodeWebsocketHost,
+    tcodeTransport,
+    tcodeSerialPath,
+    tcodeBaudRate,
+    tcodePrecision,
+  ]);
   const currentStep = STEPS[stepIndex] ?? STEPS[0]!;
   const displayStepTitle = abbreviateNsfwText(getStepTitle(currentStep.id), sfwMode);
   const displayStepDescription = abbreviateNsfwText(getStepDescription(currentStep.id), sfwMode);
@@ -766,6 +787,7 @@ function FirstStartPage() {
       trpc.store.get.query({ key: MUSIC_CACHE_ROOT_PATH_KEY }),
       trpc.store.get.query({ key: FPACK_EXTRACTION_PATH_KEY }),
       trpc.store.get.query({ key: EROSCRIPTS_CACHE_ROOT_PATH_KEY }),
+      acquisition.getSettings(),
     ])
       .then(
         ([
@@ -773,6 +795,7 @@ function FirstStartPage() {
           rawMusicCacheRootPath,
           rawFpackExtractionPath,
           rawEroscriptsCacheRootPath,
+          acquisitionSettings,
         ]) => {
           if (cancelled) return;
           setWebsiteVideoCacheRootPath(
@@ -797,6 +820,8 @@ function FirstStartPage() {
               ? rawEroscriptsCacheRootPath.trim()
               : null
           );
+          setAcquisitionDownloadRootPath(acquisitionSettings.downloadRootPath);
+          setAcquisitionResolvedDownloadRoot(acquisitionSettings.resolvedDownloadRoot);
         }
       )
       .catch((error) => {
@@ -1238,7 +1263,12 @@ function FirstStartPage() {
   };
 
   const updateStoragePath = async (
-    target: "music-cache" | "website-video-cache" | "fpack-extraction" | "eroscripts-cache"
+    target:
+      | "music-cache"
+      | "website-video-cache"
+      | "fpack-extraction"
+      | "eroscripts-cache"
+      | "acquisition-downloads"
   ) => {
     if (isBusy || updatingStorageTarget) return;
     setUpdatingStorageTarget(target);
@@ -1270,6 +1300,16 @@ function FirstStartPage() {
         return;
       }
 
+      if (target === "acquisition-downloads") {
+        const selected = await window.electronAPI.dialog.selectAcquisitionDownloadDirectory?.();
+        if (!selected) return;
+        await acquisition.updateSettings({ downloadRootPath: selected.trim() });
+        const nextSettings = await acquisition.getSettings();
+        setAcquisitionDownloadRootPath(nextSettings.downloadRootPath);
+        setAcquisitionResolvedDownloadRoot(nextSettings.resolvedDownloadRoot);
+        return;
+      }
+
       const selected = await window.electronAPI.dialog.selectEroScriptsCacheDirectory();
       if (!selected) return;
       const value = selected.trim();
@@ -1283,7 +1323,12 @@ function FirstStartPage() {
   };
 
   const resetStoragePath = async (
-    target: "music-cache" | "website-video-cache" | "fpack-extraction" | "eroscripts-cache"
+    target:
+      | "music-cache"
+      | "website-video-cache"
+      | "fpack-extraction"
+      | "eroscripts-cache"
+      | "acquisition-downloads"
   ) => {
     if (isBusy || updatingStorageTarget) return;
     setUpdatingStorageTarget(target);
@@ -1301,6 +1346,13 @@ function FirstStartPage() {
       if (target === "fpack-extraction") {
         await trpc.store.set.mutate({ key: FPACK_EXTRACTION_PATH_KEY, value: null });
         setFpackExtractionPath(null);
+        return;
+      }
+      if (target === "acquisition-downloads") {
+        await acquisition.updateSettings({ downloadRootPath: null });
+        const nextSettings = await acquisition.getSettings();
+        setAcquisitionDownloadRootPath(nextSettings.downloadRootPath);
+        setAcquisitionResolvedDownloadRoot(nextSettings.resolvedDownloadRoot);
         return;
       }
       await trpc.store.set.mutate({ key: EROSCRIPTS_CACHE_ROOT_PATH_KEY, value: null });
@@ -2274,6 +2326,14 @@ function FirstStartPage() {
                             value: eroscriptsCacheRootPath,
                             fallback: t`Default app data folder`,
                           },
+                          {
+                            id: "acquisition-downloads" as const,
+                            storeKey: "acquisition.downloadRootPath",
+                            title: t`Torrent & MEGA Downloads`,
+                            description: t`Downloaded files and partial torrent data.`,
+                            value: acquisitionDownloadRootPath,
+                            fallback: acquisitionResolvedDownloadRoot ?? t`Default app data folder`,
+                          },
                         ].map((location) => {
                           const isPending = updatingStorageTarget === location.id;
                           return (
@@ -2715,7 +2775,9 @@ function FirstStartPage() {
                               </div>
                               <button
                                 type="button"
-                                disabled={handyConnected || handyIsConnecting || tcodeSerialPortsLoading}
+                                disabled={
+                                  handyConnected || handyIsConnecting || tcodeSerialPortsLoading
+                                }
                                 onClick={() => void refreshTCodeSerialPorts()}
                                 className="self-end rounded-xl border border-emerald-300/40 bg-emerald-500/15 px-4 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-emerald-100 transition-colors hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
                               >
@@ -2751,7 +2813,9 @@ function FirstStartPage() {
                             <select
                               id="first-start-tcode-precision"
                               value={inputTCodePrecision}
-                              onChange={(event) => setInputTCodePrecision(event.target.value === "3" ? 3 : 4)}
+                              onChange={(event) =>
+                                setInputTCodePrecision(event.target.value === "3" ? 3 : 4)
+                              }
                               disabled={handyConnected || handyIsConnecting}
                               className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20 disabled:opacity-60"
                             >

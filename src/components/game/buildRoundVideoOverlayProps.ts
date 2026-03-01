@@ -33,6 +33,7 @@ type RoundVideoOverlaySessionConfig = Pick<
   | "showCumRoundOutcomeMenuOnCumRequest"
   | "onOpenOptions"
   | "onOptionsActionsChange"
+  | "onDifficultyControlChange"
   | "allowDebugRoundControls"
   | "extraModifiers"
   | "onFunscriptFrame"
@@ -88,6 +89,7 @@ export function buildRoundVideoOverlayProps({
     showCumRoundOutcomeMenuOnCumRequest: session?.showCumRoundOutcomeMenuOnCumRequest,
     onOpenOptions: session?.onOpenOptions,
     onOptionsActionsChange: session?.onOptionsActionsChange,
+    onDifficultyControlChange: session?.onDifficultyControlChange,
     allowDebugRoundControls: session?.allowDebugRoundControls,
     extraModifiers: session?.extraModifiers,
     onFunscriptFrame: session?.onFunscriptFrame,
@@ -163,6 +165,7 @@ export type GameplayRoundVideoOverlayLaunchConfig = {
   showCumRoundOutcomeMenuOnCumRequest?: boolean;
   onOpenOptions?: () => void;
   onOptionsActionsChange?: RoundVideoOverlayProps["onOptionsActionsChange"];
+  onDifficultyControlChange?: RoundVideoOverlayProps["onDifficultyControlChange"];
   onUiVisibilityChange?: (visible: boolean) => void;
   onPreviewStateChange?: (state: { active: boolean; loading: boolean }) => void;
   initialShowProgressBarAlways?: boolean;
@@ -218,6 +221,7 @@ export function buildGameplayRoundVideoOverlayProps(
       showCumRoundOutcomeMenuOnCumRequest: config.showCumRoundOutcomeMenuOnCumRequest,
       onOpenOptions: config.onOpenOptions,
       onOptionsActionsChange: config.onOptionsActionsChange,
+      onDifficultyControlChange: config.onDifficultyControlChange,
       onUiVisibilityChange: config.onUiVisibilityChange,
       onPreviewStateChange: config.onPreviewStateChange,
       allowDebugRoundControls: config.allowDebugRoundControls,

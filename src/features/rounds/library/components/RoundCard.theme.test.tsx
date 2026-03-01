@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { VideoDownloadProgress } from "@/services/db";
 import type { RoundLibraryEntry } from "../types";
@@ -33,7 +33,7 @@ const round = {
   source: "local",
   videoDurationSec: 60,
   websiteVideoCacheStatus: null,
-} as RoundLibraryEntry;
+} as unknown as RoundLibraryEntry;
 
 describe("RoundCard theme styling", () => {
   it("uses theme-aware hooks for focus, selection, and download progress", () => {
@@ -62,5 +62,29 @@ describe("RoundCard theme styling", () => {
     );
     expect(container.querySelector(".round-library-progress")).not.toBeNull();
     expect(container.querySelector('[class*="cyan"]')).toBeNull();
+  });
+
+  it("passes Shift-click modifiers through the selection callback", () => {
+    const onToggleSelection = vi.fn();
+    const { container } = render(
+      <RoundCard
+        round={round}
+        index={0}
+        onHoverSfx={vi.fn()}
+        onPlay={vi.fn()}
+        showDisabledBadge={false}
+        selectionMode
+        onToggleSelection={onToggleSelection}
+        onInspect={vi.fn()}
+      />
+    );
+
+    const selectionButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Select Themed round"]'
+    );
+    if (!selectionButton) throw new Error("Selection button was not rendered");
+    fireEvent.click(selectionButton, { shiftKey: true });
+
+    expect(onToggleSelection).toHaveBeenCalledWith(round, { shiftKey: true });
   });
 });

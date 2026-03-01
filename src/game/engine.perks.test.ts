@@ -6,6 +6,7 @@ import {
   createInitialGameState,
   rollTurn,
   selectPerk,
+  triggerAutomaticAntiPerk,
   triggerQueuedRound,
 } from "./engine";
 import { filterPerkIdsByGameplayCapabilities, getPerkById } from "./data/perks";
@@ -564,7 +565,7 @@ describe("engine new perks", () => {
 
     const afterRound = completeRound(activeRoundState, undefined, [], {
       antiPerkTriggerRoll: 0.99,
-      antiPerkIndex: 0,
+      antiPerkSelectionRoll: 0,
       perkTriggerRoll: 0.99,
       perkChoicesRolls: [0],
     });
@@ -597,7 +598,7 @@ describe("engine new perks", () => {
       },
       undefined,
       [],
-      { antiPerkTriggerRoll: 0.99, antiPerkIndex: 0, perkTriggerRoll: 0.75 }
+      { antiPerkTriggerRoll: 0.99, antiPerkSelectionRoll: 0, perkTriggerRoll: 0.75 }
     );
 
     expect(afterRound.players[0]?.antiPerks).toContain("jammed-dice");
@@ -627,7 +628,7 @@ describe("engine new perks", () => {
       { ...base, antiPerkProbability: 0.6, activeRound },
       undefined,
       [],
-      { antiPerkTriggerRoll: 0.59, antiPerkIndex: 0, perkTriggerRoll: 1 }
+      { antiPerkTriggerRoll: 0.59, antiPerkSelectionRoll: 0, perkTriggerRoll: 1 }
     );
     expect(triggered.antiPerkProbability).toBeCloseTo(0.2);
 
@@ -643,6 +644,76 @@ describe("engine new perks", () => {
       { antiPerkTriggerRoll: 0, perkTriggerRoll: 1 }
     );
     expect(emptyPool.antiPerkProbability).toBeCloseTo(0.7);
+  });
+
+  it.each(["milker", "jackhammer"])(
+    "always selects the sole enabled %s anti-perk after a successful roll",
+    (antiPerkId) => {
+      const config = makeConfig();
+      config.perkPool.enabledAntiPerkIds = [antiPerkId];
+      const base = { ...createInitialGameState(config), antiPerkProbability: 1 };
+
+      const result = triggerAutomaticAntiPerk(base, base.players[0]!.id, {
+        antiPerkTriggerRoll: 0.999,
+        antiPerkSelectionRoll: 0.999,
+      });
+
+      expect(result.triggered).toBe(true);
+      expect(result.state.players[0]?.antiPerks).toContain(antiPerkId);
+    }
+  );
+
+  it("selects every member of a two-item legendary anti-perk pool", () => {
+    const config = makeConfig();
+    config.perkPool.enabledAntiPerkIds = ["milker", "jackhammer"];
+    const base = { ...createInitialGameState(config), antiPerkProbability: 1 };
+
+    const first = triggerAutomaticAntiPerk(base, base.players[0]!.id, {
+      antiPerkTriggerRoll: 0,
+      antiPerkSelectionRoll: 0.1,
+    });
+    const second = triggerAutomaticAntiPerk(base, base.players[0]!.id, {
+      antiPerkTriggerRoll: 0,
+      antiPerkSelectionRoll: 0.9,
+    });
+
+    expect(first.triggered).toBe(true);
+    expect(first.state.players[0]?.antiPerks).toContain("milker");
+    expect(second.triggered).toBe(true);
+    expect(second.state.players[0]?.antiPerks).toContain("jackhammer");
+  });
+
+  it("uses 4:2:1 rarity weights within the eligible rare, epic, and legendary pool", () => {
+    const config = makeConfig();
+    config.perkPool.enabledAntiPerkIds = ["cold-streak", "virus", "milker"];
+    const base = { ...createInitialGameState(config), antiPerkProbability: 1 };
+
+    const selectedIdAt = (antiPerkSelectionRoll: number) => {
+      const result = triggerAutomaticAntiPerk(base, base.players[0]!.id, {
+        antiPerkTriggerRoll: 0,
+        antiPerkSelectionRoll,
+      });
+      expect(result.triggered).toBe(true);
+      return result.state.log[0];
+    };
+
+    expect(selectedIdAt(0.2)).toContain("Virus");
+    expect(selectedIdAt(0.4)).toContain("Milker");
+    expect(selectedIdAt(0.7)).toContain("Cold Streak");
+  });
+
+  it("does not select an anti-perk when the probability roll fails", () => {
+    const config = makeConfig();
+    config.perkPool.enabledAntiPerkIds = ["milker"];
+    const base = { ...createInitialGameState(config), antiPerkProbability: 0.5 };
+
+    const result = triggerAutomaticAntiPerk(base, base.players[0]!.id, {
+      antiPerkTriggerRoll: 0.5,
+      antiPerkSelectionRoll: 0,
+    });
+
+    expect(result.triggered).toBe(false);
+    expect(result.state).toBe(base);
   });
 
   it("uses luck to bias perk rarity", () => {

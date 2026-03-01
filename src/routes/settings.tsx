@@ -77,6 +77,13 @@ import {
 } from "../services/integrations";
 import { security } from "../services/security";
 import { trpc } from "../services/trpc";
+import {
+  acquisition,
+  type AcquisitionFile,
+  type AcquisitionJob,
+  type AcquisitionSettings,
+  type AcquisitionSource,
+} from "../services/acquisition";
 import { useLocale } from "../i18n";
 import { playHoverSound, playSelectSound } from "../utils/audio";
 import { abbreviateNsfwText } from "../utils/sfwText";
@@ -2892,6 +2899,7 @@ export function SettingsPage() {
                     }}
                   />
                   <SourceIntegrationsCard />
+                  <AcquisitionSourcesCard />
                   <AutoScanFoldersCard
                     folders={autoScanFolders}
                     notices={folderImportNotices}
@@ -3027,6 +3035,7 @@ export function SettingsPage() {
                       void resetFpackExtractionFolder();
                     }}
                   />
+                  <AcquisitionDownloadLocationCard />
                   <PhashScanCard />
                   <MigrationCard />
                   <MigrateToPortableCard />
@@ -3210,6 +3219,115 @@ export function SettingsPage() {
         }}
       />
     </div>
+  );
+}
+
+function AcquisitionDownloadLocationCard() {
+  const { t } = useLingui();
+  const [settings, setSettings] = useState<AcquisitionSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, setIsPending] = useState(false);
+  const [isOpening, setIsOpening] = useState(false);
+
+  const reload = useCallback(async () => {
+    try {
+      setSettings(await acquisition.getSettings());
+    } catch (error) {
+      console.error("Failed to load acquisition download location", error);
+      setSettings(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const chooseFolder = async () => {
+    const selected = await window.electronAPI.dialog.selectAcquisitionDownloadDirectory?.();
+    if (!selected) return;
+    setIsPending(true);
+    try {
+      await acquisition.updateSettings({ downloadRootPath: selected.trim() });
+      await reload();
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  const resetFolder = async () => {
+    setIsPending(true);
+    try {
+      await acquisition.updateSettings({ downloadRootPath: null });
+      await reload();
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  const openFolder = async () => {
+    setIsOpening(true);
+    try {
+      await acquisition.openDownloadRoot();
+    } finally {
+      setIsOpening(false);
+    }
+  };
+
+  return (
+    <section className="animate-entrance rounded-3xl border border-cyan-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl">
+      <div className="mb-4">
+        <h2 className="text-lg font-extrabold tracking-tight text-cyan-100">
+          <Trans>Acquisition Download Location</Trans>
+        </h2>
+        <p className="mt-1 text-sm text-zinc-300">
+          <Trans>Choose where torrent and MEGA downloads are stored.</Trans>
+        </p>
+      </div>
+      <div className="rounded-2xl border border-cyan-300/25 bg-black/35 p-4">
+        <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+          <Trans>Current Location</Trans>
+        </div>
+        <div className="mt-2 break-all font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-100">
+          {isLoading ? t`Loading...` : (settings?.resolvedDownloadRoot ?? t`Unavailable`)}
+        </div>
+        <p className="mt-2 text-xs text-zinc-500">
+          <Trans>
+            Changing this affects new downloads. Existing files are not moved automatically.
+          </Trans>
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={!settings || isPending}
+            onMouseEnter={playHoverSound}
+            onClick={() => void chooseFolder()}
+            className="rounded-xl border border-cyan-300/60 bg-cyan-500/25 px-4 py-2 text-sm font-semibold text-cyan-100 disabled:opacity-50"
+          >
+            {isPending ? t`Updating...` : t`Choose Folder`}
+          </button>
+          <button
+            type="button"
+            disabled={!settings || isPending || isOpening}
+            onMouseEnter={playHoverSound}
+            onClick={() => void openFolder()}
+            className="rounded-xl border border-cyan-300/60 bg-cyan-500/20 px-4 py-2 text-sm font-semibold text-cyan-100 disabled:opacity-50"
+          >
+            {isOpening ? t`Opening...` : t`Open Current Folder`}
+          </button>
+          <button
+            type="button"
+            disabled={!settings?.downloadRootPath || isPending}
+            onMouseEnter={playHoverSound}
+            onClick={() => void resetFolder()}
+            className="rounded-xl border border-zinc-500/60 bg-zinc-700/40 px-4 py-2 text-sm font-semibold text-zinc-100 disabled:opacity-50"
+          >
+            <Trans>Use Default</Trans>
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -7242,6 +7360,638 @@ function SourceIntegrationsCard() {
           })
         )}
       </div>
+    </section>
+  );
+}
+
+function formatAcquisitionBytes(value: number | null | undefined): string {
+  if (!value) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const index = Math.min(units.length - 1, Math.floor(Math.log(value) / Math.log(1024)));
+  return `${(value / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function parseAcquisitionJobPaths(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.filter((entry): entry is string => typeof entry === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function AcquisitionSourcesCard() {
+  const { t } = useLingui();
+  const [settings, setSettings] = useState<AcquisitionSettings | null>(null);
+  const [sources, setSources] = useState<AcquisitionSource[]>([]);
+  const [jobs, setJobs] = useState<AcquisitionJob[]>([]);
+  const [files, setFiles] = useState<AcquisitionFile[]>([]);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+  const [sourceUri, setSourceUri] = useState("");
+  const [fileFilter, setFileFilter] = useState("");
+  const [addCompletedToLibrary, setAddCompletedToLibrary] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    const [nextSettings, nextSources, nextJobs] = await Promise.all([
+      acquisition.getSettings(),
+      acquisition.listSources(),
+      acquisition.listJobs(),
+    ]);
+    setSettings(nextSettings);
+    setSources(nextSources);
+    setJobs(nextJobs);
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial IPC hydration
+    void refresh();
+    const timer = window.setInterval(() => void acquisition.listJobs().then(setJobs), 1000);
+    return () => window.clearInterval(timer);
+  }, [refresh]);
+
+  const loadFiles = async (sourceId: string) => {
+    setSelectedSourceId(sourceId);
+    setSelectedPaths(new Set());
+    setFileFilter("");
+    let nextFiles = await acquisition.listSourceFiles(sourceId);
+    const source = sources.find((candidate) => candidate.id === sourceId);
+    if (source && nextFiles.length === 0) {
+      setBusy(true);
+      setMessage(null);
+      try {
+        await acquisition.refreshSource(sourceId);
+        nextFiles = await acquisition.listSourceFiles(sourceId);
+        await refresh();
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : t`Failed to load source catalog.`);
+      } finally {
+        setBusy(false);
+      }
+    }
+    setFiles(nextFiles);
+    return nextFiles;
+  };
+
+  const enableTorrents = async (enabled: boolean) => {
+    if (
+      enabled &&
+      !window.confirm(
+        t`Torrent peers and trackers can observe your IP address. Use a trusted VPN if this exposure is a concern. Enable torrent support?`
+      )
+    )
+      return;
+    setSettings((current) => (current ? { ...current, torrentEnabled: enabled } : current));
+    await acquisition.updateSettings({ torrentEnabled: enabled });
+    await refresh();
+  };
+
+  const addUri = async () => {
+    const uri = sourceUri.trim();
+    if (!uri) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      let created: AcquisitionSource;
+      if (/^https:\/\/(?:www\.)?mega\.(?:nz|co\.nz)\//iu.test(uri)) {
+        created = await acquisition.createMegaSource(uri);
+      } else {
+        created = await acquisition.createTorrentSource(uri);
+      }
+      setSourceUri("");
+      await refresh();
+      const catalog = await loadFiles(created.id);
+      if (created.kind === "torrent" && catalog.length === 0 && settings?.torrentEnabled) {
+        await acquisition.refreshSource(created.id);
+        await refresh();
+        await loadFiles(created.id);
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : t`Failed to add source.`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openTorrent = async () => {
+    const filePath = await window.electronAPI.dialog.selectTorrentFile?.();
+    if (!filePath) return;
+    setBusy(true);
+    try {
+      const inspected = await acquisition.inspectTorrentFile(filePath);
+      await refresh();
+      await loadFiles(inspected.source.id);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : t`Failed to open torrent file.`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const queueSelected = async () => {
+    if (!selectedSourceId || selectedPaths.size === 0) return;
+    const selectedSource = sources.find((source) => source.id === selectedSourceId);
+    if (selectedSource?.kind === "torrent" && !settings?.torrentEnabled) {
+      const enabled = window.confirm(
+        t`Torrent peers and trackers can observe your IP address. Use a trusted VPN if this exposure is a concern. Enable torrent support and continue?`
+      );
+      if (!enabled) return;
+      await acquisition.updateSettings({ torrentEnabled: true });
+    }
+    setBusy(true);
+    try {
+      await acquisition.queueFiles(selectedSourceId, [...selectedPaths], addCompletedToLibrary);
+      setSelectedPaths(new Set());
+      await refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : t`Failed to queue download.`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const renameSource = async (source: AcquisitionSource) => {
+    const name = window.prompt(t`Rename acquisition source`, source.name)?.trim();
+    if (!name || name === source.name) return;
+    await acquisition.updateSource({ sourceId: source.id, name });
+    await refresh();
+  };
+
+  const deleteSource = async (source: AcquisitionSource) => {
+    if (
+      !window.confirm(
+        t`Delete the acquisition source "${source.name}"? Downloaded files will be kept.`
+      )
+    )
+      return;
+    try {
+      await acquisition.deleteSource(source.id);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : t`This source is still referenced.`;
+      if (!window.confirm(`${reason}\n\n${t`Detach its round mappings and delete it?`}`)) return;
+      await acquisition.deleteSource(source.id, true);
+    }
+    if (selectedSourceId === source.id) {
+      setSelectedSourceId(null);
+      setFiles([]);
+    }
+    await refresh();
+  };
+
+  const chooseDownloadRoot = async () => {
+    const selected = await window.electronAPI.dialog.selectAcquisitionDownloadDirectory?.();
+    if (!selected) return;
+    await acquisition.updateSettings({ downloadRootPath: selected });
+    await refresh();
+  };
+
+  return (
+    <section className="animate-entrance rounded-3xl border border-cyan-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-extrabold tracking-tight text-cyan-100">
+            <Trans>Torrent &amp; MEGA Acquisition</Trans>
+          </h2>
+          <p className="mt-1 text-sm text-zinc-300">
+            <Trans>Configure public download sources and select individual video files.</Trans>
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-zinc-200">
+          <input
+            type="checkbox"
+            checked={settings?.torrentEnabled ?? false}
+            onChange={(event) => void enableTorrents(event.target.checked)}
+          />
+          <Trans>Enable Torrent Support</Trans>
+        </label>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+        <Trans>
+          Torrent traffic exposes your IP address to peers and trackers. Consider using a trusted
+          VPN. Torrent support is disabled by default.
+        </Trans>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <input
+          className="min-w-0 flex-1 rounded-xl border border-cyan-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100"
+          placeholder={t`Paste a magnet, public .torrent URL, or public MEGA link`}
+          value={sourceUri}
+          onChange={(event) => setSourceUri(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") void addUri();
+          }}
+        />
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void addUri()}
+          className="rounded-xl border border-cyan-300/60 bg-cyan-500/25 px-4 py-2 text-sm font-semibold text-cyan-100 disabled:opacity-50"
+        >
+          <Trans>Add Source</Trans>
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void openTorrent()}
+          className="rounded-xl border border-zinc-500/60 bg-zinc-700/40 px-4 py-2 text-sm font-semibold text-zinc-100 disabled:opacity-50"
+        >
+          <Trans>Open .torrent</Trans>
+        </button>
+      </div>
+
+      {message ? (
+        <div className="mt-3 rounded-xl border border-zinc-600 bg-black/40 p-3 text-sm text-zinc-200">
+          {message}
+        </div>
+      ) : null}
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(14rem,0.8fr)_minmax(20rem,1.2fr)]">
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
+            <Trans>Sources</Trans>
+          </h3>
+          {sources.length === 0 ? (
+            <p className="text-sm text-zinc-500">
+              <Trans>No acquisition sources configured.</Trans>
+            </p>
+          ) : (
+            sources.map((source) => (
+              <div
+                key={source.id}
+                className={`rounded-xl border p-3 ${selectedSourceId === source.id ? "border-cyan-300/60 bg-cyan-500/10" : "border-zinc-700 bg-black/30"}`}
+              >
+                <button
+                  type="button"
+                  className="w-full text-left"
+                  onClick={() => void loadFiles(source.id)}
+                >
+                  <div className="font-semibold text-zinc-100">{source.name}</div>
+                  <div className="text-xs uppercase text-zinc-500">{source.kind}</div>
+                </button>
+                {source.catalogError ? (
+                  <div className="mt-1 text-xs text-rose-300">{source.catalogError}</div>
+                ) : null}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      setBusy(true);
+                      setMessage(null);
+                      void acquisition
+                        .refreshSource(source.id)
+                        .then(async () => {
+                          await refresh();
+                          if (selectedSourceId === source.id) await loadFiles(source.id);
+                        })
+                        .catch((error: unknown) =>
+                          setMessage(error instanceof Error ? error.message : t`Refresh failed.`)
+                        )
+                        .finally(() => setBusy(false));
+                    }}
+                    className="text-xs text-cyan-200"
+                  >
+                    <Trans>Refresh</Trans>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void renameSource(source)}
+                    className="text-xs text-zinc-300"
+                  >
+                    <Trans>Rename</Trans>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void acquisition
+                        .updateSource({ sourceId: source.id, enabled: !source.enabled })
+                        .then(refresh)
+                    }
+                    className="text-xs text-zinc-300"
+                  >
+                    {source.enabled ? t`Disable` : t`Enable`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void deleteSource(source).catch((error: unknown) =>
+                        setMessage(error instanceof Error ? error.message : t`Delete failed.`)
+                      )
+                    }
+                    className="text-xs text-rose-300"
+                  >
+                    <Trans>Delete</Trans>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
+              <Trans>Source Files</Trans>
+            </h3>
+            <input
+              type="search"
+              value={fileFilter}
+              onChange={(event) => setFileFilter(event.target.value)}
+              placeholder={t`Filter files`}
+              className="min-w-40 flex-1 rounded-lg border border-zinc-700 bg-black/35 px-2 py-1.5 text-xs text-zinc-100"
+            />
+            <button
+              type="button"
+              disabled={busy || selectedPaths.size === 0}
+              onClick={() => void queueSelected()}
+              className="rounded-lg border border-cyan-300/60 bg-cyan-500/25 px-3 py-1.5 text-xs font-semibold text-cyan-100 disabled:opacity-40"
+            >
+              <Trans>Download Selected</Trans> ({selectedPaths.size})
+            </button>
+          </div>
+          <label className="mb-2 flex items-center gap-2 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              checked={addCompletedToLibrary}
+              onChange={(event) => setAddCompletedToLibrary(event.target.checked)}
+            />
+            <Trans>Add completed videos to library</Trans>
+          </label>
+          <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-zinc-700 bg-black/30 p-2">
+            {files
+              .filter(
+                (file) =>
+                  file.mediaKind === "video" &&
+                  file.sourcePath.toLowerCase().includes(fileFilter.trim().toLowerCase())
+              )
+              .map((file) => (
+                <label
+                  key={file.id}
+                  className="flex items-start gap-2 rounded-lg px-2 py-1.5 text-xs text-zinc-200 hover:bg-white/5"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedPaths.has(file.sourcePath)}
+                    onChange={(event) => {
+                      const next = new Set(selectedPaths);
+                      if (event.target.checked) next.add(file.sourcePath);
+                      else next.delete(file.sourcePath);
+                      setSelectedPaths(next);
+                    }}
+                  />
+                  <span className="min-w-0 flex-1 break-all">{file.sourcePath}</span>
+                  <span className="shrink-0 text-zinc-500">
+                    {formatAcquisitionBytes(file.sizeBytes)}
+                  </span>
+                </label>
+              ))}
+            {selectedSourceId && files.filter((file) => file.mediaKind === "video").length === 0 ? (
+              <p className="p-2 text-sm text-zinc-500">
+                <Trans>No video files found in this source.</Trans>
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <h3 className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
+          <Trans>Downloads</Trans>
+        </h3>
+        <div className="space-y-2">
+          {jobs.length === 0 ? (
+            <p className="text-sm text-zinc-500">
+              <Trans>No downloads yet.</Trans>
+            </p>
+          ) : (
+            jobs.map((job) => {
+              const progress =
+                job.totalBytes > 0
+                  ? Math.min(100, Math.round((job.downloadedBytes / job.totalBytes) * 100))
+                  : 0;
+              return (
+                <div
+                  key={job.id}
+                  className="rounded-xl border border-zinc-700 bg-black/30 p-3 text-sm"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold text-zinc-100">{job.source.name}</span>
+                    <span className="text-xs uppercase text-zinc-400">
+                      {job.state} · {progress}%
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded bg-zinc-800">
+                    <div className="h-full bg-cyan-400" style={{ width: `${progress}%` }} />
+                  </div>
+                  <div className="mt-2 text-xs text-zinc-400">
+                    ↓ {formatAcquisitionBytes(job.downloadSpeed)}/s · ↑{" "}
+                    {formatAcquisitionBytes(job.uploadSpeed)}/s · ratio {job.ratio.toFixed(2)} ·{" "}
+                    {job.peerCount} peers
+                  </div>
+                  <div className="mt-1 break-all text-xs text-zinc-500">
+                    {parseAcquisitionJobPaths(job.selectedPathsJson).join(", ")}
+                  </div>
+                  {job.errorMessage ? (
+                    <div className="mt-1 text-xs text-rose-300">{job.errorMessage}</div>
+                  ) : null}
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                    {job.state === "paused" ||
+                    job.state === "failed" ||
+                    job.state === "cancelled" ? (
+                      <button
+                        type="button"
+                        className="text-cyan-200"
+                        onClick={() => void acquisition.resumeJob(job.id).then(refresh)}
+                      >
+                        <Trans>Resume</Trans>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-zinc-300"
+                        onClick={() => void acquisition.pauseJob(job.id).then(refresh)}
+                      >
+                        <Trans>Pause</Trans>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-amber-200"
+                      onClick={() => void acquisition.cancelJob(job.id).then(refresh)}
+                    >
+                      <Trans>Cancel</Trans>
+                    </button>
+                    <button
+                      type="button"
+                      className="text-zinc-300"
+                      onClick={() => void acquisition.removeJob(job.id).then(refresh)}
+                    >
+                      <Trans>Remove Job</Trans>
+                    </button>
+                    <button
+                      type="button"
+                      className="text-rose-300"
+                      onClick={() =>
+                        window.confirm(t`Remove downloaded data and detach affected rounds?`) &&
+                        void acquisition.removeJobData(job.id).then(refresh)
+                      }
+                    >
+                      <Trans>Remove Data</Trans>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {settings ? (
+        <div className="mt-5 grid gap-3 rounded-xl border border-zinc-700 bg-black/25 p-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="text-xs text-zinc-400">
+            <Trans>Max active downloads</Trans>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={settings.maxActiveDownloads}
+              onChange={(event) =>
+                setSettings({ ...settings, maxActiveDownloads: Number(event.target.value) })
+              }
+              onBlur={() =>
+                void acquisition.updateSettings({ maxActiveDownloads: settings.maxActiveDownloads })
+              }
+              className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/40 px-2 py-1.5 text-zinc-100"
+            />
+          </label>
+          <label className="text-xs text-zinc-400">
+            <Trans>Download limit (MB/s)</Trans>
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              placeholder={t`Unlimited`}
+              value={
+                settings.downloadLimitBytesPerSec === null
+                  ? ""
+                  : settings.downloadLimitBytesPerSec / 1_000_000
+              }
+              onChange={(event) =>
+                setSettings({
+                  ...settings,
+                  downloadLimitBytesPerSec: event.target.value
+                    ? Math.round(Number(event.target.value) * 1_000_000)
+                    : null,
+                })
+              }
+              onBlur={() =>
+                void acquisition.updateSettings({
+                  downloadLimitBytesPerSec: settings.downloadLimitBytesPerSec,
+                })
+              }
+              className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/40 px-2 py-1.5 text-zinc-100"
+            />
+          </label>
+          <label className="text-xs text-zinc-400">
+            <Trans>Upload limit (MB/s)</Trans>
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              placeholder={t`Unlimited`}
+              value={
+                settings.uploadLimitBytesPerSec === null
+                  ? ""
+                  : settings.uploadLimitBytesPerSec / 1_000_000
+              }
+              onChange={(event) =>
+                setSettings({
+                  ...settings,
+                  uploadLimitBytesPerSec: event.target.value
+                    ? Math.round(Number(event.target.value) * 1_000_000)
+                    : null,
+                })
+              }
+              onBlur={() =>
+                void acquisition.updateSettings({
+                  uploadLimitBytesPerSec: settings.uploadLimitBytesPerSec,
+                })
+              }
+              className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/40 px-2 py-1.5 text-zinc-100"
+            />
+          </label>
+          <label className="text-xs text-zinc-400">
+            <Trans>Seed ratio</Trans>
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              value={settings.seedRatio ?? ""}
+              onChange={(event) =>
+                setSettings({
+                  ...settings,
+                  seedRatio: event.target.value ? Number(event.target.value) : null,
+                })
+              }
+              onBlur={() => void acquisition.updateSettings({ seedRatio: settings.seedRatio })}
+              className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/40 px-2 py-1.5 text-zinc-100"
+            />
+          </label>
+          <label className="text-xs text-zinc-400">
+            <Trans>Seed hours</Trans>
+            <input
+              type="number"
+              min={1}
+              value={
+                settings.seedTimeMs === null ? "" : Math.round(settings.seedTimeMs / 3_600_000)
+              }
+              onChange={(event) =>
+                setSettings({
+                  ...settings,
+                  seedTimeMs: event.target.value ? Number(event.target.value) * 3_600_000 : null,
+                })
+              }
+              onBlur={() => void acquisition.updateSettings({ seedTimeMs: settings.seedTimeMs })}
+              className="mt-1 w-full rounded-lg border border-zinc-700 bg-black/40 px-2 py-1.5 text-zinc-100"
+            />
+          </label>
+          <div className="text-xs text-zinc-400 sm:col-span-2">
+            <Trans>Download folder</Trans>
+            <div className="mt-1 break-all text-zinc-200">{settings.resolvedDownloadRoot}</div>
+            <div className="mt-2 flex flex-wrap gap-3">
+              <button
+                type="button"
+                className="text-cyan-200"
+                onClick={() => void chooseDownloadRoot()}
+              >
+                <Trans>Choose folder</Trans>
+              </button>
+              <button
+                type="button"
+                className="text-zinc-300"
+                onClick={() => void acquisition.openDownloadRoot()}
+              >
+                <Trans>Open folder</Trans>
+              </button>
+              <button
+                type="button"
+                className="text-zinc-300"
+                onClick={() =>
+                  void acquisition.updateSettings({ downloadRootPath: null }).then(refresh)
+                }
+              >
+                <Trans>Reset to default</Trans>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -188,6 +188,8 @@ export const db = {
       excludeFromRandom?: boolean;
       libraryLabel?: string | null;
     }) => withInstalledRoundCacheInvalidation(() => trpc.db.updateRound.mutate(input)),
+    updateDifficulty: (input: { id: string; difficulty: number }) =>
+      withInstalledRoundCacheInvalidation(() => trpc.db.updateRoundDifficulty.mutate(input)),
     bulkUpdateTags: (input: {
       roundIds: string[];
       mode: "replace" | "add" | "remove";
@@ -305,6 +307,8 @@ export const db = {
       compressionMode?: "copy" | "av1";
       compressionStrength?: number;
       audioBitrateKbps?: 128 | 192 | 256;
+      includeAcquisitionSources?: boolean;
+      replaceOriginalLinksWithAcquisition?: boolean;
     }) => trpc.db.exportLibraryPackage.mutate(input),
     analyzeExportPackage: (input: {
       roundIds?: string[];

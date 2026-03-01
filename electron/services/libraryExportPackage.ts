@@ -8,6 +8,8 @@ import { pipeline } from "node:stream/promises";
 import { app } from "electron";
 import { inArray } from "drizzle-orm";
 import { ZHeroSidecar, ZRoundSidecar } from "../../src/zod/installSidecar";
+import { exportSource } from "./acquisition";
+import type { acquisitionSource } from "./db/schema";
 import { parseOptionalRoundCutRangesJson } from "../../src/utils/roundCuts";
 import { getDb } from "./db";
 import { round as roundTable } from "./db/schema";
@@ -46,6 +48,8 @@ export type LibraryExportPackageInput = {
   compressionMode?: PlaylistExportCompressionMode;
   compressionStrength?: number;
   audioBitrateKbps?: PlaylistExportAudioBitrateKbps;
+  includeAcquisitionSources?: boolean;
+  replaceOriginalLinksWithAcquisition?: boolean;
 };
 
 type AnalyzeLibraryExportPackageInput = {
@@ -119,6 +123,11 @@ export type LibraryExportPackageResult = {
 };
 
 export type LibraryExportPackageAnalysis = {
+  acquisition: {
+    torrentSources: number;
+    megaSources: number;
+    mappedFiles: number;
+  };
   videoTotals: {
     uniqueVideos: number;
     localVideos: number;
@@ -178,6 +187,11 @@ type ExportableRound = {
   heroId: string | null;
   hero: ExportableHero | null;
   resources: ExportableResource[];
+  acquisitionCandidates: Array<{
+    sourceId: string;
+    sourcePath: string;
+    source: typeof acquisitionSource.$inferSelect;
+  }>;
 };
 
 type ExportedMediaFile = {
@@ -213,12 +227,12 @@ type ResourceReference = {
 
 type RoundResourceEntry = {
   round: ExportableRound;
-  resource: ExportableResource;
+  resource: ExportableResource | null;
   materialized: {
     canonicalVideoKey: string;
     video: ExportedMediaFile | null;
     funscript: ExportedMediaFile | null;
-  };
+  } | null;
 };
 
 type PreparedLibraryExport = {
@@ -816,7 +830,30 @@ function unregisterEncodeChild(child: ChildProcess): void {
   activeEncodeChildren.delete(child);
 }
 
-function toRoundSidecarPayload(entry: RoundResourceEntry) {
+function acquisitionSourcesForEntries(entries: RoundResourceEntry[]) {
+  const byId = new Map<string, typeof acquisitionSource.$inferSelect>();
+  for (const entry of entries) {
+    for (const candidate of entry.round.acquisitionCandidates ?? []) {
+      byId.set(candidate.sourceId, candidate.source);
+    }
+  }
+  return [...byId.values()].map(exportSource);
+}
+
+function acquisitionCandidatesForRound(entry: RoundResourceEntry) {
+  return (entry.round.acquisitionCandidates ?? []).map((candidate) => ({
+    sourceId: candidate.sourceId,
+    filePath: candidate.sourcePath,
+  }));
+}
+
+function toRoundSidecarPayload(
+  entry: RoundResourceEntry,
+  includeAcquisitionSources: boolean,
+  replaceOriginalLinksWithAcquisition: boolean
+) {
+  const candidates = includeAcquisitionSources ? acquisitionCandidatesForRound(entry) : [];
+  const replaceOriginalLink = replaceOriginalLinksWithAcquisition && candidates.length > 0;
   return ZRoundSidecar.parse({
     name: entry.round.name,
     author: entry.round.author ?? undefined,
@@ -833,55 +870,86 @@ function toRoundSidecarPayload(entry: RoundResourceEntry) {
     ),
     type: entry.round.type,
     excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
-    resources: [
-      {
-        videoUri: entry.materialized.video?.relativePath ?? entry.resource.videoUri,
-        funscriptUri:
-          entry.materialized.funscript?.relativePath ?? entry.resource.funscriptUri ?? undefined,
-        funscriptOffsetMs: entry.resource.funscriptOffsetMs ?? undefined,
-      },
-    ],
+    resources:
+      entry.resource &&
+      entry.materialized &&
+      (entry.materialized.video ||
+        (!replaceOriginalLink && !fromLocalMediaUri(entry.resource.videoUri)))
+        ? [
+            {
+              videoUri: entry.materialized.video?.relativePath ?? entry.resource.videoUri,
+              funscriptUri:
+                entry.materialized.funscript?.relativePath ??
+                entry.resource.funscriptUri ??
+                undefined,
+              funscriptOffsetMs: entry.resource.funscriptOffsetMs ?? undefined,
+            },
+          ]
+        : [],
+    ...(candidates.length > 0
+      ? {
+          acquisition: { version: 1, sources: acquisitionSourcesForEntries([entry]), candidates },
+        }
+      : {}),
   });
 }
 
-function toHeroSidecarPayload(hero: ExportableHero, entries: RoundResourceEntry[]) {
+function toHeroSidecarPayload(
+  hero: ExportableHero,
+  entries: RoundResourceEntry[],
+  includeAcquisitionSources: boolean,
+  replaceOriginalLinksWithAcquisition: boolean
+) {
+  const sources = includeAcquisitionSources ? acquisitionSourcesForEntries(entries) : [];
   return ZHeroSidecar.parse({
     name: hero.name,
     author: hero.author ?? undefined,
     description: hero.description ?? undefined,
     phash: hero.phash ?? undefined,
+    ...(sources.length > 0 ? { acquisition: { version: 1, sources } } : {}),
     rounds: entries
       .slice()
       .sort((a, b) =>
         a.round.name.localeCompare(b.round.name, undefined, { sensitivity: "base", numeric: true })
       )
-      .map((entry) => ({
-        name: entry.round.name,
-        author: entry.round.author ?? undefined,
-        description: entry.round.description ?? undefined,
-        bpm: entry.round.bpm ?? undefined,
-        difficulty: entry.round.difficulty ?? undefined,
-        phash: entry.round.phash ?? undefined,
-        startTime: entry.round.startTime ?? undefined,
-        endTime: entry.round.endTime ?? undefined,
-        cutRanges: parseOptionalRoundCutRangesJson(
-          entry.round.cutRangesJson,
-          entry.round.startTime,
-          entry.round.endTime
-        ),
-        type: entry.round.type,
-        excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
-        resources: [
-          {
-            videoUri: entry.materialized.video?.relativePath ?? entry.resource.videoUri,
-            funscriptUri:
-              entry.materialized.funscript?.relativePath ??
-              entry.resource.funscriptUri ??
-              undefined,
-            funscriptOffsetMs: entry.resource.funscriptOffsetMs ?? undefined,
-          },
-        ],
-      })),
+      .map((entry) => {
+        const candidates = includeAcquisitionSources ? acquisitionCandidatesForRound(entry) : [];
+        const replaceOriginalLink = replaceOriginalLinksWithAcquisition && candidates.length > 0;
+        return {
+          name: entry.round.name,
+          author: entry.round.author ?? undefined,
+          description: entry.round.description ?? undefined,
+          bpm: entry.round.bpm ?? undefined,
+          difficulty: entry.round.difficulty ?? undefined,
+          phash: entry.round.phash ?? undefined,
+          startTime: entry.round.startTime ?? undefined,
+          endTime: entry.round.endTime ?? undefined,
+          cutRanges: parseOptionalRoundCutRangesJson(
+            entry.round.cutRangesJson,
+            entry.round.startTime,
+            entry.round.endTime
+          ),
+          type: entry.round.type,
+          excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
+          resources:
+            entry.resource &&
+            entry.materialized &&
+            (entry.materialized.video ||
+              (!replaceOriginalLink && !fromLocalMediaUri(entry.resource.videoUri)))
+              ? [
+                  {
+                    videoUri: entry.materialized.video?.relativePath ?? entry.resource.videoUri,
+                    funscriptUri:
+                      entry.materialized.funscript?.relativePath ??
+                      entry.resource.funscriptUri ??
+                      undefined,
+                    funscriptOffsetMs: entry.resource.funscriptOffsetMs ?? undefined,
+                  },
+                ]
+              : [],
+          ...(candidates.length > 0 ? { acquisitionCandidates: candidates } : {}),
+        };
+      }),
   });
 }
 
@@ -984,7 +1052,7 @@ async function loadRoundsForExport(
       queries.push(
         getDb().query.round.findMany({
           where: inArray(roundTable.id, roundIds),
-          with: { hero: true, resources: true },
+          with: { hero: true, resources: true, acquisitionCandidates: { with: { source: true } } },
         }) as Promise<ExportableRound[]>
       );
     }
@@ -993,7 +1061,7 @@ async function loadRoundsForExport(
       queries.push(
         getDb().query.round.findMany({
           where: inArray(roundTable.heroId, heroIds),
-          with: { hero: true, resources: true },
+          with: { hero: true, resources: true, acquisitionCandidates: { with: { source: true } } },
         }) as Promise<ExportableRound[]>
       );
     }
@@ -1013,7 +1081,7 @@ async function loadRoundsForExport(
   }
 
   return (await getDb().query.round.findMany({
-    with: { hero: true, resources: true },
+    with: { hero: true, resources: true, acquisitionCandidates: { with: { source: true } } },
   })) as ExportableRound[];
 }
 
@@ -1113,6 +1181,21 @@ async function prepareLibraryExport(
     parallelJobs,
     includeMedia,
     analysis: {
+      acquisition: (() => {
+        const sources = new Map<string, "torrent" | "mega">();
+        const files = new Set<string>();
+        for (const entry of rounds) {
+          for (const candidate of entry.acquisitionCandidates ?? []) {
+            sources.set(candidate.sourceId, candidate.source.kind);
+            files.add(`${candidate.sourceId}\0${candidate.sourcePath}`);
+          }
+        }
+        return {
+          torrentSources: [...sources.values()].filter((kind) => kind === "torrent").length,
+          megaSources: [...sources.values()].filter((kind) => kind === "mega").length,
+          mappedFiles: files.size,
+        };
+      })(),
       videoTotals: {
         uniqueVideos: includeMedia ? videoTasks.length : 0,
         localVideos,
@@ -1472,6 +1555,8 @@ export async function exportLibraryPackage(
   activeTransferAbortControllers.clear();
   activeEncodeChildren.clear();
   const includeMedia = input.includeMedia ?? true;
+  const includeAcquisitionSources = input.includeAcquisitionSources ?? true;
+  const replaceOriginalLinksWithAcquisition = input.replaceOriginalLinksWithAcquisition ?? false;
   const now = new Date();
   const compressionStrength = normalizeCompressionStrength(input.compressionStrength);
   const audioBitrateKbps = normalizeAudioBitrateKbps(input.audioBitrateKbps);
@@ -1660,6 +1745,12 @@ export async function exportLibraryPackage(
         },
       };
     });
+    const referencedRoundIds = new Set(materializedEntries.map((entry) => entry.round.id));
+    for (const roundEntry of prepared.rounds) {
+      if (!referencedRoundIds.has(roundEntry.id)) {
+        materializedEntries.push({ round: roundEntry, resource: null, materialized: null });
+      }
+    }
 
     let roundFiles = 0;
     let heroFiles = 0;
@@ -1680,7 +1771,10 @@ export async function exportLibraryPackage(
       const sidecarBaseName = sanitizeFileSystemName(entry.round.name, `round__${entry.round.id}`);
       const fileName = toUniqueCaseInsensitiveFileName(usedSidecarNames, sidecarBaseName, ".round");
       updatePhase("writing", `Writing sidecar ${fileName}...`);
-      await writeJsonFile(path.join(exportDir, fileName), toRoundSidecarPayload(entry));
+      await writeJsonFile(
+        path.join(exportDir, fileName),
+        toRoundSidecarPayload(entry, includeAcquisitionSources, replaceOriginalLinksWithAcquisition)
+      );
       incrementStat("roundFiles");
       incrementProgress();
       roundFiles += 1;
@@ -1701,7 +1795,12 @@ export async function exportLibraryPackage(
       updatePhase("writing", `Writing sidecar ${fileName}...`);
       await writeJsonFile(
         path.join(exportDir, fileName),
-        toHeroSidecarPayload(group.hero, group.entries)
+        toHeroSidecarPayload(
+          group.hero,
+          group.entries,
+          includeAcquisitionSources,
+          replaceOriginalLinksWithAcquisition
+        )
       );
       incrementStat("heroFiles");
       incrementProgress();

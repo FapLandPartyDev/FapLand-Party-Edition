@@ -9,6 +9,8 @@ declare global {
       dialog: {
         selectFolders: () => Promise<string[]>;
         selectInstallImportFile: () => Promise<string | null>;
+        selectTorrentFile?: () => Promise<string | null>;
+        selectAcquisitionDownloadDirectory?: () => Promise<string | null>;
         selectPlaylistImportFile: () => Promise<string | null>;
         selectPlaylistExportPath: (defaultName: string) => Promise<string | null>;
         selectPlaylistExportDirectory: (defaultName?: string) => Promise<string | null>;

@@ -49,6 +49,10 @@ const mocks = vi.hoisted(() => ({
   playAntiPerkBeatSound: vi.fn(),
   sfwMode: false,
   db: {
+    updateDifficulty: vi.fn(async ({ id, difficulty }: { id: string; difficulty: number }) => ({
+      id,
+      difficulty,
+    })),
     updateResourceFunscriptOffset: vi.fn(async () => ({
       resourceId: "resource-1",
       funscriptOffsetMs: 0,
@@ -109,6 +113,7 @@ vi.mock("../../contexts/HandyContext", () => ({
 vi.mock("../../services/db", () => ({
   db: {
     round: {
+      updateDifficulty: mocks.db.updateDifficulty,
       updateResourceFunscriptOffset: mocks.db.updateResourceFunscriptOffset,
       convertFunscriptToHardMode: mocks.db.convertFunscriptToHardMode,
       revertHardModeFunscript: mocks.db.revertHardModeFunscript,
@@ -199,6 +204,7 @@ vi.mock("../../hooks/useGameplayMoaning", () => ({
 
 import {
   RoundVideoOverlay,
+  type RoundOverlayDifficultyControl,
   type RoundOverlayOptionsAction,
   type RoundVideoOverlayProps,
 } from "./RoundVideoOverlay";
@@ -223,6 +229,7 @@ function createInstalledRound(
     id: roundId,
     name: overrides?.name ?? "Round 1",
     type: overrides?.type ?? "Main",
+    difficulty: overrides?.difficulty ?? null,
     startTime: overrides?.startTime ?? 0,
     endTime: overrides?.endTime ?? 30_000,
     previewImage: null,
@@ -340,6 +347,7 @@ function renderOverlay({
   roundControl,
   allowPausingDuringFinalCumRound = false,
   onOptionsActionsChange,
+  onDifficultyControlChange,
   onPlaybackTelemetry,
 }: {
   activeRound?: ActiveRound | null;
@@ -363,6 +371,7 @@ function renderOverlay({
   };
   allowPausingDuringFinalCumRound?: boolean;
   onOptionsActionsChange?: RoundVideoOverlayProps["onOptionsActionsChange"];
+  onDifficultyControlChange?: RoundVideoOverlayProps["onDifficultyControlChange"];
   onPlaybackTelemetry?: RoundVideoOverlayProps["onPlaybackTelemetry"];
 } = {}) {
   return render(
@@ -385,6 +394,7 @@ function renderOverlay({
       roundControl={roundControl}
       allowPausingDuringFinalCumRound={allowPausingDuringFinalCumRound}
       onOptionsActionsChange={onOptionsActionsChange}
+      onDifficultyControlChange={onDifficultyControlChange}
       onPlaybackTelemetry={onPlaybackTelemetry}
     />
   );
@@ -424,6 +434,11 @@ describe("RoundVideoOverlay", () => {
       resourceId: "resource-1",
       funscriptOffsetMs: 0,
     });
+    mocks.db.updateDifficulty.mockReset();
+    mocks.db.updateDifficulty.mockImplementation(async ({ id, difficulty }) => ({
+      id,
+      difficulty,
+    }));
     mocks.showToast.mockReset();
     mocks.recordVideoEvent.mockReset();
     mocks.playback.getFunscriptPositionAtMs.mockReset();
@@ -459,6 +474,27 @@ describe("RoundVideoOverlay", () => {
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it("exposes and persists the displayed round difficulty for the options menu", async () => {
+    let difficultyControl: RoundOverlayDifficultyControl | null = null;
+    const onDifficultyControlChange = vi.fn((control: RoundOverlayDifficultyControl | null) => {
+      if (control) difficultyControl = control;
+    });
+
+    renderOverlay({
+      activeRound: createActiveRound(),
+      installedRounds: [createInstalledRound("round-1", null, { difficulty: 2 })],
+      onDifficultyControlChange,
+    });
+
+    await waitFor(() => expect(difficultyControl?.difficulty).toBe(2));
+    act(() => difficultyControl?.onChange(4));
+
+    await waitFor(() => {
+      expect(mocks.db.updateDifficulty).toHaveBeenCalledWith({ id: "round-1", difficulty: 4 });
+      expect(difficultyControl?.difficulty).toBe(4);
+    });
   });
 
   it("shows a compact lower-left playback timer during normal playback", async () => {
@@ -1748,6 +1784,71 @@ describe("RoundVideoOverlay", () => {
         intermediaryCount: 0,
         activeAntiPerkCount: 0,
       });
+    });
+  });
+
+  it("force-syncs haptics to the end of a skipped cut", async () => {
+    const animationFrameCallbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      vi.fn((callback: FrameRequestCallback) => {
+        animationFrameCallbacks.push(callback);
+        return animationFrameCallbacks.length;
+      })
+    );
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    mocks.handy.connectionKey = "conn-key";
+    mocks.handy.appApiKey = "app-key";
+    mocks.handy.connected = true;
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 0, pos: 10 },
+        { at: 30_000, pos: 90 },
+      ],
+    });
+    mocks.playback.getFunscriptPositionAtMs.mockReturnValue(50);
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(createAnyHapticsSession());
+
+    const mainTime = { value: 4.9 };
+    const mainRound = {
+      ...createInstalledRound("round-1", "/script.funscript", { durationMs: 30_000 }),
+      cutRangesJson: JSON.stringify([{ startTimeMs: 5_000, endTimeMs: 10_000 }]),
+    } as InstalledRound;
+    const { container } = renderOverlay({ installedRounds: [mainRound] });
+    const video = await waitFor(() => {
+      const candidate = container.querySelector('video[src="/video.mp4"]');
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(video, { duration: 30, currentTimeRef: mainTime });
+    fireEvent.loadedMetadata(video);
+
+    await waitFor(() => {
+      expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({ synced: true, error: null });
+    });
+    vi.mocked(handyRuntime.sendHapticsSync).mockClear();
+
+    mainTime.value = 5.1;
+    expect(animationFrameCallbacks.length).toBeGreaterThan(0);
+    const pendingAnimationFrames = animationFrameCallbacks.splice(0);
+    act(() => {
+      for (const callback of pendingAnimationFrames) callback(performance.now());
+    });
+
+    expect(mainTime.value).toBe(10);
+    await waitFor(() => {
+      expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        10_000,
+        expect.any(Number),
+        "/video.mp4:main",
+        [
+          { at: 0, pos: 10 },
+          { at: 30_000, pos: 90 },
+        ],
+        { forceTimeSync: true, timeFilter: null }
+      );
     });
   });
 

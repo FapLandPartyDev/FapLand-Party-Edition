@@ -129,6 +129,7 @@ export type RoundVideoOverlayProps = {
   showCumRoundOutcomeMenuOnCumRequest?: boolean;
   onOpenOptions?: () => void;
   onOptionsActionsChange?: (actions: RoundOverlayOptionsAction[]) => void;
+  onDifficultyControlChange?: (control: RoundOverlayDifficultyControl | null) => void;
   allowDebugRoundControls?: boolean;
   extraModifiers?: PlaybackModifier[];
   onFunscriptFrame?: (payload: { timeMs: number; position: number | null }) => void;
@@ -148,6 +149,14 @@ export type RoundOverlayOptionsAction = {
   onClick: () => void;
   disabled?: boolean;
   tone?: "default" | "danger";
+};
+
+export type RoundOverlayDifficultyControl = {
+  roundId: string;
+  roundName: string;
+  difficulty: number | null;
+  saving: boolean;
+  onChange: (difficulty: number) => void;
 };
 
 function toPublicPlaybackTelemetryEvent(
@@ -360,6 +369,7 @@ export function RoundVideoOverlay({
   showCumRoundOutcomeMenuOnCumRequest = false,
   onOpenOptions,
   onOptionsActionsChange,
+  onDifficultyControlChange,
   allowDebugRoundControls = false,
   extraModifiers = [],
   onFunscriptFrame,
@@ -518,6 +528,11 @@ export function RoundVideoOverlay({
   const pendingVideoActivationTokenRef = useRef(0);
 
   const [segment, setSegment] = useState<SegmentState>({ kind: "main" });
+  const [difficultyOverride, setDifficultyOverride] = useState<{
+    roundId: string;
+    difficulty: number;
+  } | null>(null);
+  const [difficultySavingRoundId, setDifficultySavingRoundId] = useState<string | null>(null);
   const [activeVideoUri, setActiveVideoUri] = useState<string | null>(null);
   const [status, setStatus] = useState(t`Preparing playback...`);
   const [playbackRateLabel, setPlaybackRateLabel] = useState("1.00");
@@ -773,6 +788,59 @@ export function RoundVideoOverlay({
   const isHardModeConverted = Boolean(
     hardModeStatus && hardModeStatus.roundId === resolvedRound?.id && hardModeStatus.converted
   );
+
+  const displayedDifficulty =
+    difficultyOverride && difficultyOverride.roundId === resolvedRound?.id
+      ? difficultyOverride.difficulty
+      : (resolvedRound?.difficulty ?? null);
+  const isDifficultySaving = difficultySavingRoundId === resolvedRound?.id;
+
+  const updateDisplayedRoundDifficulty = useCallback(
+    async (difficulty: number) => {
+      if (!resolvedRound || isDifficultySaving || difficulty < 1 || difficulty > 5) return;
+      const previousDifficulty = displayedDifficulty;
+      setDifficultyOverride({ roundId: resolvedRound.id, difficulty });
+      setDifficultySavingRoundId(resolvedRound.id);
+      try {
+        await db.round.updateDifficulty({ id: resolvedRound.id, difficulty });
+      } catch (error) {
+        setDifficultyOverride(
+          previousDifficulty === null
+            ? null
+            : { roundId: resolvedRound.id, difficulty: previousDifficulty }
+        );
+        showToast(error instanceof Error ? error.message : t`Failed to update round.`, "error");
+      } finally {
+        setDifficultySavingRoundId((savingRoundId) =>
+          savingRoundId === resolvedRound.id ? null : savingRoundId
+        );
+      }
+    },
+    [displayedDifficulty, isDifficultySaving, resolvedRound, showToast, t]
+  );
+
+  useEffect(() => {
+    if (!onDifficultyControlChange) return;
+    if (!resolvedRound || segment.kind !== "main") {
+      onDifficultyControlChange(null);
+      return;
+    }
+    onDifficultyControlChange({
+      roundId: resolvedRound.id,
+      roundName: resolvedRound.name,
+      difficulty: displayedDifficulty,
+      saving: isDifficultySaving,
+      onChange: (difficulty) => void updateDisplayedRoundDifficulty(difficulty),
+    });
+    return () => onDifficultyControlChange(null);
+  }, [
+    displayedDifficulty,
+    isDifficultySaving,
+    onDifficultyControlChange,
+    resolvedRound,
+    segment.kind,
+    updateDisplayedRoundDifficulty,
+  ]);
   const resolvedMainResource = useMemo<PlaybackResource | null>(() => {
     const resource = resolvedRound?.resources[0];
     if (!resource) return null;
@@ -1123,6 +1191,7 @@ export function RoundVideoOverlay({
 
       video.currentTime = targetTimeSec;
       forceHandySyncMsRef.current = Math.max(0, targetTimeSec * 1000);
+      handyForceTimeSyncRef.current = true;
 
       const elapsedInWindowSec =
         getEffectiveElapsedMs(
@@ -3340,6 +3409,13 @@ export function RoundVideoOverlay({
         );
         if (skippedToSec !== null) {
           video.currentTime = skippedToSec;
+          // A cut is a discontinuous seek in the source timeline. The regular
+          // Handy push loop only corrects its clock periodically, so merely
+          // updating video.currentTime can leave the device playing the part
+          // of the funscript that the video just skipped. Keep the exact seek
+          // target until it has been sent and bypass the runtime time filter.
+          forceHandySyncMsRef.current = Math.max(0, skippedToSec * 1000);
+          handyForceTimeSyncRef.current = true;
         }
 
         const mainCurrentTimeSec = Math.max(video.currentTime, startSec);
@@ -3718,7 +3794,8 @@ export function RoundVideoOverlay({
       const actions = timeline?.actions ?? [];
       if (!video || actions.length === 0) return;
 
-      const timeMs = forceHandySyncMsRef.current ?? Math.max(0, video.currentTime * 1000);
+      const forcedSyncTimeMs = forceHandySyncMsRef.current;
+      const timeMs = forcedSyncTimeMs ?? Math.max(0, video.currentTime * 1000);
       const effectiveTimeMs = applyHandyOffsetMs(timeMs);
       const position = getFunscriptPositionAtMs(timeline, effectiveTimeMs);
       if (position === null) return;
@@ -3766,7 +3843,10 @@ export function RoundVideoOverlay({
               handyForceTimeSyncRef.current = false;
             }
           }
-          forceHandySyncMsRef.current = null;
+          // Do not erase a seek that arrived while this request was in flight.
+          if (forceHandySyncMsRef.current === forcedSyncTimeMs) {
+            forceHandySyncMsRef.current = null;
+          }
           setHandySyncState("synced");
           setHandySyncError(null);
           setSyncStatus({ synced: true, error: null });

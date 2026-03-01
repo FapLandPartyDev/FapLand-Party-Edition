@@ -64,6 +64,11 @@ import {
 } from "./services/settingsBackup";
 import { debugLog, initializeDebugLogging } from "./services/debugLogging";
 import {
+  importDefaultAcquisitionSources,
+  startAcquisitionService,
+  stopAcquisitionService,
+} from "./services/acquisition";
+import {
   downloadMusicFromUrl,
   downloadPlaylistFromUrl,
   isSupportedMusicUrl,
@@ -84,7 +89,7 @@ import {
   resetSettingsForRecovery,
 } from "./services/startupRecovery";
 
-const OPENABLE_FILE_EXTENSIONS = new Set([".hero", ".round", ".fplay", ".fpack"]);
+const OPENABLE_FILE_EXTENSIONS = new Set([".hero", ".round", ".fplay", ".fpack", ".torrent"]);
 const pendingOpenedFiles: string[] = [];
 const pendingAuthCallbacks: string[] = [];
 let pendingGpuRecoveryHint = false;
@@ -513,7 +518,7 @@ async function approveOpenedFilePath(filePath: string): Promise<void> {
     return;
   }
 
-  if (ext === ".hero" || ext === ".round" || ext === ".fpack") {
+  if (ext === ".hero" || ext === ".round" || ext === ".fpack" || ext === ".torrent") {
     approveDialogPath("installSidecarFile", filePath);
     return;
   }
@@ -1225,6 +1230,34 @@ function registerDialogIpc() {
     return filePath;
   });
 
+  ipcMain.handle("dialog:selectTorrentFile", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const options: OpenDialogOptions = {
+      title: "Open Torrent",
+      properties: ["openFile"],
+      filters: [{ name: "Torrent Metadata", extensions: ["torrent"] }],
+    };
+    const result = win
+      ? await dialog.showOpenDialog(win, options)
+      : await dialog.showOpenDialog(options);
+    if (result.canceled) return null;
+    const filePath = result.filePaths[0] ?? null;
+    if (filePath) approveDialogPath("installSidecarFile", filePath);
+    return filePath;
+  });
+
+  ipcMain.handle("dialog:selectAcquisitionDownloadDirectory", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const options: OpenDialogOptions = {
+      title: "Choose acquisition download folder",
+      properties: ["openDirectory", "createDirectory"],
+    };
+    const result = win
+      ? await dialog.showOpenDialog(win, options)
+      : await dialog.showOpenDialog(options);
+    return result.canceled ? null : (result.filePaths[0] ?? null);
+  });
+
   ipcMain.handle("dialog:selectPlaylistImportFile", async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     const options: OpenDialogOptions = {
@@ -1716,6 +1749,18 @@ function runNormalStartupOnce(): Promise<void> {
     }
     if (startupRecoveryActive) return;
 
+    try {
+      const defaultSourcesPath = app.isPackaged
+        ? path.join(process.resourcesPath, "acquisition-sources.txt")
+        : path.join(app.getAppPath(), "acquisition-sources.txt");
+      const result = await importDefaultAcquisitionSources(defaultSourcesPath);
+      debugLog.info("acquisition", "Default acquisition sources imported", result);
+    } catch (error) {
+      debugLog.warn("acquisition", "Failed to import default acquisition sources", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     broadcastUpdateState();
     broadcastEroScriptsLoginStatus();
     void initializeAppUpdater()
@@ -1738,6 +1783,9 @@ function runNormalStartupOnce(): Promise<void> {
     startContinuousWebsiteVideoScan();
     startContinuousDatabaseBackup();
     startContinuousSettingsBackup();
+    void startAcquisitionService().catch((error) => {
+      debugLog.error("acquisition", "Failed to start acquisition service", error);
+    });
     registerGpuCrashHandlerOnce();
     flushPendingGpuRecoveryHint();
     debugLog.info("startup", "Background services started");
@@ -1795,6 +1843,7 @@ app
 app.on("window-all-closed", () => {
   stopContinuousDatabaseBackup();
   stopContinuousSettingsBackup();
+  void stopAcquisitionService();
   if (process.platform !== "darwin") {
     app.quit();
   }

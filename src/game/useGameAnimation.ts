@@ -343,7 +343,7 @@ export function useGameAnimation(
       const randoms = {
         perkTriggerRoll: Math.random(),
         antiPerkTriggerRoll: Math.random(),
-        antiPerkIndex: Math.floor(Math.random() * 20),
+        antiPerkSelectionRoll: Math.random(),
       };
 
       applyTransition((prev) => completeRound(prev, summary, installedRounds, randoms));
@@ -373,7 +373,7 @@ export function useGameAnimation(
     (edgeId: string) => {
       const randoms = {
         antiPerkTriggerRoll: Math.random(),
-        antiPerkIndex: Math.floor(Math.random() * 20),
+        antiPerkSelectionRoll: Math.random(),
         perkChoicesRolls: [Math.random(), Math.random(), Math.random()],
       };
 
@@ -416,7 +416,7 @@ export function useGameAnimation(
     const randoms = {
       pathChoiceRoll: Math.random(),
       antiPerkTriggerRoll: Math.random(),
-      antiPerkIndex: Math.floor(Math.random() * 20),
+      antiPerkSelectionRoll: Math.random(),
       perkChoicesRolls: [Math.random(), Math.random(), Math.random()],
     };
 

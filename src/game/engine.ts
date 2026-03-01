@@ -276,6 +276,16 @@ function getPerkRarityWeight(perk: PerkDefinition, player: PlayerState): number 
   return Math.exp(player.stats.perkLuck * bias);
 }
 
+function getAutomaticAntiPerkRarityWeight(perk: PerkDefinition): number {
+  const weightsByTier = {
+    common: 8,
+    rare: 4,
+    epic: 2,
+    legendary: 1,
+  } as const;
+  return weightsByTier[resolvePerkRarity(perk)];
+}
+
 function tickPerkDurations(state: GameState): GameState {
   const expiredLogs: string[] = [];
   let didChange = false;
@@ -723,7 +733,7 @@ export function triggerPerkSelection(
   sourceFieldId: string,
   randoms?: {
     antiPerkTriggerRoll?: number;
-    antiPerkIndex?: number;
+    antiPerkSelectionRoll?: number;
     perkChoicesRolls?: number[];
   }
 ): GameState {
@@ -767,7 +777,7 @@ export function triggerPerkSelection(
 export function triggerAutomaticAntiPerk(
   state: GameState,
   playerId: string,
-  randoms?: { antiPerkTriggerRoll?: number; antiPerkIndex?: number }
+  randoms?: { antiPerkTriggerRoll?: number; antiPerkSelectionRoll?: number }
 ): { state: GameState; triggered: boolean } {
   const antiPool = getEnabledAntiPerkPool(state.config);
   if (antiPool.length === 0) return { state, triggered: false };
@@ -775,8 +785,12 @@ export function triggerAutomaticAntiPerk(
   const triggerRoll = randoms?.antiPerkTriggerRoll ?? Math.random();
   if (triggerRoll >= state.antiPerkProbability) return { state, triggered: false };
 
-  const antiPerkIndex = randoms?.antiPerkIndex ?? randomInt(0, antiPool.length - 1);
-  const selectedAntiPerk = antiPool[antiPerkIndex];
+  const selectedAntiPerk = pickUniqueWeighted(
+    antiPool,
+    1,
+    getAutomaticAntiPerkRarityWeight,
+    [randoms?.antiPerkSelectionRoll ?? Math.random()]
+  )[0];
   if (!selectedAntiPerk) return { state, triggered: false };
 
   const target = state.players.find((player) => player.id === playerId);
@@ -1120,7 +1134,7 @@ function resolveFinalNodeLanding(
   installedRounds: InstalledRound[],
   randoms?: {
     antiPerkTriggerRoll?: number;
-    antiPerkIndex?: number;
+    antiPerkSelectionRoll?: number;
     perkChoicesRolls?: number[];
   }
 ): GameState {
@@ -1304,7 +1318,7 @@ function traverseMovement(
   traversedNodeIds: string[],
   randoms?: {
     antiPerkTriggerRoll?: number;
-    antiPerkIndex?: number;
+    antiPerkSelectionRoll?: number;
     perkChoicesRolls?: number[];
   }
 ): { state: GameState; stoppedAtSafePoint: boolean } {
@@ -1423,7 +1437,7 @@ export function selectPathEdge(
   installedRounds: InstalledRound[],
   randoms?: {
     antiPerkTriggerRoll?: number;
-    antiPerkIndex?: number;
+    antiPerkSelectionRoll?: number;
     perkChoicesRolls?: number[];
   }
 ): GameState {
@@ -1519,7 +1533,7 @@ export function resolvePathChoiceTimeout(
   randoms?: {
     pathChoiceRoll?: number;
     antiPerkTriggerRoll?: number;
-    antiPerkIndex?: number;
+    antiPerkSelectionRoll?: number;
     perkChoicesRolls?: number[];
   }
 ): GameState {
@@ -1784,7 +1798,7 @@ export function rollTurn(
   randoms?: {
     baseRoll?: number;
     antiPerkTriggerRoll?: number;
-    antiPerkIndex?: number;
+    antiPerkSelectionRoll?: number;
     perkChoicesRolls?: number[];
   }
 ): GameState {
@@ -1844,7 +1858,7 @@ export function rollTurn(
 
   const resolved = traverseMovement(movedState, installedRounds, roll, [player.currentNodeId], {
     antiPerkTriggerRoll: randoms?.antiPerkTriggerRoll,
-    antiPerkIndex: randoms?.antiPerkIndex,
+    antiPerkSelectionRoll: randoms?.antiPerkSelectionRoll,
     perkChoicesRolls: randoms?.perkChoicesRolls,
   });
 
@@ -1902,7 +1916,7 @@ export function completeRound(
   randoms?: {
     perkTriggerRoll?: number;
     antiPerkTriggerRoll?: number;
-    antiPerkIndex?: number;
+    antiPerkSelectionRoll?: number;
     perkChoicesRolls?: number[];
   }
 ): GameState {
@@ -2036,7 +2050,7 @@ export function completeRound(
 
   const automaticAntiPerk = triggerAutomaticAntiPerk(next, currentPlayer.id, {
     antiPerkTriggerRoll: randoms?.antiPerkTriggerRoll,
-    antiPerkIndex: randoms?.antiPerkIndex,
+    antiPerkSelectionRoll: randoms?.antiPerkSelectionRoll,
   });
   next = automaticAntiPerk.state;
   const nextAntiPerkProbability =

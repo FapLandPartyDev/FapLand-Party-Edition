@@ -10,6 +10,7 @@ import {
   MUSIC_CACHE_RELATIVE_PATH,
   EROSCRIPTS_CACHE_RELATIVE_PATH,
   FPACK_EXTRACTION_RELATIVE_PATH,
+  ACQUISITION_DOWNLOAD_RELATIVE_PATH,
 } from "./storagePaths";
 import { isPortableMode } from "./portable";
 
@@ -34,6 +35,10 @@ export const MIGRATABLE_STORAGE_PATHS: StoragePathEntry[] = [
   {
     storeKey: "fpack.extractionPath",
     relativeName: FPACK_EXTRACTION_RELATIVE_PATH,
+  },
+  {
+    storeKey: "acquisition.downloadRootPath",
+    relativeName: ACQUISITION_DOWNLOAD_RELATIVE_PATH,
   },
 ];
 

@@ -131,6 +131,7 @@ describe("RecoveryMode", () => {
         musicCache: true,
         fpackExtraction: true,
         eroscriptsCache: true,
+        acquisitionDownloads: true,
         settings: false,
       });
     });

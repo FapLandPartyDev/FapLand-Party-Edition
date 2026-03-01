@@ -1,0 +1,16 @@
+# Default acquisition sources
+#
+# Format: kind | display name | public locator | optional catalog URL
+# Supported kinds: torrent, mega
+# Torrent locators must be public magnets. The optional catalog URL may point to
+# a public .torrent file or a supported Nyaa/Sukebei detail page.
+
+torrent | Fap Hero Torrent Collection 1.8 | magnet:?xt=urn:btih:d93f1fd96b4551991dd983bb78944805fb3642df&dn=Fap+Hero+torrent+collection+1.8&tr=http%3A%2F%2Fsukebei.tracker.wf%3A8888%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce | https://sukebei.nyaa.si/view/4178776
+mega | 2019 Archive 1 | https://mega.nz/folder/jyhhwZTQ#GnapPUHJlAJFOOm4917MjQ
+mega | 2019 Archive 2 | https://mega.nz/folder/IV5TTZyR#fVM_LMLzsswl4gv7-RXzyQ
+mega | 2020 Archive | https://mega.nz/folder/zU5zRTTK#5LW9UQMPKHvSkYwlUJBlvA
+mega | 2022 Archive 1 | https://mega.nz/folder/S1l0GIRL#JCjtpg_9qogCkHrMP4NrvQ
+mega | 2022 Archive 2 | https://mega.nz/folder/UDVFVQDB#u5eRWN-kwq_FwPpnxIasWQ
+mega | 2023 Archive 1 | https://mega.nz/folder/I7Nh0BBZ#BJBhacZE4gzv8hD3fl8o4g
+mega | 2023 Archive 2 | https://mega.nz/folder/RjEUyAwB#VApn2MIrI6ENJHTJtWj8zw
+mega | 2024 Archive | https://mega.nz/folder/MM5WES6Z#CwWFbS55ZIchAvjVW7chPQ

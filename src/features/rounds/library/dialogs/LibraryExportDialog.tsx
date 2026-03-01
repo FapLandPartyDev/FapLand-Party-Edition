@@ -64,6 +64,7 @@ export function LibraryExportDialog({
   const [analyzing, setAnalyzing] = useState(!hasResult);
   const [highCostAcknowledged, setHighCostAcknowledged] = useState(false);
   const userTouchedModeRef = useRef(false);
+  const userTouchedAcquisitionRef = useRef(false);
   const selectedRoundKey = selectionIds.roundIds.join("|");
   const selectedHeroKey = selectionIds.heroIds.join("|");
 
@@ -98,6 +99,15 @@ export function LibraryExportDialog({
             if (cancelled) return;
             setAnalysis(result);
             onChange((current) => ({ ...current, error: null }));
+            if (!userTouchedAcquisitionRef.current) {
+              const hasProvenance =
+                (result.acquisition?.torrentSources ?? 0) + (result.acquisition?.megaSources ?? 0) >
+                0;
+              onChange((current) => ({
+                ...current,
+                includeAcquisitionSources: hasProvenance,
+              }));
+            }
             if (!userTouchedModeRef.current && state.compressionMode === null) {
               onChange((current) => ({
                 ...current,
@@ -345,8 +355,83 @@ export function LibraryExportDialog({
                         <p className="text-xs text-slate-400">
                           <Trans>If unchecked, only sidecars and scripts are exported.</Trans>
                         </p>
+                        {analysis?.acquisition ? (
+                          <p className="text-xs text-slate-500">
+                            <Trans>
+                              {analysis.acquisition.torrentSources} torrent sources,{" "}
+                              {analysis.acquisition.megaSources} MEGA sources,{" "}
+                              {analysis.acquisition.mappedFiles} mapped files
+                            </Trans>
+                          </p>
+                        ) : null}
                       </div>
                     </label>
+
+                    <label className="flex cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="form-checkbox h-5 w-5 rounded border-slate-700 bg-black/50 text-cyan-400 focus:ring-cyan-400 focus:ring-offset-slate-950"
+                        checked={state.includeAcquisitionSources}
+                        onChange={(event) => {
+                          userTouchedAcquisitionRef.current = true;
+                          onChange((current) => ({
+                            ...current,
+                            includeAcquisitionSources: event.target.checked,
+                            replaceOriginalLinksWithAcquisition: event.target.checked
+                              ? current.replaceOriginalLinksWithAcquisition
+                              : false,
+                            error: null,
+                          }));
+                        }}
+                        disabled={exporting}
+                      />
+                      <div>
+                        <span className="text-sm font-semibold text-white">
+                          <Trans>Include Shareable Download Sources</Trans>
+                        </span>
+                        <p className="text-xs text-slate-400">
+                          <Trans>
+                            Includes only used public magnet and MEGA mappings. MEGA decryption keys
+                            are visible to recipients.
+                          </Trans>
+                        </p>
+                      </div>
+                    </label>
+
+                    <div className="flex items-center gap-3 pl-8">
+                      <input
+                        id="replace-original-links-with-acquisition"
+                        type="checkbox"
+                        className="form-checkbox h-5 w-5 rounded border-slate-700 bg-black/50 text-cyan-400 focus:ring-cyan-400 focus:ring-offset-slate-950"
+                        checked={state.replaceOriginalLinksWithAcquisition}
+                        onChange={(event) => {
+                          userTouchedAcquisitionRef.current = true;
+                          onChange((current) => ({
+                            ...current,
+                            replaceOriginalLinksWithAcquisition: event.target.checked,
+                            includeAcquisitionSources: event.target.checked
+                              ? true
+                              : current.includeAcquisitionSources,
+                            error: null,
+                          }));
+                        }}
+                        disabled={exporting}
+                      />
+                      <div>
+                        <label
+                          htmlFor="replace-original-links-with-acquisition"
+                          className="cursor-pointer text-sm font-semibold text-white"
+                        >
+                          <Trans>Use torrent/MEGA sources instead of original links</Trans>
+                        </label>
+                        <p className="text-xs text-slate-400">
+                          <Trans>
+                            Automatically links missing matches and removes original video links for
+                            mapped rounds. Original links are kept when no safe match is found.
+                          </Trans>
+                        </p>
+                      </div>
+                    </div>
 
                     <label className="flex cursor-pointer items-center gap-3">
                       <input

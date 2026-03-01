@@ -1687,24 +1687,6 @@ function PlaylistWorkshopPage() {
         normalizedSetup.enabledCumRoundIds.some(
           (roundId, index) => roundId !== hydratedSetup.enabledCumRoundIds[index]
         );
-      const unresolvedNormalRefs = [
-        ...originalBoard.normalRoundOrder,
-        ...Object.values(originalBoard.normalRoundRefsByIndex),
-      ].some((ref) => !resolvePortableRoundRef(ref, installedRounds));
-      const unresolvedCumRefs = originalBoard.cumRoundRefs.some(
-        (ref) => !resolvePortableRoundRef(ref, installedRounds)
-      );
-
-      if ((normalOrderDirty && unresolvedNormalRefs) || (cumRoundsDirty && unresolvedCumRefs)) {
-        const analysis = analyzePlaylistResolution(activePlaylist.config, installedRounds);
-        setResolutionModalState({
-          context: "playlist",
-          title: activePlaylist.name,
-          analysis,
-        });
-        showImportNotice(t`Resolve missing rounds before changing this queue.`, "error");
-        return null;
-      }
 
       linearBoardConfig = {
         ...linearBoardConfig,

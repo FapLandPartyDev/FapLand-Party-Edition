@@ -21,12 +21,15 @@ import {
   ZRoundSidecar,
   type InstallResource,
   type InstallRound,
+  type AcquisitionCandidate,
+  type ExportedAcquisitionSource,
 } from "../../src/zod/installSidecar";
 import { ensureFpackExtracted, inspectFpack, type FpackExtractionManifest } from "./fpack";
 import { approveDialogPath, assertApprovedDialogPath } from "./dialogPathApproval";
 import { getDb } from "./db";
 import { eq, asc, isNotNull } from "drizzle-orm";
-import { hero, round, resource } from "./db/schema";
+import { hero, round, resource, roundAcquisitionCandidate } from "./db/schema";
+import { importExportedSources } from "./acquisition";
 import {
   fromLocalMediaUri,
   isPackageRelativeMediaPath,
@@ -190,10 +193,16 @@ type PreparedRoundWrite = {
   previewImage: string | null;
   unresolved: boolean;
   libraryLabel: string | null;
+  acquisitionCandidates: AcquisitionCandidate[];
 };
 
 type PreparedInstallEntry =
-  | { kind: "hero_round"; heroInput: HeroMetadataInput | null; writes: PreparedRoundWrite[] }
+  | {
+      kind: "hero_round";
+      heroInput: HeroMetadataInput | null;
+      writes: PreparedRoundWrite[];
+      acquisitionSources?: ExportedAcquisitionSource[];
+    }
   | { kind: "playlist"; filePath: string; installSourceKeyOverride?: string };
 
 type SidecarSourceMetadata = {
@@ -398,6 +407,7 @@ export type InstallFolderScanResult = {
   status: InstallScanStatus;
   legacyImport?: LegacyInstallImport;
   securityWarnings?: ImportSecurityWarning[];
+  roundIds?: string[];
 };
 
 export type AddAutoScanFolderAndScanResult = {
@@ -862,15 +872,13 @@ async function collectSidecarFiles(folderPath: string): Promise<ImportedSidecarD
         try {
           const { manifest } = await ensureFpackExtracted(fullPath);
           output.push(
-            ...manifest.sidecarEntries.map(
-              (sidecar): ImportedSidecarDescriptor => ({
-                sidecarPath: sidecar.extractedPath,
-                source: {
-                  sourceKind: "fpack",
-                  archiveEntryPath: sidecar.archiveEntryPath,
-                },
-              })
-            )
+            ...manifest.sidecarEntries.map((sidecar): ImportedSidecarDescriptor => ({
+              sidecarPath: sidecar.extractedPath,
+              source: {
+                sourceKind: "fpack",
+                archiveEntryPath: sidecar.archiveEntryPath,
+              },
+            }))
           );
         } catch {
           // Skip invalid .fpack files silently.
@@ -1151,6 +1159,37 @@ function filterTrustedRemoteUri(
     funscriptUrlCount: kind === "funscript" ? 1 : 0,
   });
   return null;
+}
+
+function acquisitionSourceReviewUrls(source: ExportedAcquisitionSource): string[] {
+  if (source.kind === "mega") return [source.publicUrl];
+  try {
+    return new URL(source.magnetUri).searchParams.getAll("tr");
+  } catch {
+    return [];
+  }
+}
+
+function filterTrustedAcquisitionSources(
+  context: InstallSessionContext,
+  sources: ExportedAcquisitionSource[] | undefined
+): ExportedAcquisitionSource[] | undefined {
+  if (!sources) return undefined;
+  return sources.filter((source) => {
+    const blocked = acquisitionSourceReviewUrls(source)
+      .map((url) => classifyTrustedUrl(url, context.allowedBaseDomains))
+      .filter((entry) => entry && entry.decision !== "trusted");
+    for (const entry of blocked) {
+      if (!entry) continue;
+      rememberSecurityWarning(context, {
+        baseDomain: entry.baseDomain,
+        host: entry.host,
+        videoUrlCount: 1,
+        funscriptUrlCount: 0,
+      });
+    }
+    return blocked.length === 0;
+  });
 }
 
 async function prepareRoundResources(
@@ -1611,6 +1650,10 @@ async function prepareRoundWrite(
     previewImage: prepared.previewImage,
     unresolved: prepared.resources.length === 0,
     libraryLabel: resolveLibraryLabelFromSidecarPath(sidecarPath, source),
+    acquisitionCandidates: [
+      ...(roundInput.acquisition?.candidates ?? []),
+      ...(roundInput.acquisitionCandidates ?? []),
+    ],
   };
 }
 
@@ -1680,12 +1723,21 @@ async function parseSidecarForInspection(
       kind: "hero_round",
       filePath: sidecarPath,
       name: parsed.name,
-      resources: parsed.resources.map((resource) => ({
-        videoUri: resolveSidecarResourceUri(resource.videoUri, sidecarPath),
-        funscriptUri: resource.funscriptUri
-          ? resolveSidecarResourceUri(resource.funscriptUri, sidecarPath)
-          : null,
-      })),
+      resources: parsed.resources
+        .map((resource) => ({
+          videoUri: resolveSidecarResourceUri(resource.videoUri, sidecarPath),
+          funscriptUri: resource.funscriptUri
+            ? resolveSidecarResourceUri(resource.funscriptUri, sidecarPath)
+            : null,
+        }))
+        .concat(
+          (parsed.acquisition?.sources ?? []).flatMap((source) =>
+            acquisitionSourceReviewUrls(source).map((videoUri) => ({
+              videoUri,
+              funscriptUri: null,
+            }))
+          )
+        ),
     };
   }
 
@@ -1695,14 +1747,23 @@ async function parseSidecarForInspection(
       kind: "hero_round",
       filePath: sidecarPath,
       name: parsed.name,
-      resources: parsed.rounds.flatMap((round) =>
-        round.resources.map((resource) => ({
-          videoUri: resolveSidecarResourceUri(resource.videoUri, sidecarPath),
-          funscriptUri: resource.funscriptUri
-            ? resolveSidecarResourceUri(resource.funscriptUri, sidecarPath)
-            : null,
-        }))
-      ),
+      resources: parsed.rounds
+        .flatMap((round) =>
+          round.resources.map((resource) => ({
+            videoUri: resolveSidecarResourceUri(resource.videoUri, sidecarPath),
+            funscriptUri: resource.funscriptUri
+              ? resolveSidecarResourceUri(resource.funscriptUri, sidecarPath)
+              : null,
+          }))
+        )
+        .concat(
+          (parsed.acquisition?.sources ?? []).flatMap((source) =>
+            acquisitionSourceReviewUrls(source).map((videoUri) => ({
+              videoUri,
+              funscriptUri: null,
+            }))
+          )
+        ),
     };
   }
 
@@ -1731,6 +1792,7 @@ async function prepareRoundSidecar(
   return {
     kind: "hero_round",
     heroInput: parsed.data.hero ?? null,
+    acquisitionSources: filterTrustedAcquisitionSources(context, parsed.data.acquisition?.sources),
     writes: [
       await prepareRoundWrite(
         context,
@@ -1763,6 +1825,7 @@ async function prepareHeroSidecar(
   return {
     kind: "hero_round",
     heroInput: parsed.data,
+    acquisitionSources: filterTrustedAcquisitionSources(context, parsed.data.acquisition?.sources),
     writes: await Promise.all(
       parsed.data.rounds.map(async (entry, index) => {
         throwIfAbortRequested();
@@ -1842,6 +1905,10 @@ async function persistPreparedEntry(
     };
   }
 
+  const importedSourceIds = entry.acquisitionSources
+    ? await importExportedSources(entry.acquisitionSources)
+    : new Map<string, string>();
+
   return await context.db.transaction(async (tx) => {
     let heroId: string | null = null;
     if (entry.heroInput) {
@@ -1863,6 +1930,27 @@ async function persistPreparedEntry(
         libraryLabel: payload.libraryLabel,
       });
       roundIds.push(upserted.roundId);
+
+      const candidates = payload.acquisitionCandidates.flatMap((candidate, index) => {
+        const sourceId = importedSourceIds.get(candidate.sourceId);
+        return sourceId
+          ? [
+              {
+                roundId: upserted.roundId,
+                sourceId,
+                sourcePath: candidate.filePath.replaceAll("\\", "/"),
+                matchKind: "explicit" as const,
+                matchScore: null,
+                sortOrder: index,
+              },
+            ]
+          : [];
+      });
+      // Re-importing a legacy sidecar must not erase provenance that was
+      // attached by an earlier acquisition-aware import.
+      if (candidates.length > 0) {
+        await tx.insert(roundAcquisitionCandidate).values(candidates).onConflictDoNothing();
+      }
 
       if (upserted.updated) {
         updated += 1;
@@ -2874,6 +2962,7 @@ export async function importInstallSidecarFile(
     scanStatus = nextStatus;
 
     const context = await createInstallSessionContext(allowedBaseDomains);
+    const importedRoundIds: string[] = [];
     try {
       const prepared = await prepareSidecar(context, normalizedFile, {
         sourceKind: "filesystem",
@@ -2886,6 +2975,7 @@ export async function importInstallSidecarFile(
       nextStatus.stats.installed += result.installed;
       nextStatus.stats.playlistsImported += result.playlistsImported;
       nextStatus.stats.updated += result.updated;
+      importedRoundIds.push(...result.roundIds);
       nextStatus.securityWarnings = [...context.securityWarnings];
       await reconcileTemplateRounds(context);
     } catch (error) {
@@ -2914,6 +3004,7 @@ export async function importInstallSidecarFile(
     return {
       status: cloneStatus(nextStatus),
       securityWarnings: [...context.securityWarnings],
+      roundIds: importedRoundIds,
     };
   } catch (error) {
     if (error instanceof InstallAbortError) {
@@ -3180,6 +3271,7 @@ async function importPreparedSidecars(
   scanStatus = nextStatus;
 
   const context = await createInstallSessionContext(allowedBaseDomains);
+  const importedRoundIds: string[] = [];
   const preparedSidecars = await mapWithConcurrencyLimit(
     sidecars,
     context.prepConcurrency,
@@ -3226,6 +3318,7 @@ async function importPreparedSidecars(
       nextStatus.stats.installed += result.installed;
       nextStatus.stats.playlistsImported += result.playlistsImported;
       nextStatus.stats.updated += result.updated;
+      importedRoundIds.push(...result.roundIds);
     } catch (error) {
       recordInstallError(nextStatus, prepared.sidecarPath, error);
     }
@@ -3262,6 +3355,7 @@ async function importPreparedSidecars(
   return {
     status: cloneStatus(nextStatus),
     securityWarnings: [...context.securityWarnings],
+    roundIds: importedRoundIds,
   };
 }
 

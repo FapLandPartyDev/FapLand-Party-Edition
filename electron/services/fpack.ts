@@ -90,6 +90,19 @@ function resolveArchiveResourceUri(resourceUri: string, archiveEntryPath: string
   return resolved;
 }
 
+function acquisitionReviewUrls(source: {
+  kind: "torrent" | "mega";
+  publicUrl?: string;
+  magnetUri?: string;
+}): string[] {
+  if (source.kind === "mega") return source.publicUrl ? [source.publicUrl] : [];
+  try {
+    return source.magnetUri ? new URL(source.magnetUri).searchParams.getAll("tr") : [];
+  } catch {
+    return [];
+  }
+}
+
 function parseSidecarInspectionContent(
   archiveEntryPath: string,
   ext: ".round" | ".hero" | ".fplay",
@@ -107,26 +120,38 @@ function parseSidecarInspectionContent(
     const parsed = ZRoundSidecar.parse(parsedJson);
     return {
       contentName: parsed.name,
-      resources: parsed.resources.map((resource) => ({
-        videoUri: resolveArchiveResourceUri(resource.videoUri, archiveEntryPath),
-        funscriptUri: resource.funscriptUri
-          ? resolveArchiveResourceUri(resource.funscriptUri, archiveEntryPath)
-          : null,
-      })),
+      resources: parsed.resources
+        .map((resource) => ({
+          videoUri: resolveArchiveResourceUri(resource.videoUri, archiveEntryPath),
+          funscriptUri: resource.funscriptUri
+            ? resolveArchiveResourceUri(resource.funscriptUri, archiveEntryPath)
+            : null,
+        }))
+        .concat(
+          (parsed.acquisition?.sources ?? []).flatMap((source) =>
+            acquisitionReviewUrls(source).map((videoUri) => ({ videoUri, funscriptUri: null }))
+          )
+        ),
     };
   }
 
   const parsed = ZHeroSidecar.parse(parsedJson);
   return {
     contentName: parsed.name,
-    resources: parsed.rounds.flatMap((round) =>
-      round.resources.map((resource) => ({
-        videoUri: resolveArchiveResourceUri(resource.videoUri, archiveEntryPath),
-        funscriptUri: resource.funscriptUri
-          ? resolveArchiveResourceUri(resource.funscriptUri, archiveEntryPath)
-          : null,
-      }))
-    ),
+    resources: parsed.rounds
+      .flatMap((round) =>
+        round.resources.map((resource) => ({
+          videoUri: resolveArchiveResourceUri(resource.videoUri, archiveEntryPath),
+          funscriptUri: resource.funscriptUri
+            ? resolveArchiveResourceUri(resource.funscriptUri, archiveEntryPath)
+            : null,
+        }))
+      )
+      .concat(
+        (parsed.acquisition?.sources ?? []).flatMap((source) =>
+          acquisitionReviewUrls(source).map((videoUri) => ({ videoUri, funscriptUri: null }))
+        )
+      ),
   };
 }
 

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { InstalledRoundCardAssets, VideoDownloadProgress } from "@/services/db";
 import { DeferredImage } from "@/features/library/components/DeferredImage";
@@ -28,7 +28,7 @@ export type RoundCardProps = {
   downloadProgress?: VideoDownloadProgress | null;
   selectionMode?: boolean;
   selected?: boolean;
-  onToggleSelection?: (round: RoundLibraryEntry) => void;
+  onToggleSelection?: (round: RoundLibraryEntry, modifiers: { shiftKey: boolean }) => void;
   mediaEnabled?: boolean;
   inspected?: boolean;
   onInspect: (roundId: string) => void;
@@ -111,9 +111,9 @@ export const RoundCard = memo(function RoundCard({
     if (!mediaEnabled) stopPreview();
   }, [mediaEnabled, stopPreview]);
 
-  const toggleOrInspect = () => {
+  const toggleOrInspect = (event: MouseEvent<HTMLButtonElement>) => {
     if (selectionMode) {
-      onToggleSelection?.(round);
+      onToggleSelection?.(round, { shiftKey: event.shiftKey });
       return;
     }
     onInspect(round.id);

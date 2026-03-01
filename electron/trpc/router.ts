@@ -15,6 +15,7 @@ import { binariesRouter } from "./routers/binaries";
 import { migrationRouter } from "./routers/migration";
 import { debugRouter } from "./routers/debug";
 import { progressionRouter } from "./routers/progression";
+import { acquisitionRouter } from "./routers/acquisition";
 
 export const appRouter = router({
   db: dbRouter,
@@ -33,6 +34,7 @@ export const appRouter = router({
   migration: migrationRouter,
   debug: debugRouter,
   progression: progressionRouter,
+  acquisition: acquisitionRouter,
 });
 
 export type AppRouter = typeof appRouter;

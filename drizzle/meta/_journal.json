@@ -106,6 +106,20 @@
       "when": 1785801600000,
       "tag": "0014_map_editor_drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786320000000,
+      "tag": "0015_acquisition_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786323600000,
+      "tag": "0016_acquisition_job_library",
+      "breakpoints": true
     }
   ]
 }

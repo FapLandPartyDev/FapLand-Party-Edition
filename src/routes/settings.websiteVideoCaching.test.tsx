@@ -432,6 +432,7 @@ describe("Settings website video caching", () => {
         musicCache: true,
         fpackExtraction: true,
         eroscriptsCache: true,
+        acquisitionDownloads: true,
         settings: true,
       });
     });
@@ -463,6 +464,7 @@ describe("Settings website video caching", () => {
         musicCache: false,
         fpackExtraction: false,
         eroscriptsCache: true,
+        acquisitionDownloads: true,
         settings: true,
       });
     });

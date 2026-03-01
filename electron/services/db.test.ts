@@ -60,6 +60,46 @@ describe("drizzle migration journal", () => {
     expect(journalTags).toEqual(migrationFiles);
   });
 
+  it("adds acquisition job library behavior after the acquisition migration was already applied", async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-acquisition-migration-"));
+    const legacyMigrations = path.join(tempRoot, "migrations");
+    const currentMigrations = path.resolve(process.cwd(), "drizzle");
+    const client = createClient({ url: `file:${path.join(tempRoot, "dev.db")}` });
+    const database = drizzle(client);
+
+    try {
+      const journal = JSON.parse(
+        await fs.readFile(path.join(currentMigrations, "meta", "_journal.json"), "utf8")
+      ) as { version: string; dialect: string; entries: Array<{ idx: number; tag: string }> };
+      const legacyJournal = {
+        ...journal,
+        entries: journal.entries.filter((entry) => entry.idx <= 15),
+      };
+      await fs.mkdir(path.join(legacyMigrations, "meta"), { recursive: true });
+      await fs.writeFile(
+        path.join(legacyMigrations, "meta", "_journal.json"),
+        JSON.stringify(legacyJournal)
+      );
+      for (const entry of legacyJournal.entries) {
+        await fs.copyFile(
+          path.join(currentMigrations, `${entry.tag}.sql`),
+          path.join(legacyMigrations, `${entry.tag}.sql`)
+        );
+      }
+
+      await migrate(database, { migrationsFolder: legacyMigrations });
+      const before = await client.execute(`PRAGMA table_info("AcquisitionJob")`);
+      expect(before.rows.some((column) => column.name === "addCompletedToLibrary")).toBe(false);
+
+      await migrate(database, { migrationsFolder: currentMigrations });
+      const after = await client.execute(`PRAGMA table_info("AcquisitionJob")`);
+      expect(after.rows.some((column) => column.name === "addCompletedToLibrary")).toBe(true);
+    } finally {
+      client.close();
+      await fs.rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   it("upgrades a populated v0.5.06 database without losing user data", async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-v0506-migration-"));
     const client = createClient({ url: `file:${path.join(tempRoot, "dev.db")}` });

@@ -66,6 +66,10 @@ const { clearFpackExtractionCacheMock, getFpackExtractionRootMock } = vi.hoisted
   getFpackExtractionRootMock: vi.fn(async () => "/tmp/fpacks"),
 }));
 
+const { clearAcquisitionDownloadDataMock } = vi.hoisted(() => ({
+  clearAcquisitionDownloadDataMock: vi.fn(async () => {}),
+}));
+
 const { getWebsiteVideoCacheStateMock } = vi.hoisted(() => ({
   getWebsiteVideoCacheStateMock: vi.fn<
     (uri: string) => Promise<"not_applicable" | "cached" | "pending">
@@ -142,6 +146,10 @@ vi.mock("electron", () => ({
 vi.mock("../../services/store", () => ({
   getStore: getStoreMock,
   initStore: initStoreMock,
+}));
+
+vi.mock("../../services/acquisition", () => ({
+  clearAcquisitionDownloadData: clearAcquisitionDownloadDataMock,
 }));
 
 vi.mock("../../services/webVideo", () => ({
@@ -2299,6 +2307,20 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     ).rejects.toThrow("greater than start time");
   });
 
+  it("updates only a round's difficulty", async () => {
+    const caller = createRendererCaller();
+    const before = roundsByIdRef.get("round-1");
+
+    await expect(
+      caller.updateRoundDifficulty({ id: "round-1", difficulty: 5 })
+    ).resolves.toMatchObject({ id: "round-1", difficulty: 5 });
+
+    expect(roundsByIdRef.get("round-1")).toMatchObject({
+      name: before?.name,
+      difficulty: 5,
+    });
+  });
+
   it("creates a website-backed installed round with an attached resource", async () => {
     const caller = createRendererCaller();
     calculateFunscriptDifficultyFromUriMock.mockResolvedValue(3);
@@ -2411,10 +2433,16 @@ describe("dbRouter local highscore and multiplayer cache", () => {
 
     const defaultResult = await caller.exportInstalledDatabase();
     expect(defaultResult.includeResourceUris).toBe(false);
-    expect(exportInstalledDatabaseMock).toHaveBeenCalledWith({ includeResourceUris: false });
+    expect(exportInstalledDatabaseMock).toHaveBeenCalledWith({
+      includeResourceUris: false,
+      includeAcquisitionSources: true,
+    });
 
     await caller.exportInstalledDatabase({ includeResourceUris: true });
-    expect(exportInstalledDatabaseMock).toHaveBeenLastCalledWith({ includeResourceUris: true });
+    expect(exportInstalledDatabaseMock).toHaveBeenLastCalledWith({
+      includeResourceUris: true,
+      includeAcquisitionSources: true,
+    });
   });
 
   it("analyzes, exports, polls, and aborts library package export", async () => {
@@ -2459,6 +2487,8 @@ describe("dbRouter local highscore and multiplayer cache", () => {
       asFpack: true,
       compressionMode: "av1",
       compressionStrength: 70,
+      audioBitrateKbps: undefined,
+      includeAcquisitionSources: true,
     });
 
     await expect(caller.getLibraryExportPackageStatus()).resolves.toMatchObject({
@@ -2559,6 +2589,7 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     expect(clearPlayableVideoCacheMock).toHaveBeenCalledTimes(1);
     expect(clearMusicCacheMock).toHaveBeenCalledWith("/tmp/music-cache");
     expect(clearFpackExtractionCacheMock).toHaveBeenCalledWith("/tmp/fpacks");
+    expect(clearAcquisitionDownloadDataMock).toHaveBeenCalledTimes(1);
     expect(clearWebsiteVideoCacheMock.mock.invocationCallOrder[0]).toBeLessThan(
       storeMockRef.clear.mock.invocationCallOrder[0]!
     );
@@ -2591,6 +2622,7 @@ describe("dbRouter local highscore and multiplayer cache", () => {
         videoCache: true,
         musicCache: false,
         fpackExtraction: false,
+        acquisitionDownloads: false,
         settings: false,
       })
     ).resolves.toEqual({ cleared: true });

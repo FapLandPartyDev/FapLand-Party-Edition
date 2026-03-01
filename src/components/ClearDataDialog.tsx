@@ -11,6 +11,7 @@ export type ClearDataSelections = {
   musicCache: boolean;
   fpackExtraction: boolean;
   eroscriptsCache: boolean;
+  acquisitionDownloads: boolean;
   settings: boolean;
 };
 
@@ -24,6 +25,7 @@ export const DEFAULT_CLEAR_DATA_SELECTIONS: ClearDataSelections = {
   musicCache: true,
   fpackExtraction: true,
   eroscriptsCache: true,
+  acquisitionDownloads: true,
   settings: true,
 };
 
@@ -95,6 +97,11 @@ export function ClearDataDialog({
       id: "eroscriptsCache",
       label: t`EroScripts Cache`,
       description: t`Downloaded EroScripts funscripts and optional video copies.`,
+    },
+    {
+      id: "acquisitionDownloads",
+      label: t`Acquisition Downloads`,
+      description: t`Downloaded torrent and MEGA files. Their source mappings are retained.`,
     },
     {
       id: "settings",

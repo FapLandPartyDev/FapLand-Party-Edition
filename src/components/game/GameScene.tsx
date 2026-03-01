@@ -53,7 +53,11 @@ import { playRoundRewardSound, playRoundRewardTickSound } from "../../utils/audi
 
 import { formatDurationLabel } from "../../utils/duration";
 import { abbreviateNsfwText } from "../../utils/sfwText";
-import { RoundVideoOverlay, type RoundOverlayOptionsAction } from "./RoundVideoOverlay";
+import {
+  RoundVideoOverlay,
+  type RoundOverlayDifficultyControl,
+  type RoundOverlayOptionsAction,
+} from "./RoundVideoOverlay";
 import { buildGameplayRoundVideoOverlayProps } from "./buildRoundVideoOverlayProps";
 import { RoundStartTransition } from "./RoundStartTransition";
 import { getPerkIconGlyph } from "./PerkIcon";
@@ -1847,6 +1851,8 @@ export const GameScene = memo(function GameScene({
   const [roundOverlayOptionsActions, setRoundOverlayOptionsActions] = useState<
     RoundOverlayOptionsAction[]
   >([]);
+  const [roundOverlayDifficultyControl, setRoundOverlayDifficultyControl] =
+    useState<RoundOverlayDifficultyControl | null>(null);
   const handleRoundOverlayOptionsActionsChange = useCallback(
     (actions: RoundOverlayOptionsAction[]) => setRoundOverlayOptionsActions(actions),
     []
@@ -5000,6 +5006,7 @@ export const GameScene = memo(function GameScene({
           showCumRoundOutcomeMenuOnCumRequest: isLastCumRoundActive,
           onOpenOptions: () => setShowOptionsMenu(true),
           onOptionsActionsChange: handleRoundOverlayOptionsActionsChange,
+          onDifficultyControlChange: setRoundOverlayDifficultyControl,
           onUiVisibilityChange: onRoundOverlayUiVisibilityChange,
           onPreviewStateChange: handleRoundPreviewStateChange,
           initialShowProgressBarAlways,
@@ -5347,7 +5354,7 @@ export const GameScene = memo(function GameScene({
       )}
       {showOptionsMenu && (
         <div className="pointer-events-none fixed inset-0 z-[141] flex items-center justify-center bg-black/60 px-4">
-          <div className="pointer-events-auto w-full max-w-sm rounded-2xl border border-indigo-300/45 bg-zinc-950/95 p-5 shadow-2xl">
+          <div className="pointer-events-auto max-h-[calc(100vh-2rem)] w-full max-w-sm overflow-y-auto rounded-2xl border border-indigo-300/45 bg-zinc-950/95 p-5 shadow-2xl">
             <h2 className="text-lg font-bold text-indigo-100">{t`Options`}</h2>
             <p className="mt-2 text-sm text-zinc-200">{t`The game keeps running in the background.`}</p>
 
@@ -5423,6 +5430,51 @@ export const GameScene = memo(function GameScene({
                 )}
               </div>
             </div>
+
+            {roundOverlayDifficultyControl && (
+              <div className="mt-3 rounded-xl border border-violet-400/30 bg-violet-950/35 px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-violet-300">
+                      {t`Difficulty`}
+                    </p>
+                    <p className="mt-1 truncate text-xs text-zinc-400">
+                      {roundOverlayDifficultyControl.roundName}
+                    </p>
+                  </div>
+                  {roundOverlayDifficultyControl.saving && (
+                    <span className="text-xs text-violet-200">{t`Saving…`}</span>
+                  )}
+                </div>
+                <div
+                  className="mt-2 flex items-center gap-1"
+                  role="group"
+                  aria-label={t`Difficulty`}
+                >
+                  {[1, 2, 3, 4, 5].map((level) => {
+                    const active = level <= (roundOverlayDifficultyControl.difficulty ?? 0);
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        disabled={roundOverlayDifficultyControl.saving}
+                        aria-label={t`Set difficulty to ${level} star${level === 1 ? "" : "s"}`}
+                        aria-pressed={roundOverlayDifficultyControl.difficulty === level}
+                        onClick={() => roundOverlayDifficultyControl.onChange(level)}
+                        className={`flex h-9 flex-1 items-center justify-center rounded-lg border text-xl transition-colors disabled:opacity-50 ${
+                          active
+                            ? "border-yellow-300/45 bg-yellow-400/10 text-yellow-300"
+                            : "border-zinc-700 bg-black/25 text-zinc-600 hover:text-zinc-400"
+                        }`}
+                        data-controller-focus-id={`game-options-difficulty-${level}`}
+                      >
+                        ★
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="mt-3 space-y-2">
               <button

@@ -38,6 +38,7 @@ import {
   type LibraryExportPackageStatus,
 } from "@/services/db";
 import { playlists } from "@/services/playlists";
+import { acquisition } from "@/services/acquisition";
 import { importOpenedFile } from "@/services/openedFiles";
 import { getInstalledRoundPlaybackEntryCached } from "@/services/installedRoundsCache";
 import { buildRoundRenderRowsWithOptions, type RoundRenderRow } from "@/routes/roundRows";
@@ -65,6 +66,7 @@ import { GameDropdown } from "@/components/ui/GameDropdown";
 import { RangeSlider } from "@/components/ui/RangeSlider";
 
 import { DEFAULT_EXPORT_COMPRESSION_STRENGTH } from "./constants";
+import { applyRoundSelectionClick, collectVisibleSelectableRoundIds } from "./selectionRange";
 import {
   formatDate,
   isTemplateRound,
@@ -421,6 +423,15 @@ export function InstalledRoundsPage({
   const [selectedRoundIds, setSelectedRoundIds] = useState<Set<string>>(new Set());
   const [selectedHeroIds, setSelectedHeroIds] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
+  const selectionAnchorIdRef = useRef<string | null>(null);
+  const visibleSelectableRoundIds = useMemo(
+    () => collectVisibleSelectableRoundIds(renderRows, expandedGroupKeySet),
+    [expandedGroupKeySet, renderRows]
+  );
+
+  useEffect(() => {
+    if (!selectionMode) selectionAnchorIdRef.current = null;
+  }, [selectionMode]);
 
   // ─── Scan status + web video cache ──────────────────────────────────────────
   const scanStatusQuery = useInstallScanStatus({ enabled: true });
@@ -1080,6 +1091,8 @@ export function InstalledRoundsPage({
     setExportDialog({
       exportMode: selectedRoundIds.size > 0 || selectedHeroIds.size > 0 ? "selected" : "all",
       includeMedia: true,
+      includeAcquisitionSources: true,
+      replaceOriginalLinksWithAcquisition: false,
       asFpack: false,
       compressionMode: null,
       compressionStrength: DEFAULT_EXPORT_COMPRESSION_STRENGTH,
@@ -1092,10 +1105,63 @@ export function InstalledRoundsPage({
   const exportInstalledDatabase = useCallback(async () => {
     if (!exportDialog || isExportingDatabase || isStartingScan || isLibraryScanning) return;
     try {
+      const acquisitionSelection = {
+        roundIds: exportDialog.exportMode === "selected" ? Array.from(selectedRoundIds) : undefined,
+        heroIds: exportDialog.exportMode === "selected" ? Array.from(selectedHeroIds) : undefined,
+      };
+      let includeAcquisitionSources =
+        exportDialog.includeAcquisitionSources || exportDialog.replaceOriginalLinksWithAcquisition;
+      const linkAnalysis = await acquisition.analyzeExportAcquisition(acquisitionSelection);
+      const shouldLinkMissing =
+        exportDialog.replaceOriginalLinksWithAcquisition && linkAnalysis.unmappedRounds > 0;
+      if (shouldLinkMissing) {
+        setIsExportingDatabase(true);
+        const linkResult = await acquisition.autoLinkExportAcquisition(acquisitionSelection);
+        if (linkResult.linkedRounds > 0) {
+          includeAcquisitionSources = true;
+          showToast(
+            t`Linked ${linkResult.linkedFiles} source files to ${linkResult.linkedRounds} rounds.`,
+            "success"
+          );
+        }
+        if (linkResult.unmatchedRounds > 0) {
+          showToast(
+            t`${linkResult.unmatchedRounds} rounds had no unique, high-confidence torrent or MEGA match; their original links will be kept.`,
+            "info"
+          );
+        }
+      } else if (
+        linkAnalysis.totalRounds > 0 &&
+        linkAnalysis.mappedRounds === 0 &&
+        linkAnalysis.unmappedRounds > 0
+      ) {
+        const shouldAutoLink = window.confirm(
+          t`This export has no torrent or MEGA download information. Search your configured sources and automatically link unique, high-confidence filename matches before exporting? No files will be downloaded. Choose Cancel to export without adding links.`
+        );
+        if (shouldAutoLink) {
+          setIsExportingDatabase(true);
+          const linkResult = await acquisition.autoLinkExportAcquisition(acquisitionSelection);
+          if (linkResult.linkedRounds > 0) {
+            includeAcquisitionSources = true;
+            setExportDialog((current) =>
+              current ? { ...current, includeAcquisitionSources: true } : current
+            );
+            showToast(
+              t`Linked ${linkResult.linkedFiles} source files to ${linkResult.linkedRounds} rounds.`,
+              "success"
+            );
+          } else {
+            showToast(t`No unique, high-confidence torrent or MEGA matches were found.`, "info");
+          }
+        }
+      }
       const directoryPath = await window.electronAPI.dialog.selectPlaylistExportDirectory(
         t`Installed Library`
       );
-      if (!directoryPath) return;
+      if (!directoryPath) {
+        setIsExportingDatabase(false);
+        return;
+      }
       setIsExportingDatabase(true);
       setShowLibraryExportOverlay(true);
       setLibraryExportStatus((current) =>
@@ -1124,6 +1190,8 @@ export function InstalledRoundsPage({
           : "copy",
         compressionStrength: exportDialog.compressionStrength,
         audioBitrateKbps: exportDialog.audioBitrateKbps,
+        includeAcquisitionSources,
+        replaceOriginalLinksWithAcquisition: exportDialog.replaceOriginalLinksWithAcquisition,
       });
       setExportDialog((current) => (current ? { ...current, result, error: null } : current));
     } catch (error) {
@@ -1152,6 +1220,7 @@ export function InstalledRoundsPage({
     isLibraryScanning,
     selectedHeroIds,
     selectedRoundIds,
+    showToast,
     t,
   ]);
 
@@ -1459,6 +1528,7 @@ export function InstalledRoundsPage({
 
   const toggleHeroGroupSelection = useCallback(
     (group: Extract<RoundRenderRow, { kind: "hero-group" }>) => {
+      selectionAnchorIdRef.current = null;
       const groupRoundIds = group.rounds.map((r) => r.id);
       const heroId = group.rounds[0]?.heroId;
       const allRoundsSelected = groupRoundIds.every((id) => selectedRoundIds.has(id));
@@ -2123,6 +2193,9 @@ export function InstalledRoundsPage({
                   setSelectedRoundIds={setSelectedRoundIds}
                   selectedHeroIds={selectedHeroIds}
                   setSelectedHeroIds={setSelectedHeroIds}
+                  clearSelectionAnchor={() => {
+                    selectionAnchorIdRef.current = null;
+                  }}
                   filteredRounds={filteredRounds}
                   openBulkTagsDialog={() => setBulkTagsDialog({ mode: "add", tagsText: "" })}
                   openDeleteSelectedRoundsDialog={openDeleteSelectedRoundsDialog}
@@ -2141,13 +2214,18 @@ export function InstalledRoundsPage({
                   websiteVideoScanStatusRunning={isWebsiteVideoCaching}
                   getDownloadProgressForVideoUri={getDownloadProgressForVideoUri}
                   disabledRoundIds={disabledRoundIds}
-                  selectionToggle={(round) => {
+                  selectionToggle={(round, modifiers) => {
                     handleSelectSfx();
                     setSelectedRoundIds((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(round.id)) next.delete(round.id);
-                      else next.add(round.id);
-                      return next;
+                      const result = applyRoundSelectionClick({
+                        selectedIds: prev,
+                        clickedId: round.id,
+                        anchorId: selectionAnchorIdRef.current,
+                        visibleIds: visibleSelectableRoundIds,
+                        shiftKey: modifiers.shiftKey,
+                      });
+                      selectionAnchorIdRef.current = result.anchorId;
+                      return result.selectedIds;
                     });
                   }}
                   renderHeroGroupHeader={(row) => (
@@ -2826,6 +2904,7 @@ type LibrarySectionProps = {
   setSelectedRoundIds: (v: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
   selectedHeroIds: Set<string>;
   setSelectedHeroIds: (v: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+  clearSelectionAnchor: () => void;
   filteredRounds: RoundLibraryEntry[];
   openBulkTagsDialog: () => void;
   openDeleteSelectedRoundsDialog: () => void;
@@ -2848,7 +2927,7 @@ type LibrarySectionProps = {
     uri: string | null | undefined
   ) => import("@/services/db").VideoDownloadProgress | null;
   disabledRoundIds: Set<string>;
-  selectionToggle: (round: RoundLibraryEntry) => void;
+  selectionToggle: (round: RoundLibraryEntry, modifiers: { shiftKey: boolean }) => void;
   renderHeroGroupHeader: (row: Extract<RoundRenderRow, { kind: "hero-group" }>) => ReactNode;
   renderPlaylistGroupHeader: (
     row: Extract<RoundRenderRow, { kind: "playlist-group" }>
@@ -2918,6 +2997,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
     setSelectedRoundIds,
     selectedHeroIds,
     setSelectedHeroIds,
+    clearSelectionAnchor,
     filteredRounds,
     openBulkTagsDialog,
     openDeleteSelectedRoundsDialog,
@@ -3007,6 +3087,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
           onClick={() => {
             setSelectionMode(!selectionMode);
             if (selectionMode) {
+              clearSelectionAnchor();
               setSelectedRoundIds(new Set());
               setSelectedHeroIds(new Set());
             }
@@ -3036,9 +3117,15 @@ function LibrarySectionContent(props: LibrarySectionProps) {
           <span className="mr-auto text-sm font-semibold text-cyan-100">
             {t`${selectedRoundIds.size} rounds, ${selectedHeroIds.size} heroes selected`}
           </span>
+          <span className="text-xs text-cyan-100/70">
+            <Trans>Shift-click selects a visible range.</Trans>
+          </span>
           <button
             className="round-library-toolbar-button"
-            onClick={() => setSelectedRoundIds(new Set(filteredRounds.map((round) => round.id)))}
+            onClick={() => {
+              clearSelectionAnchor();
+              setSelectedRoundIds(new Set(filteredRounds.map((round) => round.id)));
+            }}
           >
             <Trans>Select matching</Trans>
           </button>
@@ -3139,6 +3226,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                 setSelectionMode((prev) => {
                   const next = !prev;
                   if (next === false) {
+                    clearSelectionAnchor();
                     setSelectedRoundIds(new Set());
                     setSelectedHeroIds(new Set());
                   }
@@ -3158,6 +3246,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                   setSelectionMode((prev) => {
                     const next = !prev;
                     if (!next) {
+                      clearSelectionAnchor();
                       setSelectedRoundIds(new Set());
                       setSelectedHeroIds(new Set());
                     }
@@ -3179,6 +3268,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                   onMouseEnter={handleHoverSfx}
                   onClick={() => {
                     handleSelectSfx();
+                    clearSelectionAnchor();
                     setSelectedRoundIds(new Set(filteredRounds.map((r) => r.id)));
                     setSelectedHeroIds(new Set());
                   }}
@@ -3201,6 +3291,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                     onMouseEnter={handleHoverSfx}
                     onClick={() => {
                       handleSelectSfx();
+                      clearSelectionAnchor();
                       setSelectedRoundIds(new Set());
                       setSelectedHeroIds(new Set());
                     }}
