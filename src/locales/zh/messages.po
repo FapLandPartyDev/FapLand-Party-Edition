@@ -4862,16 +4862,16 @@ msgstr "安装文件夹或导入便携文件以开始构建库。"
 msgid "Install from web"
 msgstr "从网页安装"
 
+#. js-lingui-explicit-id
+#: src/components/CommandPalette.tsx:279
+msgid "command-palette.rounds-install-web"
+msgstr "从网络安装"
+
 #: src/routes/rounds.tsx:2890
 #: src/routes/rounds.tsx:3523
 #: src/routes/rounds.tsx:6170
 msgid "Install From Web"
 msgstr "从网页安装"
-
-#. js-lingui-explicit-id
-#: src/components/CommandPalette.tsx:279
-msgid "command-palette.rounds-install-web"
-msgstr "从网络安装"
 
 #: src/routes/rounds.tsx:2814
 msgid "Install new rounds, import portable files, and manage database exports from one place."
@@ -8642,7 +8642,7 @@ msgstr "选择一个搜索结果以查看可下载文件。"
 msgid "Select a source hero first."
 msgstr "请先选择一个源主角。"
 
-#: src/features/converter/VideoPreview.tsx:93
+#: src/features/converter/VideoPreview.tsx:97
 msgid "Select a source video to start editing."
 msgstr "选择一个源视频开始编辑。"
 

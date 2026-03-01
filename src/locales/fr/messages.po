@@ -4862,16 +4862,16 @@ msgstr "Installez un dossier ou importez un fichier portable pour commencer à c
 msgid "Install from web"
 msgstr "Installer depuis le Web"
 
+#. js-lingui-explicit-id
+#: src/components/CommandPalette.tsx:279
+msgid "command-palette.rounds-install-web"
+msgstr "Installer depuis le web"
+
 #: src/routes/rounds.tsx:2890
 #: src/routes/rounds.tsx:3523
 #: src/routes/rounds.tsx:6170
 msgid "Install From Web"
 msgstr "Installer à partir du Web"
-
-#. js-lingui-explicit-id
-#: src/components/CommandPalette.tsx:279
-msgid "command-palette.rounds-install-web"
-msgstr "Installer depuis le web"
 
 #: src/routes/rounds.tsx:2814
 msgid "Install new rounds, import portable files, and manage database exports from one place."
@@ -8642,7 +8642,7 @@ msgstr "Sélectionnez un résultat pour inspecter les fichiers téléchargeables
 msgid "Select a source hero first."
 msgstr "Sélectionnez d’abord un héros source."
 
-#: src/features/converter/VideoPreview.tsx:93
+#: src/features/converter/VideoPreview.tsx:97
 msgid "Select a source video to start editing."
 msgstr "Sélectionnez une vidéo source pour commencer le montage."
 

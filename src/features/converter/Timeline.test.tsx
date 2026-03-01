@@ -78,6 +78,58 @@ describe("Timeline", () => {
     expect(screen.getByLabelText("Cut range")).toBeDefined();
   });
 
+  it("renders a cut overlay only on its segment lane", () => {
+    render(
+      <Timeline
+        timelineScrollRef={{ current: null }}
+        dragStateRef={{ current: null }}
+        durationMs={10_000}
+        currentTimeMs={2_000}
+        markInMs={null}
+        markOutMs={null}
+        zoomPxPerSec={80}
+        timelineWidthPx={1200}
+        sortedSegments={[
+          {
+            id: "segment-1",
+            startTimeMs: 1_000,
+            endTimeMs: 5_000,
+            cutRanges: [{ id: "cut-1", startTimeMs: 2_000, endTimeMs: 3_000 }],
+            type: "Normal",
+            customName: null,
+            bpm: null,
+            difficulty: null,
+            bpmOverride: false,
+            difficultyOverride: false,
+          },
+          {
+            id: "segment-2",
+            startTimeMs: 2_000,
+            endTimeMs: 4_000,
+            cutRanges: [],
+            type: "Interjection",
+            customName: null,
+            bpm: null,
+            difficulty: null,
+            bpmOverride: false,
+            difficultyOverride: false,
+          },
+        ]}
+        selectedSegmentId={null}
+        funscriptActions={[]}
+        onTimelineWheel={vi.fn()}
+        onTimelinePointerDown={vi.fn()}
+        onSelectSegment={vi.fn()}
+        onZoomChange={vi.fn()}
+      />,
+    );
+
+    const cut = screen.getByLabelText("Cut range");
+    expect(cut.getAttribute("data-cut-segment-id")).toBe("segment-1");
+    expect(cut.getAttribute("data-cut-lane")).toBe("0");
+    expect(cut).toHaveStyle({ top: "56px", height: "32px" });
+  });
+
   it("renders overlapping segments on separate lanes", () => {
     render(
       <Timeline

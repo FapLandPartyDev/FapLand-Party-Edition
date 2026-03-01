@@ -314,23 +314,26 @@ export const Timeline: React.FC<TimelineProps> = React.memo(
             })}
 
             {/* Cuts */}
-            {sortedSegments.flatMap((segment) =>
+            {segmentLanes.flatMap(({ segment, lane }) =>
               segment.cutRanges.map((cut) => {
                 const left = durationMs > 0 ? (cut.startTimeMs / durationMs) * timelineWidthPx : 0;
                 const width =
                   durationMs > 0
                     ? ((cut.endTimeMs - cut.startTimeMs) / durationMs) * timelineWidthPx
                     : 0;
+                const top = SEGMENT_LANE_TOP + lane * (SEGMENT_LANE_HEIGHT + SEGMENT_LANE_GAP);
                 return (
                   <div
                     key={`${segment.id}-${cut.id}`}
                     aria-label="Cut range"
+                    data-cut-segment-id={segment.id}
+                    data-cut-lane={lane}
                     className="pointer-events-none absolute rounded border border-rose-200/70 bg-[repeating-linear-gradient(135deg,rgba(244,63,94,0.42)_0,rgba(244,63,94,0.42)_6px,rgba(127,29,29,0.22)_6px,rgba(127,29,29,0.22)_12px)]"
                     style={{
                       left,
-                      top: `${SEGMENT_LANE_TOP - 4}px`,
+                      top,
                       width: Math.max(4, width),
-                      height: `${laneAreaHeight + 8}px`,
+                      height: SEGMENT_LANE_HEIGHT,
                     }}
                     title={`Cut ${formatMs(cut.startTimeMs)}-${formatMs(cut.endTimeMs)}`}
                   />

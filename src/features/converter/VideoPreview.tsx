@@ -18,6 +18,7 @@ type VideoPreviewProps = {
   markInMs: number | null;
   markOutMs: number | null;
   hasSelectedSegment: boolean;
+  previewSkipsCuts: boolean;
   getVideoSrc: (uri: string) => string | undefined;
   onLoadedMetadata: (video: HTMLVideoElement) => void;
   onTimeUpdate: (currentTimeMs: number) => void;
@@ -29,6 +30,7 @@ type VideoPreviewProps = {
   onMoveSelectedStartToPlayhead: () => void;
   onMoveSelectedEndToPlayhead: () => void;
   onRandomJump: () => void;
+  onPreviewSkipsCutsChange: (enabled: boolean) => void;
 };
 
 export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
@@ -40,6 +42,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
     markInMs,
     markOutMs,
     hasSelectedSegment,
+    previewSkipsCuts,
     getVideoSrc,
     onLoadedMetadata,
     onTimeUpdate,
@@ -51,6 +54,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
     onMoveSelectedStartToPlayhead,
     onMoveSelectedEndToPlayhead,
     onRandomJump,
+    onPreviewSkipsCutsChange,
   }) => {
     const { t } = useLingui();
     const foregroundVideoId = useId();
@@ -180,6 +184,15 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
           >
             Random <kbd className="converter-kbd">R</kbd>
           </button>
+          <label className="ml-auto flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-600 bg-black/35 px-3 py-2 text-xs text-zinc-200">
+            <input
+              type="checkbox"
+              checked={previewSkipsCuts}
+              onChange={(event) => onPreviewSkipsCutsChange(event.currentTarget.checked)}
+              className="h-4 w-4 accent-violet-400"
+            />
+            Skip cuts in preview
+          </label>
         </div>
       </div>
     );
@@ -197,6 +210,7 @@ export function pickVideoPreviewProps(state: ConverterState): VideoPreviewProps 
     markInMs: state.markInMs,
     markOutMs: state.markOutMs,
     hasSelectedSegment: state.selectedSegment !== null,
+    previewSkipsCuts: state.previewSkipsCuts,
     getVideoSrc: (uri: string) => state.getVideoSrc(uri),
     onLoadedMetadata: (video: HTMLVideoElement) => {
       const nextDuration = Number.isFinite(video.duration) ? Math.floor(video.duration * 1000) : 0;
@@ -213,5 +227,6 @@ export function pickVideoPreviewProps(state: ConverterState): VideoPreviewProps 
     onMoveSelectedStartToPlayhead: state.moveSelectedSegmentStartToPlayhead,
     onMoveSelectedEndToPlayhead: state.moveSelectedSegmentEndToPlayhead,
     onRandomJump: state.jumpToRandomPoint,
+    onPreviewSkipsCutsChange: state.setPreviewSkipsCuts,
   };
 }

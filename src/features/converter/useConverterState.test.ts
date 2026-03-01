@@ -311,6 +311,194 @@ describe("useConverterState", () => {
     expect(result.current.error).toBeNull();
   });
 
+  it("auto-targets a cut when exactly one segment overlaps and nothing is selected", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(8_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+      result.current.setSelectedSegmentId(null);
+      result.current.setMarkInMs(3_000);
+      result.current.setMarkOutMs(4_000);
+    });
+
+    act(() => {
+      result.current.addCutFromMarks();
+    });
+
+    expect(result.current.selectedSegmentId).toBeNull();
+    expect(result.current.sortedSegments[0]?.cutRanges).toMatchObject([
+      { startTimeMs: 3_000, endTimeMs: 4_000 },
+    ]);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("rejects a cut when multiple overlapping segments exist and nothing is selected", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setAllowOverlappingSegments(true);
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(6_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+      result.current.setMarkInMs(3_000);
+      result.current.setMarkOutMs(8_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    const before = result.current.sortedSegments.map((segment) => ({
+      id: segment.id,
+      startTimeMs: segment.startTimeMs,
+      endTimeMs: segment.endTimeMs,
+      cutRanges: segment.cutRanges.map((cut) => ({ ...cut })),
+    }));
+
+    act(() => {
+      result.current.setSelectedSegmentId(null);
+      result.current.setMarkInMs(4_000);
+      result.current.setMarkOutMs(5_000);
+    });
+
+    act(() => {
+      result.current.addCutFromMarks();
+    });
+
+    const after = result.current.sortedSegments.map((segment) => ({
+      id: segment.id,
+      startTimeMs: segment.startTimeMs,
+      endTimeMs: segment.endTimeMs,
+      cutRanges: segment.cutRanges.map((cut) => ({ ...cut })),
+    }));
+
+    expect(after).toEqual(before);
+    expect(result.current.error).toBe(
+      "Select a segment before adding a cut when multiple segments overlap the cut marks."
+    );
+  });
+
+  it("applies a cut only to the explicitly selected overlapping segment", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setAllowOverlappingSegments(true);
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(6_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+      result.current.setMarkInMs(3_000);
+      result.current.setMarkOutMs(8_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    const first = result.current.sortedSegments[0];
+    const second = result.current.sortedSegments[1];
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+
+    const untouchedSecond = {
+      startTimeMs: second!.startTimeMs,
+      endTimeMs: second!.endTimeMs,
+      cutRanges: second!.cutRanges.map((cut) => ({ ...cut })),
+    };
+
+    act(() => {
+      result.current.setSelectedSegmentId(first!.id);
+      result.current.setMarkInMs(4_000);
+      result.current.setMarkOutMs(5_000);
+    });
+
+    act(() => {
+      result.current.addCutFromMarks();
+    });
+
+    expect(result.current.sortedSegments[0]?.cutRanges).toMatchObject([
+      { startTimeMs: 4_000, endTimeMs: 5_000 },
+    ]);
+    expect(result.current.sortedSegments[1]).toMatchObject(untouchedSecond);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("rejects a cut when the selected segment does not overlap the marks", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(2_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+      result.current.setMarkInMs(4_000);
+      result.current.setMarkOutMs(5_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    const before = result.current.sortedSegments.map((segment) => ({
+      id: segment.id,
+      startTimeMs: segment.startTimeMs,
+      endTimeMs: segment.endTimeMs,
+      cutRanges: segment.cutRanges.map((cut) => ({ ...cut })),
+    }));
+
+    act(() => {
+      result.current.setSelectedSegmentId(result.current.sortedSegments[0]?.id ?? null);
+      result.current.setMarkInMs(4_100);
+      result.current.setMarkOutMs(4_900);
+    });
+
+    act(() => {
+      result.current.addCutFromMarks();
+    });
+
+    const after = result.current.sortedSegments.map((segment) => ({
+      id: segment.id,
+      startTimeMs: segment.startTimeMs,
+      endTimeMs: segment.endTimeMs,
+      cutRanges: segment.cutRanges.map((cut) => ({ ...cut })),
+    }));
+
+    expect(after).toEqual(before);
+    expect(result.current.error).toBe("Cut marks must overlap the selected segment.");
+  });
+
   it("rejects overlapping segments while overlap mode is off", async () => {
     const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
 
@@ -416,6 +604,47 @@ describe("useConverterState", () => {
     expect(result.current.currentTimeMs).toBe(4_000);
   });
 
+  it("does not skip cuts in preview when the toggle is disabled", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    const video = {
+      currentTime: 0,
+      paused: false,
+    } as HTMLVideoElement;
+
+    act(() => {
+      result.current.videoRef.current = video;
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(8_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    act(() => {
+      result.current.setMarkInMs(3_000);
+      result.current.setMarkOutMs(4_000);
+    });
+
+    act(() => {
+      result.current.addCutFromMarks();
+      result.current.setPreviewSkipsCuts(false);
+    });
+
+    act(() => {
+      result.current.syncPreviewTimeMs(3_250);
+    });
+
+    expect(video.currentTime).toBe(0);
+    expect(result.current.currentTimeMs).toBe(3_250);
+  });
+
   it("trims the selected segment when a cut reaches its start", async () => {
     const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
 
@@ -471,6 +700,101 @@ describe("useConverterState", () => {
 
     expect(result.current.sortedSegments).toEqual([]);
     expect(result.current.message).toBe("Segment cut out (00:02.00 - 00:08.00).");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("removes only the selected overlapping segment when a cut covers it completely", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setAllowOverlappingSegments(true);
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(2_000);
+      result.current.setMarkOutMs(6_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+      result.current.setMarkInMs(4_000);
+      result.current.setMarkOutMs(9_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    const remainingSegmentId = result.current.sortedSegments[1]?.id ?? null;
+
+    act(() => {
+      result.current.setSelectedSegmentId(result.current.sortedSegments[0]?.id ?? null);
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(7_000);
+    });
+
+    act(() => {
+      result.current.addCutFromMarks();
+    });
+
+    expect(result.current.sortedSegments).toHaveLength(1);
+    expect(result.current.sortedSegments[0]?.id).toBe(remainingSegmentId);
+    expect(result.current.sortedSegments[0]).toMatchObject({
+      startTimeMs: 4_000,
+      endTimeMs: 9_000,
+      cutRanges: [],
+    });
+    expect(result.current.error).toBeNull();
+  });
+
+  it("trims only the selected overlapping segment when a cut reaches its start", async () => {
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setAllowOverlappingSegments(true);
+      result.current.setDurationMs(10_000);
+      result.current.setMarkInMs(2_000);
+      result.current.setMarkOutMs(8_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+      result.current.setMarkInMs(4_000);
+      result.current.setMarkOutMs(9_000);
+    });
+
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    const overlappingUntouched = {
+      startTimeMs: result.current.sortedSegments[1]?.startTimeMs,
+      endTimeMs: result.current.sortedSegments[1]?.endTimeMs,
+      cutRanges: result.current.sortedSegments[1]?.cutRanges.map((cut) => ({ ...cut })) ?? [],
+    };
+
+    act(() => {
+      result.current.setSelectedSegmentId(result.current.sortedSegments[0]?.id ?? null);
+      result.current.setMarkInMs(1_000);
+      result.current.setMarkOutMs(3_000);
+    });
+
+    act(() => {
+      result.current.addCutFromMarks();
+    });
+
+    expect(result.current.sortedSegments[0]).toMatchObject({
+      startTimeMs: 3_000,
+      endTimeMs: 8_000,
+      cutRanges: [],
+    });
+    expect(result.current.sortedSegments[1]).toMatchObject(overlappingUntouched);
     expect(result.current.error).toBeNull();
   });
 

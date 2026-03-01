@@ -91,6 +91,14 @@ function toCutDrafts(cutRangesJson: string | null | undefined, startTimeMs: numb
   }));
 }
 
+function segmentOverlapsRange(
+  segment: Pick<SegmentDraft, "startTimeMs" | "endTimeMs">,
+  startTimeMs: number,
+  endTimeMs: number
+): boolean {
+  return startTimeMs < segment.endTimeMs && endTimeMs > segment.startTimeMs;
+}
+
 export function useConverterState(searchParams: ConverterSearchParams) {
   const { sourceRoundId: preselectedSourceRoundId, heroName: prefilledHeroName } = searchParams;
 
@@ -128,6 +136,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
   const [detectedSegments, setDetectedSegments] = useState<SegmentDraft[]>([]);
   const [funscriptActions, setFunscriptActions] = useState<FunscriptAction[]>([]);
   const [allowOverlappingSegments, setAllowOverlappingSegments] = useState(false);
+  const [previewSkipsCuts, setPreviewSkipsCuts] = useState(true);
 
   const latestSegmentsRef = useRef<SegmentDraft[]>([]);
 
@@ -533,6 +542,40 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     [sortedSegments, selectedSegmentId]
   );
 
+  const resolveCutTarget = useCallback(
+    (startTimeMs: number, endTimeMs: number): { segment: SegmentDraft | null; reason: string | null } => {
+      const overlappingSegments = sortedSegments.filter((segment) =>
+        segmentOverlapsRange(segment, startTimeMs, endTimeMs)
+      );
+
+      if (selectedSegmentId) {
+        const explicitSegment =
+          sortedSegments.find((segment) => segment.id === selectedSegmentId) ?? null;
+        if (!explicitSegment) {
+          return { segment: null, reason: "Select a segment before adding a cut." };
+        }
+        if (!segmentOverlapsRange(explicitSegment, startTimeMs, endTimeMs)) {
+          return { segment: null, reason: "Cut marks must overlap the selected segment." };
+        }
+        return { segment: explicitSegment, reason: null };
+      }
+
+      if (overlappingSegments.length === 1) {
+        return { segment: overlappingSegments[0] ?? null, reason: null };
+      }
+
+      if (overlappingSegments.length > 1) {
+        return {
+          segment: null,
+          reason: "Select a segment before adding a cut when multiple segments overlap the cut marks.",
+        };
+      }
+
+      return { segment: null, reason: "Cut marks must overlap the selected segment." };
+    },
+    [selectedSegmentId, sortedSegments]
+  );
+
   const timelineWidthPx = useMemo(() => {
     if (durationMs <= 0) return 1200;
     return Math.max(1200, Math.ceil((durationMs / 1000) * zoomPxPerSec));
@@ -909,7 +952,8 @@ export function useConverterState(searchParams: ConverterSearchParams) {
       const segment = sortedSegments.find(
         (entry) => timeMs >= entry.startTimeMs && timeMs < entry.endTimeMs
       );
-      const skippedToSec = segment ? skipCutIfNeeded(timeMs / 1000, segment.cutRanges) : null;
+      const skippedToSec =
+        previewSkipsCuts && segment ? skipCutIfNeeded(timeMs / 1000, segment.cutRanges) : null;
       if (video && skippedToSec !== null && !video.paused) {
         video.currentTime = skippedToSec;
         const skippedToMs = Math.floor(skippedToSec * 1000);
@@ -919,7 +963,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
 
       setCurrentTimeMs(timeMs);
     },
-    [sortedSegments]
+    [previewSkipsCuts, sortedSegments]
   );
 
   const jumpToRandomPoint = useCallback(() => {
@@ -1031,11 +1075,6 @@ export function useConverterState(searchParams: ConverterSearchParams) {
   }, [applySegments, markInMs, markOutMs, segments]);
 
   const addCutFromMarks = useCallback(() => {
-    if (!selectedSegment) {
-      setError("Select a segment before adding a cut.");
-      playConverterValidationErrorSound();
-      return;
-    }
     if (markInMs === null || markOutMs === null) {
       setError("Set both IN and OUT marks before adding a cut.");
       playConverterValidationErrorSound();
@@ -1049,65 +1088,78 @@ export function useConverterState(searchParams: ConverterSearchParams) {
       playConverterValidationErrorSound();
       return;
     }
-    if (endTimeMs <= selectedSegment.startTimeMs || startTimeMs >= selectedSegment.endTimeMs) {
-      setError("Cut marks must overlap the selected segment.");
+
+    const { segment: targetSegment, reason } = resolveCutTarget(startTimeMs, endTimeMs);
+    if (!targetSegment || reason) {
+      setError(reason ?? "Select a segment before adding a cut.");
       playConverterValidationErrorSound();
       return;
     }
 
-    const boundedStartTimeMs = clamp(startTimeMs, selectedSegment.startTimeMs, selectedSegment.endTimeMs);
-    const boundedEndTimeMs = clamp(endTimeMs, selectedSegment.startTimeMs, selectedSegment.endTimeMs);
+    const boundedStartTimeMs = clamp(startTimeMs, targetSegment.startTimeMs, targetSegment.endTimeMs);
+    const boundedEndTimeMs = clamp(endTimeMs, targetSegment.startTimeMs, targetSegment.endTimeMs);
 
     if (
-      boundedStartTimeMs <= selectedSegment.startTimeMs &&
-      boundedEndTimeMs >= selectedSegment.endTimeMs
+      boundedStartTimeMs <= targetSegment.startTimeMs &&
+      boundedEndTimeMs >= targetSegment.endTimeMs
     ) {
-      const next = segments.filter((segment) => segment.id !== selectedSegment.id);
+      const next = segments.filter((segment) => segment.id !== targetSegment.id);
       const sorted = sortSegments(withAutoMetadata(next));
       undoManagerRef.current.push(sorted);
       syncUndoState();
       setSegments(sorted);
-      setSelectedSegmentId(sorted[0]?.id ?? null);
-      setMessage(`Segment cut out (${formatMs(selectedSegment.startTimeMs)} - ${formatMs(selectedSegment.endTimeMs)}).`);
+      if (selectedSegmentId === targetSegment.id) {
+        setSelectedSegmentId(sorted[0]?.id ?? null);
+      }
+      setMessage(`Segment cut out (${formatMs(targetSegment.startTimeMs)} - ${formatMs(targetSegment.endTimeMs)}).`);
       setError(null);
       playConverterSegmentDeleteSound();
       return;
     }
 
-    let nextSelectedSegment: SegmentDraft = selectedSegment;
-    if (boundedStartTimeMs <= selectedSegment.startTimeMs) {
+    let nextSelectedSegment: SegmentDraft = targetSegment;
+    if (boundedStartTimeMs <= targetSegment.startTimeMs) {
       nextSelectedSegment = {
-        ...selectedSegment,
+        ...targetSegment,
         startTimeMs: boundedEndTimeMs,
-        cutRanges: selectedSegment.cutRanges.filter((cut) => cut.endTimeMs > boundedEndTimeMs),
+        cutRanges: targetSegment.cutRanges.filter((cut) => cut.endTimeMs > boundedEndTimeMs),
       };
-    } else if (boundedEndTimeMs >= selectedSegment.endTimeMs) {
+    } else if (boundedEndTimeMs >= targetSegment.endTimeMs) {
       nextSelectedSegment = {
-        ...selectedSegment,
+        ...targetSegment,
         endTimeMs: boundedStartTimeMs,
-        cutRanges: selectedSegment.cutRanges.filter((cut) => cut.startTimeMs < boundedStartTimeMs),
+        cutRanges: targetSegment.cutRanges.filter((cut) => cut.startTimeMs < boundedStartTimeMs),
       };
     } else {
       const normalizedCuts = normalizeRoundCutRanges(
         [
-          ...selectedSegment.cutRanges,
+          ...targetSegment.cutRanges,
           { id: createSegmentId(), startTimeMs: boundedStartTimeMs, endTimeMs: boundedEndTimeMs },
         ],
-        selectedSegment.startTimeMs,
-        selectedSegment.endTimeMs
+        targetSegment.startTimeMs,
+        targetSegment.endTimeMs
       ).map((cut) => ({ ...cut, id: createSegmentId() }));
-      nextSelectedSegment = { ...selectedSegment, cutRanges: normalizedCuts };
+      nextSelectedSegment = { ...targetSegment, cutRanges: normalizedCuts };
     }
 
     const next = segments.map((segment) =>
-      segment.id === selectedSegment.id ? nextSelectedSegment : segment
+      segment.id === targetSegment.id ? nextSelectedSegment : segment
     );
     if (!applySegments(next)) return;
 
     setMessage(`Cut added (${formatMs(boundedStartTimeMs)} - ${formatMs(boundedEndTimeMs)}).`);
     setError(null);
     playConverterSegmentAddSound();
-  }, [applySegments, markInMs, markOutMs, segments, selectedSegment, syncUndoState, withAutoMetadata]);
+  }, [
+    applySegments,
+    markInMs,
+    markOutMs,
+    resolveCutTarget,
+    segments,
+    selectedSegmentId,
+    syncUndoState,
+    withAutoMetadata,
+  ]);
 
   const removeCut = useCallback(
     (segmentId: string, cutId: string) => {
@@ -2075,6 +2127,8 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     currentTimeMs,
     setCurrentTimeMs,
     syncPreviewTimeMs,
+    previewSkipsCuts,
+    setPreviewSkipsCuts,
     markInMs,
     setMarkInMs,
     markOutMs,

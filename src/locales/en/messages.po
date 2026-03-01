@@ -4862,15 +4862,15 @@ msgstr "Install a folder or import a portable file to start building the library
 msgid "Install from web"
 msgstr "Install from web"
 
+#. js-lingui-explicit-id
+#: src/components/CommandPalette.tsx:279
+msgid "command-palette.rounds-install-web"
+msgstr "Install From Web"
+
 #: src/routes/rounds.tsx:2890
 #: src/routes/rounds.tsx:3523
 #: src/routes/rounds.tsx:6170
 msgid "Install From Web"
-msgstr "Install From Web"
-
-#. js-lingui-explicit-id
-#: src/components/CommandPalette.tsx:279
-msgid "command-palette.rounds-install-web"
 msgstr "Install From Web"
 
 #: src/routes/rounds.tsx:2814
@@ -8642,7 +8642,7 @@ msgstr "Select a search result to inspect downloadable files."
 msgid "Select a source hero first."
 msgstr "Select a source hero first."
 
-#: src/features/converter/VideoPreview.tsx:93
+#: src/features/converter/VideoPreview.tsx:97
 msgid "Select a source video to start editing."
 msgstr "Select a source video to start editing."
 
