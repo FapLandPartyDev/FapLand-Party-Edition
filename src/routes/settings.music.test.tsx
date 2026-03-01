@@ -315,6 +315,8 @@ describe("Settings music section", () => {
         addMoaningPlaylistFromUrl: vi.fn(),
         selectConverterFunscriptFile: vi.fn(),
         selectFpackExtractionDirectory: vi.fn(),
+        selectMigrationTargetDirectory: vi.fn(),
+        selectPortableInstallation: vi.fn(),
       },
       window: {
         isFullscreen: vi.fn(async () => false),

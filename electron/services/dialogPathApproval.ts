@@ -5,7 +5,9 @@ export type DialogPathApprovalKind =
   | "installSidecarFile"
   | "playlistExportDirectory"
   | "playlistExportFile"
-  | "playlistImportFile";
+  | "playlistImportFile"
+  | "migrationTargetDirectory"
+  | "portableInstallation";
 
 const APPROVAL_TTL_MS = 10 * 60 * 1000;
 

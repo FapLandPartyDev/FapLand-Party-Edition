@@ -36,6 +36,8 @@ declare global {
         }>;
         selectConverterFunscriptFile: () => Promise<string | null>;
         selectFpackExtractionDirectory: () => Promise<string | null>;
+        selectMigrationTargetDirectory: () => Promise<string | null>;
+        selectPortableInstallation: () => Promise<string | null>;
       };
       window: {
         isFullscreen: () => Promise<boolean>;

@@ -12,6 +12,7 @@ import { updaterRouter } from "./routers/updater";
 import { securityRouter } from "./routers/security";
 import { eroscriptsRouter } from "./routers/eroscripts";
 import { binariesRouter } from "./routers/binaries";
+import { migrationRouter } from "./routers/migration";
 
 export const appRouter = router({
   db: dbRouter,
@@ -27,6 +28,7 @@ export const appRouter = router({
   security: securityRouter,
   eroscripts: eroscriptsRouter,
   binaries: binariesRouter,
+  migration: migrationRouter,
 });
 
 export type AppRouter = typeof appRouter;

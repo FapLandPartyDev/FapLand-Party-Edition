@@ -1,4 +1,4 @@
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import React, { type RefObject, useId } from "react";
 import {
   playConverterMarkInSound,
@@ -109,7 +109,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
             }}
             className="converter-action-button border-zinc-600 bg-black/45 text-zinc-100 hover:border-zinc-500"
           >
-            ▶ Play/Pause <kbd className="converter-kbd">Space</kbd>
+            ▶ <Trans>Play/Pause</Trans> <kbd className="converter-kbd">Space</kbd>
           </button>
           <button
             type="button"
@@ -122,7 +122,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
               markInMs !== null ? "shadow-[0_0_10px_rgba(34,211,238,0.2)]" : ""
             }`}
           >
-            Mark IN <kbd className="converter-kbd">I</kbd>
+            <Trans>Mark IN</Trans> <kbd className="converter-kbd">I</kbd>
           </button>
           <button
             type="button"
@@ -135,7 +135,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
               markOutMs !== null ? "shadow-[0_0_10px_rgba(99,102,241,0.2)]" : ""
             }`}
           >
-            Mark OUT <kbd className="converter-kbd">O</kbd>
+            <Trans>Mark OUT</Trans> <kbd className="converter-kbd">O</kbd>
           </button>
           <button
             type="button"
@@ -143,7 +143,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
             onClick={onAddSegment}
             className="converter-action-button border-violet-300/60 bg-violet-500/20 text-violet-100 hover:bg-violet-500/30"
           >
-            Add Segment <kbd className="converter-kbd">Enter</kbd>
+            <Trans>Add Segment</Trans> <kbd className="converter-kbd">Enter</kbd>
           </button>
           <button
             type="button"
@@ -156,7 +156,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
                 : "border-cyan-300/60 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25"
             }`}
           >
-            Move Start Here <kbd className="converter-kbd">S</kbd>
+            <Trans>Move Start Here</Trans> <kbd className="converter-kbd">S</kbd>
           </button>
           <button
             type="button"
@@ -169,7 +169,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
                 : "border-indigo-300/60 bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25"
             }`}
           >
-            Move End Here <kbd className="converter-kbd">E</kbd>
+            <Trans>Move End Here</Trans> <kbd className="converter-kbd">E</kbd>
           </button>
           <button
             type="button"
@@ -182,7 +182,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
                 : "border-emerald-300/60 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30"
             }`}
           >
-            Random <kbd className="converter-kbd">R</kbd>
+            <Trans>Random</Trans> <kbd className="converter-kbd">R</kbd>
           </button>
           <label className="ml-auto flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-600 bg-black/35 px-3 py-2 text-xs text-zinc-200">
             <input
@@ -191,7 +191,7 @@ export const VideoPreview: React.FC<VideoPreviewProps> = React.memo(
               onChange={(event) => onPreviewSkipsCutsChange(event.currentTarget.checked)}
               className="h-4 w-4 accent-violet-400"
             />
-            Skip cuts in preview
+            <Trans>Skip cuts in preview</Trans>
           </label>
         </div>
       </div>

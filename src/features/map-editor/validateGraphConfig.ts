@@ -85,7 +85,7 @@ export function validateGraphConfig(
 
   for (const node of config.nodes) {
     if (nodeById.has(node.id)) {
-      addError(`Duplicate node id "${node.id}"`, "nodes");
+      addError(`Duplicate node id "${node.name}" (${node.id})`, "nodes");
     }
     if (!node.id || node.id.trim().length === 0) {
       addError("Node id must not be empty", "nodes");
@@ -99,12 +99,12 @@ export function validateGraphConfig(
 
     if (node.kind === "round") {
       if (!node.roundRef) {
-        addError(`Round node "${node.id}" requires a roundRef`, `nodes.${node.id}`);
+        addError(`Round node "${node.name}" (${node.id}) requires a roundRef`, `nodes.${node.id}`);
       } else {
         const resolved = resolvePortableRoundRef(node.roundRef, installedRounds);
         if (!resolved) {
           addWarning(
-            `Round node "${node.id}" has unresolved round reference`,
+            `Round node "${node.name}" (${node.id}) has unresolved round reference`,
             `nodes.${node.id}.roundRef`,
             node.id
           );
@@ -114,7 +114,7 @@ export function validateGraphConfig(
         const resolved = resolvePortableRoundRef(roundRef, installedRounds);
         if (!resolved) {
           addWarning(
-            `Round node "${node.id}" video queue item #${index + 1} has unresolved round reference`,
+            `Round node "${node.name}" (${node.id}) video queue item #${index + 1} has unresolved round reference`,
             `nodes.${node.id}.roundPlaylistRefs.${index}`,
             node.id
           );
@@ -174,7 +174,7 @@ export function validateGraphConfig(
 
     if (node.kind === "end" && node.roundRef) {
       addError(
-        `End node "${node.id}" must not define roundRef`,
+        `End node "${node.name}" (${node.id}) must not define roundRef`,
         `nodes.${node.id}.roundRef`,
         node.id
       );
@@ -182,7 +182,7 @@ export function validateGraphConfig(
 
     if (node.kind === "end" && node.randomPoolId) {
       addError(
-        `End node "${node.id}" must not define randomPoolId`,
+        `End node "${node.name}" (${node.id}) must not define randomPoolId`,
         `nodes.${node.id}.randomPoolId`,
         node.id
       );
@@ -201,7 +201,7 @@ export function validateGraphConfig(
       (!Number.isFinite(node.checkpointRestMs) || node.checkpointRestMs < 0)
     ) {
       addError(
-        `Node "${node.id}" additional rest must be a non-negative number`,
+        `Node "${node.name}" (${node.id}) additional rest must be a non-negative number`,
         `nodes.${node.id}.checkpointRestMs`,
         node.id
       );
@@ -220,7 +220,7 @@ export function validateGraphConfig(
       (!Number.isFinite(node.pauseBonusMs) || node.pauseBonusMs < 0)
     ) {
       addError(
-        `Node "${node.id}" pause bonus must be a non-negative number`,
+        `Node "${node.name}" (${node.id}) pause bonus must be a non-negative number`,
         `nodes.${node.id}.pauseBonusMs`,
         node.id
       );
@@ -247,7 +247,7 @@ export function validateGraphConfig(
       (!Number.isFinite(node.catapultForward) || node.catapultForward < 1)
     ) {
       addError(
-        `Node "${node.id}" catapultForward must be a positive integer`,
+        `Node "${node.name}" (${node.id}) catapultForward must be a positive integer`,
         `nodes.${node.id}.catapultForward`,
         node.id
       );
@@ -255,14 +255,14 @@ export function validateGraphConfig(
 
     if (node.styleHint?.x !== undefined && !Number.isFinite(node.styleHint.x)) {
       addError(
-        `Node "${node.id}" styleHint.x must be numeric`,
+        `Node "${node.name}" (${node.id}) styleHint.x must be numeric`,
         `nodes.${node.id}.styleHint.x`,
         node.id
       );
     }
     if (node.styleHint?.y !== undefined && !Number.isFinite(node.styleHint.y)) {
       addError(
-        `Node "${node.id}" styleHint.y must be numeric`,
+        `Node "${node.name}" (${node.id}) styleHint.y must be numeric`,
         `nodes.${node.id}.styleHint.y`,
         node.id
       );
@@ -353,11 +353,11 @@ export function validateGraphConfig(
   for (const node of config.nodes) {
     const outgoingCount = outgoingCountByNodeId.get(node.id) ?? 0;
     if (node.kind === "end" && outgoingCount > 0) {
-      addError(`End node "${node.id}" must not have outgoing edges`, `nodes.${node.id}`, node.id);
+      addError(`End node "${node.name}" (${node.id}) must not have outgoing edges`, `nodes.${node.id}`, node.id);
     }
     if (node.kind !== "end" && outgoingCount === 0) {
       addError(
-        `Node "${node.id}" is a dead end; only end nodes may have zero outgoing edges`,
+        `Node "${node.name}" (${node.id}) is a dead end; only end nodes may have zero outgoing edges`,
         `nodes.${node.id}`,
         node.id
       );
@@ -426,7 +426,7 @@ export function validateGraphConfig(
     const fromNode = nodeById.get(edge.fromNodeId);
     if (fromNode?.autoAdvanceAfterCompletion && (edge.gateCost ?? 0) !== 0) {
       addError(
-        `Auto-advance node "${fromNode.id}" must use a zero-cost outgoing edge`,
+        `Auto-advance node "${fromNode.name}" (${fromNode.id}) must use a zero-cost outgoing edge`,
         `edges.${edge.id}.gateCost`,
         fromNode.id,
         edge.id

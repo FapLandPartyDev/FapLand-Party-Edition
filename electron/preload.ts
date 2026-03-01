@@ -63,6 +63,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("dialog:selectConverterFunscriptFile") as Promise<string | null>,
     selectFpackExtractionDirectory: () =>
       ipcRenderer.invoke("dialog:selectFpackExtractionDirectory") as Promise<string | null>,
+    selectMigrationTargetDirectory: () =>
+      ipcRenderer.invoke("dialog:selectMigrationTargetDirectory") as Promise<string | null>,
+    selectPortableInstallation: () =>
+      ipcRenderer.invoke("dialog:selectPortableInstallation") as Promise<string | null>,
   },
   window: {
     isFullscreen: () => ipcRenderer.invoke("window:isFullscreen") as Promise<boolean>,

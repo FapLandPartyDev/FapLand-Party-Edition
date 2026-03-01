@@ -41,7 +41,7 @@ msgstr "…"
 msgid ".fpack Extraction"
 msgstr ".fpack 解压"
 
-#: src/routes/settings.tsx:2415
+#: src/routes/settings.tsx:2417
 msgid ".fpack Extraction Location"
 msgstr ".fpack 解压位置"
 
@@ -50,7 +50,7 @@ msgstr ".fpack 解压位置"
 msgid "first-start.step.storage.detail.3"
 msgstr ".fpack 解压位置将解压后的包内容存储在持久文件夹中，以便这些关卡稍后仍可游玩。"
 
-#: src/routes/settings.tsx:4855
+#: src/routes/settings.tsx:4857
 msgid ".fpack Extractions"
 msgstr ".fpack 提取"
 
@@ -67,10 +67,16 @@ msgstr ".fpack 提取"
 msgid "{0}"
 msgstr "{0}"
 
+#. placeholder {0}: heroName.trim() || "Hero"
+#. placeholder {1}: index + 1
+#: src/features/converter/SegmentCard.tsx:121
+msgid "{0} - round {1}"
+msgstr "{0} - 第 {1} 轮"
+
 #. placeholder {0}: scanStatus.completedCount
 #. placeholder {1}: scanStatus.totalCount
-#: src/routes/settings.tsx:2977
-#: src/routes/settings.tsx:3169
+#: src/routes/settings.tsx:2979
+#: src/routes/settings.tsx:3171
 msgid "{0} / {1} videos"
 msgstr "{0} / {1} 个视频"
 
@@ -110,12 +116,12 @@ msgid "{0} board"
 msgstr "{0} 棋盘"
 
 #. placeholder {0}: scanStatus.completedCount
-#: src/routes/settings.tsx:3200
+#: src/routes/settings.tsx:3202
 msgid "{0} cached"
 msgstr "{0} 已缓存"
 
 #. placeholder {0}: trustedSites.builtInYtDlpDomains.length
-#: src/routes/settings.tsx:6349
+#: src/routes/settings.tsx:6351
 msgid "{0} domains — use the filter above to search."
 msgstr "{0} 个域名 — 使用上方过滤器搜索。"
 
@@ -132,7 +138,7 @@ msgid "{0} file{1}"
 msgstr "{0} 个文件{1}"
 
 #. placeholder {0}: scanStatus.completedCount
-#: src/routes/settings.tsx:3008
+#: src/routes/settings.tsx:3010
 msgid "{0} hashed"
 msgstr "{0} 已哈希"
 
@@ -157,6 +163,11 @@ msgstr "{0} 名玩家"
 #: src/routes/playlist-workshop.tsx:4047
 msgid "{0} preview"
 msgstr "{0} 预览"
+
+#. placeholder {0}: licenseManifest.dependencies.length
+#: src/routes/licenses.tsx:145
+msgid "{0} production dependencies"
+msgstr "{0} 个生产依赖"
 
 #. placeholder {0}: formatDurationEstimate(transcodeEtaSeconds)
 #: src/components/LibraryExportOverlay.tsx:178
@@ -359,6 +370,11 @@ msgstr "{playlistName}（{roundCount} 个关卡）"
 msgid "{roundCount} Rounds"
 msgstr "{roundCount} 个关卡"
 
+#. placeholder {0}: segmentCount === 1 ? "" : "s"
+#: src/features/converter/ConverterHeader.tsx:117
+msgid "{segmentCount} Segment{0}"
+msgstr "{segmentCount} 个片段{0}"
+
 #: src/routes/highscores.tsx:590
 msgid "{syncQueueCount} multiplayer result entries are still queued."
 msgstr "{syncQueueCount} 条多人游戏结果仍在队列中。"
@@ -533,8 +549,8 @@ msgstr "简单、具体的提示通常比长提示效果更好。如果不确定
 msgid "A-Z"
 msgstr "A-Z（升序）"
 
-#: src/routes/settings.tsx:3045
-#: src/routes/settings.tsx:3237
+#: src/routes/settings.tsx:3047
+#: src/routes/settings.tsx:3239
 msgid "Abort"
 msgstr "中止"
 
@@ -547,8 +563,8 @@ msgstr "中止导出"
 msgid "Abort Import"
 msgstr "中止导入"
 
-#: src/routes/settings.tsx:3004
-#: src/routes/settings.tsx:3196
+#: src/routes/settings.tsx:3006
+#: src/routes/settings.tsx:3198
 msgid "Aborted"
 msgstr "已中止"
 
@@ -639,8 +655,8 @@ msgstr "活跃服务器"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:665
 #: src/routes/first-start.tsx:1619
 #: src/routes/first-start.tsx:1841
-#: src/routes/settings.tsx:4232
-#: src/routes/settings.tsx:4651
+#: src/routes/settings.tsx:4234
+#: src/routes/settings.tsx:4653
 msgid "Add"
 msgstr "添加"
 
@@ -660,12 +676,12 @@ msgstr "添加操作"
 msgid "Add automation for this node"
 msgstr "为此节点添加自动化"
 
-#: src/routes/settings.tsx:4542
+#: src/routes/settings.tsx:4544
 msgid "Add Files"
 msgstr "添加文件"
 
 #: src/routes/first-start.tsx:1904
-#: src/routes/settings.tsx:5201
+#: src/routes/settings.tsx:5203
 msgid "Add Folder"
 msgstr "添加文件夹"
 
@@ -673,8 +689,8 @@ msgstr "添加文件夹"
 msgid "Add from any yt-dlp-supported URL"
 msgstr "从任何yt-dlp支持的URL添加"
 
-#: src/routes/settings.tsx:4160
-#: src/routes/settings.tsx:4579
+#: src/routes/settings.tsx:4162
+#: src/routes/settings.tsx:4581
 msgid "Add from any yt-dlp-supported URL (downloaded as MP3 via yt-dlp)"
 msgstr "从任何 yt-dlp 支持的 URL 添加（通过 yt-dlp 下载为 MP3）"
 
@@ -684,8 +700,8 @@ msgstr "从任何 yt-dlp 支持的 URL 添加。支持单曲和播放列表。"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:588
 #: src/routes/first-start.tsx:1764
-#: src/routes/settings.tsx:4139
-#: src/routes/settings.tsx:4558
+#: src/routes/settings.tsx:4141
+#: src/routes/settings.tsx:4560
 msgid "Add from URL"
 msgstr "从 URL 添加"
 
@@ -713,11 +729,15 @@ msgstr "添加音乐"
 msgid "Add Music Files"
 msgstr "添加音乐文件"
 
-#: src/routes/settings.tsx:5583
+#: src/features/converter/VideoPreview.tsx:146
+msgid "Add Segment"
+msgstr "添加片段"
+
+#: src/routes/settings.tsx:5585
 msgid "Add Source"
 msgstr "添加来源"
 
-#: src/routes/settings.tsx:5521
+#: src/routes/settings.tsx:5523
 msgid "Add Stash Source"
 msgstr "添加 Stash 来源"
 
@@ -732,15 +752,15 @@ msgstr "将保证技能添加到玩家背包中，而不是立即应用。"
 msgid "Add to queue"
 msgstr "添加到队列"
 
-#: src/routes/settings.tsx:4123
+#: src/routes/settings.tsx:4125
 msgid "Add Tracks"
 msgstr "添加曲目"
 
-#: src/routes/settings.tsx:6261
+#: src/routes/settings.tsx:6263
 msgid "Add trusted base domain"
 msgstr "添加信任的基础域名"
 
-#: src/routes/settings.tsx:6276
+#: src/routes/settings.tsx:6278
 msgid "Add Trusted Site"
 msgstr "添加信任站点"
 
@@ -755,14 +775,14 @@ msgstr "已添加"
 
 #. placeholder {0}: urlResult.added
 #. placeholder {1}: urlResult.added !== 1 ? "s" : ""
-#: src/routes/settings.tsx:4658
+#: src/routes/settings.tsx:4660
 msgid "Added {0} file{1}"
 msgstr "已添加 {0} 个文件{1}"
 
 #. placeholder {0}: urlResult.added
 #. placeholder {1}: urlResult.added !== 1 ? "s" : ""
 #. placeholder {2}: urlResult.errors
-#: src/routes/settings.tsx:4657
+#: src/routes/settings.tsx:4659
 msgid "Added {0} file{1} ({2} failed)"
 msgstr "已添加 {0} 个文件{1}（{2} 个失败）"
 
@@ -777,14 +797,14 @@ msgstr "已将 {0} 个喘息文件{1} 添加到游戏库。"
 #. placeholder {1}: musicUrlResult.added !== 1 ? "s" : ""
 #. placeholder {1}: urlResult.added !== 1 ? "s" : ""
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:672
-#: src/routes/settings.tsx:4239
+#: src/routes/settings.tsx:4241
 msgid "Added {0} track{1}"
 msgstr "已添加 {0} 首曲目{1}"
 
 #. placeholder {0}: urlResult.added
 #. placeholder {1}: urlResult.added !== 1 ? "s" : ""
 #. placeholder {2}: urlResult.errors
-#: src/routes/settings.tsx:4238
+#: src/routes/settings.tsx:4240
 msgid "Added {0} track{1} ({2} failed)"
 msgstr "已添加 {0} 首曲目{1}（{2} 首失败）"
 
@@ -808,7 +828,7 @@ msgstr "已添加 {0} 个曲目，{2} 个失败"
 msgid "Added {0} track{1}{2}"
 msgstr "已添加 {0} 首曲目{1}{2}"
 
-#: src/routes/settings.tsx:5132
+#: src/routes/settings.tsx:5134
 msgid "Added folders import immediately, including legacy video-folder fallback, and are rescanned on startup."
 msgstr "添加的文件夹会立即导入，包括旧版视频文件夹回退，并在启动时重新扫描。"
 
@@ -834,8 +854,8 @@ msgstr "当您的包已集中存放在一个位置时，添加文件夹是最佳
 #: src/components/GlobalMusicOverlay.tsx:472
 #: src/routes/first-start.tsx:1548
 #: src/routes/first-start.tsx:1704
-#: src/routes/settings.tsx:4123
-#: src/routes/settings.tsx:4542
+#: src/routes/settings.tsx:4125
+#: src/routes/settings.tsx:4544
 msgid "Adding..."
 msgstr "正在添加..."
 
@@ -864,7 +884,7 @@ msgid "adjust in-game"
 msgstr "在游戏中调整"
 
 #: src/components/GlobalHandyOverlay.tsx:449
-#: src/routes/settings.tsx:3739
+#: src/routes/settings.tsx:3741
 msgid "Adjust the device stroke length directly on TheHandy."
 msgstr "直接在 TheHandy 上调整设备冲程长度。"
 
@@ -873,7 +893,7 @@ msgstr "直接在 TheHandy 上调整设备冲程长度。"
 msgid "settings.help.shortcuts.game.adjustHandyOffset"
 msgstr "调整全局 TheHandy 偏移；按住 Shift 可进行 1ms 微调。"
 
-#: src/routes/settings.tsx:5982
+#: src/routes/settings.tsx:5984
 msgid "Adjust the window zoom level used by the whole app."
 msgstr "调整整个应用使用的窗口缩放级别。"
 
@@ -907,7 +927,15 @@ msgstr "全部"
 msgid "All (AND)"
 msgstr "全部 (与)"
 
-#: src/routes/settings.tsx:4825
+#: src/routes/settings.tsx:7030
+msgid "All cache data will be copied to:"
+msgstr "所有缓存数据将被复制到："
+
+#: src/routes/settings.tsx:7270
+msgid "All cache data, your database, and settings will be copied to the portable installation. The app will need to be restarted using the portable executable afterwards."
+msgstr "所有缓存数据、数据库和设置将被复制到便携版安装中。之后需要使用便携版可执行文件重新启动应用。"
+
+#: src/routes/settings.tsx:4827
 msgid "All downloaded/imported game content."
 msgstr "所有已下载/导入的游戏内容。"
 
@@ -927,7 +955,7 @@ msgstr "所有快捷键"
 msgid "All tracks from this playlist are already in your queue."
 msgstr "此播放列表中的所有曲目已在您的队列中。"
 
-#: src/routes/settings.tsx:3212
+#: src/routes/settings.tsx:3214
 msgid "All website videos cached"
 msgstr "所有网站视频已缓存"
 
@@ -947,7 +975,7 @@ msgstr "允许重叠"
 msgid "Allow Playlist Start During Cache Ongoing"
 msgstr "允许在缓存进行中开始播放列表"
 
-#: src/routes/settings.tsx:6241
+#: src/routes/settings.tsx:6243
 msgid "Allowing only configured Stash source URLs and blocking yt-dlp and user-whitelisted domains."
 msgstr "仅允许配置的 Stash 来源 URL，并阻止 yt-dlp 和用户白名单域名。"
 
@@ -961,6 +989,10 @@ msgstr "已是 AV1"
 #: src/components/game/RoundVideoOverlay.tsx:1688
 msgid "Already inside an intermediary segment."
 msgstr "已在中间片段内。"
+
+#: src/routes/settings.tsx:7251
+msgid "An existing database was found and will be backed up before migration."
+msgstr "检测到现有数据库，将在迁移前进行备份。"
 
 #: src/components/ErrorFallback.tsx:20
 msgid "An unexpected error occurred while rendering this page."
@@ -986,7 +1018,7 @@ msgstr "正在分析..."
 msgid "AND"
 msgstr "与"
 
-#: src/routes/settings.tsx:6794
+#: src/routes/settings.tsx:6796
 msgid "anon fapland inventor"
 msgstr "匿名 fapland 发明者"
 
@@ -1122,29 +1154,29 @@ msgstr "任意"
 msgid "Any (OR)"
 msgstr "任意 (或)"
 
-#: src/routes/settings.tsx:4995
+#: src/routes/settings.tsx:4997
 msgid "Any highscore you achieve will be permanently marked with 🎭"
 msgstr "您取得的任何高分都将被永久标记为 🎭"
 
-#: src/routes/settings.tsx:5562
-#: src/routes/settings.tsx:5637
+#: src/routes/settings.tsx:5564
+#: src/routes/settings.tsx:5639
 msgid "API key"
 msgstr "API 密钥"
 
-#: src/routes/settings.tsx:5550
-#: src/routes/settings.tsx:5619
+#: src/routes/settings.tsx:5552
+#: src/routes/settings.tsx:5621
 msgid "API Key"
 msgstr "API 密钥"
 
-#: src/routes/settings.tsx:3484
+#: src/routes/settings.tsx:3486
 msgid "App Key"
 msgstr "应用密钥"
 
-#: src/routes/settings.tsx:4865
+#: src/routes/settings.tsx:4867
 msgid "App Settings & Preference"
 msgstr "应用设置与偏好"
 
-#: src/routes/settings.tsx:5979
+#: src/routes/settings.tsx:5981
 msgid "App Zoom"
 msgstr "应用缩放"
 
@@ -1157,7 +1189,7 @@ msgstr "外观"
 msgid "Application data maintenance and destructive actions."
 msgstr "应用数据维护和破坏性操作。"
 
-#: src/routes/settings.tsx:3516
+#: src/routes/settings.tsx:3518
 msgid "Application ID"
 msgstr "应用 ID"
 
@@ -1166,7 +1198,7 @@ msgstr "应用 ID"
 msgid "Applied playlist resolutions to \"{0}\"."
 msgstr "已将播放列表解析应用到 \"{0}\"。"
 
-#: src/routes/settings.tsx:3614
+#: src/routes/settings.tsx:3616
 msgid "Applies to all TheHandy sync operations. Use this if the device is slightly ahead or behind the video."
 msgstr "适用于所有 TheHandy 同步操作。如果设备略微超前或滞后于视频，请使用此选项。"
 
@@ -1240,7 +1272,7 @@ msgstr "应用当前图形布局策略。"
 msgid "Applying recommended weak hardware settings..."
 msgstr "正在应用弱性能硬件推荐设置..."
 
-#: src/routes/settings.tsx:6487
+#: src/routes/settings.tsx:6489
 msgid "Applying..."
 msgstr "正在应用..."
 
@@ -1258,7 +1290,7 @@ msgstr "确定要重置图表吗？这将删除所有进度。"
 msgid "settings.help.shortcuts.mapEditor.armTile"
 msgstr "准备放置前九个可见图块类型之一。"
 
-#: src/routes/settings.tsx:6244
+#: src/routes/settings.tsx:6246
 msgid "Asking during manual sidecar imports before trusting unknown remote URLs."
 msgstr "在信任未知远程 URL 之前，在手动 sidecar 导入时询问。"
 
@@ -1274,6 +1306,7 @@ msgstr "附加 funscript 文件以自动检测关卡边界。"
 msgid "Attach an optional local .funscript file"
 msgstr "附加一个可选的本地 .funscript 文件"
 
+#: src/features/converter/ConverterHeader.tsx:79
 #: src/routes/rounds.tsx:3954
 msgid "Attach Funscript"
 msgstr "附加 Funscript"
@@ -1349,7 +1382,7 @@ msgstr "作者："
 
 #: src/routes/settings.tsx:1535
 #: src/routes/settings.tsx:1553
-#: src/routes/settings.tsx:5892
+#: src/routes/settings.tsx:5894
 msgid "Auto (Default)"
 msgstr "自动（默认）"
 
@@ -1432,7 +1465,7 @@ msgstr "可用"
 msgid "settings.help.shortcuts.global.description"
 msgstr "除正在编辑输入框时外，任何位置都可使用。"
 
-#: src/routes/settings.tsx:6837
+#: src/routes/settings.tsx:6839
 msgid "Available on"
 msgstr "可用平台"
 
@@ -1465,13 +1498,18 @@ msgstr "返回编辑器"
 #: src/routes/converter.tsx:270
 #: src/routes/highscores.tsx:908
 #: src/routes/rounds.tsx:3671
-#: src/routes/settings.tsx:2327
+#: src/routes/settings.tsx:2329
 msgid "Back to Main Menu"
 msgstr "返回主菜单"
 
 #: src/components/ErrorFallback.tsx:40
 msgid "Back to Menu"
 msgstr "返回菜单"
+
+#: src/routes/licenses.tsx:120
+#: src/routes/licenses.tsx:150
+msgid "Back to settings"
+msgstr "返回设置"
 
 #: src/routes/settings.tsx:1505
 msgid "Back Up Now"
@@ -1568,7 +1606,7 @@ msgstr "最佳"
 msgid "Best Score"
 msgstr "最佳分数"
 
-#: src/routes/settings.tsx:6233
+#: src/routes/settings.tsx:6235
 msgid "block"
 msgstr "阻止"
 
@@ -1631,6 +1669,7 @@ msgstr "两种模式都以关卡作为核心内容。棋盘决定下一步发生
 msgid "BPM"
 msgstr "BPM"
 
+#: src/features/converter/SegmentCard.tsx:286
 #: src/routes/rounds.tsx:4840
 msgid "BPM:"
 msgstr "BPM："
@@ -1672,7 +1711,7 @@ msgstr "\\u5728\\u6b64\\u6784\\u5efa\\u201c\\u5982\\u679c\\u53d1\\u751f\\u6b64\\
 msgid "Build a clean installed-database export and choose where the package should be written."
 msgstr "构建干净的已安装数据库导出，并选择包的写入位置。"
 
-#: src/routes/settings.tsx:3954
+#: src/routes/settings.tsx:3956
 msgid "Build a global queue from local audio files. Music pauses for foreground video playback and resumes from the same spot."
 msgstr "从本地音频文件构建全局队列。前台视频播放时音乐暂停，并从相同位置恢复。"
 
@@ -1684,7 +1723,7 @@ msgstr "正在构建导出包。"
 msgid "Building the library package."
 msgstr "正在构建库包。"
 
-#: src/routes/settings.tsx:3550
+#: src/routes/settings.tsx:3552
 msgid "Built-in key loaded. Override only if you need a different app identity."
 msgstr "已加载内置密钥。仅在需要不同的应用身份时覆盖。"
 
@@ -1696,16 +1735,16 @@ msgstr "内置服务器凭据保持隐藏且无法编辑。"
 msgid "Built-in servers cannot be loaded into the editor."
 msgstr "内置服务器无法加载到编辑器中。"
 
-#: src/routes/settings.tsx:5883
+#: src/routes/settings.tsx:5885
 msgid "Bundled"
 msgstr "内置"
 
 #: src/routes/settings.tsx:1536
-#: src/routes/settings.tsx:5889
+#: src/routes/settings.tsx:5891
 msgid "Bundled Only"
 msgstr "仅内置"
 
-#: src/routes/settings.tsx:3228
+#: src/routes/settings.tsx:3230
 msgid "Cache Now"
 msgstr "立即缓存"
 
@@ -1722,7 +1761,7 @@ msgstr "已缓存的比赛"
 msgid "Cached standings let you revisit prior lobbies even when the remote service is unavailable."
 msgstr "缓存的排名让您即使远程服务不可用时也能查看之前的房间。"
 
-#: src/routes/settings.tsx:3150
+#: src/routes/settings.tsx:3152
 msgid "Caching"
 msgstr "缓存"
 
@@ -1748,7 +1787,7 @@ msgstr "缓存进行中"
 msgid "Caching Video"
 msgstr "缓存视频"
 
-#: src/routes/settings.tsx:3228
+#: src/routes/settings.tsx:3230
 msgid "Caching..."
 msgstr "缓存中..."
 
@@ -1792,11 +1831,13 @@ msgstr "篝火"
 #: src/routes/playlist-workshop.tsx:4210
 #: src/routes/playlist-workshop.tsx:4328
 #: src/routes/rounds.tsx:5387
-#: src/routes/settings.tsx:4139
-#: src/routes/settings.tsx:4558
-#: src/routes/settings.tsx:4941
-#: src/routes/settings.tsx:5013
-#: src/routes/settings.tsx:5090
+#: src/routes/settings.tsx:4141
+#: src/routes/settings.tsx:4560
+#: src/routes/settings.tsx:4943
+#: src/routes/settings.tsx:5015
+#: src/routes/settings.tsx:5092
+#: src/routes/settings.tsx:7050
+#: src/routes/settings.tsx:7287
 #: src/routes/single-player-setup.tsx:863
 msgid "Cancel"
 msgstr "取消"
@@ -1839,19 +1880,23 @@ msgstr "水泥靴"
 msgid "Center"
 msgstr "中心"
 
-#: src/routes/settings.tsx:2435
+#: src/features/converter/ConverterHeader.tsx:68
+msgid "Change Source"
+msgstr "更改来源"
+
+#: src/routes/settings.tsx:2437
 msgid "Changing this only affects future .fpack extractions. Existing extracted files are not moved automatically."
 msgstr "更改此设置仅影响未来的 .fpack 解压。已解压的文件不会自动移动。"
 
-#: src/routes/settings.tsx:2624
+#: src/routes/settings.tsx:2626
 msgid "Changing this only affects future EroScripts downloads. Existing cached files are not moved automatically."
 msgstr "更改此项只影响之后的 EroScripts 下载。现有缓存文件不会自动移动。"
 
-#: src/routes/settings.tsx:2815
+#: src/routes/settings.tsx:2817
 msgid "Changing this only affects the music cache path. Existing downloaded files are not moved automatically."
 msgstr "更改此设置仅影响音乐缓存路径。已下载的文件不会自动移动。"
 
-#: src/routes/settings.tsx:2531
+#: src/routes/settings.tsx:2533
 msgid "Changing this only affects the website video cache path. Existing cached files are not moved automatically."
 msgstr "更改此设置仅影响网站视频缓存路径。已缓存的文件不会自动移动。"
 
@@ -1863,30 +1908,30 @@ msgstr "作弊模式"
 msgid "Cheat mode active"
 msgstr "作弊模式已激活"
 
-#: src/routes/settings.tsx:4998
+#: src/routes/settings.tsx:5000
 msgid "Cheat mode has no effect in multiplayer"
 msgstr "作弊模式在多人游戏中无效"
 
-#: src/routes/settings.tsx:3264
+#: src/routes/settings.tsx:3266
 msgid "Check Failed"
 msgstr "检查失败"
 
-#: src/routes/settings.tsx:3277
+#: src/routes/settings.tsx:3279
 msgid "Check for new releases or open the latest available download for this build."
 msgstr "检查新版本或打开此构建的最新可用下载。"
 
 #: src/routes/first-start.tsx:2054
-#: src/routes/settings.tsx:2750
+#: src/routes/settings.tsx:2752
 msgid "Check Login"
 msgstr "检查登录"
 
 #: src/routes/index.tsx:323
-#: src/routes/settings.tsx:3258
+#: src/routes/settings.tsx:3260
 msgid "Checking"
 msgstr "检查中"
 
 #: src/routes/first-start.tsx:1985
-#: src/routes/settings.tsx:2690
+#: src/routes/settings.tsx:2692
 msgid "Checking login..."
 msgstr "正在检查登录..."
 
@@ -1950,10 +1995,10 @@ msgid "Choose a source hero for <0>{0}</0>. Assignments are auto-filled by round
 msgstr "为 <0>{0}</0> 选择一个来源角色。分配按关卡名称自动填充，然后按顺序排列。"
 
 #: src/routes/first-start.tsx:2138
-#: src/routes/settings.tsx:2449
-#: src/routes/settings.tsx:2545
-#: src/routes/settings.tsx:2638
-#: src/routes/settings.tsx:2829
+#: src/routes/settings.tsx:2451
+#: src/routes/settings.tsx:2547
+#: src/routes/settings.tsx:2640
+#: src/routes/settings.tsx:2831
 msgid "Choose Folder"
 msgstr "选择文件夹"
 
@@ -1965,6 +2010,10 @@ msgstr "选择文件夹并导出"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:304
 msgid "Choose media"
 msgstr "选择媒体"
+
+#: src/routes/settings.tsx:6987
+msgid "Choose Target Directory"
+msgstr "选择目标目录"
 
 #: src/routes/settings.tsx:1118
 msgid "Choose the language used for app labels, dialogs, and safe mode prompts. English stays the default unless the experimental system language option is enabled."
@@ -1979,7 +2028,7 @@ msgstr "选择此页面和应用中使用的语言。更改立即生效。"
 msgid "first-start.step.storage.title"
 msgstr "选择缓存和解压文件的存储位置"
 
-#: src/routes/settings.tsx:4886
+#: src/routes/settings.tsx:4888
 msgid "Choose which categories of information to wipe from this device."
 msgstr "选择要从此设备中清除的信息类别。"
 
@@ -2004,8 +2053,8 @@ msgstr "清除"
 #: src/components/GlobalMusicOverlay.tsx:698
 #: src/routes/playlist-workshop.tsx:1954
 #: src/routes/rounds.tsx:2972
-#: src/routes/settings.tsx:4152
-#: src/routes/settings.tsx:4571
+#: src/routes/settings.tsx:4154
+#: src/routes/settings.tsx:4573
 msgid "Clear"
 msgstr "清除"
 
@@ -2013,7 +2062,11 @@ msgstr "清除"
 msgid "Clear all"
 msgstr "全部清除"
 
-#: src/routes/settings.tsx:4883
+#: src/features/converter/SegmentCard.tsx:240
+msgid "Clear Cut Marks"
+msgstr "清除剪切标记"
+
+#: src/routes/settings.tsx:4885
 msgid "Clear Data"
 msgstr "清除数据"
 
@@ -2025,22 +2078,22 @@ msgstr "清空编辑器"
 msgid "Clear Filters"
 msgstr "清除过滤器"
 
-#: src/routes/settings.tsx:2759
+#: src/routes/settings.tsx:2761
 msgid "Clear Login Cookies"
 msgstr "清除登录 Cookie"
 
-#: src/routes/settings.tsx:4732
+#: src/routes/settings.tsx:4734
 msgid "Clear moaning playlist?"
 msgstr "清除喘息播放列表？"
 
 #: src/components/GlobalMusicOverlay.tsx:752
-#: src/routes/settings.tsx:4318
+#: src/routes/settings.tsx:4320
 msgid "Clear music playlist?"
 msgstr "清除音乐播放列表？"
 
 #: src/components/GlobalMusicOverlay.tsx:754
-#: src/routes/settings.tsx:4320
-#: src/routes/settings.tsx:4734
+#: src/routes/settings.tsx:4322
+#: src/routes/settings.tsx:4736
 msgid "Clear Playlist"
 msgstr "清除播放列表"
 
@@ -2057,8 +2110,8 @@ msgstr "清除当前过滤器以返回完整库。"
 msgid "settings.help.shortcuts.mapEditor.clearSelection"
 msgstr "清除当前选择并取消待处理的连接。"
 
-#: src/routes/settings.tsx:4786
-#: src/routes/settings.tsx:4954
+#: src/routes/settings.tsx:4788
+#: src/routes/settings.tsx:4956
 msgid "Clearing..."
 msgstr "正在清除..."
 
@@ -2136,6 +2189,10 @@ msgstr "全局音乐浮层打开时将其关闭。"
 msgid "Close TheHandy overlay"
 msgstr "关闭 TheHandy 覆盖层"
 
+#: src/routes/settings.tsx:7181
+msgid "Close this application and launch the portable executable to use your migrated data."
+msgstr "关闭此应用并启动便携版可执行文件以使用迁移后的数据。"
+
 #: src/routes/multiplayer.tsx:1045
 msgid "CODE"
 msgstr "验证码"
@@ -2167,8 +2224,8 @@ msgstr "命令面板"
 msgid "perk.rarity.common"
 msgstr "普通"
 
-#: src/routes/settings.tsx:3002
-#: src/routes/settings.tsx:3194
+#: src/routes/settings.tsx:3004
+#: src/routes/settings.tsx:3196
 msgid "Complete"
 msgstr "完成"
 
@@ -2191,7 +2248,7 @@ msgstr "压缩强度"
 msgid "Compression Time"
 msgstr "压缩时间"
 
-#: src/routes/settings.tsx:5471
+#: src/routes/settings.tsx:5473
 msgid "Configure Stash instances, tags, and run sync."
 msgstr "配置 Stash 实例、标签并运行同步。"
 
@@ -2213,9 +2270,16 @@ msgstr "确认转换"
 
 #: src/routes/highscores.tsx:1046
 #: src/routes/highscores.tsx:1095
-#: src/routes/settings.tsx:4954
+#: src/routes/settings.tsx:4956
 msgid "Confirm Deletion"
 msgstr "确认删除"
+
+#: src/routes/settings.tsx:7024
+#: src/routes/settings.tsx:7059
+#: src/routes/settings.tsx:7264
+#: src/routes/settings.tsx:7296
+msgid "Confirm Migration"
+msgstr "确认迁移"
 
 #: src/components/SfwGuard.tsx:79
 msgid "Confirm Reveal"
@@ -2240,7 +2304,7 @@ msgstr "确认文本不匹配。未进行任何更改。"
 #: src/components/GlobalHandyOverlay.tsx:543
 #: src/features/map-editor/components/EditorToolbar.tsx:76
 #: src/routes/first-start.tsx:2411
-#: src/routes/settings.tsx:3587
+#: src/routes/settings.tsx:3589
 msgid "Connect"
 msgstr "连接"
 
@@ -2265,18 +2329,18 @@ msgstr "连接：按 C，然后选择源节点和目标节点。"
 #: src/routes/first-start.tsx:1966
 #: src/routes/first-start.tsx:2345
 #: src/routes/index.tsx:315
-#: src/routes/settings.tsx:3443
+#: src/routes/settings.tsx:3445
 msgid "Connected"
 msgstr "已连接"
 
 #: src/routes/index.tsx:313
-#: src/routes/settings.tsx:3452
+#: src/routes/settings.tsx:3454
 msgid "Connecting"
 msgstr "连接中"
 
 #: src/components/GlobalHandyOverlay.tsx:543
 #: src/routes/first-start.tsx:2397
-#: src/routes/settings.tsx:3587
+#: src/routes/settings.tsx:3589
 msgid "Connecting..."
 msgstr "正在连接..."
 
@@ -2296,7 +2360,7 @@ msgstr "连接失败"
 msgid "Connection Key"
 msgstr "连接密钥"
 
-#: src/routes/settings.tsx:3463
+#: src/routes/settings.tsx:3465
 msgid "Connection Key / Channel Ref"
 msgstr "连接密钥 / 频道引用"
 
@@ -2353,6 +2417,8 @@ msgstr "控制用于移动的骰子范围。"
 msgid "Controls the range of the dice used for movement. Default is 1 to 6."
 msgstr "控制用于移动的骰子范围。默认为 1 到 6。"
 
+#: src/features/converter/ConverterHeader.tsx:39
+#: src/features/converter/ConverterHeader.tsx:97
 #: src/routes/converter.tsx:104
 msgid "Conversion Lab"
 msgstr "转换实验室"
@@ -2401,6 +2467,14 @@ msgstr "已将“{0}”转换为线性播放列表。"
 msgid "settings.help.shortcuts.converter.title"
 msgstr "转换器"
 
+#: src/features/converter/ConverterHeader.tsx:112
+msgid "Converting local video file"
+msgstr "正在转换本地视频文件"
+
+#: src/features/converter/ConverterHeader.tsx:109
+msgid "Converting standalone round to hero"
+msgstr "正在将独立回合转换为 hero"
+
 #: src/routes/rounds.tsx:4064
 #: src/routes/rounds.tsx:5248
 msgid "Converting..."
@@ -2411,7 +2485,7 @@ msgstr "正在转换..."
 msgid "Cookies stored: {0}"
 msgstr "已存储的Cookie: {0}"
 
-#: src/routes/settings.tsx:2721
+#: src/routes/settings.tsx:2723
 msgid "Cookies stored: {cookieCount}"
 msgstr "已存 Cookie：{cookieCount}"
 
@@ -2427,6 +2501,10 @@ msgstr "已复制到剪贴板！"
 #: src/routes/rounds.tsx:5796
 msgid "Copy"
 msgstr "复制"
+
+#: src/routes/settings.tsx:6943
+msgid "Copy all cache folders (web videos, music, EroScripts, .fpack extractions) to a new directory and update all settings to point there. Useful for moving data to a different drive or location."
+msgstr "将所有缓存文件夹（网页视频、音乐、EroScripts、.fpack 解压文件）复制到新目录，并更新所有设置指向该位置。适用于将数据移动到其他驱动器或位置。"
 
 #: src/routes/multiplayer-lobby.tsx:628
 msgid "Copy invite code"
@@ -2535,7 +2613,7 @@ msgstr "在应用数据文件夹中创建定期的本地 SQLite 备份。"
 msgid "Create Playlist"
 msgstr "创建播放列表"
 
-#: src/routes/settings.tsx:5504
+#: src/routes/settings.tsx:5506
 msgid "Created/Updated/Linked:"
 msgstr "已创建/已更新/已链接："
 
@@ -2560,11 +2638,11 @@ msgstr "创作"
 msgid "Creation & Workshop"
 msgstr "创作与工坊"
 
-#: src/routes/settings.tsx:6806
+#: src/routes/settings.tsx:6808
 msgid "Creator of the game."
 msgstr "游戏创作者。"
 
-#: src/routes/settings.tsx:6812
+#: src/routes/settings.tsx:6814
 msgid "Credit for the original Godot version."
 msgstr "原始 Godot 版本的致谢。"
 
@@ -2572,13 +2650,13 @@ msgstr "原始 Godot 版本的致谢。"
 msgid "Credits / License"
 msgstr "致谢 / 许可"
 
-#: src/routes/settings.tsx:6765
+#: src/routes/settings.tsx:6767
 msgid "Credits & License"
 msgstr "版权与许可"
 
 #: src/routes/rounds.tsx:3124
 #: src/routes/rounds.tsx:3782
-#: src/routes/settings.tsx:5712
+#: src/routes/settings.tsx:5714
 msgid "Cum"
 msgstr "高潮"
 
@@ -2618,15 +2696,15 @@ msgid "Cum rounds play after the main playlist reaches the end. The rounds you e
 msgstr "Cum 回合在主播放列表播放结束后触发。你在此启用的回合将形成一个随机选择池，当运行结束时将从中选择一个。"
 
 #: src/routes/index.tsx:327
-#: src/routes/settings.tsx:3622
-#: src/routes/settings.tsx:3744
+#: src/routes/settings.tsx:3624
+#: src/routes/settings.tsx:3746
 msgid "Current"
 msgstr "当前"
 
-#: src/routes/settings.tsx:2427
-#: src/routes/settings.tsx:2520
-#: src/routes/settings.tsx:2616
-#: src/routes/settings.tsx:2804
+#: src/routes/settings.tsx:2429
+#: src/routes/settings.tsx:2522
+#: src/routes/settings.tsx:2618
+#: src/routes/settings.tsx:2806
 msgid "Current Location"
 msgstr "当前位置"
 
@@ -2651,11 +2729,11 @@ msgid "Current Status"
 msgstr "当前状态"
 
 #: src/components/GlobalHandyOverlay.tsx:486
-#: src/routes/settings.tsx:3780
+#: src/routes/settings.tsx:3782
 msgid "Current stroke"
 msgstr "当前冲程"
 
-#: src/routes/settings.tsx:5993
+#: src/routes/settings.tsx:5995
 msgid "Current Zoom"
 msgstr "当前缩放"
 
@@ -2672,6 +2750,14 @@ msgstr "自定义服务器"
 msgid "Cut marks"
 msgstr "切割标记"
 
+#: src/features/converter/SegmentCard.tsx:230
+msgid "Cut Segment"
+msgstr "剪切片段"
+
+#: src/features/converter/SegmentCard.tsx:368
+msgid "Cuts"
+msgstr "剪切"
+
 #. placeholder {0}: round.difficulty
 #: src/routes/playlist-workshop.tsx:2832
 #: src/routes/playlist-workshop.tsx:2890
@@ -2679,13 +2765,18 @@ msgstr "切割标记"
 msgid "D{0}"
 msgstr "D{0}"
 
-#: src/routes/settings.tsx:4762
+#: src/routes/settings.tsx:4764
 msgid "Danger Zone"
 msgstr "危险区域"
 
 #: src/routes/settings.tsx:1329
 msgid "Data & Storage"
 msgstr "数据与存储"
+
+#. placeholder {0}: detection.dataRoot
+#: src/routes/settings.tsx:7241
+msgid "Data root: {0}"
+msgstr "数据根目录：{0}"
 
 #: src/routes/settings.tsx:1500
 msgid "Database Backup Actions"
@@ -2694,6 +2785,11 @@ msgstr "数据库备份操作"
 #: src/routes/settings.tsx:1508
 msgid "Database backup created."
 msgstr "数据库备份已创建。"
+
+#. placeholder {0}: detection.databasePath
+#: src/routes/settings.tsx:7246
+msgid "Database: {0}"
+msgstr "数据库：{0}"
 
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1073
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1110
@@ -2712,16 +2808,16 @@ msgstr "停用所有增益"
 #: src/routes/first-start.tsx:2088
 #: src/routes/first-start.tsx:2096
 #: src/routes/first-start.tsx:2104
-#: src/routes/settings.tsx:2621
+#: src/routes/settings.tsx:2623
 msgid "Default app data folder"
 msgstr "默认应用数据文件夹"
 
-#: src/routes/settings.tsx:2527
-#: src/routes/settings.tsx:2811
+#: src/routes/settings.tsx:2529
+#: src/routes/settings.tsx:2813
 msgid "Default app data folder (existing behavior)"
 msgstr "默认应用数据文件夹（现有行为）"
 
-#: src/routes/settings.tsx:2432
+#: src/routes/settings.tsx:2434
 msgid "Default app data folder (persistent)"
 msgstr "默认应用数据文件夹（持久化）"
 
@@ -2729,6 +2825,7 @@ msgstr "默认应用数据文件夹（持久化）"
 msgid "Defer phash generation to a later moment."
 msgstr "将 phash 生成推迟到稍后进行。"
 
+#: src/features/converter/SegmentCard.tsx:410
 #: src/features/map-editor/components/AutomationPanel.tsx:288
 #: src/features/map-editor/components/EditorToolbar.tsx:131
 #: src/features/map-editor/components/PlaylistPickerView.tsx:146
@@ -2736,7 +2833,7 @@ msgstr "将 phash 生成推迟到稍后进行。"
 #: src/routes/map-editor.tsx:2949
 #: src/routes/playlist-workshop.tsx:2192
 #: src/routes/playlist-workshop.tsx:3669
-#: src/routes/settings.tsx:5779
+#: src/routes/settings.tsx:5781
 msgid "Delete"
 msgstr "删除"
 
@@ -2782,6 +2879,10 @@ msgstr "删除 Hero？"
 #: src/routes/highscores.tsx:1049
 msgid "Delete Highscore Entry?"
 msgstr "删除高分记录？"
+
+#: src/routes/settings.tsx:7010
+msgid "Delete original files after successful migration"
+msgstr "迁移成功后删除原始文件"
 
 #: src/routes/playlist-workshop.tsx:3627
 msgid "Delete Playlist"
@@ -2880,6 +2981,7 @@ msgid "Detect Pauses"
 msgstr "检测暂停"
 
 #: src/features/converter/AutoDetectionPanel.tsx:97
+#: src/routes/settings.tsx:7204
 msgid "Detecting..."
 msgstr "正在检测..."
 
@@ -2930,7 +3032,7 @@ msgstr "设备已连接"
 msgid "Device Connection"
 msgstr "设备连接"
 
-#: src/routes/settings.tsx:3470
+#: src/routes/settings.tsx:3472
 msgid "Device connection key"
 msgstr "设备连接密钥"
 
@@ -2976,6 +3078,10 @@ msgstr "难度 {0}"
 msgid "Difficulty {value}"
 msgstr "难度 {value}"
 
+#: src/features/converter/SegmentCard.tsx:308
+msgid "Difficulty:"
+msgstr "难度："
+
 #: src/features/map-editor/components/automation/BackgroundPresetEditor.tsx:81
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:406
 msgid "Dim"
@@ -2990,7 +3096,7 @@ msgstr "直接"
 msgid "game.perk.directApply"
 msgstr "直接应用"
 
-#: src/routes/settings.tsx:5771
+#: src/routes/settings.tsx:5773
 msgid "Disable"
 msgstr "禁用"
 
@@ -3034,7 +3140,7 @@ msgstr "已禁用（隐藏）"
 msgid "Disabled Included"
 msgstr "已禁用（包含）"
 
-#: src/routes/settings.tsx:5076
+#: src/routes/settings.tsx:5078
 msgid "Disabling both checks may result in a bad user experience for you and other players"
 msgstr "同时禁用两项检查可能会给你和其他玩家带来糟糕的体验"
 
@@ -3066,14 +3172,14 @@ msgstr "已丢弃物品"
 
 #: src/components/GlobalHandyOverlay.tsx:543
 #: src/routes/first-start.tsx:2404
-#: src/routes/settings.tsx:3587
+#: src/routes/settings.tsx:3589
 msgid "Disconnect"
 msgstr "断开连接"
 
 #: src/components/game/RoundVideoOverlay.tsx:3443
 #: src/components/GlobalHandyOverlay.tsx:208
 #: src/routes/index.tsx:318
-#: src/routes/settings.tsx:3443
+#: src/routes/settings.tsx:3445
 msgid "Disconnected"
 msgstr "已断开连接"
 
@@ -3107,7 +3213,7 @@ msgstr "显示名称"
 msgid "Display name is required."
 msgstr "显示名称为必填项。"
 
-#: src/routes/settings.tsx:3536
+#: src/routes/settings.tsx:3538
 msgid "Do not use your access token here. Create or select an app at Handy and paste the application ID instead."
 msgstr "不要在此使用你的访问令牌。请在 Handy 创建或选择一个应用，然后粘贴应用 ID。"
 
@@ -3134,7 +3240,7 @@ msgstr "下"
 msgid "download"
 msgstr "下载"
 
-#: src/routes/settings.tsx:3135
+#: src/routes/settings.tsx:3137
 msgid "Download and cache videos from website rounds for offline playback. A background scan runs automatically every 5 minutes."
 msgstr "从网站回合下载并缓存视频以供离线播放。后台扫描每 5 分钟自动运行一次。"
 
@@ -3142,16 +3248,16 @@ msgstr "从网站回合下载并缓存视频以供离线播放。后台扫描每
 msgid "Downloaded"
 msgstr "已下载"
 
-#: src/routes/settings.tsx:4861
+#: src/routes/settings.tsx:4863
 msgid "Downloaded EroScripts funscripts and optional video copies."
 msgstr "已下载的 EroScripts funscript 和可选视频副本。"
 
-#: src/routes/settings.tsx:4841
+#: src/routes/settings.tsx:4843
 msgid "Downloaded match results and sync queue."
 msgstr "已下载的比赛结果和同步队列。"
 
 #: src/routes/first-start.tsx:2078
-#: src/routes/settings.tsx:4851
+#: src/routes/settings.tsx:4853
 msgid "Downloaded menu music and imported YouTube audio."
 msgstr "已下载的菜单音乐和导入的 YouTube 音频。"
 
@@ -3159,11 +3265,11 @@ msgstr "已下载的菜单音乐和导入的 YouTube 音频。"
 msgid "Downloaded website videos and cache files."
 msgstr "已下载的网站视频和缓存文件。"
 
-#: src/routes/settings.tsx:4846
+#: src/routes/settings.tsx:4848
 msgid "Downloaded website videos and generated playback transcodes."
 msgstr "已下载的网站视频和生成的播放转码。"
 
-#: src/routes/settings.tsx:3163
+#: src/routes/settings.tsx:3165
 msgid "Downloading:"
 msgstr "正在下载："
 
@@ -3172,8 +3278,8 @@ msgstr "正在下载："
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:665
 #: src/routes/first-start.tsx:1619
 #: src/routes/first-start.tsx:1841
-#: src/routes/settings.tsx:4232
-#: src/routes/settings.tsx:4651
+#: src/routes/settings.tsx:4234
+#: src/routes/settings.tsx:4653
 msgid "Downloading..."
 msgstr "正在下载..."
 
@@ -3248,6 +3354,14 @@ msgstr "在游玩前编辑此播放列表"
 msgid "Editing {0}"
 msgstr "正在编辑 {0}"
 
+#: src/features/converter/ConverterHeader.tsx:111
+msgid "Editing hero rounds"
+msgstr "编辑 hero 回合"
+
+#: src/features/converter/ConverterHeader.tsx:104
+msgid "Editor"
+msgstr "编辑器"
+
 #. placeholder {0}: remote.activeEffectsCount
 #: src/routes/multiplayer-match.tsx:1410
 msgid "Effects {0}"
@@ -3271,7 +3385,7 @@ msgstr "需要邮箱"
 msgid "playlist-workshop.empty-playlist.name"
 msgstr "空"
 
-#: src/routes/settings.tsx:5771
+#: src/routes/settings.tsx:5773
 msgid "Enable"
 msgstr "启用"
 
@@ -3280,7 +3394,7 @@ msgstr "启用"
 msgid "Enable background pHash scanning"
 msgstr "启用后台 pHash 扫描"
 
-#: src/routes/settings.tsx:4980
+#: src/routes/settings.tsx:4982
 msgid "Enable Cheat Mode?"
 msgstr "启用作弊模式？"
 
@@ -3309,6 +3423,7 @@ msgstr "在单人模式中启用开发者菜单功能。任何获得的高分都
 msgid "Encoder pending"
 msgstr "编码器等待中"
 
+#: src/features/converter/SegmentCard.tsx:400
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:140
 msgid "End"
 msgstr "结束"
@@ -3364,7 +3479,7 @@ msgstr "输入 Handy 应用的连接密钥"
 msgid "Enter search prompt..."
 msgstr "输入搜索提示..."
 
-#: src/routes/settings.tsx:3523
+#: src/routes/settings.tsx:3525
 msgid "Enter your Handy application ID"
 msgstr "输入你的 Handy 应用 ID"
 
@@ -3383,7 +3498,7 @@ msgid "perk.rarity.epic"
 msgstr "史诗"
 
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:289
-#: src/routes/settings.tsx:2702
+#: src/routes/settings.tsx:2704
 msgid "EroScripts"
 msgstr "EroScripts"
 
@@ -3397,11 +3512,11 @@ msgstr "EroScripts"
 msgid "EroScripts Account"
 msgstr "EroScripts 账户"
 
-#: src/routes/settings.tsx:4860
+#: src/routes/settings.tsx:4862
 msgid "EroScripts Cache"
 msgstr "EroScripts 缓存"
 
-#: src/routes/settings.tsx:2604
+#: src/routes/settings.tsx:2606
 msgid "EroScripts Download Cache Location"
 msgstr "EroScripts 下载缓存位置"
 
@@ -3449,8 +3564,8 @@ msgstr "EroScripts登录窗口已打开。请在那里登录——登录状态�
 msgid "EroScripts search failed."
 msgstr "EroScripts 搜索失败。"
 
-#: src/routes/settings.tsx:3005
-#: src/routes/settings.tsx:3197
+#: src/routes/settings.tsx:3007
+#: src/routes/settings.tsx:3199
 msgid "Error"
 msgstr "错误"
 
@@ -3491,7 +3606,7 @@ msgstr "事件"
 msgid "gameboard.kind.event"
 msgstr "事件★"
 
-#: src/routes/settings.tsx:6056
+#: src/routes/settings.tsx:6058
 msgid "Every shortcut currently wired into the app is listed here."
 msgstr "应用中当前绑定的所有快捷键都列在这里。"
 
@@ -3517,6 +3632,11 @@ msgstr "已排除"
 #: src/routes/rounds.tsx:4394
 msgid "Excluded:"
 msgstr "已排除："
+
+#. placeholder {0}: detection.exePath
+#: src/routes/settings.tsx:7236
+msgid "Executable: {0}"
+msgstr "可执行文件：{0}"
 
 #: src/routes/map-editor.tsx:3053
 msgid "Exit"
@@ -3559,8 +3679,8 @@ msgstr "实验性"
 msgid "Experimental feature"
 msgstr "实验性功能"
 
-#: src/routes/settings.tsx:4977
-#: src/routes/settings.tsx:5044
+#: src/routes/settings.tsx:4979
+#: src/routes/settings.tsx:5046
 msgid "Experimental Feature"
 msgstr "实验性功能"
 
@@ -3652,7 +3772,7 @@ msgstr "在从网页安装对话框中显示可选的远程 Funscript URL 字段
 msgid "External source integrations, Stash sync, and local library folders."
 msgstr "外部来源集成、Stash 同步和本地库文件夹。"
 
-#: src/routes/settings.tsx:4856
+#: src/routes/settings.tsx:4858
 msgid "Extracted pack contents stored for installed portable packages."
 msgstr "存储已安装便携式包的提取包内容。"
 
@@ -3688,8 +3808,8 @@ msgstr "中止播放列表导出失败。"
 
 #: src/components/GlobalMusicOverlay.tsx:183
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:274
-#: src/routes/settings.tsx:3920
-#: src/routes/settings.tsx:4409
+#: src/routes/settings.tsx:3922
+#: src/routes/settings.tsx:4411
 msgid "Failed to add from URL"
 msgstr "从 URL 添加失败"
 
@@ -3714,7 +3834,7 @@ msgstr "分析导出包失败。"
 msgid "Failed to analyze library package."
 msgstr "分析库包失败。"
 
-#: src/routes/settings.tsx:6457
+#: src/routes/settings.tsx:6459
 msgid "Failed to apply setting."
 msgstr "应用设置失败。"
 
@@ -3767,7 +3887,7 @@ msgstr "创建大厅失败。"
 msgid "Failed to create playlist."
 msgstr "创建播放列表失败。"
 
-#: src/routes/settings.tsx:5364
+#: src/routes/settings.tsx:5366
 msgid "Failed to create source."
 msgstr "创建来源失败。"
 
@@ -3783,9 +3903,13 @@ msgstr "删除播放列表失败。"
 msgid "Failed to delete round."
 msgstr "删除回合失败。"
 
-#: src/routes/settings.tsx:5401
+#: src/routes/settings.tsx:5403
 msgid "Failed to delete source."
 msgstr "删除来源失败。"
+
+#: src/routes/settings.tsx:7114
+msgid "Failed to detect portable installation."
+msgstr "未能检测到便携版安装。"
 
 #: src/routes/multiplayer-match.tsx:833
 msgid "Failed to directly send anti-perk."
@@ -3906,7 +4030,7 @@ msgstr "加载公共大厅失败。"
 msgid "Failed to load selected round media."
 msgstr "无法加载所选回合媒体。"
 
-#: src/routes/settings.tsx:6159
+#: src/routes/settings.tsx:6161
 msgid "Failed to load trusted sites."
 msgstr "加载受信任的站点失败。"
 
@@ -4051,7 +4175,7 @@ msgstr "订阅比赛更新失败。"
 msgid "Failed to sync local progress."
 msgstr "同步本地进度失败。"
 
-#: src/routes/settings.tsx:5333
+#: src/routes/settings.tsx:5335
 msgid "Failed to sync sources."
 msgstr "同步来源失败。"
 
@@ -4080,14 +4204,14 @@ msgstr "更新公共大厅可见性失败。"
 msgid "Failed to update round."
 msgstr "更新回合失败。"
 
-#: src/routes/settings.tsx:6519
-#: src/routes/settings.tsx:6583
-#: src/routes/settings.tsx:6645
-#: src/routes/settings.tsx:6705
+#: src/routes/settings.tsx:6521
+#: src/routes/settings.tsx:6585
+#: src/routes/settings.tsx:6647
+#: src/routes/settings.tsx:6707
 msgid "Failed to update setting."
 msgstr "更新设置失败。"
 
-#: src/routes/settings.tsx:5388
+#: src/routes/settings.tsx:5390
 msgid "Failed to update source."
 msgstr "更新来源失败。"
 
@@ -4143,7 +4267,7 @@ msgstr "场地 {0}：{1}"
 msgid "File Name"
 msgstr "文件名"
 
-#: src/routes/settings.tsx:6283
+#: src/routes/settings.tsx:6285
 msgid "Filter domains"
 msgstr "筛选域名"
 
@@ -4175,6 +4299,10 @@ msgstr "最终排名"
 #: src/routes/highscores.tsx:806
 msgid "Finalized"
 msgstr "已结算"
+
+#: src/routes/licenses.tsx:201
+msgid "Find a dependency"
+msgstr "查找依赖项"
 
 #: src/routes/rounds.tsx:3596
 msgid "Find EroScripts topics, download videos, and attach direct funscripts."
@@ -4236,7 +4364,7 @@ msgstr "已完成："
 msgid "Finished: {0}"
 msgstr "已完成：{0}"
 
-#: src/routes/settings.tsx:3332
+#: src/routes/settings.tsx:3334
 msgid "First Start Workflow"
 msgstr "首次启动向导"
 
@@ -4253,7 +4381,7 @@ msgstr "文件夹安装适合批量本地内容。便携文件导入适合附属
 msgid "Folders"
 msgstr "文件夹"
 
-#: src/routes/settings.tsx:6818
+#: src/routes/settings.tsx:6820
 msgid "For"
 msgstr "对于"
 
@@ -4268,7 +4396,7 @@ msgid "Force stop"
 msgstr "强制停止"
 
 #: src/components/game/RoundVideoOverlay.tsx:3729
-#: src/routes/settings.tsx:3597
+#: src/routes/settings.tsx:3599
 msgid "Force Stop"
 msgstr "强制停止"
 
@@ -4488,11 +4616,11 @@ msgstr "全局音乐"
 msgid "Global music controls"
 msgstr "全局音乐控制"
 
-#: src/routes/settings.tsx:4835
+#: src/routes/settings.tsx:4837
 msgid "Global Stats"
 msgstr "全局统计"
 
-#: src/routes/settings.tsx:3611
+#: src/routes/settings.tsx:3613
 msgid "Global Sync Offset"
 msgstr "全局同步偏移"
 
@@ -4665,9 +4793,17 @@ msgstr "隐藏详情"
 msgid "Hide Grid"
 msgstr "隐藏网格"
 
+#: src/routes/licenses.tsx:171
+msgid "Hide project license"
+msgstr "隐藏项目许可证"
+
 #: src/features/map-editor/components/automation/BackgroundPresetEditor.tsx:273
 msgid "Hide settings"
 msgstr "隐藏设置"
+
+#: src/features/converter/ConverterHeader.tsx:94
+msgid "Hide Shortcuts"
+msgstr "隐藏快捷键"
 
 #: src/features/converter/shortcuts.ts:322
 msgid "Hide shortcuts, clear marks, or clear selection."
@@ -4706,7 +4842,7 @@ msgstr "高分榜"
 msgid "Highscores"
 msgstr "高分"
 
-#: src/routes/settings.tsx:4836
+#: src/routes/settings.tsx:4838
 msgid "Highscores and overall career progress."
 msgstr "高分和整体职业进度。"
 
@@ -4719,6 +4855,10 @@ msgstr "高速"
 #: src/components/CommandPalette.tsx:32
 msgid "command-palette.home"
 msgstr "主页"
+
+#: src/routes/licenses.tsx:279
+msgid "Homepage:"
+msgstr "主页："
 
 #: src/routes/multiplayer-lobby.tsx:811
 #: src/routes/multiplayer-lobby.tsx:819
@@ -4766,15 +4906,15 @@ msgstr "如何添加 fap 或 cockhero 和回合内容"
 
 #: src/components/GlobalMusicOverlay.tsx:542
 #: src/routes/first-start.tsx:1812
-#: src/routes/settings.tsx:4201
-#: src/routes/settings.tsx:4620
+#: src/routes/settings.tsx:4203
+#: src/routes/settings.tsx:4622
 msgid "https://example.com/playlist-or-collection"
 msgstr "https://example.com/playlist-or-collection"
 
 #: src/components/GlobalMusicOverlay.tsx:543
 #: src/routes/first-start.tsx:1813
-#: src/routes/settings.tsx:4202
-#: src/routes/settings.tsx:4621
+#: src/routes/settings.tsx:4204
+#: src/routes/settings.tsx:4623
 msgid "https://example.com/video-or-audio"
 msgstr "https://example.com/video-or-audio"
 
@@ -4786,7 +4926,7 @@ msgstr "https://example.com/video-or-playlist"
 msgid "https://project.supabase.co"
 msgstr "https://project.supabase.co"
 
-#: src/routes/settings.tsx:5540
+#: src/routes/settings.tsx:5542
 msgid "https://stash.example.com"
 msgstr "https://stash.example.com"
 
@@ -4799,11 +4939,11 @@ msgstr "https://www.pornhub.com/view_video.php?viewkey=..."
 msgid "command-palette.settings-gameplay.description"
 msgstr "HUD、天赋、作弊模式"
 
-#: src/routes/settings.tsx:5098
+#: src/routes/settings.tsx:5100
 msgid "I Understand, Disable Safeguards"
 msgstr "我了解，禁用安全措施"
 
-#: src/routes/settings.tsx:5021
+#: src/routes/settings.tsx:5023
 msgid "I Understand, Enable"
 msgstr "我了解，启用"
 
@@ -4813,8 +4953,8 @@ msgid "perk.name.im-close"
 msgstr "我快到了"
 
 #: src/routes/index.tsx:330
-#: src/routes/settings.tsx:3017
-#: src/routes/settings.tsx:3209
+#: src/routes/settings.tsx:3019
+#: src/routes/settings.tsx:3211
 msgid "Idle"
 msgstr "空闲"
 
@@ -4919,7 +5059,7 @@ msgstr "以所选分辨率导入"
 msgid "Import Without Playlist"
 msgstr "不创建播放列表导入"
 
-#: src/routes/settings.tsx:4991
+#: src/routes/settings.tsx:4993
 msgid "Important consequences:"
 msgstr "重要后果："
 
@@ -5092,7 +5232,7 @@ msgstr "安装网站回合"
 #: src/routes/rounds.tsx:410
 #: src/routes/rounds.tsx:3140
 #: src/routes/rounds.tsx:4566
-#: src/routes/settings.tsx:3290
+#: src/routes/settings.tsx:3292
 msgid "Installed"
 msgstr "已安装"
 
@@ -5139,7 +5279,7 @@ msgstr "已安装的回合"
 msgid "Installed Rounds"
 msgstr "已安装回合"
 
-#: src/routes/settings.tsx:4824
+#: src/routes/settings.tsx:4826
 msgid "Installed Rounds & Heroes"
 msgstr "已安装回合与 Hero"
 
@@ -5184,7 +5324,7 @@ msgstr "强度 <="
 
 #: src/routes/rounds.tsx:3123
 #: src/routes/rounds.tsx:3781
-#: src/routes/settings.tsx:5711
+#: src/routes/settings.tsx:5713
 msgid "Interjection"
 msgstr "插入"
 
@@ -5257,8 +5397,8 @@ msgstr "内部名称"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:259
 #: src/routes/first-start.tsx:932
 #: src/routes/first-start.tsx:1059
-#: src/routes/settings.tsx:3900
-#: src/routes/settings.tsx:4389
+#: src/routes/settings.tsx:3902
+#: src/routes/settings.tsx:4391
 msgid "Invalid URL format"
 msgstr "无效的 URL 格式"
 
@@ -5346,8 +5486,8 @@ msgid "Jump to a random point in the source video."
 msgstr "跳转到源视频中的随机位置。"
 
 #: src/components/GlobalMusicOverlay.tsx:755
-#: src/routes/settings.tsx:4321
-#: src/routes/settings.tsx:4735
+#: src/routes/settings.tsx:4323
+#: src/routes/settings.tsx:4737
 msgid "Keep Playlist"
 msgstr "保留播放列表"
 
@@ -5390,7 +5530,7 @@ msgstr "键盘快捷键参考"
 msgid "Keyboard shortcut reference for the app, editor, and gameplay screens."
 msgstr "应用、编辑器和游戏界面的键盘快捷键说明。"
 
-#: src/routes/settings.tsx:6053
+#: src/routes/settings.tsx:6055
 msgid "Keyboard Shortcuts"
 msgstr "键盘快捷键"
 
@@ -5421,11 +5561,11 @@ msgstr "落在任意终点节点时，会按顺序将这些回合加入队列。
 msgid "Language"
 msgstr "语言"
 
-#: src/routes/settings.tsx:5068
+#: src/routes/settings.tsx:5070
 msgid "Large playlists can still require more installed rounds than the global minimum"
 msgstr "大型播放列表仍可能需要比全局最小值更多的已安装回合"
 
-#: src/routes/settings.tsx:5847
+#: src/routes/settings.tsx:5849
 msgid "Last checked:"
 msgstr "上次检查："
 
@@ -5437,7 +5577,7 @@ msgstr "上次扫描完成（{summary}）"
 msgid "Late join is"
 msgstr "延迟加入为"
 
-#: src/routes/settings.tsx:3294
+#: src/routes/settings.tsx:3296
 msgid "Latest"
 msgstr "最新"
 
@@ -5475,7 +5615,7 @@ msgstr "懒惰英雄"
 msgid "Leaderboard"
 msgstr "排行榜"
 
-#: src/routes/settings.tsx:3542
+#: src/routes/settings.tsx:3544
 msgid "Leave custom mode off unless you explicitly want to override the built-in app identity."
 msgstr "除非你明确想覆盖内置应用标识，否则请保持自定义模式关闭。"
 
@@ -5483,7 +5623,7 @@ msgstr "除非你明确想覆盖内置应用标识，否则请保持自定义模
 msgid "Legacy import did not finish."
 msgstr "旧版导入未完成。"
 
-#: src/routes/settings.tsx:5624
+#: src/routes/settings.tsx:5626
 msgid "Legacy Login"
 msgstr "旧版登录"
 
@@ -5493,7 +5633,7 @@ msgstr "旧版登录"
 msgid "Legacy Playlist"
 msgstr "旧版播放列表"
 
-#: src/routes/settings.tsx:5643
+#: src/routes/settings.tsx:5645
 msgid "Legacy username/password login is no longer offered for Stash sources. Switch this source to No Auth or API Key."
 msgstr "Stash 来源不再提供旧版用户名/密码登录。请将此来源切换为无认证或 API 密钥。"
 
@@ -5528,12 +5668,12 @@ msgstr "允许在所需 Web 回合仍在缓存时启动单人模式。警告：�
 #: src/routes/rounds.tsx:3209
 #: src/routes/rounds.tsx:4027
 #: src/routes/rounds.tsx:4761
-#: src/routes/settings.tsx:5129
+#: src/routes/settings.tsx:5131
 msgid "Library"
 msgstr "库"
 
 #. placeholder {0}: queue.length
-#: src/routes/settings.tsx:4498
+#: src/routes/settings.tsx:4500
 msgid "Library ({0} files)"
 msgstr "库（{0} 个文件）"
 
@@ -5565,9 +5705,26 @@ msgstr "库快照"
 msgid "library-one, library-two"
 msgstr "库一，库二"
 
-#: src/routes/settings.tsx:6852
+#: src/routes/settings.tsx:6854
 msgid "License"
 msgstr "许可"
+
+#: src/routes/licenses.tsx:259
+msgid "License Details"
+msgstr "许可证详情"
+
+#. placeholder {0}: licenseManifest.project.license
+#. placeholder {0}: selectedDependency.license
+#: src/routes/licenses.tsx:168
+#: src/routes/licenses.tsx:264
+msgid "License: {0}"
+msgstr "许可证：{0}"
+
+#: src/routes/licenses.tsx:117
+#: src/routes/licenses.tsx:131
+#: src/routes/licenses.tsx:143
+msgid "Licenses"
+msgstr "许可证"
 
 #: src/routes/first-start.tsx:2304
 #: src/routes/first-start.tsx:2319
@@ -5602,7 +5759,7 @@ msgstr "关联 Discord"
 msgid "first-start.step.handy.title"
 msgstr "连接你的 Handy 设备"
 
-#: src/routes/settings.tsx:5840
+#: src/routes/settings.tsx:5842
 msgid "Live versions fetched from the currently resolved ffmpeg, ffprobe, and yt-dlp executables. These reflect your active source preferences."
 msgstr "从当前解析出的 ffmpeg、ffprobe 和 yt-dlp 可执行文件获取的实时版本信息。它们反映你当前启用的来源偏好。"
 
@@ -5631,11 +5788,11 @@ msgstr "正在加载字幕"
 msgid "Loading downloadable files..."
 msgstr "正在加载可下载文件..."
 
-#: src/routes/settings.tsx:5457
+#: src/routes/settings.tsx:5459
 msgid "Loading external sources..."
 msgstr "正在加载外部来源..."
 
-#: src/routes/settings.tsx:5160
+#: src/routes/settings.tsx:5162
 msgid "Loading folders..."
 msgstr "正在加载文件夹..."
 
@@ -5647,6 +5804,10 @@ msgstr "正在加载中间事件"
 msgid "Loading intermediary assets..."
 msgstr "正在加载中间事件资源..."
 
+#: src/routes/licenses.tsx:132
+msgid "Loading license manifest..."
+msgstr "正在加载许可证清单..."
+
 #: src/routes/rounds.tsx:2779
 msgid "Loading playlist groups..."
 msgstr "正在加载播放列表分组..."
@@ -5655,19 +5816,19 @@ msgstr "正在加载播放列表分组..."
 msgid "Loading Preview"
 msgstr "正在加载预览"
 
-#: src/routes/settings.tsx:6298
+#: src/routes/settings.tsx:6300
 msgid "Loading security settings..."
 msgstr "正在加载安全设置..."
 
 #: src/components/RoutePending.tsx:11
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1214
 #: src/routes/first-start.tsx:2119
-#: src/routes/settings.tsx:2431
-#: src/routes/settings.tsx:2524
-#: src/routes/settings.tsx:2620
-#: src/routes/settings.tsx:2808
-#: src/routes/settings.tsx:5876
-#: src/routes/settings.tsx:5970
+#: src/routes/settings.tsx:2433
+#: src/routes/settings.tsx:2526
+#: src/routes/settings.tsx:2622
+#: src/routes/settings.tsx:2810
+#: src/routes/settings.tsx:5878
+#: src/routes/settings.tsx:5972
 msgid "Loading..."
 msgstr "加载中..."
 
@@ -5774,12 +5935,12 @@ msgstr "本地视频"
 msgid "Lock Lobby"
 msgstr "锁定大厅"
 
-#: src/routes/settings.tsx:2705
+#: src/routes/settings.tsx:2707
 msgid "Log in on the EroScripts website to make the search popup and downloads use your account cookies, including two-factor authentication."
 msgstr "在 EroScripts 网站登录后，搜索弹窗和下载会使用你的账号 Cookie，包括双重验证。"
 
 #: src/routes/first-start.tsx:1989
-#: src/routes/settings.tsx:2694
+#: src/routes/settings.tsx:2696
 msgid "Logged in"
 msgstr "已登录"
 
@@ -5790,12 +5951,12 @@ msgstr "已登录"
 #. placeholder {0}: eroscriptsLoginStatus.username
 #. placeholder {0}: status.username
 #: src/routes/first-start.tsx:1988
-#: src/routes/settings.tsx:2693
+#: src/routes/settings.tsx:2695
 msgid "Logged in as {0}"
 msgstr "已以 {0} 登录"
 
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:356
-#: src/routes/settings.tsx:2741
+#: src/routes/settings.tsx:2743
 msgid "Login"
 msgstr "登录"
 
@@ -5812,7 +5973,7 @@ msgid "Login Required"
 msgstr "需要登录"
 
 #: src/routes/first-start.tsx:1981
-#: src/routes/settings.tsx:2716
+#: src/routes/settings.tsx:2718
 msgid "Login Status"
 msgstr "登录状态"
 
@@ -5834,7 +5995,7 @@ msgstr "长间歇"
 msgid "Loop"
 msgstr "循环"
 
-#: src/routes/settings.tsx:4088
+#: src/routes/settings.tsx:4090
 msgid "Loop:"
 msgstr "循环："
 
@@ -5862,6 +6023,10 @@ msgstr "主项"
 msgid "command-palette.home.description"
 msgstr "主菜单"
 
+#: src/routes/licenses.tsx:153
+msgid "Main menu"
+msgstr "主菜单"
+
 #: src/routes/multiplayer-result.tsx:267
 msgid "Main Menu"
 msgstr "主菜单"
@@ -5875,7 +6040,7 @@ msgstr "制作你自己的内容包也很简单。你可以使用回合转换器
 msgid "Manage"
 msgstr "管理"
 
-#: src/routes/settings.tsx:4786
+#: src/routes/settings.tsx:4788
 msgid "Manage & Clear Data"
 msgstr "管理并清除数据"
 
@@ -5883,7 +6048,7 @@ msgstr "管理并清除数据"
 msgid "Manage imports, hero groups, and exports with the same focused shell as the new settings screen."
 msgstr "使用与新设置界面相同的聚焦布局来管理导入、主角分组和导出。"
 
-#: src/routes/settings.tsx:4443
+#: src/routes/settings.tsx:4445
 msgid "Manage the gameplay moaning library used by perks and anti-perks. Add local audio files or download them from supported URLs via yt-dlp."
 msgstr "管理供增益和反增益使用的游戏呻吟音频库。可添加本地音频文件，或通过 yt-dlp 从受支持的 URL 下载。"
 
@@ -5904,7 +6069,7 @@ msgstr "手动暂停已启用（15 秒）。"
 msgid "Manual pause ended."
 msgstr "手动暂停已结束。"
 
-#: src/routes/settings.tsx:2943
+#: src/routes/settings.tsx:2945
 msgid "Manually trigger a scan to compute perceptual hashes for rounds that do not have them yet."
 msgstr "手动触发扫描以计算尚未拥有感知哈希的回合的哈希值。"
 
@@ -5952,6 +6117,14 @@ msgstr "地图预览"
 msgid "first-start.step.maps.shortLabel"
 msgstr "地图"
 
+#: src/features/converter/VideoPreview.tsx:125
+msgid "Mark IN"
+msgstr "标记入点"
+
+#: src/features/converter/VideoPreview.tsx:138
+msgid "Mark OUT"
+msgstr "标记出点"
+
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:530
 msgid "Markers"
 msgstr "标记"
@@ -5977,7 +6150,7 @@ msgid "Matchmaking Terminal"
 msgstr "匹配终端"
 
 #: src/components/GlobalHandyOverlay.tsx:466
-#: src/routes/settings.tsx:3758
+#: src/routes/settings.tsx:3760
 msgid "Max"
 msgstr "最大"
 
@@ -6014,6 +6187,50 @@ msgstr "合并"
 msgid "Merge the selected segment with the next segment."
 msgstr "将选中的片段与下一个片段合并。"
 
+#: src/routes/settings.tsx:6940
+#: src/routes/settings.tsx:7027
+msgid "Migrate Storage Paths"
+msgstr "迁移存储路径"
+
+#: src/routes/settings.tsx:7156
+#: src/routes/settings.tsx:7267
+msgid "Migrate to Portable"
+msgstr "迁移到便携版"
+
+#: src/routes/settings.tsx:6999
+#: src/routes/settings.tsx:7059
+#: src/routes/settings.tsx:7216
+#: src/routes/settings.tsx:7296
+msgid "Migrating..."
+msgstr "正在迁移..."
+
+#. placeholder {0}: migrationResult.migratedCaches
+#. placeholder {1}: migrationResult.databaseMigrated ? ", database copied" : ""
+#. placeholder {2}: migrationResult.storeConfigMigrated ? ", settings copied" : ""
+#: src/routes/settings.tsx:7175
+msgid "Migration complete: {0} cache folders migrated{1}{2}."
+msgstr "迁移完成：已迁移 {0} 个缓存文件夹{1}{2}。"
+
+#. placeholder {0}: result.migrated
+#. placeholder {1}: result.skipped > 0 ? `, ${result.skipped} skipped` : ""
+#: src/routes/settings.tsx:6959
+msgid "Migration complete: {0} paths migrated{1}."
+msgstr "迁移完成：已迁移 {0} 个路径{1}。"
+
+#. placeholder {0}: migrationResult.migrated.length
+#: src/routes/settings.tsx:6920
+msgid "Migration complete. {0} paths migrated."
+msgstr "迁移完成。已迁移 {0} 个路径。"
+
+#: src/routes/settings.tsx:6924
+#: src/routes/settings.tsx:7140
+msgid "Migration failed."
+msgstr "迁移失败。"
+
+#: src/routes/settings.tsx:7138
+msgid "Migration to portable complete."
+msgstr "便携版迁移完成。"
+
 #. js-lingui-explicit-id
 #: src/game/data/perks.ts:607
 msgid "perk.name.milker"
@@ -6030,7 +6247,7 @@ msgid "antiperk.sequence.milker.label"
 msgstr "榨取序列"
 
 #: src/components/GlobalHandyOverlay.tsx:463
-#: src/routes/settings.tsx:3755
+#: src/routes/settings.tsx:3757
 msgid "Min"
 msgstr "最小"
 
@@ -6080,15 +6297,15 @@ msgid "first-start.step.moaning.shortLabel"
 msgstr "呻吟"
 
 #: src/routes/first-start.tsx:1682
-#: src/routes/settings.tsx:4440
+#: src/routes/settings.tsx:4442
 msgid "Moaning"
 msgstr "呻吟"
 
-#: src/routes/settings.tsx:4472
+#: src/routes/settings.tsx:4474
 msgid "Moaning Disabled"
 msgstr "呻吟已禁用"
 
-#: src/routes/settings.tsx:4472
+#: src/routes/settings.tsx:4474
 msgid "Moaning Enabled"
 msgstr "呻吟已启用"
 
@@ -6101,7 +6318,7 @@ msgstr "呻吟文件已添加到游戏音频库。"
 msgid "perk.name.moaning-loop"
 msgstr "呻吟循环"
 
-#: src/routes/settings.tsx:4480
+#: src/routes/settings.tsx:4482
 msgid "Moaning volume"
 msgstr "呻吟音量"
 
@@ -6128,14 +6345,26 @@ msgstr "从此播放列表开始新运行时可用的资金。"
 msgid "hud.more"
 msgstr "更多"
 
+#: src/routes/settings.tsx:7159
+msgid "Move all your data — cache folders, database, and settings — to an existing portable installation. Any existing data in the portable installation will be backed up first. After migration, launch the portable executable to use your migrated data."
+msgstr "将所有数据 — 缓存文件夹、数据库和设置 — 移动到现有的便携版安装中。便携版安装中的现有数据将首先进行备份。迁移后，启动便携版可执行文件以使用迁移后的数据。"
+
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:709
 msgid "Move down"
 msgstr "下移"
+
+#: src/features/converter/VideoPreview.tsx:172
+msgid "Move End Here"
+msgstr "将结束点移到此处"
 
 #. js-lingui-explicit-id
 #: src/routes/settings.tsx:294
 msgid "settings.help.shortcuts.controller.moveFocus"
 msgstr "在可用控制器导航的控件之间移动焦点。"
+
+#: src/features/converter/VideoPreview.tsx:159
+msgid "Move Start Here"
+msgstr "将起点移到此处"
 
 #: src/routes/highscores.tsx:606
 msgid "Move straight to the detailed score views when you know what you want to inspect."
@@ -6188,7 +6417,7 @@ msgstr "多人游戏"
 msgid "Multiplayer"
 msgstr "多人模式"
 
-#: src/routes/settings.tsx:4840
+#: src/routes/settings.tsx:4842
 msgid "Multiplayer Cache"
 msgstr "多人缓存"
 
@@ -6227,7 +6456,7 @@ msgstr "多人摘要"
 msgid "first-start.step.music.shortLabel"
 msgstr "音乐"
 
-#: src/routes/settings.tsx:3951
+#: src/routes/settings.tsx:3953
 msgid "Music"
 msgstr "音乐"
 
@@ -6236,11 +6465,11 @@ msgid "Music added here is used only while this playlist is running. It will not
 msgstr "此处添加的音乐仅在运行此播放列表时使用，不会添加到全局音乐播放列表。"
 
 #: src/routes/first-start.tsx:2077
-#: src/routes/settings.tsx:4850
+#: src/routes/settings.tsx:4852
 msgid "Music Cache"
 msgstr "音乐缓存"
 
-#: src/routes/settings.tsx:2792
+#: src/routes/settings.tsx:2794
 msgid "Music Cache Location"
 msgstr "音乐缓存位置"
 
@@ -6253,7 +6482,7 @@ msgstr "音乐缓存用于存储已下载的菜单音乐和 YouTube 导入内容
 msgid "Music disabled"
 msgstr "音乐已禁用"
 
-#: src/routes/settings.tsx:3983
+#: src/routes/settings.tsx:3985
 msgid "Music Disabled"
 msgstr "音乐已禁用"
 
@@ -6262,7 +6491,7 @@ msgstr "音乐已禁用"
 msgid "first-start.step.music.detail.1"
 msgstr "音乐不会替代你的回合视频。当前景视频未在播放时，它会作为应用的背景音频。"
 
-#: src/routes/settings.tsx:3983
+#: src/routes/settings.tsx:3985
 msgid "Music Enabled"
 msgstr "音乐已启用"
 
@@ -6294,7 +6523,7 @@ msgid "command-palette.settings-audio.description"
 msgstr "音乐队列、音量"
 
 #: src/components/GlobalMusicOverlay.tsx:596
-#: src/routes/settings.tsx:4036
+#: src/routes/settings.tsx:4038
 msgid "Music volume"
 msgstr "音乐音量"
 
@@ -6385,7 +6614,7 @@ msgstr "新分数总额"
 msgid "Newest"
 msgstr "最新"
 
-#: src/routes/settings.tsx:4022
+#: src/routes/settings.tsx:4024
 msgid "Next"
 msgstr "下一个"
 
@@ -6462,12 +6691,12 @@ msgstr "没有可重新同步的视频。"
 msgid "No anti-perks available."
 msgstr "没有可用的反增益。"
 
-#: src/routes/settings.tsx:5549
-#: src/routes/settings.tsx:5618
+#: src/routes/settings.tsx:5551
+#: src/routes/settings.tsx:5620
 msgid "No Auth"
 msgstr "无认证"
 
-#: src/routes/settings.tsx:5164
+#: src/routes/settings.tsx:5166
 msgid "No auto-scan folders configured."
 msgstr "未配置自动扫描文件夹。"
 
@@ -6475,7 +6704,7 @@ msgstr "未配置自动扫描文件夹。"
 msgid "No background media selected."
 msgstr "未选择背景媒体。"
 
-#: src/routes/settings.tsx:3559
+#: src/routes/settings.tsx:3561
 msgid "No bundled TheHandy app key is configured in this build. Enable custom mode and enter one manually."
 msgstr "此构建未配置内置 TheHandy 应用密钥。请启用自定义模式并手动输入。"
 
@@ -6502,7 +6731,7 @@ msgstr "无设备"
 msgid "No Connection Key"
 msgstr "无连接密钥"
 
-#: src/routes/settings.tsx:5650
+#: src/routes/settings.tsx:5652
 msgid "No credentials required for this Stash instance."
 msgstr "此 Stash 实例无需凭证。"
 
@@ -6513,6 +6742,10 @@ msgstr "未安装高潮回合。"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1137
 msgid "No cum rounds selected."
 msgstr "未选择高潮回合。"
+
+#: src/routes/licenses.tsx:249
+msgid "No dependencies match this search."
+msgstr "没有匹配此搜索的依赖项。"
 
 #: src/features/map-editor/components/PlaylistPickerView.tsx:119
 #: src/routes/rounds.tsx:4562
@@ -6527,6 +6760,11 @@ msgstr "未连接设备"
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:504
 msgid "No direct funscripts found."
 msgstr "未找到直接 funscript。"
+
+#: src/routes/settings.tsx:6976
+#: src/routes/settings.tsx:7193
+msgid "No directory selected"
+msgstr "未选择目录"
 
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:215
 msgid "No downloadable funscripts or video links were found in this topic."
@@ -6576,6 +6814,10 @@ msgstr "没有已安装回合匹配当前筛选条件。"
 msgid "No intermediary resources available for this round."
 msgstr "此回合没有可用的中间事件资源。"
 
+#: src/routes/licenses.tsx:301
+msgid "No license file was found in this package directory. The SPDX identifier above was read from the installed package metadata."
+msgstr "在此包目录中未找到许可证文件。上面的 SPDX 标识符是从已安装的包元数据中读取的。"
+
 #: src/routes/multiplayer-bans.tsx:151
 msgid "No match history visible."
 msgstr "没有可见的比赛历史。"
@@ -6584,7 +6826,7 @@ msgstr "没有可见的比赛历史。"
 msgid "No media selected. Click \"Choose media\" to attach a file."
 msgstr "\\u672a\\u9009\\u62e9\\u5a92\\u4f53\\u3002\\u70b9\\u51fb\\u201c\\u9009\\u62e9\\u5a92\\u4f53\\u201d\\u4ee5\\u9644\\u52a0\\u6587\\u4ef6\\u3002"
 
-#: src/routes/settings.tsx:4668
+#: src/routes/settings.tsx:4670
 msgid "No moaning files configured."
 msgstr "未配置呻吟文件。"
 
@@ -6600,7 +6842,7 @@ msgstr "尚无多人结果缓存。"
 msgid "No music files were selected. You can continue and add them later in Settings."
 msgstr "未选择音乐文件。你可以继续，稍后在设置中添加。"
 
-#: src/routes/settings.tsx:4249
+#: src/routes/settings.tsx:4251
 msgid "No music tracks configured."
 msgstr "未配置音乐曲目。"
 
@@ -6712,7 +6954,7 @@ msgstr "未保存服务器"
 msgid "No single-player history yet."
 msgstr "尚无单人历史记录。"
 
-#: src/routes/settings.tsx:5590
+#: src/routes/settings.tsx:5592
 msgid "No sources configured yet."
 msgstr "尚未配置来源。"
 
@@ -6740,7 +6982,7 @@ msgstr "在所选文件夹中未找到受支持的视频文件。"
 msgid "No tiles match this filter."
 msgstr "没有图块匹配此筛选条件。"
 
-#: src/routes/settings.tsx:4025
+#: src/routes/settings.tsx:4027
 msgid "No track"
 msgstr "无曲目"
 
@@ -6753,7 +6995,7 @@ msgstr "未选择曲目"
 msgid "No URL configured"
 msgstr "未配置 URL"
 
-#: src/routes/settings.tsx:6390
+#: src/routes/settings.tsx:6392
 msgid "No user-trusted domains yet."
 msgstr "尚无用户信任域名。"
 
@@ -6811,7 +7053,7 @@ msgstr "未选择"
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1231
 #: src/routes/rounds.tsx:3122
 #: src/routes/rounds.tsx:3780
-#: src/routes/settings.tsx:5710
+#: src/routes/settings.tsx:5712
 msgid "Normal"
 msgstr "普通"
 
@@ -6823,12 +7065,12 @@ msgstr "普通回合"
 msgid "Not attached"
 msgstr "未附加"
 
-#: src/routes/settings.tsx:3265
+#: src/routes/settings.tsx:3267
 msgid "Not Checked Yet"
 msgstr "尚未检查"
 
 #: src/routes/first-start.tsx:1990
-#: src/routes/settings.tsx:2695
+#: src/routes/settings.tsx:2697
 msgid "Not logged in"
 msgstr "未登录"
 
@@ -6840,7 +7082,7 @@ msgstr "未登录"
 msgid "Not selected"
 msgstr "未选择"
 
-#: src/routes/settings.tsx:3448
+#: src/routes/settings.tsx:3450
 msgid "Not Synced"
 msgstr "未同步"
 
@@ -6867,7 +7109,7 @@ msgstr "OAuth 不可用"
 #: src/components/GlobalMusicOverlay.tsx:630
 #: src/components/GlobalMusicOverlay.tsx:647
 #: src/features/map-editor/components/AutomationPanel.tsx:228
-#: src/routes/settings.tsx:4095
+#: src/routes/settings.tsx:4097
 msgid "Off"
 msgstr "关闭"
 
@@ -6876,7 +7118,7 @@ msgstr "关闭"
 msgid "Offset saved to round."
 msgstr "偏移量已保存到回合。"
 
-#: src/routes/settings.tsx:3689
+#: src/routes/settings.tsx:3691
 msgid "Offset Slider"
 msgstr "偏移滑块"
 
@@ -6910,7 +7152,7 @@ msgid "Only Checkpoint"
 msgstr "仅检查点"
 
 #: src/routes/first-start.tsx:2370
-#: src/routes/settings.tsx:3477
+#: src/routes/settings.tsx:3479
 msgid "Only firmware version 4 and up is supported."
 msgstr "仅支持固件版本 4 及以上。"
 
@@ -6918,7 +7160,7 @@ msgstr "仅支持固件版本 4 及以上。"
 msgid "Only sidecars and script files will be written. Video URIs stay as references."
 msgstr "仅会写入 sidecar 和脚本文件。视频 URI 将保留为引用。"
 
-#: src/routes/settings.tsx:5524
+#: src/routes/settings.tsx:5526
 msgid "Only the newest Stash release, currently version {ACTIVE_STASH_VERSION}, is actively supported."
 msgstr "当前仅主动支持最新的 Stash 版本，即 {ACTIVE_STASH_VERSION}。"
 
@@ -6957,18 +7199,18 @@ msgstr "打开高级地图编辑器"
 msgid "Open Backup Folder"
 msgstr "打开备份文件夹"
 
-#: src/routes/settings.tsx:2458
-#: src/routes/settings.tsx:2554
-#: src/routes/settings.tsx:2647
-#: src/routes/settings.tsx:2838
+#: src/routes/settings.tsx:2460
+#: src/routes/settings.tsx:2556
+#: src/routes/settings.tsx:2649
+#: src/routes/settings.tsx:2840
 msgid "Open Current Folder"
 msgstr "打开当前文件夹"
 
-#: src/routes/settings.tsx:3351
+#: src/routes/settings.tsx:3353
 msgid "Open First Start Workflow"
 msgstr "打开首次启动流程"
 
-#: src/routes/settings.tsx:3533
+#: src/routes/settings.tsx:3535
 msgid "Open Handy User Portal"
 msgstr "打开 Handy 用户门户"
 
@@ -7087,11 +7329,11 @@ msgid "Opening Workshop..."
 msgstr "正在打开工坊..."
 
 #: src/routes/first-start.tsx:2030
-#: src/routes/settings.tsx:2458
-#: src/routes/settings.tsx:2554
-#: src/routes/settings.tsx:2647
-#: src/routes/settings.tsx:2741
-#: src/routes/settings.tsx:2838
+#: src/routes/settings.tsx:2460
+#: src/routes/settings.tsx:2556
+#: src/routes/settings.tsx:2649
+#: src/routes/settings.tsx:2743
+#: src/routes/settings.tsx:2840
 msgid "Opening..."
 msgstr "正在打开..."
 
@@ -7128,6 +7370,14 @@ msgstr "或"
 msgid "Order"
 msgstr "顺序"
 
+#: src/routes/settings.tsx:6965
+msgid "Original files have been deleted."
+msgstr "原始文件已被删除。"
+
+#: src/routes/settings.tsx:7039
+msgid "Original files will be deleted after copying."
+msgstr "复制后将删除原始文件。"
+
 #: src/routes/multiplayer-match.tsx:1335
 msgid "Other Players"
 msgstr "其他玩家"
@@ -7163,6 +7413,10 @@ msgstr "打包选项"
 msgid "Package your library."
 msgstr "打包你的库。"
 
+#: src/routes/licenses.tsx:222
+msgid "Packages"
+msgstr "包"
+
 #: src/components/PlaylistPackExportDialog.tsx:247
 #: src/routes/rounds.tsx:5932
 msgid "Packs all exported files into a single ZIP archive (.fpack)."
@@ -7184,11 +7438,11 @@ msgstr "视差"
 msgid "Parallel Jobs"
 msgstr "并行任务"
 
-#: src/routes/settings.tsx:6233
+#: src/routes/settings.tsx:6235
 msgid "paranoid"
 msgstr "偏执"
 
-#: src/routes/settings.tsx:6248
+#: src/routes/settings.tsx:6250
 msgid "Paranoid mode will impact the user experience significantly and should only be used if you know exactly what you are doing."
 msgstr "偏执模式会显著影响用户体验，仅应在你完全清楚自己在做什么时使用。"
 
@@ -7221,7 +7475,7 @@ msgid "Paste track URL"
 msgstr "粘贴曲目 URL"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:142
-#: src/routes/settings.tsx:5935
+#: src/routes/settings.tsx:5937
 msgid "Path"
 msgstr "路径"
 
@@ -7231,7 +7485,7 @@ msgstr "路径"
 msgid "gameboard.kind.path"
 msgstr "路径"
 
-#: src/routes/settings.tsx:4011
+#: src/routes/settings.tsx:4013
 msgid "Pause"
 msgstr "暂停"
 
@@ -7345,7 +7599,7 @@ msgstr "永久"
 msgid "perk.description.lazy-hero"
 msgstr "永久将回合间暂停增加 5000 毫秒。"
 
-#: src/routes/settings.tsx:4765
+#: src/routes/settings.tsx:4767
 msgid "Permanently remove saved data, such as rounds, playlists, or settings."
 msgstr "永久删除已保存的数据，例如回合、播放列表或设置。"
 
@@ -7399,7 +7653,7 @@ msgstr "游戏"
 
 #: src/components/game/GameScene.tsx:2148
 #: src/routes/index.tsx:182
-#: src/routes/settings.tsx:4011
+#: src/routes/settings.tsx:4013
 msgid "Play"
 msgstr "播放"
 
@@ -7424,6 +7678,10 @@ msgstr "连续播放片头、主回合和片尾。"
 #: src/features/converter/shortcuts.ts:80
 msgid "Play or pause the source video."
 msgstr "播放或暂停源视频。"
+
+#: src/features/converter/VideoPreview.tsx:112
+msgid "Play/Pause"
+msgstr "播放/暂停"
 
 #: src/components/game/RoundVideoOverlay.tsx:4462
 #: src/components/GlobalHandyOverlay.tsx:549
@@ -7480,8 +7738,8 @@ msgstr "正在播放视频 + Funscript。"
 #: src/routes/first-start.tsx:1804
 #: src/routes/multiplayer.tsx:1157
 #: src/routes/rounds.tsx:1739
-#: src/routes/settings.tsx:4193
-#: src/routes/settings.tsx:4612
+#: src/routes/settings.tsx:4195
+#: src/routes/settings.tsx:4614
 msgid "Playlist"
 msgstr "播放列表"
 
@@ -7608,7 +7866,7 @@ msgstr "播放列表："
 #: src/features/map-editor/components/PlaylistPickerView.tsx:93
 #: src/routes/rounds.tsx:411
 #: src/routes/rounds.tsx:2741
-#: src/routes/settings.tsx:4827
+#: src/routes/settings.tsx:4829
 #: src/routes/single-player-setup.tsx:487
 msgid "Playlists"
 msgstr "播放列表"
@@ -7617,7 +7875,7 @@ msgstr "播放列表"
 msgid "Playlists..."
 msgstr "播放列表..."
 
-#: src/routes/settings.tsx:6774
+#: src/routes/settings.tsx:6776
 msgid "Playtesters"
 msgstr "测试玩家"
 
@@ -7625,14 +7883,18 @@ msgstr "测试玩家"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:253
 #: src/routes/first-start.tsx:926
 #: src/routes/first-start.tsx:1053
-#: src/routes/settings.tsx:3894
-#: src/routes/settings.tsx:4383
+#: src/routes/settings.tsx:3896
+#: src/routes/settings.tsx:4385
 msgid "Please enter a URL"
 msgstr "请输入 URL"
 
-#: src/routes/settings.tsx:6577
+#: src/routes/settings.tsx:6579
 msgid "Please enter a valid number."
 msgstr "请输入有效数字。"
+
+#: src/routes/settings.tsx:7190
+msgid "Portable Installation Directory"
+msgstr "便携版安装目录"
 
 #: src/routes/multiplayer-lobby.tsx:829
 msgid "POS"
@@ -7645,11 +7907,11 @@ msgstr "名次"
 msgid "Pos {0} • ${1} • Score {2}"
 msgstr "位置 {0} • ${1} • 分数 {2}"
 
-#: src/routes/settings.tsx:5906
+#: src/routes/settings.tsx:5908
 msgid "Preference:"
 msgstr "首选项："
 
-#: src/routes/settings.tsx:4866
+#: src/routes/settings.tsx:4868
 msgid "Preferences, hardware keys, and window state."
 msgstr "偏好设置、硬件密钥和窗口状态。"
 
@@ -7719,7 +7981,7 @@ msgstr "按 <0>Ctrl+M</0> 切换"
 msgid "Press C"
 msgstr "按 C"
 
-#: src/routes/settings.tsx:3996
+#: src/routes/settings.tsx:3998
 msgid "Prev"
 msgstr "上一个"
 
@@ -7733,7 +7995,7 @@ msgstr "阻止后续规则触发"
 
 #: src/components/game/GameScene.tsx:4963
 #: src/features/map-editor/components/AutomationPanel.tsx:378
-#: src/routes/settings.tsx:4515
+#: src/routes/settings.tsx:4517
 msgid "Preview"
 msgstr "预览"
 
@@ -7780,7 +8042,7 @@ msgstr "私密大厅（点击公开）"
 msgid "Proceed"
 msgstr "继续"
 
-#: src/routes/settings.tsx:2971
+#: src/routes/settings.tsx:2973
 msgid "Processing:"
 msgstr "处理中："
 
@@ -7792,7 +8054,7 @@ msgstr "处理中..."
 msgid "Program Version"
 msgstr "程序版本"
 
-#: src/routes/settings.tsx:5837
+#: src/routes/settings.tsx:5839
 msgid "Program Versions"
 msgstr "程序版本"
 
@@ -7810,7 +8072,7 @@ msgstr "渐进"
 msgid "Progressive Random"
 msgstr "渐进随机"
 
-#: src/routes/settings.tsx:6233
+#: src/routes/settings.tsx:6235
 msgid "prompt"
 msgstr "搜索词"
 
@@ -7848,7 +8110,7 @@ msgstr "将远程比赛历史拉取到本地缓存，然后从多人游戏部分
 #: src/components/GlobalMusicOverlay.tsx:645
 #: src/components/GlobalMusicOverlay.tsx:685
 #: src/routes/highscores.tsx:495
-#: src/routes/settings.tsx:4093
+#: src/routes/settings.tsx:4095
 msgid "Queue"
 msgstr "队列"
 
@@ -7857,7 +8119,7 @@ msgid "Queue · drag to reorder · fills repeats if shorter than session"
 msgstr "队列 · 拖动重新排序 · 若短于会话则用重复填充"
 
 #. placeholder {0}: queue.length
-#: src/routes/settings.tsx:4106
+#: src/routes/settings.tsx:4108
 msgid "Queue ({0} tracks)"
 msgstr "队列（{0} 首曲目）"
 
@@ -7877,6 +8139,7 @@ msgstr "轨道 A"
 msgid "Rail B"
 msgstr "轨道 B"
 
+#: src/features/converter/VideoPreview.tsx:185
 #: src/features/map-editor/components/EditorToolbar.tsx:187
 msgid "Random"
 msgstr "随机"
@@ -7945,7 +8208,7 @@ msgstr "准备播放"
 msgid "Ready To Play"
 msgstr "准备就绪"
 
-#: src/routes/settings.tsx:3020
+#: src/routes/settings.tsx:3022
 msgid "Ready to scan"
 msgstr "准备扫描"
 
@@ -8000,7 +8263,7 @@ msgstr "使用已保存的连接设置重新连接 TheHandy。"
 msgid "Reconnecting TheHandy..."
 msgstr "正在重新连接 TheHandy..."
 
-#: src/routes/settings.tsx:4831
+#: src/routes/settings.tsx:4833
 msgid "Records of your past games and sessions."
 msgstr "你过去游戏和会话的记录。"
 
@@ -8038,7 +8301,7 @@ msgstr "已重新编码"
 
 #: src/routes/multiplayer-result.tsx:246
 #: src/routes/multiplayer.tsx:1095
-#: src/routes/settings.tsx:5863
+#: src/routes/settings.tsx:5865
 msgid "Refresh"
 msgstr "刷新"
 
@@ -8064,15 +8327,15 @@ msgstr "正在刷新本地和远程结果历史。"
 
 #: src/routes/multiplayer-result.tsx:246
 #: src/routes/multiplayer.tsx:1095
-#: src/routes/settings.tsx:5863
+#: src/routes/settings.tsx:5865
 msgid "Refreshing..."
 msgstr "刷新中..."
 
-#: src/routes/settings.tsx:6103
+#: src/routes/settings.tsx:6105
 msgid "Release Notes"
 msgstr "发布说明"
 
-#: src/routes/settings.tsx:6109
+#: src/routes/settings.tsx:6111
 msgid "Release notes and shipped improvements bundled directly into the app."
 msgstr "直接内置于应用中的发布说明和已交付改进。"
 
@@ -8084,7 +8347,7 @@ msgstr "重新加载应用"
 msgid "Remaining missing:"
 msgstr "剩余缺失："
 
-#: src/routes/settings.tsx:6191
+#: src/routes/settings.tsx:6193
 msgid "Remote Import Trust"
 msgstr "远程导入信任"
 
@@ -8102,9 +8365,9 @@ msgstr "远程视频"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:314
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:718
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:915
-#: src/routes/settings.tsx:5183
-#: src/routes/settings.tsx:5739
-#: src/routes/settings.tsx:6410
+#: src/routes/settings.tsx:5185
+#: src/routes/settings.tsx:5741
+#: src/routes/settings.tsx:6412
 msgid "Remove"
 msgstr "移除"
 
@@ -8185,6 +8448,11 @@ msgstr "替换 Funscript"
 msgid "Report Bug"
 msgstr "报告错误"
 
+#: src/routes/licenses.tsx:178
+#: src/routes/licenses.tsx:267
+msgid "Repository:"
+msgstr "仓库："
+
 #: src/routes/map-editor.tsx:2196
 msgid "Reroll Random"
 msgstr "随机重掷"
@@ -8206,7 +8474,7 @@ msgstr "随机重掷回合？"
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:270
 #: src/features/map-editor/components/TextInspectorPanel.tsx:115
 #: src/features/map-editor/components/TextInspectorPanel.tsx:168
-#: src/routes/settings.tsx:3660
+#: src/routes/settings.tsx:3662
 msgid "Reset"
 msgstr "重置"
 
@@ -8244,7 +8512,7 @@ msgid "Reset roads"
 msgstr "重置道路"
 
 #: src/components/GlobalHandyOverlay.tsx:503
-#: src/routes/settings.tsx:3801
+#: src/routes/settings.tsx:3803
 msgid "Reset Stroke"
 msgstr "重置冲程"
 
@@ -8274,8 +8542,8 @@ msgstr "将编辑器相机重置为默认视图。"
 msgid "Reset View"
 msgstr "重置视图"
 
-#: src/routes/settings.tsx:6014
-#: src/routes/settings.tsx:6015
+#: src/routes/settings.tsx:6016
+#: src/routes/settings.tsx:6017
 msgid "Reset zoom"
 msgstr "重置缩放"
 
@@ -8308,7 +8576,7 @@ msgstr "资源哈希"
 msgid "Resource ID"
 msgstr "资源 ID"
 
-#: src/routes/settings.tsx:5508
+#: src/routes/settings.tsx:5510
 msgid "Resources Added:"
 msgstr "已添加资源："
 
@@ -8488,6 +8756,7 @@ msgstr "回合完成"
 msgid "command-palette.converter"
 msgstr "回合转换器"
 
+#: src/features/converter/ConverterHeader.tsx:43
 #: src/routes/converter.tsx:107
 #: src/routes/index.tsx:231
 msgid "Round Converter"
@@ -8591,7 +8860,7 @@ msgstr "对当前 funscript 运行自动检测。"
 msgid "Run Count"
 msgstr "运行次数"
 
-#: src/routes/settings.tsx:4830
+#: src/routes/settings.tsx:4832
 msgid "Run History"
 msgstr "运行历史"
 
@@ -8603,7 +8872,7 @@ msgstr "运行初始化"
 msgid "Run Summary"
 msgstr "运行摘要"
 
-#: src/routes/settings.tsx:3335
+#: src/routes/settings.tsx:3337
 msgid "Run the guided introduction again if you want a refresher on play modes, content installs, editors, Handy setup, music, and booru search."
 msgstr "如果你想复习游戏模式、内容安装、编辑器、Handy 设置、音乐和 booru 搜索，可以再次运行引导介绍。"
 
@@ -8635,10 +8904,10 @@ msgstr "安全点"
 #: src/features/converter/SegmentList.tsx:91
 #: src/features/map-editor/components/EditorToolbar.tsx:235
 #: src/routes/playlist-workshop.tsx:2038
-#: src/routes/settings.tsx:5753
-#: src/routes/settings.tsx:6547
-#: src/routes/settings.tsx:6620
-#: src/routes/settings.tsx:6741
+#: src/routes/settings.tsx:5755
+#: src/routes/settings.tsx:6549
+#: src/routes/settings.tsx:6622
+#: src/routes/settings.tsx:6743
 msgid "Save"
 msgstr "保存"
 
@@ -8735,7 +9004,7 @@ msgstr "扫描出错（{summary}）"
 
 #: src/routes/rounds.tsx:3606
 #: src/routes/rounds.tsx:3662
-#: src/routes/settings.tsx:3036
+#: src/routes/settings.tsx:3038
 msgid "Scan Now"
 msgstr "立即扫描"
 
@@ -8743,7 +9012,7 @@ msgstr "立即扫描"
 msgid "Scan running ({summary})"
 msgstr "扫描进行中（{summary}）"
 
-#: src/routes/settings.tsx:2958
+#: src/routes/settings.tsx:2960
 msgid "Scanning"
 msgstr "扫描中"
 
@@ -8753,11 +9022,11 @@ msgstr "正在扫描文件并准备导入的回合..."
 
 #: src/routes/rounds.tsx:3606
 #: src/routes/rounds.tsx:3662
-#: src/routes/settings.tsx:3036
+#: src/routes/settings.tsx:3038
 msgid "Scanning..."
 msgstr "扫描中..."
 
-#: src/routes/settings.tsx:5501
+#: src/routes/settings.tsx:5503
 msgid "Scenes:"
 msgstr "场景："
 
@@ -8822,7 +9091,7 @@ msgstr "脚本就绪"
 
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:396
 #: src/routes/rounds.tsx:3099
-#: src/routes/settings.tsx:5682
+#: src/routes/settings.tsx:5684
 msgid "Search"
 msgstr "搜索"
 
@@ -8834,6 +9103,10 @@ msgstr "搜索 {0}..."
 #: src/routes/rounds.tsx:3050
 msgid "Search & Filter"
 msgstr "搜索与筛选"
+
+#: src/routes/licenses.tsx:205
+msgid "Search by package, version, or license"
+msgstr "按包名、版本或许可证搜索"
 
 #: src/routes/playlist-workshop.tsx:2751
 msgid "Search by round or author…"
@@ -8876,7 +9149,7 @@ msgstr "用于从 rule34/booru 站点获取加载屏幕媒体的搜索词。"
 msgid "Search rounds"
 msgstr "搜索回合"
 
-#: src/routes/settings.tsx:5662
+#: src/routes/settings.tsx:5664
 msgid "Search tags"
 msgstr "搜索标签"
 
@@ -8901,11 +9174,11 @@ msgstr "正在搜索..."
 msgid "Security & Privacy"
 msgstr "安全与隐私"
 
-#: src/routes/settings.tsx:6211
+#: src/routes/settings.tsx:6213
 msgid "Security Mode"
 msgstr "安全模式"
 
-#: src/routes/settings.tsx:6175
+#: src/routes/settings.tsx:6177
 msgid "Security settings update failed."
 msgstr "安全设置更新失败。"
 
@@ -8928,6 +9201,10 @@ msgstr "向前进 5 秒。"
 #: src/components/game/RoundVideoOverlay.tsx:4456
 msgid "Segment"
 msgstr "片段"
+
+#: src/features/converter/SegmentCard.tsx:148
+msgid "Segment Timeline"
+msgstr "片段时间线"
 
 #: src/features/converter/SegmentList.tsx:75
 #: src/routes/converter.tsx:243
@@ -8952,6 +9229,10 @@ msgstr "选择 {displayName}"
 #: src/routes/rounds.tsx:5124
 msgid "Select {heroName}"
 msgstr "选择 {heroName}"
+
+#: src/routes/licenses.tsx:309
+msgid "Select a dependency to inspect its license."
+msgstr "选择一个依赖项以查看其许可证。"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:100
 msgid "Select a node to inspect"
@@ -8981,6 +9262,10 @@ msgstr "选择一个搜索结果以查看可下载文件。"
 #: src/routes/rounds.tsx:2651
 msgid "Select a source hero first."
 msgstr "请先选择一个源主角。"
+
+#: src/features/converter/ConverterHeader.tsx:47
+msgid "Select a source to convert rounds into hero segments, or add more rounds to an existing hero."
+msgstr "选择一个来源将回合转换为 hero 片段，或向现有 hero 添加更多回合。"
 
 #: src/features/converter/VideoPreview.tsx:97
 msgid "Select a source video to start editing."
@@ -9059,6 +9344,10 @@ msgstr "选择增益"
 msgid "Select Playlist"
 msgstr "选择播放列表"
 
+#: src/routes/settings.tsx:7204
+msgid "Select Portable Installation"
+msgstr "选择便携版安装"
+
 #: src/routes/rounds.tsx:4238
 msgid "Select source hero"
 msgstr "选择源主角"
@@ -9133,7 +9422,7 @@ msgstr "已选择：{0}"
 msgid "Selection mode"
 msgstr "选择模式"
 
-#: src/routes/settings.tsx:4880
+#: src/routes/settings.tsx:4882
 msgid "Selective Maintenance"
 msgstr "选择性维护"
 
@@ -9188,6 +9477,14 @@ msgstr "设置名称并选择回合的生成方式。"
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:288
 msgid "Set background media and the road colors used between nodes."
 msgstr "设置背景媒体以及节点之间使用的道路颜色。"
+
+#: src/features/converter/SegmentCard.tsx:210
+msgid "Set Cut IN"
+msgstr "设置剪切入点"
+
+#: src/features/converter/SegmentCard.tsx:220
+msgid "Set Cut OUT"
+msgstr "设置剪切换出点"
 
 #. placeholder {0}: level === 1 ? "" : "s"
 #: src/routes/rounds.tsx:3825
@@ -9352,9 +9649,17 @@ msgstr "显示或隐藏编辑器网格。"
 msgid "Show or hide the shortcut overlay."
 msgstr "显示或隐藏快捷键面板。"
 
+#: src/routes/licenses.tsx:171
+msgid "Show project license"
+msgstr "显示项目许可证"
+
 #: src/features/map-editor/components/automation/BackgroundPresetEditor.tsx:273
 msgid "Show settings"
 msgstr "显示设置"
+
+#: src/features/converter/ConverterHeader.tsx:94
+msgid "Show Shortcuts"
+msgstr "显示快捷键"
 
 #: src/routes/rounds.tsx:4888
 msgid "Show Technical Details"
@@ -9373,6 +9678,12 @@ msgstr "播放视频一次"
 msgid "Show Web Install Funscript URL"
 msgstr "显示 Web 安装 Funscript URL"
 
+#. placeholder {0}: filteredDependencies.length
+#. placeholder {1}: licenseManifest.dependencies.length
+#: src/routes/licenses.tsx:211
+msgid "Showing {0} of {1} packages"
+msgstr "显示 {0} / {1} 个包"
+
 #: src/routes/settings.tsx:1604
 msgid "Shows a global frames-per-second counter in the top-right corner. The display updates at a low frequency to keep overhead low."
 msgstr "在右上角显示全局每秒帧数计数器。显示以低频率更新以保持低开销。"
@@ -9382,7 +9693,7 @@ msgid "Shows a synchronized manual beatbar during jackhammer and milker anti-per
 msgstr "在电钻和榨取反增益序列期间显示同步的手动节拍条。"
 
 #: src/components/GlobalMusicOverlay.tsx:614
-#: src/routes/settings.tsx:4083
+#: src/routes/settings.tsx:4085
 msgid "Shuffle"
 msgstr "随机播放"
 
@@ -9390,7 +9701,7 @@ msgstr "随机播放"
 msgid "Shuffles normal rounds randomly without difficulty bias."
 msgstr "随机打乱普通回合，不带难度偏向。"
 
-#: src/routes/settings.tsx:6194
+#: src/routes/settings.tsx:6196
 msgid "Sidecar imports automatically trust Stash source hosts, yt-dlp-supported domains, and the user-trusted domains listed here. In <0>Prompt</0> mode, unknown remote URLs can be approved during manual import. In <1>Block</1> mode, every non-whitelisted remote URL is blocked automatically. In <2>Paranoid</2> mode, only configured Stash source URLs are allowed."
 msgstr "Sidecar 导入会自动信任 Stash 源主机、yt-dlp 支持的域名以及此处列出的用户信任域名。在<0>提示</0>模式下，未知的远程 URL 可以在手动导入时批准。在<1>阻止</1>模式下，每个未列入白名单的远程 URL 会被自动阻止。在<2>偏执</2>模式下，仅允许已配置的 Stash 源 URL。"
 
@@ -9419,7 +9730,7 @@ msgstr "登录你的EroScripts账户，直接在应用中搜索和下载funscrip
 msgid "Sign Up"
 msgstr "注册"
 
-#: src/routes/settings.tsx:6243
+#: src/routes/settings.tsx:6245
 msgid "Silently blocking every remote URL that is not already whitelisted."
 msgstr "静默阻止所有未列入白名单的远程 URL。"
 
@@ -9440,8 +9751,8 @@ msgstr "单次运行"
 
 #: src/components/GlobalMusicOverlay.tsx:518
 #: src/routes/first-start.tsx:1790
-#: src/routes/settings.tsx:4177
-#: src/routes/settings.tsx:4596
+#: src/routes/settings.tsx:4179
+#: src/routes/settings.tsx:4598
 msgid "Single Track"
 msgstr "单曲"
 
@@ -9482,11 +9793,15 @@ msgstr "跳过 {0}"
 msgid "Skip All"
 msgstr "全部跳过"
 
+#: src/features/converter/VideoPreview.tsx:194
+msgid "Skip cuts in preview"
+msgstr "在预览中跳过剪切"
+
 #: src/routes/settings.tsx:1233
 msgid "Skip Multiplayer Safeguards"
 msgstr "跳过多人游戏安全防护"
 
-#: src/routes/settings.tsx:5047
+#: src/routes/settings.tsx:5049
 msgid "Skip Multiplayer Safeguards?"
 msgstr "跳过多人游戏安全防护？"
 
@@ -9570,7 +9885,7 @@ msgstr "按难度排序"
 msgid "Sort:"
 msgstr "排序："
 
-#: src/routes/settings.tsx:4052
+#: src/routes/settings.tsx:4054
 msgid "Sound effects volume"
 msgstr "音效音量"
 
@@ -9578,7 +9893,7 @@ msgstr "音效音量"
 msgid "Source"
 msgstr "来源"
 
-#: src/routes/settings.tsx:6834
+#: src/routes/settings.tsx:6836
 msgid "Source Code"
 msgstr "源代码"
 
@@ -9590,7 +9905,7 @@ msgstr "源主角"
 msgid "Source Key"
 msgstr "源密钥"
 
-#: src/routes/settings.tsx:5532
+#: src/routes/settings.tsx:5534
 msgid "Source name"
 msgstr "源名称"
 
@@ -9606,7 +9921,7 @@ msgstr "源视频大小"
 msgid "Source:"
 msgstr "来源："
 
-#: src/routes/settings.tsx:5468
+#: src/routes/settings.tsx:5470
 msgid "Sources"
 msgstr "来源"
 
@@ -9614,7 +9929,7 @@ msgstr "来源"
 msgid "Sources & Library"
 msgstr "来源与库"
 
-#: src/routes/settings.tsx:5498
+#: src/routes/settings.tsx:5500
 msgid "Sources:"
 msgstr "来源："
 
@@ -9627,7 +9942,7 @@ msgstr "西班牙语"
 msgid "Special thanks & inspiration."
 msgstr "特别感谢与灵感来源。"
 
-#: src/routes/settings.tsx:6768
+#: src/routes/settings.tsx:6770
 msgid "Special thanks to the community and creators who inspired this project."
 msgstr "特别感谢启发此项目的社区和创作者。"
 
@@ -9658,6 +9973,7 @@ msgstr "独立"
 msgid "hud.phase.idle"
 msgstr "待机"
 
+#: src/features/converter/SegmentCard.tsx:389
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:138
 msgid "Start"
 msgstr "开始"
@@ -9705,6 +10021,11 @@ msgstr "从这里开始"
 #: src/routes/multiplayer-lobby.tsx:683
 msgid "START MATCH"
 msgstr "开始比赛"
+
+#: src/routes/settings.tsx:6999
+#: src/routes/settings.tsx:7216
+msgid "Start Migration"
+msgstr "开始迁移"
 
 #: src/routes/first-start.tsx:2484
 msgid "Start Playing"
@@ -9770,8 +10091,8 @@ msgstr "初始百分比概率。"
 
 #: src/components/PlaylistPackExportDialog.tsx:548
 #: src/features/map-editor/components/EditorToolbar.tsx:245
-#: src/routes/settings.tsx:3036
-#: src/routes/settings.tsx:3228
+#: src/routes/settings.tsx:3038
+#: src/routes/settings.tsx:3230
 #: src/routes/single-player-setup.tsx:705
 #: src/routes/single-player-setup.tsx:712
 #: src/routes/single-player-setup.tsx:747
@@ -9782,15 +10103,15 @@ msgstr "启动中..."
 msgid "Stash"
 msgstr "Stash"
 
-#: src/routes/settings.tsx:5414
+#: src/routes/settings.tsx:5416
 msgid "Stash connection failed."
 msgstr "Stash 连接失败。"
 
-#: src/routes/settings.tsx:5412
+#: src/routes/settings.tsx:5414
 msgid "Stash connection succeeded."
 msgstr "Stash 连接成功。"
 
-#: src/routes/settings.tsx:6306
+#: src/routes/settings.tsx:6308
 msgid "Stash Hosts"
 msgstr "Stash 主机"
 
@@ -9803,7 +10124,7 @@ msgstr "Stash、自动扫描文件夹"
 msgid "state"
 msgstr "状态"
 
-#: src/routes/settings.tsx:5495
+#: src/routes/settings.tsx:5497
 msgid "State:"
 msgstr "状态："
 
@@ -9825,7 +10146,7 @@ msgstr "稳健步伐"
 msgid "perk.name.sticky-fingers"
 msgstr "粘手指"
 
-#: src/routes/settings.tsx:4526
+#: src/routes/settings.tsx:4528
 msgid "Stop"
 msgstr "停止"
 
@@ -9873,19 +10194,19 @@ msgstr "存储位置"
 msgid "Store"
 msgstr "存储"
 
-#: src/routes/settings.tsx:2607
+#: src/routes/settings.tsx:2609
 msgid "Store downloaded EroScripts funscripts and optional video copies in a custom folder, or leave this unset to use the default app data location."
 msgstr "将下载的 EroScripts funscript 和可选视频副本存储在自定义文件夹中，或留空以使用默认应用数据位置。"
 
-#: src/routes/settings.tsx:2795
+#: src/routes/settings.tsx:2797
 msgid "Store downloaded music files in a custom folder, or leave this unset to keep using the built-in default location."
 msgstr "将下载的音乐文件存储在自定义文件夹中，或保持未设置以使用内置默认位置。"
 
-#: src/routes/settings.tsx:2511
+#: src/routes/settings.tsx:2513
 msgid "Store downloaded website videos in a custom folder, or leave this unset to keep using the built-in default location."
 msgstr "将下载的网站视频存储在自定义文件夹中，或保持未设置以使用内置默认位置。"
 
-#: src/routes/settings.tsx:2418
+#: src/routes/settings.tsx:2420
 msgid "Store extracted content from .fpack files in a persistent folder. This ensures that rounds referring to extracted media remain playable across app restarts."
 msgstr "将 .fpack 文件中提取的内容存储在持久化文件夹中。这确保引用已提取媒体的回合在应用重启后仍可播放。"
 
@@ -9908,7 +10229,7 @@ msgid "Stored: {0}"
 msgstr "已存储：{0}"
 
 #: src/components/GlobalHandyOverlay.tsx:446
-#: src/routes/settings.tsx:3736
+#: src/routes/settings.tsx:3738
 msgid "Stroke Adjustment"
 msgstr "冲程调整"
 
@@ -9986,7 +10307,7 @@ msgstr "同步错误"
 
 #: src/routes/highscores.tsx:508
 #: src/routes/highscores.tsx:568
-#: src/routes/settings.tsx:5488
+#: src/routes/settings.tsx:5490
 msgid "Sync Now"
 msgstr "立即同步"
 
@@ -10000,7 +10321,7 @@ msgstr "同步队列"
 
 #: src/components/game/RoundVideoOverlay.tsx:3449
 #: src/components/GlobalHandyOverlay.tsx:212
-#: src/routes/settings.tsx:3448
+#: src/routes/settings.tsx:3450
 msgid "Synced"
 msgstr "已同步"
 
@@ -10012,13 +10333,13 @@ msgstr "同步中"
 #: src/routes/highscores.tsx:508
 #: src/routes/highscores.tsx:568
 #: src/routes/highscores.tsx:830
-#: src/routes/settings.tsx:5488
+#: src/routes/settings.tsx:5490
 msgid "Syncing..."
 msgstr "同步中..."
 
 #: src/routes/index.tsx:488
 #: src/routes/index.tsx:691
-#: src/routes/settings.tsx:5885
+#: src/routes/settings.tsx:5887
 msgid "System"
 msgstr "系统"
 
@@ -10028,7 +10349,7 @@ msgstr "系统配置"
 
 #: src/routes/settings.tsx:1537
 #: src/routes/settings.tsx:1555
-#: src/routes/settings.tsx:5891
+#: src/routes/settings.tsx:5893
 msgid "System Only"
 msgstr "仅系统"
 
@@ -10044,7 +10365,7 @@ msgstr "系统警告"
 msgid "Tag"
 msgstr "标签"
 
-#: src/routes/settings.tsx:5427
+#: src/routes/settings.tsx:5429
 msgid "Tag search failed."
 msgstr "标签搜索失败。"
 
@@ -10057,13 +10378,17 @@ msgstr "标签一，标签二"
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:404
 #: src/routes/rounds.tsx:4015
 #: src/routes/rounds.tsx:4146
-#: src/routes/settings.tsx:5657
+#: src/routes/settings.tsx:5659
 msgid "Tags"
 msgstr "标签"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:487
 msgid "Tags filter"
 msgstr "标签筛选"
+
+#: src/routes/settings.tsx:6973
+msgid "Target Directory"
+msgstr "目标目录"
 
 #: src/components/game/RoundStartTransition.tsx:48
 msgid "Target locked"
@@ -10096,7 +10421,7 @@ msgid "Temporary Standings"
 msgstr "临时排名"
 
 #: src/routes/playlist-workshop.tsx:2046
-#: src/routes/settings.tsx:5761
+#: src/routes/settings.tsx:5763
 msgid "Test"
 msgstr "测试"
 
@@ -10126,7 +10451,7 @@ msgstr "文本大小"
 msgid "That file type is not supported here."
 msgstr "此处不支持该文件类型。"
 
-#: src/routes/settings.tsx:6829
+#: src/routes/settings.tsx:6831
 msgid "that inspired this project."
 msgstr "启发此项目的人。"
 
@@ -10180,7 +10505,7 @@ msgstr "已安装的完整库将被打包。"
 msgid "The game keeps running in the background."
 msgstr "游戏会在后台继续运行。"
 
-#: src/routes/settings.tsx:5062
+#: src/routes/settings.tsx:5064
 msgid "The global multiplayer minimum helps ensure everyone starts from a baseline good experience"
 msgstr "全局多人游戏最低要求有助于确保每个人都获得良好的基础体验"
 
@@ -10188,7 +10513,7 @@ msgstr "全局多人游戏最低要求有助于确保每个人都获得良好的
 msgid "The hero will be removed and the kept round will become a standalone entry. This cannot be undone in-app."
 msgstr "主角将被移除，保留的回合将成为独立条目。此操作无法在应用内撤销。"
 
-#: src/routes/settings.tsx:5001
+#: src/routes/settings.tsx:5003
 msgid "The mark on your highscores cannot be removed later"
 msgstr "高分上的标记之后无法移除"
 
@@ -10197,7 +10522,7 @@ msgstr "高分上的标记之后无法移除"
 msgid "first-start.step.moaning.detail.1"
 msgstr "呻吟音频库与菜单音乐是分开的。它用于触发单次或循环呻吟音频的游戏事件。"
 
-#: src/routes/settings.tsx:6798
+#: src/routes/settings.tsx:6800
 msgid "The person who came up with the original fap land idea."
 msgstr "提出最初 fap land 想法的人。"
 
@@ -10241,7 +10566,7 @@ msgstr "TheHandy 偏移"
 msgid "game.handy.offsetReset"
 msgstr "TheHandy 偏移重置"
 
-#: src/routes/settings.tsx:3698
+#: src/routes/settings.tsx:3700
 msgid "TheHandy offset slider"
 msgstr "TheHandy 偏移滑块"
 
@@ -10289,12 +10614,12 @@ msgid "game.handy.stopped"
 msgstr "TheHandy 已停止。"
 
 #: src/components/GlobalHandyOverlay.tsx:474
-#: src/routes/settings.tsx:3766
+#: src/routes/settings.tsx:3768
 msgid "TheHandy stroke maximum slider"
 msgstr "TheHandy 冲程最大滑块"
 
 #: src/components/GlobalHandyOverlay.tsx:473
-#: src/routes/settings.tsx:3765
+#: src/routes/settings.tsx:3767
 msgid "TheHandy stroke minimum slider"
 msgstr "TheHandy 冲程最小滑块"
 
@@ -10306,7 +10631,7 @@ msgstr "TheHandy 冲程重置。"
 msgid "TheHandy timing resynced."
 msgstr "TheHandy 计时已重新同步。"
 
-#: src/routes/settings.tsx:6827
+#: src/routes/settings.tsx:6829
 msgid "TheHandy version"
 msgstr "TheHandy 版本"
 
@@ -10320,11 +10645,11 @@ msgstr "TheHandy、funscripts"
 msgid "Then"
 msgstr "那么"
 
-#: src/routes/settings.tsx:5058
+#: src/routes/settings.tsx:5060
 msgid "These safeguards are not here to annoy you:"
 msgstr "这些安全防护不是来烦你的："
 
-#: src/routes/settings.tsx:6777
+#: src/routes/settings.tsx:6779
 msgid "They helped improving and polishing the game."
 msgstr "他们帮助改进和完善了游戏。"
 
@@ -10422,7 +10747,7 @@ msgstr "此结果为临时结果。仍有 {activePlayers} 名玩家活跃。最�
 msgid "This run was completed with cheat mode active"
 msgstr "此运行是在作弊模式激活时完成的"
 
-#: src/routes/settings.tsx:5570
+#: src/routes/settings.tsx:5572
 msgid "This Stash source will connect without API keys."
 msgstr "此 Stash 来源将在不使用 API 密钥的情况下连接。"
 
@@ -10430,20 +10755,20 @@ msgstr "此 Stash 来源将在不使用 API 密钥的情况下连接。"
 msgid "This website video URL is not supported."
 msgstr "此网站视频 URL 不受支持。"
 
-#: src/routes/settings.tsx:5050
+#: src/routes/settings.tsx:5052
 msgid "This will allow you to access multiplayer regardless of the general minimum round count and any playlist-specific round requirement."
 msgstr "这将允许你访问多人游戏，无论一般最低回合数量和任何播放列表特定的回合要求如何。"
 
-#: src/routes/settings.tsx:4983
+#: src/routes/settings.tsx:4985
 msgid "This will enable developer menu features in singleplayer sessions, giving you access to debug controls and shortcuts."
 msgstr "这将在单人模式会话中启用开发者菜单功能，让你可以使用调试控制和快捷键。"
 
-#: src/routes/settings.tsx:4733
+#: src/routes/settings.tsx:4735
 msgid "This will remove every file from the current moaning playlist."
 msgstr "这将从当前呻吟播放列表中移除所有文件。"
 
 #: src/components/GlobalMusicOverlay.tsx:753
-#: src/routes/settings.tsx:4319
+#: src/routes/settings.tsx:4321
 msgid "This will remove every track from the current music playlist."
 msgstr "这将从当前音乐播放列表中移除所有曲目。"
 
@@ -10478,6 +10803,10 @@ msgstr "每个回合开始前的等待时间。设为 0 表示即时转场。默
 msgid "playlist-workshop.section.timing.title"
 msgstr "时间与概率"
 
+#: src/features/converter/SegmentCard.tsx:342
+msgid "Timing:"
+msgstr "时间："
+
 #: src/components/GlobalHandyOverlay.tsx:289
 msgid "to toggle"
 msgstr "切换"
@@ -10487,16 +10816,16 @@ msgid "toggle"
 msgstr "切换"
 
 #. placeholder {0}: setting.label
-#: src/routes/settings.tsx:6666
+#: src/routes/settings.tsx:6668
 msgid "Toggle {0}"
 msgstr "切换 {0}"
 
-#: src/routes/settings.tsx:3966
+#: src/routes/settings.tsx:3968
 msgid "Toggle Enable Global Music"
 msgstr "切换启用全局音乐"
 
 #: src/routes/first-start.tsx:1665
-#: src/routes/settings.tsx:4455
+#: src/routes/settings.tsx:4457
 msgid "Toggle Enable Moaning"
 msgstr "切换启用呻吟"
 
@@ -10514,7 +10843,7 @@ msgstr "切换 Handy"
 msgid "playlist-workshop.section.perks.description"
 msgstr "切换单个增益和反增益。"
 
-#: src/routes/settings.tsx:4068
+#: src/routes/settings.tsx:4070
 msgid "Toggle Shuffle"
 msgstr "切换随机播放"
 
@@ -10557,7 +10886,7 @@ msgstr "总回合数"
 
 #: src/components/GlobalMusicOverlay.tsx:646
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:622
-#: src/routes/settings.tsx:4094
+#: src/routes/settings.tsx:4096
 msgid "Track"
 msgstr "曲目"
 
@@ -10660,9 +10989,9 @@ msgstr "输入\"{0}\"以确认"
 
 #: src/components/PlaylistPackExportDialog.tsx:353
 #: src/routes/multiplayer.tsx:636
-#: src/routes/settings.tsx:5886
-#: src/routes/settings.tsx:5929
-#: src/routes/settings.tsx:5938
+#: src/routes/settings.tsx:5888
+#: src/routes/settings.tsx:5931
+#: src/routes/settings.tsx:5940
 msgid "Unavailable"
 msgstr "不可用"
 
@@ -10730,11 +11059,11 @@ msgstr "未解决"
 msgid "Up"
 msgstr "上"
 
-#: src/routes/settings.tsx:3262
+#: src/routes/settings.tsx:3264
 msgid "Up to Date"
 msgstr "已是最新"
 
-#: src/routes/settings.tsx:3260
+#: src/routes/settings.tsx:3262
 msgid "Update Available"
 msgstr "有可用更新"
 
@@ -10755,16 +11084,16 @@ msgstr "需要更新"
 msgid "Update Status"
 msgstr "更新状态"
 
-#: src/routes/settings.tsx:3274
+#: src/routes/settings.tsx:3276
 msgid "Updates"
 msgstr "更新"
 
 #: src/routes/first-start.tsx:2136
-#: src/routes/settings.tsx:2449
-#: src/routes/settings.tsx:2545
-#: src/routes/settings.tsx:2638
-#: src/routes/settings.tsx:2829
-#: src/routes/settings.tsx:5201
+#: src/routes/settings.tsx:2451
+#: src/routes/settings.tsx:2547
+#: src/routes/settings.tsx:2640
+#: src/routes/settings.tsx:2831
+#: src/routes/settings.tsx:5203
 msgid "Updating..."
 msgstr "更新中..."
 
@@ -10772,19 +11101,19 @@ msgstr "更新中..."
 msgid "Use a website video URL like Pornhub, XVideos, or rule34video as the source."
 msgstr "使用网站视频 URL（如 Pornhub、XVideos 或 rule34video）作为来源。"
 
-#: src/routes/settings.tsx:3506
+#: src/routes/settings.tsx:3508
 msgid "Use Built-In"
 msgstr "使用内置"
 
-#: src/routes/settings.tsx:3506
+#: src/routes/settings.tsx:3508
 msgid "Use Custom"
 msgstr "使用自定义"
 
 #: src/routes/first-start.tsx:2158
-#: src/routes/settings.tsx:2474
-#: src/routes/settings.tsx:2570
-#: src/routes/settings.tsx:2663
-#: src/routes/settings.tsx:2854
+#: src/routes/settings.tsx:2476
+#: src/routes/settings.tsx:2572
+#: src/routes/settings.tsx:2665
+#: src/routes/settings.tsx:2856
 msgid "Use Default"
 msgstr "使用默认"
 
@@ -10832,7 +11161,7 @@ msgstr "在活动游戏和回合播放期间使用。"
 msgid "settings.help.shortcuts.converter.description"
 msgstr "在转换器中修剪和分类片段时使用。"
 
-#: src/routes/settings.tsx:6378
+#: src/routes/settings.tsx:6380
 msgid "User-Trusted Domains"
 msgstr "用户信任域名"
 
@@ -10841,19 +11170,23 @@ msgstr "用户信任域名"
 msgid "User: {0}"
 msgstr "用户：{0}"
 
-#: src/routes/settings.tsx:3489
+#: src/routes/settings.tsx:3491
 msgid "Using the built-in TheHandy app key automatically."
 msgstr "自动使用内置的 TheHandy 应用密钥。"
 
-#: src/routes/settings.tsx:3488
+#: src/routes/settings.tsx:3490
 msgid "Using your custom TheHandy app key."
 msgstr "使用你的自定义 TheHandy 应用密钥。"
+
+#: src/routes/settings.tsx:7232
+msgid "Valid portable installation detected"
+msgstr "检测到有效的便携版安装"
 
 #: src/routes/single-player-setup.tsx:789
 msgid "Verify the board and start."
 msgstr "验证棋盘并开始。"
 
-#: src/routes/settings.tsx:5926
+#: src/routes/settings.tsx:5928
 msgid "Version"
 msgstr "版本"
 
@@ -10862,7 +11195,7 @@ msgstr "版本"
 msgid "video"
 msgstr "视频"
 
-#: src/routes/settings.tsx:4845
+#: src/routes/settings.tsx:4847
 msgid "Video Cache"
 msgstr "视频缓存"
 
@@ -10870,7 +11203,7 @@ msgstr "视频缓存"
 msgid "Video Caching"
 msgstr "视频缓存"
 
-#: src/routes/settings.tsx:2940
+#: src/routes/settings.tsx:2942
 msgid "Video Fingerprint Scanner"
 msgstr "视频指纹扫描器"
 
@@ -10960,8 +11293,8 @@ msgstr "可见步数"
 msgid "Volume"
 msgstr "音量"
 
-#: src/routes/settings.tsx:4033
-#: src/routes/settings.tsx:4477
+#: src/routes/settings.tsx:4035
+#: src/routes/settings.tsx:4479
 msgid "Volume:"
 msgstr "音量："
 
@@ -10990,7 +11323,7 @@ msgstr "警告"
 msgid "Warning: runs from this playlist are marked as assisted on the highscore and in run history."
 msgstr "警告：来自此播放列表的运行在高分和运行历史中会被标记为辅助。"
 
-#: src/routes/settings.tsx:4926
+#: src/routes/settings.tsx:4928
 msgid "Warning: This cannot be undone."
 msgstr "警告：此操作无法撤销。"
 
@@ -11011,11 +11344,11 @@ msgid "Website stream playback failed"
 msgstr "网站流播放失败"
 
 #: src/routes/first-start.tsx:2085
-#: src/routes/settings.tsx:3132
+#: src/routes/settings.tsx:3134
 msgid "Website Video Cache"
 msgstr "网站视频缓存"
 
-#: src/routes/settings.tsx:2508
+#: src/routes/settings.tsx:2510
 msgid "Website Video Cache Location"
 msgstr "网站视频缓存位置"
 
@@ -11051,7 +11384,7 @@ msgid "What happens"
 msgstr "将会发生什么"
 
 #: src/routes/settings.tsx:1655
-#: src/routes/settings.tsx:6106
+#: src/routes/settings.tsx:6108
 msgid "What's New"
 msgstr "新内容"
 
@@ -11079,6 +11412,10 @@ msgstr "启用时，在应用启动的前 5 秒内按住 'S' 将自动启用 SFW
 #: src/routes/settings.tsx:1162
 msgid "When enabled, perks (not anti-perks) are applied immediately when received instead of being stored in inventory."
 msgstr "启用时，增益（非反增益）在收到时会立即生效，而不是存入物品栏。"
+
+#: src/routes/settings.tsx:7013
+msgid "When enabled, the original cache folders will be removed after all files have been copied successfully. Keep this off if you want to verify the migration first."
+msgstr "启用后，所有文件成功复制后将删除原始缓存文件夹。如果要先验证迁移，请保持关闭此选项。"
 
 #: src/routes/rounds.tsx:4009
 msgid "When enabled, this round will never be picked by random round nodes, the succubus anti-perk, or the cum round fallback."
@@ -11194,7 +11531,7 @@ msgstr "你完成了棋盘并结束了比赛。"
 msgid "You failed the final instruction. The system is disappointed."
 msgstr "你未遵守最后的指令。系统很失望。"
 
-#: src/routes/settings.tsx:5073
+#: src/routes/settings.tsx:5075
 msgid "You may encounter empty rounds, repeated content, or broken match flows"
 msgstr "你可能会遇到空回合、重复内容或比赛流程中断"
 
@@ -11214,7 +11551,7 @@ msgstr "你已被移出此游戏。"
 msgid "You will choose a destination folder, then a timestamped export package will be generated inside it."
 msgstr "你将选择一个目标文件夹，然后在其中生成一个带时间戳的导出包。"
 
-#: src/routes/settings.tsx:4827
+#: src/routes/settings.tsx:4829
 msgid "Your custom and imported playlists."
 msgstr "你的自定义和导入的播放列表。"
 
@@ -11238,7 +11575,7 @@ msgstr "你的队列为空。"
 msgid "yt-dlp Binary Source"
 msgstr "yt-dlp 二进制文件来源"
 
-#: src/routes/settings.tsx:6338
+#: src/routes/settings.tsx:6340
 msgid "yt-dlp Domains"
 msgstr "yt-dlp 域名"
 
@@ -11250,13 +11587,13 @@ msgstr "Z-A（降序）"
 msgid "Zoom"
 msgstr "缩放"
 
-#: src/routes/settings.tsx:6025
-#: src/routes/settings.tsx:6026
+#: src/routes/settings.tsx:6027
+#: src/routes/settings.tsx:6028
 msgid "Zoom in"
 msgstr "放大"
 
-#: src/routes/settings.tsx:6003
-#: src/routes/settings.tsx:6004
+#: src/routes/settings.tsx:6005
+#: src/routes/settings.tsx:6006
 msgid "Zoom out"
 msgstr "缩小"
 

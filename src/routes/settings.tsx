@@ -2261,6 +2261,8 @@ export function SettingsPage() {
                     }}
                   />
                   <PhashScanCard />
+                  <MigrationCard />
+                  <MigrateToPortableCard />
                   <DangerZoneCard
                     error={clearDataError}
                     isPending={isClearingData}
@@ -6868,6 +6870,435 @@ function CreditsCard() {
           </p>
         </div>
       </div>
+    </section>
+  );
+}
+
+function MigrationCard() {
+  const { t } = useLingui();
+  const { showToast } = useToast();
+  const [targetDirectory, setTargetDirectory] = useState<string | null>(null);
+  const [deleteOriginals, setDeleteOriginals] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [result, setResult] = useState<{
+    migrated: number;
+    skipped: number;
+    originalsDeleted: boolean;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const chooseTarget = async () => {
+    try {
+      const selected = await window.electronAPI.dialog.selectMigrationTargetDirectory();
+      if (selected) {
+        setTargetDirectory(selected);
+        setResult(null);
+        setError(null);
+      }
+    } catch (err) {
+      console.error("Failed to select migration target", err);
+    }
+  };
+
+  const startMigration = async () => {
+    if (!targetDirectory || isMigrating) return;
+    setIsMigrating(true);
+    setError(null);
+    setResult(null);
+    try {
+      const migrationResult = await trpc.migration.migratePaths.mutate({
+        targetDirectory,
+        deleteOriginals,
+      });
+      setResult({
+        migrated: migrationResult.migrated.length,
+        skipped: migrationResult.skipped.length,
+        originalsDeleted: migrationResult.originalsDeleted,
+      });
+      showToast(
+        t`Migration complete. ${migrationResult.migrated.length} paths migrated.`,
+        "success"
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t`Migration failed.`;
+      setError(message);
+      showToast(message, "error");
+    } finally {
+      setIsMigrating(false);
+      setIsConfirmOpen(false);
+    }
+  };
+
+  return (
+    <section
+      className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl"
+      style={{ animationDelay: "0.1s" }}
+    >
+      <div className="mb-4">
+        <h2 className="text-lg font-extrabold tracking-tight text-violet-100">
+          <Trans>Migrate Storage Paths</Trans>
+        </h2>
+        <p className="mt-1 text-sm text-zinc-300">
+          <Trans>
+            Copy all cache folders (web videos, music, EroScripts, .fpack extractions) to a new
+            directory and update all settings to point there. Useful for moving data to a different
+            drive or location.
+          </Trans>
+        </p>
+      </div>
+
+      {error ? (
+        <div className="mb-4 rounded-xl border border-rose-300/35 bg-black/35 p-3 text-sm text-rose-100">
+          {error}
+        </div>
+      ) : null}
+
+      {result ? (
+        <div className="mb-4 rounded-xl border border-emerald-300/35 bg-black/35 p-3 text-sm text-emerald-100">
+          <Trans>
+            Migration complete: {result.migrated} paths migrated
+            {result.skipped > 0 ? `, ${result.skipped} skipped` : ""}.
+          </Trans>
+          {result.originalsDeleted ? (
+            <span className="ml-1 text-zinc-400">
+              <Trans>Original files have been deleted.</Trans>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="rounded-2xl border border-violet-300/25 bg-black/35 p-4">
+        <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+          <Trans>Target Directory</Trans>
+        </div>
+        <div className="mt-2 break-all font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-100">
+          {targetDirectory ?? t`No directory selected`}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={isMigrating}
+            onMouseEnter={playHoverSound}
+            onClick={chooseTarget}
+            className="rounded-xl border border-violet-300/60 bg-violet-500/30 px-4 py-2 text-sm font-semibold text-violet-100 transition hover:border-violet-200/80 hover:bg-violet-500/45 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t`Choose Target Directory`}
+          </button>
+          <button
+            type="button"
+            disabled={!targetDirectory || isMigrating}
+            onMouseEnter={playHoverSound}
+            onClick={() => {
+              playSelectSound();
+              setIsConfirmOpen(true);
+            }}
+            className="rounded-xl border border-emerald-300/60 bg-emerald-500/25 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:border-emerald-200/80 hover:bg-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isMigrating ? t`Migrating...` : t`Start Migration`}
+          </button>
+        </div>
+
+        <label className="mt-4 flex items-center gap-2 text-sm text-zinc-300">
+          <input
+            type="checkbox"
+            checked={deleteOriginals}
+            onChange={(e) => setDeleteOriginals(e.target.checked)}
+            className="rounded border-zinc-600 bg-zinc-800 text-violet-500 focus:ring-violet-400/50"
+          />
+          <Trans>Delete original files after successful migration</Trans>
+        </label>
+        <p className="mt-1 text-xs text-zinc-500">
+          <Trans>
+            When enabled, the original cache folders will be removed after all files have been
+            copied successfully. Keep this off if you want to verify the migration first.
+          </Trans>
+        </p>
+      </div>
+
+      {isConfirmOpen ? (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-violet-300/35 bg-zinc-950/95 p-6 shadow-[0_0_60px_rgba(139,92,246,0.28)]">
+            <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.35em] text-violet-200/80">
+              <Trans>Confirm Migration</Trans>
+            </p>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-violet-50">
+              <Trans>Migrate Storage Paths</Trans>
+            </h2>
+            <p className="mt-2 text-sm text-zinc-400">
+              <Trans>
+                All cache data will be copied to:
+              </Trans>
+            </p>
+            <p className="mt-1 break-all font-[family-name:var(--font-jetbrains-mono)] text-sm text-violet-200">
+              {targetDirectory}
+            </p>
+            {deleteOriginals ? (
+              <p className="mt-2 text-sm font-semibold text-rose-200">
+                <Trans>Original files will be deleted after copying.</Trans>
+              </p>
+            ) : null}
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={isMigrating}
+                onMouseEnter={playHoverSound}
+                onClick={() => setIsConfirmOpen(false)}
+                className="rounded-xl border border-zinc-600 bg-zinc-900/80 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-zinc-400 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Trans>Cancel</Trans>
+              </button>
+              <button
+                type="button"
+                disabled={isMigrating}
+                onMouseEnter={playHoverSound}
+                onClick={startMigration}
+                className="rounded-xl border border-violet-300/70 bg-violet-500/30 px-4 py-2 text-sm font-semibold text-violet-100 transition hover:border-violet-200/90 hover:bg-violet-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isMigrating ? t`Migrating...` : t`Confirm Migration`}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+type PortableDetection = {
+  valid: boolean;
+  reason?: string;
+  exePath?: string;
+  dataRoot?: string;
+  databasePath?: string;
+  existingDatabaseExists: boolean;
+};
+
+function MigrateToPortableCard() {
+  const { t } = useLingui();
+  const { showToast } = useToast();
+  const [portableDirectory, setPortableDirectory] = useState<string | null>(null);
+  const [detection, setDetection] = useState<PortableDetection | null>(null);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [migrationResult, setMigrationResult] = useState<{
+    migratedCaches: number;
+    skippedCaches: number;
+    databaseMigrated: boolean;
+    storeConfigMigrated: boolean;
+  } | null>(null);
+  const [isWindows] = useState(() => {
+    return typeof navigator !== "undefined" && /win/i.test(navigator.userAgent);
+  });
+
+  if (!isWindows) return null;
+
+  const selectPortableDir = async () => {
+    try {
+      const selected = await window.electronAPI.dialog.selectPortableInstallation();
+      if (!selected) return;
+      setPortableDirectory(selected);
+      setDetection(null);
+      setError(null);
+      setMigrationResult(null);
+      setIsDetecting(true);
+      try {
+        const result = await trpc.migration.detectPortableInstallation.query({
+          directory: selected,
+        });
+        setDetection(result);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t`Failed to detect portable installation.`);
+      } finally {
+        setIsDetecting(false);
+      }
+    } catch (err) {
+      console.error("Failed to select portable directory", err);
+    }
+  };
+
+  const startMigration = async () => {
+    if (!portableDirectory || isMigrating) return;
+    setIsMigrating(true);
+    setError(null);
+    setMigrationResult(null);
+    try {
+      const result = await trpc.migration.migrateToPortable.mutate({
+        portableDirectory,
+      });
+      setMigrationResult({
+        migratedCaches: result.migratedCaches.length,
+        skippedCaches: result.skippedCaches.length,
+        databaseMigrated: result.databaseMigrated,
+        storeConfigMigrated: result.storeConfigMigrated,
+      });
+      showToast(t`Migration to portable complete.`, "success");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t`Migration failed.`;
+      setError(message);
+      showToast(message, "error");
+    } finally {
+      setIsMigrating(false);
+      setIsConfirmOpen(false);
+    }
+  };
+
+  return (
+    <section
+      className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl"
+      style={{ animationDelay: "0.11s" }}
+    >
+      <div className="mb-4">
+        <h2 className="text-lg font-extrabold tracking-tight text-violet-100">
+          <Trans>Migrate to Portable</Trans>
+        </h2>
+        <p className="mt-1 text-sm text-zinc-300">
+          <Trans>
+            Move all your data — cache folders, database, and settings — to an existing portable
+            installation. Any existing data in the portable installation will be backed up first.
+            After migration, launch the portable executable to use your migrated data.
+          </Trans>
+        </p>
+      </div>
+
+      {error ? (
+        <div className="mb-4 rounded-xl border border-rose-300/35 bg-black/35 p-3 text-sm text-rose-100">
+          {error}
+        </div>
+      ) : null}
+
+      {migrationResult ? (
+        <div className="mb-4 rounded-xl border border-emerald-300/35 bg-black/35 p-3 text-sm text-emerald-100">
+          <Trans>
+            Migration complete: {migrationResult.migratedCaches} cache folders migrated
+            {migrationResult.databaseMigrated ? ", database copied" : ""}
+            {migrationResult.storeConfigMigrated ? ", settings copied" : ""}.
+          </Trans>
+          <p className="mt-1 text-xs text-zinc-400">
+            <Trans>
+              Close this application and launch the portable executable to use your migrated data.
+            </Trans>
+          </p>
+        </div>
+      ) : null}
+
+      <div className="rounded-2xl border border-violet-300/25 bg-black/35 p-4">
+        <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+          <Trans>Portable Installation Directory</Trans>
+        </div>
+        <div className="mt-2 break-all font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-100">
+          {portableDirectory ?? t`No directory selected`}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={isMigrating || isDetecting}
+            onMouseEnter={playHoverSound}
+            onClick={selectPortableDir}
+            className="rounded-xl border border-violet-300/60 bg-violet-500/30 px-4 py-2 text-sm font-semibold text-violet-100 transition hover:border-violet-200/80 hover:bg-violet-500/45 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isDetecting ? t`Detecting...` : t`Select Portable Installation`}
+          </button>
+          <button
+            type="button"
+            disabled={!detection?.valid || isMigrating || isDetecting}
+            onMouseEnter={playHoverSound}
+            onClick={() => {
+              playSelectSound();
+              setIsConfirmOpen(true);
+            }}
+            className="rounded-xl border border-emerald-300/60 bg-emerald-500/25 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:border-emerald-200/80 hover:bg-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isMigrating ? t`Migrating...` : t`Start Migration`}
+          </button>
+        </div>
+
+        {detection && !detection.valid ? (
+          <div className="mt-3 rounded-xl border border-amber-300/35 bg-black/25 p-3 text-sm text-amber-100">
+            {detection.reason}
+          </div>
+        ) : null}
+
+        {detection?.valid ? (
+          <div className="mt-3 space-y-1 rounded-xl border border-emerald-300/25 bg-black/25 p-3 text-sm">
+            <div className="flex items-center gap-2 text-emerald-100">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              <Trans>Valid portable installation detected</Trans>
+            </div>
+            {detection.exePath ? (
+              <div className="pl-6 text-xs text-zinc-400">
+                <Trans>Executable: {detection.exePath}</Trans>
+              </div>
+            ) : null}
+            {detection.dataRoot ? (
+              <div className="pl-6 text-xs text-zinc-400">
+                <Trans>Data root: {detection.dataRoot}</Trans>
+              </div>
+            ) : null}
+            {detection.databasePath ? (
+              <div className="pl-6 text-xs text-zinc-400">
+                <Trans>Database: {detection.databasePath}</Trans>
+              </div>
+            ) : null}
+            {detection.existingDatabaseExists ? (
+              <div className="pl-6 text-xs text-amber-300">
+                <Trans>
+                  An existing database was found and will be backed up before migration.
+                </Trans>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      {isConfirmOpen ? (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-violet-300/35 bg-zinc-950/95 p-6 shadow-[0_0_60px_rgba(139,92,246,0.28)]">
+            <p className="font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.35em] text-violet-200/80">
+              <Trans>Confirm Migration</Trans>
+            </p>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-violet-50">
+              <Trans>Migrate to Portable</Trans>
+            </h2>
+            <p className="mt-2 text-sm text-zinc-400">
+              <Trans>
+                All cache data, your database, and settings will be copied to the portable
+                installation. The app will need to be restarted using the portable executable
+                afterwards.
+              </Trans>
+            </p>
+            <p className="mt-1 break-all font-[family-name:var(--font-jetbrains-mono)] text-sm text-violet-200">
+              {portableDirectory}
+            </p>
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={isMigrating}
+                onMouseEnter={playHoverSound}
+                onClick={() => setIsConfirmOpen(false)}
+                className="rounded-xl border border-zinc-600 bg-zinc-900/80 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-zinc-400 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Trans>Cancel</Trans>
+              </button>
+              <button
+                type="button"
+                disabled={isMigrating}
+                onMouseEnter={playHoverSound}
+                onClick={startMigration}
+                className="rounded-xl border border-violet-300/70 bg-violet-500/30 px-4 py-2 text-sm font-semibold text-violet-100 transition hover:border-violet-200/90 hover:bg-violet-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isMigrating ? t`Migrating...` : t`Confirm Migration`}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

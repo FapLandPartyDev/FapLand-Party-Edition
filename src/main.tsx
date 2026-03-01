@@ -4,6 +4,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import "./styles.css";
 import { InstallSidecarTrustModalHost } from "./components/InstallSidecarTrustModalHost";
 import { InstallConfirmationModalHost } from "./components/InstallConfirmationModalHost";
+import { GlobalDragOverlay } from "./components/GlobalDragOverlay";
 import { showGlobalToast, ToastProvider } from "./components/ui/ToastHost";
 import { GameplayMoaningProvider } from "./contexts/GameplayMoaningContext";
 import { I18nProvider } from "./i18n";
@@ -162,6 +163,7 @@ createRoot(rootElement).render(
     <I18nProvider>
       <ToastProvider>
         <GameplayMoaningProvider>
+          <GlobalDragOverlay />
           <InstallConfirmationModalHost />
           <InstallSidecarTrustModalHost />
           <RouterProvider router={router} />

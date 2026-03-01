@@ -1,5 +1,22 @@
 # What's New
 
+## v0.3.2-beta
+
+### Added
+
+- **Drag-and-drop overlay** — dragging files onto the app now shows a visual drop zone and a confirmation dialog listing the files before importing, preventing accidental drops.
+- **Storage migration** — a new *Migrate Storage Paths* card in Settings lets you copy all cache folders (web videos, music, EroScripts, .fpack extractions) to a new directory and optionally delete the originals.
+- **Portable migration** (Windows only) — a *Migrate to Portable* card in Settings can move cache folders, database, and settings into an existing portable installation with automatic detection and backup of existing data.
+
+### Changed
+
+- The Round Converter UI (header, segment cards, video preview) is now fully translatable.
+- The Licenses page is now fully translatable.
+- Graph validation error messages now include the human-readable node name alongside the node ID, making errors easier to identify in the Map Editor and graph schema validation.
+- Automation graph mutation errors also include node names for clearer diagnostics.
+
+---
+
 ## v0.3.1-beta
 
 ### Added

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import licenseManifestUrl from "../generated/licenses.generated.json?url";
@@ -34,6 +35,7 @@ type LicenseManifest = {
 };
 
 function LicensesPage() {
+  const { t } = useLingui();
   const [licenseManifest, setLicenseManifest] = useState<LicenseManifest | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -112,10 +114,10 @@ function LicensesPage() {
     return (
       <main className="fixed inset-0 overflow-hidden bg-white text-black">
         <div className="mx-auto flex h-full max-w-5xl flex-col gap-4 px-4 py-6">
-          <h1 className="text-3xl font-semibold">Licenses</h1>
+          <h1 className="text-3xl font-semibold"><Trans>Licenses</Trans></h1>
           <p className="text-sm text-red-700">{loadError}</p>
           <Link className="underline" to="/settings">
-            Back to settings
+            <Trans>Back to settings</Trans>
           </Link>
         </div>
       </main>
@@ -126,8 +128,8 @@ function LicensesPage() {
     return (
       <main className="fixed inset-0 overflow-hidden bg-white text-black">
         <div className="mx-auto max-w-5xl px-4 py-6">
-          <h1 className="text-3xl font-semibold">Licenses</h1>
-          <p className="mt-2 text-sm text-zinc-700">Loading license manifest...</p>
+          <h1 className="text-3xl font-semibold"><Trans>Licenses</Trans></h1>
+          <p className="mt-2 text-sm text-zinc-700"><Trans>Loading license manifest...</Trans></p>
         </div>
       </main>
     );
@@ -138,17 +140,17 @@ function LicensesPage() {
       <div className="mx-auto flex h-full max-w-5xl flex-col gap-6 px-4 py-6">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-semibold">Licenses</h1>
+            <h1 className="text-3xl font-semibold"><Trans>Licenses</Trans></h1>
             <p className="text-sm text-zinc-700">
-              {licenseManifest.dependencies.length} production dependencies
+              <Trans>{licenseManifest.dependencies.length} production dependencies</Trans>
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-sm">
             <Link className="underline" to="/settings">
-              Back to settings
+              <Trans>Back to settings</Trans>
             </Link>
             <Link className="underline" to="/">
-              Main menu
+              <Trans>Main menu</Trans>
             </Link>
           </div>
         </header>
@@ -163,17 +165,17 @@ function LicensesPage() {
               <h2 className="text-xl font-semibold">
                 {licenseManifest.project.name} {licenseManifest.project.version}
               </h2>
-              <p className="mt-1 text-sm">License: {licenseManifest.project.license}</p>
+              <p className="mt-1 text-sm"><Trans>License: {licenseManifest.project.license}</Trans></p>
             </div>
             <span className="text-sm text-zinc-600">
-              {isProjectLicenseOpen ? "Hide project license" : "Show project license"}
+              {isProjectLicenseOpen ? t`Hide project license` : t`Show project license`}
             </span>
           </button>
           {isProjectLicenseOpen ? (
             <div className="border-t border-zinc-300 p-4">
               {licenseManifest.project.repository ? (
                 <p className="text-sm break-all">
-                  Repository:{" "}
+                  <Trans>Repository:</Trans>{" "}
                   <a
                     className="underline"
                     href={licenseManifest.project.repository}
@@ -196,17 +198,17 @@ function LicensesPage() {
         <section className="min-h-0 flex-1 rounded border border-zinc-300">
           <div className="border-b border-zinc-300 p-4">
             <label className="block">
-              <span className="mb-2 block text-sm font-medium">Find a dependency</span>
+              <span className="mb-2 block text-sm font-medium"><Trans>Find a dependency</Trans></span>
               <input
                 className="w-full rounded border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by package, version, or license"
+                placeholder={t`Search by package, version, or license`}
                 type="text"
                 value={query}
               />
             </label>
             <p className="mt-2 text-sm text-zinc-600">
-              Showing {filteredDependencies.length} of {licenseManifest.dependencies.length} packages
+              <Trans>Showing {filteredDependencies.length} of {licenseManifest.dependencies.length} packages</Trans>
             </p>
           </div>
 
@@ -217,7 +219,7 @@ function LicensesPage() {
               <div className="h-full overflow-y-auto overscroll-contain">
                 <div className="sticky top-0 z-10 border-b border-zinc-300 bg-zinc-100 px-4 py-3">
                   <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-zinc-700">
-                    Packages
+                    <Trans>Packages</Trans>
                   </h2>
                 </div>
                 {filteredDependencies.length > 0 ? (
@@ -244,7 +246,7 @@ function LicensesPage() {
                     })}
                   </div>
                 ) : (
-                  <div className="p-4 text-sm text-zinc-600">No dependencies match this search.</div>
+                  <div className="p-4 text-sm text-zinc-600"><Trans>No dependencies match this search.</Trans></div>
                 )}
               </div>
             </div>
@@ -254,15 +256,15 @@ function LicensesPage() {
                 {selectedDependency ? (
                   <section>
                     <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                      License Details
+                      <Trans>License Details</Trans>
                     </p>
                     <h2 className="text-xl font-semibold">
                       {selectedDependency.name} {selectedDependency.version}
                     </h2>
-                    <p className="mt-1 text-sm">License: {selectedDependency.license}</p>
+                    <p className="mt-1 text-sm"><Trans>License: {selectedDependency.license}</Trans></p>
                     {selectedDependency.repository ? (
-                      <p className="mt-1 break-all text-sm">
-                        Repository:{" "}
+                       <p className="mt-1 break-all text-sm">
+                        <Trans>Repository:</Trans>{" "}
                         <a
                           className="underline"
                           href={selectedDependency.repository}
@@ -273,8 +275,8 @@ function LicensesPage() {
                         </a>
                       </p>
                     ) : selectedDependency.homepage ? (
-                      <p className="mt-1 break-all text-sm">
-                        Homepage:{" "}
+                       <p className="mt-1 break-all text-sm">
+                        <Trans>Homepage:</Trans>{" "}
                         <a
                           className="underline"
                           href={selectedDependency.homepage}
@@ -296,13 +298,15 @@ function LicensesPage() {
                       ))
                     ) : (
                       <p className="mt-3 text-sm text-zinc-600">
-                        No license file was found in this package directory. The SPDX identifier
-                        above was read from the installed package metadata.
+                        <Trans>
+                          No license file was found in this package directory. The SPDX identifier
+                          above was read from the installed package metadata.
+                        </Trans>
                       </p>
                     )}
                   </section>
                 ) : (
-                  <p className="text-sm text-zinc-600">Select a dependency to inspect its license.</p>
+                  <p className="text-sm text-zinc-600"><Trans>Select a dependency to inspect its license.</Trans></p>
                 )}
               </div>
             </div>

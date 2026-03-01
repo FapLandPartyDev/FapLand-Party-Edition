@@ -1247,6 +1247,44 @@ function registerDialogIpc() {
     if (result.canceled) return null;
     return result.filePaths[0] ?? null;
   });
+
+  ipcMain.handle("dialog:selectMigrationTargetDirectory", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const options: OpenDialogOptions = {
+      title: "Choose Migration Target Directory",
+      properties: ["openDirectory", "createDirectory"],
+    };
+    const result = win
+      ? await dialog.showOpenDialog(win, options)
+      : await dialog.showOpenDialog(options);
+
+    if (result.canceled) return null;
+
+    const filePath = result.filePaths[0] ?? null;
+    if (filePath) {
+      approveDialogPath("migrationTargetDirectory", filePath);
+    }
+    return filePath;
+  });
+
+  ipcMain.handle("dialog:selectPortableInstallation", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const options: OpenDialogOptions = {
+      title: "Select Portable Installation Directory",
+      properties: ["openDirectory"],
+    };
+    const result = win
+      ? await dialog.showOpenDialog(win, options)
+      : await dialog.showOpenDialog(options);
+
+    if (result.canceled) return null;
+
+    const filePath = result.filePaths[0] ?? null;
+    if (filePath) {
+      approveDialogPath("portableInstallation", filePath);
+    }
+    return filePath;
+  });
 }
 
 function registerAppOpenIpc() {

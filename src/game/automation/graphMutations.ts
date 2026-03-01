@@ -59,7 +59,7 @@ export function applyGraphMutationAction(
   switch (step.kind) {
     case "graph.addNode": {
       if (board.some((node) => node.id === step.node.id)) {
-        return { ok: false, error: `Node ${step.node.id} already exists.`, state };
+        return { ok: false, error: `Node "${step.node.name}" (${step.node.id}) already exists.`, state };
       }
       return {
         ok: true,
@@ -83,7 +83,7 @@ export function applyGraphMutationAction(
       if (!existing) return { ok: false, error: `Node ${step.nodeId} does not exist.`, state };
       const currentPlayer = state.players[state.currentPlayerIndex];
       if (currentPlayer?.currentNodeId === step.nodeId && !step.fallbackNodeId) {
-        return { ok: false, error: `Removing active node ${step.nodeId} requires fallbackNodeId.`, state };
+        return { ok: false, error: `Removing active node "${existing.name}" (${step.nodeId}) requires fallbackNodeId.`, state };
       }
       const fallbackNodeId = step.fallbackNodeId ?? currentPlayer?.currentNodeId ?? state.config.runtimeGraph.startNodeId;
       const nextBoard = board.filter((node) => node.id !== step.nodeId);

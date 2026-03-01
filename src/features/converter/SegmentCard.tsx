@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import React from "react";
 import { useSfwMode } from "../../hooks/useSfwMode";
 import { playSelectSound } from "../../utils/audio";
@@ -75,6 +76,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
     onUpdateTiming,
   }) => {
     const sfwMode = useSfwMode();
+    const { t } = useLingui();
     const durationSec = ((segment.endTimeMs - segment.startTimeMs) / 1000).toFixed(1);
     const [expanded, setExpanded] = React.useState(true);
     const difficultyLevel =
@@ -116,7 +118,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
               value={segment.customName ?? ""}
               onClick={(e) => e.stopPropagation()}
               onChange={(e) => onSetCustomName(e.target.value)}
-              placeholder={`${heroName.trim() || "Hero"} - round ${index + 1}`}
+              placeholder={t`${heroName.trim() || "Hero"} - round ${index + 1}`}
               className="min-w-0 flex-1 bg-transparent text-xs text-zinc-100 outline-none border-b border-transparent focus:border-violet-400/50"
             />
           </div>
@@ -143,7 +145,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
           <div className="mt-2 space-y-2 pl-5">
             <div className="rounded border border-violet-400/20 bg-black/20 p-2">
               <div className="mb-2 flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.14em] text-violet-100">
-                <span>Segment Timeline</span>
+                 <span><Trans>Segment Timeline</Trans></span>
                 <span className="text-zinc-500">
                   {formatMs(segment.startTimeMs)}-{formatMs(segment.endTimeMs)}
                 </span>
@@ -205,7 +207,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
                   }}
                   className="text-cyan-300 hover:text-cyan-200"
                 >
-                  Set Cut IN
+                   <Trans>Set Cut IN</Trans>
                 </button>
                 <button
                   type="button"
@@ -215,7 +217,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
                   }}
                   className="text-indigo-300 hover:text-indigo-200"
                 >
-                  Set Cut OUT
+                   <Trans>Set Cut OUT</Trans>
                 </button>
                 <button
                   type="button"
@@ -225,7 +227,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
                   }}
                   className="text-amber-300 hover:text-amber-200"
                 >
-                  Cut Segment
+                   <Trans>Cut Segment</Trans>
                 </button>
                 <button
                   type="button"
@@ -235,7 +237,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
                   }}
                   className="text-zinc-400 hover:text-zinc-200"
                 >
-                  Clear Cut Marks
+                   <Trans>Clear Cut Marks</Trans>
                 </button>
                 {segmentCutMarks.markInMs !== null && (
                   <span className="text-cyan-200">IN {formatMs(segmentCutMarks.markInMs)}</span>
@@ -281,7 +283,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
               </button>
               <div className="flex-1" />
               <div className="flex items-center gap-1 text-[10px]">
-                <span className="text-zinc-500">BPM:</span>
+                 <span className="text-zinc-500"><Trans>BPM:</Trans></span>
                 <input
                   type="number"
                   min={1}
@@ -303,7 +305,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
                 </button>
               </div>
               <div className="flex items-center gap-1 text-[10px]">
-                <span className="text-zinc-500">Difficulty:</span>
+                 <span className="text-zinc-500"><Trans>Difficulty:</Trans></span>
                 <div className="flex items-center gap-0.5 rounded border border-zinc-700 bg-black/45 px-1 py-0.5">
                   {[1, 2, 3, 4, 5].map((level) => {
                     const active = level <= difficultyLevel;
@@ -337,7 +339,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
               </div>
             </div>
             <div className="flex items-center gap-2 text-[10px]">
-              <span className="text-zinc-500">Timing:</span>
+               <span className="text-zinc-500"><Trans>Timing:</Trans></span>
               <input
                 type="number"
                 value={segment.startTimeMs}
@@ -363,7 +365,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
             {segment.cutRanges.length > 0 && (
               <div className="rounded border border-rose-400/20 bg-rose-950/10 p-2">
                 <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-200">
-                  Cuts
+                   <Trans>Cuts</Trans>
                 </div>
                 <div className="space-y-1">
                   {segment.cutRanges.map((cut, cutIndex) => (
@@ -384,7 +386,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
                         }}
                         className="text-cyan-300 hover:text-cyan-200"
                       >
-                        Start
+                         <Trans>Start</Trans>
                       </button>
                       <button
                         type="button"
@@ -395,7 +397,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
                         }}
                         className="text-indigo-300 hover:text-indigo-200"
                       >
-                        End
+                         <Trans>End</Trans>
                       </button>
                       <button
                         type="button"
@@ -405,7 +407,7 @@ export const SegmentCard: React.FC<SegmentCardProps> = React.memo(
                         }}
                         className="text-rose-300 hover:text-rose-200"
                       >
-                        Delete
+                         <Trans>Delete</Trans>
                       </button>
                     </div>
                   ))}

@@ -259,7 +259,7 @@ export const ZGraphBoardConfig = z
       if (nodeIds.has(node.id)) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Duplicate node id: ${node.id}`,
+          message: `Duplicate node id: "${node.name}" (${node.id})`,
           path: ["nodes"],
         });
       }
@@ -268,7 +268,7 @@ export const ZGraphBoardConfig = z
       if (node.kind === "round" && !node.roundRef) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Round node ${node.id} must define roundRef`,
+          message: `Round node "${node.name}" (${node.id}) must define roundRef`,
           path: ["nodes"],
         });
       }
@@ -276,7 +276,7 @@ export const ZGraphBoardConfig = z
       if (node.kind !== "round" && node.roundPlaylistRefs) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only round nodes may define roundPlaylistRefs (${node.id})`,
+          message: `Only round nodes may define roundPlaylistRefs ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -284,7 +284,7 @@ export const ZGraphBoardConfig = z
       if (node.kind !== "round" && node.kind !== "perk" && typeof node.forceStop === "boolean") {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only round and perk nodes may define forceStop (${node.id})`,
+          message: `Only round and perk nodes may define forceStop ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -292,7 +292,7 @@ export const ZGraphBoardConfig = z
       if (node.kind !== "round" && typeof node.skippable === "boolean") {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only round nodes may define skippable (${node.id})`,
+          message: `Only round nodes may define skippable ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -304,7 +304,7 @@ export const ZGraphBoardConfig = z
       ) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only round and randomRound nodes may define autoAdvanceAfterCompletion (${node.id})`,
+          message: `Only round and randomRound nodes may define autoAdvanceAfterCompletion ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -316,7 +316,7 @@ export const ZGraphBoardConfig = z
       ) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only round and randomRound nodes may define hiddenFromMap (${node.id})`,
+          message: `Only round and randomRound nodes may define hiddenFromMap ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -324,7 +324,7 @@ export const ZGraphBoardConfig = z
       if (node.hiddenFromMap && !node.autoAdvanceAfterCompletion) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `hiddenFromMap requires autoAdvanceAfterCompletion (${node.id})`,
+          message: `hiddenFromMap requires autoAdvanceAfterCompletion ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -332,7 +332,7 @@ export const ZGraphBoardConfig = z
       if (node.kind !== "randomRound" && node.selectionMode) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only randomRound nodes may define selectionMode (${node.id})`,
+          message: `Only randomRound nodes may define selectionMode ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -340,7 +340,7 @@ export const ZGraphBoardConfig = z
       if (node.kind !== "randomRound" && node.filter) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only randomRound nodes may define filter (${node.id})`,
+          message: `Only randomRound nodes may define filter ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -348,7 +348,7 @@ export const ZGraphBoardConfig = z
       if (node.kind !== "safePoint" && typeof node.checkpointRestMs === "number") {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only safePoint nodes may define additional rest (${node.id})`,
+          message: `Only safePoint nodes may define additional rest ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -356,7 +356,7 @@ export const ZGraphBoardConfig = z
       if (node.kind !== "campfire" && typeof node.pauseBonusMs === "number") {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only campfire nodes may define pauseBonusMs (${node.id})`,
+          message: `Only campfire nodes may define pauseBonusMs ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -364,7 +364,7 @@ export const ZGraphBoardConfig = z
       if (node.kind !== "perk" && typeof node.giftGuaranteedPerk === "boolean") {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only perk nodes may define giftGuaranteedPerk (${node.id})`,
+          message: `Only perk nodes may define giftGuaranteedPerk ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -372,7 +372,7 @@ export const ZGraphBoardConfig = z
       if (node.kind === "end" && node.roundRef) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `End node ${node.id} must not define roundRef`,
+          message: `End node "${node.name}" (${node.id}) must not define roundRef`,
           path: ["nodes"],
         });
       }
@@ -380,7 +380,7 @@ export const ZGraphBoardConfig = z
       if (node.kind === "end" && node.randomPoolId) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `End node ${node.id} must not define randomPoolId`,
+          message: `End node "${node.name}" (${node.id}) must not define randomPoolId`,
           path: ["nodes"],
         });
       }
@@ -388,7 +388,7 @@ export const ZGraphBoardConfig = z
       if (node.kind !== "catapult" && typeof node.catapultForward === "number") {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only catapult nodes may define catapultForward (${node.id})`,
+          message: `Only catapult nodes may define catapultForward ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -396,7 +396,7 @@ export const ZGraphBoardConfig = z
       if (node.kind !== "catapult" && typeof node.catapultLandingOnly === "boolean") {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Only catapult nodes may define catapultLandingOnly (${node.id})`,
+          message: `Only catapult nodes may define catapultLandingOnly ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -474,28 +474,28 @@ export const ZGraphBoardConfig = z
       if (node.kind === "end" && outgoingCount > 0) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `End node ${node.id} must not have outgoing edges`,
+          message: `End node "${node.name}" (${node.id}) must not have outgoing edges`,
           path: ["edges"],
         });
       }
       if (node.kind !== "end" && outgoingCount === 0) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Node ${node.id} must lead to at least one end node path; only end nodes may be dead ends`,
+          message: `Node "${node.name}" (${node.id}) must lead to at least one end node path; only end nodes may be dead ends`,
           path: ["nodes"],
         });
       }
       if (node.autoAdvanceAfterCompletion && outgoingCount !== 1) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Node ${node.id} with autoAdvanceAfterCompletion must have exactly one outgoing edge`,
+          message: `Node "${node.name}" (${node.id}) with autoAdvanceAfterCompletion must have exactly one outgoing edge`,
           path: ["nodes"],
         });
       }
       if (node.hiddenFromMap && outgoingCount !== 1) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Node ${node.id} hiddenFromMap must have exactly one outgoing edge`,
+          message: `Node "${node.name}" (${node.id}) hiddenFromMap must have exactly one outgoing edge`,
           path: ["nodes"],
         });
       }
@@ -504,7 +504,7 @@ export const ZGraphBoardConfig = z
         if (outgoingEdges.some((edge) => (edge.gateCost ?? 0) !== 0)) {
           context.addIssue({
             code: z.ZodIssueCode.custom,
-            message: `Node ${node.id} with autoAdvanceAfterCompletion must use zero-cost outgoing edges`,
+            message: `Node "${node.name}" (${node.id}) with autoAdvanceAfterCompletion must use zero-cost outgoing edges`,
             path: ["edges"],
           });
         }
