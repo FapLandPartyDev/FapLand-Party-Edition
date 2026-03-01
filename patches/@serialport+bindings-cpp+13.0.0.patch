@@ -1,0 +1,12 @@
+diff --git a/binding.gyp b/binding.gyp
+--- a/binding.gyp
++++ b/binding.gyp
+@@ -21,7 +21,8 @@
+           'msvs_settings': {
+             'VCCLCompilerTool': {
+               'ExceptionHandling': '1',
+               'DisableSpecificWarnings': [ '4530', '4506' ],
++              'AdditionalOptions': [ '/D"__builtin_frame_address(x)=nullptr"' ],
+             }
+           }
+         }
