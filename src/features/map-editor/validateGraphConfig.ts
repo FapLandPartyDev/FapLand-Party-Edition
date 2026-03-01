@@ -195,6 +195,19 @@ export function validateGraphConfig(
         node.id
       );
     }
+    if (node.kind !== "safePoint" && typeof node.cumPoint === "boolean") {
+      addError(`Only safe-point nodes may be Cum Points`, `nodes.${node.id}.cumPoint`, node.id);
+    }
+    if (node.kind === "safePoint" && node.cumPoint && config.saveMode === "none") {
+      addError(
+        `Cum Points require Checkpoint or Everywhere saving`,
+        `nodes.${node.id}.cumPoint`,
+        node.id
+      );
+    }
+    if (node.kind === "safePoint" && node.cumPoint && config.cumRoundRefs.length === 0) {
+      addError(`Cum Points require at least one Cum Round`, `nodes.${node.id}.cumPoint`, node.id);
+    }
 
     if (
       typeof node.checkpointRestMs === "number" &&

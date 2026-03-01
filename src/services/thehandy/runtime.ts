@@ -1,3 +1,4 @@
+import "./configureClient";
 import {
   getDeviceInfo,
   getStroke,
@@ -57,6 +58,30 @@ const HSP_TOPUP_MAX_POINTS_PER_SYNC = HSP_CHUNK_SIZE;
 const SERVER_TIME_SAMPLE_COUNT = 3;
 const SERVER_TIME_SAMPLE_KEEP_COUNT = 2;
 const SERVER_TIME_OFFSET_TTL_MS = 5 * 60_000;
+const HSP_ADD_MAX_RETRIES = 2;
+const HSP_ADD_RETRY_BASE_DELAY_MS = 200;
+const HSP_MODE_MAX_RETRIES = 2;
+const HSP_MODE_RETRY_BASE_DELAY_MS = 300;
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries: number,
+  baseDelayMs: number
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxRetries) {
+        const delayMs = baseDelayMs * 2 ** attempt;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError;
+}
 
 function requireConnectionRef(value: string): string {
   const normalized = typeof value === "string" ? value.trim() : "";
@@ -393,37 +418,52 @@ async function prepareHspMode(auth: HandyAuthBundle, session: HandySession): Pro
   const headers = { "X-Connection-Key": connectionRef };
 
   if (!session.hspModeActive) {
-    await setMode({
-      auth: authResolver,
-      responseStyle: "data",
-      requestValidator: undefined,
-      responseValidator: undefined,
-      headers,
-      body: { mode: 4 },
-    });
+    await withRetry(
+      () =>
+        setMode({
+          auth: authResolver,
+          responseStyle: "data",
+          requestValidator: undefined,
+          responseValidator: undefined,
+          headers,
+          body: { mode: 4 },
+        }),
+      HSP_MODE_MAX_RETRIES,
+      HSP_MODE_RETRY_BASE_DELAY_MS
+    );
   }
 
   const setupResponse = unwrapPayload(
-    await hspSetup({
-      auth: authResolver,
-      responseStyle: "data",
-      requestValidator: undefined,
-      responseValidator: undefined,
-      headers,
-      body: { stream_id: 1 },
-      query: { timeout: 5000 },
-    })
+    await withRetry(
+      () =>
+        hspSetup({
+          auth: authResolver,
+          responseStyle: "data",
+          requestValidator: undefined,
+          responseValidator: undefined,
+          headers,
+          body: { stream_id: 1 },
+          query: { timeout: 5000 },
+        }),
+      HSP_MODE_MAX_RETRIES,
+      HSP_MODE_RETRY_BASE_DELAY_MS
+    )
   ) as { result?: { max_points?: number } } | undefined;
 
   const flushResponse = unwrapPayload(
-    await hspFlush({
-      auth: authResolver,
-      responseStyle: "data",
-      requestValidator: undefined,
-      responseValidator: undefined,
-      headers,
-      query: { timeout: 5000 },
-    })
+    await withRetry(
+      () =>
+        hspFlush({
+          auth: authResolver,
+          responseStyle: "data",
+          requestValidator: undefined,
+          responseValidator: undefined,
+          headers,
+          query: { timeout: 5000 },
+        }),
+      HSP_MODE_MAX_RETRIES,
+      HSP_MODE_RETRY_BASE_DELAY_MS
+    )
   ) as { result?: { max_points?: number } } | undefined;
 
   const maxPoints = clampMaxBufferPoints(
@@ -490,23 +530,28 @@ async function appendPointsUpToTime(
 
     const nextTailPointStreamIndex = session.tailPointStreamIndex + chunk.length;
     try {
-      await hspAdd({
-        auth: createAuthResolver(appCredential, session.clientToken),
-        responseStyle: "data",
-        requestValidator: undefined,
-        responseValidator: undefined,
-        headers: {
-          "X-Connection-Key": connectionRef,
-        },
-        body: {
-          points: chunk,
-          tail_point_stream_index: nextTailPointStreamIndex,
-          flush: false,
-        },
-        query: {
-          timeout: 5000,
-        },
-      });
+      await withRetry(
+        () =>
+          hspAdd({
+            auth: createAuthResolver(appCredential, session.clientToken),
+            responseStyle: "data",
+            requestValidator: undefined,
+            responseValidator: undefined,
+            headers: {
+              "X-Connection-Key": connectionRef,
+            },
+            body: {
+              points: chunk,
+              tail_point_stream_index: nextTailPointStreamIndex,
+              flush: false,
+            },
+            query: {
+              timeout: 5000,
+            },
+          }),
+        HSP_ADD_MAX_RETRIES,
+        HSP_ADD_RETRY_BASE_DELAY_MS
+      );
     } catch (error) {
       session.hspAddBackoffUntilMs = Date.now() + HSP_TOPUP_APPEND_MIN_INTERVAL_MS;
       throw error;

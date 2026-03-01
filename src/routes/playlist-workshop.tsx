@@ -71,6 +71,7 @@ type EditableLinearSetup = {
   safePointsEnabled: boolean;
   safePointIndices: number[];
   difficultySections: DifficultySection[];
+  shuffleDifficultySectionRounds: boolean;
   saveMode: "none" | "checkpoint" | "everywhere";
   normalRoundOrder: string[];
   enabledCumRoundIds: string[];
@@ -412,11 +413,14 @@ export function sortSelectedRoundsByDifficulty(
 export function buildDifficultySectionRoundOrder(input: {
   sections: DifficultySection[];
   rounds: WorkshopInstalledRound[];
+  shuffle?: boolean;
+  random?: () => number;
 }): string[] {
   const usedIds = new Set<string>();
   const output: string[] = [];
   const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
   const sortedRounds = [...input.rounds].sort((a, b) => collator.compare(a.name, b.name));
+  const random = input.random ?? Math.random;
 
   for (const section of input.sections) {
     const slots = Math.max(0, section.endIndex - section.startIndex + 1);
@@ -432,11 +436,17 @@ export function buildDifficultySectionRoundOrder(input: {
                 Math.abs(difficulty - section.minDifficulty),
                 Math.abs(difficulty - section.maxDifficulty)
               );
-          return { round, distance, used: usedIds.has(round.id) };
+          return {
+            round,
+            distance,
+            used: usedIds.has(round.id),
+            shuffleKey: input.shuffle ? random() : 0,
+          };
         })
         .sort((a, b) => {
           if (a.used !== b.used) return a.used ? 1 : -1;
           if (a.distance !== b.distance) return a.distance - b.distance;
+          if (input.shuffle && a.shuffleKey !== b.shuffleKey) return a.shuffleKey - b.shuffleKey;
           return collator.compare(a.round.name, b.round.name);
         });
       const picked = candidates[0]?.round;
@@ -585,6 +595,7 @@ function toEditableSetup(
       safePointsEnabled: true,
       safePointIndices: [...DEFAULT_SAFE_PRESET],
       difficultySections: [],
+      shuffleDifficultySectionRounds: false,
       saveMode: config.saveMode ?? "none",
       normalRoundOrder: [],
       enabledCumRoundIds: [],
@@ -635,6 +646,7 @@ function toEditableSetup(
     safePointsEnabled: board.safePointIndices.length > 0,
     safePointIndices: [...board.safePointIndices],
     difficultySections: [...(board.difficultySections ?? [])],
+    shuffleDifficultySectionRounds: board.shuffleDifficultySectionRounds ?? false,
     saveMode: config.saveMode ?? "none",
     normalRoundOrder,
     enabledCumRoundIds,
@@ -696,6 +708,7 @@ function toLinearBoardConfig(
     normalRoundOrder,
     cumRoundRefs,
     difficultySections: setup.difficultySections,
+    shuffleDifficultySectionRounds: setup.shuffleDifficultySectionRounds,
   };
 }
 
@@ -910,6 +923,9 @@ function PlaylistWorkshopPage() {
   const [normalRoundSearch, setNormalRoundSearch] = useState("");
   const [normalRoundSort, setNormalRoundSort] = useState<NormalRoundSort>("name-asc");
   const [normalRoundDurationFilter, setNormalRoundDurationFilter] = useState<DurationFilter>("any");
+  const [heroFilterSearch, setHeroFilterSearch] = useState("");
+  const [selectedHeroFilterIds, setSelectedHeroFilterIds] = useState<string[]>([]);
+  const [selectedHeroTagFilters, setSelectedHeroTagFilters] = useState<string[]>([]);
   const [difficultySectionsUseCurrentFilters, setDifficultySectionsUseCurrentFilters] =
     useState(false);
   const [activePreviewRound, setActivePreviewRound] = useState<InstalledRound | null>(null);
@@ -1165,6 +1181,40 @@ function PlaylistWorkshopPage() {
     () => normalRounds.filter((round) => !selectedNormalSet.has(round.id)),
     [normalRounds, selectedNormalSet]
   );
+  const heroFilterOptions = useMemo(() => {
+    const groups = groupRoundsByHero(normalRounds);
+    return groups.map((group) => ({
+      ...group,
+      tags: [...new Set(group.rounds.flatMap((round) => round.hero?.tags ?? []))].sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: "base" })
+      ),
+    }));
+  }, [normalRounds]);
+  const availableHeroTagOptions = useMemo(
+    () =>
+      [...new Set(heroFilterOptions.flatMap((group) => group.tags))].sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: "base" })
+      ),
+    [heroFilterOptions]
+  );
+  const selectedHeroFilterIdSet = useMemo(
+    () => new Set(selectedHeroFilterIds),
+    [selectedHeroFilterIds]
+  );
+  const selectedHeroTagFilterSet = useMemo(
+    () => new Set(selectedHeroTagFilters.map((tag) => tag.toLocaleLowerCase())),
+    [selectedHeroTagFilters]
+  );
+  const matchesHeroFilters = useCallback(
+    (round: WorkshopInstalledRound) => {
+      if (selectedHeroFilterIdSet.size === 0 && selectedHeroTagFilterSet.size === 0) return true;
+      if (round.heroId && selectedHeroFilterIdSet.has(round.heroId)) return true;
+      return (round.hero?.tags ?? []).some((tag) =>
+        selectedHeroTagFilterSet.has(tag.toLocaleLowerCase())
+      );
+    },
+    [selectedHeroFilterIdSet, selectedHeroTagFilterSet]
+  );
   const visibleAvailableNormalRounds = useMemo(() => {
     const query = normalRoundSearch.trim().toLowerCase();
     const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
@@ -1173,10 +1223,14 @@ function PlaylistWorkshopPage() {
       query.length === 0
         ? availableNormalRounds
         : availableNormalRounds.filter((round) =>
-            `${round.name} ${round.author ?? ""}`.toLowerCase().includes(query)
+            `${round.name} ${round.author ?? ""} ${round.hero?.name ?? ""} ${(round.hero?.tags ?? []).join(" ")}`
+              .toLowerCase()
+              .includes(query)
           );
-    const durationFiltered = filtered.filter((round) =>
-      matchesDurationFilter(getRoundDurationSec(round), normalRoundDurationFilter)
+    const durationFiltered = filtered.filter(
+      (round) =>
+        matchesHeroFilters(round) &&
+        matchesDurationFilter(getRoundDurationSec(round), normalRoundDurationFilter)
     );
 
     const compareByName = (a: WorkshopInstalledRound, b: WorkshopInstalledRound) =>
@@ -1193,24 +1247,32 @@ function PlaylistWorkshopPage() {
       if (normalRoundSort === "author") return compareByAuthor(a, b);
       return compareByName(a, b);
     });
-  }, [availableNormalRounds, normalRoundDurationFilter, normalRoundSearch, normalRoundSort]);
+  }, [
+    availableNormalRounds,
+    matchesHeroFilters,
+    normalRoundDurationFilter,
+    normalRoundSearch,
+    normalRoundSort,
+  ]);
 
   const heroGroups = useMemo(() => {
     const query = normalRoundSearch.trim().toLowerCase();
-    const filtered = query.length === 0
-      ? availableNormalRounds
-      : availableNormalRounds.filter(
-          (round) =>
-            `${round.name} ${round.author ?? ""} ${round.hero?.name ?? ""}`.toLowerCase().includes(query),
-        );
+    const filtered = availableNormalRounds.filter(
+      (round) =>
+        matchesHeroFilters(round) &&
+        (query.length === 0 ||
+          `${round.name} ${round.author ?? ""} ${round.hero?.name ?? ""} ${(round.hero?.tags ?? []).join(" ")}`
+            .toLowerCase()
+            .includes(query))
+    );
     return groupRoundsByHero(filtered);
-  }, [availableNormalRounds, normalRoundSearch]);
+  }, [availableNormalRounds, matchesHeroFilters, normalRoundSearch]);
 
   const allHeroRoundIdsAdded = useCallback(
     (heroGroup: (typeof heroGroups)[number]) => {
       return heroGroup.rounds.every((round) => selectedNormalSet.has(round.id));
     },
-    [selectedNormalSet],
+    [selectedNormalSet]
   );
 
   const difficultySectionSourceRounds = useMemo(() => {
@@ -1219,11 +1281,18 @@ function PlaylistWorkshopPage() {
     return normalRounds.filter((round) => {
       const matchesQuery =
         query.length === 0 ||
-        `${round.name} ${round.author ?? ""}`.toLowerCase().includes(query);
-      return matchesQuery && matchesDurationFilter(getRoundDurationSec(round), normalRoundDurationFilter);
+        `${round.name} ${round.author ?? ""} ${round.hero?.name ?? ""} ${(round.hero?.tags ?? []).join(" ")}`
+          .toLowerCase()
+          .includes(query);
+      return (
+        matchesQuery &&
+        matchesHeroFilters(round) &&
+        matchesDurationFilter(getRoundDurationSec(round), normalRoundDurationFilter)
+      );
     });
   }, [
     difficultySectionsUseCurrentFilters,
+    matchesHeroFilters,
     normalRoundDurationFilter,
     normalRoundSearch,
     normalRounds,
@@ -2043,7 +2112,12 @@ function PlaylistWorkshopPage() {
     setSetup((prev) => ({
       ...prev,
       difficultySections: [
-        { startIndex: 1, endIndex: Math.min(25, prev.roundCount), minDifficulty: 1, maxDifficulty: 1 },
+        {
+          startIndex: 1,
+          endIndex: Math.min(25, prev.roundCount),
+          minDifficulty: 1,
+          maxDifficulty: 1,
+        },
         {
           startIndex: Math.min(26, prev.roundCount),
           endIndex: Math.min(50, prev.roundCount),
@@ -2081,10 +2155,7 @@ function PlaylistWorkshopPage() {
     }));
   };
 
-  const updateDifficultySection = (
-    sectionIndex: number,
-    patch: Partial<DifficultySection>
-  ) => {
+  const updateDifficultySection = (sectionIndex: number, patch: Partial<DifficultySection>) => {
     setSetup((prev) =>
       ensureLinearSetupCapacity({
         ...prev,
@@ -2112,6 +2183,7 @@ function PlaylistWorkshopPage() {
         normalRoundOrder: buildDifficultySectionRoundOrder({
           sections: prev.difficultySections,
           rounds: difficultySectionSourceRounds,
+          shuffle: prev.shuffleDifficultySectionRounds,
         }),
       });
     });
@@ -2887,7 +2959,11 @@ function PlaylistWorkshopPage() {
                               onClick={() => setDifficultySectionsExpanded((v) => !v)}
                               className="flex items-center gap-1.5 text-left"
                             >
-                              <span className={`text-[10px] text-cyan-300/70 transition-transform ${difficultySectionsExpanded ? "rotate-90" : ""}`}>▶</span>
+                              <span
+                                className={`text-[10px] text-cyan-300/70 transition-transform ${difficultySectionsExpanded ? "rotate-90" : ""}`}
+                              >
+                                ▶
+                              </span>
                               <div>
                                 <h4 className="text-sm font-bold text-cyan-50">
                                   <Trans>Difficulty Sections</Trans>
@@ -2898,7 +2974,9 @@ function PlaylistWorkshopPage() {
                                   )}
                                 </h4>
                                 <p className="mt-0.5 text-xs text-cyan-50/60">
-                                  <Trans>Rebuild the queue from index ranges and difficulty bands.</Trans>
+                                  <Trans>
+                                    Rebuild the queue from index ranges and difficulty bands.
+                                  </Trans>
                                 </p>
                               </div>
                             </button>
@@ -2934,7 +3012,24 @@ function PlaylistWorkshopPage() {
                                   }
                                   className="h-4 w-4 rounded border-cyan-300/40 bg-black/45 text-cyan-400 focus:ring-cyan-400/60"
                                 />
-                                <Trans>Use current search and duration filters</Trans>
+                                <Trans>Use all current library filters</Trans>
+                              </label>
+                              <label className="mt-2 flex items-center gap-2 text-xs text-cyan-50/75">
+                                <input
+                                  type="checkbox"
+                                  checked={setup.shuffleDifficultySectionRounds}
+                                  disabled={!isLinearEditable}
+                                  onChange={(event) =>
+                                    setSetup((previous) => ({
+                                      ...previous,
+                                      shuffleDifficultySectionRounds: event.target.checked,
+                                    }))
+                                  }
+                                  className="h-4 w-4 rounded border-cyan-300/40 bg-black/45 text-cyan-400 focus:ring-cyan-400/60"
+                                />
+                                <Trans>
+                                  Shuffle rounds within difficulty bands on each rebuild
+                                </Trans>
                               </label>
                               {setup.difficultySections.length > 0 && (
                                 <div className="mt-3 grid gap-2">
@@ -2951,12 +3046,17 @@ function PlaylistWorkshopPage() {
                                           ["maxDifficulty", t`Max D`],
                                         ] as const
                                       ).map(([field, label]) => (
-                                        <label key={field} className="text-[10px] uppercase tracking-[0.16em] text-cyan-50/60">
+                                        <label
+                                          key={field}
+                                          className="text-[10px] uppercase tracking-[0.16em] text-cyan-50/60"
+                                        >
                                           {label}
                                           <input
                                             type="number"
                                             min={field.includes("Difficulty") ? 1 : 1}
-                                            max={field.includes("Difficulty") ? 5 : setup.roundCount}
+                                            max={
+                                              field.includes("Difficulty") ? 5 : setup.roundCount
+                                            }
                                             value={section[field]}
                                             disabled={!isLinearEditable}
                                             onChange={(event) =>
@@ -3106,7 +3206,11 @@ function PlaylistWorkshopPage() {
                               className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-amber-500/10"
                             >
                               <div className="flex items-center gap-2 min-w-0">
-                                <span className={`text-[10px] text-amber-300/70 transition-transform ${heroSectionExpanded ? "rotate-90" : ""}`}>▶</span>
+                                <span
+                                  className={`text-[10px] text-amber-300/70 transition-transform ${heroSectionExpanded ? "rotate-90" : ""}`}
+                                >
+                                  ▶
+                                </span>
                                 <h4 className="text-sm font-bold text-amber-100">
                                   <Trans>Heroes</Trans>
                                   <span className="ml-1.5 rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
@@ -3123,7 +3227,7 @@ function PlaylistWorkshopPage() {
                                 {heroGroups.map((group) => {
                                   const allAdded = allHeroRoundIdsAdded(group);
                                   const availableCount = group.rounds.filter(
-                                    (r) => !selectedNormalSet.has(r.id),
+                                    (r) => !selectedNormalSet.has(r.id)
                                   ).length;
 
                                   return (
@@ -3214,6 +3318,124 @@ function PlaylistWorkshopPage() {
                             onHoverSfx={playHoverSound}
                           />
                         </div>
+                        <details className="mt-2 shrink-0 rounded-xl border border-amber-300/20 bg-amber-500/5">
+                          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-amber-100">
+                            <Trans>Filter by heroes or hero tags</Trans>
+                            {(selectedHeroFilterIds.length > 0 ||
+                              selectedHeroTagFilters.length > 0) && (
+                              <span className="ml-2 rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px]">
+                                {selectedHeroFilterIds.length + selectedHeroTagFilters.length}
+                              </span>
+                            )}
+                          </summary>
+                          <div className="border-t border-amber-300/15 p-3">
+                            <div className="flex gap-2">
+                              <input
+                                type="search"
+                                value={heroFilterSearch}
+                                onChange={(event) => setHeroFilterSearch(event.target.value)}
+                                placeholder={t`Search heroes or tags…`}
+                                className="min-w-0 flex-1 rounded-lg border border-amber-300/25 bg-black/45 px-3 py-1.5 text-xs text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-amber-300/70"
+                              />
+                              <button
+                                type="button"
+                                disabled={
+                                  selectedHeroFilterIds.length === 0 &&
+                                  selectedHeroTagFilters.length === 0
+                                }
+                                onClick={() => {
+                                  setSelectedHeroFilterIds([]);
+                                  setSelectedHeroTagFilters([]);
+                                }}
+                                className="rounded-lg border border-zinc-600/50 px-2.5 py-1.5 text-[11px] text-zinc-300 disabled:opacity-40"
+                              >
+                                <Trans>Clear</Trans>
+                              </button>
+                            </div>
+                            <div className="mt-2 max-h-44 overflow-y-auto">
+                              <p className="mb-1 text-[10px] uppercase tracking-[0.14em] text-amber-100/55">
+                                <Trans>Heroes</Trans>
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {heroFilterOptions
+                                  .filter((group) => {
+                                    const query = heroFilterSearch.trim().toLocaleLowerCase();
+                                    return (
+                                      query.length === 0 ||
+                                      `${group.heroName} ${group.tags.join(" ")}`
+                                        .toLocaleLowerCase()
+                                        .includes(query)
+                                    );
+                                  })
+                                  .map((group) => {
+                                    const selected = selectedHeroFilterIdSet.has(group.heroId);
+                                    return (
+                                      <button
+                                        key={group.heroId}
+                                        type="button"
+                                        aria-pressed={selected}
+                                        onClick={() =>
+                                          setSelectedHeroFilterIds((previous) =>
+                                            selected
+                                              ? previous.filter((id) => id !== group.heroId)
+                                              : [...previous, group.heroId]
+                                          )
+                                        }
+                                        className={`rounded-full border px-2 py-1 text-[11px] ${
+                                          selected
+                                            ? "border-amber-300/70 bg-amber-400/25 text-amber-50"
+                                            : "border-zinc-700 bg-black/30 text-zinc-300"
+                                        }`}
+                                      >
+                                        {group.heroName}
+                                      </button>
+                                    );
+                                  })}
+                              </div>
+                              <p className="mb-1 mt-3 text-[10px] uppercase tracking-[0.14em] text-amber-100/55">
+                                <Trans>Hero tags</Trans>
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {availableHeroTagOptions
+                                  .filter((tag) =>
+                                    tag
+                                      .toLocaleLowerCase()
+                                      .includes(heroFilterSearch.trim().toLocaleLowerCase())
+                                  )
+                                  .map((tag) => {
+                                    const selected = selectedHeroTagFilterSet.has(
+                                      tag.toLocaleLowerCase()
+                                    );
+                                    return (
+                                      <button
+                                        key={tag}
+                                        type="button"
+                                        aria-pressed={selected}
+                                        onClick={() =>
+                                          setSelectedHeroTagFilters((previous) =>
+                                            selected
+                                              ? previous.filter(
+                                                  (value) =>
+                                                    value.toLocaleLowerCase() !==
+                                                    tag.toLocaleLowerCase()
+                                                )
+                                              : [...previous, tag]
+                                          )
+                                        }
+                                        className={`rounded-full border px-2 py-1 text-[11px] ${
+                                          selected
+                                            ? "border-fuchsia-300/70 bg-fuchsia-400/20 text-fuchsia-50"
+                                            : "border-zinc-700 bg-black/30 text-zinc-300"
+                                        }`}
+                                      >
+                                        #{tag}
+                                      </button>
+                                    );
+                                  })}
+                              </div>
+                            </div>
+                          </div>
+                        </details>
 
                         {/* Scrollable round list */}
                         <div

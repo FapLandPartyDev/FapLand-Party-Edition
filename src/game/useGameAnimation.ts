@@ -4,8 +4,10 @@ import { advanceAutomationClock, appendAutomationEvent } from "./automation/stat
 import {
   applyInventoryItemToSelf,
   adjustPlayerMoney,
+  acceptCumPoint,
   applyPerkByIdToPlayer,
   completeRound,
+  declineCumPoint,
   consumeInventoryItem,
   consumeAntiPerkById,
   reportPlayerCum,
@@ -81,6 +83,8 @@ export interface UseGameAnimationReturn {
   handleAdjustPlayerMoney: (input: { playerId: string; delta: number; reason?: string }) => void;
   handleUseRoundControl: (input: { playerId: string; control: "pause" | "skip" }) => void;
   handleConsumeAntiPerkById: (input: { playerId: string; perkId: string; reason?: string }) => void;
+  handleAcceptCumPoint: () => void;
+  handleDeclineCumPoint: () => void;
   tickAnim: (dt: number) => AnimPhase;
 }
 
@@ -123,7 +127,7 @@ export function resolveRoundCountdownDuration(
   if (typeof queuedRound?.roundCountdownDurationSec === "number") {
     return queuedRound.roundCountdownDurationSec;
   }
-  return queuedRound?.phaseKind === "cum"
+  return queuedRound?.phaseKind === "cum" || queuedRound?.phaseKind === "cumPoint"
     ? CUM_ROUND_COUNTDOWN_DURATION
     : NORMAL_ROUND_COUNTDOWN_DURATION;
 }
@@ -279,7 +283,8 @@ export function useGameAnimation(
   const handleRoll = useCallback(() => {
     const s = stateRef.current;
     if (s.sessionPhase !== "normal") return;
-    if (s.pendingPerkSelection || s.pendingPathChoice || s.activeRound) return;
+    if (s.pendingPerkSelection || s.pendingPathChoice || s.pendingCumPointChoice || s.activeRound)
+      return;
     if (s.queuedRound && !s.queuedRound.skippable) return;
     const currentPlayer = s.players[s.currentPlayerIndex];
     const hasBoardSequenceAntiPerk = Boolean(
@@ -510,6 +515,14 @@ export function useGameAnimation(
     [applyTransition]
   );
 
+  const handleAcceptCumPoint = useCallback(() => {
+    applyTransition((prev) => acceptCumPoint(prev, installedRounds));
+  }, [applyTransition, installedRounds]);
+
+  const handleDeclineCumPoint = useCallback(() => {
+    applyTransition((prev) => declineCumPoint(prev));
+  }, [applyTransition]);
+
   const tickAnim = useCallback(
     (dt: number): AnimPhase => {
       const phase = animPhaseRef.current;
@@ -527,6 +540,7 @@ export function useGameAnimation(
         !s.activeRound &&
         !s.pendingPathChoice &&
         !s.pendingPerkSelection &&
+        !s.pendingCumPointChoice &&
         currentPlayer &&
         ["milker", "jackhammer"].some((id) => currentPlayer.antiPerks.includes(id))
       );
@@ -880,6 +894,8 @@ export function useGameAnimation(
     handleAdjustPlayerMoney,
     handleUseRoundControl,
     handleConsumeAntiPerkById,
+    handleAcceptCumPoint,
+    handleDeclineCumPoint,
     tickAnim,
   };
 }

@@ -720,7 +720,7 @@ function GameRoute() {
         const autosaveKey = `${nextState.turn}:${nextState.currentPlayerIndex}:${checkpointNodeId}`;
         if (lastAutosaveKeyRef.current !== autosaveKey) {
           lastAutosaveKeyRef.current = autosaveKey;
-          void persistRunSnapshot(nextState)
+          void persistRunSnapshot({ ...nextState, pendingCumPointChoice: null })
             .then((saved) => {
               if (saved) showSaveNotification(t`Checkpoint reached. Game saved.`);
             })
@@ -809,6 +809,22 @@ function GameRoute() {
     ]
   );
 
+  const handlePrepareCumPoint = useCallback(
+    async (resumeState: GameState) => {
+      const saved = await persistRunSnapshot({
+        ...resumeState,
+        sessionPhase: "normal",
+        queuedRound: null,
+        activeRound: null,
+        pendingCumPointChoice: null,
+        completionReason: null,
+      });
+      if (saved) showSaveNotification(t`Cum Point saved. You can resume here later.`);
+      return saved;
+    },
+    [persistRunSnapshot, showSaveNotification, t]
+  );
+
   const handleApplyPerkDirectlyChange = useCallback((value: boolean) => {
     setApplyPerkDirectly(value);
     void trpc.store.set.mutate({ key: APPLY_PERK_DIRECTLY_KEY, value }).catch((error) => {
@@ -861,6 +877,7 @@ function GameRoute() {
         onHighscoreChange={handleHighscoreChange}
         onRoundPlayed={handleRoundPlayed}
         onStateChange={handleStateChange}
+        onPrepareCumPoint={handlePrepareCumPoint}
         externalNotification={saveNotification}
         intermediaryLoadingPrompt={intermediaryLoadingPrompt}
         intermediaryLoadingDurationSec={intermediaryLoadingDurationSec}

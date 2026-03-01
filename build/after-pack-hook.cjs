@@ -43,18 +43,16 @@ exports.default = async function afterPack(context) {
     }
   }
 
-  try {
-    await access(bundledFfmpegPath);
-    await chmod(bundledFfmpegPath, 0o755);
-  } catch {
-    // Best effort only.
-  }
+  for (const binaryPath of [bundledFfmpegPath, bundledFfprobePath]) {
+    try {
+      await access(binaryPath);
+    } catch {
+      throw new Error(`Required bundled FFmpeg binary is missing after packaging: ${binaryPath}`);
+    }
 
-  try {
-    await access(bundledFfprobePath);
-    await chmod(bundledFfprobePath, 0o755);
-  } catch {
-    // Best effort only.
+    if (targetPlatform !== "win32") {
+      await chmod(binaryPath, 0o755);
+    }
   }
 
   try {

@@ -11,7 +11,14 @@ const SingleResultSearchSchema = z.object({
   highscore: z.coerce.number().int().min(0).default(0),
   survivedDurationSec: z.coerce.number().int().min(0).default(0),
   reason: z
-    .enum(["finished", "self_reported_cum", "cum_instruction_failed", "player_ended_endless"])
+    .enum([
+      "finished",
+      "self_reported_cum",
+      "cum_instruction_failed",
+      "cum_point",
+      "cum_point_instruction_failed",
+      "player_ended_endless",
+    ])
     .default("finished"),
   cheatMode: z.coerce.boolean().optional(),
   assisted: z.coerce.boolean().optional(),
@@ -29,7 +36,7 @@ export function SingleResultRoute() {
   const { t } = useLingui();
   const scopeRef = useRef<HTMLDivElement | null>(null);
   const isNewBest = search.score > 0 && search.score >= search.highscore;
-  const isCum = search.reason === "self_reported_cum";
+  const isCum = search.reason === "self_reported_cum" || search.reason === "cum_point";
   const survivedLabel = formatDurationLabel(search.survivedDurationSec);
   const statusMarkers = [
     search.cheatMode ? { icon: "🎭", label: t`Cheat mode active` } : null,
@@ -113,6 +120,8 @@ export function SingleResultRoute() {
               <Trans>Campaign Completed</Trans>
             ) : search.reason === "self_reported_cum" ? (
               <Trans>CLIMAX ACHIEVED</Trans>
+            ) : search.reason === "cum_point" ? (
+              <Trans>CUM POINT SAVED</Trans>
             ) : search.reason === "player_ended_endless" ? (
               <Trans>Endless Run Ended</Trans>
             ) : (
@@ -127,6 +136,12 @@ export function SingleResultRoute() {
               <Trans>You completed the board and closed out the match.</Trans>
             ) : search.reason === "self_reported_cum" ? (
               <Trans>Sensory overload threshold reached. Initiating cooldown sequence.</Trans>
+            ) : search.reason === "cum_point" ? (
+              <Trans>Your checkpoint is ready whenever you want to continue the run.</Trans>
+            ) : search.reason === "cum_point_instruction_failed" ? (
+              <Trans>
+                The Cum Point instruction failed, but your checkpoint remains available.
+              </Trans>
             ) : search.reason === "player_ended_endless" ? (
               <Trans>You ended your endless run. Great endurance!</Trans>
             ) : (

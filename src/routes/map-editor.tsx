@@ -3763,6 +3763,8 @@ function MapEditorPage() {
                       perkOptions={perkOptions}
                       antiPerkOptions={antiPerkOptions}
                       customPalettes={customPalettes}
+                      saveMode={config.saveMode}
+                      cumRoundCount={config.cumRoundRefs.length}
                       onPatchNode={patchNode}
                       onCommitSelection={commitSelection}
                       onSetTool={handleSetConnectTool}

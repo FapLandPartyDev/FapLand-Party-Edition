@@ -639,6 +639,56 @@ function queueCumRound(state: GameState, installedRounds: InstalledRound[]): Gam
   };
 }
 
+export function declineCumPoint(state: GameState): GameState {
+  if (!state.pendingCumPointChoice) return state;
+  return {
+    ...state,
+    pendingCumPointChoice: null,
+    log: ["Cum Point skipped. Continuing the run.", ...state.log].slice(0, 40),
+  };
+}
+
+export function acceptCumPoint(
+  state: GameState,
+  installedRounds: InstalledRound[],
+  randomValue: () => number = Math.random
+): GameState {
+  const pending = state.pendingCumPointChoice;
+  if (!pending || state.sessionPhase !== "normal") return state;
+  const selectedCumRounds = state.config.singlePlayer.cumRoundIds
+    .map((roundId) => getRoundById(installedRounds, roundId))
+    .filter((round): round is InstalledRound => Boolean(round));
+  const selectedRound =
+    selectedCumRounds.length > 0
+      ? selectedCumRounds[Math.floor(randomValue() * selectedCumRounds.length)]
+      : undefined;
+  if (!selectedRound) {
+    return {
+      ...state,
+      log: [
+        "Cum Point could not start because no configured Cum Round is available.",
+        ...state.log,
+      ].slice(0, 40),
+    };
+  }
+  return {
+    ...state,
+    sessionPhase: "cum",
+    pendingCumPointChoice: null,
+    queuedRound: {
+      fieldId: pending.nodeId,
+      nodeId: pending.nodeId,
+      roundId: selectedRound.id,
+      roundName: selectedRound.name,
+      selectionKind: "cumPoint",
+      poolId: null,
+      phaseKind: "cumPoint",
+      campaignIndex: null,
+    },
+    log: [`Cum Point: ${selectedRound.name} queued.`, ...state.log].slice(0, 40),
+  };
+}
+
 function startCumPhase(state: GameState, installedRounds: InstalledRound[]): GameState {
   if (state.sessionPhase !== "normal") return state;
   if (
@@ -930,9 +980,14 @@ function resolveSafePointLanding(
   }
 
   if (field.kind === "safePoint") {
+    const currentPlayer = state.players[state.currentPlayerIndex];
     return {
       state: {
         ...state,
+        pendingCumPointChoice:
+          field.cumPoint && state.players.length === 1 && currentPlayer
+            ? { playerId: currentPlayer.id, nodeId }
+            : state.pendingCumPointChoice,
         bonusRolls: state.bonusRolls + 1,
         log: [
           `${state.players[state.currentPlayerIndex]?.name ?? "Player"} reached safe point ${field.name}. Movement stops and reroll is granted.`,
@@ -1556,6 +1611,7 @@ export function createInitialGameState(
     activeRoundAudioEffect: null,
     pendingPathChoice: null,
     pendingPerkSelection: null,
+    pendingCumPointChoice: null,
     lastTraversalPathNodeIds: [startNodeId],
     playedRoundIdsByPool: { ...(options?.playedRoundIdsByPool ?? {}) },
     automationState: createInitialAutomationState(),
@@ -1592,6 +1648,7 @@ export function reportPlayerCum(state: GameState): GameState {
     activeRoundAudioEffect: null,
     pendingPathChoice: null,
     pendingPerkSelection: null,
+    pendingCumPointChoice: null,
     log: ["Run ended: player confirmed cum.", ...state.log].slice(0, 40),
   };
 }
@@ -1608,7 +1665,13 @@ export function rollTurn(
   }
 ): GameState {
   if (state.sessionPhase !== "normal") return state;
-  if (state.pendingPerkSelection || state.pendingPathChoice || state.activeRound) return state;
+  if (
+    state.pendingPerkSelection ||
+    state.pendingPathChoice ||
+    state.pendingCumPointChoice ||
+    state.activeRound
+  )
+    return state;
   if (state.queuedRound && !canSkipQueuedRound(state)) return state;
 
   const player = state.players[state.currentPlayerIndex];
@@ -1725,7 +1788,8 @@ export function completeRound(
   if (!currentPlayer) return state;
 
   const activeRound = state.activeRound;
-  if (activeRound.phaseKind === "cum") {
+  if (activeRound.phaseKind === "cum" || activeRound.phaseKind === "cumPoint") {
+    const isCumPoint = activeRound.phaseKind === "cumPoint";
     const cumOutcome: CumRoundOutcome = summary?.cumOutcome ?? "did_not_cum";
     if (cumOutcome === "failed_instruction") {
       return appendAutomationEvent(
@@ -1733,7 +1797,7 @@ export function completeRound(
           ...state,
           activeRound: null,
           sessionPhase: "completed",
-          completionReason: "cum_instruction_failed",
+          completionReason: isCumPoint ? "cum_point_instruction_failed" : "cum_instruction_failed",
           log: [`Cum round failed: ${activeRound.roundName}.`, ...state.log].slice(0, 40),
         },
         {
@@ -1766,7 +1830,7 @@ export function completeRound(
       {
         ...nextAfterCum,
         sessionPhase: "completed",
-        completionReason: "finished",
+        completionReason: isCumPoint ? "cum_point" : "finished",
         log: ["Session completed.", ...nextAfterCum.log].slice(0, 40),
       },
       {

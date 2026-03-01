@@ -287,6 +287,7 @@ function buildGraphConfig(
     name: node.name,
     kind: toBoardKind(node.kind),
     checkpointRestMs: typeof node.checkpointRestMs === "number" ? node.checkpointRestMs : undefined,
+    cumPoint: node.kind === "safePoint" ? node.cumPoint : undefined,
     pauseBonusMs: typeof node.pauseBonusMs === "number" ? node.pauseBonusMs : undefined,
     visualId: node.visualId,
     giftGuaranteedPerk: node.giftGuaranteedPerk,

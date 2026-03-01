@@ -1678,6 +1678,7 @@ interface GameSceneProps {
   onHighscoreChange?: (highscore: number) => void;
   onRoundPlayed?: (payload: { roundId: string; nodeId: string; poolId: string | null }) => void;
   onStateChange?: (state: GameState) => void;
+  onPrepareCumPoint?: (resumeState: GameState) => Promise<boolean>;
   multiplayerRemotePlayers?: Array<{
     id: string;
     name: string;
@@ -1736,6 +1737,7 @@ export const GameScene = memo(function GameScene({
   onHighscoreChange,
   onRoundPlayed,
   onStateChange,
+  onPrepareCumPoint,
   multiplayerRemotePlayers = [],
   externalAntiPerkEvent,
   externalMoneyAdjustment,
@@ -1792,6 +1794,8 @@ export const GameScene = memo(function GameScene({
     handleAdjustPlayerMoney,
     handleUseRoundControl,
     handleConsumeAntiPerkById,
+    handleAcceptCumPoint,
+    handleDeclineCumPoint,
     tickAnim,
   } = useGameAnimation(initialState, installedRounds);
   const [hydratedRoundsById, setHydratedRoundsById] = useState<Map<string, InstalledRound>>(
@@ -1845,6 +1849,8 @@ export const GameScene = memo(function GameScene({
   const [hasConnectedGamepad, setHasConnectedGamepad] = useState(false);
   const [cumRequestSignal, setCumRequestSignal] = useState(0);
   const [showNonCumOutcomeMenu, setShowNonCumOutcomeMenu] = useState(false);
+  const [cumPointSavePending, setCumPointSavePending] = useState(false);
+  const [cumPointSaveError, setCumPointSaveError] = useState<string | null>(null);
   const showNonCumOutcomeMenuRef = useRef(showNonCumOutcomeMenu);
   showNonCumOutcomeMenuRef.current = showNonCumOutcomeMenu;
   const [handyNotification, setHandyNotification] = useState<string | null>(null);
@@ -2008,12 +2014,47 @@ export const GameScene = memo(function GameScene({
 
   const requestCumConfirmation = useCallback(() => {
     if (stateRef.current.sessionPhase === "completed") return;
-    if (stateRef.current.activeRound?.phaseKind === "cum") {
+    if (
+      stateRef.current.activeRound?.phaseKind === "cum" ||
+      stateRef.current.activeRound?.phaseKind === "cumPoint"
+    ) {
       setCumRequestSignal((previous) => previous + 1);
     } else {
       setShowNonCumOutcomeMenu(true);
     }
   }, []);
+
+  const confirmCumPoint = useCallback(async () => {
+    const current = stateRef.current;
+    if (!current.pendingCumPointChoice || cumPointSavePending) return;
+    const installedRoundIds = new Set(installedRounds.map((round) => round.id));
+    if (!current.config.singlePlayer.cumRoundIds.some((id) => installedRoundIds.has(id))) {
+      setCumPointSaveError(t`No configured Cum Round is currently available.`);
+      return;
+    }
+    setCumPointSavePending(true);
+    setCumPointSaveError(null);
+    try {
+      const resumeState = { ...current, pendingCumPointChoice: null };
+      const saved = (await onPrepareCumPoint?.(resumeState)) ?? false;
+      if (!saved) {
+        setCumPointSaveError(t`The checkpoint could not be saved. Keep playing or try again.`);
+        return;
+      }
+      handleAcceptCumPoint();
+    } catch (error) {
+      console.warn("Failed to prepare Cum Point checkpoint", error);
+      setCumPointSaveError(t`The checkpoint could not be saved. Keep playing or try again.`);
+    } finally {
+      setCumPointSavePending(false);
+    }
+  }, [cumPointSavePending, handleAcceptCumPoint, installedRounds, onPrepareCumPoint, t]);
+
+  useEffect(() => {
+    if (state.pendingCumPointChoice && !onPrepareCumPoint) {
+      handleDeclineCumPoint();
+    }
+  }, [handleDeclineCumPoint, onPrepareCumPoint, state.pendingCumPointChoice]);
 
   const handleSelfReportedCum = useCallback(() => {
     void forceStop().catch((err) => console.warn("Failed to stop Handy after cum report", err));
@@ -2441,7 +2482,7 @@ export const GameScene = memo(function GameScene({
         }
       }
 
-      if (state.activeRound?.phaseKind === "cum") {
+      if (state.activeRound?.phaseKind === "cum" || state.activeRound?.phaseKind === "cumPoint") {
         if (action === "ACTION_Y") {
           requestCumConfirmation();
           return true;
@@ -2659,7 +2700,7 @@ export const GameScene = memo(function GameScene({
     let disposed = false;
     let destroyed = false;
     let initialized = false;
-    let removeVisibilityListener = () => undefined;
+    let removeVisibilityListener: () => void = () => {};
     const destroyApp = () => {
       if (destroyed) return;
       destroyed = true;
@@ -5097,6 +5138,54 @@ export const GameScene = memo(function GameScene({
               applyDirectly={applyPerkDirectly}
               onApplyDirectlyChange={onApplyPerkDirectlyChange}
             />
+          </div>
+        </div>
+      )}
+      {state.pendingCumPointChoice && (
+        <div className="pointer-events-none fixed inset-0 z-[190] flex items-center justify-center bg-black/65 px-4">
+          <div className="pointer-events-auto w-full max-w-lg rounded-3xl border border-fuchsia-300/40 bg-[linear-gradient(145deg,rgba(35,8,40,0.97),rgba(18,8,30,0.98))] p-6 text-zinc-100 shadow-[0_0_70px_rgba(217,70,239,0.2)] backdrop-blur-xl">
+            <p className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase tracking-[0.25em] text-fuchsia-200/80">
+              <Trans>Cum Point</Trans>
+            </p>
+            <h2 className="mt-2 text-2xl font-black">
+              <Trans>Save here and finish for now?</Trans>
+            </h2>
+            <p className="mt-2 text-sm text-zinc-300">
+              <Trans>
+                Play a configured Cum Round and end this session. Your checkpoint remains ready to
+                resume later.
+              </Trans>
+            </p>
+            {cumPointSaveError && (
+              <p className="mt-3 rounded-lg border border-rose-300/35 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">
+                {cumPointSaveError}
+              </p>
+            )}
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={cumPointSavePending}
+                onClick={() => void confirmCumPoint()}
+                className="rounded-xl border border-fuchsia-300/55 bg-fuchsia-500/25 px-4 py-3 text-sm font-bold text-fuchsia-50 hover:bg-fuchsia-500/40 disabled:cursor-wait disabled:opacity-60"
+              >
+                {cumPointSavePending ? (
+                  <Trans>Saving checkpoint…</Trans>
+                ) : (
+                  <Trans>Cum & save here</Trans>
+                )}
+              </button>
+              <button
+                type="button"
+                disabled={cumPointSavePending}
+                onClick={() => {
+                  setCumPointSaveError(null);
+                  handleDeclineCumPoint();
+                }}
+                className="rounded-xl border border-zinc-600/60 bg-zinc-900/70 px-4 py-3 text-sm font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-60"
+              >
+                <Trans>Keep playing</Trans>
+              </button>
+            </div>
           </div>
         </div>
       )}

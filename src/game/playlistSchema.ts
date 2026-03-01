@@ -149,6 +149,7 @@ export const ZLinearBoardConfig = z
     normalRoundOrder: z.array(ZPortableRoundRef).default([]),
     cumRoundRefs: z.array(ZPortableRoundRef).default([]),
     difficultySections: z.array(ZDifficultySection).optional(),
+    shuffleDifficultySectionRounds: z.boolean().optional(),
   })
   .strict()
   .superRefine((value, context) => {
@@ -213,6 +214,7 @@ export const ZGraphNode = z
     selectionMode: z.enum(["installed", "pool"]).optional(),
     filter: ZRandomRoundFilter.optional(),
     checkpointRestMs: z.number().int().min(0).optional(),
+    cumPoint: z.boolean().optional(),
     pauseBonusMs: z.number().int().min(0).optional(),
     visualId: z.string().trim().min(1).optional(),
     giftGuaranteedPerk: z.boolean().optional(),
@@ -410,11 +412,7 @@ export const ZGraphBoardConfig = z
         });
       }
 
-      if (
-        node.kind !== "round" &&
-        node.kind !== "randomRound" &&
-        node.roundTransitionPalette
-      ) {
+      if (node.kind !== "round" && node.kind !== "randomRound" && node.roundTransitionPalette) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Only round and randomRound nodes may define roundTransitionPalette ("${node.name}" (${node.id}))`,
@@ -426,6 +424,13 @@ export const ZGraphBoardConfig = z
         context.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Only safePoint nodes may define additional rest ("${node.name}" (${node.id}))`,
+          path: ["nodes"],
+        });
+      }
+      if (node.kind !== "safePoint" && typeof node.cumPoint === "boolean") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only safePoint nodes may be Cum Points ("${node.name}" (${node.id}))`,
           path: ["nodes"],
         });
       }
@@ -629,8 +634,7 @@ function normalizeLegacyGraphBoardConfig(input: Record<string, unknown>): Record
   }
 
   let endNodeId = nodes.find((node) => node.kind === "end" && typeof node.id === "string")?.id as
-    | string
-    | undefined;
+    string | undefined;
 
   if (!endNodeId) {
     endNodeId = "end";

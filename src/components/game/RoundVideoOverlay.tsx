@@ -1599,7 +1599,7 @@ export function RoundVideoOverlay({
       intermediaryCount: firedTriggersRef.current.size,
       activeAntiPerkCount: antiPerkCountAtRoundStartRef.current,
     };
-    if (activeRound?.phaseKind === "cum") {
+    if (activeRound?.phaseKind === "cum" || activeRound?.phaseKind === "cumPoint") {
       setPendingCumRoundSummary(summary);
       void stopHandyIfNeeded();
       return;
@@ -1650,7 +1650,10 @@ export function RoundVideoOverlay({
   }, [onClose, stopHandyIfNeeded]);
 
   const handleCumRequest = useCallback(() => {
-    if (showCumRoundOutcomeMenuOnCumRequest && activeRound?.phaseKind === "cum") {
+    if (
+      showCumRoundOutcomeMenuOnCumRequest &&
+      (activeRound?.phaseKind === "cum" || activeRound?.phaseKind === "cumPoint")
+    ) {
       if (pendingCumRoundSummary) return;
       setPendingCumRoundSummary({
         intermediaryCount: firedTriggersRef.current.size,
@@ -1996,6 +1999,17 @@ export function RoundVideoOverlay({
         setHandySyncState("missing-key");
         setSyncStatus({ synced: false, error: t`Missing haptics connection settings.` });
         return false;
+      }
+
+      if (handySyncStateRef.current === "error") {
+        const staleSession = handySessionRef.current;
+        const staleConfig = handySessionConfigRef.current ?? hapticsConfig;
+        handySessionRef.current = null;
+        handySessionConfigRef.current = null;
+        handyInitPromiseRef.current = null;
+        if (staleSession) {
+          void disconnectHapticsSession(staleConfig, staleSession).catch(() => undefined);
+        }
       }
 
       const session = await ensureHandySession();

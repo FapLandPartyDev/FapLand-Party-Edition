@@ -133,6 +133,7 @@ export interface EditorNode {
   selectionMode?: "installed" | "pool";
   filter?: RandomRoundFilter;
   checkpointRestMs?: number;
+  cumPoint?: boolean;
   pauseBonusMs?: number;
   visualId?: string;
   giftGuaranteedPerk?: boolean;
@@ -452,6 +453,7 @@ export const toEditorGraphConfig = (input: GraphBoardConfig): EditorGraphConfig 
     selectionMode: node.selectionMode,
     filter: node.filter ? { ...node.filter } : undefined,
     checkpointRestMs: typeof node.checkpointRestMs === "number" ? node.checkpointRestMs : undefined,
+    cumPoint: node.kind === "safePoint" ? node.cumPoint : undefined,
     pauseBonusMs: typeof node.pauseBonusMs === "number" ? node.pauseBonusMs : undefined,
     visualId: node.visualId,
     giftGuaranteedPerk: node.giftGuaranteedPerk,
@@ -464,17 +466,18 @@ export const toEditorGraphConfig = (input: GraphBoardConfig): EditorGraphConfig 
         ? (node as { catapultLandingOnly: boolean }).catapultLandingOnly
         : undefined,
     roundCountdownDurationSec:
-      typeof (node as { roundCountdownDurationSec?: unknown }).roundCountdownDurationSec === "number"
+      typeof (node as { roundCountdownDurationSec?: unknown }).roundCountdownDurationSec ===
+      "number"
         ? (node as { roundCountdownDurationSec: number }).roundCountdownDurationSec
         : undefined,
     roundOverlineLabel:
       typeof (node as { roundOverlineLabel?: unknown }).roundOverlineLabel === "string"
         ? (node as { roundOverlineLabel: string }).roundOverlineLabel
         : undefined,
-    roundTransitionPalette:
-      (node as { roundTransitionPalette?: GraphRoadPalette }).roundTransitionPalette
-        ? { ...(node as { roundTransitionPalette: GraphRoadPalette }).roundTransitionPalette }
-        : undefined,
+    roundTransitionPalette: (node as { roundTransitionPalette?: GraphRoadPalette })
+      .roundTransitionPalette
+      ? { ...(node as { roundTransitionPalette: GraphRoadPalette }).roundTransitionPalette }
+      : undefined,
     styleHint: {
       x: toFiniteNumber(node.styleHint?.x) ?? index * 220,
       y: toFiniteNumber(node.styleHint?.y) ?? 0,
@@ -830,6 +833,7 @@ export const toGraphBoardConfig = (input: EditorGraphConfig): GraphBoardConfig =
         node.kind === "safePoint" && typeof node.checkpointRestMs === "number"
           ? Math.max(0, Math.floor(node.checkpointRestMs))
           : undefined,
+      cumPoint: node.kind === "safePoint" ? node.cumPoint : undefined,
       pauseBonusMs:
         node.kind === "campfire" && typeof node.pauseBonusMs === "number"
           ? Math.max(0, Math.floor(node.pauseBonusMs))
@@ -848,9 +852,7 @@ export const toGraphBoardConfig = (input: EditorGraphConfig): GraphBoardConfig =
           ? node.roundCountdownDurationSec
           : undefined,
       roundOverlineLabel:
-        node.kind === "round" || node.kind === "randomRound"
-          ? node.roundOverlineLabel
-          : undefined,
+        node.kind === "round" || node.kind === "randomRound" ? node.roundOverlineLabel : undefined,
       roundTransitionPalette:
         node.kind === "round" || node.kind === "randomRound"
           ? node.roundTransitionPalette
@@ -907,7 +909,7 @@ export const createHeroNodeChain = (
   config: EditorGraphConfig,
   nodes: ReadonlyArray<HeroChainNodeInput>,
   worldX: number,
-  worldY: number,
+  worldY: number
 ): EditorGraphConfig => {
   if (nodes.length === 0) return config;
 

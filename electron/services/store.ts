@@ -8,6 +8,7 @@ const STORE_ENCRYPTION_SALT = "f-land-store-encryption-v1-pepper";
 const DEFAULT_STORE_FILE_NAME = "config.json";
 const FALLBACK_STORE_FILE_NAME = "f-land.json";
 const STORE_KEY_FILE_NAME = "store-key.json";
+const HARDWARE_FINGERPRINT_TIMEOUT_MS = 30_000;
 
 type StoreMode =
   | "plaintext"
@@ -64,7 +65,7 @@ async function deriveHardwareEncryptionKey(): Promise<string> {
     const si = await import("systeminformation");
     const [cpu, baseboard, bios] = await withTimeout(
       Promise.all([si.cpu(), si.baseboard(), si.bios()]),
-      2000
+      HARDWARE_FINGERPRINT_TIMEOUT_MS
     );
     const seed = [
       `${cpu.brand}|${cpu.model}|${cpu.cores}`,
@@ -72,7 +73,11 @@ async function deriveHardwareEncryptionKey(): Promise<string> {
       `${bios.vendor}|${bios.version}|${bios.releaseDate}`,
     ].join("::");
     return hashStoreKey(seed);
-  } catch {
+  } catch (error) {
+    console.warn(
+      "Failed to derive the hardware settings fingerprint for legacy migration; using the hardware fallback key.",
+      error
+    );
     return getHardwareFallbackEncryptionKey();
   }
 }

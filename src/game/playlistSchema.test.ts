@@ -130,9 +130,7 @@ describe("playlistSchema", () => {
         normalRoundRefsByIndex: {},
         normalRoundOrder: [],
         cumRoundRefs: [],
-        difficultySections: [
-          { startIndex: 1, endIndex: 25, minDifficulty: 1, maxDifficulty: 2 },
-        ],
+        difficultySections: [{ startIndex: 1, endIndex: 25, minDifficulty: 1, maxDifficulty: 2 }],
       })
     );
 
@@ -151,12 +149,65 @@ describe("playlistSchema", () => {
         normalRoundRefsByIndex: {},
         normalRoundOrder: [],
         cumRoundRefs: [],
-        difficultySections: [
-          { startIndex: 8, endIndex: 12, minDifficulty: 4, maxDifficulty: 2 },
-        ],
+        difficultySections: [{ startIndex: 8, endIndex: 12, minDifficulty: 4, maxDifficulty: 2 }],
       })
     );
     expect(invalid.success).toBe(false);
+  });
+
+  it("preserves shuffled difficulty-section rebuilding", () => {
+    const parsed = ZPlaylistConfig.parse(
+      buildConfig({
+        mode: "linear",
+        totalIndices: 10,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+        shuffleDifficultySectionRounds: true,
+      })
+    );
+    expect(
+      parsed.boardConfig.mode === "linear"
+        ? parsed.boardConfig.shuffleDifficultySectionRounds
+        : false
+    ).toBe(true);
+  });
+
+  it("allows Cum Points only on graph safe-point nodes", () => {
+    const baseGraph = {
+      mode: "graph" as const,
+      startNodeId: "start",
+      nodes: [
+        { id: "start", name: "Start", kind: "start" as const },
+        { id: "rest", name: "Rest", kind: "safePoint" as const, cumPoint: true },
+        { id: "end", name: "End", kind: "end" as const },
+      ],
+      edges: [
+        { id: "edge", fromNodeId: "start", toNodeId: "rest" },
+        { id: "finish", fromNodeId: "rest", toNodeId: "end" },
+      ],
+      randomRoundPools: [],
+      cumRoundRefs: [],
+      pathChoiceTimeoutMs: 6000,
+    };
+    expect(ZPlaylistConfig.safeParse(buildConfig(baseGraph)).success).toBe(true);
+    expect(
+      ZPlaylistConfig.safeParse(
+        buildConfig({
+          ...baseGraph,
+          nodes: [
+            { id: "start", name: "Start", kind: "start" as const },
+            { id: "path", name: "Path", kind: "path" as const, cumPoint: true },
+            { id: "end", name: "End", kind: "end" as const },
+          ],
+          edges: [
+            { id: "edge", fromNodeId: "start", toNodeId: "path" },
+            { id: "finish", fromNodeId: "path", toNodeId: "end" },
+          ],
+        })
+      ).success
+    ).toBe(false);
   });
 
   it("rejects unsupported future playlistVersion", () => {

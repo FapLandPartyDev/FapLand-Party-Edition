@@ -14,6 +14,7 @@ function makeSetup(
     safePointsEnabled: false,
     safePointIndices: [],
     difficultySections: [],
+    shuffleDifficultySectionRounds: false,
     saveMode: "none",
     normalRoundOrder: [],
     enabledCumRoundIds: [],
@@ -148,5 +149,17 @@ describe("buildDifficultySectionRoundOrder", () => {
     });
 
     expect(order).toEqual(["medium"]);
+  });
+
+  it("shuffles equally eligible rounds when requested", () => {
+    const randomValues = [0.9, 0.1, 0.8, 0.2];
+    const order = buildDifficultySectionRoundOrder({
+      sections: [{ startIndex: 1, endIndex: 2, minDifficulty: 1, maxDifficulty: 1 }],
+      rounds: [makeRound("easy-a", "Easy A", 1), makeRound("easy-b", "Easy B", 1)],
+      shuffle: true,
+      random: () => randomValues.shift() ?? 0,
+    });
+
+    expect(order).toEqual(["easy-b", "easy-a"]);
   });
 });

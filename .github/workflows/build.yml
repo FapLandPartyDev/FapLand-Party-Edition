@@ -62,6 +62,9 @@ jobs:
       - name: Refresh yt-dlp to latest release
         run: npm run prepare:ytdlp:latest
 
+      - name: Prepare FFmpeg
+        run: npm run prepare:ffmpeg
+
       - name: Build app
         run: npm run build
 

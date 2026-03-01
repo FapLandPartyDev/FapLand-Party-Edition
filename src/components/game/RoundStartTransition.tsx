@@ -24,7 +24,7 @@ export function RoundStartTransition({
   const progress = duration > 0 ? 1 - remaining / duration : 1;
   const countdownLabel = `${Math.max(1, Math.ceil(remaining))}`;
   const hintText =
-    queuedRound.phaseKind === "cum"
+    queuedRound.phaseKind === "cum" || queuedRound.phaseKind === "cumPoint"
       ? abbreviateNsfwText(
           t`In this round, you may cum when the video instructs you to do so.`,
           sfwMode
@@ -32,11 +32,11 @@ export function RoundStartTransition({
       : null;
   const title = abbreviateNsfwText(queuedRound.roundName, sfwMode);
   const defaultOverline =
-    queuedRound.phaseKind === "cum" ? t`CUM ROUND` : t`NORMAL ROUND`;
+    queuedRound.phaseKind === "cum" || queuedRound.phaseKind === "cumPoint"
+      ? t`CUM ROUND`
+      : t`NORMAL ROUND`;
   const overline = abbreviateNsfwText(
-    queuedRound.roundOverlineLabel?.trim()
-      ? queuedRound.roundOverlineLabel
-      : defaultOverline,
+    queuedRound.roundOverlineLabel?.trim() ? queuedRound.roundOverlineLabel : defaultOverline,
     sfwMode
   );
 

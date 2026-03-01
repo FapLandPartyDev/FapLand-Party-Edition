@@ -85,6 +85,7 @@ const ZBoardField = z.object({
     })
     .optional(),
   checkpointRestMs: z.number().int().optional(),
+  cumPoint: z.boolean().optional(),
   pauseBonusMs: z.number().int().optional(),
   visualId: z.string().optional(),
   giftGuaranteedPerk: z.boolean().optional(),
@@ -272,9 +273,9 @@ const ZActiveRound = z.object({
   playlistRoundIds: z.array(z.string().min(1)).min(1).optional(),
   roundName: z.string().min(1),
   skippable: z.boolean().optional(),
-  selectionKind: z.enum(["fixed", "random", "cum"]),
+  selectionKind: z.enum(["fixed", "random", "cum", "cumPoint"]),
   poolId: z.string().nullable(),
-  phaseKind: z.enum(["normal", "cum"]),
+  phaseKind: z.enum(["normal", "cum", "cumPoint"]),
   campaignIndex: z.number().int().nullable(),
   roundCountdownDurationSec: z.number().positive().max(15).optional(),
   roundOverlineLabel: z.string().optional(),
@@ -380,6 +381,14 @@ export const ZPersistedGameState = z.object({
     .transform((value) => value ?? null),
   pendingPathChoice: ZPendingPathChoice.nullable(),
   pendingPerkSelection: ZPendingPerkSelection.nullable(),
+  pendingCumPointChoice: z
+    .object({
+      playerId: z.string().min(1),
+      nodeId: z.string().min(1),
+    })
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null),
   lastTraversalPathNodeIds: z.array(z.string()),
   playedRoundIdsByPool: z.record(z.string(), z.array(z.string())),
   automationState: z
@@ -437,7 +446,14 @@ export const ZPersistedGameState = z.object({
   endlessRoundsCompleted: z.number().int().default(0),
   antiPerkTriggeredThisRound: z.boolean().optional().default(false),
   completionReason: z
-    .enum(["finished", "self_reported_cum", "cum_instruction_failed", "player_ended_endless"])
+    .enum([
+      "finished",
+      "self_reported_cum",
+      "cum_instruction_failed",
+      "cum_point",
+      "cum_point_instruction_failed",
+      "player_ended_endless",
+    ])
     .nullable(),
 });
 

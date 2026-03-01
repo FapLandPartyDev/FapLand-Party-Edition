@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { completeRound, createInitialGameState, reportPlayerCum, rollTurn } from "./engine";
+import {
+  acceptCumPoint,
+  completeRound,
+  createInitialGameState,
+  declineCumPoint,
+  reportPlayerCum,
+  rollTurn,
+} from "./engine";
 import type { InstalledRound } from "../services/db";
 import type { GameConfig, GameState } from "./types";
 
@@ -217,5 +224,49 @@ describe("engine cum flow", () => {
 
     expect(state.sessionPhase).toBe("cum");
     expect(state.queuedRound?.roundId).toBe("fallback-cum");
+  });
+
+  it("offers a configured Cum Point on a single-player safe-point landing", () => {
+    const config = makeConfig();
+    config.board[1] = {
+      id: "round-1",
+      name: "Rest",
+      kind: "safePoint",
+      cumPoint: true,
+    };
+
+    const state = rollTurn(createInitialGameState(config), [], 1);
+
+    expect(state.pendingCumPointChoice).toEqual({
+      playerId: state.players[0]?.id,
+      nodeId: "round-1",
+    });
+    expect(state.queuedRound).toBeNull();
+  });
+
+  it("can decline a Cum Point and continue normally", () => {
+    const initial = {
+      ...createInitialGameState(makeConfig()),
+      pendingCumPointChoice: { playerId: "player-1", nodeId: "round-1" },
+    };
+
+    expect(declineCumPoint(initial).pendingCumPointChoice).toBeNull();
+    expect(declineCumPoint(initial).sessionPhase).toBe("normal");
+  });
+
+  it("queues and completes a Cum Point without using the finished completion reason", () => {
+    const initial = {
+      ...createInitialGameState(makeConfig()),
+      pendingCumPointChoice: { playerId: "player-1", nodeId: "round-1" },
+    };
+    const queued = acceptCumPoint(initial, [makeInstalledRound("cum-1", "Cum Round 1")], () => 0);
+    expect(queued.queuedRound?.phaseKind).toBe("cumPoint");
+
+    const completed = completeRound(
+      { ...queued, activeRound: queued.queuedRound, queuedRound: null },
+      { intermediaryCount: 0, activeAntiPerkCount: 0, cumOutcome: "came_as_told" },
+      []
+    );
+    expect(completed.completionReason).toBe("cum_point");
   });
 });

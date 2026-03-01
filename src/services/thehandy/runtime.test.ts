@@ -318,9 +318,12 @@ describe("sendHspSync", () => {
     expect(session.lastHspAddAtMs).toBeGreaterThan(0);
   });
 
-  it("does not advance HSP stream state when a top-up append fails", async () => {
+  it("does not advance HSP stream state when all hspAdd retries are exhausted", async () => {
     const session = createLoadedHspSession();
-    handyIndexMocks.hspAdd.mockRejectedValueOnce(new Error("temporary hsp add failure"));
+    handyIndexMocks.hspAdd
+      .mockRejectedValueOnce(new Error("temporary hsp add failure"))
+      .mockRejectedValueOnce(new Error("temporary hsp add failure"))
+      .mockRejectedValueOnce(new Error("temporary hsp add failure"));
 
     await expect(
       sendHspSync(
@@ -336,16 +339,43 @@ describe("sendHspSync", () => {
       )
     ).rejects.toThrow("temporary hsp add failure");
 
+    expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(3);
     expect(session.nextStreamPointIndex).toBe(100);
     expect(session.tailPointStreamIndex).toBe(100);
     expect(session.uploadedUntilMs).toBe(49_500);
     expect(session.hspAddBackoffUntilMs).toBeGreaterThan(0);
   });
 
-  it("retries the same unsent HSP chunk after a failed top-up append", async () => {
+  it("retries individual hspAdd chunks before giving up", async () => {
+    const session = createLoadedHspSession();
+    handyIndexMocks.hspAdd
+      .mockRejectedValueOnce(new Error("transient"))
+      .mockResolvedValueOnce({ result: {} });
+
+    await sendHspSync(
+      {
+        connectionKey: "conn-key",
+        appApiKey: "app-key",
+      },
+      session,
+      20_000,
+      1,
+      "video-1",
+      longActions
+    );
+
+    expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(2);
+    expect(session.nextStreamPointIndex).toBe(200);
+    expect(session.tailPointStreamIndex).toBe(200);
+  });
+
+  it("retries the same unsent HSP chunk after all per-chunk retries are exhausted", async () => {
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_000);
     const session = createLoadedHspSession();
-    handyIndexMocks.hspAdd.mockRejectedValueOnce(new Error("temporary hsp add failure"));
+    handyIndexMocks.hspAdd
+      .mockRejectedValueOnce(new Error("temporary hsp add failure"))
+      .mockRejectedValueOnce(new Error("temporary hsp add failure"))
+      .mockRejectedValueOnce(new Error("temporary hsp add failure"));
 
     await expect(
       sendHspSync(
@@ -374,9 +404,9 @@ describe("sendHspSync", () => {
       longActions
     );
 
-    expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(2);
+    expect(handyIndexMocks.hspAdd).toHaveBeenCalledTimes(4);
     const failedAppend = getHspAddCall(0);
-    const retryAppend = getHspAddCall(1);
+    const retryAppend = getHspAddCall(3);
     expect(failedAppend.body.points).toEqual(retryAppend.body.points);
     expect(retryAppend.body.tail_point_stream_index).toBe(200);
     expect(session.nextStreamPointIndex).toBe(200);
@@ -572,5 +602,96 @@ describe("issueHandySession", () => {
     expect(handyIndexMocks.getServerTime).toHaveBeenCalledTimes(3);
     expect(session.serverTimeOffsetMeasuredAtMs).toBe(10_000);
     expect(session.serverTimeOffsetMs).toBeGreaterThan(0);
+  });
+});
+
+describe("prepareHspMode retries", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it("retries hspSetup on transient failure during preload", async () => {
+    handyIndexMocks.hspSetup
+      .mockRejectedValueOnce(new Error("transient setup failure"))
+      .mockResolvedValueOnce({ result: { max_points: 4000 } });
+
+    const session = createLoadedHspSession({
+      loadedScriptId: null,
+      activeScriptId: null,
+      streamedPoints: null,
+      nextStreamPointIndex: 0,
+      tailPointStreamIndex: 0,
+      uploadedUntilMs: 0,
+      maxBufferPoints: 4000,
+      hspModeActive: false,
+    });
+
+    await preloadHspScript(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      "retry-video",
+      [{ at: 0, pos: 50 }],
+      0
+    );
+
+    expect(handyIndexMocks.hspSetup).toHaveBeenCalledTimes(2);
+    expect(session.hspModeActive).toBe(true);
+  });
+
+  it("retries hspFlush on transient failure during preload", async () => {
+    handyIndexMocks.hspFlush
+      .mockRejectedValueOnce(new Error("transient flush failure"))
+      .mockResolvedValueOnce({ result: { max_points: 4000 } });
+
+    const session = createLoadedHspSession({
+      loadedScriptId: null,
+      activeScriptId: null,
+      streamedPoints: null,
+      nextStreamPointIndex: 0,
+      tailPointStreamIndex: 0,
+      uploadedUntilMs: 0,
+      maxBufferPoints: 4000,
+      hspModeActive: false,
+    });
+
+    await preloadHspScript(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      "retry-video",
+      [{ at: 0, pos: 50 }],
+      0
+    );
+
+    expect(handyIndexMocks.hspFlush).toHaveBeenCalledTimes(2);
+    expect(session.hspModeActive).toBe(true);
+  });
+
+  it("retries setMode on transient failure when entering HSP mode", async () => {
+    handyIndexMocks.setMode
+      .mockRejectedValueOnce(new Error("transient mode failure"))
+      .mockResolvedValueOnce({ result: {} });
+
+    const session = createLoadedHspSession({
+      loadedScriptId: null,
+      activeScriptId: null,
+      streamedPoints: null,
+      nextStreamPointIndex: 0,
+      tailPointStreamIndex: 0,
+      uploadedUntilMs: 0,
+      maxBufferPoints: 4000,
+      hspModeActive: false,
+    });
+
+    await preloadHspScript(
+      { connectionKey: "conn-key", appApiKey: "app-key" },
+      session,
+      "retry-video",
+      [{ at: 0, pos: 50 }],
+      0
+    );
+
+    expect(handyIndexMocks.setMode).toHaveBeenCalledTimes(2);
+    expect(session.hspModeActive).toBe(true);
   });
 });

@@ -40,6 +40,8 @@ interface NodeInspectorPanelProps {
   perkOptions: ReadonlyArray<PerkOption>;
   antiPerkOptions: ReadonlyArray<PerkOption>;
   customPalettes: ReadonlyArray<CustomRoadPalette>;
+  saveMode?: "none" | "checkpoint" | "everywhere";
+  cumRoundCount?: number;
   onPatchNode: (nodeId: string, patch: Partial<EditorNode>) => void;
   onCommitSelection: (selection: EditorSelectionState) => void;
   onSetTool: (tool: "connect") => void;
@@ -77,7 +79,12 @@ interface CsvFilterInputProps {
   onChange: (values: string[] | undefined) => void;
 }
 
-const CsvFilterInput: React.FC<CsvFilterInputProps> = ({ label, values, placeholder, onChange }) => {
+const CsvFilterInput: React.FC<CsvFilterInputProps> = ({
+  label,
+  values,
+  placeholder,
+  onChange,
+}) => {
   const [draft, setDraft] = React.useState(() => toCsv(values));
   const isEditingRef = React.useRef(false);
   const formattedValue = toCsv(values);
@@ -232,9 +239,7 @@ function RoundTransitionSettings({
         {paletteExpanded && (
           <>
             <p className="text-[10px] text-zinc-600">
-              <Trans>
-                You can add custom palettes in the settings panel.
-              </Trans>
+              <Trans>You can add custom palettes in the settings panel.</Trans>
             </p>
             {currentPalette && (
               <button
@@ -323,7 +328,11 @@ function RoundTransitionSettings({
                       type="color"
                       value={currentPalette[key]}
                       onChange={(event) => {
-                        const updated = { ...currentPalette, [key]: event.target.value, presetId: "custom" as const };
+                        const updated = {
+                          ...currentPalette,
+                          [key]: event.target.value,
+                          presetId: "custom" as const,
+                        };
                         onPatchNode(nodeId, { roundTransitionPalette: updated });
                       }}
                       className="h-8 w-12 rounded border border-zinc-700/60 bg-zinc-950 p-1"
@@ -348,6 +357,8 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
     perkOptions,
     antiPerkOptions,
     customPalettes,
+    saveMode = "none",
+    cumRoundCount = 0,
     onPatchNode,
     onCommitSelection,
     onSetTool,
@@ -436,6 +447,7 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                   kind === "randomRound" ? (selectedNode.selectionMode ?? "installed") : undefined,
                 filter: kind === "randomRound" ? selectedNode.filter : undefined,
                 checkpointRestMs: kind === "safePoint" ? selectedNode.checkpointRestMs : undefined,
+                cumPoint: kind === "safePoint" ? selectedNode.cumPoint : undefined,
                 pauseBonusMs: kind === "campfire" ? selectedNode.pauseBonusMs : undefined,
                 visualId:
                   kind === "perk" ? (selectedNode.visualId ?? perkOptions[0]?.id) : undefined,
@@ -664,36 +676,73 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
         )}
 
         {selectedNode.kind === "safePoint" && (
-          <label className="block">
-            <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
-              <Trans>Additional Rest (sec)</Trans>
-            </span>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={
-                typeof selectedNode.checkpointRestMs === "number" &&
-                selectedNode.checkpointRestMs > 0
-                  ? Math.floor(selectedNode.checkpointRestMs / 1000)
-                  : ""
-              }
-              onChange={(event) => {
-                const value = event.target.value.trim();
-                if (value.length === 0) {
-                  onPatchNode(selectedNode.id, { checkpointRestMs: undefined });
-                  return;
+          <div className="space-y-3">
+            <label className="block">
+              <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+                <Trans>Additional Rest (sec)</Trans>
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={
+                  typeof selectedNode.checkpointRestMs === "number" &&
+                  selectedNode.checkpointRestMs > 0
+                    ? Math.floor(selectedNode.checkpointRestMs / 1000)
+                    : ""
                 }
-                const seconds = Number.parseInt(value, 10);
-                onPatchNode(selectedNode.id, {
-                  checkpointRestMs:
-                    Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined,
-                });
-              }}
-              className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
-              placeholder={t`Adds to normal rest when set`}
-            />
-          </label>
+                onChange={(event) => {
+                  const value = event.target.value.trim();
+                  if (value.length === 0) {
+                    onPatchNode(selectedNode.id, { checkpointRestMs: undefined });
+                    return;
+                  }
+                  const seconds = Number.parseInt(value, 10);
+                  onPatchNode(selectedNode.id, {
+                    checkpointRestMs:
+                      Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined,
+                  });
+                }}
+                className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
+                placeholder={t`Adds to normal rest when set`}
+              />
+            </label>
+            <label
+              className={`flex items-start gap-2 rounded-lg border px-3 py-2 ${
+                saveMode !== "none" && cumRoundCount > 0
+                  ? "border-fuchsia-400/30 bg-fuchsia-500/10 text-fuchsia-100"
+                  : "border-zinc-700/50 bg-zinc-950/40 text-zinc-500"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={selectedNode.cumPoint ?? false}
+                disabled={saveMode === "none" || cumRoundCount === 0}
+                onChange={(event) =>
+                  onPatchNode(selectedNode.id, {
+                    cumPoint: event.target.checked ? true : undefined,
+                  })
+                }
+                className="mt-0.5 h-4 w-4 rounded border-fuchsia-300/40 bg-black/45 text-fuchsia-400 focus:ring-fuchsia-400/60"
+              />
+              <span>
+                <span className="block text-xs font-semibold">
+                  <Trans>Offer Cum & save here</Trans>
+                </span>
+                <span className="mt-0.5 block text-[11px] opacity-70">
+                  {saveMode === "none" ? (
+                    <Trans>Enable Checkpoint or Everywhere saving first.</Trans>
+                  ) : cumRoundCount === 0 ? (
+                    <Trans>Add at least one Cum Round first.</Trans>
+                  ) : (
+                    <Trans>
+                      In single-player, offer a Cum Round and keep this checkpoint for later resume.
+                    </Trans>
+                  )}
+                </span>
+              </span>
+            </label>
+          </div>
         )}
 
         {selectedNode.kind === "campfire" && (

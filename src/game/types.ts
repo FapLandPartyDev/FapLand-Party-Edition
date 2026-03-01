@@ -124,6 +124,7 @@ export type BoardField = {
   randomSelectionMode?: "installed" | "pool";
   randomFilter?: RandomRoundFilter;
   checkpointRestMs?: number;
+  cumPoint?: boolean;
   pauseBonusMs?: number;
   visualId?: string;
   giftGuaranteedPerk?: boolean;
@@ -461,9 +462,9 @@ export type ActiveRound = {
   playlistRoundIds?: string[];
   roundName: string;
   skippable?: boolean;
-  selectionKind: "fixed" | "random" | "cum";
+  selectionKind: "fixed" | "random" | "cum" | "cumPoint";
   poolId: string | null;
-  phaseKind: "normal" | "cum";
+  phaseKind: "normal" | "cum" | "cumPoint";
   campaignIndex: number | null;
   roundCountdownDurationSec?: number;
   roundOverlineLabel?: string;
@@ -492,6 +493,11 @@ export type PendingPerkSelection = {
   options: PerkDefinition[];
 };
 
+export type PendingCumPointChoice = {
+  playerId: string;
+  nodeId: string;
+};
+
 export type CompletedRoundSummary = {
   intermediaryCount: number;
   activeAntiPerkCount: number;
@@ -513,6 +519,8 @@ export type GameCompletionReason =
   | "finished"
   | "self_reported_cum"
   | "cum_instruction_failed"
+  | "cum_point"
+  | "cum_point_instruction_failed"
   | "player_ended_endless";
 
 export type GameState = {
@@ -532,6 +540,7 @@ export type GameState = {
   activeRoundAudioEffect: RoundAudioEffect | null;
   pendingPathChoice: PendingPathChoice | null;
   pendingPerkSelection: PendingPerkSelection | null;
+  pendingCumPointChoice?: PendingCumPointChoice | null;
   lastTraversalPathNodeIds: string[];
   playedRoundIdsByPool: Record<string, string[]>;
   automationState: AutomationState;

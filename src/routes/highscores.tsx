@@ -85,6 +85,10 @@ function getSinglePlayerReasonLabel(t: ReturnType<typeof useLingui>["t"], reason
       return t`Manual Cum Report`;
     case "cum_instruction_failed":
       return t`Cum Instruction Failed`;
+    case "cum_point":
+      return t`Cum Point Saved`;
+    case "cum_point_instruction_failed":
+      return t`Cum Point Instruction Failed`;
     default:
       return reason || t`Unknown`;
   }

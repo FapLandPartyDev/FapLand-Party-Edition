@@ -36,6 +36,23 @@ function hardwareFallbackKey(): string {
   return hashStoreKey("fallback-key");
 }
 
+vi.mock("systeminformation", () => {
+  const slowResolve = (value: unknown) =>
+    new Promise((resolve) => setTimeout(() => resolve(value), 2100));
+  const api = {
+    cpu: () => slowResolve({ brand: "TestBrand", model: "TestModel", cores: 8 }),
+    baseboard: () =>
+      slowResolve({ manufacturer: "TestMfg", model: "TestBoard", serial: "SN1" }),
+    bios: () =>
+      slowResolve({
+        vendor: "TestVendor",
+        version: "1.0",
+        releaseDate: "01/01/2020",
+      }),
+  };
+  return { ...api, default: api };
+});
+
 describe("store initialization", () => {
   let tempRoot: string;
   let settingsPath: string;
@@ -154,6 +171,23 @@ describe("store initialization", () => {
       throw new Error("hardware lookup failed");
     });
     await expectMigration(hardwareFallbackKey());
+  });
+
+  it("migrates settings encrypted with a slow-to-derive hardware fingerprint", async () => {
+    __resetStoreForTests();
+    __setStorePathsForTests(settingsPath, keyFilePath);
+
+    const expected = { volume: 0.42, saved: true };
+    const seed = [
+      "TestBrand|TestModel|8",
+      "TestMfg|TestBoard|SN1",
+      "TestVendor|1.0|01/01/2020",
+    ].join("::");
+    writeEncryptedSettings(hashStoreKey(seed), expected);
+
+    await initStore();
+
+    expect(getStore().store).toEqual(expected);
   });
 
   it("deduplicates identical legacy key candidates", async () => {
