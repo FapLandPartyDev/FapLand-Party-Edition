@@ -1,0 +1,2 @@
+-- Intentionally minimal seed for local Supabase resets.
+-- Add local test data here as needed.

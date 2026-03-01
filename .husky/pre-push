@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+
+npm run prettier
+npm run lint:force
+npm run lint
+rm -rf .next
+npx tsc --noEmit
+npm run build
+npx jest

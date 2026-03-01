@@ -1,0 +1,8 @@
+dist
+src-tauri
+node_modules
+.output
+.tanstack
+src/routeTree.gen.ts
+src/utils/apis/thehandy/**/*.ts
+pnpm-lock.yaml

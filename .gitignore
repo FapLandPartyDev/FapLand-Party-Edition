@@ -1,0 +1,50 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build output
+node_modules
+dist
+dist-electron
+*.local
+
+# Environment & config
+.env
+
+# Electron
+release/
+
+# Misc
+count.txt
+todos.json
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.direnv
+/src/generated/prisma
+/sound/
+dev.db
+/export/
+/.tanstack/
+/test/
+/.vscode/
+/squashfs-root/
+/tsc_output.txt
+!/release.sh
+/.agent/tmp/
+/snapshot.tar
+/snapshot/

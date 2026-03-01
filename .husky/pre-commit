@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+# Reject npm lock files
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Check style
+pnpm run format
+pnpm run pre-commit-lint
+pnpx tsc --noEmit
