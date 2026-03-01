@@ -88,7 +88,7 @@
           export FLAND_VAGRANT_SYNC_TYPE="''${FLAND_VAGRANT_SYNC_TYPE:-rsync}"
           export FLAND_VAGRANT_NFS_VERSION="''${FLAND_VAGRANT_NFS_VERSION:-4}"
           export FLAND_WIN_PROJECT_DIR="''${FLAND_WIN_PROJECT_DIR:-C:/f-land}"
-          export FLAND_WIN_NODE_VERSION="''${FLAND_WIN_NODE_VERSION:-24.11.1}"
+          export FLAND_WIN_NODE_VERSION="''${FLAND_WIN_NODE_VERSION:-24.13.0}"
 
           if ! command -v vagrant >/dev/null 2>&1; then
             echo "warning: vagrant is not available in this dev shell"
