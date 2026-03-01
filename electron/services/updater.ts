@@ -22,6 +22,7 @@ export interface AppUpdateState {
   publishedAtIso: string | null;
   canAutoUpdate: boolean;
   errorMessage: string | null;
+  multiplayerUpdateRequired?: boolean;
 }
 
 interface GitHubReleaseAsset {
@@ -56,6 +57,7 @@ let currentState: AppUpdateState = {
   publishedAtIso: null,
   canAutoUpdate: false,
   errorMessage: null,
+  multiplayerUpdateRequired: false,
 };
 
 let currentCheckPromise: Promise<AppUpdateState> | null = null;
@@ -87,24 +89,60 @@ function getComparableVersion(input: string): string {
   return normalizeVersion(input).split("+", 1)[0] ?? "";
 }
 
-function versionToTuple(input: string): number[] {
-  return getComparableVersion(input)
-    .split(/[^0-9]+/)
-    .filter((part) => part.length > 0)
-    .map((part) => Number.parseInt(part, 10))
-    .filter((part) => Number.isFinite(part));
+function parseVersion(input: string): { core: number[]; prerelease: string[] | null } {
+  const [corePart = "", prereleasePart] = getComparableVersion(input).split("-", 2);
+  return {
+    core: corePart.split(".").map((part) => Number.parseInt(part, 10) || 0),
+    prerelease: prereleasePart ? prereleasePart.split(".") : null,
+  };
+}
+
+function compareVersionCores(left: string, right: string): number {
+  const leftCore = parseVersion(left).core;
+  const rightCore = parseVersion(right).core;
+  const length = Math.max(leftCore.length, rightCore.length);
+
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = leftCore[index] ?? 0;
+    const rightPart = rightCore[index] ?? 0;
+    if (leftPart > rightPart) return 1;
+    if (leftPart < rightPart) return -1;
+  }
+
+  return 0;
 }
 
 export function compareVersions(left: string, right: string): number {
-  const leftTuple = versionToTuple(left);
-  const rightTuple = versionToTuple(right);
-  const length = Math.max(leftTuple.length, rightTuple.length);
+  const leftVersion = parseVersion(left);
+  const rightVersion = parseVersion(right);
+  const length = Math.max(leftVersion.core.length, rightVersion.core.length);
 
   for (let index = 0; index < length; index += 1) {
-    const leftPart = leftTuple[index] ?? 0;
-    const rightPart = rightTuple[index] ?? 0;
+    const leftPart = leftVersion.core[index] ?? 0;
+    const rightPart = rightVersion.core[index] ?? 0;
     if (leftPart > rightPart) return 1;
     if (leftPart < rightPart) return -1;
+  }
+
+  if (!leftVersion.prerelease && rightVersion.prerelease) return 1;
+  if (leftVersion.prerelease && !rightVersion.prerelease) return -1;
+  if (!leftVersion.prerelease || !rightVersion.prerelease) return 0;
+
+  const prereleaseLength = Math.max(leftVersion.prerelease.length, rightVersion.prerelease.length);
+  for (let index = 0; index < prereleaseLength; index += 1) {
+    const leftPart = leftVersion.prerelease[index];
+    const rightPart = rightVersion.prerelease[index];
+    if (leftPart === undefined) return -1;
+    if (rightPart === undefined) return 1;
+    if (leftPart === rightPart) continue;
+
+    const leftNumeric = /^\d+$/.test(leftPart);
+    const rightNumeric = /^\d+$/.test(rightPart);
+    if (leftNumeric && rightNumeric) {
+      return Number(leftPart) > Number(rightPart) ? 1 : -1;
+    }
+    if (leftNumeric !== rightNumeric) return leftNumeric ? -1 : 1;
+    return leftPart > rightPart ? 1 : -1;
   }
 
   return 0;
@@ -119,13 +157,17 @@ export function isPrereleaseVersion(input: string): boolean {
 }
 
 export function shouldUpdateToRelease(currentVersion: string, latestVersion: string): boolean {
-  if (compareVersions(latestVersion, currentVersion) > 0) {
-    return true;
-  }
+  return compareVersionCores(latestVersion, currentVersion) > 0;
+}
 
+export function isMultiplayerUpdateRequired(
+  currentVersion: string,
+  latestVersion: string
+): boolean {
   return (
-    isPrereleaseVersion(currentVersion) &&
-    getReleaseIdentity(currentVersion) !== getReleaseIdentity(latestVersion)
+    shouldUpdateToRelease(currentVersion, latestVersion) ||
+    (isPrereleaseVersion(currentVersion) &&
+      compareVersionCores(currentVersion, latestVersion) !== 0)
   );
 }
 
@@ -336,6 +378,7 @@ export async function checkForAppUpdates(force = false): Promise<AppUpdateState>
       releaseNotes: null,
       publishedAtIso: null,
       errorMessage: null,
+      multiplayerUpdateRequired: false,
     });
   }
 
@@ -369,6 +412,10 @@ export async function checkForAppUpdates(force = false): Promise<AppUpdateState>
         process.env.FLAND_APP_VERSION ?? app.getVersion(),
         latestVersion
       );
+      const multiplayerUpdateRequired = isMultiplayerUpdateRequired(
+        process.env.FLAND_APP_VERSION ?? app.getVersion(),
+        latestVersion
+      );
 
       return setState({
         status: updateAvailable ? "update_available" : "up_to_date",
@@ -379,6 +426,7 @@ export async function checkForAppUpdates(force = false): Promise<AppUpdateState>
         releaseNotes: asTrimmedString(release.body),
         publishedAtIso: asTrimmedString(release.published_at),
         errorMessage: null,
+        multiplayerUpdateRequired,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown update error.";

@@ -286,7 +286,9 @@ const Home = () => {
 
   const options: MenuOption[] = useMemo(() => {
     const multiplayerBlockedByDisabledUpdates = updateChannel === null || updateChannel === "none";
-    const multiplayerBlockedByUpdate = appUpdate.state.status === "update_available";
+    const multiplayerBlockedByUpdate =
+      appUpdate.state.status === "update_available" ||
+      appUpdate.state.multiplayerUpdateRequired === true;
     const multiplayerBlockedByRounds =
       !skipRoundsCheck && installedRoundCount < MULTIPLAYER_MINIMUM_ROUNDS;
 
@@ -419,15 +421,7 @@ const Home = () => {
     });
 
     return nextOptions;
-  }, [
-    appUpdate,
-    navigate,
-    installedRoundCount,
-    sfwModeEnabled,
-    skipRoundsCheck,
-    t,
-    updateChannel,
-  ]);
+  }, [appUpdate, navigate, installedRoundCount, sfwModeEnabled, skipRoundsCheck, t, updateChannel]);
 
   const { selectedIndex, handleMouseEnter, handleClick, currentOptions, depth, goBack } =
     useMenuNavigation(options);

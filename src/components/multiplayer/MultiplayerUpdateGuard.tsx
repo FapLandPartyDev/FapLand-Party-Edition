@@ -14,6 +14,7 @@ export const MultiplayerUpdateGuard: React.FC<{ children: React.ReactNode }> = (
   const navigate = useNavigate();
   const updateChannel = useUpdateChannel();
   const updatesDisabled = updateChannel === "none";
+  const newerVersionAvailable = state.status === "update_available";
 
   if (updateChannel === null) {
     return null;
@@ -23,7 +24,11 @@ export const MultiplayerUpdateGuard: React.FC<{ children: React.ReactNode }> = (
   // Note: "error" is also ignored here to avoid blocking users if GitHub is down,
   // unless we decide that blocking on error is safer.
   // Given the current requirement, "update_available" is the key trigger.
-  if (!updatesDisabled && state.status !== "update_available") {
+  if (
+    !updatesDisabled &&
+    state.status !== "update_available" &&
+    state.multiplayerUpdateRequired !== true
+  ) {
     return <>{children}</>;
   }
 
@@ -57,7 +62,11 @@ export const MultiplayerUpdateGuard: React.FC<{ children: React.ReactNode }> = (
 
           <div className="space-y-2">
             <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-              {updatesDisabled ? "Multiplayer Disabled" : "Update Required"}
+              {updatesDisabled
+                ? "Multiplayer Disabled"
+                : newerVersionAvailable
+                  ? "Update Required"
+                  : "Release Version Required"}
             </h1>
             <p className="text-lg font-medium text-violet-200/70">
               {updatesDisabled ? "Updates are turned off" : "Multiplayer protocol mismatch"}
@@ -67,12 +76,14 @@ export const MultiplayerUpdateGuard: React.FC<{ children: React.ReactNode }> = (
           <p className="text-sm leading-relaxed text-zinc-400">
             {updatesDisabled
               ? "Multiplayer requires updates to remain enabled so players use compatible versions. Select a release channel in Settings to continue."
-              : `A newer version of f-land is available (v${state.latestVersion}). To ensure fair play and stable connections, all players must be on the latest build.`}
+              : newerVersionAvailable
+                ? `A newer version of f-land is available (v${state.latestVersion}). To ensure fair play and stable connections, all players must be on the latest version.`
+                : `This prerelease uses a different version number than the current release (v${state.latestVersion}). Multiplayer requires the current version number.`}
           </p>
         </div>
 
         <div className="flex flex-col gap-4">
-          {!updatesDisabled ? (
+          {!updatesDisabled && newerVersionAvailable ? (
             <button
               onClick={() => {
                 playSelectSound();

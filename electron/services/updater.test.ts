@@ -13,6 +13,7 @@ vi.mock("electron", () => ({
 
 import {
   compareVersions,
+  isMultiplayerUpdateRequired,
   isPrereleaseVersion,
   resolveReleaseAssetUrl,
   selectHighestRelease,
@@ -57,23 +58,42 @@ describe("updater.compareVersions", () => {
     expect(compareVersions("0.1.0+deadbeef", "0.1.0+12345678")).toBe(0);
     expect(compareVersions("0.2.0", "0.1.9+deadbeef")).toBe(1);
   });
+
+  it("orders prereleases below the stable release with the same core version", () => {
+    expect(compareVersions("0.6.15-beta.1", "0.6.15")).toBe(-1);
+    expect(compareVersions("0.6.15", "0.6.15-beta.1")).toBe(1);
+    expect(compareVersions("0.6.15-beta.2", "0.6.15-beta.1")).toBe(1);
+  });
 });
 
 describe("updater.shouldUpdateToRelease", () => {
-  it("requires a prerelease build to match the selected newest release", () => {
-    expect(shouldUpdateToRelease("0.7.0-beta", "0.6.14")).toBe(true);
-    expect(shouldUpdateToRelease("0.7.0-beta.1", "0.7.0-beta.2")).toBe(true);
+  it("uses only the numeric version when deciding whether an update is newer", () => {
+    expect(shouldUpdateToRelease("0.7.0-beta", "0.6.14")).toBe(false);
+    expect(shouldUpdateToRelease("0.7.0-beta.1", "0.7.0-beta.2")).toBe(false);
     expect(shouldUpdateToRelease("0.7.0-beta.2", "0.7.0-beta.2")).toBe(false);
   });
 
   it("continues to allow stable builds newer than the selected release", () => {
     expect(shouldUpdateToRelease("0.7.0", "0.6.14")).toBe(false);
+    expect(shouldUpdateToRelease("0.6.15", "0.6.15-beta.1")).toBe(false);
     expect(shouldUpdateToRelease("0.6.14", "0.7.0")).toBe(true);
   });
 
   it("ignores tag prefixes and build metadata when matching releases", () => {
     expect(isPrereleaseVersion("v0.7.0-beta+local")).toBe(true);
     expect(shouldUpdateToRelease("0.7.0-beta+abc", "v0.7.0-beta+def")).toBe(false);
+  });
+});
+
+describe("updater.isMultiplayerUpdateRequired", () => {
+  it("ignores prerelease labels and build metadata when numeric versions match", () => {
+    expect(isMultiplayerUpdateRequired("0.6.15-beta+EF0888EB", "0.6.15")).toBe(false);
+    expect(isMultiplayerUpdateRequired("0.6.15-beta.1", "0.6.15-beta.2")).toBe(false);
+  });
+
+  it("blocks a prerelease whose numeric version differs from the newest release", () => {
+    expect(isMultiplayerUpdateRequired("0.7.0-beta", "0.6.15")).toBe(true);
+    expect(isMultiplayerUpdateRequired("0.6.14-beta", "0.6.15")).toBe(true);
   });
 });
 
@@ -96,6 +116,12 @@ describe("updater.selectHighestRelease", () => {
 
   it("prefers the release when versions compare equal", () => {
     expect(selectHighestRelease(release("v1.2.0"), release("v1.2.0-beta")).tag_name).toBe("v1.2.0");
+  });
+
+  it("prefers a stable release over a numbered prerelease with the same core version", () => {
+    expect(selectHighestRelease(release("v0.6.15"), release("v0.6.15-beta.1")).tag_name).toBe(
+      "v0.6.15"
+    );
   });
 });
 

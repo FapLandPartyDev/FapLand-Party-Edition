@@ -13,6 +13,7 @@ const FALLBACK_STATE: AppUpdateState = {
   publishedAtIso: null,
   canAutoUpdate: false,
   errorMessage: null,
+  multiplayerUpdateRequired: false,
 };
 
 function isStale(checkedAtIso: string | null): boolean {
