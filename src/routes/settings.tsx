@@ -186,6 +186,7 @@ import {
   DEVICE_ANIMATION_TEST_ENABLED_KEY,
   DEFAULT_DEVICE_ANIMATION_TEST_ENABLED,
   normalizeDeviceAnimationTestEnabled,
+  HIDE_DEVICE_GUIDE_BUTTON_KEY,
 } from "../constants/experimentalFeatures";
 import {
   SFX_VOLUME_CHANGED_EVENT,
@@ -849,6 +850,7 @@ export function SettingsPage() {
   const [deviceAnimationTestEnabled, setDeviceAnimationTestEnabled] = useState(
     DEFAULT_DEVICE_ANIMATION_TEST_ENABLED
   );
+  const [hideDeviceGuideButton, setHideDeviceGuideButton] = useState(false);
   const [backgroundPhashScanningEnabled, setBackgroundPhashScanningEnabled] = useState(
     DEFAULT_BACKGROUND_PHASH_SCANNING_ENABLED
   );
@@ -1039,6 +1041,7 @@ export function SettingsPage() {
         MUSIC_CACHE_ROOT_PATH_KEY,
         FPACK_EXTRACTION_PATH_KEY,
         DEVICE_ANIMATION_TEST_ENABLED_KEY,
+        HIDE_DEVICE_GUIDE_BUTTON_KEY,
         DEBUG_LOG_LEVEL_KEY,
         ALWAYS_RECOVERY_MODE_KEY,
         FFMPEG_GPU_PREFERENCE_KEY,
@@ -1190,6 +1193,7 @@ export function SettingsPage() {
           normalizeInstallWebFunscriptUrlEnabled(rawInstallWebFunscriptUrlEnabled)
         );
         setSystemLanguageEnabled(normalizeSystemLanguageEnabled(rawSystemLanguageEnabled));
+        setHideDeviceGuideButton(storeValues[HIDE_DEVICE_GUIDE_BUTTON_KEY] === true);
         setPlaylistCacheOngoingRestrictionDisabled(
           normalizePlaylistCacheOngoingRestrictionDisabled(
             rawPlaylistCacheOngoingRestrictionDisabled
@@ -2404,6 +2408,17 @@ export function SettingsPage() {
             },
           },
           {
+            id: "hide-device-guide-button",
+            type: "toggle",
+            label: t`Hide the “Don’t own a device?” button`,
+            description: t`Hide the button in Hardware & Sync and first-time setup.`,
+            value: hideDeviceGuideButton,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({ key: HIDE_DEVICE_GUIDE_BUTTON_KEY, value: next });
+              setHideDeviceGuideButton(next);
+            },
+          },
+          {
             id: "gameplay-haptics-perks-without-device",
             type: "toggle",
             label: t`Allow Haptics Anti-Perks Without Device`,
@@ -2476,6 +2491,7 @@ export function SettingsPage() {
       databaseBackupRetentionDays,
       startupSafeModeShortcutEnabled,
       deviceAnimationTestEnabled,
+      hideDeviceGuideButton,
       locale,
       locales,
       setLocale,
@@ -3164,6 +3180,7 @@ export function SettingsPage() {
                     section={activeSection}
                     loading={isInitialLoading}
                     deviceAnimationTestEnabled={deviceAnimationTestEnabled}
+                    hideDeviceGuideButton={hideDeviceGuideButton}
                   />
                 </>
               ) : activeSection && activeSection.id === "script-enhancement" ? (
@@ -4515,10 +4532,12 @@ function HardwareSettingsCard({
   section,
   loading,
   deviceAnimationTestEnabled,
+  hideDeviceGuideButton,
 }: {
   section: SettingsSection;
   loading: boolean;
   deviceAnimationTestEnabled: boolean;
+  hideDeviceGuideButton: boolean;
 }) {
   const { t } = useLingui();
   const {
@@ -4694,7 +4713,7 @@ function HardwareSettingsCard({
           </div>
 
           <div className="space-y-4 text-left">
-            <CompatibleDevices />
+            {!loading && !hideDeviceGuideButton && <CompatibleDevices />}
             <p className="rounded-lg border border-cyan-300/15 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-100/80">
               <Trans>
                 Every device category can be driven and tuned individually, even while all devices

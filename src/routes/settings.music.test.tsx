@@ -766,6 +766,40 @@ describe("Settings music section", () => {
     });
   });
 
+  it("hides and restores the device guide from the experimental settings", async () => {
+    const guideButtonName = "Don’t own a device?";
+    const toggleName = "Toggle Hide the “Don’t own a device?” button";
+    mocks.search.section = "hardware";
+    render(<SettingsPage />);
+
+    await screen.findByRole("button", { name: guideButtonName });
+    fireEvent.click(screen.getAllByRole("button", { name: /Experimental/ })[0]!);
+
+    const toggle = screen.getByRole("switch", { name: toggleName });
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("true"));
+    expect(trpc.store.set.mutate).toHaveBeenCalledWith({
+      key: "experimental.hideDeviceGuideButton",
+      value: true,
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);
+    expect(screen.queryByRole("button", { name: guideButtonName })).toBeNull();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Experimental/ })[0]!);
+    const enabledToggle = screen.getByRole("switch", { name: toggleName });
+    fireEvent.click(enabledToggle);
+    await waitFor(() => expect(enabledToggle.getAttribute("aria-checked")).toBe("false"));
+    expect(trpc.store.set.mutate).toHaveBeenCalledWith({
+      key: "experimental.hideDeviceGuideButton",
+      value: false,
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Hardware & Sync/ })[0]!);
+    expect(screen.getByRole("button", { name: guideButtonName })).toBeDefined();
+  });
+
   it("renders the default-on fast-funscript limiter switch", async () => {
     render(<SettingsPage />);
 

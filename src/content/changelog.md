@@ -1,5 +1,14 @@
 # What's New
 
+## v0.6.31
+
+### Added
+
+- **Hide the device guide button** — in Settings → Experimental, enable “Hide the ‘Don’t own a device?’ button” to hide the button in Hardware & Sync and during first-time setup.
+- **Affiliate disclosure** — the device guide explains that commissions from its shopping links support FapLand development.
+
+---
+
 ## v0.6.30
 
 ### Added

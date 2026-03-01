@@ -6,6 +6,7 @@ import { CompatibleDevices } from "../components/CompatibleDevices";
 import { BACKGROUND_VIDEO_ENABLED_KEY } from "../constants/backgroundSettings";
 import { DEFAULT_INTERMEDIARY_LOADING_PROMPT } from "../constants/booruSettings";
 import { EROSCRIPTS_CACHE_ROOT_PATH_KEY } from "../constants/eroscriptsSettings";
+import { HIDE_DEVICE_GUIDE_BUTTON_KEY } from "../constants/experimentalFeatures";
 import type { EroScriptsLoginStatus } from "../services/eroscripts";
 import {
   DEFAULT_INTIFACE_WEBSOCKET_URL,
@@ -656,6 +657,7 @@ function FirstStartPage() {
   const [moaningUrlError, setMoaningUrlError] = useState<string | null>(null);
   const [moaningUrlMode, setMoaningUrlMode] = useState<"track" | "playlist">("track");
   const [mainMenuThemeId, setMainMenuThemeId] = useState<MainMenuThemeId>(DEFAULT_MENU_THEME_ID);
+  const [showDeviceGuideButton, setShowDeviceGuideButton] = useState(false);
   const [booruPrompt, setBooruPrompt] = useState(DEFAULT_INTERMEDIARY_LOADING_PROMPT);
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(true);
   const [backgroundPhashScanningEnabled, setBackgroundPhashScanningEnabled] = useState(
@@ -757,6 +759,23 @@ function FirstStartPage() {
       })
       .catch((error) => {
         console.error("Failed to load onboarding app theme", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void trpc.store.get
+      .query({ key: HIDE_DEVICE_GUIDE_BUTTON_KEY })
+      .then((value) => {
+        if (!cancelled) setShowDeviceGuideButton(value !== true);
+      })
+      .catch((error) => {
+        console.error("Failed to load onboarding device guide preference", error);
+        if (!cancelled) setShowDeviceGuideButton(true);
       });
 
     return () => {
@@ -2603,9 +2622,11 @@ function FirstStartPage() {
                         </Trans>
                       </p>
 
-                      <div className="mt-3">
-                        <CompatibleDevices />
-                      </div>
+                      {showDeviceGuideButton && (
+                        <div className="mt-3">
+                          <CompatibleDevices />
+                        </div>
+                      )}
 
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         <button

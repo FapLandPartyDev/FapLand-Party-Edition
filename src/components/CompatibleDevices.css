@@ -224,6 +224,14 @@
   font-weight: 500;
 }
 
+.device-guide-disclosure {
+  margin: 0.875rem 0 0;
+  color: #b2a5c5;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
 @media (max-width: 640px) {
   .device-guide-hero {
     grid-template-columns: 1fr;

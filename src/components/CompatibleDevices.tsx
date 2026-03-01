@@ -90,6 +90,12 @@ export function CompatibleDevices() {
               </li>
             ))}
           </ul>
+          <p className="device-guide-disclosure">
+            <Trans>
+              These are affiliate links. Any commissions earned go directly toward FapLand
+              development.
+            </Trans>
+          </p>
         </div>
       </dialog>
     </div>

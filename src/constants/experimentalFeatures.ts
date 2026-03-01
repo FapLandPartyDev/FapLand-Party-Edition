@@ -78,6 +78,8 @@ export function normalizeDeviceAnimationTestEnabled(value: unknown): boolean {
   return typeof value === "boolean" ? value : DEFAULT_DEVICE_ANIMATION_TEST_ENABLED;
 }
 
+export const HIDE_DEVICE_GUIDE_BUTTON_KEY = "experimental.hideDeviceGuideButton";
+
 export const MULTIPLAYER_MINIMUM_ROUNDS = 100;
 
 export const STARTUP_SAFE_MODE_SHORTCUT_ENABLED_KEY = "experimental.startupSafeModeShortcutEnabled";
