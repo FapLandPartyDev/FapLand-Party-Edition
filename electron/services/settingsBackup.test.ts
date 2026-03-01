@@ -39,6 +39,7 @@ vi.mock("./store", () => ({
 }));
 
 import {
+  createPlaintextSettingsFile,
   pruneOldSettingsBackups,
   resolveSettingsBackupDir,
   runDueSettingsBackup,
@@ -49,7 +50,11 @@ describe("settings backup service", () => {
   let tempRoot: string;
   let settingsPath: string;
   let storeData: Record<string, unknown>;
-  let store: { get: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn> };
+  let store: {
+    get: ReturnType<typeof vi.fn>;
+    set: ReturnType<typeof vi.fn>;
+    store: Record<string, unknown>;
+  };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -63,6 +68,7 @@ describe("settings backup service", () => {
       set: vi.fn((key: string, value: unknown) => {
         storeData[key] = value;
       }),
+      store: storeData,
     };
     getStoreMock.mockReturnValue(store);
     resolveSettingsStorePathMock.mockReturnValue(settingsPath);
@@ -90,6 +96,23 @@ describe("settings backup service", () => {
     );
     expect(store.set).toHaveBeenCalledWith(SETTINGS_BACKUP_LAST_BACKUP_AT_KEY, now.toISOString());
     await expect(fs.readFile(result!.backupPath, "utf8")).resolves.toBe('{"volume":0.5}');
+  });
+
+  it("creates a plaintext decrypted settings file", async () => {
+    store.store = { volume: 0.5, "app.locale": "de" };
+
+    const result = await createPlaintextSettingsFile(new Date("2026-04-21T12:00:00.000Z"));
+
+    expect(result.plaintextPath).toBe(
+      path.join(
+        tempRoot,
+        "settings-backups",
+        "f-land-settings-plaintext-2026-04-21T12-00-00.000Z.json"
+      )
+    );
+    await expect(fs.readFile(result.plaintextPath, "utf8")).resolves.toBe(
+      '{\n  "volume": 0.5,\n  "app.locale": "de"\n}\n'
+    );
   });
 
   it("uses shared database backup settings and skips when disabled", async () => {

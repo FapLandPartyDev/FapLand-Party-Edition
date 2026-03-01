@@ -22,6 +22,9 @@ export type AddedDateFilter =
 export type IndexedRound = {
   round: RoundLibraryEntry;
   searchText: string;
+  normalizedTags: string[];
+  normalizedAuthor: string;
+  normalizedLibraryLabel: string;
   roundType: NonNullable<RoundLibraryEntry["type"]>;
   source: Exclude<SourceFilter, "all">;
   hasScript: boolean;
@@ -44,6 +47,19 @@ export type SourceHeroOption = {
 
 export type PlaylistGroupingData = {
   playlistsByRoundId: Map<string, PlaylistMembership[]>;
+};
+
+export type RoundLibraryIndex = {
+  indexedRounds: IndexedRound[];
+  metadataOptions: {
+    tags: string[];
+    authorNames: string[];
+    libraryLabels: string[];
+  };
+  standaloneRoundCount: number;
+  heroGroupCount: number;
+  roundsWithScriptCount: number;
+  sourceHeroOptions: SourceHeroOption[];
 };
 
 const roundNameCollator = new Intl.Collator();
@@ -118,6 +134,10 @@ function isWithinAddedDateFilter(
 }
 
 export function toIndexedRound(round: RoundLibraryEntry): IndexedRound {
+  const normalizedTags = [
+    ...(round.tags ?? []).map((tag) => tag.toLowerCase()),
+    ...((round.hero?.tags ?? []).map((tag) => tag.toLowerCase()) ?? []),
+  ];
   return {
     round,
     searchText: [
@@ -131,6 +151,9 @@ export function toIndexedRound(round: RoundLibraryEntry): IndexedRound {
     ]
       .join("\n")
       .toLowerCase(),
+    normalizedTags,
+    normalizedAuthor: (round.author ?? round.hero?.author ?? "").toLowerCase(),
+    normalizedLibraryLabel: (round.libraryLabel ?? "").toLowerCase(),
     roundType: round.type ?? "Normal",
     source: getRoundSource(round),
     hasScript: resourceHasFunscript(round.resources[0]),
@@ -225,19 +248,13 @@ export function filterAndSortRounds({
             return false;
           }
           if (normalizedTag) {
-            const tags = new Set([
-              ...(entry.round.tags ?? []).map((tag) => tag.toLowerCase()),
-              ...((entry.round.hero?.tags ?? []).map((tag) => tag.toLowerCase()) ?? []),
-            ]);
-            if (!tags.has(normalizedTag)) return false;
+            if (!entry.normalizedTags.includes(normalizedTag)) return false;
           }
           if (normalizedActor) {
-            const author = (entry.round.author ?? entry.round.hero?.author ?? "").toLowerCase();
-            if (author !== normalizedActor) return false;
+            if (entry.normalizedAuthor !== normalizedActor) return false;
           }
           if (normalizedLibrary) {
-            const libraryLabel = (entry.round.libraryLabel ?? "").toLowerCase();
-            if (libraryLabel !== normalizedLibrary) return false;
+            if (entry.normalizedLibraryLabel !== normalizedLibrary) return false;
           }
           return normalizedQuery.length === 0 || entry.searchText.includes(normalizedQuery);
         });
@@ -352,4 +369,64 @@ export function buildSourceHeroOptions(rounds: RoundLibraryEntry[]): SourceHeroO
   }
 
   return [...groups.values()].sort((left, right) => left.heroName.localeCompare(right.heroName));
+}
+
+export function buildRoundLibraryIndex(rounds: RoundLibraryEntry[]): RoundLibraryIndex {
+  const tags = new Set<string>();
+  const authorNames = new Set<string>();
+  const libraryLabels = new Set<string>();
+  const heroGroupKeys = new Set<string>();
+  const sourceHeroGroups = new Map<string, SourceHeroOption>();
+  let standaloneRoundCount = 0;
+  let roundsWithScriptCount = 0;
+
+  const indexedRounds = rounds.map((round) => {
+    for (const tag of round.tags ?? []) tags.add(tag);
+    for (const tag of round.hero?.tags ?? []) tags.add(tag);
+    const authorName = (round.author ?? round.hero?.author ?? "").trim();
+    if (authorName) authorNames.add(authorName);
+    const libraryLabel = (round.libraryLabel ?? "").trim();
+    if (libraryLabel) libraryLabels.add(libraryLabel);
+
+    if (!round.heroId && !round.hero) {
+      standaloneRoundCount += 1;
+    } else {
+      const heroKey = round.heroId ?? round.hero?.name;
+      if (heroKey) heroGroupKeys.add(heroKey);
+    }
+
+    if (resourceHasFunscript(round.resources[0])) {
+      roundsWithScriptCount += 1;
+    }
+
+    if (round.heroId && round.hero && round.resources.length > 0) {
+      const existing = sourceHeroGroups.get(round.heroId);
+      if (existing) {
+        existing.rounds.push(round);
+      } else {
+        sourceHeroGroups.set(round.heroId, {
+          heroId: round.heroId,
+          heroName: round.hero.name,
+          rounds: [round],
+        });
+      }
+    }
+
+    return toIndexedRound(round);
+  });
+
+  return {
+    indexedRounds,
+    metadataOptions: {
+      tags: [...tags].sort(),
+      authorNames: [...authorNames].sort(),
+      libraryLabels: [...libraryLabels].sort(),
+    },
+    standaloneRoundCount,
+    heroGroupCount: heroGroupKeys.size,
+    roundsWithScriptCount,
+    sourceHeroOptions: [...sourceHeroGroups.values()].sort((left, right) =>
+      left.heroName.localeCompare(right.heroName)
+    ),
+  };
 }

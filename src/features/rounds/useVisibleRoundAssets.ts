@@ -5,6 +5,16 @@ import {
   peekInstalledRoundCardAssetsCached,
 } from "../../services/installedRoundsCache";
 
+const CARD_ASSET_FETCH_CHUNK_SIZE = 24;
+
+function chunkIds(ids: string[], chunkSize: number): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < ids.length; index += chunkSize) {
+    chunks.push(ids.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
 export function useVisibleRoundAssets({
   visibleRoundIds,
   selectedRoundId,
@@ -64,12 +74,14 @@ export function useVisibleRoundAssets({
     }
 
     let cancelled = false;
-    let timeoutId: number | null = null;
-    let idleCallbackId: number | null = null;
 
-    const loadMissingAssets = () => {
-      void getInstalledRoundCardAssetsCached(missingRoundIds, includeDisabled)
-        .then((entries) => {
+    const loadMissingAssets = async () => {
+      const chunks = chunkIds(missingRoundIds, CARD_ASSET_FETCH_CHUNK_SIZE);
+      for (let index = 0; index < chunks.length; index += 1) {
+        const chunk = chunks[index]!;
+        if (cancelled) return;
+        try {
+          const entries = await getInstalledRoundCardAssetsCached(chunk, includeDisabled);
           if (cancelled) {
             return;
           }
@@ -78,34 +90,31 @@ export function useVisibleRoundAssets({
               previous.includeDisabled === includeDisabled
                 ? new Map(previous.entries)
                 : new Map<string, InstalledRoundCardAssets>();
+            let changed = false;
             for (const entry of entries) {
+              if (next.get(entry.roundId) === entry) continue;
               next.set(entry.roundId, entry);
+              changed = true;
             }
+            if (!changed) return previous;
             return {
               includeDisabled,
               entries: next,
             };
           });
-        })
-        .catch((error) => {
+        } catch (error) {
           console.error("Failed to load installed round card assets", error);
-        });
+        }
+        if (index < chunks.length - 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 0));
+        }
+      }
     };
 
-    if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
-      idleCallbackId = window.requestIdleCallback(loadMissingAssets, { timeout: 180 });
-    } else {
-      timeoutId = window.setTimeout(loadMissingAssets, 0);
-    }
+    void loadMissingAssets();
 
     return () => {
       cancelled = true;
-      if (idleCallbackId !== null && typeof window.cancelIdleCallback === "function") {
-        window.cancelIdleCallback(idleCallbackId);
-      }
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
     };
   }, [cachedCardAssetsByRoundId, includeDisabled, requestedRoundIds]);
 

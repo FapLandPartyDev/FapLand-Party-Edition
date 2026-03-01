@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getInstalledRoundCatalog: vi.fn(async (): Promise<Array<{ id: string }>> => []),
+  getInstalledRoundRuntimeCatalog: vi.fn(async (): Promise<Array<{ id: string }>> => []),
   getInstalledRoundCardAssets: vi.fn(
     async (): Promise<
       Array<{
@@ -16,6 +17,9 @@ const mocks = vi.hoisted(() => ({
   getRoundMediaResources: vi.fn(
     async (): Promise<{ roundId: string; resources: Array<{ id: string }> } | null> => null
   ),
+  getInstalledRoundPlaybackEntries: vi.fn(
+    async (): Promise<Array<{ id: string; resources: Array<{ id: string }> }>> => []
+  ),
 }));
 
 vi.mock("./trpc", () => ({
@@ -24,11 +28,17 @@ vi.mock("./trpc", () => ({
       getInstalledRoundCatalog: {
         query: mocks.getInstalledRoundCatalog,
       },
+      getInstalledRoundRuntimeCatalog: {
+        query: mocks.getInstalledRoundRuntimeCatalog,
+      },
       getInstalledRoundCardAssets: {
         query: mocks.getInstalledRoundCardAssets,
       },
       getRoundMediaResources: {
         query: mocks.getRoundMediaResources,
+      },
+      getInstalledRoundPlaybackEntries: {
+        query: mocks.getInstalledRoundPlaybackEntries,
       },
     },
   },
@@ -37,6 +47,8 @@ vi.mock("./trpc", () => ({
 import {
   getInstalledRoundCardAssetsCached,
   getInstalledRoundCatalogCached,
+  getInstalledRoundPlaybackEntriesCached,
+  getInstalledRoundRuntimeCatalogCached,
   getRoundMediaResourcesCached,
   invalidateInstalledRoundCaches,
   invalidateInstalledRoundCardAssets,
@@ -66,6 +78,18 @@ describe("installedRoundsCache", () => {
 
     await expect(getInstalledRoundCatalogCached()).resolves.toEqual([{ id: "round-2" }]);
     expect(mocks.getInstalledRoundCatalog).toHaveBeenCalledTimes(2);
+  });
+
+  it("reuses the same in-flight runtime catalog request", async () => {
+    const pending = Promise.resolve([{ id: "round-runtime-1" }]);
+    mocks.getInstalledRoundRuntimeCatalog.mockReturnValue(pending);
+
+    const first = getInstalledRoundRuntimeCatalogCached();
+    const second = getInstalledRoundRuntimeCatalogCached();
+
+    expect(first).toBe(second);
+    await expect(first).resolves.toEqual([{ id: "round-runtime-1" }]);
+    expect(mocks.getInstalledRoundRuntimeCatalog).toHaveBeenCalledTimes(1);
   });
 
   it("reuses media requests per round and supports targeted invalidation", async () => {
@@ -149,6 +173,30 @@ describe("installedRoundsCache", () => {
       },
     ]);
     expect(mocks.getInstalledRoundCardAssets).toHaveBeenCalledTimes(2);
+  });
+
+  it("caches batch playback entries and keeps unrelated entries after targeted invalidation", async () => {
+    mocks.getInstalledRoundPlaybackEntries.mockResolvedValue([
+      { id: "round-1", resources: [{ id: "res-1" }] },
+      { id: "round-2", resources: [{ id: "res-2" }] },
+    ]);
+
+    await expect(getInstalledRoundPlaybackEntriesCached(["round-1", "round-2"])).resolves.toEqual([
+      { id: "round-1", resources: [{ id: "res-1" }] },
+      { id: "round-2", resources: [{ id: "res-2" }] },
+    ]);
+    expect(mocks.getInstalledRoundPlaybackEntries).toHaveBeenCalledTimes(1);
+
+    invalidateInstalledRoundMedia("round-1");
+    mocks.getInstalledRoundPlaybackEntries.mockResolvedValue([
+      { id: "round-1", resources: [{ id: "res-1b" }] },
+    ]);
+
+    await expect(getInstalledRoundPlaybackEntriesCached(["round-1", "round-2"])).resolves.toEqual([
+      { id: "round-1", resources: [{ id: "res-1b" }] },
+      { id: "round-2", resources: [{ id: "res-2" }] },
+    ]);
+    expect(mocks.getInstalledRoundPlaybackEntries).toHaveBeenCalledTimes(2);
   });
 
   it("peeks cached installed round card assets without issuing another query", async () => {

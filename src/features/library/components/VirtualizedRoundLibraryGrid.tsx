@@ -168,19 +168,12 @@ export function VirtualizedRoundLibraryGrid({
   const virtualItems = virtualizer.getVirtualItems();
   const scheduleMeasure = useCallback(() => {
     if (!canVirtualize) return;
-    if (measureFrameRef.current !== null) {
-      window.cancelAnimationFrame(measureFrameRef.current);
-    }
+    if (measureFrameRef.current !== null) return;
     measureFrameRef.current = window.requestAnimationFrame(() => {
       measureFrameRef.current = null;
       virtualizer.measure();
     });
   }, [canVirtualize, virtualizer]);
-
-  const handleShelfMediaStateChange = useCallback(() => {
-    if (!canVirtualize) return;
-    scheduleMeasure();
-  }, [canVirtualize, scheduleMeasure]);
 
   useEffect(() => {
     if (!canVirtualize) {
@@ -304,10 +297,6 @@ export function VirtualizedRoundLibraryGrid({
             data-index={item.index}
             className={`absolute left-0 top-0 w-full pb-5 ${shelf.kind === "group-header" ? "z-10 focus-within:z-[60] hover:z-20" : ""}`}
             style={{ transform: `translateY(${item.start}px)` }}
-            onErrorCapture={handleShelfMediaStateChange}
-            onLoadCapture={handleShelfMediaStateChange}
-            onLoadedMetadataCapture={handleShelfMediaStateChange}
-            onTransitionEndCapture={handleShelfMediaStateChange}
           >
             {shelfRenderer(shelf)}
           </div>

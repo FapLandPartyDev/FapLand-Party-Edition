@@ -13,7 +13,11 @@ import {
   requestLibraryExportPackageAbort,
 } from "../../services/libraryExportPackage";
 import { resolveDatabaseBackupDir, runDatabaseBackup } from "../../services/databaseBackup";
-import { resolveSettingsBackupDir, runSettingsBackup } from "../../services/settingsBackup";
+import {
+  createPlaintextSettingsFile,
+  resolveSettingsBackupDir,
+  runSettingsBackup,
+} from "../../services/settingsBackup";
 import {
   createResourceUriResolver,
   getDisabledRoundIdSet,
@@ -326,6 +330,84 @@ type InstalledRoundCardAssetEntry = {
   websiteVideoCacheStatus: WebsiteVideoCacheStatus;
   primaryResourceId: string | null;
 };
+
+function toInstalledRoundRuntimeCatalogEntry(entry: {
+  id: string;
+  name: string;
+  author: string | null;
+  description: string | null;
+  tagsJson: string;
+  bpm: number | null;
+  difficulty: number | null;
+  phash: string | null;
+  startTime: number | null;
+  endTime: number | null;
+  cutRangesJson?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  type: "Normal" | "Interjection" | "Cum";
+  installSourceKey: string | null;
+  libraryLabel: string | null;
+  heroId: string | null;
+  excludeFromRandom: boolean;
+  hero: {
+    id: string;
+    name: string;
+    author: string | null;
+    description: string | null;
+    tagsJson: string;
+  } | null;
+  resources: Array<{
+    id: string;
+    disabled: boolean;
+    phash: string | null;
+    durationMs: number | null;
+    videoUri: string;
+    funscriptUri: string | null;
+    funscriptOffsetMs: number | null;
+    invertFunscript: boolean;
+  }>;
+  isDisabled?: boolean;
+}) {
+  return {
+    id: entry.id,
+    name: entry.name,
+    author: entry.author,
+    description: entry.description,
+    tags: parseTagsJson(entry.tagsJson),
+    bpm: entry.bpm,
+    difficulty: entry.difficulty,
+    phash: entry.phash,
+    startTime: entry.startTime,
+    endTime: entry.endTime,
+    cutRangesJson: entry.cutRangesJson ?? null,
+    createdAt: entry.createdAt,
+    updatedAt: entry.updatedAt,
+    type: entry.type ?? null,
+    installSourceKey: entry.installSourceKey,
+    libraryLabel: entry.libraryLabel,
+    heroId: entry.heroId,
+    excludeFromRandom: entry.excludeFromRandom,
+    hero: entry.hero
+      ? {
+          ...entry.hero,
+          tags: parseTagsJson(entry.hero.tagsJson),
+        }
+      : null,
+    isDisabled: entry.isDisabled === true,
+    resources: entry.resources.map((resourceEntry) => ({
+      id: resourceEntry.id,
+      disabled: resourceEntry.disabled,
+      phash: resourceEntry.phash,
+      durationMs: resourceEntry.durationMs,
+      videoUri: resourceEntry.videoUri,
+      funscriptUri: resourceEntry.funscriptUri,
+      funscriptOffsetMs: resourceEntry.funscriptOffsetMs,
+      hasFunscript: Boolean(resourceEntry.funscriptUri),
+      invertFunscript: resourceEntry.invertFunscript,
+    })),
+  };
+}
 
 function toInstalledRoundCatalogEntry(entry: {
   id: string;
@@ -1781,6 +1863,87 @@ export const dbRouter = router({
       return filteredRounds.map((entry) => toInstalledRoundCatalogEntry(entry));
     }),
 
+  getInstalledRoundRuntimeCatalog: publicProcedure
+    .input(
+      z
+        .object({
+          includeDisabled: z.boolean().optional(),
+          includeTemplates: z.boolean().optional(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      const db = getDb();
+      const includeDisabled = input?.includeDisabled ?? false;
+      const includeTemplates = input?.includeTemplates ?? false;
+      const disabledRoundIds = getDisabledRoundIdSet();
+
+      const rounds = await withInstalledLibrarySchemaRepair(() =>
+        db.query.round.findMany({
+          columns: {
+            id: true,
+            name: true,
+            author: true,
+            description: true,
+            tagsJson: true,
+            bpm: true,
+            difficulty: true,
+            phash: true,
+            startTime: true,
+            endTime: true,
+            cutRangesJson: true,
+            createdAt: true,
+            updatedAt: true,
+            type: true,
+            installSourceKey: true,
+            libraryLabel: true,
+            heroId: true,
+            excludeFromRandom: true,
+          },
+          with: {
+            hero: {
+              columns: {
+                id: true,
+                name: true,
+                author: true,
+                description: true,
+                tagsJson: true,
+              },
+            },
+            resources: {
+              columns: {
+                id: true,
+                disabled: true,
+                phash: true,
+                durationMs: true,
+                videoUri: true,
+                funscriptUri: true,
+                funscriptOffsetMs: true,
+                invertFunscript: true,
+              },
+            },
+          },
+          orderBy: [desc(round.createdAt)],
+        })
+      );
+
+      const filteredRounds = rounds
+        .map((entry) => ({
+          ...entry,
+          resources: getVisibleResources(entry.resources, includeDisabled),
+          isDisabled: disabledRoundIds.has(entry.id),
+        }))
+        .filter((entry) =>
+          shouldIncludeInstalledRound(entry, {
+            includeDisabled,
+            includeTemplates,
+            disabledRoundIds,
+          })
+        );
+
+      return filteredRounds.map((entry) => toInstalledRoundRuntimeCatalogEntry(entry));
+    }),
+
   getInstalledRoundPlaybackEntry: publicProcedure
     .input(
       z.object({
@@ -1845,6 +2008,85 @@ export const dbRouter = router({
           }))
         ),
       };
+    }),
+
+  getInstalledRoundPlaybackEntries: publicProcedure
+    .input(
+      z.object({
+        roundIds: z.array(z.string().min(1)),
+        includeDisabled: z.boolean().optional(),
+      })
+    )
+    .query(async ({ input }) => {
+      const uniqueRoundIds = [...new Set(input.roundIds)];
+      if (uniqueRoundIds.length === 0) return [];
+
+      const db = getDb();
+      const includeDisabled = input.includeDisabled ?? false;
+      const disabledRoundIds = getDisabledRoundIdSet();
+      const getCachedStateForUri = createWebsiteVideoCacheStatusLoader();
+      const resolveResourceUrisForRequest = createResourceUriResolver();
+
+      const rounds = await db.query.round.findMany({
+        where: inArray(round.id, uniqueRoundIds),
+        with: {
+          hero: true,
+          resources: true,
+        },
+      });
+
+      const entries = await Promise.all(
+        rounds.map(async (roundEntry) => {
+          const nextEntry = {
+            ...roundEntry,
+            resources: getVisibleResources(roundEntry.resources, includeDisabled),
+          };
+
+          if (
+            !shouldIncludeInstalledRound(nextEntry, {
+              includeDisabled,
+              includeTemplates: true,
+              disabledRoundIds,
+            })
+          ) {
+            return null;
+          }
+
+          await hydrateResourceDurationMs(db, nextEntry.resources);
+
+          return {
+            ...nextEntry,
+            isDisabled: disabledRoundIds.has(nextEntry.id),
+            tags: parseTagsJson(nextEntry.tagsJson),
+            hero: nextEntry.hero
+              ? {
+                  ...nextEntry.hero,
+                  tags: parseTagsJson(nextEntry.hero.tagsJson),
+                }
+              : null,
+            resources: await Promise.all(
+              nextEntry.resources.map(async (res) => ({
+                ...res,
+                ...resolveResourceUrisForRequest({
+                  videoUri: res.videoUri,
+                  funscriptUri: res.funscriptUri,
+                }),
+                websiteVideoCacheStatus: await getCachedStateForUri(res.videoUri),
+              }))
+            ),
+          };
+        })
+      );
+
+      const entriesByRoundId = new Map(
+        entries
+          .filter((entry): entry is NonNullable<typeof entry> => entry != null)
+          .map((entry) => [entry.id, entry] as const)
+      );
+
+      return uniqueRoundIds
+        .map((roundId) => entriesByRoundId.get(roundId))
+        .filter((entry): entry is NonNullable<typeof entry> => entry != null);
     }),
 
   getInstalledRoundCardAssets: publicProcedure
@@ -2421,6 +2663,20 @@ export const dbRouter = router({
       throw new TRPCError({
         code: "BAD_REQUEST",
         message: error instanceof Error ? error.message : "Failed to back up settings.",
+      });
+    }
+  }),
+
+  createPlaintextSettingsFile: publicProcedure.mutation(async () => {
+    try {
+      const result = await createPlaintextSettingsFile();
+      shell.showItemInFolder(result.plaintextPath);
+      return result;
+    } catch (error) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message:
+          error instanceof Error ? error.message : "Failed to create plaintext settings file.",
       });
     }
   }),

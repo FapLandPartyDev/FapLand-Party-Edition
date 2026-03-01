@@ -443,6 +443,7 @@ export function RoundVideoOverlay({
   const [funscriptPosition, setFunscriptPosition] = useState<number | null>(null);
   const [randomIntermediaryQueue, setRandomIntermediaryQueue] = useState<IntermediaryTrigger[]>([]);
   const [loadingCountdown, setLoadingCountdown] = useState<number | null>(null);
+  const loadingCountdownRef = useRef<number | null>(null);
   const [loadingLabel, setLoadingLabel] = useState<string>("");
   const [loadingMedia, setLoadingMedia] = useState<LoadingMediaItem[]>([]);
   const [loadingMediaIndex, setLoadingMediaIndex] = useState(0);
@@ -467,6 +468,10 @@ export function RoundVideoOverlay({
   const lastShownAntiPerkAlertRef = useRef<string | null>(null);
 
   const [timeline, setTimeline] = useState<Awaited<ReturnType<typeof loadFunscriptTimeline>>>(null);
+
+  useEffect(() => {
+    loadingCountdownRef.current = loadingCountdown;
+  }, [loadingCountdown]);
 
   useEffect(() => {
     handyManuallyStoppedRef.current = handyManuallyStopped;
@@ -1412,6 +1417,7 @@ export function RoundVideoOverlay({
 
       void refreshBooruMediaCache(booruSearchPrompt, 18).then((media) => {
         if (loadingFetchTokenRef.current !== token) return;
+        if ((loadingCountdownRef.current ?? 0) <= 1) return;
         const nextMedia =
           media.length > 0
             ? media
@@ -1433,8 +1439,10 @@ export function RoundVideoOverlay({
             setLoadingMedia([]);
             setLoadingMediaIndex(0);
             playDiceResultSound();
-            applySegmentSwitch(params.plan);
-            params.onComplete?.();
+            window.requestAnimationFrame(() => {
+              applySegmentSwitch(params.plan);
+              params.onComplete?.();
+            });
             return null;
           }
           return prev - 1;
@@ -2160,6 +2168,7 @@ export function RoundVideoOverlay({
 
     void refreshBooruMediaCache(booruSearchPrompt, 18).then((media) => {
       if (loadingFetchTokenRef.current !== token) return;
+      if ((loadingCountdownRef.current ?? 0) <= 1) return;
       const nextMedia =
         media.length > 0
           ? media

@@ -876,6 +876,7 @@ export function SettingsPage() {
   const [isRefreshingDebug, setIsRefreshingDebug] = useState(false);
   const [isCopyingDebug, setIsCopyingDebug] = useState(false);
   const [isExportingDebug, setIsExportingDebug] = useState(false);
+  const [isCreatingPlaintextSettings, setIsCreatingPlaintextSettings] = useState(false);
   const [isClearingLog, setIsClearingLog] = useState(false);
   const [debugMessage, setDebugMessage] = useState<string | null>(null);
 
@@ -2631,6 +2632,24 @@ export function SettingsPage() {
     }
   };
 
+  const createPlaintextSettingsFile = async () => {
+    if (isCreatingPlaintextSettings) return;
+    setIsCreatingPlaintextSettings(true);
+    setDebugMessage(null);
+    try {
+      await db.install.createPlaintextSettingsFile();
+      setDebugMessage(t`Plaintext settings file created.`);
+      showToast(t`Plaintext settings file created.`, "success");
+    } catch (error) {
+      console.error("Failed to create plaintext settings file", error);
+      setDebugMessage(
+        error instanceof Error ? error.message : t`Failed to create plaintext settings file.`
+      );
+    } finally {
+      setIsCreatingPlaintextSettings(false);
+    }
+  };
+
   const openDebugLogFolder = async () => {
     try {
       await trpc.debug.openLogFolder.mutate();
@@ -2939,6 +2958,7 @@ export function SettingsPage() {
                   isRefreshing={isRefreshingDebug}
                   isCopying={isCopyingDebug}
                   isExporting={isExportingDebug}
+                  isCreatingPlaintextSettings={isCreatingPlaintextSettings}
                   isClearing={isClearingLog}
                   onRefresh={() => {
                     playSelectSound();
@@ -2951,6 +2971,10 @@ export function SettingsPage() {
                   onExport={() => {
                     playSelectSound();
                     void exportDebugFile();
+                  }}
+                  onCreatePlaintextSettings={() => {
+                    playSelectSound();
+                    void createPlaintextSettingsFile();
                   }}
                   onOpenLogFolder={() => {
                     playSelectSound();
@@ -6946,10 +6970,12 @@ function DebugSettingsCard({
   isRefreshing,
   isCopying,
   isExporting,
+  isCreatingPlaintextSettings,
   isClearing,
   onRefresh,
   onCopy,
   onExport,
+  onCreatePlaintextSettings,
   onOpenLogFolder,
   onClearLog,
 }: {
@@ -6962,15 +6988,18 @@ function DebugSettingsCard({
   isRefreshing: boolean;
   isCopying: boolean;
   isExporting: boolean;
+  isCreatingPlaintextSettings: boolean;
   isClearing: boolean;
   onRefresh: () => void;
   onCopy: () => void;
   onExport: () => void;
+  onCreatePlaintextSettings: () => void;
   onOpenLogFolder: () => void;
   onClearLog: () => void;
 }) {
   const { t } = useLingui();
-  const actionDisabled = loading || isRefreshing || isCopying || isExporting || isClearing;
+  const actionDisabled =
+    loading || isRefreshing || isCopying || isExporting || isCreatingPlaintextSettings || isClearing;
   const groups = diagnostics
     ? [
         { title: t`App`, value: diagnostics.app },
@@ -7047,7 +7076,7 @@ function DebugSettingsCard({
             </div>
           </div>
 
-          <div className="mt-4 grid gap-2 sm:grid-cols-5">
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
             <button
               type="button"
               disabled={actionDisabled}
@@ -7071,6 +7100,16 @@ function DebugSettingsCard({
               className="rounded-xl border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Trans>Open Log Folder</Trans>
+            </button>
+            <button
+              type="button"
+              disabled={actionDisabled}
+              onClick={onCreatePlaintextSettings}
+              className="rounded-xl border border-amber-300/55 bg-amber-500/15 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:border-amber-200/80 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isCreatingPlaintextSettings
+                ? t`Creating...`
+                : t`Create Plaintext Settings File`}
             </button>
             <button
               type="button"

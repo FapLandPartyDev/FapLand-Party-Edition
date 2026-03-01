@@ -208,6 +208,17 @@ async function renderInstalledRoundsPage() {
   return view;
 }
 
+async function renderInstalledRoundsPageWithFakeTimers() {
+  const view = render(<InstalledRoundsPage />);
+  for (let index = 0; index < 10; index += 1) {
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
+  expect(mocks.db.round.findInstalledCatalog).toHaveBeenCalled();
+  return view;
+}
+
 function toCatalogRound(round: InstalledRound): InstalledRoundCatalogEntry {
   return {
     ...round,
@@ -1518,9 +1529,9 @@ describe("InstalledRoundsPage hero grouping", () => {
       }),
     ];
 
-    const { container } = await renderInstalledRoundsPage();
+    const { container } = await renderInstalledRoundsPageWithFakeTimers();
 
-    const heading = await screen.findByRole("heading", { name: "Main Round" });
+    const heading = screen.getByRole("heading", { name: "Main Round" });
     const card = heading.closest("article");
     expect(card).not.toBeNull();
     fireEvent.mouseEnter(card!);
@@ -1528,12 +1539,15 @@ describe("InstalledRoundsPage hero grouping", () => {
       vi.advanceTimersByTime(600);
     });
 
-    await waitFor(() => expect(container.querySelector("video")).not.toBeNull());
+    expect(container.querySelector("video")).not.toBeNull();
 
     fireEvent.click(screen.getByLabelText("Play Main Round"));
 
-    await waitFor(() => expect(container.querySelector("video")).toBeNull());
-    await waitFor(() => expect(mocks.roundVideoOverlay).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(container.querySelector("video")).toBeNull();
+    expect(mocks.roundVideoOverlay).toHaveBeenCalled();
 
     vi.useRealTimers();
   });
@@ -1553,9 +1567,9 @@ describe("InstalledRoundsPage hero grouping", () => {
       .spyOn(HTMLMediaElement.prototype, "load")
       .mockImplementation(() => undefined);
 
-    await renderInstalledRoundsPage();
+    await renderInstalledRoundsPageWithFakeTimers();
 
-    const heading = await screen.findByRole("heading", { name: "Main Round" });
+    const heading = screen.getByRole("heading", { name: "Main Round" });
     const card = heading.closest("article");
     expect(card).not.toBeNull();
 
@@ -1564,7 +1578,7 @@ describe("InstalledRoundsPage hero grouping", () => {
       vi.advanceTimersByTime(600);
     });
 
-    await waitFor(() => expect(loadSpy).toHaveBeenCalled());
+    expect(loadSpy).toHaveBeenCalled();
 
     vi.useRealTimers();
   });
@@ -1584,9 +1598,9 @@ describe("InstalledRoundsPage hero grouping", () => {
       .spyOn(HTMLMediaElement.prototype, "load")
       .mockImplementation(() => undefined);
 
-    const { container } = await renderInstalledRoundsPage();
+    const { container } = await renderInstalledRoundsPageWithFakeTimers();
 
-    const heading = await screen.findByRole("heading", { name: "Main Round" });
+    const heading = screen.getByRole("heading", { name: "Main Round" });
     const card = heading.closest("article");
     expect(card).not.toBeNull();
 

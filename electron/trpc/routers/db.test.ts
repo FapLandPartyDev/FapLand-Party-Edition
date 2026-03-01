@@ -27,13 +27,21 @@ const { runDatabaseBackupMock, resolveDatabaseBackupDirMock } = vi.hoisted(() =>
   resolveDatabaseBackupDirMock: vi.fn(() => "/tmp/database-backups"),
 }));
 
-const { runSettingsBackupMock, resolveSettingsBackupDirMock } = vi.hoisted(() => ({
+const {
+  createPlaintextSettingsFileMock,
+  runSettingsBackupMock,
+  resolveSettingsBackupDirMock,
+} = vi.hoisted(() => ({
+  createPlaintextSettingsFileMock: vi.fn(async () => ({
+    plaintextPath: "/tmp/settings-backups/f-land-settings-plaintext-2026-04-21T12-00-00.000Z.json",
+  })),
   runSettingsBackupMock: vi.fn(),
   resolveSettingsBackupDirMock: vi.fn(() => "/tmp/settings-backups"),
 }));
 
-const { shellOpenPathMock } = vi.hoisted(() => ({
+const { shellOpenPathMock, shellShowItemInFolderMock } = vi.hoisted(() => ({
   shellOpenPathMock: vi.fn(),
+  shellShowItemInFolderMock: vi.fn(),
 }));
 
 const { getStoreMock, initStoreMock } = vi.hoisted(() => ({
@@ -104,6 +112,7 @@ vi.mock("../../services/databaseBackup", () => ({
 }));
 
 vi.mock("../../services/settingsBackup", () => ({
+  createPlaintextSettingsFile: createPlaintextSettingsFileMock,
   runSettingsBackup: runSettingsBackupMock,
   resolveSettingsBackupDir: resolveSettingsBackupDirMock,
 }));
@@ -111,6 +120,7 @@ vi.mock("../../services/settingsBackup", () => ({
 vi.mock("electron", () => ({
   shell: {
     openPath: shellOpenPathMock,
+    showItemInFolder: shellShowItemInFolderMock,
   },
 }));
 
@@ -504,6 +514,10 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     runSettingsBackupMock.mockResolvedValue({
       backupPath: "/tmp/settings-backups/f-land-settings-backup-2026-04-21T12-00-00.000Z.json",
       deletedBackups: 0,
+    });
+    createPlaintextSettingsFileMock.mockResolvedValue({
+      plaintextPath:
+        "/tmp/settings-backups/f-land-settings-plaintext-2026-04-21T12-00-00.000Z.json",
     });
     shellOpenPathMock.mockResolvedValue("");
 
@@ -1945,6 +1959,20 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     });
 
     expect(shellOpenPathMock).toHaveBeenCalledWith("/tmp/settings-backups");
+  });
+
+  it("creates a plaintext settings file on demand", async () => {
+    const caller = createRendererCaller();
+
+    await expect(caller.createPlaintextSettingsFile()).resolves.toEqual({
+      plaintextPath:
+        "/tmp/settings-backups/f-land-settings-plaintext-2026-04-21T12-00-00.000Z.json",
+    });
+
+    expect(createPlaintextSettingsFileMock).toHaveBeenCalledTimes(1);
+    expect(shellShowItemInFolderMock).toHaveBeenCalledWith(
+      "/tmp/settings-backups/f-land-settings-plaintext-2026-04-21T12-00-00.000Z.json"
+    );
   });
 
   it("clears persisted database rows and store state", async () => {

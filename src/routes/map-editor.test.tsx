@@ -79,6 +79,8 @@ function makePlaylist(id: string, name: string) {
         antiPerkIncreasePerRound: 0.015,
         maxIntermediaryProbability: 1,
         maxAntiPerkProbability: 0.75,
+        resetIntermediaryProbabilityAfterTrigger: false,
+        resetAntiPerkProbabilityAfterTrigger: false,
       },
       economy: {
         startingMoney: 120,
@@ -175,6 +177,9 @@ vi.mock("../services/trpc", () => ({
     store: {
       get: {
         query: vi.fn().mockResolvedValue(false),
+      },
+      getMany: {
+        query: vi.fn().mockResolvedValue({}),
       },
     },
     db: new Proxy({}, { get: () => ({ query: vi.fn(), mutate: vi.fn() }) }),
@@ -1103,10 +1108,17 @@ describe("MapEditorRoute", () => {
     fireEvent.change(screen.getByLabelText("Anti-perk max"), { target: { value: "77" } });
     fireEvent.change(screen.getByLabelText("Starting Money"), { target: { value: "275" } });
     fireEvent.change(screen.getByLabelText("Cum round bonus score"), { target: { value: "180" } });
-    fireEvent.click(screen.getByRole("button", { name: "Disable dice animation" }));
 
     fireEvent.click(screen.getByRole("button", { name: /Loaded Dice/i }));
     fireEvent.click(screen.getByRole("button", { name: /Jammed Dice/i }));
+
+    const disableDiceAnimationButton = screen.getByRole("button", {
+      name: "Disable dice animation",
+    });
+    fireEvent.click(disableDiceAnimationButton);
+    await waitFor(() => {
+      expect(disableDiceAnimationButton.textContent).toContain("Enabled");
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
@@ -1131,6 +1143,37 @@ describe("MapEditorRoute", () => {
     expect(updateCall.config.disableDiceAnimation).toBe(true);
     expect(updateCall.config.perkPool.enabledPerkIds).toContain("loaded-dice");
     expect(updateCall.config.perkPool.enabledAntiPerkIds).toContain("jammed-dice");
+  });
+
+  it("preserves enabled probability reset toggles when saving an advanced playlist", async () => {
+    const playlist = makePlaylist("playlist-reset", "Reset Playlist");
+    playlist.config.probabilityScaling.resetIntermediaryProbabilityAfterTrigger = true;
+    playlist.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger = true;
+    mocks.loaderData = {
+      ...mocks.loaderData,
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+
+    render(<Component />);
+    await enterEditor();
+
+    fireEvent.change(screen.getByLabelText("Map name"), {
+      target: { value: "Reset Playlist Saved" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+    });
+
+    const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: ReturnType<typeof makePlaylist>["config"];
+    };
+    expect(updateCall.config.probabilityScaling.resetIntermediaryProbabilityAfterTrigger).toBe(
+      true
+    );
+    expect(updateCall.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger).toBe(true);
   });
 
   it("adds a URL music track to advanced playlist music only", async () => {

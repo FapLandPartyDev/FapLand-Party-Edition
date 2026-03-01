@@ -61,17 +61,14 @@ import {
 import {
   buildAggregateDownloadProgress,
   buildDownloadProgressByUri,
+  buildRoundLibraryIndex,
   buildPlaylistGroupingData,
-  buildSourceHeroOptions,
-  extractRoundMetadataOptions,
   filterAndSortRounds,
   type AddedDateFilter,
   type MetadataFilter,
   type SourceFilter,
-  toIndexedRound,
   type ScriptFilter,
   type SortMode,
-  type SourceHeroOption,
   type TypeFilter,
 } from "./roundsSelectors";
 import { usePlayableVideoFallback } from "../hooks/usePlayableVideoFallback";
@@ -427,6 +424,8 @@ const LibraryTransferStats = memo(() => {
     </>
   );
 });
+
+LibraryTransferStats.displayName = "LibraryTransferStats";
 function createAsyncResource<T>(data: T): AsyncResource<T> {
   return {
     status: "idle",
@@ -647,8 +646,12 @@ function pickHeroGroupRoundToKeep<TRound extends RoundLibraryEntry>(
 
 function reloadUiAfterHeroGroupConversion() {
   if (typeof window === "undefined") return;
-  if (/jsdom/i.test(window.navigator.userAgent)) return;
+  if (isJsdomRuntime()) return;
   window.location.reload();
+}
+
+function isJsdomRuntime() {
+  return typeof window !== "undefined" && /jsdom/i.test(window.navigator.userAgent);
 }
 
 async function refreshUiAfterHeroGroupConversion(refreshInstalledRounds: () => Promise<void>) {
@@ -1130,6 +1133,7 @@ export function InstalledRoundsPage() {
       const request = getInstalledRounds(includeDisabled)
         .then((nextRounds) => {
           loadedRoundsIncludeDisabledRef.current = includeDisabled;
+          setVisibleRoundIds(nextRounds.slice(0, 24).map((round) => round.id));
           setRoundsResource({
             status: "ready",
             data: nextRounds,
@@ -1675,8 +1679,15 @@ export function InstalledRoundsPage() {
     [downloadProgressByUri]
   );
 
-  const indexedRounds = useMemo(() => rounds.map(toIndexedRound), [rounds]);
-  const metadataOptions = useMemo(() => extractRoundMetadataOptions(rounds), [rounds]);
+  const roundLibraryIndex = useMemo(() => buildRoundLibraryIndex(rounds), [rounds]);
+  const {
+    indexedRounds,
+    metadataOptions,
+    standaloneRoundCount,
+    heroGroupCount,
+    roundsWithScriptCount,
+    sourceHeroOptions,
+  } = roundLibraryIndex;
   const filteredRounds = useMemo(
     () =>
       filterAndSortRounds({
@@ -1714,28 +1725,6 @@ export function InstalledRoundsPage() {
   const playlistsByRoundId = playlistGroupingData?.playlistsByRoundId ?? null;
   const activeSection =
     ROUND_SECTIONS.find((section) => section.id === activeSectionId) ?? ROUND_SECTIONS[0];
-  const standaloneRoundCount = useMemo(
-    () => rounds.filter((round) => !round.heroId && !round.hero).length,
-    [rounds]
-  );
-  const heroGroupCount = useMemo(() => {
-    const groupKeys = new Set<string>();
-    rounds.forEach((round) => {
-      const heroKey = round.heroId ?? round.hero?.name;
-      if (heroKey) {
-        groupKeys.add(heroKey);
-      }
-    });
-    return groupKeys.size;
-  }, [rounds]);
-  const roundsWithScriptCount = useMemo(
-    () => rounds.filter((round) => roundHasFunscript(round)).length,
-    [rounds]
-  );
-  const sourceHeroOptions = useMemo<SourceHeroOption[]>(
-    () => buildSourceHeroOptions(rounds),
-    [rounds]
-  );
   const hasActiveFilters =
     queryInput.trim().length > 0 ||
     typeFilter !== "all" ||
@@ -5030,6 +5019,7 @@ const RoundCard = memo(function RoundCard({
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [hasActivatedPreview, setHasActivatedPreview] = useState(false);
   const [isPreviewActive, setIsPreviewActive] = useState(false);
+  const [isPreviewSuppressed, setIsPreviewSuppressed] = useState(false);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const previewHoverTimeoutRef = useRef<number | null>(null);
   const firstResource = round.resources[0];
@@ -5074,16 +5064,31 @@ const RoundCard = memo(function RoundCard({
     window.clearTimeout(previewHoverTimeoutRef.current);
     previewHoverTimeoutRef.current = null;
   }, []);
+  const activateHoverPreview = useCallback(() => {
+    setIsPreviewSuppressed(false);
+    onHoverSfx();
+    clearPreviewHoverTimeout();
+    previewHoverTimeoutRef.current = window.setTimeout(() => {
+      previewHoverTimeoutRef.current = null;
+      setHasActivatedPreview(true);
+      setIsPreviewActive(true);
+    }, ROUND_CARD_PREVIEW_HOVER_DELAY_MS);
+  }, [clearPreviewHoverTimeout, onHoverSfx]);
   const stopPreviewPlayback = useCallback(() => {
     clearPreviewHoverTimeout();
     setIsPreviewActive(false);
     setHasActivatedPreview(false);
+    setIsPreviewSuppressed(true);
     const video = previewVideoRef.current;
     if (!video) return;
-    video.pause();
+    if (!isJsdomRuntime()) {
+      video.pause();
+    }
     video.currentTime = 0;
     video.removeAttribute("src");
-    video.load();
+    if (!isJsdomRuntime()) {
+      video.load();
+    }
   }, [clearPreviewHoverTimeout]);
 
   useEffect(() => () => clearPreviewHoverTimeout(), [clearPreviewHoverTimeout]);
@@ -5092,17 +5097,8 @@ const RoundCard = memo(function RoundCard({
     <article
       className={`round-library-card group relative flex h-full w-full min-w-0 flex-col overflow-hidden rounded-[28px] border border-white/10 backdrop-blur-xl transition-all duration-300 ${index < 12 ? "animate-entrance" : ""}`}
       style={animationDelay ? { animationDelay } : undefined}
-      onMouseEnter={() => {
-        onHoverSfx();
-        clearPreviewHoverTimeout();
-        if (canPreview) {
-          previewHoverTimeoutRef.current = window.setTimeout(() => {
-            previewHoverTimeoutRef.current = null;
-            setHasActivatedPreview(true);
-            setIsPreviewActive(true);
-          }, ROUND_CARD_PREVIEW_HOVER_DELAY_MS);
-        }
-      }}
+      onMouseEnter={activateHoverPreview}
+      onMouseOver={activateHoverPreview}
       onMouseLeave={() => {
         clearPreviewHoverTimeout();
         setIsPreviewActive(false);
@@ -5110,10 +5106,8 @@ const RoundCard = memo(function RoundCard({
       onFocus={() => {
         onHoverSfx();
         clearPreviewHoverTimeout();
-        if (canPreview) {
-          setHasActivatedPreview(true);
-          setIsPreviewActive(true);
-        }
+        setHasActivatedPreview(true);
+        setIsPreviewActive(true);
       }}
       onBlur={() => {
         clearPreviewHoverTimeout();
@@ -5153,7 +5147,7 @@ const RoundCard = memo(function RoundCard({
             />
           </SfwGuard>
         )}
-        {previewUri && canPreview && hasActivatedPreview ? (
+        {hasActivatedPreview && previewUri && canPreview && !isPreviewSuppressed ? (
           <RoundCardPreviewVideo
             videoRef={previewVideoRef}
             previewUri={previewUri}
@@ -5481,7 +5475,9 @@ const RoundCardPreviewVideo = memo(function RoundCardPreviewVideo({
     if (!video) return;
 
     if (!active) {
-      video.pause();
+      if (!isJsdomRuntime()) {
+        video.pause();
+      }
       const { startSec } = resolvePreviewWindow(video);
       video.currentTime = startSec;
       return;

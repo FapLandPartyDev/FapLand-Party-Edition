@@ -43,6 +43,7 @@ import type {
 import { PERK_RARITY_META, resolvePerkRarity, getRarityLabel } from "../../game/data/perkRarity";
 import type { InstalledRound } from "../../services/db";
 import { trpc } from "../../services/trpc";
+import { getInstalledRoundPlaybackEntriesCached } from "../../services/installedRoundsCache";
 import { describePerkEffects, endEndlessRun } from "../../game/engine";
 import { useSfwMode } from "../../hooks/useSfwMode";
 import { i18n } from "../../i18n";
@@ -1770,6 +1771,9 @@ export const GameScene = memo(function GameScene({
     handleConsumeAntiPerkById,
     tickAnim,
   } = useGameAnimation(initialState, installedRounds);
+  const [hydratedRoundsById, setHydratedRoundsById] = useState<Map<string, InstalledRound>>(
+    () => new Map()
+  );
 
   // Stable refs for RAF
   const stateRef = useRef(state);
@@ -1890,6 +1894,94 @@ export const GameScene = memo(function GameScene({
     () => buildTileDurationLabelByFieldId(initialState.config.board, installedRounds),
     [initialState.config.board, installedRounds]
   );
+  const overlayInstalledRounds = useMemo(() => {
+    if (hydratedRoundsById.size === 0) return installedRounds;
+    return installedRounds.map((round) => hydratedRoundsById.get(round.id) ?? round);
+  }, [hydratedRoundsById, installedRounds]);
+  const activeRoundHydrationIds = useMemo(() => {
+    const activeRound = state.activeRound;
+    if (!activeRound) return [];
+    const activeIds =
+      activeRound.playlistRoundIds && activeRound.playlistRoundIds.length > 0
+        ? activeRound.playlistRoundIds
+        : [activeRound.roundId];
+    const intermediaryIds = installedRounds
+      .filter((round) => round.type === "Interjection")
+      .slice(0, 24)
+      .map((round) => round.id);
+    return [...new Set([...activeIds, ...intermediaryIds].filter(Boolean))];
+  }, [installedRounds, state.activeRound]);
+
+  useEffect(() => {
+    if (activeRoundHydrationIds.length === 0) return;
+    let cancelled = false;
+    void getInstalledRoundPlaybackEntriesCached(activeRoundHydrationIds, true)
+      .then((entries) => {
+        if (cancelled || entries.length === 0) return;
+        setHydratedRoundsById((previous) => {
+          let changed = false;
+          const next = new Map(previous);
+          for (const entry of entries) {
+            if (next.get(entry.id) !== entry) {
+              next.set(entry.id, entry as InstalledRound);
+              changed = true;
+            }
+          }
+          return changed ? next : previous;
+        });
+      })
+      .catch((error) => {
+        console.warn("Failed to hydrate active round playback entries", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRoundHydrationIds]);
+
+  useEffect(() => {
+    const ids = installedRounds
+      .filter((round) => round.type === "Interjection")
+      .slice(0, 24)
+      .map((round) => round.id);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    let idleCallbackId: number | null = null;
+    let timeoutId: number | null = null;
+    const hydrate = () => {
+      void getInstalledRoundPlaybackEntriesCached(ids, true)
+        .then((entries) => {
+          if (cancelled || entries.length === 0) return;
+          setHydratedRoundsById((previous) => {
+            let changed = false;
+            const next = new Map(previous);
+            for (const entry of entries) {
+              if (next.get(entry.id) !== entry) {
+                next.set(entry.id, entry as InstalledRound);
+                changed = true;
+              }
+            }
+            return changed ? next : previous;
+          });
+        })
+        .catch((error) => {
+          console.warn("Failed to prefetch intermediary playback entries", error);
+        });
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      idleCallbackId = window.requestIdleCallback(hydrate, { timeout: 1000 });
+    } else {
+      timeoutId = window.setTimeout(hydrate, 250);
+    }
+    return () => {
+      cancelled = true;
+      if (idleCallbackId !== null && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleCallbackId);
+      }
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [installedRounds]);
 
   const requestCumConfirmation = useCallback(() => {
     if (stateRef.current.sessionPhase === "completed") return;
@@ -4790,7 +4882,7 @@ export const GameScene = memo(function GameScene({
           intermediaryReturnPauseSec,
           currentPlayer,
           intermediaryProbability: state.intermediaryProbability,
-          installedRounds,
+          installedRounds: overlayInstalledRounds,
           onFinishRound: handleCompleteRound,
           onRequestCum: requestCumConfirmation,
           cumRequestSignal,

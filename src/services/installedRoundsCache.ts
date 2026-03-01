@@ -3,6 +3,9 @@ import { trpc } from "./trpc";
 export type CachedInstalledRoundCatalog = Awaited<
   ReturnType<typeof trpc.db.getInstalledRoundCatalog.query>
 >;
+export type CachedInstalledRoundRuntimeCatalog = Awaited<
+  ReturnType<typeof trpc.db.getInstalledRoundRuntimeCatalog.query>
+>;
 export type CachedInstalledRoundCardAssets = Awaited<
   ReturnType<typeof trpc.db.getInstalledRoundCardAssets.query>
 >;
@@ -12,8 +15,12 @@ export type CachedInstalledRoundMediaResources = Awaited<
 export type CachedInstalledRoundPlaybackEntry = Awaited<
   ReturnType<typeof trpc.db.getInstalledRoundPlaybackEntry.query>
 >;
+export type CachedInstalledRoundPlaybackEntries = Awaited<
+  ReturnType<typeof trpc.db.getInstalledRoundPlaybackEntries.query>
+>;
 
 const catalogRequests = new Map<string, Promise<CachedInstalledRoundCatalog>>();
+const runtimeCatalogRequests = new Map<string, Promise<CachedInstalledRoundRuntimeCatalog>>();
 const cardAssetRequests = new Map<string, Promise<CachedInstalledRoundCardAssets[number]>>();
 const cardAssetCache = new Map<string, CachedInstalledRoundCardAssets[number]>();
 const mediaRequests = new Map<string, Promise<CachedInstalledRoundMediaResources>>();
@@ -72,6 +79,29 @@ export function getInstalledRoundCatalogCached(
   return request;
 }
 
+export function getInstalledRoundRuntimeCatalogCached(
+  includeDisabled = false,
+  includeTemplates = false
+): Promise<CachedInstalledRoundRuntimeCatalog> {
+  const key = getCatalogKey(includeDisabled, includeTemplates);
+  const existing = runtimeCatalogRequests.get(key);
+  if (existing) {
+    return existing;
+  }
+
+  const request = trpc.db.getInstalledRoundRuntimeCatalog
+    .query({
+      includeDisabled,
+      includeTemplates,
+    })
+    .catch((error) => {
+      runtimeCatalogRequests.delete(key);
+      throw error;
+    });
+  runtimeCatalogRequests.set(key, request);
+  return request;
+}
+
 export function getRoundMediaResourcesCached(
   roundId: string,
   includeDisabled = false
@@ -122,22 +152,79 @@ export function getInstalledRoundPlaybackEntryCached(
     return existing;
   }
 
-  const request = trpc.db.getInstalledRoundPlaybackEntry
-    .query({
-      roundId,
-      includeDisabled,
-    })
-    .then((result) => {
-      touchLruEntry(playbackCache, key, result, MAX_PLAYBACK_CACHE_ENTRIES);
-      playbackRequests.delete(key);
-      return result;
-    })
-    .catch((error) => {
-      playbackRequests.delete(key);
-      throw error;
-    });
+  const request = getInstalledRoundPlaybackEntriesCached([roundId], includeDisabled).then(
+    (entries) => entries.find((entry) => entry.id === roundId) ?? null
+  );
   playbackRequests.set(key, request);
   return request;
+}
+
+export async function getInstalledRoundPlaybackEntriesCached(
+  roundIds: string[],
+  includeDisabled = false
+): Promise<CachedInstalledRoundPlaybackEntries> {
+  const uniqueRoundIds = [...new Set(roundIds.filter((roundId) => roundId.trim().length > 0))];
+  if (uniqueRoundIds.length === 0) return [];
+
+  const pendingFetchIds: string[] = [];
+  const pendingPromises: Promise<CachedInstalledRoundPlaybackEntry>[] = [];
+
+  for (const roundId of uniqueRoundIds) {
+    const key = getMediaKey(roundId, includeDisabled);
+    const cached = playbackCache.get(key);
+    if (cached !== undefined) {
+      touchLruEntry(playbackCache, key, cached, MAX_PLAYBACK_CACHE_ENTRIES);
+      continue;
+    }
+    const existing = playbackRequests.get(key);
+    if (existing) {
+      pendingPromises.push(existing);
+      continue;
+    }
+    pendingFetchIds.push(roundId);
+  }
+
+  if (pendingFetchIds.length > 0) {
+    const request = trpc.db.getInstalledRoundPlaybackEntries
+      .query({ roundIds: pendingFetchIds, includeDisabled })
+      .then((entries) => {
+        const entriesByRoundId = new Map(entries.map((entry) => [entry.id, entry] as const));
+        for (const roundId of pendingFetchIds) {
+          const key = getMediaKey(roundId, includeDisabled);
+          touchLruEntry(
+            playbackCache,
+            key,
+            entriesByRoundId.get(roundId) ?? null,
+            MAX_PLAYBACK_CACHE_ENTRIES
+          );
+          playbackRequests.delete(key);
+        }
+        return entries;
+      })
+      .catch((error) => {
+        for (const roundId of pendingFetchIds) {
+          playbackRequests.delete(getMediaKey(roundId, includeDisabled));
+        }
+        throw error;
+      });
+
+    for (const roundId of pendingFetchIds) {
+      const key = getMediaKey(roundId, includeDisabled);
+      const perRoundRequest = request.then(
+        (entries) => entries.find((entry) => entry.id === roundId) ?? null
+      );
+      playbackRequests.set(key, perRoundRequest);
+      pendingPromises.push(perRoundRequest);
+    }
+  }
+
+  if (pendingPromises.length > 0) {
+    await Promise.all(pendingPromises);
+  }
+
+  return uniqueRoundIds
+    .map((roundId) => playbackCache.get(getMediaKey(roundId, includeDisabled)))
+    .filter((entry): entry is CachedInstalledRoundPlaybackEntries[number] => entry != null);
 }
 
 export async function getInstalledRoundCardAssetsCached(
@@ -243,6 +330,7 @@ export function peekInstalledRoundCardAssetsCached(
 
 export function invalidateInstalledRoundCaches(): void {
   catalogRequests.clear();
+  runtimeCatalogRequests.clear();
   cardAssetRequests.clear();
   cardAssetCache.clear();
   mediaRequests.clear();

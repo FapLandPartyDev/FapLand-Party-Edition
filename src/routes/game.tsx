@@ -33,6 +33,7 @@ import {
 import { db, type InstalledRound } from "../services/db";
 import { playlists } from "../services/playlists";
 import { trpc } from "../services/trpc";
+import { getInstalledRoundRuntimeCatalogCached } from "../services/installedRoundsCache";
 import { isGameDevelopmentMode } from "../utils/devFeatures";
 import { useGlobalMusic } from "../hooks/useGlobalMusic";
 import {
@@ -124,9 +125,9 @@ const getEconomyOverrides = async (): Promise<Partial<GameConfig["economy"]>> =>
 
 const getInstalledRounds = async (): Promise<InstalledRound[]> => {
   try {
-    return await db.round.findInstalled();
+    return (await getInstalledRoundRuntimeCatalogCached(true, true)) as unknown as InstalledRound[];
   } catch (error) {
-    console.error("Failed to fetch installed rounds for game board", error);
+    console.error("Failed to fetch installed round runtime catalog for game board", error);
     return [];
   }
 };

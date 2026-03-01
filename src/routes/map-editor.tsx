@@ -209,6 +209,10 @@ const toEditorConfigFromPlaylist = (playlist: StoredPlaylist): EditorGraphConfig
       resetAntiPerkProbabilityAfterTrigger:
         playlist.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger ?? false,
     },
+    resetIntermediaryProbabilityAfterTrigger:
+      playlist.config.probabilityScaling.resetIntermediaryProbabilityAfterTrigger ?? false,
+    resetAntiPerkProbabilityAfterTrigger:
+      playlist.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger ?? false,
     economy: {
       startingMoney: playlist.config.economy.startingMoney,
       scorePerCumRoundSuccess: playlist.config.economy.scorePerCumRoundSuccess,
@@ -2313,6 +2317,7 @@ function MapEditorPage() {
         ...configRef.current.economy,
       },
       dice: { ...configRef.current.dice },
+      disableDiceAnimation: configRef.current.disableDiceAnimation,
       saveMode: configRef.current.saveMode,
       music:
         configRef.current.music.tracks.length > 0

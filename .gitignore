@@ -67,3 +67,4 @@ VideoInfo.json
 /build/vendor/ffmpeg/linux-x64/ffprobe
 /.opencode/
 /UserLogs/
+/settings-backups/

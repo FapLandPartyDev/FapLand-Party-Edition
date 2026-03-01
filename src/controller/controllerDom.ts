@@ -11,6 +11,70 @@ const FOCUSABLE_SELECTOR = [
   '[role="button"]',
 ].join(",");
 
+type FocusableSnapshot = {
+  element: HTMLElement;
+  rect: DOMRect;
+};
+
+const focusableSnapshotCache = new WeakMap<
+  HTMLElement,
+  { snapshots: FocusableSnapshot[]; observer: MutationObserver | null }
+>();
+
+function invalidateFocusableSnapshot(root: HTMLElement): void {
+  const cached = focusableSnapshotCache.get(root);
+  cached?.observer?.disconnect();
+  focusableSnapshotCache.delete(root);
+}
+
+function getFocusableSnapshots(root: HTMLElement): FocusableSnapshot[] {
+  const cached = focusableSnapshotCache.get(root);
+  if (cached) return cached.snapshots;
+
+  const snapshots = getFocusableElements(root).map((element) => ({
+    element,
+    rect: element.getBoundingClientRect(),
+  }));
+
+  let observer: MutationObserver | null = null;
+  if (typeof MutationObserver !== "undefined") {
+    observer = new MutationObserver(() => invalidateFocusableSnapshot(root));
+    observer.observe(root, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: [
+        "class",
+        "style",
+        "hidden",
+        "disabled",
+        "aria-disabled",
+        "data-controller-disabled",
+      ],
+    });
+  }
+  focusableSnapshotCache.set(root, { snapshots, observer });
+  return snapshots;
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener(
+    "resize",
+    () => {
+      // WeakMap entries are not iterable; new roots naturally rebuild after mutation.
+      invalidateFocusableSnapshot(document.body);
+    },
+    { passive: true }
+  );
+  window.addEventListener(
+    "scroll",
+    () => {
+      invalidateFocusableSnapshot(document.body);
+    },
+    { passive: true, capture: true }
+  );
+}
+
 function isElementDisabled(element: HTMLElement): boolean {
   if (element.dataset.controllerDisabled === "true") return true;
   if (element.closest('[data-controller-skip="true"]')) return true;
@@ -156,8 +220,9 @@ export function moveFocus(
   current: HTMLElement | null,
   action: Extract<ControllerAction, "UP" | "DOWN" | "LEFT" | "RIGHT">
 ): boolean {
-  const focusables = getFocusableElements(root);
-  if (focusables.length === 0) return false;
+  const snapshots = getFocusableSnapshots(root);
+  if (snapshots.length === 0) return false;
+  const focusables = snapshots.map((snapshot) => snapshot.element);
 
   if (
     !current ||
@@ -176,7 +241,8 @@ export function moveFocus(
     }
   }
 
-  const currentRect = current.getBoundingClientRect();
+  const currentSnapshot = snapshots.find((snapshot) => snapshot.element === current);
+  const currentRect = currentSnapshot?.rect ?? current.getBoundingClientRect();
   const currentCenterX = currentRect.left + currentRect.width / 2;
   const currentCenterY = currentRect.top + currentRect.height / 2;
 
@@ -185,7 +251,8 @@ export function moveFocus(
 
   for (const candidate of focusables) {
     if (candidate === current) continue;
-    const rect = candidate.getBoundingClientRect();
+    const rect = snapshots.find((snapshot) => snapshot.element === candidate)?.rect;
+    if (!rect) continue;
     const deltaX = rect.left + rect.width / 2 - currentCenterX;
     const deltaY = rect.top + rect.height / 2 - currentCenterY;
     if (!directionMatches(deltaX, deltaY, action)) continue;

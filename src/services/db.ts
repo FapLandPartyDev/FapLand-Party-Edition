@@ -12,6 +12,9 @@ type InstalledRoundFromTrpc = Awaited<ReturnType<typeof trpc.db.getInstalledRoun
 type InstalledRoundCatalogEntryFromTrpc = Awaited<
   ReturnType<typeof trpc.db.getInstalledRoundCatalog.query>
 >[number];
+type InstalledRoundRuntimeCatalogEntryFromTrpc = Awaited<
+  ReturnType<typeof trpc.db.getInstalledRoundRuntimeCatalog.query>
+>[number];
 
 export type Hero = HeroFromTrpc & { tags?: string[] };
 export type Round = RoundFromTrpc & {
@@ -33,6 +36,18 @@ export type InstalledRoundCatalogEntry = Omit<InstalledRoundCatalogEntryFromTrpc
   libraryLabel?: string | null;
   hero:
     | (NonNullable<InstalledRoundCatalogEntryFromTrpc["hero"]> & {
+        tags?: string[];
+      })
+    | null;
+};
+export type InstalledRoundRuntimeCatalogEntry = Omit<
+  InstalledRoundRuntimeCatalogEntryFromTrpc,
+  "hero"
+> & {
+  tags?: string[];
+  libraryLabel?: string | null;
+  hero:
+    | (NonNullable<InstalledRoundRuntimeCatalogEntryFromTrpc["hero"]> & {
         tags?: string[];
       })
     | null;
@@ -128,8 +143,12 @@ export const db = {
       trpc.db.getInstalledRounds.query({ includeDisabled, includeTemplates }),
     findInstalledCatalog: (includeDisabled = false, includeTemplates = false) =>
       trpc.db.getInstalledRoundCatalog.query({ includeDisabled, includeTemplates }),
+    findInstalledRuntimeCatalog: (includeDisabled = false, includeTemplates = false) =>
+      trpc.db.getInstalledRoundRuntimeCatalog.query({ includeDisabled, includeTemplates }),
     getPlaybackEntry: (roundId: string, includeDisabled = false) =>
       trpc.db.getInstalledRoundPlaybackEntry.query({ roundId, includeDisabled }),
+    getPlaybackEntries: (roundIds: string[], includeDisabled = false) =>
+      trpc.db.getInstalledRoundPlaybackEntries.query({ roundIds, includeDisabled }),
     findInstalledCardAssets: (roundIds: string[], includeDisabled = false) =>
       trpc.db.getInstalledRoundCardAssets.query({ roundIds, includeDisabled }),
     getMediaResources: (roundId: string, includeDisabled = false) =>
@@ -270,6 +289,7 @@ export const db = {
     backupDatabaseNow: () => trpc.db.backupDatabaseNow.mutate(),
     openDatabaseBackupFolder: () => trpc.db.openDatabaseBackupFolder.mutate(),
     backupSettingsNow: () => trpc.db.backupSettingsNow.mutate(),
+    createPlaintextSettingsFile: () => trpc.db.createPlaintextSettingsFile.mutate(),
     openSettingsBackupFolder: () => trpc.db.openSettingsBackupFolder.mutate(),
     clearAllData: (input?: ClearAllDataOptions) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.clearAllData.mutate(input)),

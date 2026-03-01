@@ -16,6 +16,7 @@ export function RecoveryMode() {
   const [logLevel, setLogLevel] = useState<DebugLogLevel>("off");
   const [isBackingUpDb, setIsBackingUpDb] = useState(false);
   const [isBackingUpSettings, setIsBackingUpSettings] = useState(false);
+  const [isCreatingPlaintextSettings, setIsCreatingPlaintextSettings] = useState(false);
 
   useEffect(() => {
     trpc.debug.getState
@@ -101,6 +102,23 @@ export function RecoveryMode() {
       setError(err instanceof Error ? err.message : "Failed to backup settings.");
     } finally {
       setIsBackingUpSettings(false);
+    }
+  };
+
+  const createPlaintextSettingsFile = async () => {
+    if (isCreatingPlaintextSettings) return;
+    setIsCreatingPlaintextSettings(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await db.install.createPlaintextSettingsFile();
+      setNotice("Plaintext settings file created.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create plaintext settings file."
+      );
+    } finally {
+      setIsCreatingPlaintextSettings(false);
     }
   };
 
@@ -196,6 +214,13 @@ export function RecoveryMode() {
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   type="button"
+                  onClick={() => void trpc.debug.openLogFolder.mutate()}
+                  className="rounded-xl border border-sky-300/70 bg-sky-500/20 px-5 py-3 text-sm font-bold text-sky-50 transition-all duration-200 hover:border-sky-200 hover:bg-sky-500/30"
+                >
+                  Open Log File
+                </button>
+                <button
+                  type="button"
                   disabled={isBackingUpDb}
                   onClick={() => void backupDatabase()}
                   className={`rounded-xl border px-5 py-3 text-sm font-bold transition-all duration-200 ${
@@ -217,6 +242,20 @@ export function RecoveryMode() {
                   }`}
                 >
                   {isBackingUpSettings ? "Backing up..." : "Backup Settings"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isCreatingPlaintextSettings}
+                  onClick={() => void createPlaintextSettingsFile()}
+                  className={`rounded-xl border px-5 py-3 text-sm font-bold transition-all duration-200 ${
+                    isCreatingPlaintextSettings
+                      ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
+                      : "border-amber-300/70 bg-amber-500/20 text-amber-50 hover:border-amber-200 hover:bg-amber-500/30"
+                  }`}
+                >
+                  {isCreatingPlaintextSettings
+                    ? "Creating..."
+                    : "Create Plaintext Settings File"}
                 </button>
               </div>
             </div>

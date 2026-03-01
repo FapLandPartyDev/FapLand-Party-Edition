@@ -163,6 +163,7 @@ vi.mock("../services/db", () => ({
       getAutoScanFolders: vi.fn(async () => []),
       clearAllData: vi.fn(async () => {}),
       backupSettingsNow: vi.fn(async () => {}),
+      createPlaintextSettingsFile: vi.fn(async () => {}),
       openSettingsBackupFolder: vi.fn(async () => {}),
       addAutoScanFolderAndScan: vi.fn(),
       removeAutoScanFolder: vi.fn(),
@@ -345,6 +346,7 @@ describe("Settings music section", () => {
     mocks.handy.forceStop.mockClear();
     mocks.handy.adjustOffset.mockClear();
     vi.mocked(db.install.backupSettingsNow).mockClear();
+    vi.mocked(db.install.createPlaintextSettingsFile).mockClear();
     vi.mocked(db.install.openSettingsBackupFolder).mockClear();
     mocks.handy.resetOffset.mockClear();
     mocks.handy.provider = "thehandy";
@@ -567,6 +569,22 @@ describe("Settings music section", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open Settings Backup Folder" }));
 
     await waitFor(() => expect(db.install.openSettingsBackupFolder).toHaveBeenCalledTimes(1));
+  });
+
+  it("creates plaintext settings from the debug menu", async () => {
+    mocks.search.section = "debug";
+
+    render(<SettingsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Debug Information")).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create Plaintext Settings File" }));
+
+    await waitFor(() => {
+      expect(db.install.createPlaintextSettingsFile).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("renders and applies app zoom controls in general settings", async () => {

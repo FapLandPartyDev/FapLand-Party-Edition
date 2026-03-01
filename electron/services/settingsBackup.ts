@@ -14,6 +14,8 @@ import { getStore, resolveSettingsStorePath } from "./store";
 import {
   isSettingsBackupFileName,
   runSettingsBackupForPath,
+  writePlaintextSettingsExportForPath,
+  type PlaintextSettingsExportResult,
   type SettingsBackupResult,
 } from "./settingsBackupCore";
 import { debugLog } from "./debugLogging";
@@ -99,6 +101,20 @@ export async function runSettingsBackup(now = new Date()): Promise<SettingsBacku
   getStore().set(SETTINGS_BACKUP_LAST_BACKUP_AT_KEY, now.toISOString());
   debugLog.info("settingsBackup", "Settings backup finished", result);
 
+  return result;
+}
+
+export async function createPlaintextSettingsFile(
+  now = new Date()
+): Promise<PlaintextSettingsExportResult> {
+  const store = getStore();
+  const settings = store.store as Record<string, unknown>;
+  const result = await writePlaintextSettingsExportForPath({
+    settings,
+    backupDir: getBackupDir(),
+    now,
+  });
+  debugLog.info("settingsBackup", "Plaintext settings file created", result);
   return result;
 }
 

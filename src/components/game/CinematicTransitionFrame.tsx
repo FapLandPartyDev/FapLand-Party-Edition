@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useMemo, type CSSProperties } from "react";
 import type { RoadPalette } from "../../game/types";
 import { normalizeRoadPalette } from "../../features/map-editor/EditorState";
 
@@ -53,7 +53,7 @@ export function CinematicTransitionFrame({
 }: CinematicTransitionFrameProps) {
   const safeProgress = clamp01(progress);
   const isPlaylistLaunch = variant === "playlist-launch";
-  const palette = normalizeRoadPalette(roadPalette);
+  const palette = useMemo(() => normalizeRoadPalette(roadPalette), [roadPalette]);
 
   // Timeline Math
   // Entry: 0 to 15%
@@ -74,29 +74,36 @@ export function CinematicTransitionFrame({
   const titleLetterSpacing = `${0.3 - 0.28 * entryEase}em`;
   const titleBlur = entryPhase < 1 ? `${20 - 20 * entryEase}px` : "0px";
 
+  const paletteStyle = useMemo(
+    () =>
+      ({
+        "--transition-body": palette.body,
+        "--transition-rail-a": palette.railA,
+        "--transition-rail-b": palette.railB,
+        "--transition-glow": palette.glow,
+        "--transition-center": palette.center,
+        "--transition-gate": palette.gate,
+        "--transition-marker": palette.marker,
+        "--transition-body-90": colorWithAlpha(palette.body, 0.9),
+        "--transition-body-85": colorWithAlpha(palette.body, 0.85),
+        "--transition-body-40": colorWithAlpha(palette.body, 0.4),
+        "--transition-rail-a-40": colorWithAlpha(palette.railA, 0.4),
+        "--transition-rail-a-30": colorWithAlpha(palette.railA, 0.3),
+        "--transition-rail-a-25": colorWithAlpha(palette.railA, 0.25),
+        "--transition-rail-a-08": colorWithAlpha(palette.railA, 0.08),
+        "--transition-rail-b-30": colorWithAlpha(palette.railB, 0.3),
+        "--transition-rail-b-25": colorWithAlpha(palette.railB, 0.25),
+        "--transition-rail-b-20": colorWithAlpha(palette.railB, 0.2),
+        "--transition-glow-40": colorWithAlpha(palette.glow, 0.4),
+        "--transition-glow-30": colorWithAlpha(palette.glow, 0.3),
+        "--transition-center-80": colorWithAlpha(palette.center, 0.8),
+        "--transition-marker-90": colorWithAlpha(palette.marker, 0.9),
+      }) as CSSProperties,
+    [palette]
+  );
   const rootStyle = {
+    ...paletteStyle,
     "--transition-progress": safeProgress.toFixed(3),
-    "--transition-body": palette.body,
-    "--transition-rail-a": palette.railA,
-    "--transition-rail-b": palette.railB,
-    "--transition-glow": palette.glow,
-    "--transition-center": palette.center,
-    "--transition-gate": palette.gate,
-    "--transition-marker": palette.marker,
-    "--transition-body-90": colorWithAlpha(palette.body, 0.9),
-    "--transition-body-85": colorWithAlpha(palette.body, 0.85),
-    "--transition-body-40": colorWithAlpha(palette.body, 0.4),
-    "--transition-rail-a-40": colorWithAlpha(palette.railA, 0.4),
-    "--transition-rail-a-30": colorWithAlpha(palette.railA, 0.3),
-    "--transition-rail-a-25": colorWithAlpha(palette.railA, 0.25),
-    "--transition-rail-a-08": colorWithAlpha(palette.railA, 0.08),
-    "--transition-rail-b-30": colorWithAlpha(palette.railB, 0.3),
-    "--transition-rail-b-25": colorWithAlpha(palette.railB, 0.25),
-    "--transition-rail-b-20": colorWithAlpha(palette.railB, 0.2),
-    "--transition-glow-40": colorWithAlpha(palette.glow, 0.4),
-    "--transition-glow-30": colorWithAlpha(palette.glow, 0.3),
-    "--transition-center-80": colorWithAlpha(palette.center, 0.8),
-    "--transition-marker-90": colorWithAlpha(palette.marker, 0.9),
   } as CSSProperties;
 
   return (

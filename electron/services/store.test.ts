@@ -14,26 +14,6 @@ import {
   safeStoreSet,
 } from "./store";
 
-vi.mock("electron", () => ({
-  app: {
-    getPath: () => "/tmp/test-userData",
-    isPackaged: false,
-  },
-}));
-
-vi.mock("node:fs", () => ({
-  default: {
-    existsSync: () => false,
-    readFileSync: () => "{}",
-    writeFileSync: () => undefined,
-    mkdirSync: () => undefined,
-  },
-  existsSync: () => false,
-  readFileSync: () => "{}",
-  writeFileSync: () => undefined,
-  mkdirSync: () => undefined,
-}));
-
 class FakeStore {
   data: Record<string, unknown>;
   readable: boolean;
@@ -82,49 +62,31 @@ describe("store initialization", () => {
     vi.restoreAllMocks();
   });
 
-  it("replaces a synchronous fallback store when initStore derives the real key", async () => {
-    const fallbackStore = new FakeStore();
+  it("initializes the main store with the hardware-derived key", async () => {
     const derivedStore = new FakeStore();
-    let callCount = 0;
-    const factory = vi.fn((_key: string) => {
-      callCount++;
-      return asStore(callCount === 1 ? fallbackStore : derivedStore);
-    });
+    const factory = vi.fn(() => asStore(derivedStore));
+
+    __setStoreFactoryForTests(factory);
+    __setHardwareKeyDeriverForTests(async () => "hardware-derived-key");
+
+    await initStore();
+
+    expect(getStore()).toBe(asStore(derivedStore));
+    expect(factory).toHaveBeenCalledWith("hardware-derived-key");
+    expect(factory).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the old synchronous fallback behavior if getStore is used before initStore", async () => {
+    const fallbackStore = new FakeStore();
+    const factory = vi.fn(() => asStore(fallbackStore));
 
     __setStoreFactoryForTests(factory);
 
-    // First call creates the fallback store
     expect(getStore()).toBe(asStore(fallbackStore));
-
-    // initStore creates the derived store
     await initStore();
 
-    expect(getStore()).toBe(asStore(derivedStore));
-    expect(factory).toHaveBeenCalledTimes(2);
-  });
-
-  it("migrates settings written with the temporary startup key", async () => {
-    const fallbackStore = new FakeStore({ "app.locale": "de", "music.volume": 0.3 });
-    const derivedStore = new FakeStore({}, false);
-    let callCount = 0;
-
-    __setStoreFactoryForTests((_key: string) => {
-      callCount++;
-      // First call from getStore() → fallback, second from initStore → derived
-      return asStore(callCount <= 1 ? fallbackStore : derivedStore);
-    });
-
-    // Prime the fallback store
-    getStore();
-
-    await initStore();
-
-    expect(getStore()).toBe(asStore(derivedStore));
-    expect(derivedStore.data).toEqual({
-      "app.locale": "de",
-      "music.volume": 0.3,
-    });
-    expect(derivedStore.readable).toBe(true);
+    expect(getStore()).toBe(asStore(fallbackStore));
+    expect(factory).toHaveBeenCalledTimes(1);
   });
 
   it("safe helpers fall back when reads or writes throw", () => {
@@ -155,29 +117,4 @@ describe("store initialization", () => {
     expect(resolveSettingsStorePath()).toBe("/settings/f-land.json");
   });
 
-  it("migrates settings from a legacy hardware-derived key", async () => {
-    const hardwareStore = new FakeStore({ "app.locale": "fr", "music.volume": 0.7 });
-    const derivedStore = new FakeStore({}, false);
-    const fallbackStore = new FakeStore({}, false);
-    let callCount = 0;
-
-    __setStoreFactoryForTests((_key: string) => {
-      callCount++;
-      // 1st: derived (unreadable), 2nd: fallback (unreadable), 3rd: hardware (readable)
-      if (callCount === 1) return asStore(derivedStore);
-      if (callCount === 2) return asStore(fallbackStore);
-      return asStore(hardwareStore);
-    });
-
-    __setHardwareKeyDeriverForTests(async () => "hardware-derived-key");
-
-    await initStore();
-
-    expect(getStore()).toBe(asStore(derivedStore));
-    expect(derivedStore.data).toEqual({
-      "app.locale": "fr",
-      "music.volume": 0.7,
-    });
-    expect(derivedStore.readable).toBe(true);
-  });
 });

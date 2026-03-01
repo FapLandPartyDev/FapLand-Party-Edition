@@ -6,9 +6,11 @@ const mocks = vi.hoisted(() => ({
   clearAllData: vi.fn(async () => {}),
   backupDatabaseNow: vi.fn(async () => {}),
   backupSettingsNow: vi.fn(async () => {}),
+  createPlaintextSettingsFile: vi.fn(async () => {}),
   startNormally: vi.fn(async () => {}),
   setLogLevel: vi.fn(async () => {}),
   getDebugState: vi.fn(async () => ({ logLevel: "off", logFilePath: "" })),
+  openLogFolder: vi.fn(async () => {}),
 }));
 
 vi.mock("./services/db", () => ({
@@ -17,6 +19,7 @@ vi.mock("./services/db", () => ({
       clearAllData: mocks.clearAllData,
       backupDatabaseNow: mocks.backupDatabaseNow,
       backupSettingsNow: mocks.backupSettingsNow,
+      createPlaintextSettingsFile: mocks.createPlaintextSettingsFile,
     },
   },
 }));
@@ -26,6 +29,7 @@ vi.mock("./services/trpc", () => ({
     debug: {
       setLogLevel: { mutate: mocks.setLogLevel },
       getState: { query: mocks.getDebugState },
+      openLogFolder: { mutate: mocks.openLogFolder },
     },
   },
 }));
@@ -35,8 +39,10 @@ describe("RecoveryMode", () => {
     mocks.clearAllData.mockClear();
     mocks.backupDatabaseNow.mockClear();
     mocks.backupSettingsNow.mockClear();
+    mocks.createPlaintextSettingsFile.mockClear();
     mocks.startNormally.mockClear();
     mocks.setLogLevel.mockClear();
+    mocks.openLogFolder.mockClear();
     mocks.getDebugState.mockResolvedValue({ logLevel: "off", logFilePath: "" });
     window.electronAPI = {
       startupRecovery: {
@@ -103,6 +109,8 @@ describe("RecoveryMode", () => {
     expect(screen.getByLabelText("Log Level")).toBeDefined();
     expect(screen.getByRole("button", { name: "Backup Database" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Backup Settings" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Create Plaintext Settings File" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Open Log File" })).toBeDefined();
   });
 
   it("changes the log level when a new level is selected", async () => {
@@ -136,5 +144,26 @@ describe("RecoveryMode", () => {
       expect(mocks.backupSettingsNow).toHaveBeenCalled();
     });
     expect(screen.getByText("Settings backup created.")).toBeDefined();
+  });
+
+  it("creates a plaintext settings file", async () => {
+    render(<RecoveryMode />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create Plaintext Settings File" }));
+
+    await waitFor(() => {
+      expect(mocks.createPlaintextSettingsFile).toHaveBeenCalled();
+    });
+    expect(screen.getByText("Plaintext settings file created.")).toBeDefined();
+  });
+
+  it("opens the log file folder", async () => {
+    render(<RecoveryMode />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Log File" }));
+
+    await waitFor(() => {
+      expect(mocks.openLogFolder).toHaveBeenCalled();
+    });
   });
 });
