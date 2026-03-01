@@ -230,6 +230,8 @@ function buildLinearConfig(
       antiPerkIncreasePerRound: 0.015,
       maxIntermediaryProbability: 1,
       maxAntiPerkProbability: 0.75,
+      resetIntermediaryProbabilityAfterTrigger: false,
+      resetAntiPerkProbabilityAfterTrigger: false,
     },
     singlePlayer: {
       totalIndices,
@@ -378,6 +380,8 @@ function buildGraphConfig(
       antiPerkIncreasePerRound: 0.015,
       maxIntermediaryProbability: 1,
       maxAntiPerkProbability: 0.75,
+      resetIntermediaryProbabilityAfterTrigger: false,
+      resetAntiPerkProbabilityAfterTrigger: false,
     },
     singlePlayer: {
       totalIndices: Math.max(1, board.length - 1),
@@ -563,6 +567,8 @@ function buildEndlessConfig(
       antiPerkIncreasePerRound: 0.015,
       maxIntermediaryProbability: 1,
       maxAntiPerkProbability: 0.75,
+      resetIntermediaryProbabilityAfterTrigger: false,
+      resetAntiPerkProbabilityAfterTrigger: false,
     },
     singlePlayer: {
       totalIndices: Math.max(1, board.length - 1),

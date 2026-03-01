@@ -12,6 +12,7 @@ import { generateVideoPhash } from "./phash";
 import { getInstallScanStatus } from "./installer";
 import { resolveDirectPlayableResolution, type DirectPlayableResolution } from "./integrations";
 import { shouldDeferBackgroundWork } from "./rendererPerformance";
+import { debugLog } from "./debugLogging";
 
 export type PhashScanState = "idle" | "running" | "done" | "aborted" | "error";
 
@@ -164,10 +165,15 @@ async function runPhashScan(options: RunPhashScanOptions): Promise<void> {
     scanStatus.state = "done";
     scanStatus.finishedAt = new Date().toISOString();
     console.log("[PhashScan] No rounds without phash found. Scan finished.");
+    debugLog.info("phashScan", "No rounds without phash found");
     return;
   }
 
   console.log(`[PhashScan] Started ${options.mode} scanning ${roundsToProcess.length} rounds...`);
+  debugLog.info("phashScan", "Scan started", {
+    mode: options.mode,
+    totalCount: roundsToProcess.length,
+  });
 
   const db = getDb();
 
@@ -176,6 +182,7 @@ async function runPhashScan(options: RunPhashScanOptions): Promise<void> {
       scanStatus.state = "aborted";
       scanStatus.finishedAt = new Date().toISOString();
       console.log("[PhashScan] Scan aborted.");
+      debugLog.warn("phashScan", "Scan aborted", scanStatus);
       return;
     }
 
@@ -246,6 +253,11 @@ async function runPhashScan(options: RunPhashScanOptions): Promise<void> {
         error instanceof Error ? error.message : "Unknown error during phash generation.";
       pushScanError(row.roundId, row.roundName, message);
       scanStatus.skippedCount += 1;
+      debugLog.warn("phashScan", "Round phash generation failed", {
+        roundId: row.roundId,
+        roundName: row.roundName,
+        message,
+      });
       console.log(
         `[PhashScan] [${scanStatus.completedCount + scanStatus.skippedCount + scanStatus.failedCount}/${
           scanStatus.totalCount
@@ -254,6 +266,11 @@ async function runPhashScan(options: RunPhashScanOptions): Promise<void> {
     } finally {
       const duration = Date.now() - startTime;
       console.log(`[PhashScan] Finished processing round "${row.roundName}" in ${duration}ms.`);
+      debugLog.debug("phashScan", "Round processed", {
+        roundId: row.roundId,
+        roundName: row.roundName,
+        durationMs: duration,
+      });
     }
 
     await sleep(100);
@@ -262,6 +279,7 @@ async function runPhashScan(options: RunPhashScanOptions): Promise<void> {
   console.log(
     `[PhashScan] Finished scanning. Completed: ${scanStatus.completedCount}, Skipped: ${scanStatus.skippedCount}, Failed: ${scanStatus.failedCount}`
   );
+  debugLog.info("phashScan", "Scan finished", scanStatus);
   scanStatus.state = "done";
   scanStatus.finishedAt = new Date().toISOString();
   scanStatus.currentRoundName = null;
@@ -281,6 +299,7 @@ function launchPhashScanRun(options: RunPhashScanOptions): void {
         reason: message,
       });
       console.error(`[PhashScan] Scan failed: ${message}`);
+      debugLog.error("phashScan", "Scan failed", error);
     })
     .finally(() => {
       activeScanPromise = null;

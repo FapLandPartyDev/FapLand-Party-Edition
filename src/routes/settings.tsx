@@ -19,7 +19,16 @@ import {
   THEHANDY_OFFSET_MIN_MS,
   THEHANDY_OFFSET_STEP_MS,
 } from "../constants/theHandy";
-import { DEFAULT_INTIFACE_WEBSOCKET_URL } from "../constants/haptics";
+import {
+  DEFAULT_INTIFACE_WEBSOCKET_URL,
+  DEFAULT_TCODE_BAUD_RATE,
+  DEFAULT_TCODE_WEBSOCKET_HOST,
+  DEFAULT_TCODE_WEBSOCKET_URL,
+} from "../constants/haptics";
+import {
+  normalizeTCodeBaudRate,
+  normalizeTCodeWebSocketInput,
+} from "../services/haptics/tcodeConfig";
 import {
   DEFAULT_MUSIC_LOOP_MODE,
   DEFAULT_MUSIC_VOLUME,
@@ -164,6 +173,12 @@ import {
   normalizeUpdateChannel,
   type UpdateChannel,
 } from "../constants/updateSettings";
+import {
+  DEBUG_LOG_LEVELS,
+  DEBUG_LOG_LEVEL_KEY,
+  normalizeDebugLogLevel,
+  type DebugLogLevel,
+} from "../constants/debugSettings";
 import { CONVERTER_SHORTCUTS } from "../features/converter/shortcuts";
 import { formatStoragePathDisplay, isStoragePathResettable } from "../utils/storagePath";
 
@@ -187,6 +202,8 @@ const HANDY_USER_PORTAL_URL = "https://user.handyfeeling.com";
 type EroScriptsLoginStatus = Awaited<ReturnType<typeof trpc.eroscripts.getLoginStatus.query>>;
 type BinaryDiagnostics = Awaited<ReturnType<typeof trpc.binaries.getResolvedVersions.query>>;
 type BinaryDiagnosticEntry = BinaryDiagnostics["ffmpeg"];
+type DebugState = Awaited<ReturnType<typeof trpc.debug.getState.query>>;
+type DebugDiagnostics = Awaited<ReturnType<typeof trpc.debug.getDiagnostics.query>>;
 const SETTINGS_SECTION_IDS = [
   "general",
   "gameplay",
@@ -196,6 +213,7 @@ const SETTINGS_SECTION_IDS = [
   "security-privacy",
   "app",
   "advanced",
+  "debug",
   "experimental",
   "help",
   "changelog",
@@ -755,6 +773,16 @@ export function SettingsPage() {
   const [binaryDiagnosticsError, setBinaryDiagnosticsError] = useState<string | null>(null);
   const [isLoadingBinaryDiagnostics, setIsLoadingBinaryDiagnostics] = useState(true);
   const [isRefreshingBinaryDiagnostics, setIsRefreshingBinaryDiagnostics] = useState(false);
+  const [debugLogLevel, setDebugLogLevel] = useState<DebugLogLevel>("off");
+  const [debugState, setDebugState] = useState<DebugState | null>(null);
+  const [debugDiagnostics, setDebugDiagnostics] = useState<DebugDiagnostics | null>(null);
+  const [debugAllSettings, setDebugAllSettings] = useState<Record<string, unknown> | null>(null);
+  const [isLoadingDebug, setIsLoadingDebug] = useState(true);
+  const [isRefreshingDebug, setIsRefreshingDebug] = useState(false);
+  const [isCopyingDebug, setIsCopyingDebug] = useState(false);
+  const [isExportingDebug, setIsExportingDebug] = useState(false);
+  const [isClearingLog, setIsClearingLog] = useState(false);
+  const [debugMessage, setDebugMessage] = useState<string | null>(null);
 
   const [isUpdatingWebsiteVideoCacheRootPath, setIsUpdatingWebsiteVideoCacheRootPath] =
     useState(false);
@@ -805,6 +833,27 @@ export function SettingsPage() {
     }
   }, [t]);
 
+  const refreshDebugInfo = useCallback(async () => {
+    setIsRefreshingDebug(true);
+    try {
+      const [nextState, nextDiagnostics, nextAllSettings] = await Promise.all([
+        trpc.debug.getState.query(),
+        trpc.debug.getDiagnostics.query(),
+        trpc.debug.getAllSettings.query(),
+      ]);
+      setDebugState(nextState);
+      setDebugLogLevel(normalizeDebugLogLevel(nextState.logLevel));
+      setDebugDiagnostics(nextDiagnostics);
+      setDebugAllSettings(nextAllSettings);
+    } catch (error) {
+      console.error("Failed to load debug diagnostics", error);
+      setDebugMessage(error instanceof Error ? error.message : t`Failed to load debug info.`);
+    } finally {
+      setIsLoadingDebug(false);
+      setIsRefreshingDebug(false);
+    }
+  }, [t]);
+
   useEffect(() => {
     let mounted = true;
     const loadSettings = async () => {
@@ -839,6 +888,7 @@ export function SettingsPage() {
         MUSIC_CACHE_ROOT_PATH_KEY,
         FPACK_EXTRACTION_PATH_KEY,
         DEVICE_ANIMATION_TEST_ENABLED_KEY,
+        DEBUG_LOG_LEVEL_KEY,
       ];
 
       try {
@@ -885,6 +935,7 @@ export function SettingsPage() {
         const rawEroScriptsCacheRootPath = storeValues[EROSCRIPTS_CACHE_ROOT_PATH_KEY];
         const rawMusicCacheRootPath = storeValues[MUSIC_CACHE_ROOT_PATH_KEY];
         const rawFpackExtractionPath = storeValues[FPACK_EXTRACTION_PATH_KEY];
+        const rawDebugLogLevel = storeValues[DEBUG_LOG_LEVEL_KEY];
 
         setIsFullscreen(fullscreen);
         const nextPrompt =
@@ -979,6 +1030,7 @@ export function SettingsPage() {
             ? rawFpackExtractionPath.trim()
             : null
         );
+        setDebugLogLevel(normalizeDebugLogLevel(rawDebugLogLevel));
         setApplyPerkDirectly(
           rawApplyPerkDirectly === true || rawApplyPerkDirectly === "true"
             ? true
@@ -1007,6 +1059,10 @@ export function SettingsPage() {
   useEffect(() => {
     void refreshBinaryDiagnostics();
   }, [refreshBinaryDiagnostics]);
+
+  useEffect(() => {
+    void refreshDebugInfo();
+  }, [refreshDebugInfo]);
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.eroscripts.subscribeToLoginStatus((status) => {
@@ -1539,6 +1595,41 @@ export function SettingsPage() {
         ],
       },
       {
+        id: "debug",
+        icon: "🐞",
+        title: t`Debug`,
+        description: t`Logging, diagnostics, and public-safe support information.`,
+        settings: [
+          {
+            id: "debug-log-level",
+            type: "select",
+            label: t`Log Level`,
+            description: t`Controls how much diagnostic information is written to the local log file.`,
+            value: debugLogLevel,
+            options: DEBUG_LOG_LEVELS.map((level) => ({
+              value: level,
+              label:
+                level === "off"
+                  ? t`Off`
+                  : level === "error"
+                    ? t`Error`
+                    : level === "warn"
+                      ? t`Warn`
+                      : level === "info"
+                        ? t`Info`
+                        : t`Debug`,
+            })),
+            onChange: async (next: string) => {
+              const level = normalizeDebugLogLevel(next);
+              await trpc.debug.setLogLevel.mutate({ level });
+              setDebugLogLevel(level);
+              setDebugMessage(t`Debug log level updated.`);
+              await refreshDebugInfo();
+            },
+          },
+        ],
+      },
+      {
         id: "experimental",
         icon: "🧪",
         title: t`Experimental`,
@@ -1687,6 +1778,8 @@ export function SettingsPage() {
       showToast,
       t,
       refreshBinaryDiagnostics,
+      debugLogLevel,
+      refreshDebugInfo,
     ]
   );
   const [activeSectionId, setActiveSectionId] = useState<SettingsSectionId>(
@@ -2000,6 +2093,69 @@ export function SettingsPage() {
     }
   };
 
+  const copyDebugInfo = async () => {
+    if (isCopyingDebug) return;
+    setIsCopyingDebug(true);
+    setDebugMessage(null);
+    try {
+      const result = await trpc.debug.copyDebugBundle.mutate();
+      setDebugMessage(t`Debug info copied.`);
+      showToast(t`Debug info copied.`, "success");
+      if (result.bytes > 0) {
+        await refreshDebugInfo();
+      }
+    } catch (error) {
+      console.error("Failed to copy debug info", error);
+      setDebugMessage(error instanceof Error ? error.message : t`Failed to copy debug info.`);
+    } finally {
+      setIsCopyingDebug(false);
+    }
+  };
+
+  const exportDebugFile = async () => {
+    if (isExportingDebug) return;
+    setIsExportingDebug(true);
+    setDebugMessage(null);
+    try {
+      const result = await trpc.debug.exportDebugBundle.mutate();
+      setDebugMessage(result.anonymizedFilePath ? t`Debug file exported.` : t`Export cancelled.`);
+      if (result.anonymizedFilePath) {
+        showToast(t`Debug file exported.`, "success");
+      }
+      await refreshDebugInfo();
+    } catch (error) {
+      console.error("Failed to export debug file", error);
+      setDebugMessage(error instanceof Error ? error.message : t`Failed to export debug file.`);
+    } finally {
+      setIsExportingDebug(false);
+    }
+  };
+
+  const openDebugLogFolder = async () => {
+    try {
+      await trpc.debug.openLogFolder.mutate();
+    } catch (error) {
+      console.error("Failed to open debug log folder", error);
+      setDebugMessage(error instanceof Error ? error.message : t`Failed to open log folder.`);
+    }
+  };
+
+  const clearDebugLog = async () => {
+    if (isClearingLog) return;
+    setIsClearingLog(true);
+    setDebugMessage(null);
+    try {
+      await trpc.debug.clearLogFile.mutate();
+      setDebugMessage(t`Log file cleared.`);
+      await refreshDebugInfo();
+    } catch (error) {
+      console.error("Failed to clear debug log", error);
+      setDebugMessage(error instanceof Error ? error.message : t`Failed to clear log file.`);
+    } finally {
+      setIsClearingLog(false);
+    }
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden">
       <AnimatedBackground quality="minimal" />
@@ -2271,6 +2427,39 @@ export function SettingsPage() {
                     }}
                   />
                 </>
+              ) : activeSection && activeSection.id === "debug" ? (
+                <DebugSettingsCard
+                  section={activeSection}
+                  loading={isInitialLoading || isLoadingDebug}
+                  debugState={debugState}
+                  diagnostics={debugDiagnostics}
+                  allSettings={debugAllSettings}
+                  message={debugMessage}
+                  isRefreshing={isRefreshingDebug}
+                  isCopying={isCopyingDebug}
+                  isExporting={isExportingDebug}
+                  isClearing={isClearingLog}
+                  onRefresh={() => {
+                    playSelectSound();
+                    void refreshDebugInfo();
+                  }}
+                  onCopy={() => {
+                    playSelectSound();
+                    void copyDebugInfo();
+                  }}
+                  onExport={() => {
+                    playSelectSound();
+                    void exportDebugFile();
+                  }}
+                  onOpenLogFolder={() => {
+                    playSelectSound();
+                    void openDebugLogFolder();
+                  }}
+                  onClearLog={() => {
+                    playSelectSound();
+                    void clearDebugLog();
+                  }}
+                />
               ) : activeSection && activeSection.id === "credits" ? (
                 <CreditsCard />
               ) : activeSection ? (
@@ -2292,147 +2481,7 @@ export function SettingsPage() {
           </main>
         </div>
       </div>
-
-      <SelectiveClearDialog
-        isOpen={isClearDataDialogOpen}
-        isPending={isClearingData}
-        selections={clearSelections}
-        onSelectionChange={(next) => setClearSelections(next)}
-        onCancel={() => {
-          if (isClearingData) return;
-          playSelectSound();
-          setIsClearDataDialogOpen(false);
-        }}
-        onConfirm={() => {
-          playSelectSound();
-          void clearData();
-        }}
-      />
-      <CheatModeConfirmDialog
-        isOpen={isCheatModeConfirmDialogOpen}
-        onCancel={() => {
-          playSelectSound();
-          setIsCheatModeConfirmDialogOpen(false);
-        }}
-        onConfirm={async () => {
-          playSelectSound();
-          await trpc.store.set.mutate({ key: CHEAT_MODE_ENABLED_KEY, value: true });
-          setCheatModeEnabled(true);
-          window.dispatchEvent(
-            new CustomEvent<boolean>(CHEAT_MODE_ENABLED_EVENT, { detail: true })
-          );
-          setIsCheatModeConfirmDialogOpen(false);
-        }}
-      />
-      <SkipRoundsCheckConfirmDialog
-        isOpen={isSkipRoundsCheckDialogOpen}
-        onCancel={() => {
-          playSelectSound();
-          setIsSkipRoundsCheckDialogOpen(false);
-        }}
-        onConfirm={async () => {
-          playSelectSound();
-          await trpc.store.set.mutate({ key: MULTIPLAYER_SKIP_ROUNDS_CHECK_KEY, value: true });
-          setMultiplayerSkipRoundsCheck(true);
-          window.dispatchEvent(
-            new CustomEvent<boolean>(MULTIPLAYER_SKIP_ROUNDS_CHECK_EVENT, { detail: true })
-          );
-          setIsSkipRoundsCheckDialogOpen(false);
-        }}
-      />
     </div>
-  );
-}
-function FpackExtractionLocationCard({
-  configuredPath,
-  isLoading,
-  isPending,
-  isOpening,
-  onChooseFolder,
-  onOpenCurrentLocation,
-  onReset,
-}: {
-  configuredPath: string | null;
-  isLoading: boolean;
-  isPending: boolean;
-  isOpening: boolean;
-  onChooseFolder: () => void;
-  onOpenCurrentLocation: () => void;
-  onReset: () => void;
-}) {
-  const { t } = useLingui();
-
-  return (
-    <section
-      className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl"
-      style={{ animationDelay: "0.1s" }}
-    >
-      <div className="mb-4">
-        <h2 className="text-lg font-extrabold tracking-tight text-violet-100">
-          <Trans>.fpack Extraction Location</Trans>
-        </h2>
-        <p className="mt-1 text-sm text-zinc-300">
-          <Trans>
-            Store extracted content from .fpack files in a persistent folder. This ensures that
-            rounds referring to extracted media remain playable across app restarts.
-          </Trans>
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-violet-300/25 bg-black/35 p-4">
-        <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-          <Trans>Current Location</Trans>
-        </div>
-        <div className="mt-2 break-all font-[family-name:var(--font-jetbrains-mono)] text-sm text-zinc-100">
-          {isLoading
-            ? t`Loading...`
-            : formatStoragePathDisplay(configuredPath, t`Default app data folder (persistent)`)}
-        </div>
-        <p className="mt-2 text-xs text-zinc-500">
-          <Trans>
-            Changing this only affects future .fpack extractions. Existing extracted files are not
-            moved automatically.
-          </Trans>
-        </p>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={isLoading || isPending}
-            onMouseEnter={playHoverSound}
-            onClick={onChooseFolder}
-            className="rounded-xl border border-violet-300/60 bg-violet-500/30 px-4 py-2 text-sm font-semibold text-violet-100 transition hover:border-violet-200/80 hover:bg-violet-500/45 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isPending ? t`Updating...` : t`Choose Folder`}
-          </button>
-          <button
-            type="button"
-            disabled={isLoading || isPending || isOpening}
-            onMouseEnter={playHoverSound}
-            onClick={onOpenCurrentLocation}
-            className="rounded-xl border border-cyan-300/60 bg-cyan-500/20 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/80 hover:bg-cyan-500/35 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isOpening ? t`Opening...` : t`Open Current Folder`}
-          </button>
-          <button
-            type="button"
-            disabled={
-              isLoading ||
-              isPending ||
-              !isStoragePathResettable(
-                configuredPath,
-                PORTABLE_DEFAULTS.get(FPACK_EXTRACTION_PATH_KEY) ?? null
-              )
-            }
-            onMouseEnter={playHoverSound}
-            onClick={onReset}
-            className="rounded-xl border border-zinc-500/60 bg-zinc-700/40 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-300/70 hover:bg-zinc-700/60 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Trans>Use Default</Trans>
-          </button>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -3395,6 +3444,14 @@ function HardwareSettingsCard({
     intifaceWebsocketUrl,
     intifaceDeviceName,
     intifaceDeviceIndex,
+    tcodeTransport,
+    tcodeSerialPath,
+    tcodeBaudRate,
+    tcodeWebsocketHost,
+    tcodeWebsocketUrl,
+    tcodePrecision,
+    tcodeSerialPorts,
+    tcodeSerialPortsLoading,
     offsetMs,
     strokeMin,
     strokeMax,
@@ -3412,6 +3469,8 @@ function HardwareSettingsCard({
     error,
     connect,
     connectIntiface,
+    connectTCode,
+    refreshTCodeSerialPorts,
     disconnect,
     forceStop,
     startTestDevice,
@@ -3424,6 +3483,11 @@ function HardwareSettingsCard({
   const [inputKey, setInputKey] = useState(connectionKey);
   const [inputApiKeyOverride, setInputApiKeyOverride] = useState(appApiKeyOverride);
   const [inputIntifaceUrl, setInputIntifaceUrl] = useState(intifaceWebsocketUrl);
+  const [inputTCodeTransport, setInputTCodeTransport] = useState(tcodeTransport);
+  const [inputTCodeSerialPath, setInputTCodeSerialPath] = useState(tcodeSerialPath);
+  const [inputTCodeBaudRate, setInputTCodeBaudRate] = useState(String(tcodeBaudRate));
+  const [inputTCodeHost, setInputTCodeHost] = useState(tcodeWebsocketHost);
+  const [inputTCodePrecision, setInputTCodePrecision] = useState<3 | 4>(tcodePrecision);
   const [useCustomApiKey, setUseCustomApiKey] = useState(!isUsingDefaultAppApiKey);
   const [strokeMinSliderValue, setStrokeMinSliderValue] = useState(
     formatHandyStrokeBoundPercent(strokeMin)
@@ -3445,9 +3509,24 @@ function HardwareSettingsCard({
       setInputKey(connectionKey);
       setInputApiKeyOverride(appApiKeyOverride);
       setInputIntifaceUrl(intifaceWebsocketUrl);
+      setInputTCodeTransport(tcodeTransport);
+      setInputTCodeSerialPath(tcodeSerialPath);
+      setInputTCodeBaudRate(String(tcodeBaudRate));
+      setInputTCodeHost(tcodeWebsocketHost);
+      setInputTCodePrecision(tcodePrecision);
       setUseCustomApiKey(!isUsingDefaultAppApiKey);
     });
-  }, [appApiKeyOverride, connectionKey, intifaceWebsocketUrl, isUsingDefaultAppApiKey]);
+  }, [
+    appApiKeyOverride,
+    connectionKey,
+    intifaceWebsocketUrl,
+    isUsingDefaultAppApiKey,
+    tcodeBaudRate,
+    tcodePrecision,
+    tcodeSerialPath,
+    tcodeTransport,
+    tcodeWebsocketHost,
+  ]);
 
   useEffect(() => {
     if (!testDeviceRunning) return;
@@ -3470,9 +3549,27 @@ function HardwareSettingsCard({
       await connectIntiface(inputIntifaceUrl);
       return;
     }
+    if (provider === "tcode") {
+      await connectTCode({
+        transport: inputTCodeTransport,
+        serialPath: inputTCodeSerialPath,
+        baudRate: normalizeTCodeBaudRate(inputTCodeBaudRate),
+        websocketInput: inputTCodeHost,
+        precision: inputTCodePrecision,
+      });
+      return;
+    }
 
     await connect(inputKey, "", useCustomApiKey ? inputApiKeyOverride : "");
   };
+
+  const tcodeDerivedUrl = (() => {
+    try {
+      return normalizeTCodeWebSocketInput(inputTCodeHost).url;
+    } catch {
+      return DEFAULT_TCODE_WEBSOCKET_URL;
+    }
+  })();
 
   const testElapsedMs =
     testDeviceRunning && testDeviceStartedAtMs !== null
@@ -3519,7 +3616,7 @@ function HardwareSettingsCard({
           </div>
 
           <div className="space-y-4 text-left">
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-3">
               <button
                 type="button"
                 disabled={connected || isConnecting}
@@ -3549,6 +3646,21 @@ function HardwareSettingsCard({
                 }`}
               >
                 <Trans>Intiface</Trans>
+              </button>
+              <button
+                type="button"
+                disabled={connected || isConnecting}
+                onClick={() => {
+                  playSelectSound();
+                  void setProvider("tcode");
+                }}
+                className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                  provider === "tcode"
+                    ? "border-emerald-300/60 bg-emerald-500/25 text-emerald-100"
+                    : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
+                }`}
+              >
+                <Trans>TCode</Trans>
               </button>
             </div>
 
@@ -3594,6 +3706,148 @@ function HardwareSettingsCard({
                       {intifaceDeviceIndex !== null ? `#${intifaceDeviceIndex}` : ""}
                     </p>
                   ) : null}
+                </div>
+              </div>
+            ) : provider === "tcode" ? (
+              <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-4">
+                <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+                  <p className="font-bold uppercase tracking-wider">
+                    <Trans>Experimental Support</Trans>
+                  </p>
+                  <p className="mt-1">
+                    <Trans>
+                      TCode support streams the primary funscript to the L0 axis of OSR/SR-style
+                      devices.
+                    </Trans>
+                  </p>
+                </div>
+
+                <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    disabled={connected || isConnecting}
+                    onClick={() => setInputTCodeTransport("websocket")}
+                    className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] transition-colors disabled:opacity-50 ${
+                      inputTCodeTransport === "websocket"
+                        ? "border-emerald-300/60 bg-emerald-500/25 text-emerald-100"
+                        : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
+                    }`}
+                  >
+                    <Trans>WebSocket</Trans>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={connected || isConnecting}
+                    onClick={() => {
+                      setInputTCodeTransport("serial");
+                      void refreshTCodeSerialPorts();
+                    }}
+                    className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] transition-colors disabled:opacity-50 ${
+                      inputTCodeTransport === "serial"
+                        ? "border-emerald-300/60 bg-emerald-500/25 text-emerald-100"
+                        : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
+                    }`}
+                  >
+                    <Trans>Serial</Trans>
+                  </button>
+                </div>
+
+                {inputTCodeTransport === "websocket" ? (
+                  <div className="flex flex-col gap-2">
+                    <label
+                      className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                      htmlFor="settings-tcode-host"
+                    >
+                      <Trans>Device IP / Host</Trans>
+                    </label>
+                    <input
+                      id="settings-tcode-host"
+                      type="text"
+                      value={inputTCodeHost}
+                      onChange={(event) => setInputTCodeHost(event.target.value)}
+                      placeholder={DEFAULT_TCODE_WEBSOCKET_HOST}
+                      disabled={connected || isConnecting}
+                      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+                    />
+                    <p className="ml-1 text-xs text-zinc-400">
+                      <Trans>Derived WebSocket URL</Trans>: {tcodeDerivedUrl}
+                    </p>
+                    {tcodeWebsocketUrl ? (
+                      <p className="ml-1 text-xs text-emerald-100">
+                        <Trans>Saved TCode URL</Trans>: {tcodeWebsocketUrl}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                    <div className="flex flex-col gap-2">
+                      <label
+                        className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                        htmlFor="settings-tcode-serial-port"
+                      >
+                        <Trans>Serial Port</Trans>
+                      </label>
+                      <select
+                        id="settings-tcode-serial-port"
+                        value={inputTCodeSerialPath}
+                        onChange={(event) => setInputTCodeSerialPath(event.target.value)}
+                        disabled={connected || isConnecting}
+                        className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+                      >
+                        <option value="">{t`Select serial port`}</option>
+                        {tcodeSerialPorts.map((port) => (
+                          <option key={port.path} value={port.path}>
+                            {port.path}
+                            {port.manufacturer ? ` (${port.manufacturer})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={connected || isConnecting || tcodeSerialPortsLoading}
+                      onClick={() => void refreshTCodeSerialPorts()}
+                      className="self-end rounded-xl border border-emerald-300/40 bg-emerald-500/15 px-4 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-emerald-100 transition-colors hover:bg-emerald-500/25 disabled:opacity-50"
+                    >
+                      {tcodeSerialPortsLoading ? t`Refreshing...` : t`Refresh`}
+                    </button>
+                    <div className="flex flex-col gap-2 sm:col-span-2">
+                      <label
+                        className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                        htmlFor="settings-tcode-baud-rate"
+                      >
+                        <Trans>Baud Rate</Trans>
+                      </label>
+                      <input
+                        id="settings-tcode-baud-rate"
+                        type="number"
+                        value={inputTCodeBaudRate}
+                        onChange={(event) => setInputTCodeBaudRate(event.target.value)}
+                        placeholder={String(DEFAULT_TCODE_BAUD_RATE)}
+                        disabled={connected || isConnecting}
+                        className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 flex flex-col gap-2">
+                  <label
+                    className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                    htmlFor="settings-tcode-precision"
+                  >
+                    <Trans>TCode Version</Trans>
+                  </label>
+                  <select
+                    id="settings-tcode-precision"
+                    value={inputTCodePrecision}
+                    onChange={(event) => setInputTCodePrecision(event.target.value === "3" ? 3 : 4)}
+                    disabled={connected || isConnecting}
+                    className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+                  >
+                    <option value={4}>{t`TCode v0.3 / 4 digit`}</option>
+                    <option value={3}>{t`TCode v0.2 / 3 digit`}</option>
+                  </select>
                 </div>
               </div>
             ) : (
@@ -6164,6 +6418,190 @@ function ProgramVersionsCard({
             </div>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+function formatBytes(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "0 B";
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function compactJson(value: unknown): string {
+  return JSON.stringify(value, null, 2);
+}
+
+function DebugSettingsCard({
+  section,
+  loading,
+  debugState,
+  diagnostics,
+  allSettings,
+  message,
+  isRefreshing,
+  isCopying,
+  isExporting,
+  isClearing,
+  onRefresh,
+  onCopy,
+  onExport,
+  onOpenLogFolder,
+  onClearLog,
+}: {
+  section: SettingsSection;
+  loading: boolean;
+  debugState: DebugState | null;
+  diagnostics: DebugDiagnostics | null;
+  allSettings: Record<string, unknown> | null;
+  message: string | null;
+  isRefreshing: boolean;
+  isCopying: boolean;
+  isExporting: boolean;
+  isClearing: boolean;
+  onRefresh: () => void;
+  onCopy: () => void;
+  onExport: () => void;
+  onOpenLogFolder: () => void;
+  onClearLog: () => void;
+}) {
+  const { t } = useLingui();
+  const actionDisabled = loading || isRefreshing || isCopying || isExporting || isClearing;
+  const groups = diagnostics
+    ? [
+        { title: t`App`, value: diagnostics.app },
+        { title: t`Storage`, value: diagnostics.storage },
+        { title: t`Hardware`, value: diagnostics.hardware },
+        { title: t`Database`, value: diagnostics.database },
+        { title: t`Background Jobs`, value: diagnostics.runtime },
+      ]
+    : [];
+
+  return (
+    <section
+      className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl"
+      style={{ animationDelay: "0.08s" }}
+    >
+      <div className="mb-4">
+        <h2 className="text-lg font-extrabold tracking-tight text-violet-100">{section.title}</h2>
+        <p className="mt-1 text-sm text-zinc-300">{section.description}</p>
+      </div>
+
+      <div className="space-y-3">
+        {section.settings.map((setting) => (
+          <SettingRow key={setting.id} setting={setting} disabled={loading} />
+        ))}
+
+        <div
+          className="rounded-2xl border border-violet-300/25 bg-black/35 p-4 transition-colors duration-200 hover:border-violet-300/45"
+          onMouseEnter={playHoverSound}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                <Trans>Log File</Trans>
+              </div>
+              <div className="mt-1 break-all font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-300">
+                {debugState?.anonymizedLogFilePath ?? t`Loading...`}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                <Trans>Size</Trans>
+              </div>
+              <div className="mt-1 text-sm font-semibold text-zinc-100">
+                {formatBytes(debugState?.logFileSizeBytes)}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-5">
+            <button
+              type="button"
+              disabled={actionDisabled}
+              onClick={onCopy}
+              className="rounded-xl border border-violet-300/60 bg-violet-500/30 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:border-violet-200/80 hover:bg-violet-500/45 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isCopying ? t`Copying...` : t`Copy Debug Info`}
+            </button>
+            <button
+              type="button"
+              disabled={actionDisabled}
+              onClick={onExport}
+              className="rounded-xl border border-cyan-300/55 bg-cyan-500/20 px-3 py-2 text-xs font-semibold text-cyan-100 transition hover:border-cyan-200/80 hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isExporting ? t`Exporting...` : t`Export Debug File`}
+            </button>
+            <button
+              type="button"
+              disabled={actionDisabled}
+              onClick={onOpenLogFolder}
+              className="rounded-xl border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Trans>Open Log Folder</Trans>
+            </button>
+            <button
+              type="button"
+              disabled={actionDisabled}
+              onClick={onClearLog}
+              className="rounded-xl border border-rose-300/45 bg-rose-500/15 px-3 py-2 text-xs font-semibold text-rose-100 transition hover:border-rose-200/70 hover:bg-rose-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isClearing ? t`Clearing...` : t`Clear Log File`}
+            </button>
+            <button
+              type="button"
+              disabled={actionDisabled}
+              onClick={onRefresh}
+              className="rounded-xl border border-zinc-600 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isRefreshing ? t`Refreshing...` : t`Refresh`}
+            </button>
+          </div>
+
+          {message ? (
+            <p className="mt-3 rounded-xl border border-cyan-400/25 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-100">
+              {message}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="rounded-2xl border border-violet-300/25 bg-black/35 p-4">
+          <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-zinc-100">
+            <Trans>Debug Information</Trans>
+          </h3>
+          {loading && !diagnostics ? (
+            <p className="mt-3 text-sm text-zinc-400">{t`Loading...`}</p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {groups.map((group) => (
+                <details
+                  key={group.title}
+                  className="rounded-xl border border-zinc-700/70 bg-zinc-950/80 p-3"
+                  open={group.title === t`App` || group.title === t`Storage`}
+                >
+                  <summary className="cursor-pointer text-sm font-semibold text-violet-100">
+                    {group.title}
+                  </summary>
+                  <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap break-words font-[family-name:var(--font-jetbrains-mono)] text-[11px] leading-relaxed text-zinc-300">
+                    {compactJson(group.value)}
+                  </pre>
+                </details>
+              ))}
+              {diagnostics?.collectionErrors.length ? (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
+                  <p className="font-semibold uppercase tracking-[0.16em]">
+                    <Trans>Collection Errors</Trans>
+                  </p>
+                  <pre className="mt-2 whitespace-pre-wrap break-words font-[family-name:var(--font-jetbrains-mono)]">
+                    {compactJson(diagnostics.collectionErrors)}
+                  </pre>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );

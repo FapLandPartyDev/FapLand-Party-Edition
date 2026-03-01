@@ -346,6 +346,13 @@ export function RoundVideoOverlay({
     intifaceWebsocketUrl,
     intifaceDeviceName,
     intifaceDeviceIndex,
+    tcodeTransport,
+    tcodeSerialPath,
+    tcodeBaudRate,
+    tcodeWebsocketHost,
+    tcodeWebsocketUrl,
+    tcodePrecision,
+    tcodeAxis,
     offsetMs,
     strokeMin,
     strokeMax,
@@ -772,6 +779,24 @@ export function RoundVideoOverlay({
         },
       };
     }
+    if (hapticsProvider === "tcode") {
+      return {
+        provider: "tcode",
+        transport: tcodeTransport,
+        serialPath: tcodeSerialPath,
+        baudRate: tcodeBaudRate,
+        websocketHost: tcodeWebsocketHost,
+        websocketUrl: tcodeWebsocketUrl,
+        precision: tcodePrecision,
+        axis: tcodeAxis,
+        stroke: {
+          min: strokeMin,
+          max: strokeMax,
+          minAbsolute: null,
+          maxAbsolute: null,
+        },
+      };
+    }
 
     return {
       provider: "thehandy",
@@ -791,9 +816,20 @@ export function RoundVideoOverlay({
     localIp,
     strokeMax,
     strokeMin,
+    tcodeAxis,
+    tcodeBaudRate,
+    tcodePrecision,
+    tcodeSerialPath,
+    tcodeTransport,
+    tcodeWebsocketHost,
+    tcodeWebsocketUrl,
   ]);
   const hasRequiredHapticsConnection =
     hapticsProvider === "intiface" ||
+    (hapticsProvider === "tcode" &&
+      (tcodeTransport === "serial"
+        ? tcodeSerialPath.trim().length > 0
+        : tcodeWebsocketUrl.trim().length > 0)) ||
     (connectionKey.trim().length > 0 && appApiKey.trim().length > 0);
   const hapticsPushIntervalMs =
     hapticsProvider === "intiface" ? INTIFACE_PUSH_INTERVAL_MS : HANDY_PUSH_INTERVAL_MS;
@@ -1344,7 +1380,7 @@ export function RoundVideoOverlay({
     }
 
     if (shouldGatePlaybackForHandyStart) {
-      setStatus(t`Waiting for TheHandy sync before playback...`);
+      setStatus(t`Waiting for haptics sync before playback...`);
       return;
     }
     if (!video.paused) return;
@@ -3391,12 +3427,18 @@ export function RoundVideoOverlay({
     );
   }
 
+  const hapticsProviderLabel =
+    hapticsProvider === "intiface"
+      ? "Intiface"
+      : hapticsProvider === "tcode"
+        ? "TCode"
+        : "TheHandy";
   const handyStatusLabel = !handyConnected
     ? t`Disconnected`
     : handyManuallyStopped
       ? t`Stopped`
       : handySyncState === "missing-key"
-        ? t`Missing API Key`
+        ? t`Missing Settings`
         : handySyncState === "synced"
           ? t`Synced`
           : handySyncState === "error"
@@ -3579,7 +3621,7 @@ export function RoundVideoOverlay({
               type="button"
               data-controller-focus-id="round-overlay-handy-menu"
             >
-              {t`Handy Menu`}
+              {t`Haptics Menu`}
             </button>
             {canUseRoundControls && (
               <>
@@ -3663,14 +3705,14 @@ export function RoundVideoOverlay({
                 }
                 void toggleManualStop().then((result) => {
                   if (result === "resumed") {
-                    setStatus(t`TheHandy resumed.`);
+                    setStatus(t`Haptics resumed.`);
                     return;
                   }
                   if (result === "stopped") {
-                    setStatus(t`TheHandy stopped manually.`);
+                    setStatus(t`Haptics stopped manually.`);
                     return;
                   }
-                  setStatus(t`No connected TheHandy to toggle.`);
+                  setStatus(t`No connected haptics device to toggle.`);
                 });
               }}
               onMouseEnter={() => playHoverSound()}
@@ -3678,7 +3720,7 @@ export function RoundVideoOverlay({
               data-controller-focus-id="round-overlay-handy-toggle"
               data-controller-initial="true"
             >
-              {handyManuallyStopped ? t`Resume Handy` : t`Force Stop`}
+              {handyManuallyStopped ? t`Resume Haptics` : t`Force Stop`}
             </button>
             {onRequestCum && (
               <button
@@ -4079,7 +4121,7 @@ export function RoundVideoOverlay({
                   className="font-[family-name:var(--font-jetbrains-mono)] text-[11px] uppercase tracking-[0.32em] text-cyan-200/95"
                   style={{ animation: "handySyncGlow 1.6s ease-in-out infinite" }}
                 >
-                  {t`TheHandy Linkup`}
+                  {t`Haptics Linkup`}
                 </p>
                 <h3 className="mt-2 text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-100 via-sky-100 to-indigo-100 sm:text-4xl">
                   {t`Waiting For Device Sync`}
@@ -4381,7 +4423,7 @@ export function RoundVideoOverlay({
               <div
                 className={`pointer-events-none absolute bottom-3 right-3 z-40 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] backdrop-blur transition-opacity duration-250 ${handyStatusTone} ${isUiVisible ? "opacity-100" : "opacity-0"}`}
               >
-                {t`TheHandy ${handyStatusLabel}`}
+                {hapticsProviderLabel} {handyStatusLabel}
               </div>
               {handySyncError && (
                 <div

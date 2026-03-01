@@ -42,6 +42,10 @@ function createManualChunks(id: string): string | undefined {
   return undefined;
 }
 
+function isElectronMainExternalDependency(id: string): boolean {
+  return id === "@libsql/client" || id === "serialport" || id.startsWith("@serialport/");
+}
+
 function generateLicensesPlugin() {
   return {
     name: "generate-licenses",
@@ -165,7 +169,7 @@ export default defineConfig(({ command, mode }) => {
               target: "node24",
               terserOptions: isReleaseBuild ? releaseTerserOptions : undefined,
               rollupOptions: {
-                external: ["@libsql/client"],
+                external: isElectronMainExternalDependency,
                 plugins: mainObfuscationPlugin ? [mainObfuscationPlugin] : [],
               },
             },

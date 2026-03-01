@@ -6,7 +6,14 @@ import { BACKGROUND_VIDEO_ENABLED_KEY } from "../constants/backgroundSettings";
 import { DEFAULT_INTERMEDIARY_LOADING_PROMPT } from "../constants/booruSettings";
 import { EROSCRIPTS_CACHE_ROOT_PATH_KEY } from "../constants/eroscriptsSettings";
 import type { EroScriptsLoginStatus } from "../services/eroscripts";
-import { DEFAULT_INTIFACE_WEBSOCKET_URL } from "../constants/haptics";
+import {
+  DEFAULT_INTIFACE_WEBSOCKET_URL,
+  DEFAULT_TCODE_BAUD_RATE,
+  DEFAULT_TCODE_WEBSOCKET_HOST,
+  DEFAULT_TCODE_WEBSOCKET_URL,
+} from "../constants/haptics";
+import { normalizeTCodeWebSocketInput } from "../services/haptics/tcodeConfig";
+import type { TCodePrecision, TCodeTransportKind } from "../services/haptics/types";
 import { FPACK_EXTRACTION_PATH_KEY } from "../constants/fpackSettings";
 import { MUSIC_CACHE_ROOT_PATH_KEY } from "../constants/musicSettings";
 import {
@@ -308,7 +315,7 @@ function getStepDescription(id: string): string {
       return i18n._({
         id: "first-start.step.handy.description",
         message:
-          "Connect a haptics device for synchronized motion support. TheHandy is preferred, but experimental Intiface support is also available. This is optional but enhances the experience.",
+          "Connect a haptics device for synchronized motion support. TheHandy, Intiface, and TCode are available. This is optional but enhances the experience.",
       });
     case "booru":
       return i18n._({
@@ -605,9 +612,19 @@ function FirstStartPage() {
     setProvider: setHandyProvider,
     intifaceWebsocketUrl,
     intifaceDeviceName,
+    tcodeWebsocketHost,
+    tcodeWebsocketUrl,
+    tcodeTransport,
+    tcodeSerialPath,
+    tcodeBaudRate,
+    tcodePrecision,
+    tcodeSerialPorts,
+    tcodeSerialPortsLoading,
     connect: handyConnect,
     connectIntiface: handyConnectIntiface,
+    connectTCode: handyConnectTCode,
     disconnect: handyDisconnect,
+    refreshTCodeSerialPorts,
   } = useHandy();
   const [stepIndex, setStepIndex] = useState(0);
   const [isBusy, setIsBusy] = useState(false);
@@ -648,6 +665,11 @@ function FirstStartPage() {
   const [contentKey, setContentKey] = useState(0);
   const [handyInputKey, setHandyInputKey] = useState("");
   const [inputIntifaceUrl, setInputIntifaceUrl] = useState(intifaceWebsocketUrl);
+  const [inputTCodeHost, setInputTCodeHost] = useState(tcodeWebsocketHost);
+  const [inputTCodeTransport, setInputTCodeTransport] = useState<TCodeTransportKind>(tcodeTransport);
+  const [inputTCodeSerialPath, setInputTCodeSerialPath] = useState(tcodeSerialPath);
+  const [inputTCodeBaudRate, setInputTCodeBaudRate] = useState(String(tcodeBaudRate));
+  const [inputTCodePrecision, setInputTCodePrecision] = useState<TCodePrecision>(tcodePrecision);
   const [eroscriptsLoginStatus, setEroScriptsLoginStatus] = useState<EroScriptsLoginStatus | null>(
     null
   );
@@ -659,7 +681,12 @@ function FirstStartPage() {
 
   useEffect(() => {
     setInputIntifaceUrl(intifaceWebsocketUrl);
-  }, [intifaceWebsocketUrl]);
+    setInputTCodeHost(tcodeWebsocketHost);
+    setInputTCodeTransport(tcodeTransport);
+    setInputTCodeSerialPath(tcodeSerialPath);
+    setInputTCodeBaudRate(String(tcodeBaudRate));
+    setInputTCodePrecision(tcodePrecision);
+  }, [intifaceWebsocketUrl, tcodeWebsocketHost, tcodeTransport, tcodeSerialPath, tcodeBaudRate, tcodePrecision]);
   const currentStep = STEPS[stepIndex] ?? STEPS[0]!;
   const displayStepTitle = abbreviateNsfwText(getStepTitle(currentStep.id), sfwMode);
   const displayStepDescription = abbreviateNsfwText(getStepDescription(currentStep.id), sfwMode);
@@ -1107,8 +1134,26 @@ function FirstStartPage() {
       await handyConnectIntiface(inputIntifaceUrl.trim() || DEFAULT_INTIFACE_WEBSOCKET_URL);
       return;
     }
+    if (handyProvider === "tcode") {
+      await handyConnectTCode({
+        transport: inputTCodeTransport,
+        serialPath: inputTCodeSerialPath,
+        baudRate: Number(inputTCodeBaudRate) || DEFAULT_TCODE_BAUD_RATE,
+        websocketInput: inputTCodeHost.trim() || DEFAULT_TCODE_WEBSOCKET_HOST,
+        precision: inputTCodePrecision,
+      });
+      return;
+    }
     await handyConnect(handyInputKey.trim());
   };
+
+  const tcodeDerivedUrl = (() => {
+    try {
+      return normalizeTCodeWebSocketInput(inputTCodeHost).url;
+    } catch {
+      return DEFAULT_TCODE_WEBSOCKET_URL;
+    }
+  })();
 
   const openEroScriptsLogin = async () => {
     if (isEroScriptsAuthPending) return;
@@ -1484,7 +1529,7 @@ function FirstStartPage() {
                           immediately.
                         </Trans>
                       </p>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
                         {locales.map((entry) => {
                           const selected = entry.code === locale;
                           return (
@@ -2384,8 +2429,8 @@ function FirstStartPage() {
                       </div>
                       <p className="text-sm text-zinc-400">
                         <Trans>
-                          Connect a haptics device for synchronized motion. Choose TheHandy or
-                          Intiface below.
+                          Connect a haptics device for synchronized motion. Choose TheHandy,
+                          Intiface, or TCode below.
                         </Trans>
                       </p>
 
@@ -2419,6 +2464,21 @@ function FirstStartPage() {
                           }`}
                         >
                           <Trans>Intiface</Trans>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={handyConnected || handyIsConnecting}
+                          onClick={() => {
+                            playSelectSound();
+                            void setHandyProvider("tcode");
+                          }}
+                          className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                            handyProvider === "tcode"
+                              ? "border-emerald-300/60 bg-emerald-500/25 text-emerald-100"
+                              : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
+                          }`}
+                        >
+                          <Trans>TCode</Trans>
                         </button>
                       </div>
 
@@ -2464,6 +2524,152 @@ function FirstStartPage() {
                             </p>
                           )}
                         </>
+                      ) : handyProvider === "tcode" ? (
+                        <>
+                          <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                            <p className="font-bold uppercase tracking-wider">
+                              <Trans>Experimental Support</Trans>
+                            </p>
+                            <p className="mt-1 leading-relaxed">
+                              <Trans>
+                                TCode support connects to TCodeESP32 over WebSocket and streams the
+                                primary funscript to L0.
+                              </Trans>
+                            </p>
+                          </div>
+
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            <button
+                              type="button"
+                              disabled={handyConnected || handyIsConnecting}
+                              onClick={() => {
+                                playSelectSound();
+                                setInputTCodeTransport("websocket");
+                              }}
+                              className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                                inputTCodeTransport === "websocket"
+                                  ? "border-emerald-300/60 bg-emerald-500/25 text-emerald-100"
+                                  : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
+                              }`}
+                            >
+                              <Trans>WebSocket</Trans>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={handyConnected || handyIsConnecting}
+                              onClick={() => {
+                                playSelectSound();
+                                setInputTCodeTransport("serial");
+                                void refreshTCodeSerialPorts();
+                              }}
+                              className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                                inputTCodeTransport === "serial"
+                                  ? "border-emerald-300/60 bg-emerald-500/25 text-emerald-100"
+                                  : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
+                              }`}
+                            >
+                              <Trans>Serial</Trans>
+                            </button>
+                          </div>
+
+                          {inputTCodeTransport === "websocket" ? (
+                            <div className="mt-3 flex flex-col gap-2">
+                              <label
+                                className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                                htmlFor="first-start-tcode-host"
+                              >
+                                <Trans>Device IP / Host</Trans>
+                              </label>
+                              <input
+                                id="first-start-tcode-host"
+                                type="text"
+                                value={inputTCodeHost}
+                                onChange={(event) => setInputTCodeHost(event.target.value)}
+                                placeholder={DEFAULT_TCODE_WEBSOCKET_HOST}
+                                disabled={handyConnected || handyIsConnecting}
+                                className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20 disabled:opacity-60"
+                              />
+                              <p className="text-xs text-zinc-400">
+                                <Trans>Derived WebSocket URL</Trans>: {tcodeDerivedUrl}
+                              </p>
+                              {tcodeWebsocketUrl && handyConnected && (
+                                <p className="text-xs text-emerald-100">
+                                  <Trans>Connected TCode URL</Trans>: {tcodeWebsocketUrl}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+                              <div className="flex flex-col gap-2">
+                                <label
+                                  className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                                  htmlFor="first-start-tcode-serial-port"
+                                >
+                                  <Trans>Serial Port</Trans>
+                                </label>
+                                <select
+                                  id="first-start-tcode-serial-port"
+                                  value={inputTCodeSerialPath}
+                                  onChange={(event) => setInputTCodeSerialPath(event.target.value)}
+                                  disabled={handyConnected || handyIsConnecting}
+                                  className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20 disabled:opacity-60"
+                                >
+                                  <option value="">{t`Select serial port`}</option>
+                                  {tcodeSerialPorts.map((port) => (
+                                    <option key={port.path} value={port.path}>
+                                      {port.path}
+                                      {port.manufacturer ? ` (${port.manufacturer})` : ""}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={handyConnected || handyIsConnecting || tcodeSerialPortsLoading}
+                                onClick={() => void refreshTCodeSerialPorts()}
+                                className="self-end rounded-xl border border-emerald-300/40 bg-emerald-500/15 px-4 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-emerald-100 transition-colors hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {tcodeSerialPortsLoading ? t`Refreshing...` : t`Refresh`}
+                              </button>
+                              <div className="flex flex-col gap-2 sm:col-span-2">
+                                <label
+                                  className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                                  htmlFor="first-start-tcode-baud-rate"
+                                >
+                                  <Trans>Baud Rate</Trans>
+                                </label>
+                                <input
+                                  id="first-start-tcode-baud-rate"
+                                  type="number"
+                                  value={inputTCodeBaudRate}
+                                  onChange={(event) => setInputTCodeBaudRate(event.target.value)}
+                                  placeholder={String(DEFAULT_TCODE_BAUD_RATE)}
+                                  disabled={handyConnected || handyIsConnecting}
+                                  className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20 disabled:opacity-60"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="mt-3 flex flex-col gap-2">
+                            <label
+                              className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                              htmlFor="first-start-tcode-precision"
+                            >
+                              <Trans>TCode Version</Trans>
+                            </label>
+                            <select
+                              id="first-start-tcode-precision"
+                              value={inputTCodePrecision}
+                              onChange={(event) => setInputTCodePrecision(event.target.value === "3" ? 3 : 4)}
+                              disabled={handyConnected || handyIsConnecting}
+                              className="rounded-xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-3 text-sm text-white outline-none transition-all focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/20 disabled:opacity-60"
+                            >
+                              <option value={4}>{t`TCode v0.3 / 4 digit`}</option>
+                              <option value={3}>{t`TCode v0.2 / 3 digit`}</option>
+                            </select>
+                          </div>
+                        </>
                       ) : (
                         <>
                           <div className="mt-3 flex flex-col gap-2">
@@ -2502,7 +2708,11 @@ function FirstStartPage() {
                           (!handyConnected &&
                             (handyProvider === "thehandy"
                               ? !handyInputKey.trim()
-                              : !inputIntifaceUrl.trim()))
+                              : handyProvider === "intiface"
+                                ? !inputIntifaceUrl.trim()
+                                : inputTCodeTransport === "serial"
+                                  ? !inputTCodeSerialPath.trim()
+                                  : !inputTCodeHost.trim()))
                         }
                         onMouseEnter={playHoverSound}
                         onClick={() => {

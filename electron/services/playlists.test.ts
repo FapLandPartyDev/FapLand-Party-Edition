@@ -63,6 +63,8 @@ function makeEnvelope() {
         antiPerkIncreasePerRound: 0.015,
         maxIntermediaryProbability: 1,
         maxAntiPerkProbability: 0.75,
+        resetIntermediaryProbabilityAfterTrigger: false,
+        resetAntiPerkProbabilityAfterTrigger: false,
       },
       economy: {
         startingMoney: 120,
@@ -198,6 +200,29 @@ describe("playlist import analysis and finalize", () => {
     }
     expect(result.playlist.config.boardConfig.cumRoundRefs[0]?.idHint).toBe("round-manual");
     expect(result.playlist.config.boardConfig.normalRoundOrder[1]?.idHint).toBe("round-suggested");
+  });
+
+  it("imports playlists without dropping probability reset toggles", async () => {
+    const envelope = makeEnvelope();
+    envelope.config.probabilityScaling.resetIntermediaryProbabilityAfterTrigger = true;
+    envelope.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger = true;
+    readFileMock.mockResolvedValue(JSON.stringify(envelope));
+    approveDialogPath("playlistImportFile", "/tmp/imported.fplay");
+    const { importPlaylistFromFile } = await import("./playlists");
+
+    const result = await importPlaylistFromFile({
+      filePath: "/tmp/imported.fplay",
+      manualMappingByRefKey: {
+        "linear.cumRoundRefs.0": "round-manual",
+      },
+    });
+
+    expect(result.playlist.config.probabilityScaling.resetIntermediaryProbabilityAfterTrigger).toBe(
+      true
+    );
+    expect(result.playlist.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger).toBe(
+      true
+    );
   });
 
   it("resolves relative playlist music file paths on import", async () => {

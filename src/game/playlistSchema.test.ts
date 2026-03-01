@@ -95,6 +95,32 @@ describe("playlistSchema", () => {
     expect(parsed.boardConfig.mode).toBe("linear");
   });
 
+  it("preserves probability reset toggles", () => {
+    const parsed = ZPlaylistConfig.parse({
+      ...buildConfig({
+        mode: "linear",
+        totalIndices: 10,
+        safePointIndices: [],
+        normalRoundRefsByIndex: {},
+        normalRoundOrder: [],
+        cumRoundRefs: [],
+      }),
+      probabilityScaling: {
+        initialIntermediaryProbability: 0,
+        initialAntiPerkProbability: 0,
+        intermediaryIncreasePerRound: 0.02,
+        antiPerkIncreasePerRound: 0.015,
+        maxIntermediaryProbability: 1,
+        maxAntiPerkProbability: 0.75,
+        resetIntermediaryProbabilityAfterTrigger: true,
+        resetAntiPerkProbabilityAfterTrigger: true,
+      },
+    });
+
+    expect(parsed.probabilityScaling.resetIntermediaryProbabilityAfterTrigger).toBe(true);
+    expect(parsed.probabilityScaling.resetAntiPerkProbabilityAfterTrigger).toBe(true);
+  });
+
   it("rejects unsupported future playlistVersion", () => {
     const result = ZPlaylistConfig.safeParse({
       ...buildConfig({

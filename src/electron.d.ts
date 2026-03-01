@@ -57,6 +57,18 @@ declare global {
           idleSensitive: boolean;
         }) => Promise<void>;
       };
+      tcode?: {
+        listPorts: () => Promise<Array<{ path: string; manufacturer: string | null }>>;
+        connect: (config: {
+          transport: "serial" | "websocket";
+          serialPath?: string;
+          baudRate?: number;
+          websocketUrl?: string;
+        }) => Promise<{ success: boolean; error?: string }>;
+        send: (command: string) => Promise<boolean>;
+        disconnect: () => Promise<void>;
+        isConnected: () => Promise<boolean>;
+      };
       updates: {
         subscribe: (
           callback: (state: import("../electron/services/updater").AppUpdateState) => void

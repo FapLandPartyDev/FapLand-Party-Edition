@@ -7,6 +7,39 @@ process.once("loaded", () => {
   exposeElectronTRPC();
 });
 
+function toRendererErrorPayload(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      route: window.location.pathname,
+    };
+  }
+  return {
+    message: typeof error === "string" ? error : String(error),
+    route: window.location.pathname,
+  };
+}
+
+window.addEventListener("error", (event) => {
+  void ipcRenderer.invoke("debug:renderer-error", {
+    message: event.message,
+    stack: event.error instanceof Error ? event.error.stack : undefined,
+    filename: event.filename,
+    lineNumber: event.lineno,
+    columnNumber: event.colno,
+    route: window.location.pathname,
+  });
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  void ipcRenderer.invoke("debug:renderer-error", {
+    type: "unhandledrejection",
+    ...toRendererErrorPayload(event.reason),
+  });
+});
+
 // Keep the app:// media URL helper separate from the tRPC bridge.
 contextBridge.exposeInMainWorld("electronAPI", {
   file: {
@@ -91,6 +124,22 @@ contextBridge.exposeInMainWorld("electronAPI", {
   performance: {
     updateState: (state: { route: string; visible: boolean; idleSensitive: boolean }) =>
       ipcRenderer.invoke("performance:updateState", state) as Promise<void>,
+  },
+  tcode: {
+    listPorts: () =>
+      ipcRenderer.invoke("tcode:listPorts") as Promise<
+        Array<{ path: string; manufacturer: string | null }>
+      >,
+    connect: (config: {
+      transport: "serial" | "websocket";
+      serialPath?: string;
+      baudRate?: number;
+      websocketUrl?: string;
+    }) =>
+      ipcRenderer.invoke("tcode:connect", config) as Promise<{ success: boolean; error?: string }>,
+    send: (command: string) => ipcRenderer.invoke("tcode:send", command) as Promise<boolean>,
+    disconnect: () => ipcRenderer.invoke("tcode:disconnect") as Promise<void>,
+    isConnected: () => ipcRenderer.invoke("tcode:isConnected") as Promise<boolean>,
   },
   updates: {
     subscribe: (callback: (state: AppUpdateState) => void) => {

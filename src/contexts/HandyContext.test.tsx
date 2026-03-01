@@ -75,6 +75,8 @@ function Consumer() {
       <div data-testid="connected">{String(handy.connected)}</div>
       <div data-testid="provider">{handy.provider}</div>
       <div data-testid="intiface-url">{handy.intifaceWebsocketUrl}</div>
+      <div data-testid="tcode-host">{handy.tcodeWebsocketHost}</div>
+      <div data-testid="tcode-url">{handy.tcodeWebsocketUrl}</div>
       <div data-testid="manually-stopped">{String(handy.manuallyStopped)}</div>
       <div data-testid="synced">{String(handy.synced)}</div>
       <div data-testid="stroke-percent">{String(handy.strokePercent)}</div>
@@ -97,6 +99,14 @@ function Consumer() {
         }}
       >
         connect-intiface
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void handy.connectTCode({ transport: "websocket", websocketInput: "192.168.1.42" });
+        }}
+      >
+        connect-tcode
       </button>
       <button
         type="button"
@@ -380,6 +390,46 @@ describe("HandyContext", () => {
         expect.objectContaining({ min: 0.2, max: 0.8 })
       );
       expect(screen.getByTestId("stroke-percent").textContent).toBe("60");
+    });
+  });
+
+  it("persists and connects the TCode provider with a normalized websocket host", async () => {
+    mocks.verifyConnection.mockResolvedValueOnce({
+      success: true,
+      provider: "tcode",
+      deviceName: "192.168.1.42",
+    });
+
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "connect-tcode" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("connected").textContent).toBe("true");
+      expect(screen.getByTestId("provider").textContent).toBe("tcode");
+      expect(screen.getByTestId("tcode-host").textContent).toBe("192.168.1.42");
+      expect(screen.getByTestId("tcode-url").textContent).toBe("ws://192.168.1.42/ws");
+      expect(mocks.verifyConnection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: "tcode",
+          websocketHost: "192.168.1.42",
+          websocketUrl: "ws://192.168.1.42/ws",
+        })
+      );
+      expect(mocks.setMutate).toHaveBeenCalledWith({
+        key: "haptics.provider",
+        value: "tcode",
+      });
+      expect(mocks.setMutate).toHaveBeenCalledWith({
+        key: "tcode.websocketHost",
+        value: "192.168.1.42",
+      });
     });
   });
 

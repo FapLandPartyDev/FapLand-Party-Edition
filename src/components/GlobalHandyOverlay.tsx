@@ -60,6 +60,7 @@ export function GlobalHandyOverlay() {
     toggleManualStop,
     connect,
     connectIntiface,
+    connectTCode,
     reconnect,
     disconnect,
   } = useHandy();
@@ -153,8 +154,12 @@ export function GlobalHandyOverlay() {
       void connectIntiface();
       return;
     }
+    if (provider === "tcode") {
+      void connectTCode();
+      return;
+    }
     void connect(connectionKey);
-  }, [connect, connectIntiface, connectionKey, provider]);
+  }, [connect, connectIntiface, connectTCode, connectionKey, provider]);
 
   const reconnectTheHandy = useCallback(
     (showMessage: boolean) => {
@@ -525,7 +530,9 @@ export function GlobalHandyOverlay() {
                       {connected
                         ? provider === "intiface" && intifaceDeviceName
                           ? t`Intiface device connected`
-                          : t`Device connected`
+                          : provider === "tcode"
+                            ? t`TCode device connected`
+                            : t`Device connected`
                         : t`No device connected`}
                     </p>
                     <button

@@ -1,5 +1,27 @@
 # What's New
 
+## v0.4.4-beta
+
+### Added
+
+- **TCode haptics support** — connect OSR/SR-style devices via the TCode protocol over WebSocket or serial port with configurable baud rate, precision (TCode v0.2 3-digit / v0.3 4-digit), and L0 axis targeting. TCode is available alongside TheHandy and Intiface in Settings, the First-Start wizard, the in-game overlay, and the home screen.
+- **TCode serial quick-connect on the home screen** — a dedicated TCode Serial panel lets you pick a serial port, refresh the port list, and connect or disconnect without opening Settings.
+- **Debug logging and diagnostics system** — a new Debug section in Settings with configurable log level (Off / Error / Warn / Info / Debug), an anonymized diagnostics viewer (app info, storage, hardware, database, runtime, background jobs), copy-debug-info to clipboard, export-debug-file to disk, open-log-folder, and clear-log-file. The log automatically captures renderer errors, unhandled promise rejections, startup lifecycle events, renderer performance snapshots, navigation blocks, GPU process crashes, and background service activity. All debug output is sanitized for public sharing (paths are redacted, usernames stripped, private IPs masked, and sensitive keys replaced).
+- **Renderer error forwarding** — uncaught errors and unhandled promise rejections from the renderer process are now forwarded to the main process debug log automatically via the preload script.
+- **Debug instrumentation in background services** — database backup, music download, phash scanning, website video scanning, install scanning, and playlist operations now write structured debug log entries at appropriate log levels.
+- **Probability reset toggles in the Playlist Workshop** — new `resetIntermediaryProbabilityAfterTrigger` and `resetAntiPerkProbabilityAfterTrigger` toggles let playlist authors reset intermediary and anti-perk probabilities back to their initial values after a trigger event, giving finer control over probability pacing across linear and graph playlists.
+
+### Changed
+
+- Haptics runtime refactored from provider-specific if-else chains to a generic adapter dispatch pattern, making it straightforward to add new haptics providers.
+- Map Editor's tag, author, and library filter inputs in the Node Inspector extracted into a reusable `CsvFilterInput` component with improved editing UX (draft state while focused, auto-format on blur).
+- In-game overlay labels renamed from "TheHandy" to generic "Haptics" labels (Haptics Menu, Haptics Linkup, Haptics resumed/stopped) to reflect multi-provider support; the status pill now shows the active provider name.
+- Home screen haptics status indicator now displays the connected provider name alongside the connection state.
+- Added `serialport` as an external dependency for the Electron main process build.
+- Updated `systeminformation` dependency.
+
+---
+
 ## v0.4.0-beta
 
 ### Added

@@ -7,6 +7,7 @@ import { getStore } from "./store";
 import { MUSIC_CACHE_RELATIVE_PATH, resolveConfiguredStoragePath } from "./storagePaths";
 import { resolveYtDlpBinary } from "./webVideo/binaries";
 import { resolvePhashBinaries } from "./phash/binaries";
+import { debugLog } from "./debugLogging";
 
 const MUSIC_CACHE_ROOT_PATH_KEY = "music.cacheRootPath";
 
@@ -252,6 +253,7 @@ export async function downloadMusicFromUrl(url: string): Promise<MusicDownloadRe
   });
 
   console.info(`[music] Download started: ${trimmedUrl}`);
+  debugLog.info("musicDownload", "Download started", { url: trimmedUrl });
 
   const binary = await resolveYtDlpBinary();
   const env = await getBinaryEnv();
@@ -320,6 +322,10 @@ export async function downloadMusicFromUrl(url: string): Promise<MusicDownloadRe
   const title = (typeof info.title === "string" && info.title.trim()) || "Unknown Track";
 
   console.info(`[music] Download finished: ${trimmedUrl} -> ${downloadedFile}`);
+  debugLog.info("musicDownload", "Download finished", {
+    url: trimmedUrl,
+    filePath: downloadedFile,
+  });
 
   return { filePath: downloadedFile, title };
 }

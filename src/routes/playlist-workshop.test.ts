@@ -25,6 +25,8 @@ function makeSetup(
       intermediary: { initial: 0, increasePerRound: 0, max: 0 },
       antiPerk: { initial: 0, increasePerRound: 0, max: 0 },
     },
+    resetIntermediaryProbabilityAfterTrigger: false,
+    resetAntiPerkProbabilityAfterTrigger: false,
     scorePerCumRoundSuccess: 0,
     diceMin: 1,
     diceMax: 6,

@@ -15,6 +15,7 @@ import {
 } from "../../../src/constants/videoFormats";
 import { WEBSITE_VIDEO_CACHE_ROOT_PATH_KEY } from "../../../src/constants/websiteVideoCacheSettings";
 import { runCommand } from "../phash/extract";
+import { debugLog } from "../debugLogging";
 import { getStore } from "../store";
 import { resolveConfiguredStoragePath, WEBSITE_VIDEO_CACHE_RELATIVE_PATH } from "../storagePaths";
 import type {
@@ -1063,6 +1064,7 @@ async function downloadWebsiteVideo(
   setInitialDownloadProgress(paths.normalizedUrl);
 
   console.info(`[webVideo] Cache started: ${paths.normalizedUrl}`);
+  debugLog.info("webVideo", "Cache started", { url: paths.normalizedUrl });
 
   const binary = await resolveYtDlpBinary();
   const inspected = await inspectWebsiteVideo(paths.normalizedUrl);
@@ -1134,6 +1136,10 @@ async function downloadWebsiteVideo(
   await removeInProgressMarker(paths);
 
   console.info(`[webVideo] Cache finished: ${paths.normalizedUrl}`);
+  debugLog.info("webVideo", "Cache finished", {
+    url: paths.normalizedUrl,
+    filePath: finalFilePath,
+  });
 
   return metadata;
 }
@@ -1157,6 +1163,7 @@ async function downloadMegaWebsiteVideo(
   setInitialDownloadProgress(paths.normalizedUrl);
 
   console.info(`[webVideo] Cache started: ${paths.normalizedUrl}`);
+  debugLog.info("webVideo", "Cache started", { url: paths.normalizedUrl });
 
   try {
     const inspected = await inspectMegaSharedFile(paths.normalizedUrl);

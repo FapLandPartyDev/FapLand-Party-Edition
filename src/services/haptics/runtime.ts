@@ -1,14 +1,19 @@
 import type { FunscriptAction } from "../../game/media/playback";
 import { intifaceAdapter, type IntifaceHapticsSession } from "./intifaceAdapter";
+import { tcodeAdapter, type TCodeHapticsSession } from "./tcodeAdapter";
 import { thehandyAdapter, type TheHandyHapticsSession } from "./thehandyAdapter";
 import type {
   HapticsConnectionConfig,
   HapticsConnectionResult,
+  HapticsRuntimeAdapter,
   HapticsSession,
   HapticsStrokeState,
 } from "./types";
 
-export type AnyHapticsSession = TheHandyHapticsSession | IntifaceHapticsSession;
+export type AnyHapticsSession =
+  | TheHandyHapticsSession
+  | IntifaceHapticsSession
+  | TCodeHapticsSession;
 
 function assertMatchingProvider(config: HapticsConnectionConfig, session: HapticsSession): void {
   if (config.provider !== session.provider) {
@@ -16,20 +21,28 @@ function assertMatchingProvider(config: HapticsConnectionConfig, session: Haptic
   }
 }
 
+function getAdapter(
+  provider: HapticsConnectionConfig["provider"]
+): HapticsRuntimeAdapter<AnyHapticsSession> {
+  if (provider === "thehandy") {
+    return thehandyAdapter as HapticsRuntimeAdapter<AnyHapticsSession>;
+  }
+  if (provider === "intiface") {
+    return intifaceAdapter as HapticsRuntimeAdapter<AnyHapticsSession>;
+  }
+  return tcodeAdapter as HapticsRuntimeAdapter<AnyHapticsSession>;
+}
+
 export async function verifyHapticsConnection(
   config: HapticsConnectionConfig
 ): Promise<HapticsConnectionResult> {
-  return config.provider === "thehandy"
-    ? thehandyAdapter.verifyConnection(config)
-    : intifaceAdapter.verifyConnection(config);
+  return getAdapter(config.provider).verifyConnection(config);
 }
 
 export async function createHapticsSession(
   config: HapticsConnectionConfig
 ): Promise<AnyHapticsSession> {
-  return config.provider === "thehandy"
-    ? thehandyAdapter.createSession(config)
-    : intifaceAdapter.createSession(config);
+  return getAdapter(config.provider).createSession(config);
 }
 
 export async function preloadHapticsScript(
@@ -40,11 +53,7 @@ export async function preloadHapticsScript(
   skipToMs = 0
 ): Promise<void> {
   assertMatchingProvider(config, session);
-  if (session.provider === "thehandy") {
-    await thehandyAdapter.preloadScript(config, session, sourceId, actions, skipToMs);
-    return;
-  }
-  await intifaceAdapter.preloadScript(config, session, sourceId, actions, skipToMs);
+  await getAdapter(session.provider).preloadScript(config, session, sourceId, actions, skipToMs);
 }
 
 export async function sendHapticsSync(
@@ -56,11 +65,14 @@ export async function sendHapticsSync(
   actions: FunscriptAction[]
 ): Promise<void> {
   assertMatchingProvider(config, session);
-  if (session.provider === "thehandy") {
-    await thehandyAdapter.sendSync(config, session, timeMs, playbackRate, sourceId, actions);
-    return;
-  }
-  await intifaceAdapter.sendSync(config, session, timeMs, playbackRate, sourceId, actions);
+  await getAdapter(session.provider).sendSync(
+    config,
+    session,
+    timeMs,
+    playbackRate,
+    sourceId,
+    actions
+  );
 }
 
 export async function pauseHapticsPlayback(
@@ -69,11 +81,7 @@ export async function pauseHapticsPlayback(
 ): Promise<void> {
   if (!session) return;
   assertMatchingProvider(config, session);
-  if (session.provider === "thehandy") {
-    await thehandyAdapter.pausePlayback(config, session);
-    return;
-  }
-  await intifaceAdapter.pausePlayback(config, session);
+  await getAdapter(session.provider).pausePlayback(config, session);
 }
 
 export async function resumeHapticsPlayback(
@@ -83,11 +91,7 @@ export async function resumeHapticsPlayback(
   playbackRate = 1
 ): Promise<void> {
   assertMatchingProvider(config, session);
-  if (session.provider === "thehandy") {
-    await thehandyAdapter.resumePlayback(config, session, resumeAtMs, playbackRate);
-    return;
-  }
-  await intifaceAdapter.resumePlayback(config, session, resumeAtMs, playbackRate);
+  await getAdapter(session.provider).resumePlayback(config, session, resumeAtMs, playbackRate);
 }
 
 export async function stopHapticsPlayback(
@@ -96,11 +100,7 @@ export async function stopHapticsPlayback(
 ): Promise<void> {
   if (!session) return;
   assertMatchingProvider(config, session);
-  if (session.provider === "thehandy") {
-    await thehandyAdapter.stopPlayback(config, session);
-    return;
-  }
-  await intifaceAdapter.stopPlayback(config, session);
+  await getAdapter(session.provider).stopPlayback(config, session);
 }
 
 export async function disconnectHapticsSession(
@@ -109,28 +109,20 @@ export async function disconnectHapticsSession(
 ): Promise<void> {
   if (!session) return;
   assertMatchingProvider(config, session);
-  if (session.provider === "thehandy") {
-    await thehandyAdapter.disconnect?.(config, session);
-    return;
-  }
-  await intifaceAdapter.disconnect?.(config, session);
+  await getAdapter(session.provider).disconnect?.(config, session);
 }
 
 export async function getHapticsStroke(
   config: HapticsConnectionConfig
 ): Promise<HapticsStrokeState> {
-  return config.provider === "thehandy"
-    ? thehandyAdapter.getStroke!(config)
-    : intifaceAdapter.getStroke!(config);
+  return getAdapter(config.provider).getStroke!(config);
 }
 
 export async function updateHapticsStroke(
   config: HapticsConnectionConfig,
   stroke: Pick<HapticsStrokeState, "min" | "max">
 ): Promise<HapticsStrokeState> {
-  return config.provider === "thehandy"
-    ? thehandyAdapter.updateStroke!(config, stroke)
-    : intifaceAdapter.updateStroke!(config, stroke);
+  return getAdapter(config.provider).updateStroke!(config, stroke);
 }
 
 export type { HapticsConnectionConfig, HapticsConnectionResult, HapticsStrokeState };

@@ -12,6 +12,7 @@ import {
   isStashProxyUri,
 } from "./webVideo";
 import { shouldDeferBackgroundWork } from "./rendererPerformance";
+import { debugLog } from "./debugLogging";
 
 export type WebsiteVideoScanState = "idle" | "running" | "done" | "aborted" | "error";
 
@@ -256,8 +257,10 @@ async function runWebsiteVideoScan(): Promise<void> {
   if (scanStatus.totalCount === 0) {
     scanStatus.state = "done";
     scanStatus.finishedAt = new Date().toISOString();
+    debugLog.info("websiteVideoScan", "No uncached website videos found");
     return;
   }
+  debugLog.info("websiteVideoScan", "Scan started", { totalCount: scanStatus.totalCount });
 
   let cursor = 0;
 
@@ -277,6 +280,11 @@ async function runWebsiteVideoScan(): Promise<void> {
         await generateMissingPreviewImagesForCachedWebsiteVideo(item, metadata.finalFilePath);
         void startPhashScanManual().catch((error) => {
           console.error("Failed to queue phash scan after website cache", error);
+          debugLog.error(
+            "websiteVideoScan",
+            "Failed to queue phash scan after website cache",
+            error
+          );
         });
         scanStatus.completedCount += 1;
       } catch (error) {
@@ -284,6 +292,12 @@ async function runWebsiteVideoScan(): Promise<void> {
           error instanceof Error ? error.message : "Unknown website video cache error.";
         pushScanError(item, message);
         scanStatus.skippedCount += 1;
+        debugLog.warn("websiteVideoScan", "Website video cache failed", {
+          roundId: item.roundId,
+          roundName: item.roundName,
+          url: item.url,
+          message,
+        });
       } finally {
         activeItemsByUrl.delete(item.url);
         syncCurrentItemSummary();
@@ -302,6 +316,7 @@ async function runWebsiteVideoScan(): Promise<void> {
     scanStatus.finishedAt = new Date().toISOString();
     scanStatus.currentRoundName = null;
     scanStatus.currentUrl = null;
+    debugLog.warn("websiteVideoScan", "Scan aborted", scanStatus);
     return;
   }
 
@@ -309,6 +324,7 @@ async function runWebsiteVideoScan(): Promise<void> {
   scanStatus.finishedAt = new Date().toISOString();
   scanStatus.currentRoundName = null;
   scanStatus.currentUrl = null;
+  debugLog.info("websiteVideoScan", "Scan finished", scanStatus);
 }
 
 function launchScanRun(): void {
@@ -327,6 +343,7 @@ function launchScanRun(): void {
         url: scanStatus.currentUrl ?? "",
         reason: message,
       });
+      debugLog.error("websiteVideoScan", "Scan failed", error);
     })
     .finally(() => {
       activeScanPromise = null;
@@ -436,12 +453,14 @@ export function startContinuousWebsiteVideoScan(): void {
       await startWebsiteVideoScan();
     } catch (error) {
       console.error("Continuous website video scan error:", error);
+      debugLog.error("websiteVideoScan", "Continuous website video scan error", error);
     }
   }, CONTINUOUS_SCAN_INTERVAL_MS);
 
   if (!shouldDeferBackgroundWork()) {
     void startWebsiteVideoScan().catch((error) => {
       console.error("Initial continuous website video scan error:", error);
+      debugLog.error("websiteVideoScan", "Initial continuous website video scan error", error);
     });
   }
 }

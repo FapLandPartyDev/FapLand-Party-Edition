@@ -205,6 +205,8 @@ async function createDefaultConfigFromInstalledRounds(): Promise<PlaylistConfig>
       antiPerkIncreasePerRound: 0.015,
       maxIntermediaryProbability: 1,
       maxAntiPerkProbability: 0.75,
+      resetIntermediaryProbabilityAfterTrigger: false,
+      resetAntiPerkProbabilityAfterTrigger: false,
     },
     economy: {
       startingMoney: 120,
@@ -371,6 +373,8 @@ export async function ensureEndlessPlaylist(): Promise<PlaylistRecord | null> {
       antiPerkIncreasePerRound: 0.015,
       maxIntermediaryProbability: 1,
       maxAntiPerkProbability: 0.75,
+      resetIntermediaryProbabilityAfterTrigger: false,
+      resetAntiPerkProbabilityAfterTrigger: false,
     },
     economy: {
       startingMoney: 120,

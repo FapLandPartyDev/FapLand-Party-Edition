@@ -45,11 +45,13 @@ import {
   startContinuousDatabaseBackup,
   stopContinuousDatabaseBackup,
 } from "./services/databaseBackup";
+import { debugLog, initializeDebugLogging } from "./services/debugLogging";
 import {
   downloadMusicFromUrl,
   downloadPlaylistFromUrl,
   isSupportedMusicUrl,
 } from "./services/musicDownload";
+import { tcodeTransport, type TCodeConnectInput } from "./services/tcodeTransport";
 
 const OPENABLE_FILE_EXTENSIONS = new Set([".hero", ".round", ".fplay", ".fpack"]);
 const pendingOpenedFiles: string[] = [];
@@ -84,6 +86,7 @@ function reportFatalStartupError(error: unknown): void {
   const message =
     error instanceof Error ? `${error.message}\n\n${error.stack ?? ""}` : String(error);
   console.error("Fatal startup error", error);
+  debugLog.error("main", "Fatal startup error", error);
 
   try {
     dialog.showErrorBox("Fap Land failed to start", message);
@@ -93,10 +96,12 @@ function reportFatalStartupError(error: unknown): void {
 }
 
 process.on("uncaughtException", (error) => {
+  debugLog.error("process", "Uncaught exception", error);
   reportFatalStartupError(error);
 });
 
 process.on("unhandledRejection", (reason) => {
+  debugLog.error("process", "Unhandled rejection", reason);
   reportFatalStartupError(reason);
 });
 
@@ -684,6 +689,23 @@ function isAllowedNavigationTarget(target: string): boolean {
   }
 }
 
+function logRendererConsoleMessage(details: Electron.ConsoleMessageEvent): void {
+  const level = String((details as unknown as { level?: unknown }).level ?? "").toLowerCase();
+  const data = {
+    level,
+    sourceId: details.sourceId,
+    lineNumber: details.lineNumber,
+  };
+
+  if (level.includes("error")) {
+    debugLog.error("renderer-console", details.message, data);
+  } else if (level.includes("warn")) {
+    debugLog.warn("renderer-console", details.message, data);
+  } else {
+    debugLog.debug("renderer-console", details.message, data);
+  }
+}
+
 async function createWindow(): Promise<BrowserWindow> {
   await installReactDevTools();
 
@@ -721,6 +743,10 @@ async function createWindow(): Promise<BrowserWindow> {
     trpcIpcHandler.attachWindow(mainWindow);
   }
 
+  mainWindow.webContents.on("console-message", (details) => {
+    logRendererConsoleMessage(details);
+  });
+
   // Forward renderer console logs to terminal during development
   if (isDevelopmentToolsEnabled) {
     mainWindow.webContents.on("console-message", (details) => {
@@ -733,6 +759,8 @@ async function createWindow(): Promise<BrowserWindow> {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isSafeExternalUrl(url)) {
       void shell.openExternal(url);
+    } else {
+      debugLog.warn("navigation", "Blocked unsafe window open", { url });
     }
 
     return { action: "deny" };
@@ -746,19 +774,24 @@ async function createWindow(): Promise<BrowserWindow> {
     event.preventDefault();
     if (isSafeExternalUrl(url)) {
       void shell.openExternal(url);
+    } else {
+      debugLog.warn("navigation", "Blocked unsafe navigation", { url });
     }
   });
 
   mainWindow.webContents.on("render-process-gone", (_event, details) => {
     console.error("[RendererProcessGone]", details);
+    debugLog.error("renderer", "Renderer process gone", details);
   });
 
   mainWindow.on("unresponsive", () => {
     console.error("[RendererUnresponsive]", getRendererPerformanceState());
+    debugLog.error("renderer", "Renderer unresponsive", getRendererPerformanceState());
   });
 
   mainWindow.on("responsive", () => {
     console.warn("[RendererResponsiveAgain]", getRendererPerformanceState());
+    debugLog.warn("renderer", "Renderer responsive again", getRendererPerformanceState());
   });
 
   // Handle zoom shortcuts and F11 fullscreen toggle since we removed the default menu
@@ -845,6 +878,11 @@ async function createWindow(): Promise<BrowserWindow> {
         : undefined;
 
       console.warn("[PerformanceSnapshot]", {
+        rendererState: performanceState,
+        appMetricsCount: metrics.length,
+        rendererMetric,
+      });
+      debugLog.warn("performance", "Performance snapshot", {
         rendererState: performanceState,
         appMetricsCount: metrics.length,
         rendererMetric,
@@ -939,9 +977,35 @@ function registerWindowControlsIpc() {
         previous.idleSensitive !== next.idleSensitive
       ) {
         console.log("[RendererPerformanceState]", next);
+        debugLog.debug("performance", "Renderer performance state changed", next);
       }
     }
   );
+
+  ipcMain.handle("debug:renderer-error", (_event, payload: unknown) => {
+    debugLog.error("renderer", "Renderer error", payload);
+  });
+
+  ipcMain.handle("tcode:listPorts", async () => tcodeTransport.listPorts());
+
+  ipcMain.handle("tcode:connect", async (_event, rawInput: TCodeConnectInput) => {
+    const transport = rawInput?.transport === "serial" ? "serial" : "websocket";
+    return tcodeTransport.connect({
+      transport,
+      serialPath: typeof rawInput?.serialPath === "string" ? rawInput.serialPath : "",
+      baudRate: typeof rawInput?.baudRate === "number" ? rawInput.baudRate : undefined,
+      websocketUrl: typeof rawInput?.websocketUrl === "string" ? rawInput.websocketUrl : "",
+    });
+  });
+
+  ipcMain.handle("tcode:send", (_event, command: string) => {
+    if (typeof command !== "string" || command.length > 512) return false;
+    return tcodeTransport.send(command);
+  });
+
+  ipcMain.handle("tcode:disconnect", async () => tcodeTransport.disconnect());
+
+  ipcMain.handle("tcode:isConnected", () => tcodeTransport.isConnected());
 }
 
 function registerDialogIpc() {
@@ -1366,9 +1430,13 @@ app
 
     app.setAsDefaultProtocolClient("fland");
     await initStore();
+    initializeDebugLogging();
+    debugLog.info("startup", "Store initialized");
     initializePortableStorageDefaults(getStore());
     await ensureAppDatabaseReady();
+    debugLog.info("startup", "Database ready");
     registerFileProtocol();
+    debugLog.info("startup", "File protocol registered");
     registerWindowControlsIpc();
     registerDialogIpc();
     registerAppOpenIpc();
@@ -1377,19 +1445,35 @@ app
     broadcastEroScriptsLoginStatus();
     Menu.setApplicationMenu(null);
     await createWindow();
-    void initializeAppUpdater().catch((error) => {
-      console.error("Startup update check failed", error);
-    });
-    void scanInstallSources("startup").catch((error) => {
-      console.error("Startup install scan failed", error);
-    });
+    debugLog.info("startup", "Window created");
+    void initializeAppUpdater()
+      .then(() => {
+        debugLog.info("startup", "Updater initialized");
+      })
+      .catch((error) => {
+        console.error("Startup update check failed", error);
+        debugLog.error("startup", "Startup update check failed", error);
+      });
+    void scanInstallSources("startup")
+      .then(() => {
+        debugLog.info("startup", "Startup install scan completed");
+      })
+      .catch((error) => {
+        console.error("Startup install scan failed", error);
+        debugLog.error("startup", "Startup install scan failed", error);
+      });
     startContinuousPhashScan();
     startContinuousWebsiteVideoScan();
     startContinuousDatabaseBackup();
+    debugLog.info("startup", "Background services started");
 
     app.on("child-process-gone", (_event, details) => {
       if (details.type === "GPU") {
         console.error("[GpuProcessGone]", details, getRendererPerformanceState());
+        debugLog.error("gpu", "GPU process gone", {
+          details,
+          renderer: getRendererPerformanceState(),
+        });
       }
     });
 

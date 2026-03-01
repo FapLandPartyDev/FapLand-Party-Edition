@@ -144,11 +144,28 @@ const Home = () => {
   const [homeData, setHomeData] = useState<HomeData>(DEFAULT_HOME_DATA);
   const navigate = useNavigate();
   const { t } = useLingui();
-  const { connected, isConnecting, error, connectionKey } = useHandy();
+  const {
+    connected,
+    isConnecting,
+    error,
+    connectionKey,
+    tcodeSerialPath,
+    tcodeSerialPorts,
+    tcodeSerialPortsLoading,
+    refreshTCodeSerialPorts,
+    connectTCode,
+    disconnect,
+  } = useHandy();
   const appUpdate = useAppUpdate();
   const sfwModeEnabled = useSfwMode();
   const scopeRef = useRef<HTMLDivElement | null>(null);
   const [compactSystemOpen, setCompactSystemOpen] = useState(false);
+  const [inputSerialPath, setInputSerialPath] = useState(tcodeSerialPath);
+
+  useEffect(() => {
+    setInputSerialPath(tcodeSerialPath);
+  }, [tcodeSerialPath]);
+
   const { videos, overallHighscore, cumLoadCount, installedRoundCount, skipRoundsCheck } = homeData;
 
   useEffect(() => {
@@ -566,6 +583,54 @@ const Home = () => {
               </div>
             </div>
 
+            <div className="rounded-lg border border-sky-400/30 bg-sky-950/8 px-3 py-1.5 backdrop-blur-sm">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-sky-300/80 text-[8px]">◆</span>
+                <p className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.14em] text-sky-200/70 font-medium">
+                  <Trans>TCode Serial</Trans>
+                </p>
+              </div>
+              <div className="pl-3.5 space-y-1">
+                <select
+                  value={inputSerialPath}
+                  onChange={(event) => setInputSerialPath(event.target.value)}
+                  disabled={connected || isConnecting}
+                  className="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-[9px] text-white outline-none focus:border-sky-500"
+                >
+                  <option value="">{t`Select serial port`}</option>
+                  {tcodeSerialPorts.map((port) => (
+                    <option key={port.path} value={port.path}>
+                      {port.path}
+                      {port.manufacturer ? ` (${port.manufacturer})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    disabled={connected || isConnecting || tcodeSerialPortsLoading}
+                    onClick={() => void refreshTCodeSerialPorts()}
+                    className="rounded border border-sky-300/40 bg-sky-500/15 px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-sky-100 hover:bg-sky-500/25 disabled:opacity-50"
+                  >
+                    {tcodeSerialPortsLoading ? t`Refreshing...` : t`Refresh`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (connected) {
+                        void disconnect();
+                      } else {
+                        void connectTCode({ transport: "serial", serialPath: inputSerialPath });
+                      }
+                    }}
+                    className="rounded border border-violet-300/40 bg-violet-500/15 px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-violet-100 hover:bg-violet-500/25 disabled:opacity-50"
+                  >
+                    {connected ? t`Disconnect` : isConnecting ? t`Connecting...` : t`Connect`}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <LibraryStatusPoller />
 
             <PhashScanStatusPoller />
@@ -699,6 +764,50 @@ const Home = () => {
                 </span>
                 <span className="ml-2">{handyLabel}</span>
                 {handyWarning && <span className="ml-2 text-amber-200">{handyWarning}</span>}
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-xs text-zinc-300">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold text-zinc-100">
+                    <Trans>TCode Serial</Trans>
+                  </span>
+                </div>
+                <select
+                  value={inputSerialPath}
+                  onChange={(event) => setInputSerialPath(event.target.value)}
+                  disabled={connected || isConnecting}
+                  className="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-white outline-none focus:border-sky-500"
+                >
+                  <option value="">{t`Select serial port`}</option>
+                  {tcodeSerialPorts.map((port) => (
+                    <option key={port.path} value={port.path}>
+                      {port.path}
+                      {port.manufacturer ? ` (${port.manufacturer})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-1 flex gap-1">
+                  <button
+                    type="button"
+                    disabled={connected || isConnecting || tcodeSerialPortsLoading}
+                    onClick={() => void refreshTCodeSerialPorts()}
+                    className="rounded border border-sky-300/40 bg-sky-500/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-sky-100 hover:bg-sky-500/25 disabled:opacity-50"
+                  >
+                    {tcodeSerialPortsLoading ? t`Refreshing...` : t`Refresh`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (connected) {
+                        void disconnect();
+                      } else {
+                        void connectTCode({ transport: "serial", serialPath: inputSerialPath });
+                      }
+                    }}
+                    className="rounded border border-violet-300/40 bg-violet-500/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-violet-100 hover:bg-violet-500/25 disabled:opacity-50"
+                  >
+                    {connected ? t`Disconnect` : isConnecting ? t`Connecting...` : t`Connect`}
+                  </button>
+                </div>
               </div>
               <div className="rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-xs text-zinc-300">
                 <span className="font-semibold text-zinc-100">

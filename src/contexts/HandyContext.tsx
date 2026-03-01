@@ -19,10 +19,23 @@ import {
 } from "../constants/hapticsTest";
 import {
   DEFAULT_INTIFACE_WEBSOCKET_URL,
+  DEFAULT_TCODE_AXIS,
+  DEFAULT_TCODE_BAUD_RATE,
+  DEFAULT_TCODE_PRECISION,
+  DEFAULT_TCODE_TRANSPORT,
+  DEFAULT_TCODE_WEBSOCKET_HOST,
+  DEFAULT_TCODE_WEBSOCKET_URL,
   HAPTICS_PROVIDER_STORE_KEY,
   INTIFACE_DEVICE_INDEX_STORE_KEY,
   INTIFACE_DEVICE_NAME_STORE_KEY,
   INTIFACE_WEBSOCKET_URL_STORE_KEY,
+  TCODE_AXIS_STORE_KEY,
+  TCODE_BAUD_RATE_STORE_KEY,
+  TCODE_PRECISION_STORE_KEY,
+  TCODE_SERIAL_PATH_STORE_KEY,
+  TCODE_TRANSPORT_STORE_KEY,
+  TCODE_WEBSOCKET_HOST_STORE_KEY,
+  TCODE_WEBSOCKET_URL_STORE_KEY,
 } from "../constants/haptics";
 import {
   normalizeHandyAppApiKeyOverride,
@@ -44,7 +57,19 @@ import {
   type AnyHapticsSession,
   type HapticsConnectionConfig,
 } from "../services/haptics/runtime";
-import type { HapticsProviderId } from "../services/haptics/types";
+import {
+  normalizeTCodeAxis,
+  normalizeTCodeBaudRate,
+  normalizeTCodePrecision,
+  normalizeTCodeTransport,
+  normalizeTCodeWebSocketInput,
+} from "../services/haptics/tcodeConfig";
+import type {
+  HapticsProviderId,
+  TCodeAxis,
+  TCodePrecision,
+  TCodeTransportKind,
+} from "../services/haptics/types";
 import { trpc } from "../services/trpc";
 
 type HapticsContextType = {
@@ -58,6 +83,15 @@ type HapticsContextType = {
   intifaceWebsocketUrl: string;
   intifaceDeviceName: string | null;
   intifaceDeviceIndex: number | null;
+  tcodeTransport: TCodeTransportKind;
+  tcodeSerialPath: string;
+  tcodeBaudRate: number;
+  tcodeWebsocketHost: string;
+  tcodeWebsocketUrl: string;
+  tcodePrecision: TCodePrecision;
+  tcodeAxis: TCodeAxis;
+  tcodeSerialPorts: Array<{ path: string; manufacturer: string | null }>;
+  tcodeSerialPortsLoading: boolean;
   offsetMs: number;
   strokeMin: number;
   strokeMax: number;
@@ -76,6 +110,17 @@ type HapticsContextType = {
   error: string | null;
   connect: (key: string, ip?: string, apiKeyOverride?: string) => Promise<boolean>;
   connectIntiface: (websocketUrl?: string) => Promise<boolean>;
+  connectTCode: (
+    input?: Partial<{
+      transport: TCodeTransportKind;
+      serialPath: string;
+      baudRate: number;
+      websocketInput: string;
+      precision: TCodePrecision;
+      axis: TCodeAxis;
+    }>
+  ) => Promise<boolean>;
+  refreshTCodeSerialPorts: () => Promise<void>;
   reconnect: () => Promise<boolean>;
   disconnect: () => Promise<void>;
   forceStop: () => Promise<void>;
@@ -99,7 +144,8 @@ const HapticsContext = createContext<HapticsContextType | undefined>(undefined);
 const DEFAULT_STROKE_STATE = normalizeHandyStrokeState({ min: 0, max: 1 });
 
 function normalizeProvider(value: unknown): HapticsProviderId {
-  return value === "intiface" ? "intiface" : "thehandy";
+  if (value === "intiface" || value === "tcode") return value;
+  return "thehandy";
 }
 
 function normalizeIntifaceDeviceIndex(value: unknown): number | null {
@@ -120,6 +166,13 @@ async function loadFromStore(): Promise<{
   intifaceWebsocketUrl: string;
   intifaceDeviceName: string | null;
   intifaceDeviceIndex: number | null;
+  tcodeTransport: TCodeTransportKind;
+  tcodeSerialPath: string;
+  tcodeBaudRate: number;
+  tcodeWebsocketHost: string;
+  tcodeWebsocketUrl: string;
+  tcodePrecision: TCodePrecision;
+  tcodeAxis: TCodeAxis;
   offsetMs: number;
 }> {
   try {
@@ -131,6 +184,13 @@ async function loadFromStore(): Promise<{
       intifaceWebsocketUrl,
       intifaceDeviceName,
       intifaceDeviceIndex,
+      tcodeTransport,
+      tcodeSerialPath,
+      tcodeBaudRate,
+      tcodeWebsocketHost,
+      tcodeWebsocketUrl,
+      tcodePrecision,
+      tcodeAxis,
       offsetMs,
     ] = await Promise.all([
       trpc.store.get.query({ key: HAPTICS_PROVIDER_STORE_KEY }),
@@ -140,8 +200,20 @@ async function loadFromStore(): Promise<{
       trpc.store.get.query({ key: INTIFACE_WEBSOCKET_URL_STORE_KEY }),
       trpc.store.get.query({ key: INTIFACE_DEVICE_NAME_STORE_KEY }),
       trpc.store.get.query({ key: INTIFACE_DEVICE_INDEX_STORE_KEY }),
+      trpc.store.get.query({ key: TCODE_TRANSPORT_STORE_KEY }),
+      trpc.store.get.query({ key: TCODE_SERIAL_PATH_STORE_KEY }),
+      trpc.store.get.query({ key: TCODE_BAUD_RATE_STORE_KEY }),
+      trpc.store.get.query({ key: TCODE_WEBSOCKET_HOST_STORE_KEY }),
+      trpc.store.get.query({ key: TCODE_WEBSOCKET_URL_STORE_KEY }),
+      trpc.store.get.query({ key: TCODE_PRECISION_STORE_KEY }),
+      trpc.store.get.query({ key: TCODE_AXIS_STORE_KEY }),
       trpc.store.get.query({ key: THEHANDY_OFFSET_MS_STORE_KEY }),
     ]);
+    const savedTCodeWebSocket = normalizeTCodeWebSocketInput(
+      typeof tcodeWebsocketHost === "string" && tcodeWebsocketHost.trim().length > 0
+        ? tcodeWebsocketHost
+        : tcodeWebsocketUrl
+    );
     return {
       provider: normalizeProvider(provider),
       connectionKey: (connectionKey as string | undefined) ?? "",
@@ -153,6 +225,13 @@ async function loadFromStore(): Promise<{
           : DEFAULT_INTIFACE_WEBSOCKET_URL,
       intifaceDeviceName: normalizeNullableString(intifaceDeviceName),
       intifaceDeviceIndex: normalizeIntifaceDeviceIndex(intifaceDeviceIndex),
+      tcodeTransport: normalizeTCodeTransport(tcodeTransport),
+      tcodeSerialPath: typeof tcodeSerialPath === "string" ? tcodeSerialPath.trim() : "",
+      tcodeBaudRate: normalizeTCodeBaudRate(tcodeBaudRate),
+      tcodeWebsocketHost: savedTCodeWebSocket.host,
+      tcodeWebsocketUrl: savedTCodeWebSocket.url,
+      tcodePrecision: normalizeTCodePrecision(tcodePrecision),
+      tcodeAxis: normalizeTCodeAxis(tcodeAxis),
       offsetMs: normalizeHandyOffsetMs(offsetMs),
     };
   } catch (err) {
@@ -165,6 +244,13 @@ async function loadFromStore(): Promise<{
       intifaceWebsocketUrl: DEFAULT_INTIFACE_WEBSOCKET_URL,
       intifaceDeviceName: null,
       intifaceDeviceIndex: null,
+      tcodeTransport: DEFAULT_TCODE_TRANSPORT,
+      tcodeSerialPath: "",
+      tcodeBaudRate: DEFAULT_TCODE_BAUD_RATE,
+      tcodeWebsocketHost: DEFAULT_TCODE_WEBSOCKET_HOST,
+      tcodeWebsocketUrl: DEFAULT_TCODE_WEBSOCKET_URL,
+      tcodePrecision: DEFAULT_TCODE_PRECISION,
+      tcodeAxis: DEFAULT_TCODE_AXIS,
       offsetMs: 0,
     };
   }
@@ -209,6 +295,30 @@ async function saveIntifaceToStore(
   }
 }
 
+async function saveTCodeToStore(input: {
+  transport: TCodeTransportKind;
+  serialPath: string;
+  baudRate: number;
+  websocketHost: string;
+  websocketUrl: string;
+  precision: TCodePrecision;
+  axis: TCodeAxis;
+}): Promise<void> {
+  try {
+    await Promise.all([
+      trpc.store.set.mutate({ key: TCODE_TRANSPORT_STORE_KEY, value: input.transport }),
+      trpc.store.set.mutate({ key: TCODE_SERIAL_PATH_STORE_KEY, value: input.serialPath }),
+      trpc.store.set.mutate({ key: TCODE_BAUD_RATE_STORE_KEY, value: input.baudRate }),
+      trpc.store.set.mutate({ key: TCODE_WEBSOCKET_HOST_STORE_KEY, value: input.websocketHost }),
+      trpc.store.set.mutate({ key: TCODE_WEBSOCKET_URL_STORE_KEY, value: input.websocketUrl }),
+      trpc.store.set.mutate({ key: TCODE_PRECISION_STORE_KEY, value: input.precision }),
+      trpc.store.set.mutate({ key: TCODE_AXIS_STORE_KEY, value: input.axis }),
+    ]);
+  } catch (err) {
+    console.error("Failed to save TCode settings", err);
+  }
+}
+
 export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [provider, setProviderState] = useState<HapticsProviderId>("thehandy");
   const [connectionKey, setConnectionKey] = useState("");
@@ -217,6 +327,17 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [intifaceWebsocketUrl, setIntifaceWebsocketUrl] = useState(DEFAULT_INTIFACE_WEBSOCKET_URL);
   const [intifaceDeviceName, setIntifaceDeviceName] = useState<string | null>(null);
   const [intifaceDeviceIndex, setIntifaceDeviceIndex] = useState<number | null>(null);
+  const [tcodeTransport, setTCodeTransport] = useState<TCodeTransportKind>(DEFAULT_TCODE_TRANSPORT);
+  const [tcodeSerialPath, setTCodeSerialPath] = useState("");
+  const [tcodeBaudRate, setTCodeBaudRate] = useState(DEFAULT_TCODE_BAUD_RATE);
+  const [tcodeWebsocketHost, setTCodeWebsocketHost] = useState(DEFAULT_TCODE_WEBSOCKET_HOST);
+  const [tcodeWebsocketUrl, setTCodeWebsocketUrl] = useState(DEFAULT_TCODE_WEBSOCKET_URL);
+  const [tcodePrecision, setTCodePrecision] = useState<TCodePrecision>(DEFAULT_TCODE_PRECISION);
+  const [tcodeAxis, setTCodeAxis] = useState<TCodeAxis>(DEFAULT_TCODE_AXIS);
+  const [tcodeSerialPorts, setTCodeSerialPorts] = useState<
+    Array<{ path: string; manufacturer: string | null }>
+  >([]);
+  const [tcodeSerialPortsLoading, setTCodeSerialPortsLoading] = useState(false);
   const [globalOffsetMs, setGlobalOffsetMs] = useState(0);
   const [resourceOffsetOverrideMs, setResourceOffsetOverrideMs] = useState<number | null>(null);
   const [strokeState, setStrokeState] = useState<HandyStrokeState>(DEFAULT_STROKE_STATE);
@@ -259,6 +380,13 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         intifaceWebsocketUrl: string;
         intifaceDeviceName: string | null;
         intifaceDeviceIndex: number | null;
+        tcodeTransport: TCodeTransportKind;
+        tcodeSerialPath: string;
+        tcodeBaudRate: number;
+        tcodeWebsocketHost: string;
+        tcodeWebsocketUrl: string;
+        tcodePrecision: TCodePrecision;
+        tcodeAxis: TCodeAxis;
         strokeState: HandyStrokeState;
       }>
     ): HapticsConnectionConfig => {
@@ -269,6 +397,19 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           websocketUrl: override?.intifaceWebsocketUrl ?? intifaceWebsocketUrl,
           deviceName: override?.intifaceDeviceName ?? intifaceDeviceName,
           deviceIndex: override?.intifaceDeviceIndex ?? intifaceDeviceIndex,
+          stroke: override?.strokeState ?? strokeState,
+        };
+      }
+      if (effectiveProvider === "tcode") {
+        return {
+          provider: "tcode",
+          transport: override?.tcodeTransport ?? tcodeTransport,
+          serialPath: override?.tcodeSerialPath ?? tcodeSerialPath,
+          baudRate: override?.tcodeBaudRate ?? tcodeBaudRate,
+          websocketHost: override?.tcodeWebsocketHost ?? tcodeWebsocketHost,
+          websocketUrl: override?.tcodeWebsocketUrl ?? tcodeWebsocketUrl,
+          precision: override?.tcodePrecision ?? tcodePrecision,
+          axis: override?.tcodeAxis ?? tcodeAxis,
           stroke: override?.strokeState ?? strokeState,
         };
       }
@@ -290,6 +431,13 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       localIp,
       provider,
       strokeState,
+      tcodeAxis,
+      tcodeBaudRate,
+      tcodePrecision,
+      tcodeSerialPath,
+      tcodeTransport,
+      tcodeWebsocketHost,
+      tcodeWebsocketUrl,
     ]
   );
 
@@ -335,6 +483,13 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         intifaceWebsocketUrl: savedIntifaceUrl,
         intifaceDeviceName: savedIntifaceDeviceName,
         intifaceDeviceIndex: savedIntifaceDeviceIndex,
+        tcodeTransport: savedTCodeTransport,
+        tcodeSerialPath: savedTCodeSerialPath,
+        tcodeBaudRate: savedTCodeBaudRate,
+        tcodeWebsocketHost: savedTCodeWebsocketHost,
+        tcodeWebsocketUrl: savedTCodeWebsocketUrl,
+        tcodePrecision: savedTCodePrecision,
+        tcodeAxis: savedTCodeAxis,
         offsetMs: savedOffsetMs,
       }) => {
         if (userMutatedStateRef.current) return;
@@ -345,12 +500,29 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setIntifaceWebsocketUrl(savedIntifaceUrl);
         setIntifaceDeviceName(savedIntifaceDeviceName);
         setIntifaceDeviceIndex(savedIntifaceDeviceIndex);
+        setTCodeTransport(savedTCodeTransport);
+        setTCodeSerialPath(savedTCodeSerialPath);
+        setTCodeBaudRate(savedTCodeBaudRate);
+        setTCodeWebsocketHost(savedTCodeWebsocketHost);
+        setTCodeWebsocketUrl(savedTCodeWebsocketUrl);
+        setTCodePrecision(savedTCodePrecision);
+        setTCodeAxis(savedTCodeAxis);
         setGlobalOffsetMs(savedOffsetMs);
 
         const effectiveAppApiKey = resolveHandyAppApiKey(savedOverride);
         if (savedProvider === "thehandy" && (!savedKey || !effectiveAppApiKey)) {
           setConnected(false);
           return;
+        }
+        if (savedProvider === "tcode") {
+          if (savedTCodeTransport === "serial" && !savedTCodeSerialPath) {
+            setConnected(false);
+            return;
+          }
+          if (savedTCodeTransport === "websocket" && !savedTCodeWebsocketUrl) {
+            setConnected(false);
+            return;
+          }
         }
 
         setIsConnecting(true);
@@ -369,19 +541,33 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   deviceIndex: savedIntifaceDeviceIndex,
                   stroke: DEFAULT_STROKE_STATE,
                 }
-              : {
-                  provider: "thehandy",
-                  connectionKey: savedKey,
-                  appApiKey: effectiveAppApiKey,
-                  appApiKeyOverride: savedOverride,
-                  localIp: savedIp,
-                };
+              : savedProvider === "tcode"
+                ? {
+                    provider: "tcode",
+                    transport: savedTCodeTransport,
+                    serialPath: savedTCodeSerialPath,
+                    baudRate: savedTCodeBaudRate,
+                    websocketHost: savedTCodeWebsocketHost,
+                    websocketUrl: savedTCodeWebsocketUrl,
+                    precision: savedTCodePrecision,
+                    axis: savedTCodeAxis,
+                    stroke: DEFAULT_STROKE_STATE,
+                  }
+                : {
+                    provider: "thehandy",
+                    connectionKey: savedKey,
+                    appApiKey: effectiveAppApiKey,
+                    appApiKeyOverride: savedOverride,
+                    localIp: savedIp,
+                  };
           const result = await verifyHapticsConnection(config);
           if (result.success) {
             setConnected(true);
             if (savedProvider === "intiface") {
               setIntifaceDeviceName(result.deviceName ?? savedIntifaceDeviceName);
               setIntifaceDeviceIndex(result.deviceIndex ?? savedIntifaceDeviceIndex);
+              setStrokeState(DEFAULT_STROKE_STATE);
+            } else if (savedProvider === "tcode") {
               setStrokeState(DEFAULT_STROKE_STATE);
             } else {
               await refreshStroke({
@@ -530,15 +716,124 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [intifaceDeviceIndex, intifaceDeviceName, intifaceWebsocketUrl, strokeState]
   );
 
+  const refreshTCodeSerialPorts = useCallback(async (): Promise<void> => {
+    setTCodeSerialPortsLoading(true);
+    try {
+      const ports = await window.electronAPI.tcode?.listPorts();
+      setTCodeSerialPorts(ports ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to list TCode serial ports.");
+    } finally {
+      setTCodeSerialPortsLoading(false);
+    }
+  }, []);
+
+  const connectTCode = useCallback(
+    async (
+      input?: Partial<{
+        transport: TCodeTransportKind;
+        serialPath: string;
+        baudRate: number;
+        websocketInput: string;
+        precision: TCodePrecision;
+        axis: TCodeAxis;
+      }>
+    ): Promise<boolean> => {
+      userMutatedStateRef.current = true;
+      const nextTransport = input?.transport ?? tcodeTransport;
+      const nextSerialPath = (input?.serialPath ?? tcodeSerialPath).trim();
+      const nextBaudRate = normalizeTCodeBaudRate(input?.baudRate ?? tcodeBaudRate);
+      const nextPrecision = normalizeTCodePrecision(input?.precision ?? tcodePrecision);
+      const nextAxis = normalizeTCodeAxis(input?.axis ?? tcodeAxis);
+      let nextWebSocket: { host: string; url: string };
+      try {
+        nextWebSocket = normalizeTCodeWebSocketInput(
+          input?.websocketInput ?? tcodeWebsocketHost ?? tcodeWebsocketUrl
+        );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Invalid TCode WebSocket address.");
+        setConnected(false);
+        return false;
+      }
+
+      setIsConnecting(true);
+      setProviderState("tcode");
+      setError(null);
+      setSyncError(null);
+      setSynced(false);
+      setManuallyStopped(false);
+      setTCodeTransport(nextTransport);
+      setTCodeSerialPath(nextSerialPath);
+      setTCodeBaudRate(nextBaudRate);
+      setTCodeWebsocketHost(nextWebSocket.host);
+      setTCodeWebsocketUrl(nextWebSocket.url);
+      setTCodePrecision(nextPrecision);
+      setTCodeAxis(nextAxis);
+      await saveProviderToStore("tcode");
+      await saveTCodeToStore({
+        transport: nextTransport,
+        serialPath: nextSerialPath,
+        baudRate: nextBaudRate,
+        websocketHost: nextWebSocket.host,
+        websocketUrl: nextWebSocket.url,
+        precision: nextPrecision,
+        axis: nextAxis,
+      });
+
+      try {
+        const result = await verifyHapticsConnection({
+          provider: "tcode",
+          transport: nextTransport,
+          serialPath: nextSerialPath,
+          baudRate: nextBaudRate,
+          websocketHost: nextWebSocket.host,
+          websocketUrl: nextWebSocket.url,
+          precision: nextPrecision,
+          axis: nextAxis,
+          stroke: strokeState,
+        });
+        if (result.success) {
+          setConnected(true);
+          setStrokeState(DEFAULT_STROKE_STATE);
+          return true;
+        }
+        setError(result.message ?? "Failed to connect to TCode device.");
+        setConnected(false);
+        return false;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to connect to TCode device.";
+        setError(message);
+        setConnected(false);
+        return false;
+      } finally {
+        setIsConnecting(false);
+      }
+    },
+    [
+      strokeState,
+      tcodeAxis,
+      tcodeBaudRate,
+      tcodePrecision,
+      tcodeSerialPath,
+      tcodeTransport,
+      tcodeWebsocketHost,
+      tcodeWebsocketUrl,
+    ]
+  );
+
   const reconnect = useCallback(async (): Promise<boolean> => {
     if (provider === "intiface") {
       return connectIntiface(intifaceWebsocketUrl);
+    }
+    if (provider === "tcode") {
+      return connectTCode();
     }
     return connect(connectionKey, localIp, appApiKeyOverride);
   }, [
     appApiKeyOverride,
     connect,
     connectIntiface,
+    connectTCode,
     connectionKey,
     intifaceWebsocketUrl,
     localIp,
@@ -666,6 +961,15 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     await saveToStore(connectionKey, appApiKeyOverride, localIp);
     await saveIntifaceToStore(intifaceWebsocketUrl, intifaceDeviceName, intifaceDeviceIndex);
+    await saveTCodeToStore({
+      transport: tcodeTransport,
+      serialPath: tcodeSerialPath,
+      baudRate: tcodeBaudRate,
+      websocketHost: tcodeWebsocketHost,
+      websocketUrl: tcodeWebsocketUrl,
+      precision: tcodePrecision,
+      axis: tcodeAxis,
+    });
   }, [
     activeSession,
     appApiKeyOverride,
@@ -676,6 +980,13 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     intifaceWebsocketUrl,
     localIp,
     stopTestDevice,
+    tcodeAxis,
+    tcodeBaudRate,
+    tcodePrecision,
+    tcodeSerialPath,
+    tcodeTransport,
+    tcodeWebsocketHost,
+    tcodeWebsocketUrl,
   ]);
 
   const forceStop = useCallback(async () => {
@@ -852,6 +1163,15 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       intifaceWebsocketUrl,
       intifaceDeviceName,
       intifaceDeviceIndex,
+      tcodeTransport,
+      tcodeSerialPath,
+      tcodeBaudRate,
+      tcodeWebsocketHost,
+      tcodeWebsocketUrl,
+      tcodePrecision,
+      tcodeAxis,
+      tcodeSerialPorts,
+      tcodeSerialPortsLoading,
       offsetMs,
       strokeMin: strokeState.min,
       strokeMax: strokeState.max,
@@ -870,6 +1190,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       error,
       connect,
       connectIntiface,
+      connectTCode,
+      refreshTCodeSerialPorts,
       reconnect,
       disconnect,
       forceStop,
@@ -896,6 +1218,15 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       intifaceWebsocketUrl,
       intifaceDeviceName,
       intifaceDeviceIndex,
+      tcodeTransport,
+      tcodeSerialPath,
+      tcodeBaudRate,
+      tcodeWebsocketHost,
+      tcodeWebsocketUrl,
+      tcodePrecision,
+      tcodeAxis,
+      tcodeSerialPorts,
+      tcodeSerialPortsLoading,
       offsetMs,
       resourceOffsetOverrideMs,
       strokeState,
@@ -914,6 +1245,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       error,
       connect,
       connectIntiface,
+      connectTCode,
+      refreshTCodeSerialPorts,
       reconnect,
       disconnect,
       forceStop,

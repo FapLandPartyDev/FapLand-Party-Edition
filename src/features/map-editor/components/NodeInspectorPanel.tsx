@@ -66,6 +66,51 @@ function fromCsv(value: string): string[] | undefined {
   return items.length > 0 ? [...new Set(items)] : undefined;
 }
 
+interface CsvFilterInputProps {
+  label: React.ReactNode;
+  values: string[] | undefined;
+  placeholder: string;
+  onChange: (values: string[] | undefined) => void;
+}
+
+const CsvFilterInput: React.FC<CsvFilterInputProps> = ({ label, values, placeholder, onChange }) => {
+  const [draft, setDraft] = React.useState(() => toCsv(values));
+  const isEditingRef = React.useRef(false);
+  const formattedValue = toCsv(values);
+
+  React.useEffect(() => {
+    if (!isEditingRef.current) {
+      setDraft(formattedValue);
+    }
+  }, [formattedValue]);
+
+  return (
+    <label className="block">
+      <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+        {label}
+      </span>
+      <input
+        type="text"
+        value={draft}
+        onFocus={() => {
+          isEditingRef.current = true;
+        }}
+        onChange={(event) => {
+          const nextValue = event.target.value;
+          setDraft(nextValue);
+          onChange(fromCsv(nextValue));
+        }}
+        onBlur={(event) => {
+          isEditingRef.current = false;
+          setDraft(toCsv(fromCsv(event.target.value)));
+        }}
+        placeholder={placeholder}
+        className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
+      />
+    </label>
+  );
+};
+
 function toPortableRoundRefFromInstalledRound(
   round: InstalledRound | InstalledRoundCatalogEntry
 ): PortableRoundRef {
@@ -482,60 +527,42 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                 onPatchNode(selectedNode.id, { randomPoolId: value.trim() || undefined })
               }
             />
-            <label className="block">
-              <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
-                <Trans>Tags filter</Trans>
-              </span>
-              <input
-                type="text"
-                value={toCsv(selectedNode.filter?.tags)}
-                onChange={(event) =>
-                  onPatchNode(selectedNode.id, {
-                    filter: { ...(selectedNode.filter ?? {}), tags: fromCsv(event.target.value) },
-                  })
-                }
-                placeholder={t`tag-one, tag-two`}
-                className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
-              />
-            </label>
-            <label className="block">
-              <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
-                <Trans>Author filter</Trans>
-              </span>
-              <input
-                type="text"
-                value={toCsv(selectedNode.filter?.authorNames)}
-                onChange={(event) =>
-                  onPatchNode(selectedNode.id, {
-                    filter: {
-                      ...(selectedNode.filter ?? {}),
-                      authorNames: fromCsv(event.target.value),
-                    },
-                  })
-                }
-                placeholder={t`author-one, author-two`}
-                className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
-              />
-            </label>
-            <label className="block">
-              <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
-                <Trans>Library filter</Trans>
-              </span>
-              <input
-                type="text"
-                value={toCsv(selectedNode.filter?.libraryLabels)}
-                onChange={(event) =>
-                  onPatchNode(selectedNode.id, {
-                    filter: {
-                      ...(selectedNode.filter ?? {}),
-                      libraryLabels: fromCsv(event.target.value),
-                    },
-                  })
-                }
-                placeholder={t`library-one, library-two`}
-                className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
-              />
-            </label>
+            <CsvFilterInput
+              label={<Trans>Tags filter</Trans>}
+              values={selectedNode.filter?.tags}
+              onChange={(values) =>
+                onPatchNode(selectedNode.id, {
+                  filter: { ...(selectedNode.filter ?? {}), tags: values },
+                })
+              }
+              placeholder={t`tag-one, tag-two`}
+            />
+            <CsvFilterInput
+              label={<Trans>Author filter</Trans>}
+              values={selectedNode.filter?.authorNames}
+              onChange={(values) =>
+                onPatchNode(selectedNode.id, {
+                  filter: {
+                    ...(selectedNode.filter ?? {}),
+                    authorNames: values,
+                  },
+                })
+              }
+              placeholder={t`author-one, author-two`}
+            />
+            <CsvFilterInput
+              label={<Trans>Library filter</Trans>}
+              values={selectedNode.filter?.libraryLabels}
+              onChange={(values) =>
+                onPatchNode(selectedNode.id, {
+                  filter: {
+                    ...(selectedNode.filter ?? {}),
+                    libraryLabels: values,
+                  },
+                })
+              }
+              placeholder={t`library-one, library-two`}
+            />
             <label className="block">
               <label className="mt-1 flex items-start gap-2 rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-2 text-xs text-zinc-200">
                 <input

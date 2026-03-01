@@ -36,6 +36,8 @@ function makeLinearPlaylist(id: string, name: string, startingMoney = 120) {
         antiPerkIncreasePerRound: 0.015,
         maxIntermediaryProbability: 1,
         maxAntiPerkProbability: 0.75,
+        resetIntermediaryProbabilityAfterTrigger: false,
+        resetAntiPerkProbabilityAfterTrigger: false,
       },
       economy: {
         startingMoney,
@@ -106,6 +108,8 @@ function makeGraphPlaylist(id: string, name: string) {
         antiPerkIncreasePerRound: 0.015,
         maxIntermediaryProbability: 1,
         maxAntiPerkProbability: 0.75,
+        resetIntermediaryProbabilityAfterTrigger: false,
+        resetAntiPerkProbabilityAfterTrigger: false,
       },
       economy: {
         startingMoney: 120,
@@ -275,6 +279,8 @@ vi.mock("../game/playlistRuntime", () => ({
       antiPerkIncreasePerRound: 0,
       maxIntermediaryProbability: 0,
       maxAntiPerkProbability: 0,
+      resetIntermediaryProbabilityAfterTrigger: false,
+      resetAntiPerkProbabilityAfterTrigger: false,
     },
     disableDiceAnimation: false,
     economy: {
@@ -704,6 +710,45 @@ describe("PlaylistWorkshopRoute", () => {
       config: ReturnType<typeof makeLinearPlaylist>["config"];
     };
     expect(updateCall.config.disableDiceAnimation).toBe(true);
+  });
+
+  it("saves probability reset toggles for linear playlists", async () => {
+    const playlist = makeLinearPlaylist("linear-playlist", "Linear Playlist");
+    mocks.loaderData = {
+      installedRounds: [],
+      availablePlaylists: [playlist],
+      activePlaylist: playlist,
+    };
+    mocks.playlists.list.mockResolvedValue([playlist]);
+    mocks.playlists.getActive.mockResolvedValue(playlist);
+
+    render(<Component />);
+
+    fireEvent.click(screen.getByRole("button", { name: /linear playlist.*open/i }));
+    fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /reset intermediary chance after trigger toggle/i,
+      })
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /reset anti-perk chance after trigger toggle/i,
+      })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "💾 Save" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+    });
+
+    const updateCall = mocks.playlists.update.mock.calls[0]?.[0] as {
+      config: ReturnType<typeof makeLinearPlaylist>["config"];
+    };
+    expect(updateCall.config.probabilityScaling.resetIntermediaryProbabilityAfterTrigger).toBe(
+      true
+    );
+    expect(updateCall.config.probabilityScaling.resetAntiPerkProbabilityAfterTrigger).toBe(true);
   });
 
   it("exports .fplay after persisting dirty linear playlist changes", async () => {

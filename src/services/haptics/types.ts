@@ -1,6 +1,9 @@
 import type { FunscriptAction } from "../../game/media/playback";
 
-export type HapticsProviderId = "thehandy" | "intiface";
+export type HapticsProviderId = "thehandy" | "intiface" | "tcode";
+export type TCodeTransportKind = "serial" | "websocket";
+export type TCodePrecision = 3 | 4;
+export type TCodeAxis = "L0";
 
 export type HapticsSyncState = "disconnected" | "connecting" | "missing-key" | "synced" | "error";
 
@@ -35,6 +38,17 @@ export type HapticsConnectionConfig =
       websocketUrl: string;
       deviceName: string | null;
       deviceIndex: number | null;
+      stroke: HapticsStrokeState;
+    }
+  | {
+      provider: "tcode";
+      transport: TCodeTransportKind;
+      serialPath: string;
+      baudRate: number;
+      websocketHost: string;
+      websocketUrl: string;
+      precision: TCodePrecision;
+      axis: TCodeAxis;
       stroke: HapticsStrokeState;
     };
 

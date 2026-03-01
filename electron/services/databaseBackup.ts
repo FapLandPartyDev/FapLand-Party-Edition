@@ -18,6 +18,7 @@ import {
   runDatabaseBackupForClient,
   type DatabaseBackupResult,
 } from "./databaseBackupCore";
+import { debugLog } from "./debugLogging";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const INITIAL_BACKUP_CHECK_DELAY_MS = 10_000;
@@ -81,11 +82,13 @@ export async function runDatabaseBackup(now = new Date()): Promise<DatabaseBacku
   if (!databasePath) {
     if (!unsupportedDatabaseWarningShown) {
       console.warn("Automatic database backups require a local file: SQLite database URL.");
+      debugLog.warn("databaseBackup", "Automatic backups skipped for non-file database URL");
       unsupportedDatabaseWarningShown = true;
     }
     return null;
   }
 
+  debugLog.info("databaseBackup", "Database backup started");
   const result = await runDatabaseBackupForClient({
     db: getDb(),
     backupDir: getBackupDir(),
@@ -94,6 +97,7 @@ export async function runDatabaseBackup(now = new Date()): Promise<DatabaseBacku
     pruneOldBackups: pruneOldDatabaseBackups,
   });
   getStore().set(DATABASE_BACKUP_LAST_BACKUP_AT_KEY, now.toISOString());
+  debugLog.info("databaseBackup", "Database backup finished", result);
 
   return result;
 }
@@ -131,6 +135,7 @@ export function startContinuousDatabaseBackup(): void {
       initialBackupTimer = null;
       void runDueDatabaseBackup().catch((error) => {
         console.error("Initial database backup failed:", error);
+        debugLog.error("databaseBackup", "Initial database backup failed", error);
       });
     }, INITIAL_BACKUP_CHECK_DELAY_MS);
   }
@@ -140,6 +145,7 @@ export function startContinuousDatabaseBackup(): void {
   backupTimer = setInterval(() => {
     void runDueDatabaseBackup().catch((error) => {
       console.error("Automatic database backup failed:", error);
+      debugLog.error("databaseBackup", "Automatic database backup failed", error);
     });
   }, BACKUP_CHECK_INTERVAL_MS);
 }

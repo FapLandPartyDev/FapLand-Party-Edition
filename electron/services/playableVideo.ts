@@ -20,6 +20,7 @@ import {
   warmWebsiteVideoCache,
 } from "./webVideo";
 import { resolveMediaUri } from "./integrations";
+import { debugLog } from "./debugLogging";
 
 export type ResolvePlayableVideoUriResult = {
   videoUri: string;
@@ -217,12 +218,7 @@ async function transcodeToPlayableMp4(input: {
     } else {
       args.push("-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "ultrafast");
     }
-    args.push(
-      "-movflags", "+faststart",
-      "-c:a", "aac",
-      "-b:a", "192k",
-      tempPath
-    );
+    args.push("-movflags", "+faststart", "-c:a", "aac", "-b:a", "192k", tempPath);
     return args;
   };
 
@@ -287,6 +283,7 @@ export async function resolvePlayableVideoUri(
     if (pending) {
       void pending.catch((error) => {
         console.warn("Website video cache warm failed", error);
+        debugLog.warn("playableVideo", "Website video cache warm failed", error);
       });
     }
     return {
@@ -400,6 +397,7 @@ export async function resolvePlayableVideoUri(
     // Start the background transcode process so it can eventually use a cached file
     void transcodePromise.catch((error) => {
       console.warn("Background transcode failed", error);
+      debugLog.warn("playableVideo", "Background transcode failed", error);
     });
 
     // Return the live transcode URI immediately for instant playback
