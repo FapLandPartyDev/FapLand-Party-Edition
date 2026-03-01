@@ -1913,6 +1913,7 @@ export const dbRouter = router({
             phash: resourceEntry.phash,
             durationMs: resourceEntry.durationMs,
             funscriptOffsetMs: resourceEntry.funscriptOffsetMs,
+            invertFunscript: resourceEntry.invertFunscript,
             ...resolveResourceUrisForRequest({
               videoUri: resourceEntry.videoUri,
               funscriptUri: resourceEntry.funscriptUri,

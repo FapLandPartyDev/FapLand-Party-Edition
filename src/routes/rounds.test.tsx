@@ -220,6 +220,7 @@ function makeRound({
   template = false,
   funscriptUri = null,
   funscriptOffsetMs = null,
+  invertFunscript = false,
   installSourceKey = null,
   previewImage = null,
   websiteVideoCacheStatus = "not_applicable",
@@ -237,6 +238,7 @@ function makeRound({
   template?: boolean;
   funscriptUri?: string | null;
   funscriptOffsetMs?: number | null;
+  invertFunscript?: boolean;
   installSourceKey?: string | null;
   previewImage?: string | null;
   websiteVideoCacheStatus?: "not_applicable" | "cached" | "pending";
@@ -276,6 +278,7 @@ function makeRound({
             videoUri,
             funscriptUri,
             funscriptOffsetMs,
+            invertFunscript,
             phash: null,
             disabled: false,
             durationMs: durationMs ?? null,
@@ -2694,6 +2697,55 @@ describe("InstalledRoundsPage hero grouping", () => {
         expect.objectContaining({
           id: "solo",
           funscriptOffsetMs: null,
+        })
+      );
+    });
+  });
+
+  it("displays the saved invert funscript setting in the edit round dialog", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "solo",
+        name: "Solo Round",
+        createdAt: "2026-03-03T11:00:00.000Z",
+        funscriptUri: "app://media/test.funscript",
+        invertFunscript: true,
+      }),
+    ];
+
+    await renderInstalledRoundsPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Round" }));
+    await waitFor(() => {
+      expect(mocks.db.round.getMediaResources).toHaveBeenCalledWith("solo", false);
+    });
+
+    const invertCheckbox = await screen.findByLabelText("Invert funscript (flip all positions)");
+    expect((invertCheckbox as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("sends invertFunscript when saving an edited round", async () => {
+    mocks.loaderData.rounds = [
+      makeRound({
+        id: "solo",
+        name: "Solo Round",
+        createdAt: "2026-03-03T11:00:00.000Z",
+        funscriptUri: "app://media/test.funscript",
+      }),
+    ];
+
+    await renderInstalledRoundsPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Round" }));
+    const invertCheckbox = await screen.findByLabelText("Invert funscript (flip all positions)");
+    fireEvent.click(invertCheckbox);
+    fireEvent.click(screen.getByRole("button", { name: "Save Round" }));
+
+    await waitFor(() => {
+      expect(mocks.db.round.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "solo",
+          invertFunscript: true,
         })
       );
     });
