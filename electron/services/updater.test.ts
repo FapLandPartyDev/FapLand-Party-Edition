@@ -11,7 +11,29 @@ vi.mock("electron", () => ({
   },
 }));
 
-import { compareVersions, resolveReleaseAssetUrl, shouldRefreshUpdateState, type AppUpdateState } from "./updater";
+import { compareVersions, resolveReleaseAssetUrl, shouldRefreshUpdateState, getReleaseConfig, type AppUpdateState } from "./updater";
+
+describe("updater.getReleaseConfig", () => {
+  it("parses valid repository strings", () => {
+    vi.stubEnv("FLAND_UPDATE_REPOSITORY", "owner/repo");
+    const result = getReleaseConfig();
+    expect(result?.apiUrl).toBe("https://api.github.com/repos/owner/repo/releases/latest");
+    vi.unstubAllEnvs();
+  });
+
+  it("handles trailing slashes by trimming them", () => {
+    vi.stubEnv("FLAND_UPDATE_REPOSITORY", "owner/repo/");
+    const result = getReleaseConfig();
+    expect(result?.apiUrl).toBe("https://api.github.com/repos/owner/repo/releases/latest");
+    vi.unstubAllEnvs();
+  });
+
+  it("returns null for malformed repository strings", () => {
+    vi.stubEnv("FLAND_UPDATE_REPOSITORY", "invalid-format");
+    expect(getReleaseConfig()).toBeNull();
+    vi.unstubAllEnvs();
+  });
+});
 
 describe("updater.compareVersions", () => {
   it("treats higher semantic versions as newer", () => {

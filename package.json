@@ -2,10 +2,11 @@
   "name": "f-land",
   "private": true,
   "type": "module",
-  "version": "0.1.4",
+  "version": "0.1.3",
   "author": "FapLandDev",
   "description": "Fap Land — Party Edition",
   "license": "AGPL-3.0-only",
+  "repository": "https://github.com/FapLandPartyDev/FapLand-Party-Edition",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",

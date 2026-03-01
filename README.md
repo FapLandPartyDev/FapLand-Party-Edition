@@ -1,102 +1,129 @@
-# F-Land (Fap Land — Party Edition)
+# Fap Land Party Edition(F-Land)
 
-A chaotic, adult-oriented, up to 4-player asynchronous multiplayer board game that also can be played solo. Think "Mario Party" meets haptic hardware synchronization.
+Desktop board-game app built with React, Vite, and Electron. The project combines local round playback, TheHandy integration, playlist authoring, and Supabase-backed multiplayer in one package.
 
-## The Elevator Pitch
+## What It Does
 
-Players race across a 2D virtual game board while simultaneously watching a local video synced to their personal haptic hardware (TheHandy). As they progress, they collect coins and use them to place "Traps" (anti-perks) on the board. When an opponent lands on a trap, their video, hardware, or gameplay is sabotaged in real-time.
+F-Land is an adult-oriented party/board-game app with both solo and multiplayer flows. The current app includes:
 
-## Core Gameplay Loop
+- Single-player setup and results
+- Experimental Supabase multiplayer lobbies and matches
+- Local round library management
+- Round converter tooling
+- Playlist workshop and export/import flows
+- Experimental map editor
+- Highscores and cached match history
+- TheHandy connection and sync controls
+- Desktop packaging, auto-update wiring, and custom file associations
 
-1. **The Setup:** Players open multiplayer, the app resumes or creates a Supabase multiplayer account automatically, enter their Handy Connection Key, and select a local video (`.mp4`/`.webm`) and its matching `.funscript` file. On servers with Discord auth configured, players must link a Discord account that has an email. Custom/self-hosted servers without Discord OAuth fall back to anonymous multiplayer.
-2. **The Race:** The game is an asynchronous race. Players roll dice to move across the PixiJS 2D board.
-3. **The Sabotage (Traps):** Players spend coins to place traps on specific board tiles. If Player B lands on Player A's "Speed Trap," Player B's video `playbackRate` dynamically shifts to 1.5x, and their Handy hardware instantly scales its speed to match.
-4. **The Queue:** To handle concurrent attacks, traps do not overwrite each other. They are pushed into a sequential "Trap Queue." The player's client processes them one by one until the queue is empty.
-5. **The Climax:** The match ends when the conditions are met, and the Host broadcasts the final `MatchRecord`.
+## Stack
 
-## Technology Stack
+- React 19
+- TypeScript
+- Vite 7
+- Electron 41
+- Tailwind CSS 4
+- TanStack Router + React Query
+- PixiJS
+- Drizzle ORM + LibSQL/SQLite
+- Supabase Realtime/Auth for multiplayer
 
-- **Frontend**: React 19, TypeScript, TailwindCSS 4, Vite
-- **Desktop Environment**: Electron
-- **Game Engine**: PixiJS (`@pixi/react`)
-- **Backend & Multiplayer**: Supabase (Database & Realtime Broadcast for intense setup)
-- **Local Storage**: Prisma + LibSQL
-- **Hardware API**: TheHandy API v3 (Firmware 4, HSP protocol)
+## Requirements
 
-## Hardware Integration Constraints
+- Node.js and npm
+- Optional: `nix develop` if you want to use the provided Nix shell
+- For local multiplayer backend work: Docker, Supabase CLI, and `psql`
 
-- **Protocol**: Exclusively utilizes the official REST API v3 (Firmware 4) in HSP (Handy Streaming Protocol) mode.
-- **Variable Speeds**: To keep haptics perfectly synced with trap effects (e.g., `video.playbackRate = 1.5`), the game issues immediate `PUT /hsp/playbackrate` commands.
-- **Latency**: Prioritizes the Local Network API (direct IP communication) to ensure traps and haptic alterations trigger instantly.
+The Electron build targets Node 20 for the main/preload bundles, so a current Node 20+ environment is the safe default.
 
-## Development
+## Quick Start
 
-Install dependencies with the local flake-backed toolchain:
+Install dependencies:
+
+```bash
+npm install
+```
+
+Or with the Nix shell:
 
 ```bash
 nix develop -c npm install
 ```
 
-Create a local env file before running multiplayer locally:
+Create a local env file:
 
 ```bash
 cp .example.env .env
 ```
 
-Set `VITE_MULTIPLAYER_DEVELOPMENT_SUPABASE_ANON_KEY` in `.env` to your local Supabase anon key. The development key is no longer kept in source.
-
-If you want local Supabase multiplayer to require Discord linking, also set:
+Start the app in development:
 
 ```bash
-SUPABASE_AUTH_EXTERNAL_DISCORD_CLIENT_ID=...
-SUPABASE_AUTH_EXTERNAL_DISCORD_SECRET=...
+npm run dev
 ```
 
-The desktop OAuth callback used by the packaged app is `fland://auth/callback`.
+## Environment
 
-Start the development server:
+The main variables are documented in [`.example.env`](./.example.env). The most relevant ones are:
 
-```bash
-nix develop -c npm run dev
-```
+- `DATABASE_URL`: local LibSQL/SQLite database URL. Defaults to `file:dev.db` when unset.
+- `FLAND_UPDATE_REPOSITORY`: GitHub repo slug used by the desktop updater.
+- `VITE_MULTIPLAYER_DEFAULT_SUPABASE_URL`
+- `VITE_MULTIPLAYER_DEFAULT_SUPABASE_ANON_KEY`
+- `VITE_MULTIPLAYER_DEVELOPMENT_SUPABASE_URL`
+- `VITE_MULTIPLAYER_DEVELOPMENT_SUPABASE_ANON_KEY`
+- `SUPABASE_AUTH_EXTERNAL_DISCORD_CLIENT_ID`
+- `SUPABASE_AUTH_EXTERNAL_DISCORD_SECRET`
+- `FLAND_ENABLE_DEV_FEATURES`
+- `FLAND_USER_DATA_SUFFIX`
 
-Run multiplayer development environment:
+If a multiplayer server is configured with Discord OAuth, the app expects account linking through Discord and requires the Discord account to expose an email address.
 
-```bash
-nix develop -c npm run dev:multiplayer
-```
+Packaged desktop OAuth callbacks use the `fland://auth/callback` protocol.
 
-Build for production:
+## Development Scripts
 
-```bash
-nix develop -c npm run build
-```
+- `npm run dev`: Vite + Electron development
+- `npm run dev:multiplayer`: launches two local app instances for multiplayer testing
+- `npm run test`: run Vitest
+- `npm run lint`: run ESLint
+- `npm run format`: run Prettier
+- `npm run db:generate`: generate Drizzle artifacts
+- `npm run db:push`: push Drizzle schema changes
+- `npm run supabase:local:setup`: start and verify a local Supabase stack
+- `npm run supabase:migrate`: apply local Supabase migrations
+- `npm run supabase:reset`: restart local Supabase services
 
-Build the hardened renderer/main bundle with terser minification, target-specific obfuscation, and production source maps disabled:
+## Local Multiplayer Workflow
 
-```bash
-nix develop -c npm run build:release
-```
+1. Copy [`.example.env`](./.example.env) to `.env`.
+2. Set `VITE_MULTIPLAYER_DEVELOPMENT_SUPABASE_ANON_KEY` to the anon key from your local Supabase instance.
+3. Run `npm run supabase:local:setup`.
+4. Run `npm run dev:multiplayer`.
 
-Build the hardened release bundle with compressed size reporting enabled:
+`npm run dev:multiplayer` starts one Vite dev server and launches two Electron profiles with isolated user data (`mp1` and `mp2`) so you can test lobby flows locally.
 
-```bash
-nix develop -c npm run build:analyze
-```
+## Build And Packaging
 
-Build a packaged release with Electron fuses, ASAR packaging, and embedded ASAR integrity validation:
+Available build commands:
 
-```bash
-nix develop -c npm run build:package
-```
+- `npm run build`: standard production renderer/main build
+- `npm run build:release`: hardened release build with terser minification and release defaults
+- `npm run build:analyze`: release build with compressed size reporting
+- `npm run build:package`: packaged release build via `electron-builder`
+- `npm run build:testers`: packaged build with dev-only app features kept on
+- `npm run build:dev`: packaged development-oriented build
 
-Build a packaged tester build that keeps dev-only app features enabled while preserving the packaged hardening defaults:
+Supported package targets currently configured:
 
-```bash
-nix develop -c npm run build:testers
-```
+- Linux: `AppImage`
+- Windows: `nsis`
 
-Optional build flags:
+Release packaging enables ASAR, Electron fuses, and embedded ASAR integrity validation.
+
+## Build Flags
+
+These environment variables influence builds:
 
 - `FLAND_BUILD_PROFILE=default|release`
 - `FLAND_OBFUSCATE_RENDERER=true|false`
@@ -105,6 +132,13 @@ Optional build flags:
 - `FLAND_BUILD_ANALYZE=true|false`
 - `FLAND_ENABLE_DEV_FEATURES=true|false`
 
+## Project Notes
+
+- The desktop app registers file associations for `.hero`, `.round`, and `.fplay`.
+- Local persistence uses Drizzle with a bundled SQLite/LibSQL database.
+- Multiplayer state and match history are backed by Supabase.
+- The UI is route-driven with TanStack Router and includes extensive test coverage across routes, services, and gameplay logic.
+
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+Licensed under AGPL-3.0-only. See [LICENSE](./LICENSE).

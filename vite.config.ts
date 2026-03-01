@@ -91,17 +91,17 @@ export default defineConfig(({ command, mode }) => {
   const preloadObfuscationPlugin = createObfuscationPlugin("preload", obfuscatePreload);
   const mainObfuscationPlugin = createObfuscationPlugin("main", obfuscateMain);
 
+  const defines = {
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
+    "process.env.FLAND_APP_VERSION": JSON.stringify(appVersion),
+    "import.meta.env.FLAND_ENABLE_DEV_FEATURES": JSON.stringify(enableDevFeatures ? "true" : "false"),
+    "import.meta.env.FLAND_UPDATE_REPOSITORY": JSON.stringify(
+      env.FLAND_UPDATE_REPOSITORY ?? process.env.FLAND_UPDATE_REPOSITORY ?? ""
+    ),
+  };
+
   return {
-    define: {
-      "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
-      "process.env.FLAND_APP_VERSION": JSON.stringify(appVersion),
-      "import.meta.env.FLAND_ENABLE_DEV_FEATURES": JSON.stringify(
-        enableDevFeatures ? "true" : "false"
-      ),
-      "import.meta.env.FLAND_UPDATE_REPOSITORY": JSON.stringify(
-        env.FLAND_UPDATE_REPOSITORY ?? process.env.FLAND_UPDATE_REPOSITORY ?? ""
-      ),
-    },
+    define: defines,
     plugins: [
       ...(command === "serve" ? [devtools()] : []),
       viteTsConfigPaths({
@@ -116,6 +116,7 @@ export default defineConfig(({ command, mode }) => {
         main: {
           entry: "electron/main.ts",
           vite: {
+            define: defines,
             build: {
               minify: isReleaseBuild ? "terser" : "esbuild",
               sourcemap: false,
@@ -131,6 +132,7 @@ export default defineConfig(({ command, mode }) => {
         preload: {
           input: "electron/preload.ts",
           vite: {
+            define: defines,
             build: {
               minify: isReleaseBuild ? "terser" : "esbuild",
               sourcemap: false,

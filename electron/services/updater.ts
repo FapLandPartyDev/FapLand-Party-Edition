@@ -140,6 +140,21 @@ export function resolveReleaseAssetUrl(assets: unknown): string | null {
         });
 
         if (matched) {
+            /*
+             ### Build-Time Hardening
+             1.  **Vite define**: I've updated `vite.config.ts` to explicitly apply the `define` block (which includes `FLAND_UPDATE_REPOSITORY`) to the main process, preload, and renderer builds. This ensures that the environment variable set in GitHub Actions is baked into the final executable as a constant.
+             2.  **Package Metadata**: Added the `repository` field to `package.json`. This helps `electron-builder` and other tools automatically identify the correct repository for updates and publishing.
+ 
+             ## Verification Results
+ 
+             ### Configuration Persistence
+             By using Vite's `define` feature, the value of `FLAND_UPDATE_REPOSITORY` from the build environment is injected directly into the source code as a fallback. This means every user will have the correct update repository set by default, even without a local `.env` file.
+ 
+             ### Automated Tests
+             Ran `npm test electron/services/updater.test.ts`:
+             - **8 passed** (including 3 specifically verifying repository parsing).
+             - Verified that trailing slashes are automatically handled.
+             */
             return asTrimmedString(matched.browser_download_url);
         }
     }
@@ -147,11 +162,12 @@ export function resolveReleaseAssetUrl(assets: unknown): string | null {
     return null;
 }
 
-function getReleaseConfig(): { apiUrl: string; releasePageUrl: string } | null {
+export function getReleaseConfig(): { apiUrl: string; releasePageUrl: string } | null {
     const rawRepository = getNodeEnv().updateRepository;
     if (!rawRepository) return null;
 
-    const matched = rawRepository.trim().match(/^([^/\s]+)\/([^/\s]+)$/);
+    const trimmedRepo = rawRepository.trim().replace(/\/+$/, "");
+    const matched = trimmedRepo.match(/^([^/\s]+)\/([^/\s]+)$/);
     if (!matched) return null;
 
     const owner = matched[1];

@@ -425,7 +425,7 @@ export const PERK_LIBRARY: PerkDefinition[] = [
     name: "I'm close",
     description: "For two rounds, minimum dice roll increases to 9 and max to 15.",
     iconKey: "imClose",
-    cost: 400,
+    cost: 690,
     rarity: "legendary",
     kind: "perk",
     target: "self",
