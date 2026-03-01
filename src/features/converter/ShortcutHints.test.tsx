@@ -41,20 +41,27 @@ describe("converter shortcut hints", () => {
           durationMs={10_000}
           pauseGapDraft="900"
           minRoundDraft="15000"
+          autoTrimRounds={false}
+          trimAllowanceDraft="1000"
           targetSegmentCountDraft="3"
           targetDetectionResultSummary={null}
           targetSegmentCountInputRef={{ current: null }}
           isDetecting={false}
           detectedSegmentCount={3}
+          existingSegmentCount={2}
           onSetPauseGapDraft={() => {}}
           onSetMinRoundDraft={() => {}}
+          onSetAutoTrimRounds={() => {}}
+          onSetTrimAllowanceDraft={() => {}}
           onSetTargetSegmentCountDraft={() => {}}
           onCommitPauseGapDraft={() => {}}
           onCommitMinRoundDraft={() => {}}
+          onCommitTrimAllowanceDraft={() => {}}
           onRunAutoDetect={() => {}}
           onRunAdaptiveAutoDetect={() => {}}
           onRunTargetCountAutoDetect={() => {}}
           onApplyDetected={() => {}}
+          onTrimExisting={() => {}}
         />
       </div>
     );
@@ -74,20 +81,27 @@ describe("converter shortcut hints", () => {
         durationMs={10_000}
         pauseGapDraft="900"
         minRoundDraft="15000"
+        autoTrimRounds={false}
+        trimAllowanceDraft="1000"
         targetSegmentCountDraft="3"
         targetDetectionResultSummary={null}
         targetSegmentCountInputRef={{ current: null }}
         isDetecting={false}
         detectedSegmentCount={3}
+        existingSegmentCount={2}
         onSetPauseGapDraft={() => {}}
         onSetMinRoundDraft={() => {}}
+        onSetAutoTrimRounds={() => {}}
+        onSetTrimAllowanceDraft={() => {}}
         onSetTargetSegmentCountDraft={() => {}}
         onCommitPauseGapDraft={() => {}}
         onCommitMinRoundDraft={() => {}}
+        onCommitTrimAllowanceDraft={() => {}}
         onRunAutoDetect={() => {}}
         onRunAdaptiveAutoDetect={() => {}}
         onRunTargetCountAutoDetect={onRunTargetCountAutoDetect}
         onApplyDetected={() => {}}
+        onTrimExisting={() => {}}
       />
     );
 
@@ -95,6 +109,90 @@ describe("converter shortcut hints", () => {
     fireEvent.keyDown(targetInputs[targetInputs.length - 1]!, { key: "Enter" });
 
     expect(onRunTargetCountAutoDetect).toHaveBeenCalledTimes(1);
+  });
+
+  it("enables trimming when existing sections are available", () => {
+    const onSetAutoTrimRounds = vi.fn();
+    const onTrimExisting = vi.fn();
+    const { container, rerender } = render(
+      <AutoDetectionPanel
+        funscriptUri="file:///tmp/test.funscript"
+        durationMs={10_000}
+        pauseGapDraft="900"
+        minRoundDraft="15000"
+        autoTrimRounds={false}
+        trimAllowanceDraft="1000"
+        targetSegmentCountDraft="3"
+        targetDetectionResultSummary={null}
+        targetSegmentCountInputRef={{ current: null }}
+        isDetecting={false}
+        detectedSegmentCount={0}
+        existingSegmentCount={0}
+        onSetPauseGapDraft={() => {}}
+        onSetMinRoundDraft={() => {}}
+        onSetAutoTrimRounds={onSetAutoTrimRounds}
+        onSetTrimAllowanceDraft={() => {}}
+        onSetTargetSegmentCountDraft={() => {}}
+        onCommitPauseGapDraft={() => {}}
+        onCommitMinRoundDraft={() => {}}
+        onCommitTrimAllowanceDraft={() => {}}
+        onRunAutoDetect={() => {}}
+        onRunAdaptiveAutoDetect={() => {}}
+        onRunTargetCountAutoDetect={() => {}}
+        onApplyDetected={() => {}}
+        onTrimExisting={onTrimExisting}
+      />
+    );
+
+    const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const allowance = container.querySelector(
+      'input[aria-label="Trim Allowance (ms)"]'
+    ) as HTMLInputElement;
+    const trimButton = screen.getAllByRole("button", { name: "Trim Existing" }).at(-1);
+    expect(allowance.disabled).toBe(false);
+    expect((trimButton as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(checkbox);
+    expect(onSetAutoTrimRounds).toHaveBeenCalledWith(true);
+
+    rerender(
+      <AutoDetectionPanel
+        funscriptUri="file:///tmp/test.funscript"
+        durationMs={10_000}
+        pauseGapDraft="900"
+        minRoundDraft="15000"
+        autoTrimRounds
+        trimAllowanceDraft="1000"
+        targetSegmentCountDraft="3"
+        targetDetectionResultSummary={null}
+        targetSegmentCountInputRef={{ current: null }}
+        isDetecting={false}
+        detectedSegmentCount={0}
+        existingSegmentCount={2}
+        onSetPauseGapDraft={() => {}}
+        onSetMinRoundDraft={() => {}}
+        onSetAutoTrimRounds={onSetAutoTrimRounds}
+        onSetTrimAllowanceDraft={() => {}}
+        onSetTargetSegmentCountDraft={() => {}}
+        onCommitPauseGapDraft={() => {}}
+        onCommitMinRoundDraft={() => {}}
+        onCommitTrimAllowanceDraft={() => {}}
+        onRunAutoDetect={() => {}}
+        onRunAdaptiveAutoDetect={() => {}}
+        onRunTargetCountAutoDetect={() => {}}
+        onApplyDetected={() => {}}
+        onTrimExisting={onTrimExisting}
+      />
+    );
+
+    expect(
+      (container.querySelector('input[aria-label="Trim Allowance (ms)"]') as HTMLInputElement)
+        .disabled
+    ).toBe(false);
+    const enabledTrimButton = screen.getAllByRole("button", { name: "Trim Existing" }).at(-1);
+    expect((enabledTrimButton as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(enabledTrimButton!);
+    expect(onTrimExisting).toHaveBeenCalledTimes(1);
   });
 
   it("renders move selected segment boundary buttons with shortcut hints", () => {

@@ -131,6 +131,66 @@ describe("buildDetectedSegments", () => {
       { startTimeMs: 7500, endTimeMs: 11250, type: "Normal" },
     ]);
   });
+
+  it("auto-trims every round to its moving actions with the default one-second allowance", () => {
+    const segments = buildDetectedSegments({
+      actions: [
+        { at: 2_000, pos: 20 },
+        { at: 3_000, pos: 80 },
+        { at: 10_000, pos: 30 },
+        { at: 11_000, pos: 70 },
+        { at: 14_000, pos: 70 },
+      ],
+      durationMs: 18_000,
+      pauseGapMs: 4_000,
+      minRoundMs: 500,
+      autoTrimRounds: true,
+    });
+
+    expect(segments).toEqual([
+      { startTimeMs: 1_000, endTimeMs: 4_000, type: "Normal" },
+      { startTimeMs: 9_000, endTimeMs: 12_000, type: "Normal" },
+    ]);
+  });
+
+  it("uses the configured trim allowance and never crosses a pause midpoint", () => {
+    const segments = buildDetectedSegments({
+      actions: [
+        { at: 2_000, pos: 20 },
+        { at: 3_000, pos: 80 },
+        { at: 5_000, pos: 30 },
+        { at: 6_000, pos: 70 },
+      ],
+      durationMs: 8_000,
+      pauseGapMs: 2_000,
+      minRoundMs: 500,
+      autoTrimRounds: true,
+      trimAllowanceMs: 2_000,
+    });
+
+    expect(segments).toEqual([
+      { startTimeMs: 0, endTimeMs: 4_000, type: "Normal" },
+      { startTimeMs: 4_000, endTimeMs: 8_000, type: "Normal" },
+    ]);
+  });
+
+  it("applies the minimum round duration after auto-trimming", () => {
+    const segments = buildDetectedSegments({
+      actions: [
+        { at: 2_000, pos: 20 },
+        { at: 2_500, pos: 80 },
+        { at: 9_000, pos: 30 },
+        { at: 12_000, pos: 70 },
+      ],
+      durationMs: 15_000,
+      pauseGapMs: 4_000,
+      minRoundMs: 3_000,
+      autoTrimRounds: true,
+      trimAllowanceMs: 500,
+    });
+
+    expect(segments).toEqual([{ startTimeMs: 8_500, endTimeMs: 12_500, type: "Normal" }]);
+  });
 });
 
 describe("findAdaptiveDetectionSettings", () => {

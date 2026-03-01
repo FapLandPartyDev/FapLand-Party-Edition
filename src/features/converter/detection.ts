@@ -14,6 +14,8 @@ export type BuildDetectedSegmentsInput = {
   durationMs: number;
   pauseGapMs: number;
   minRoundMs: number;
+  autoTrimRounds?: boolean;
+  trimAllowanceMs?: number;
   defaultType?: "Normal" | "Interjection" | "Cum";
 };
 
@@ -23,6 +25,8 @@ export type TargetDetectionInput = {
   targetCount: number;
   currentPauseGapMs: number;
   currentMinRoundMs: number;
+  autoTrimRounds?: boolean;
+  trimAllowanceMs?: number;
   defaultType?: "Normal" | "Interjection" | "Cum";
   pauseGapRangeMs?: { min: number; max: number };
   minRoundRangeMs?: { min: number; max: number };
@@ -54,6 +58,13 @@ export type AdaptiveDetectionResult = {
   minRoundMs: number;
   segments: DetectedSegment[];
   evaluations: number;
+};
+
+export type ActionTrimRangeInput = {
+  actions: DetectionAction[];
+  startTimeMs: number;
+  endTimeMs: number;
+  allowanceMs?: number;
 };
 
 type BestTargetDetection = {
@@ -230,12 +241,38 @@ function getDetectionBounds(
   return { startBoundary, endBoundary };
 }
 
+export function getActionTrimRange(input: ActionTrimRangeInput): {
+  startTimeMs: number;
+  endTimeMs: number;
+} | null {
+  const startTimeMs = Math.max(0, Math.floor(input.startTimeMs));
+  const endTimeMs = Math.max(startTimeMs, Math.floor(input.endTimeMs));
+  if (endTimeMs <= startTimeMs) return null;
+
+  const allowanceMs = Math.max(0, Math.floor(input.allowanceMs ?? 1_000));
+  const actions = normalizeActions(input.actions).filter(
+    (action) => action.at >= startTimeMs && action.at <= endTimeMs
+  );
+  const extent = getActionExtent(actions, endTimeMs);
+  if (!extent) return null;
+
+  const trimmedStartTimeMs = clamp(extent.firstActionAt - allowanceMs, startTimeMs, endTimeMs);
+  const trimmedEndTimeMs = clamp(extent.lastActionAt + allowanceMs, trimmedStartTimeMs, endTimeMs);
+  if (trimmedEndTimeMs <= trimmedStartTimeMs) return null;
+
+  return {
+    startTimeMs: trimmedStartTimeMs,
+    endTimeMs: trimmedEndTimeMs,
+  };
+}
+
 export function buildDetectedSegments(input: BuildDetectedSegmentsInput): DetectedSegment[] {
   const durationMs = Math.max(0, Math.floor(input.durationMs));
   if (durationMs <= 0) return [];
 
   const pauseGapMs = Math.max(1, Math.floor(input.pauseGapMs));
   const minRoundMs = Math.max(1, Math.floor(input.minRoundMs));
+  const trimAllowanceMs = Math.max(0, Math.floor(input.trimAllowanceMs ?? 1_000));
   const defaultType = input.defaultType ?? "Normal";
 
   const actions = normalizeActions(input.actions);
@@ -264,9 +301,24 @@ export function buildDetectedSegments(input: BuildDetectedSegmentsInput): Detect
   const sorted = [...boundaries].sort((a, b) => a - b);
   const segments: DetectedSegment[] = [];
   for (let index = 1; index < sorted.length; index += 1) {
-    const start = sorted[index - 1];
-    const end = sorted[index];
-    if (start === undefined || end === undefined) continue;
+    const windowStart = sorted[index - 1];
+    const windowEnd = sorted[index];
+    if (windowStart === undefined || windowEnd === undefined) continue;
+
+    let start = windowStart;
+    let end = windowEnd;
+    if (input.autoTrimRounds) {
+      const trimmedRange = getActionTrimRange({
+        actions,
+        startTimeMs: windowStart,
+        endTimeMs: windowEnd,
+        allowanceMs: trimAllowanceMs,
+      });
+      if (!trimmedRange) continue;
+      start = trimmedRange.startTimeMs;
+      end = trimmedRange.endTimeMs;
+    }
+
     if (end - start < minRoundMs) continue;
     segments.push({
       startTimeMs: start,
@@ -527,6 +579,8 @@ export function findDetectionSettingsForTargetCount(
       durationMs,
       pauseGapMs,
       minRoundMs,
+      autoTrimRounds: input.autoTrimRounds,
+      trimAllowanceMs: input.trimAllowanceMs,
       defaultType,
     });
     const minRoundDistance = Math.abs(minRoundMs - currentMinRoundMs);
@@ -590,6 +644,8 @@ export function findDetectionSettingsForTargetCount(
       durationMs,
       pauseGapMs,
       minRoundMs: MIN_RAW_ROUND_MS,
+      autoTrimRounds: input.autoTrimRounds,
+      trimAllowanceMs: input.trimAllowanceMs,
       defaultType,
     });
     const minRoundCandidates = buildMinRoundCandidates(

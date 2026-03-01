@@ -31,4 +31,6 @@ export type SaveConverterSegmentsInput = {
 
 export const converter = {
   saveSegments: (input: SaveConverterSegmentsInput) => trpc.converter.saveSegments.mutate(input),
+  massTrimHeroes: (input: { heroIds: string[]; allowanceMs?: number }) =>
+    trpc.converter.massTrimHeroes.mutate(input),
 };

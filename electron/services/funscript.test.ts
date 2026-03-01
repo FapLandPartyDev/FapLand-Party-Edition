@@ -61,7 +61,7 @@ describe("convertLegacyFunscriptToHardMode", () => {
     ]);
   });
 
-  it("keeps long pauses at the bottom and resumes midpoint strokes in the next group", () => {
+  it("holds at the top through long pauses so both boundary beats are felt", () => {
     const result = convertLegacyFunscriptToHardMode(
       JSON.stringify({
         actions: [
@@ -80,6 +80,7 @@ describe("convertLegacyFunscriptToHardMode", () => {
       { at: 250, pos: 0 },
       { at: 375, pos: 100 },
       { at: 500, pos: 0 },
+      { at: 625, pos: 100 },
       { at: 2_000, pos: 0 },
       { at: 2_125, pos: 100 },
       { at: 2_250, pos: 0 },
@@ -99,9 +100,27 @@ describe("convertLegacyFunscriptToHardMode", () => {
 
     expect(result.document.actions).toEqual([
       { at: 100, pos: 0 },
+      { at: 200, pos: 100 },
       { at: 5_101, pos: 0 },
       { at: 5_201, pos: 100 },
       { at: 5_301, pos: 0 },
+    ]);
+  });
+
+  it("uses a safe default upstroke when a pause is the script's only interval", () => {
+    const result = convertLegacyFunscriptToHardMode(
+      JSON.stringify({
+        actions: [
+          { at: 100, pos: 0 },
+          { at: 5_101, pos: 100 },
+        ],
+      })
+    );
+
+    expect(result.document.actions).toEqual([
+      { at: 100, pos: 0 },
+      { at: 225, pos: 100 },
+      { at: 5_101, pos: 0 },
     ]);
   });
 
@@ -166,7 +185,7 @@ describe("convertLegacyFunscriptToHardMode", () => {
       inverted: false,
       metadata: { title: "Legacy hero" },
       custom: "kept",
-      fLandHardMode: { converter: "f-land", version: 1 },
+      fLandHardMode: { converter: "f-land", version: 2 },
     });
   });
 
@@ -237,7 +256,7 @@ describe("convertLocalFunscriptToManagedHardMode", () => {
     expect(JSON.parse(await fs.readFile(outputPath!, "utf8"))).toMatchObject({
       range: 100,
       inverted: false,
-      fLandHardMode: { converter: "f-land", version: 1 },
+      fLandHardMode: { converter: "f-land", version: 2 },
     });
     expect(
       (await fs.readdir(mocks.outputRoot)).filter((name) => name.endsWith(".funscript"))

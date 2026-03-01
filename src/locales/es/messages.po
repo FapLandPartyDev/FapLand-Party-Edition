@@ -64,7 +64,7 @@ msgid "{0}"
 msgstr "{0}"
 
 #. placeholder {0}: heroName.trim() || "Hero"
-#: src/features/converter/SegmentCard.tsx:130
+#: src/features/converter/SegmentCard.tsx:131
 msgid "{0} - round {ordinal}"
 msgstr "{0} - ronda {ordinal}"
 
@@ -146,6 +146,11 @@ msgstr "Se instalarán {0} archivos:"
 #: src/routes/settings.tsx:3824
 msgid "{0} hashed"
 msgstr "{0} con hash"
+
+#. placeholder {0}: selectedHeroIds.length
+#: src/features/converter/MassTrimHeroesDialog.tsx:169
+msgid "{0} heroes selected · {selectedSectionCount} sections"
+msgstr "{0} héroes seleccionados · {selectedSectionCount} secciones"
 
 #. placeholder {0}: filteredRounds.length
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3445
@@ -263,6 +268,11 @@ msgstr "{0} rondas, {1} listas, {2} actualizadas, {3} fallidas"
 msgid "{0} safe points"
 msgstr "{0} puntos seguros"
 
+#. placeholder {0}: hero.roundCount
+#: src/features/converter/MassTrimHeroesDialog.tsx:221
+msgid "{0} sections"
+msgstr "{0} secciones"
+
 #. placeholder {0}: visibleAvailableNormalRounds.length
 #: src/routes/playlist-workshop.tsx:3125
 msgid "{0} shown"
@@ -352,7 +362,7 @@ msgstr "{installedRoundCount}/{MULTIPLAYER_MINIMUM_ROUNDS} instaladas"
 msgid "{label} ({0})"
 msgstr "{label} ({0})"
 
-#: src/features/converter/ConverterSourcePicker.tsx:440
+#: src/features/converter/ConverterSourcePicker.tsx:445
 msgid "{minimumVideoLengthMinutes} min"
 msgstr "{minimumVideoLengthMinutes} min"
 
@@ -1050,6 +1060,10 @@ msgstr "Permitir solapamientos"
 msgid "Allow Playlist Start During Cache Ongoing"
 msgstr "Permitir Iniciar Lista Durante Caché en Progreso"
 
+#: src/features/converter/MassTrimHeroesDialog.tsx:151
+msgid "Allowance (ms)"
+msgstr "Tolerancia (ms)"
+
 #: src/routes/settings.tsx:7776
 msgid "Allowing only configured Stash source URLs and blocking yt-dlp and user-whitelisted domains."
 msgstr "Permitiendo solo URLs de fuente Stash configuradas y bloqueando yt-dlp y dominios en lista blanca del usuario."
@@ -1264,7 +1278,7 @@ msgstr "Cualquiera (O)"
 msgid "Any highscore you achieve will be permanently marked with 🎭"
 msgstr "Cualquier puntuación máxima que consigas se marcará permanentemente con 🎭"
 
-#: src/features/converter/ConverterSourcePicker.tsx:442
+#: src/features/converter/ConverterSourcePicker.tsx:447
 msgid "Any length"
 msgstr "Cualquier duración"
 
@@ -1335,7 +1349,7 @@ msgid "Apply \"{0}\""
 msgstr "Aplicar \"{0}\""
 
 #. placeholder {0}: detectedSegmentCount || 0
-#: src/features/converter/AutoDetectionPanel.tsx:182
+#: src/features/converter/AutoDetectionPanel.tsx:242
 msgid "Apply {0}"
 msgstr "Aplicar {0}"
 
@@ -1438,7 +1452,7 @@ msgstr "Preguntar durante las importaciones manuales de sidecar antes de confiar
 msgid "Assign every unresolved hero round before saving."
 msgstr "Asigna todas las rondas de héroe sin resolver antes de guardar."
 
-#: src/features/converter/ConverterSourcePicker.tsx:246
+#: src/features/converter/ConverterSourcePicker.tsx:249
 msgid "Attach a funscript file for auto-detection of round boundaries."
 msgstr "Adjunta un archivo funscript para la detección automática de los límites de las rondas."
 
@@ -1452,7 +1466,7 @@ msgstr "Adjuntar un archivo .funscript local opcional"
 msgid "Attach Funscript"
 msgstr "Adjuntar Funscript"
 
-#: src/features/converter/ConverterSourcePicker.tsx:243
+#: src/features/converter/ConverterSourcePicker.tsx:246
 #: src/features/converter/SourcePanel.tsx:99
 msgid "Attach Funscript (Optional)"
 msgstr "Adjuntar Funscript (Opcional)"
@@ -1541,7 +1555,7 @@ msgstr "Auto (Predeterminado)"
 msgid "Auto Detect Toy"
 msgstr "Detectar toy automáticamente"
 
-#: src/features/converter/AutoDetectionPanel.tsx:56
+#: src/features/converter/AutoDetectionPanel.tsx:70
 msgid "Auto Detection"
 msgstr "Detección Automática"
 
@@ -1557,9 +1571,13 @@ msgstr "Auto mantiene el comportamiento actual (prefiere binarios del sistema m�
 msgid "Auto keeps current behavior (prefer the bundled local binary). Use Local/System to force source selection."
 msgstr "Auto mantiene el comportamiento actual (prefiere el binario local integrado). Usa Local/System para forzar la selección de fuente."
 
-#: src/features/converter/AutoDetectionPanel.tsx:132
+#: src/features/converter/AutoDetectionPanel.tsx:192
 msgid "Auto Split"
 msgstr "División automática"
+
+#: src/features/converter/AutoDetectionPanel.tsx:139
+msgid "Auto trim rounds"
+msgstr "Recortar rondas automáticamente"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:656
 msgid "Auto-advance to the next node after this round completes."
@@ -1879,7 +1897,7 @@ msgstr "Ambos modos usan rondas como contenido principal. El tablero decide qué
 msgid "BPM"
 msgstr "BPM"
 
-#: src/features/converter/SegmentCard.tsx:309
+#: src/features/converter/SegmentCard.tsx:310
 msgid "BPM:"
 msgstr "BPM:"
 
@@ -2294,6 +2312,7 @@ msgid "clear"
 msgstr "limpiar"
 
 #: src/components/GlobalMusicOverlay.tsx:698
+#: src/features/converter/MassTrimHeroesDialog.tsx:190
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3064
 #: src/routes/playlist-workshop.tsx:2235
 #: src/routes/playlist-workshop.tsx:3297
@@ -2315,7 +2334,7 @@ msgstr "Restablecer todas las habilidades"
 msgid "Clear Booru Cache"
 msgstr "Borrar caché de Booru"
 
-#: src/features/converter/SegmentCard.tsx:262
+#: src/features/converter/SegmentCard.tsx:263
 msgid "Clear Cut Marks"
 msgstr "Limpiar marcas de corte"
 
@@ -2411,6 +2430,7 @@ msgstr "cerrar"
 #: src/components/GlobalHandyOverlay.tsx:329
 #: src/components/GlobalMusicOverlay.tsx:328
 #: src/components/PlaylistPackExportDialog.tsx:191
+#: src/features/converter/MassTrimHeroesDialog.tsx:255
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:191
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:119
 #: src/features/rounds/library/ui/Modal.tsx:61
@@ -2450,6 +2470,10 @@ msgstr "Cerrar control de lobby"
 #: src/routes/multiplayer-match.tsx:1476
 msgid "Close Lobby Control"
 msgstr "Cerrar Control de Lobby"
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:129
+msgid "Close mass trim"
+msgstr "Cerrar recorte en masa"
 
 #: src/components/GlobalMusicOverlay.tsx:324
 msgid "Close music overlay"
@@ -3196,7 +3220,7 @@ msgstr "Personalizado / ninguno"
 msgid "Custom palettes"
 msgstr "Paletas personalizadas"
 
-#: src/features/converter/SegmentCard.tsx:129
+#: src/features/converter/SegmentCard.tsx:130
 msgid "Custom round name"
 msgstr "Nombre de ronda personalizado"
 
@@ -3213,11 +3237,11 @@ msgstr "Cortar marcas"
 msgid "Cut range"
 msgstr "Rango de corte"
 
-#: src/features/converter/SegmentCard.tsx:252
+#: src/features/converter/SegmentCard.tsx:253
 msgid "Cut Segment"
 msgstr "Cortar segmento"
 
-#: src/features/converter/SegmentCard.tsx:396
+#: src/features/converter/SegmentCard.tsx:397
 msgid "Cuts"
 msgstr "Cortes"
 
@@ -3327,7 +3351,7 @@ msgstr "Carpeta de datos predeterminada de la app (comportamiento existente)"
 msgid "Defer phash generation to a later moment."
 msgstr "Diferir la generación de phash para un momento posterior."
 
-#: src/features/converter/SegmentCard.tsx:438
+#: src/features/converter/SegmentCard.tsx:439
 #: src/features/map-editor/components/AutomationPanel.tsx:288
 #: src/features/map-editor/components/EditorToolbar.tsx:140
 #: src/features/playlist-picker/PlaylistPicker.tsx:560
@@ -3519,17 +3543,17 @@ msgstr "Desvincular Funscript"
 msgid "Detect pause settings that match the target segment count."
 msgstr "Detectar ajustes de pausa que coincidan con el recuento de segmentos objetivo."
 
-#: src/features/converter/AutoDetectionPanel.tsx:149
+#: src/features/converter/AutoDetectionPanel.tsx:209
 msgid "Detect Pauses"
 msgstr "Detectar Pausas"
 
-#: src/features/converter/AutoDetectionPanel.tsx:167
+#: src/features/converter/AutoDetectionPanel.tsx:227
 msgid "Detect Target"
 msgstr "Detectar objetivo"
 
-#: src/features/converter/AutoDetectionPanel.tsx:132
-#: src/features/converter/AutoDetectionPanel.tsx:149
-#: src/features/converter/AutoDetectionPanel.tsx:167
+#: src/features/converter/AutoDetectionPanel.tsx:192
+#: src/features/converter/AutoDetectionPanel.tsx:209
+#: src/features/converter/AutoDetectionPanel.tsx:227
 #: src/routes/settings.tsx:4797
 #: src/routes/settings.tsx:8752
 msgid "Detecting..."
@@ -3648,7 +3672,7 @@ msgstr "Dificultad {value}"
 msgid "Difficulty Sections"
 msgstr "Secciones de dificultad"
 
-#: src/features/converter/SegmentCard.tsx:333
+#: src/features/converter/SegmentCard.tsx:334
 msgid "Difficulty:"
 msgstr "Dificultad:"
 
@@ -4084,7 +4108,7 @@ msgstr "Activa las funciones del menú de desarrollo en el modo individual. Cual
 msgid "Encoder pending"
 msgstr "Codificador pendiente"
 
-#: src/features/converter/SegmentCard.tsx:428
+#: src/features/converter/SegmentCard.tsx:429
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:412
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2519
 #: src/routes/playlist-workshop.tsx:2989
@@ -4139,9 +4163,13 @@ msgstr "Introduce un código para unirte inmediatamente o aloja una sala con la 
 msgid "Enter a round name before installing."
 msgstr "Introduce un nombre de ronda antes de instalar."
 
-#: src/features/converter/ConverterSourcePicker.tsx:374
+#: src/features/converter/ConverterSourcePicker.tsx:377
 msgid "Enter a valid http(s) video URL."
 msgstr "Introduce una URL de vídeo http(s) válida."
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:83
+msgid "Enter a valid non-negative allowance in milliseconds."
+msgstr "Introduce una tolerancia válida no negativa en milisegundos."
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:622
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1259
@@ -4304,7 +4332,7 @@ msgstr "Exacto:"
 msgid "Examples: {deleteSelectedRoundExamples}"
 msgstr "Ejemplos: {deleteSelectedRoundExamples}"
 
-#: src/features/converter/SegmentCard.tsx:143
+#: src/features/converter/SegmentCard.tsx:144
 msgid "Exclude from numbering"
 msgstr "Excluir de la numeración"
 
@@ -5107,6 +5135,10 @@ msgstr "Finalizado"
 msgid "Find a dependency"
 msgstr "Buscar dependencia"
 
+#: src/features/converter/MassTrimHeroesDialog.tsx:141
+msgid "Find heroes"
+msgstr "Encontrar héroes"
+
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:292
 msgid "Find Videos & Funscripts"
 msgstr "Buscar vídeos y funscripts"
@@ -5333,15 +5365,15 @@ msgstr "El offset de Funscript debe estar entre {THEHANDY_OFFSET_MIN_MS}ms y {TH
 msgid "Funscript ready for video install."
 msgstr "Funscript listo para instalar con el vídeo."
 
-#: src/features/converter/ConverterSourcePicker.tsx:309
-#: src/features/converter/ConverterSourcePicker.tsx:314
+#: src/features/converter/ConverterSourcePicker.tsx:312
+#: src/features/converter/ConverterSourcePicker.tsx:317
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:178
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:185
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:193
 msgid "Funscript URL"
 msgstr "URL de Funscript"
 
-#: src/features/converter/ConverterSourcePicker.tsx:382
+#: src/features/converter/ConverterSourcePicker.tsx:385
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1277
 msgid "Funscript URL must also be a valid http(s) URL."
 msgstr "La URL de Funscript también debe ser una URL http(s) válida."
@@ -6981,16 +7013,16 @@ msgstr "Local"
 msgid "Local Best"
 msgstr "Mejor Local"
 
-#: src/features/converter/SegmentCard.tsx:210
+#: src/features/converter/SegmentCard.tsx:211
 msgid "Local cut in"
 msgstr "Corte local IN"
 
-#: src/features/converter/SegmentCard.tsx:217
+#: src/features/converter/SegmentCard.tsx:218
 msgid "Local cut out"
 msgstr "Corte local OUT"
 
 #. placeholder {0}: getUriFilename(localFunscriptUri)
-#: src/features/converter/ConverterSourcePicker.tsx:265
+#: src/features/converter/ConverterSourcePicker.tsx:268
 msgid "Local funscript attached: {0}"
 msgstr "Funscript local adjunto: {0}"
 
@@ -6998,7 +7030,7 @@ msgstr "Funscript local adjunto: {0}"
 msgid "Local funscript attached: {funscriptFileLabel}"
 msgstr "Funscript local adjunto: {funscriptFileLabel}"
 
-#: src/features/converter/ConverterSourcePicker.tsx:400
+#: src/features/converter/ConverterSourcePicker.tsx:403
 msgid "Local funscript attached: {websiteFunscriptFileLabel}"
 msgstr "Funscript local adjunto: {websiteFunscriptFileLabel}"
 
@@ -7014,7 +7046,7 @@ msgstr "Solo Local"
 msgid "Local run history is stored directly in the app database, including legacy rows and newer survival-time data."
 msgstr "El historial local de partidas se almacena directamente en la base de datos de la app, incluyendo filas heredadas y datos más recientes de tiempo de supervivencia."
 
-#: src/features/converter/ConverterSourcePicker.tsx:223
+#: src/features/converter/ConverterSourcePicker.tsx:226
 msgid "Local Video File"
 msgstr "Archivo de Vídeo Local"
 
@@ -7255,6 +7287,15 @@ msgstr "Marcar OUT"
 msgid "Markers"
 msgstr "Marcadores"
 
+#: src/features/converter/MassTrimHeroesDialog.tsx:99
+msgid "Mass trim failed."
+msgstr "El recorte en masa ha fallado."
+
+#: src/features/converter/ConverterSourcePicker.tsx:474
+#: src/features/converter/MassTrimHeroesDialog.tsx:117
+msgid "Mass Trim Heroes"
+msgstr "Recortar héroes en masa"
+
 #: src/routes/multiplayer-bans.tsx:149
 msgid "Match History (Participant Visibility)"
 msgstr "Historial de Partidas (Visibilidad de Participantes)"
@@ -7398,11 +7439,11 @@ msgstr "Mín"
 msgid "Min D"
 msgstr "D mín."
 
-#: src/features/converter/AutoDetectionPanel.tsx:78
+#: src/features/converter/AutoDetectionPanel.tsx:92
 msgid "Min Round (ms)"
 msgstr "Ronda Mín. (ms)"
 
-#: src/features/converter/ConverterSourcePicker.tsx:436
+#: src/features/converter/ConverterSourcePicker.tsx:441
 msgid "Minimum length"
 msgstr "Duración mínima"
 
@@ -7420,7 +7461,7 @@ msgstr "Tirada Mínima"
 msgid "Minimum Round Count: {requiredNormalRoundCount}"
 msgstr "Cantidad Mínima de Rondas: {requiredNormalRoundCount}"
 
-#: src/features/converter/ConverterSourcePicker.tsx:448
+#: src/features/converter/ConverterSourcePicker.tsx:453
 msgid "Minimum video length in minutes"
 msgstr "Duración mínima del vídeo en minutos"
 
@@ -7980,11 +8021,15 @@ msgstr "Sin funscript adjunto"
 msgid "No gate cost"
 msgstr "Sin coste de acceso"
 
-#: src/features/converter/ConverterSourcePicker.tsx:502
+#: src/features/converter/MassTrimHeroesDialog.tsx:198
+msgid "No heroes match this search."
+msgstr "Ningún héroe coincide con esta búsqueda."
+
+#: src/features/converter/ConverterSourcePicker.tsx:520
 msgid "No heroes match your search."
 msgstr "Ningún hero coincide con tu búsqueda."
 
-#: src/features/converter/ConverterSourcePicker.tsx:503
+#: src/features/converter/ConverterSourcePicker.tsx:521
 msgid "No heroes with rounds available. Create a hero first."
 msgstr "No hay heroes con rondas disponibles. Crea un hero primero."
 
@@ -8120,7 +8165,7 @@ msgstr "Ninguna ronda coincide actualmente con la búsqueda y filtros activos."
 msgid "No rounds match this filter"
 msgstr "Ninguna ronda coincide con este filtro"
 
-#: src/features/converter/ConverterSourcePicker.tsx:468
+#: src/features/converter/ConverterSourcePicker.tsx:486
 msgid "No rounds match your filters."
 msgstr "Ninguna ronda coincide con tus filtros."
 
@@ -8163,7 +8208,7 @@ msgstr "Aún no hay historial de modo individual."
 msgid "No sources configured yet."
 msgstr "Aún no hay fuentes configuradas."
 
-#: src/features/converter/ConverterSourcePicker.tsx:469
+#: src/features/converter/ConverterSourcePicker.tsx:487
 msgid "No standalone rounds available. Install some rounds first."
 msgstr "No hay rondas independientes disponibles. Instala algunas rondas primero."
 
@@ -8578,7 +8623,7 @@ msgstr "Etiqueta opcional"
 msgid "first-start.step.optional-setup.eyebrow"
 msgstr "Configuración opcional"
 
-#: src/features/converter/ConverterSourcePicker.tsx:322
+#: src/features/converter/ConverterSourcePicker.tsx:325
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:191
 msgid "Optional: https://example.com/video.funscript"
 msgstr "Opcional: https://example.com/video.funscript"
@@ -8696,7 +8741,7 @@ msgstr "Pasa --disable-gpu-vsync a Chromium al iniciar. Úsalo para diagnosticar
 msgid "Password"
 msgstr "Contraseña"
 
-#: src/features/converter/ConverterSourcePicker.tsx:281
+#: src/features/converter/ConverterSourcePicker.tsx:284
 msgid "Paste a supported website video URL and jump straight into the converter. The app will cache the video first, then you can start editing."
 msgstr "Pega la URL de un vídeo de una web compatible y pasa directamente al conversor. La aplicación cacheará el vídeo primero, luego podrás empezar a editar."
 
@@ -8753,7 +8798,7 @@ msgstr "Bonificación de pausa (ms)"
 msgid "Pause duration after intermediary ends before resuming the main round."
 msgstr "Duración de la pausa tras finalizar el intermedio antes de reanudar la ronda principal."
 
-#: src/features/converter/AutoDetectionPanel.tsx:61
+#: src/features/converter/AutoDetectionPanel.tsx:75
 msgid "Pause Gap (ms)"
 msgstr "Intervalo de pausa (ms)"
 
@@ -9799,7 +9844,7 @@ msgstr "Reparando..."
 msgid "Replace all tags on {selectedCount} selected rounds."
 msgstr "Reemplazar todas las etiquetas de {selectedCount} rondas seleccionadas."
 
-#: src/features/converter/ConverterSourcePicker.tsx:258
+#: src/features/converter/ConverterSourcePicker.tsx:261
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:96
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:201
 msgid "Replace Funscript"
@@ -10239,6 +10284,7 @@ msgstr "Dificultades de las rondas"
 msgid "Round fields must use valid numeric values."
 msgstr "Los campos de ronda deben usar valores numéricos válidos."
 
+#: src/features/converter/SegmentCard.tsx:125
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:555
 msgid "Round name"
 msgstr "Nombre de la ronda"
@@ -10595,7 +10641,7 @@ msgid "Search"
 msgstr "Buscar"
 
 #. placeholder {0}: section === "round" ? "rounds" : "heroes"
-#: src/features/converter/ConverterSourcePicker.tsx:426
+#: src/features/converter/ConverterSourcePicker.tsx:431
 msgid "Search {0}..."
 msgstr "Buscar {0}..."
 
@@ -10616,7 +10662,7 @@ msgstr "Buscar por ronda, autor o tipo"
 msgid "Search commands"
 msgstr "Buscar comandos"
 
-#: src/features/converter/ConverterSourcePicker.tsx:364
+#: src/features/converter/ConverterSourcePicker.tsx:367
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:112
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:217
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:227
@@ -10632,6 +10678,10 @@ msgstr "Busca temas gratuitos de EroScripts, adjunta funscripts directos o insta
 #: src/routes/playlist-workshop.tsx:3282
 msgid "Search heroes or tags…"
 msgstr "Buscar héroes o etiquetas…"
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:146
+msgid "Search heroes..."
+msgstr "Buscar héroes..."
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2811
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3220
@@ -10692,6 +10742,10 @@ msgstr "Buscando..."
 msgid "Secret progression cheat console"
 msgstr "Consola secreta de trucos de progreso"
 
+#: src/features/converter/MassTrimHeroesDialog.tsx:229
+msgid "Sections without a usable funscript or time range will be skipped. Existing section IDs and hero assignments are preserved."
+msgstr "Las secciones sin un funscript utilizable o rango de tiempo se omitirán. Los IDs de sección existentes y las asignaciones de héroes se conservan."
+
 #: src/routes/settings.tsx:1590
 msgid "Security & Privacy"
 msgstr "Seguridad y privacidad"
@@ -10728,15 +10782,15 @@ msgstr "Buscar video"
 msgid "Segment"
 msgstr "Segmento"
 
-#: src/features/converter/SegmentCard.tsx:193
+#: src/features/converter/SegmentCard.tsx:194
 msgid "Segment cut overlay"
 msgstr "Superposición de corte del segmento"
 
-#: src/features/converter/SegmentCard.tsx:203
+#: src/features/converter/SegmentCard.tsx:204
 msgid "Segment playhead"
 msgstr "Cabezal de reproducción del segmento"
 
-#: src/features/converter/SegmentCard.tsx:169
+#: src/features/converter/SegmentCard.tsx:170
 msgid "Segment Timeline"
 msgstr "Línea de tiempo del segmento"
 
@@ -10809,7 +10863,7 @@ msgstr "Selecciona un vídeo fuente para empezar a editar."
 msgid "Select a stored item to inspect and use it."
 msgstr "Selecciona un objeto guardado para inspeccionarlo y usarlo."
 
-#: src/features/converter/ConverterSourcePicker.tsx:226
+#: src/features/converter/ConverterSourcePicker.tsx:229
 msgid "Select a video file from your computer to convert into rounds."
 msgstr "Selecciona un archivo de vídeo de tu ordenador para convertirlo en rondas."
 
@@ -10834,7 +10888,15 @@ msgstr "Selecciona un objeto primero."
 msgid "playlist-workshop.section.rounds.description"
 msgstr "Selecciona y reordena las rondas normales."
 
-#: src/features/converter/ConverterSourcePicker.tsx:260
+#: src/features/converter/MassTrimHeroesDialog.tsx:79
+msgid "Select at least one hero."
+msgstr "Selecciona al menos un héroe."
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:120
+msgid "Select existing heroes and trim every section to its first and last moving funscript action."
+msgstr "Selecciona héroes existentes y recorta cada sección a su primera y última acción de funscript en movimiento."
+
+#: src/features/converter/ConverterSourcePicker.tsx:263
 msgid "Select Funscript File"
 msgstr "Seleccionar archivo funscript"
 
@@ -10860,7 +10922,7 @@ msgstr "Selecciona objetos en la biblioteca primero."
 msgid "Select items in the library to enable partial export."
 msgstr "Selecciona objetos en la biblioteca para activar la exportación parcial."
 
-#: src/features/converter/ConverterSourcePicker.tsx:352
+#: src/features/converter/ConverterSourcePicker.tsx:355
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:219
 msgid "Select Local Funscript"
 msgstr "Seleccionar funscript local"
@@ -10914,10 +10976,14 @@ msgstr "Selecciona el segmento anterior."
 msgid "Select the segment under the playhead."
 msgstr "Selecciona el segmento bajo el cabezal de reproducción."
 
-#: src/features/converter/ConverterSourcePicker.tsx:237
+#: src/features/converter/ConverterSourcePicker.tsx:240
 #: src/features/converter/SourcePanel.tsx:88
 msgid "Select Video File"
 msgstr "Seleccionar archivo de vídeo"
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:180
+msgid "Select visible"
+msgstr "Seleccionar visibles"
 
 #. js-lingui-explicit-id
 #: src/routes/playlist-workshop.tsx:220
@@ -11039,11 +11105,11 @@ msgstr "Establece un nombre y elige cómo se generan las rondas."
 msgid "Set background media and the road colors used between nodes."
 msgstr "Define los medios de fondo y los colores de los caminos usados entre nodos."
 
-#: src/features/converter/SegmentCard.tsx:232
+#: src/features/converter/SegmentCard.tsx:233
 msgid "Set Cut IN"
 msgstr "Establecer corte IN"
 
-#: src/features/converter/SegmentCard.tsx:242
+#: src/features/converter/SegmentCard.tsx:243
 msgid "Set Cut OUT"
 msgstr "Establecer corte OUT"
 
@@ -11597,7 +11663,7 @@ msgstr "Independiente"
 msgid "hud.phase.idle"
 msgstr "EN ESPERA"
 
-#: src/features/converter/SegmentCard.tsx:417
+#: src/features/converter/SegmentCard.tsx:418
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:410
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2515
 #: src/routes/playlist-workshop.tsx:2988
@@ -11905,7 +11971,7 @@ msgstr "Cuenta de Supabase"
 msgid "Supabase URL"
 msgstr "URL de Supabase"
 
-#: src/features/converter/ConverterSourcePicker.tsx:405
+#: src/features/converter/ConverterSourcePicker.tsx:408
 msgid "Supported in practice through yt-dlp-backed playback. Paste sites like Pornhub, XVideos, or xHamster here, then add segments the same way as any other source."
 msgstr "Soportado en la práctica mediante reproducción con yt-dlp. Pega sitios como Pornhub, XVideos o xHamster aquí, y luego añade segmentos de la misma forma que con cualquier otro origen."
 
@@ -12041,8 +12107,8 @@ msgstr "Etiquetas"
 msgid "Tags filter"
 msgstr "Filtro de etiquetas"
 
-#: src/features/converter/AutoDetectionPanel.tsx:96
-#: src/features/converter/AutoDetectionPanel.tsx:103
+#: src/features/converter/AutoDetectionPanel.tsx:110
+#: src/features/converter/AutoDetectionPanel.tsx:117
 msgid "Target Count"
 msgstr "Recuento objetivo"
 
@@ -12499,7 +12565,7 @@ msgstr "Zoom de la línea de tiempo"
 msgid "playlist-workshop.section.timing.title"
 msgstr "Tiempos y probabilidades"
 
-#: src/features/converter/SegmentCard.tsx:369
+#: src/features/converter/SegmentCard.tsx:370
 msgid "Timing:"
 msgstr "Temporización:"
 
@@ -12662,6 +12728,30 @@ msgstr "Activar la acción principal en el control enfocado."
 #: src/routes/settings.tsx:408
 msgid "settings.help.shortcuts.controller.backAction"
 msgstr "Activar la acción secundaria/atrás."
+
+#: src/features/converter/AutoDetectionPanel.tsx:142
+#: src/features/converter/AutoDetectionPanel.tsx:145
+msgid "Trim Allowance (ms)"
+msgstr "Tolerancia de recorte (ms)"
+
+#: src/features/converter/AutoDetectionPanel.tsx:173
+msgid "Trim Existing"
+msgstr "Recortar existentes"
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:264
+msgid "Trim Selected Heroes"
+msgstr "Recortar héroes seleccionados"
+
+#. placeholder {0}: result.trimmedSectionCount
+#. placeholder {1}: result.unchangedSectionCount
+#. placeholder {2}: result.skippedSectionCount
+#: src/features/converter/MassTrimHeroesDialog.tsx:242
+msgid "Trimmed {0} sections. {1} were already trimmed and {2} were skipped."
+msgstr "{0} secciones recortadas. {1} ya estaban recortadas y {2} se omitieron."
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:264
+msgid "Trimming..."
+msgstr "Recortando..."
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:447
 msgid "Try a different name or clear the filters."
@@ -12896,7 +12986,7 @@ msgstr "Usar la acción del bumper izquierdo."
 msgid "settings.help.shortcuts.controller.rightBumper"
 msgstr "Usar la acción del bumper derecho."
 
-#: src/features/converter/ConverterSourcePicker.tsx:394
+#: src/features/converter/ConverterSourcePicker.tsx:397
 msgid "Use Website Source"
 msgstr "Usar origen web"
 
@@ -12980,8 +13070,8 @@ msgstr "Cola de videos"
 msgid "Video Queue"
 msgstr "Cola de videos"
 
-#: src/features/converter/ConverterSourcePicker.tsx:290
-#: src/features/converter/ConverterSourcePicker.tsx:295
+#: src/features/converter/ConverterSourcePicker.tsx:293
+#: src/features/converter/ConverterSourcePicker.tsx:298
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:142
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:158
 msgid "Video URL"
@@ -13115,7 +13205,7 @@ msgstr "Ubicación de la caché de vídeos web"
 msgid "first-start.step.storage.detail.2"
 msgstr "La caché de vídeos web almacena los vídeos de webs descargados y los archivos de reproducción relacionados."
 
-#: src/features/converter/ConverterSourcePicker.tsx:278
+#: src/features/converter/ConverterSourcePicker.tsx:281
 msgid "Website Video URL"
 msgstr "URL de vídeo web"
 

@@ -1,5 +1,19 @@
 # What's New
 
+## v0.6.10-beta
+
+### Added
+
+- **Playlist Workshop round-selection toolkit** — a new dedicated, unit-tested `roundSelection` module consolidates every round-ordering path the Playlist Workshop uses into one place. It ships a guaranteed-different `randomizeRoundOrder` (which never returns the input unchanged when avoidable), a strict `buildProgressiveRoundOrder` that buckets rounds by difficulty 1–5 with unknown-difficulty entries shuffled to the end, `fillRoundOrderRemainderRandomly` for topping up a queue from filtered candidates without repeats, and `buildDifficultySectionResult`, which validates difficulty-section ranges and overlaps, reports matched and missing counts per section, and returns exactly which queue rounds were retained or removed and which library rounds were pulled in — plus any uncovered queue positions and validation errors.
+
+### Changed
+
+- Auto hard-mode conversion now completes the beat before a detected pause with an upstroke and holds the device at the top, making both the pause-start beat and the first beat after the pause distinct and tactile.
+- The converter's segment card now exposes its custom round-name input to assistive technology via a `Round name` aria-label.
+- Translation catalogs have been regenerated.
+
+---
+
 ## v0.6.07-beta
 
 ### Added

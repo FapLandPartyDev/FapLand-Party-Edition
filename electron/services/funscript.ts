@@ -46,7 +46,7 @@ type HardModeAttachmentRevertRecord = {
   converterVersion: number;
 };
 
-export const HARDMODE_FUNSCRIPT_CONVERTER_VERSION = 1;
+export const HARDMODE_FUNSCRIPT_CONVERTER_VERSION = 2;
 export const HARDMODE_FUNSCRIPT_MARKER_KEY = "fLandHardMode";
 
 function normalizeActions(input: unknown): FunscriptAction[] {
@@ -126,6 +126,26 @@ function findPauseBoundaries(timestamps: number[]): Set<number> {
   return boundaries;
 }
 
+function getPauseUpstrokeAt(timestamps: number[], boundaryIndex: number): number | null {
+  const pauseStartAt = timestamps[boundaryIndex - 1];
+  const pauseEndAt = timestamps[boundaryIndex];
+  if (pauseStartAt === undefined || pauseEndAt === undefined) return null;
+
+  const intervalBeforePause =
+    boundaryIndex >= 2 ? pauseStartAt - timestamps[boundaryIndex - 2]! : null;
+  const intervalAfterPause =
+    boundaryIndex + 1 < timestamps.length ? timestamps[boundaryIndex + 1]! - pauseEndAt : null;
+  const cadenceInterval =
+    intervalBeforePause && intervalBeforePause > 0
+      ? intervalBeforePause
+      : intervalAfterPause && intervalAfterPause > 0
+        ? intervalAfterPause
+        : 250;
+
+  const upstrokeAt = pauseStartAt + Math.max(1, Math.round(cadenceInterval / 2));
+  return upstrokeAt < pauseEndAt ? upstrokeAt : null;
+}
+
 export function convertLegacyFunscriptToHardMode(content: string): HardModeConversionResult {
   const source = parseFunscriptDocument(content);
   if (isFlandHardModeDocument(source)) {
@@ -145,7 +165,15 @@ export function convertLegacyFunscriptToHardMode(content: string): HardModeConve
     actions.push({ at, pos: 0 });
 
     const nextAt = timestamps[index + 1];
-    if (nextAt === undefined || pauseBoundaries.has(index + 1)) continue;
+    if (nextAt === undefined) continue;
+
+    if (pauseBoundaries.has(index + 1)) {
+      const upstrokeAt = getPauseUpstrokeAt(timestamps, index + 1);
+      if (upstrokeAt !== null) {
+        actions.push({ at: upstrokeAt, pos: 100 });
+      }
+      continue;
+    }
 
     const midpoint = Math.round((at + nextAt) / 2);
     if (midpoint > at && midpoint < nextAt) {
@@ -242,6 +270,12 @@ async function readSourceFunscript(uri: string): Promise<{ content: string; base
     content: await response.text(),
     basename: sourceBasenameFromUri(normalizedUri, null),
   };
+}
+
+export async function readFunscriptActions(uri: string): Promise<FunscriptAction[]> {
+  if (!uri.trim()) return [];
+  const { content } = await readSourceFunscript(uri);
+  return normalizeActions(parseFunscriptDocument(content).actions);
 }
 
 export async function convertFunscriptUriToManagedHardMode(

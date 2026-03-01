@@ -63,7 +63,7 @@ msgid "{0}"
 msgstr "{0}"
 
 #. placeholder {0}: heroName.trim() || "Hero"
-#: src/features/converter/SegmentCard.tsx:130
+#: src/features/converter/SegmentCard.tsx:131
 msgid "{0} - round {ordinal}"
 msgstr "{0} - 第 {ordinal} 回合"
 
@@ -145,6 +145,11 @@ msgstr "将安装 {0} 个文件："
 #: src/routes/settings.tsx:3824
 msgid "{0} hashed"
 msgstr "{0} 已哈希"
+
+#. placeholder {0}: selectedHeroIds.length
+#: src/features/converter/MassTrimHeroesDialog.tsx:169
+msgid "{0} heroes selected · {selectedSectionCount} sections"
+msgstr "已选择 {0} 个英雄 · {selectedSectionCount} 个段落"
 
 #. placeholder {0}: filteredRounds.length
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3445
@@ -262,6 +267,11 @@ msgstr "{0} 个关卡，{1} 个播放列表，{2} 个已更新，{3} 个失败"
 msgid "{0} safe points"
 msgstr "{0} 个安全点"
 
+#. placeholder {0}: hero.roundCount
+#: src/features/converter/MassTrimHeroesDialog.tsx:221
+msgid "{0} sections"
+msgstr "{0} 个段落"
+
 #. placeholder {0}: visibleAvailableNormalRounds.length
 #: src/routes/playlist-workshop.tsx:3125
 msgid "{0} shown"
@@ -351,7 +361,7 @@ msgstr "已安装 {installedRoundCount}/{MULTIPLAYER_MINIMUM_ROUNDS}"
 msgid "{label} ({0})"
 msgstr "{label} ({0})"
 
-#: src/features/converter/ConverterSourcePicker.tsx:440
+#: src/features/converter/ConverterSourcePicker.tsx:445
 msgid "{minimumVideoLengthMinutes} min"
 msgstr "{minimumVideoLengthMinutes} 分钟"
 
@@ -1049,6 +1059,10 @@ msgstr "允许重叠"
 msgid "Allow Playlist Start During Cache Ongoing"
 msgstr "允许在缓存进行中开始播放列表"
 
+#: src/features/converter/MassTrimHeroesDialog.tsx:151
+msgid "Allowance (ms)"
+msgstr "余量 (ms)"
+
 #: src/routes/settings.tsx:7776
 msgid "Allowing only configured Stash source URLs and blocking yt-dlp and user-whitelisted domains."
 msgstr "仅允许配置的 Stash 来源 URL，并阻止 yt-dlp 和用户白名单域名。"
@@ -1263,7 +1277,7 @@ msgstr "任意 (或)"
 msgid "Any highscore you achieve will be permanently marked with 🎭"
 msgstr "您取得的任何高分都将被永久标记为 🎭"
 
-#: src/features/converter/ConverterSourcePicker.tsx:442
+#: src/features/converter/ConverterSourcePicker.tsx:447
 msgid "Any length"
 msgstr "任意时长"
 
@@ -1334,7 +1348,7 @@ msgid "Apply \"{0}\""
 msgstr "应用\"{0}\""
 
 #. placeholder {0}: detectedSegmentCount || 0
-#: src/features/converter/AutoDetectionPanel.tsx:182
+#: src/features/converter/AutoDetectionPanel.tsx:242
 msgid "Apply {0}"
 msgstr "应用 {0}"
 
@@ -1437,7 +1451,7 @@ msgstr "在信任未知远程 URL 之前，在手动 sidecar 导入时询问。"
 msgid "Assign every unresolved hero round before saving."
 msgstr "在保存前为每个未解析的角色关卡分配来源。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:246
+#: src/features/converter/ConverterSourcePicker.tsx:249
 msgid "Attach a funscript file for auto-detection of round boundaries."
 msgstr "附加 funscript 文件以自动检测关卡边界。"
 
@@ -1451,7 +1465,7 @@ msgstr "附加一个可选的本地 .funscript 文件"
 msgid "Attach Funscript"
 msgstr "附加 Funscript"
 
-#: src/features/converter/ConverterSourcePicker.tsx:243
+#: src/features/converter/ConverterSourcePicker.tsx:246
 #: src/features/converter/SourcePanel.tsx:99
 msgid "Attach Funscript (Optional)"
 msgstr "附加 Funscript（可选）"
@@ -1540,7 +1554,7 @@ msgstr "自动（默认）"
 msgid "Auto Detect Toy"
 msgstr "自动检测玩具"
 
-#: src/features/converter/AutoDetectionPanel.tsx:56
+#: src/features/converter/AutoDetectionPanel.tsx:70
 msgid "Auto Detection"
 msgstr "自动检测"
 
@@ -1556,9 +1570,13 @@ msgstr "自动保持当前行为（优先使用较新的系统二进制文件）
 msgid "Auto keeps current behavior (prefer the bundled local binary). Use Local/System to force source selection."
 msgstr "自动保持当前行为（优先使用内置本地二进制文件）。使用 本地/系统 强制选择来源。"
 
-#: src/features/converter/AutoDetectionPanel.tsx:132
+#: src/features/converter/AutoDetectionPanel.tsx:192
 msgid "Auto Split"
 msgstr "自动分段"
+
+#: src/features/converter/AutoDetectionPanel.tsx:139
+msgid "Auto trim rounds"
+msgstr "自动修剪回合"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:656
 msgid "Auto-advance to the next node after this round completes."
@@ -1878,7 +1896,7 @@ msgstr "两种模式都以关卡作为核心内容。棋盘决定下一步发生
 msgid "BPM"
 msgstr "BPM"
 
-#: src/features/converter/SegmentCard.tsx:309
+#: src/features/converter/SegmentCard.tsx:310
 msgid "BPM:"
 msgstr "BPM："
 
@@ -2293,6 +2311,7 @@ msgid "clear"
 msgstr "清除"
 
 #: src/components/GlobalMusicOverlay.tsx:698
+#: src/features/converter/MassTrimHeroesDialog.tsx:190
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3064
 #: src/routes/playlist-workshop.tsx:2235
 #: src/routes/playlist-workshop.tsx:3297
@@ -2314,7 +2333,7 @@ msgstr "清除所有技能"
 msgid "Clear Booru Cache"
 msgstr "清除Booru缓存"
 
-#: src/features/converter/SegmentCard.tsx:262
+#: src/features/converter/SegmentCard.tsx:263
 msgid "Clear Cut Marks"
 msgstr "清除剪切标记"
 
@@ -2410,6 +2429,7 @@ msgstr "关闭"
 #: src/components/GlobalHandyOverlay.tsx:329
 #: src/components/GlobalMusicOverlay.tsx:328
 #: src/components/PlaylistPackExportDialog.tsx:191
+#: src/features/converter/MassTrimHeroesDialog.tsx:255
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:191
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:119
 #: src/features/rounds/library/ui/Modal.tsx:61
@@ -2449,6 +2469,10 @@ msgstr "关闭房间控制"
 #: src/routes/multiplayer-match.tsx:1476
 msgid "Close Lobby Control"
 msgstr "关闭房间控制"
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:129
+msgid "Close mass trim"
+msgstr "关闭批量修剪"
 
 #: src/components/GlobalMusicOverlay.tsx:324
 msgid "Close music overlay"
@@ -3195,7 +3219,7 @@ msgstr "自定义 / 无"
 msgid "Custom palettes"
 msgstr "自定义调色板"
 
-#: src/features/converter/SegmentCard.tsx:129
+#: src/features/converter/SegmentCard.tsx:130
 msgid "Custom round name"
 msgstr "自定义回合名称"
 
@@ -3212,11 +3236,11 @@ msgstr "切割标记"
 msgid "Cut range"
 msgstr "剪切范围"
 
-#: src/features/converter/SegmentCard.tsx:252
+#: src/features/converter/SegmentCard.tsx:253
 msgid "Cut Segment"
 msgstr "剪切片段"
 
-#: src/features/converter/SegmentCard.tsx:396
+#: src/features/converter/SegmentCard.tsx:397
 msgid "Cuts"
 msgstr "剪切"
 
@@ -3326,7 +3350,7 @@ msgstr "默认应用数据文件夹（现有行为）"
 msgid "Defer phash generation to a later moment."
 msgstr "将 phash 生成推迟到稍后进行。"
 
-#: src/features/converter/SegmentCard.tsx:438
+#: src/features/converter/SegmentCard.tsx:439
 #: src/features/map-editor/components/AutomationPanel.tsx:288
 #: src/features/map-editor/components/EditorToolbar.tsx:140
 #: src/features/playlist-picker/PlaylistPicker.tsx:560
@@ -3518,17 +3542,17 @@ msgstr "分离 Funscript"
 msgid "Detect pause settings that match the target segment count."
 msgstr "检测与目标段数匹配的暂停设置。"
 
-#: src/features/converter/AutoDetectionPanel.tsx:149
+#: src/features/converter/AutoDetectionPanel.tsx:209
 msgid "Detect Pauses"
 msgstr "检测暂停"
 
-#: src/features/converter/AutoDetectionPanel.tsx:167
+#: src/features/converter/AutoDetectionPanel.tsx:227
 msgid "Detect Target"
 msgstr "检测目标"
 
-#: src/features/converter/AutoDetectionPanel.tsx:132
-#: src/features/converter/AutoDetectionPanel.tsx:149
-#: src/features/converter/AutoDetectionPanel.tsx:167
+#: src/features/converter/AutoDetectionPanel.tsx:192
+#: src/features/converter/AutoDetectionPanel.tsx:209
+#: src/features/converter/AutoDetectionPanel.tsx:227
 #: src/routes/settings.tsx:4797
 #: src/routes/settings.tsx:8752
 msgid "Detecting..."
@@ -3647,7 +3671,7 @@ msgstr "难度 {value}"
 msgid "Difficulty Sections"
 msgstr "难度段落"
 
-#: src/features/converter/SegmentCard.tsx:333
+#: src/features/converter/SegmentCard.tsx:334
 msgid "Difficulty:"
 msgstr "难度："
 
@@ -4083,7 +4107,7 @@ msgstr "在单人模式中启用开发者菜单功能。任何获得的高分都
 msgid "Encoder pending"
 msgstr "编码器等待中"
 
-#: src/features/converter/SegmentCard.tsx:428
+#: src/features/converter/SegmentCard.tsx:429
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:412
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2519
 #: src/routes/playlist-workshop.tsx:2989
@@ -4138,9 +4162,13 @@ msgstr "输入代码立即加入，或使用当前播放列表创建大厅。"
 msgid "Enter a round name before installing."
 msgstr "安装前请输入回合名称。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:374
+#: src/features/converter/ConverterSourcePicker.tsx:377
 msgid "Enter a valid http(s) video URL."
 msgstr "请输入有效的 http(s) 视频 URL。"
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:83
+msgid "Enter a valid non-negative allowance in milliseconds."
+msgstr "请输入一个有效的非负毫秒值作为余量。"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:622
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1259
@@ -4303,7 +4331,7 @@ msgstr "精确："
 msgid "Examples: {deleteSelectedRoundExamples}"
 msgstr "示例：{deleteSelectedRoundExamples}"
 
-#: src/features/converter/SegmentCard.tsx:143
+#: src/features/converter/SegmentCard.tsx:144
 msgid "Exclude from numbering"
 msgstr "从编号中排除"
 
@@ -5106,6 +5134,10 @@ msgstr "已结算"
 msgid "Find a dependency"
 msgstr "查找依赖项"
 
+#: src/features/converter/MassTrimHeroesDialog.tsx:141
+msgid "Find heroes"
+msgstr "查找英雄"
+
 #: src/components/EroScriptsFunscriptSearchDialog.tsx:292
 msgid "Find Videos & Funscripts"
 msgstr "查找视频和 Funscript"
@@ -5332,15 +5364,15 @@ msgstr "Funscript 偏移量必须在 {THEHANDY_OFFSET_MIN_MS}ms 和 {THEHANDY_OF
 msgid "Funscript ready for video install."
 msgstr "Funscript 已准备好用于视频安装。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:309
-#: src/features/converter/ConverterSourcePicker.tsx:314
+#: src/features/converter/ConverterSourcePicker.tsx:312
+#: src/features/converter/ConverterSourcePicker.tsx:317
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:178
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:185
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:193
 msgid "Funscript URL"
 msgstr "Funscript 链接"
 
-#: src/features/converter/ConverterSourcePicker.tsx:382
+#: src/features/converter/ConverterSourcePicker.tsx:385
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1277
 msgid "Funscript URL must also be a valid http(s) URL."
 msgstr "Funscript URL 也必须是有效的 http(s) URL。"
@@ -6980,16 +7012,16 @@ msgstr "本地"
 msgid "Local Best"
 msgstr "本地最佳"
 
-#: src/features/converter/SegmentCard.tsx:210
+#: src/features/converter/SegmentCard.tsx:211
 msgid "Local cut in"
 msgstr "局部切入点"
 
-#: src/features/converter/SegmentCard.tsx:217
+#: src/features/converter/SegmentCard.tsx:218
 msgid "Local cut out"
 msgstr "局部剪换出点"
 
 #. placeholder {0}: getUriFilename(localFunscriptUri)
-#: src/features/converter/ConverterSourcePicker.tsx:265
+#: src/features/converter/ConverterSourcePicker.tsx:268
 msgid "Local funscript attached: {0}"
 msgstr "已附加本地 funscript：{0}"
 
@@ -6997,7 +7029,7 @@ msgstr "已附加本地 funscript：{0}"
 msgid "Local funscript attached: {funscriptFileLabel}"
 msgstr "已附加本地 funscript：{funscriptFileLabel}"
 
-#: src/features/converter/ConverterSourcePicker.tsx:400
+#: src/features/converter/ConverterSourcePicker.tsx:403
 msgid "Local funscript attached: {websiteFunscriptFileLabel}"
 msgstr "已附加本地 Funscript：{websiteFunscriptFileLabel}"
 
@@ -7013,7 +7045,7 @@ msgstr "仅本地"
 msgid "Local run history is stored directly in the app database, including legacy rows and newer survival-time data."
 msgstr "本地运行历史直接存储在应用数据库中，包括旧版记录和较新的存活时间数据。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:223
+#: src/features/converter/ConverterSourcePicker.tsx:226
 msgid "Local Video File"
 msgstr "本地视频文件"
 
@@ -7254,6 +7286,15 @@ msgstr "标记出点"
 msgid "Markers"
 msgstr "标记"
 
+#: src/features/converter/MassTrimHeroesDialog.tsx:99
+msgid "Mass trim failed."
+msgstr "批量修剪失败。"
+
+#: src/features/converter/ConverterSourcePicker.tsx:474
+#: src/features/converter/MassTrimHeroesDialog.tsx:117
+msgid "Mass Trim Heroes"
+msgstr "批量修剪英雄"
+
 #: src/routes/multiplayer-bans.tsx:149
 msgid "Match History (Participant Visibility)"
 msgstr "比赛历史（参与者可见性）"
@@ -7397,11 +7438,11 @@ msgstr "最小"
 msgid "Min D"
 msgstr "最小难度"
 
-#: src/features/converter/AutoDetectionPanel.tsx:78
+#: src/features/converter/AutoDetectionPanel.tsx:92
 msgid "Min Round (ms)"
 msgstr "最短回合（毫秒）"
 
-#: src/features/converter/ConverterSourcePicker.tsx:436
+#: src/features/converter/ConverterSourcePicker.tsx:441
 msgid "Minimum length"
 msgstr "最小时长"
 
@@ -7419,7 +7460,7 @@ msgstr "最小掷骰"
 msgid "Minimum Round Count: {requiredNormalRoundCount}"
 msgstr "最少回合数：{requiredNormalRoundCount}"
 
-#: src/features/converter/ConverterSourcePicker.tsx:448
+#: src/features/converter/ConverterSourcePicker.tsx:453
 msgid "Minimum video length in minutes"
 msgstr "视频最小时长（分钟）"
 
@@ -7979,11 +8020,15 @@ msgstr "未附加 Funscript"
 msgid "No gate cost"
 msgstr "无门槛消耗"
 
-#: src/features/converter/ConverterSourcePicker.tsx:502
+#: src/features/converter/MassTrimHeroesDialog.tsx:198
+msgid "No heroes match this search."
+msgstr "没有英雄匹配此搜索。"
+
+#: src/features/converter/ConverterSourcePicker.tsx:520
 msgid "No heroes match your search."
 msgstr "没有主角匹配你的搜索。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:503
+#: src/features/converter/ConverterSourcePicker.tsx:521
 msgid "No heroes with rounds available. Create a hero first."
 msgstr "没有包含可用回合的主角。请先创建一个主角。"
 
@@ -8119,7 +8164,7 @@ msgstr "当前没有回合匹配已启用的搜索和筛选条件。"
 msgid "No rounds match this filter"
 msgstr "没有回合匹配此筛选条件"
 
-#: src/features/converter/ConverterSourcePicker.tsx:468
+#: src/features/converter/ConverterSourcePicker.tsx:486
 msgid "No rounds match your filters."
 msgstr "没有符合筛选条件的回合。"
 
@@ -8162,7 +8207,7 @@ msgstr "尚无单人历史记录。"
 msgid "No sources configured yet."
 msgstr "尚未配置来源。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:469
+#: src/features/converter/ConverterSourcePicker.tsx:487
 msgid "No standalone rounds available. Install some rounds first."
 msgstr "没有可用的独立回合。请先安装一些回合。"
 
@@ -8577,7 +8622,7 @@ msgstr "可选标签"
 msgid "first-start.step.optional-setup.eyebrow"
 msgstr "可选设置"
 
-#: src/features/converter/ConverterSourcePicker.tsx:322
+#: src/features/converter/ConverterSourcePicker.tsx:325
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:191
 msgid "Optional: https://example.com/video.funscript"
 msgstr "可选：https://example.com/video.funscript"
@@ -8695,7 +8740,7 @@ msgstr "启动时向 Chromium 传递 --disable-gpu-vsync。用于诊断图形时
 msgid "Password"
 msgstr "密码"
 
-#: src/features/converter/ConverterSourcePicker.tsx:281
+#: src/features/converter/ConverterSourcePicker.tsx:284
 msgid "Paste a supported website video URL and jump straight into the converter. The app will cache the video first, then you can start editing."
 msgstr "粘贴受支持的网站视频 URL，直接进入转换器。应用会先缓存视频，然后你就可以开始编辑。"
 
@@ -8752,7 +8797,7 @@ msgstr "暂停加成（毫秒）"
 msgid "Pause duration after intermediary ends before resuming the main round."
 msgstr "中间事件结束后，在恢复主回合前的暂停时长。"
 
-#: src/features/converter/AutoDetectionPanel.tsx:61
+#: src/features/converter/AutoDetectionPanel.tsx:75
 msgid "Pause Gap (ms)"
 msgstr "暂停间隔（毫秒）"
 
@@ -9798,7 +9843,7 @@ msgstr "修复中..."
 msgid "Replace all tags on {selectedCount} selected rounds."
 msgstr "替换 {selectedCount} 个选中的回合上的所有标签。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:258
+#: src/features/converter/ConverterSourcePicker.tsx:261
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:96
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:201
 msgid "Replace Funscript"
@@ -10238,6 +10283,7 @@ msgstr "回合难度"
 msgid "Round fields must use valid numeric values."
 msgstr "回合字段必须使用有效的数值。"
 
+#: src/features/converter/SegmentCard.tsx:125
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:555
 msgid "Round name"
 msgstr "回合名称"
@@ -10594,7 +10640,7 @@ msgid "Search"
 msgstr "搜索"
 
 #. placeholder {0}: section === "round" ? "rounds" : "heroes"
-#: src/features/converter/ConverterSourcePicker.tsx:426
+#: src/features/converter/ConverterSourcePicker.tsx:431
 msgid "Search {0}..."
 msgstr "搜索 {0}..."
 
@@ -10615,7 +10661,7 @@ msgstr "按回合、作者或类型搜索"
 msgid "Search commands"
 msgstr "搜索命令"
 
-#: src/features/converter/ConverterSourcePicker.tsx:364
+#: src/features/converter/ConverterSourcePicker.tsx:367
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:112
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:217
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:227
@@ -10631,6 +10677,10 @@ msgstr "搜索免费的 EroScripts 主题，附加直接 funscript，或安装�
 #: src/routes/playlist-workshop.tsx:3282
 msgid "Search heroes or tags…"
 msgstr "搜索主角或标签…"
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:146
+msgid "Search heroes..."
+msgstr "搜索英雄..."
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2811
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3220
@@ -10691,6 +10741,10 @@ msgstr "正在搜索..."
 msgid "Secret progression cheat console"
 msgstr "秘密进度作弊控制台"
 
+#: src/features/converter/MassTrimHeroesDialog.tsx:229
+msgid "Sections without a usable funscript or time range will be skipped. Existing section IDs and hero assignments are preserved."
+msgstr "没有可用 funscript 或时间范围的段落将被跳过。现有的段落 ID 和英雄分配将被保留。"
+
 #: src/routes/settings.tsx:1590
 msgid "Security & Privacy"
 msgstr "安全与隐私"
@@ -10727,15 +10781,15 @@ msgstr "视频跳转"
 msgid "Segment"
 msgstr "片段"
 
-#: src/features/converter/SegmentCard.tsx:193
+#: src/features/converter/SegmentCard.tsx:194
 msgid "Segment cut overlay"
 msgstr "片段剪切覆盖层"
 
-#: src/features/converter/SegmentCard.tsx:203
+#: src/features/converter/SegmentCard.tsx:204
 msgid "Segment playhead"
 msgstr "片段播放头"
 
-#: src/features/converter/SegmentCard.tsx:169
+#: src/features/converter/SegmentCard.tsx:170
 msgid "Segment Timeline"
 msgstr "片段时间线"
 
@@ -10808,7 +10862,7 @@ msgstr "选择一个源视频开始编辑。"
 msgid "Select a stored item to inspect and use it."
 msgstr "选择一个已存储的物品进行检查和使用。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:226
+#: src/features/converter/ConverterSourcePicker.tsx:229
 msgid "Select a video file from your computer to convert into rounds."
 msgstr "从你的电脑中选择一个视频文件来转换为回合。"
 
@@ -10833,7 +10887,15 @@ msgstr "请先选择一个物品。"
 msgid "playlist-workshop.section.rounds.description"
 msgstr "选择并重新排列普通回合。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:260
+#: src/features/converter/MassTrimHeroesDialog.tsx:79
+msgid "Select at least one hero."
+msgstr "至少选择一个英雄。"
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:120
+msgid "Select existing heroes and trim every section to its first and last moving funscript action."
+msgstr "选择现有英雄，并将每个段落修剪至其首个和最后一个活动的 funscript 动作。"
+
+#: src/features/converter/ConverterSourcePicker.tsx:263
 msgid "Select Funscript File"
 msgstr "选择 Funscript 文件"
 
@@ -10859,7 +10921,7 @@ msgstr "请先在库中选择项目。"
 msgid "Select items in the library to enable partial export."
 msgstr "在库中选择项目以启用部分导出。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:352
+#: src/features/converter/ConverterSourcePicker.tsx:355
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:219
 msgid "Select Local Funscript"
 msgstr "选择本地 Funscript"
@@ -10913,10 +10975,14 @@ msgstr "选择上一个片段。"
 msgid "Select the segment under the playhead."
 msgstr "选择播放头下方的片段。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:237
+#: src/features/converter/ConverterSourcePicker.tsx:240
 #: src/features/converter/SourcePanel.tsx:88
 msgid "Select Video File"
 msgstr "选择视频文件"
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:180
+msgid "Select visible"
+msgstr "选择可见"
 
 #. js-lingui-explicit-id
 #: src/routes/playlist-workshop.tsx:220
@@ -11038,11 +11104,11 @@ msgstr "设置名称并选择回合的生成方式。"
 msgid "Set background media and the road colors used between nodes."
 msgstr "设置背景媒体以及节点之间使用的道路颜色。"
 
-#: src/features/converter/SegmentCard.tsx:232
+#: src/features/converter/SegmentCard.tsx:233
 msgid "Set Cut IN"
 msgstr "设置剪切入点"
 
-#: src/features/converter/SegmentCard.tsx:242
+#: src/features/converter/SegmentCard.tsx:243
 msgid "Set Cut OUT"
 msgstr "设置剪切换出点"
 
@@ -11596,7 +11662,7 @@ msgstr "独立"
 msgid "hud.phase.idle"
 msgstr "待机"
 
-#: src/features/converter/SegmentCard.tsx:417
+#: src/features/converter/SegmentCard.tsx:418
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:410
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2515
 #: src/routes/playlist-workshop.tsx:2988
@@ -11904,7 +11970,7 @@ msgstr "Supabase 账户"
 msgid "Supabase URL"
 msgstr "Supabase 链接"
 
-#: src/features/converter/ConverterSourcePicker.tsx:405
+#: src/features/converter/ConverterSourcePicker.tsx:408
 msgid "Supported in practice through yt-dlp-backed playback. Paste sites like Pornhub, XVideos, or xHamster here, then add segments the same way as any other source."
 msgstr "通过 yt-dlp 支持的播放实际可用。在此粘贴 Pornhub、XVideos 或 xHamster 等站点的链接，然后像其他来源一样添加片段。"
 
@@ -12040,8 +12106,8 @@ msgstr "标签"
 msgid "Tags filter"
 msgstr "标签筛选"
 
-#: src/features/converter/AutoDetectionPanel.tsx:96
-#: src/features/converter/AutoDetectionPanel.tsx:103
+#: src/features/converter/AutoDetectionPanel.tsx:110
+#: src/features/converter/AutoDetectionPanel.tsx:117
 msgid "Target Count"
 msgstr "目标计数"
 
@@ -12498,7 +12564,7 @@ msgstr "时间轴缩放"
 msgid "playlist-workshop.section.timing.title"
 msgstr "时间与概率"
 
-#: src/features/converter/SegmentCard.tsx:369
+#: src/features/converter/SegmentCard.tsx:370
 msgid "Timing:"
 msgstr "时间："
 
@@ -12661,6 +12727,30 @@ msgstr "触发焦点控件上的主要操作。"
 #: src/routes/settings.tsx:408
 msgid "settings.help.shortcuts.controller.backAction"
 msgstr "触发次要/返回操作。"
+
+#: src/features/converter/AutoDetectionPanel.tsx:142
+#: src/features/converter/AutoDetectionPanel.tsx:145
+msgid "Trim Allowance (ms)"
+msgstr "修剪余量 (ms)"
+
+#: src/features/converter/AutoDetectionPanel.tsx:173
+msgid "Trim Existing"
+msgstr "修剪现有"
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:264
+msgid "Trim Selected Heroes"
+msgstr "修剪所选英雄"
+
+#. placeholder {0}: result.trimmedSectionCount
+#. placeholder {1}: result.unchangedSectionCount
+#. placeholder {2}: result.skippedSectionCount
+#: src/features/converter/MassTrimHeroesDialog.tsx:242
+msgid "Trimmed {0} sections. {1} were already trimmed and {2} were skipped."
+msgstr "已修剪 {0} 个段落。{1} 个已经修剪过，{2} 个被跳过。"
+
+#: src/features/converter/MassTrimHeroesDialog.tsx:264
+msgid "Trimming..."
+msgstr "修剪中..."
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:447
 msgid "Try a different name or clear the filters."
@@ -12895,7 +12985,7 @@ msgstr "使用左肩键操作。"
 msgid "settings.help.shortcuts.controller.rightBumper"
 msgstr "使用右肩键操作。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:394
+#: src/features/converter/ConverterSourcePicker.tsx:397
 msgid "Use Website Source"
 msgstr "使用网站来源"
 
@@ -12979,8 +13069,8 @@ msgstr "视频队列"
 msgid "Video Queue"
 msgstr "视频队列"
 
-#: src/features/converter/ConverterSourcePicker.tsx:290
-#: src/features/converter/ConverterSourcePicker.tsx:295
+#: src/features/converter/ConverterSourcePicker.tsx:293
+#: src/features/converter/ConverterSourcePicker.tsx:298
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:142
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:158
 msgid "Video URL"
@@ -13114,7 +13204,7 @@ msgstr "网站视频缓存位置"
 msgid "first-start.step.storage.detail.2"
 msgstr "网站视频缓存存储已下载的网站视频和相关播放文件。"
 
-#: src/features/converter/ConverterSourcePicker.tsx:278
+#: src/features/converter/ConverterSourcePicker.tsx:281
 msgid "Website Video URL"
 msgstr "网站视频 URL"
 

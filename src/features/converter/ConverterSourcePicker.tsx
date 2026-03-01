@@ -14,6 +14,7 @@ import {
   MAXIMUM_VIDEO_LENGTH_FILTER_MINUTES,
   meetsMinimumVideoLength,
 } from "./sourceFilter";
+import { MassTrimHeroesDialog } from "./MassTrimHeroesDialog";
 
 type SourceSection = "round" | "hero" | "file" | "url";
 
@@ -130,6 +131,8 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
     const [installWebFunscriptUrlEnabled, setInstallWebFunscriptUrlEnabled] = useState(
       DEFAULT_INSTALL_WEB_FUNSCRIPT_URL_ENABLED
     );
+    const [massTrimOpen, setMassTrimOpen] = useState(false);
+    const [dataVersion, setDataVersion] = useState(0);
 
     useEffect(() => {
       let mounted = true;
@@ -188,7 +191,7 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
       return () => {
         mounted = false;
       };
-    }, []);
+    }, [dataVersion]);
 
     const filteredRounds = useMemo(() => {
       const query = searchQuery.trim().toLowerCase();
@@ -416,7 +419,9 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
       <div className="space-y-4">
         <div
           className={`grid gap-3 rounded-2xl border border-purple-400/20 bg-black/30 p-3 ${
-            section === "round" ? "sm:grid-cols-[minmax(0,1fr)_16rem]" : ""
+            section === "round"
+              ? "sm:grid-cols-[minmax(0,1fr)_16rem]"
+              : "sm:grid-cols-[minmax(0,1fr)_auto]"
           }`}
         >
           <input
@@ -455,7 +460,20 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
                 className="h-2 w-full cursor-pointer accent-violet-500"
               />
             </div>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              onMouseEnter={playHoverSound}
+              onClick={() => {
+                playSelectSound();
+                setMassTrimOpen(true);
+              }}
+              disabled={heroes.length === 0}
+              className="rounded-xl border border-amber-300/60 bg-amber-500/20 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-500/35 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800 disabled:text-zinc-500"
+            >
+              <Trans>Mass Trim Heroes</Trans>
+            </button>
+          )}
         </div>
 
         {isLoading ? (
@@ -519,6 +537,14 @@ export const ConverterSourcePicker: React.FC<ConverterSourcePickerProps> = React
             ))}
           </div>
         )}
+        {massTrimOpen ? (
+          <MassTrimHeroesDialog
+            open
+            heroes={heroes}
+            onClose={() => setMassTrimOpen(false)}
+            onCompleted={() => setDataVersion((version) => version + 1)}
+          />
+        ) : null}
       </div>
     );
   }

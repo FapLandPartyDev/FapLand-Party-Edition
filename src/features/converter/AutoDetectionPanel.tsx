@@ -8,20 +8,27 @@ type AutoDetectionPanelProps = {
   durationMs: number;
   pauseGapDraft: string;
   minRoundDraft: string;
+  autoTrimRounds: boolean;
+  trimAllowanceDraft: string;
   targetSegmentCountDraft: string;
   targetDetectionResultSummary: string | null;
   targetSegmentCountInputRef: React.RefObject<HTMLInputElement | null>;
   isDetecting: boolean;
   detectedSegmentCount: number;
+  existingSegmentCount: number;
   onSetPauseGapDraft: (value: string) => void;
   onSetMinRoundDraft: (value: string) => void;
+  onSetAutoTrimRounds: (value: boolean) => void;
+  onSetTrimAllowanceDraft: (value: string) => void;
   onSetTargetSegmentCountDraft: (value: string) => void;
   onCommitPauseGapDraft: () => void;
   onCommitMinRoundDraft: () => void;
+  onCommitTrimAllowanceDraft: () => void;
   onRunAutoDetect: () => void;
   onRunAdaptiveAutoDetect: () => void;
   onRunTargetCountAutoDetect: () => void;
   onApplyDetected: () => void;
+  onTrimExisting: () => void;
 };
 
 export const AutoDetectionPanel: React.FC<AutoDetectionPanelProps> = React.memo(
@@ -30,20 +37,27 @@ export const AutoDetectionPanel: React.FC<AutoDetectionPanelProps> = React.memo(
     durationMs,
     pauseGapDraft,
     minRoundDraft,
+    autoTrimRounds,
+    trimAllowanceDraft,
     targetSegmentCountDraft,
     targetDetectionResultSummary,
     targetSegmentCountInputRef,
     isDetecting,
     detectedSegmentCount,
+    existingSegmentCount,
     onSetPauseGapDraft,
     onSetMinRoundDraft,
+    onSetAutoTrimRounds,
+    onSetTrimAllowanceDraft,
     onSetTargetSegmentCountDraft,
     onCommitPauseGapDraft,
     onCommitMinRoundDraft,
+    onCommitTrimAllowanceDraft,
     onRunAutoDetect,
     onRunAdaptiveAutoDetect,
     onRunTargetCountAutoDetect,
     onApplyDetected,
+    onTrimExisting,
   }) => {
     const { t } = useLingui();
     const detectDisabled = isDetecting || !funscriptUri || durationMs <= 0;
@@ -112,6 +126,52 @@ export const AutoDetectionPanel: React.FC<AutoDetectionPanelProps> = React.memo(
               className="converter-number-input mt-1 w-full rounded-lg border border-zinc-600 bg-black/40 px-2 py-1.5 text-xs text-zinc-100"
             />
           </label>
+        </div>
+
+        <div className="mt-2 grid grid-cols-3 items-end gap-2">
+          <label className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-black/20 px-2 py-1.5 text-[11px] text-zinc-300">
+            <input
+              type="checkbox"
+              checked={autoTrimRounds}
+              onChange={(event) => onSetAutoTrimRounds(event.target.checked)}
+              className="accent-violet-500"
+            />
+            <Trans>Auto trim rounds</Trans>
+          </label>
+          <label className="text-[11px] text-zinc-300">
+            <Trans>Trim Allowance (ms)</Trans>
+            <input
+              type="number"
+              aria-label={t`Trim Allowance (ms)`}
+              value={trimAllowanceDraft}
+              min={0}
+              onChange={(event) => onSetTrimAllowanceDraft(event.target.value)}
+              onBlur={onCommitTrimAllowanceDraft}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                onCommitTrimAllowanceDraft();
+                (event.currentTarget as HTMLInputElement).blur();
+              }}
+              className="converter-number-input mt-1 w-full rounded-lg border border-zinc-600 bg-black/40 px-2 py-1.5 text-xs text-zinc-100"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={isDetecting || !funscriptUri || durationMs <= 0 || existingSegmentCount === 0}
+            onMouseEnter={playHoverSound}
+            onClick={() => {
+              playSelectSound();
+              onTrimExisting();
+            }}
+            className={`rounded-lg border px-2 py-1.5 text-xs transition-all duration-200 ${
+              isDetecting || !funscriptUri || durationMs <= 0 || existingSegmentCount === 0
+                ? "cursor-not-allowed border-zinc-600 bg-zinc-800 text-zinc-500"
+                : "border-amber-300/60 bg-amber-500/25 text-amber-100 hover:bg-amber-500/40"
+            }`}
+          >
+            <Trans>Trim Existing</Trans>
+          </button>
         </div>
 
         <div className="mt-2 grid grid-cols-4 gap-2">
@@ -199,19 +259,26 @@ export function pickAutoDetectionPanelProps(state: ConverterState): AutoDetectio
     durationMs: state.durationMs,
     pauseGapDraft: state.pauseGapDraft,
     minRoundDraft: state.minRoundDraft,
+    autoTrimRounds: state.autoTrimRounds,
+    trimAllowanceDraft: state.trimAllowanceDraft,
     targetSegmentCountDraft: state.targetSegmentCountDraft,
     targetDetectionResultSummary: state.targetDetectionResultSummary,
     targetSegmentCountInputRef: state.targetSegmentCountInputRef,
     isDetecting: state.isDetecting,
     detectedSegmentCount: state.detectedSegments.length,
+    existingSegmentCount: state.sortedSegments.length,
     onSetPauseGapDraft: state.setPauseGapDraft,
     onSetMinRoundDraft: state.setMinRoundDraft,
+    onSetAutoTrimRounds: state.setAutoTrimRounds,
+    onSetTrimAllowanceDraft: state.setTrimAllowanceDraft,
     onSetTargetSegmentCountDraft: state.setTargetSegmentCountDraft,
     onCommitPauseGapDraft: state.commitPauseGapDraft,
     onCommitMinRoundDraft: state.commitMinRoundDraft,
+    onCommitTrimAllowanceDraft: state.commitTrimAllowanceDraft,
     onRunAutoDetect: () => void state.runAutoDetect(),
     onRunAdaptiveAutoDetect: () => void state.runAdaptiveAutoDetectAndApply(),
     onRunTargetCountAutoDetect: () => void state.runTargetCountAutoDetect(),
     onApplyDetected: state.applyDetectedSuggestions,
+    onTrimExisting: () => void state.trimExistingSegmentsToActions(),
   };
 }

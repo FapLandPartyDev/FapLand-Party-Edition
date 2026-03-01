@@ -18,17 +18,21 @@ import {
   buildDetectedSegments,
   findAdaptiveDetectionSettings,
   findDetectionSettingsForTargetCount,
+  getActionTrimRange,
 } from "./detection";
 import { applyAutoMetadataToSegments } from "./metadata";
 import { CONVERTER_SHORTCUTS, type ConverterShortcutContext } from "./shortcuts";
 import {
   clamp,
+  CONVERTER_AUTO_TRIM_ROUNDS_KEY,
   CONVERTER_MIN_ROUND_KEY,
   CONVERTER_PAUSE_GAP_KEY,
+  CONVERTER_TRIM_ALLOWANCE_KEY,
   CONVERTER_ZOOM_KEY,
   createSegmentId,
   DEFAULT_MIN_ROUND_MS,
   DEFAULT_PAUSE_GAP_MS,
+  DEFAULT_TRIM_ALLOWANCE_MS,
   DEFAULT_ZOOM_PX_PER_SEC,
   formatMs,
   MAX_ZOOM_PX_PER_SEC,
@@ -220,6 +224,9 @@ export function useConverterState(searchParams: ConverterSearchParams) {
   const [minRoundMs, setMinRoundMs] = useState(DEFAULT_MIN_ROUND_MS);
   const [pauseGapDraft, setPauseGapDraft] = useState(`${DEFAULT_PAUSE_GAP_MS}`);
   const [minRoundDraft, setMinRoundDraft] = useState(`${DEFAULT_MIN_ROUND_MS}`);
+  const [autoTrimRounds, setAutoTrimRounds] = useState(false);
+  const [trimAllowanceMs, setTrimAllowanceMs] = useState(DEFAULT_TRIM_ALLOWANCE_MS);
+  const [trimAllowanceDraft, setTrimAllowanceDraft] = useState(`${DEFAULT_TRIM_ALLOWANCE_MS}`);
   const [targetSegmentCountDraft, setTargetSegmentCountDraft] = useState("");
   const [targetDetectionResultSummary, setTargetDetectionResultSummary] = useState<string | null>(
     null
@@ -809,10 +816,18 @@ export function useConverterState(searchParams: ConverterSearchParams) {
 
     const load = async () => {
       try {
-        const [storedZoom, storedPauseGap, storedMinRound] = await Promise.all([
+        const [
+          storedZoom,
+          storedPauseGap,
+          storedMinRound,
+          storedAutoTrimRounds,
+          storedTrimAllowance,
+        ] = await Promise.all([
           trpc.store.get.query({ key: CONVERTER_ZOOM_KEY }),
           trpc.store.get.query({ key: CONVERTER_PAUSE_GAP_KEY }),
           trpc.store.get.query({ key: CONVERTER_MIN_ROUND_KEY }),
+          trpc.store.get.query({ key: CONVERTER_AUTO_TRIM_ROUNDS_KEY }),
+          trpc.store.get.query({ key: CONVERTER_TRIM_ALLOWANCE_KEY }),
         ]);
 
         if (!mounted) return;
@@ -835,6 +850,18 @@ export function useConverterState(searchParams: ConverterSearchParams) {
           : DEFAULT_MIN_ROUND_MS;
         setMinRoundMs(resolvedMinRound);
         setMinRoundDraft(`${resolvedMinRound}`);
+
+        setAutoTrimRounds(storedAutoTrimRounds === true || storedAutoTrimRounds === "true");
+
+        const parsedTrimAllowance =
+          storedTrimAllowance === null || storedTrimAllowance === undefined
+            ? Number.NaN
+            : Number(storedTrimAllowance);
+        const resolvedTrimAllowance = Number.isFinite(parsedTrimAllowance)
+          ? Math.max(0, Math.floor(parsedTrimAllowance))
+          : DEFAULT_TRIM_ALLOWANCE_MS;
+        setTrimAllowanceMs(resolvedTrimAllowance);
+        setTrimAllowanceDraft(`${resolvedTrimAllowance}`);
       } catch {
         // Keep defaults.
       }
@@ -900,9 +927,15 @@ export function useConverterState(searchParams: ConverterSearchParams) {
       void trpc.store.set
         .mutate({ key: CONVERTER_MIN_ROUND_KEY, value: minRoundMs })
         .catch((storeError) => console.warn("Failed to persist min round", storeError));
+      void trpc.store.set
+        .mutate({ key: CONVERTER_AUTO_TRIM_ROUNDS_KEY, value: autoTrimRounds })
+        .catch((storeError) => console.warn("Failed to persist auto trim rounds", storeError));
+      void trpc.store.set
+        .mutate({ key: CONVERTER_TRIM_ALLOWANCE_KEY, value: trimAllowanceMs })
+        .catch((storeError) => console.warn("Failed to persist trim allowance", storeError));
     }, 300);
     return () => window.clearTimeout(handle);
-  }, [minRoundMs, pauseGapMs]);
+  }, [autoTrimRounds, minRoundMs, pauseGapMs, trimAllowanceMs]);
 
   /* ─── Draft commit helpers ─────────────────────────────────────── */
 
@@ -919,6 +952,13 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setMinRoundDraft(`${normalized}`);
     return normalized;
   }, [minRoundDraft]);
+
+  const commitTrimAllowanceDraft = useCallback(() => {
+    const normalized = normalizeDetectionInput(trimAllowanceDraft, 0, DEFAULT_TRIM_ALLOWANCE_MS);
+    setTrimAllowanceMs(normalized);
+    setTrimAllowanceDraft(`${normalized}`);
+    return normalized;
+  }, [trimAllowanceDraft]);
 
   /* ─── Pointer drag for segment edges ───────────────────────────── */
 
@@ -1872,6 +1912,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     try {
       const effectivePauseGapMs = commitPauseGapDraft();
       const effectiveMinRoundMs = commitMinRoundDraft();
+      const effectiveTrimAllowanceMs = commitTrimAllowanceDraft();
       const timeline = await loadFunscriptTimeline(funscriptUri);
       setFunscriptActions(timeline?.actions ?? []);
       const suggestions = buildDetectedSegments({
@@ -1879,6 +1920,8 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         durationMs,
         pauseGapMs: effectivePauseGapMs,
         minRoundMs: effectiveMinRoundMs,
+        autoTrimRounds,
+        trimAllowanceMs: effectiveTrimAllowanceMs,
         defaultType: "Normal",
       }).map((segment) => ({
         ...segment,
@@ -1903,7 +1946,14 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     } finally {
       setIsDetecting(false);
     }
-  }, [commitMinRoundDraft, commitPauseGapDraft, durationMs, funscriptUri]);
+  }, [
+    autoTrimRounds,
+    commitMinRoundDraft,
+    commitPauseGapDraft,
+    commitTrimAllowanceDraft,
+    durationMs,
+    funscriptUri,
+  ]);
 
   const runThreeMinutePauseDetectAndApply = useCallback(async () => {
     if (!funscriptUri) {
@@ -1923,6 +1973,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     try {
       const effectivePauseGapMs = commitPauseGapDraft();
       const effectiveMinRoundMs = 60_000;
+      const effectiveTrimAllowanceMs = commitTrimAllowanceDraft();
       setMinRoundMs(effectiveMinRoundMs);
       setMinRoundDraft(`${effectiveMinRoundMs}`);
 
@@ -1934,6 +1985,8 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         durationMs,
         pauseGapMs: effectivePauseGapMs,
         minRoundMs: effectiveMinRoundMs,
+        autoTrimRounds,
+        trimAllowanceMs: effectiveTrimAllowanceMs,
         defaultType: "Normal",
       }).map((segment) => ({
         ...segment,
@@ -1965,7 +2018,14 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     } finally {
       setIsDetecting(false);
     }
-  }, [applySegments, commitPauseGapDraft, durationMs, funscriptUri]);
+  }, [
+    applySegments,
+    autoTrimRounds,
+    commitPauseGapDraft,
+    commitTrimAllowanceDraft,
+    durationMs,
+    funscriptUri,
+  ]);
 
   const applyDetectedSuggestions = useCallback(() => {
     if (detectedSegments.length === 0) {
@@ -1979,6 +2039,77 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setMessage(`Applied ${detectedSegments.length} detected segments.`);
     playConverterSegmentAddSound();
   }, [applySegments, detectedSegments]);
+
+  const trimExistingSegmentsToActions = useCallback(async () => {
+    if (!funscriptUri) {
+      setError("Attach a funscript before trimming existing sections.");
+      playConverterValidationErrorSound();
+      return;
+    }
+    if (durationMs <= 0 || segments.length === 0) {
+      setError("Add at least one section before trimming.");
+      playConverterValidationErrorSound();
+      return;
+    }
+
+    setIsDetecting(true);
+    setError(null);
+    try {
+      const allowanceMs = commitTrimAllowanceDraft();
+      const timeline = await loadFunscriptTimeline(funscriptUri);
+      const actions = timeline?.actions ?? [];
+      setFunscriptActions(actions);
+      let trimmedCount = 0;
+      const nextSegments = segments.map((segment) => {
+        const range = getActionTrimRange({
+          actions,
+          startTimeMs: segment.startTimeMs,
+          endTimeMs: segment.endTimeMs,
+          allowanceMs,
+        });
+        if (
+          !range ||
+          (range.startTimeMs === segment.startTimeMs && range.endTimeMs === segment.endTimeMs)
+        ) {
+          return segment;
+        }
+
+        trimmedCount += 1;
+        const cutRanges = normalizeRoundCutRanges(
+          segment.cutRanges.map((cut) => ({
+            startTimeMs: Math.max(range.startTimeMs, cut.startTimeMs),
+            endTimeMs: Math.min(range.endTimeMs, cut.endTimeMs),
+          })),
+          range.startTimeMs,
+          range.endTimeMs
+        ).map((cut) => ({ ...cut, id: createSegmentId() }));
+
+        return {
+          ...segment,
+          ...range,
+          cutRanges,
+        };
+      });
+
+      if (trimmedCount === 0) {
+        setMessage("Existing sections already match their action boundaries.");
+        playConverterAutoDetectSound();
+        return;
+      }
+      if (!applySegments(nextSegments)) return;
+
+      setMessage(
+        `Trimmed ${trimmedCount} existing ${trimmedCount === 1 ? "section" : "sections"}.`
+      );
+      playConverterSegmentAddSound();
+    } catch (trimError) {
+      console.error("Failed to trim existing converter sections", trimError);
+      setError("Failed to trim existing sections from the funscript.");
+      playConverterValidationErrorSound();
+    } finally {
+      setIsDetecting(false);
+    }
+  }, [applySegments, commitTrimAllowanceDraft, durationMs, funscriptUri, segments]);
 
   const runTargetCountAutoDetect = useCallback(async () => {
     if (!funscriptUri) {
@@ -2014,6 +2145,8 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         targetCount: Math.floor(targetCount),
         currentPauseGapMs: pauseGapMs,
         currentMinRoundMs: minRoundMs,
+        autoTrimRounds,
+        trimAllowanceMs,
         defaultType: "Normal",
       });
 
@@ -2066,10 +2199,12 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     }
   }, [
     durationMs,
+    autoTrimRounds,
     focusTargetSegmentCountInput,
     funscriptUri,
     minRoundMs,
     pauseGapMs,
+    trimAllowanceMs,
     targetSegmentCountDraft,
   ]);
 
@@ -2092,6 +2227,8 @@ export function useConverterState(searchParams: ConverterSearchParams) {
         durationMs,
         currentPauseGapMs: pauseGapMs,
         currentMinRoundMs: minRoundMs,
+        autoTrimRounds,
+        trimAllowanceMs,
         defaultType: "Normal",
       });
       if (sourceLoadTokenRef.current !== token) return;
@@ -2132,7 +2269,15 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     } finally {
       if (sourceLoadTokenRef.current === token) setIsDetecting(false);
     }
-  }, [applySegments, durationMs, funscriptUri, minRoundMs, pauseGapMs]);
+  }, [
+    applySegments,
+    autoTrimRounds,
+    durationMs,
+    funscriptUri,
+    minRoundMs,
+    pauseGapMs,
+    trimAllowanceMs,
+  ]);
 
   /* ─── Source selection ─────────────────────────────────────────── */
 
@@ -2758,8 +2903,13 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setPauseGapDraft,
     minRoundDraft,
     setMinRoundDraft,
+    autoTrimRounds,
+    setAutoTrimRounds,
+    trimAllowanceDraft,
+    setTrimAllowanceDraft,
     commitPauseGapDraft,
     commitMinRoundDraft,
+    commitTrimAllowanceDraft,
     isDetecting,
     runAutoDetect,
     runAdaptiveAutoDetectAndApply,
@@ -2769,6 +2919,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setTargetSegmentCountDraft,
     targetDetectionResultSummary,
     applyDetectedSuggestions,
+    trimExistingSegmentsToActions,
 
     // Save
     canSave,

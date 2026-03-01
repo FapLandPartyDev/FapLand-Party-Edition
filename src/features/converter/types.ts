@@ -70,12 +70,15 @@ export type DragState = {
 export const CONVERTER_ZOOM_KEY = "converter.timeline.zoomPxPerSec";
 export const CONVERTER_PAUSE_GAP_KEY = "converter.autodetect.pauseGapMs";
 export const CONVERTER_MIN_ROUND_KEY = "converter.autodetect.minRoundMs";
+export const CONVERTER_AUTO_TRIM_ROUNDS_KEY = "converter.autodetect.autoTrimRounds";
+export const CONVERTER_TRIM_ALLOWANCE_KEY = "converter.autodetect.trimAllowanceMs";
 
 export const DEFAULT_ZOOM_PX_PER_SEC = 80;
 export const MIN_ZOOM_PX_PER_SEC = 1;
 export const MAX_ZOOM_PX_PER_SEC = 480;
 export const DEFAULT_PAUSE_GAP_MS = 900;
 export const DEFAULT_MIN_ROUND_MS = 180_000;
+export const DEFAULT_TRIM_ALLOWANCE_MS = 1_000;
 export const MIN_SEGMENT_MS = 100;
 
 /* ─── Pure Utilities ─────────────────────────────────────────────── */

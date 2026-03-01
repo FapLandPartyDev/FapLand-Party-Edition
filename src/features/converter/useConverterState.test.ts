@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
     segments: [],
     evaluations: 0,
   })),
+  getActionTrimRange: vi.fn<(...args: unknown[]) => unknown>(() => null),
 }));
 
 vi.mock("../../services/db", () => ({
@@ -77,6 +78,7 @@ vi.mock("./detection", () => ({
   buildDetectedSegments: mocks.buildDetectedSegments,
   findDetectionSettingsForTargetCount: mocks.findDetectionSettingsForTargetCount,
   findAdaptiveDetectionSettings: mocks.findAdaptiveDetectionSettings,
+  getActionTrimRange: mocks.getActionTrimRange,
 }));
 
 vi.mock("./metadata", () => ({
@@ -237,6 +239,7 @@ describe("useConverterState", () => {
       evaluations: 0,
       closest: null,
     });
+    mocks.getActionTrimRange.mockReturnValue(null);
     mocks.storeGet.mockImplementation(async ({ key }: { key: string }) => {
       if (key === CONVERTER_ZOOM_KEY) return "1";
       if (key === CONVERTER_PAUSE_GAP_KEY) return null;
@@ -1516,6 +1519,86 @@ describe("useConverterState", () => {
     });
 
     expect(result.current.sortedSegments).toHaveLength(1);
+  });
+
+  it("passes auto-trim and its allowance to pause detection", async () => {
+    mocks.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 2_000, pos: 20 },
+        { at: 3_000, pos: 80 },
+      ],
+    });
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+    expect(result.current.trimAllowanceDraft).toBe("1000");
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+      result.current.setFunscriptUri("file:///tmp/test.funscript");
+      result.current.setAutoTrimRounds(true);
+      result.current.setTrimAllowanceDraft("1250");
+    });
+
+    await act(async () => {
+      await result.current.runAutoDetect();
+    });
+
+    expect(mocks.buildDetectedSegments).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autoTrimRounds: true,
+        trimAllowanceMs: 1_250,
+      })
+    );
+  });
+
+  it("trims existing sections from the button action", async () => {
+    mocks.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 2_000, pos: 20 },
+        { at: 4_000, pos: 80 },
+      ],
+    });
+    mocks.getActionTrimRange.mockReturnValue({
+      startTimeMs: 1_000,
+      endTimeMs: 5_000,
+    });
+
+    const { result } = renderHook(() => useConverterState({ sourceRoundId: "", heroName: "" }));
+
+    await waitFor(() => {
+      expect(result.current.zoomPxPerSec).toBe(MIN_ZOOM_PX_PER_SEC);
+    });
+
+    act(() => {
+      result.current.setDurationMs(10_000);
+      result.current.setFunscriptUri("file:///tmp/test.funscript");
+      result.current.setMarkInMs(0);
+      result.current.setMarkOutMs(10_000);
+    });
+    act(() => {
+      result.current.addSegmentFromMarks();
+    });
+
+    await act(async () => {
+      await result.current.trimExistingSegmentsToActions();
+    });
+
+    expect(mocks.getActionTrimRange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startTimeMs: 0,
+        endTimeMs: 10_000,
+        allowanceMs: 1_000,
+      })
+    );
+    expect(result.current.sortedSegments[0]).toMatchObject({
+      startTimeMs: 1_000,
+      endTimeMs: 5_000,
+    });
+    expect(result.current.message).toBe("Trimmed 1 existing section.");
   });
 
   it("saves converted rounds with ctrl/cmd+s", async () => {

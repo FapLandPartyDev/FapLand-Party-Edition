@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import * as z from "zod";
 import { saveConvertedRounds } from "../../services/converter";
+import { massTrimHeroes } from "../../services/converterMassTrim";
 import { publicProcedure, router } from "../trpc";
 
 const ZRoundType = z.enum(["Normal", "Interjection", "Cum"]);
@@ -10,6 +11,24 @@ const ZRoundCutRange = z.object({
 });
 
 export const converterRouter = router({
+  massTrimHeroes: publicProcedure
+    .input(
+      z.object({
+        heroIds: z.array(z.string().trim().min(1)).min(1).max(200),
+        allowanceMs: z.number().int().min(0).optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        return await massTrimHeroes(input);
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: error instanceof Error ? error.message : "Failed to mass trim heroes.",
+        });
+      }
+    }),
+
   saveSegments: publicProcedure
     .input(
       z.object({
