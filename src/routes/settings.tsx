@@ -4077,6 +4077,17 @@ function AppUpdateCard({ appUpdate }: { appUpdate: ReturnType<typeof useAppUpdat
             </button>
           </div>
         </div>
+        {updateChannel === "prerelease" ? (
+          <div
+            role="alert"
+            className="mt-3 rounded-xl border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100 animate-entrance"
+          >
+            <Trans>
+              Prerelease updates are unstable and may break features. In rare cases, you may lose
+              data. Back up important data before continuing.
+            </Trans>
+          </div>
+        ) : null}
         {channelError ? (
           <p className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 font-mono text-xs text-rose-200 animate-entrance">
             {channelError}
