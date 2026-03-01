@@ -100,6 +100,21 @@ export const ZGraphEdge = z
   })
   .strict();
 
+export const ZGraphTextAnnotation = z
+  .object({
+    id: z.string().trim().min(1),
+    text: z.string().trim().min(1).max(500),
+    styleHint: z
+      .object({
+        x: z.number().finite(),
+        y: z.number().finite(),
+        color: z.string().trim().min(1).optional(),
+        size: z.number().finite().positive().optional(),
+      })
+      .strict(),
+  })
+  .strict();
+
 export const ZRoundPoolCandidate = z
   .object({
     roundRef: ZPortableRoundRef,
@@ -121,6 +136,7 @@ export const ZGraphBoardConfig = z
     startNodeId: z.string().trim().min(1),
     nodes: z.array(ZGraphNode).min(1),
     edges: z.array(ZGraphEdge).default([]),
+    textAnnotations: z.array(ZGraphTextAnnotation).optional().default([]),
     randomRoundPools: z.array(ZRoundPool).default([]),
     cumRoundRefs: z.array(ZPortableRoundRef).default([]),
     pathChoiceTimeoutMs: z.number().int().min(1000).max(30000).default(12000),
@@ -366,6 +382,7 @@ export const ZPlaylistEnvelopeV1 = z
 
 export type PortableRoundRef = z.infer<typeof ZPortableRoundRef>;
 export type LinearBoardConfig = z.infer<typeof ZLinearBoardConfig>;
+export type GraphTextAnnotation = z.infer<typeof ZGraphTextAnnotation>;
 export type GraphBoardConfig = z.infer<typeof ZGraphBoardConfig>;
 export type BoardConfig = z.infer<typeof ZBoardConfig>;
 export type PlaylistConfig = z.infer<typeof ZPlaylistConfig>;

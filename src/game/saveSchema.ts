@@ -69,6 +69,17 @@ const ZBoardField = z.object({
   effects: z.array(ZGameEffect).optional(),
 });
 
+const ZMapTextAnnotation = z.object({
+  id: z.string().min(1),
+  text: z.string().min(1),
+  styleHint: z.object({
+    x: z.number(),
+    y: z.number(),
+    color: z.string().optional(),
+    size: z.number().optional(),
+  }),
+});
+
 const ZRuntimeGraphEdge = z.object({
   id: z.string().min(1),
   fromNodeId: z.string().min(1),
@@ -90,6 +101,7 @@ const ZRuntimeGraphRandomPool = z.object({
 
 const ZGameConfig = z.object({
   board: z.array(ZBoardField),
+  mapTextAnnotations: z.array(ZMapTextAnnotation).optional(),
   runtimeGraph: z.object({
     startNodeId: z.string().min(1),
     pathChoiceTimeoutMs: z.number().int(),

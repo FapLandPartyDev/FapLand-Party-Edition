@@ -116,6 +116,7 @@ type SidecarRoundData = {
   startTime: number | null;
   endTime: number | null;
   type: RoundType;
+  excludeFromRandom?: boolean;
   resources: InstallResource[];
 };
 
@@ -1064,6 +1065,9 @@ function normalizeRoundData(input: InstallRound): SidecarRoundData {
     startTime: typeof input.startTime === "number" ? input.startTime : null,
     endTime: typeof input.endTime === "number" ? input.endTime : null,
     type: toRoundType(input.type),
+    ...(typeof input.excludeFromRandom === "boolean"
+      ? { excludeFromRandom: input.excludeFromRandom }
+      : {}),
     resources: input.resources,
   };
 }
@@ -1348,6 +1352,9 @@ async function upsertRoundWithResources(
     startTime: params.round.startTime,
     endTime: params.round.endTime,
     type: params.round.type,
+    ...(params.round.excludeFromRandom !== undefined
+      ? { excludeFromRandom: params.round.excludeFromRandom }
+      : {}),
     heroId: params.heroId,
     installSourceKey: params.installSourceKey,
     previewImage,
@@ -1799,6 +1806,7 @@ type ReconciliationRoundRow = {
   startTime: number | null;
   endTime: number | null;
   type: RoundType;
+  excludeFromRandom: boolean;
   installSourceKey: string | null;
   heroId: string | null;
 };
@@ -1814,6 +1822,7 @@ function toSidecarRoundDataFromExistingRound(row: ReconciliationRoundRow): Sidec
     startTime: row.startTime,
     endTime: row.endTime,
     type: row.type,
+    excludeFromRandom: row.excludeFromRandom,
     resources: [],
   };
 }
@@ -1836,6 +1845,7 @@ async function findRoundByIdForReconciliation(
         startTime: true,
         endTime: true,
         type: true,
+        excludeFromRandom: true,
         installSourceKey: true,
         heroId: true,
       },

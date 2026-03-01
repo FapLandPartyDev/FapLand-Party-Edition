@@ -200,6 +200,7 @@ function buildLinearConfig(
 
   return {
     board,
+    mapTextAnnotations: [],
     runtimeGraph: buildRuntimeGraph(board, "start", edges, [], 6000),
     dice: { min: 1, max: 6 },
     perkSelection: {
@@ -297,6 +298,11 @@ function buildGraphConfig(
 
   return {
     board,
+    mapTextAnnotations: (config.textAnnotations ?? []).map((annotation) => ({
+      id: annotation.id,
+      text: annotation.text,
+      styleHint: { ...annotation.styleHint },
+    })),
     runtimeGraph: buildRuntimeGraph(
       board,
       config.startNodeId,

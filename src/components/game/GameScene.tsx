@@ -33,7 +33,7 @@ import {
   type AnimPhase,
   useGameAnimation,
 } from "../../game/useGameAnimation";
-import type { BoardField, GameState, PlayerState } from "../../game/types";
+import type { BoardField, GameState, MapTextAnnotation, PlayerState } from "../../game/types";
 import { PERK_RARITY_META, resolvePerkRarity, getRarityLabel } from "../../game/data/perkRarity";
 import type { InstalledRound } from "../../services/db";
 import { trpc } from "../../services/trpc";
@@ -140,6 +140,7 @@ type TileLayout = {
   origins: Array<{ x: number; y: number }>;
   dimensions: Array<{ width: number; height: number }>;
   centres: Array<{ x: number; y: number }>;
+  textAnnotationOriginsById: Record<string, { x: number; y: number }>;
   width: number;
   height: number;
 };
@@ -168,12 +169,26 @@ function buildFallbackTileOrigins(total: number): Array<{ x: number; y: number }
   });
 }
 
-function buildTileLayout(board: BoardField[]): TileLayout {
+function estimateTextAnnotationBounds(annotation: MapTextAnnotation): { width: number; height: number } {
+  const fontSize = annotation.styleHint.size ?? 18;
+  const lines = annotation.text.split("\n");
+  const maxLineLength = lines.reduce((max, line) => Math.max(max, line.length), 1);
+  return {
+    width: Math.max(24, maxLineLength * fontSize * 0.65),
+    height: Math.max(fontSize, lines.length * fontSize * 1.25),
+  };
+}
+
+function buildTileLayout(
+  board: BoardField[],
+  textAnnotations: ReadonlyArray<MapTextAnnotation> = []
+): TileLayout {
   if (board.length === 0) {
     return {
       origins: [],
       dimensions: [],
       centres: [],
+      textAnnotationOriginsById: {},
       width: TILE_W + GRAPH_PAD_X * 2,
       height: TILE_H + GRAPH_PAD_Y * 2,
     };
@@ -184,7 +199,7 @@ function buildTileLayout(board: BoardField[]): TileLayout {
     width: getFieldTileWidth(field),
     height: getFieldTileHeight(field),
   }));
-  const hasGraphCoords = board.some(hasFiniteStyleHintXY);
+  const hasGraphCoords = board.some(hasFiniteStyleHintXY) || textAnnotations.length > 0;
   if (hasGraphCoords) {
     const graphOrigins = board.map((field, index) =>
       hasFiniteStyleHintXY(field)
@@ -194,8 +209,14 @@ function buildTileLayout(board: BoardField[]): TileLayout {
           }
         : fallbackOrigins[index]!
     );
-    const xs = graphOrigins.map((point) => point.x);
-    const ys = graphOrigins.map((point) => point.y);
+    const textOrigins = textAnnotations.map((annotation) => ({
+      id: annotation.id,
+      x: annotation.styleHint.x,
+      y: annotation.styleHint.y,
+      bounds: estimateTextAnnotationBounds(annotation),
+    }));
+    const xs = [...graphOrigins.map((point) => point.x), ...textOrigins.map((point) => point.x)];
+    const ys = [...graphOrigins.map((point) => point.y), ...textOrigins.map((point) => point.y)];
     const minX = Math.min(...xs);
     const minY = Math.min(...ys);
     Math.max(...xs);
@@ -216,12 +237,33 @@ function buildTileLayout(board: BoardField[]): TileLayout {
       x: point.x + (dimensions[index]?.width ?? TILE_W) / 2,
       y: point.y + (dimensions[index]?.height ?? TILE_H) / 2,
     }));
+    const textAnnotationOriginsById = textOrigins.reduce<Record<string, { x: number; y: number }>>(
+      (acc, annotation) => {
+        acc[annotation.id] = {
+          x: annotation.x - minX + GRAPH_PAD_X,
+          y: annotation.y - minY + GRAPH_PAD_Y,
+        };
+        return acc;
+      },
+      {}
+    );
+    const maxTextRight = textOrigins.reduce(
+      (max, annotation) =>
+        Math.max(max, annotation.x - minX + GRAPH_PAD_X + annotation.bounds.width),
+      0
+    );
+    const maxTextBottom = textOrigins.reduce(
+      (max, annotation) =>
+        Math.max(max, annotation.y - minY + GRAPH_PAD_Y + annotation.bounds.height),
+      0
+    );
     return {
       origins: normalizedOrigins,
       dimensions,
       centres,
-      width: maxRight + GRAPH_PAD_X,
-      height: maxBottom + GRAPH_PAD_Y,
+      textAnnotationOriginsById,
+      width: Math.max(maxRight, maxTextRight) + GRAPH_PAD_X,
+      height: Math.max(maxBottom, maxTextBottom) + GRAPH_PAD_Y,
     };
   }
 
@@ -243,6 +285,7 @@ function buildTileLayout(board: BoardField[]): TileLayout {
       origins,
       dimensions,
       centres,
+      textAnnotationOriginsById: {},
       width: Math.max(BOARD_PAD_VX * 2 + TILE_W, maxRight + BOARD_PAD_VX),
       height: Math.max(
         BOARD_PAD_H * 2 + (board.length - 1) * TILE_STEP_V + TILE_H,
@@ -254,6 +297,7 @@ function buildTileLayout(board: BoardField[]): TileLayout {
     origins,
     dimensions,
     centres,
+    textAnnotationOriginsById: {},
     width: Math.max(PAD_X_SN * 2 + (COL_COUNT - 1) * GAP_X_SN + TILE_W, maxRight + PAD_X_SN),
     height: Math.max(PAD_Y_SN * 2 + TILE_H, maxBottom + PAD_Y_SN),
   };
@@ -2263,7 +2307,10 @@ export const GameScene = memo(function GameScene({
     const ZOOM_BIAS = 1.2;
     const CAMERA_MARGIN_X = 36;
     const CAMERA_MARGIN_Y = 52;
-    const boardLayout = buildTileLayout(stateRef.current.config.board);
+    const boardLayout = buildTileLayout(
+      stateRef.current.config.board,
+      stateRef.current.config.mapTextAnnotations ?? []
+    );
     const rawBoardW = boardLayout.width;
     const rawBoardH = boardLayout.height;
     const availW = W - 60; // only edge padding — board uses full width
@@ -2434,6 +2481,7 @@ export const GameScene = memo(function GameScene({
         const gateCostLabelMap = new Map<string, Text>();
 
         const brd = stateRef.current.config.board;
+        const mapTextAnnotations = stateRef.current.config.mapTextAnnotations ?? [];
         brd.forEach((field, idx) => {
           const nameT = new Text({
             text: field.name,
@@ -2537,6 +2585,26 @@ export const GameScene = memo(function GameScene({
           gateCostLabelMap.set(edge.edgeId, costLabel);
         });
 
+        const mapTextAnnotationLabelMap = new Map<string, Text>();
+        mapTextAnnotations.forEach((annotation) => {
+          const fill = parseHexColorToNumber(annotation.styleHint.color) ?? 0xf8fafc;
+          const annotationText = new Text({
+            text: annotation.text,
+            style: new TextStyle({
+              fontFamily: "JetBrains Mono,monospace",
+              fontSize: annotation.styleHint.size ?? 18,
+              fill,
+              fontWeight: "800",
+              whiteSpace: "pre-line",
+              stroke: { color: 0x000000, width: 5, join: "round" },
+              dropShadow: { color: 0x000000, alpha: 0.5, blur: 5, distance: 0 },
+            }),
+          });
+          annotationText.interactiveChildren = false;
+          textContainer.addChild(annotationText);
+          mapTextAnnotationLabelMap.set(annotation.id, annotationText);
+        });
+
         // Static board geometry and labels are drawn once.
         const drawStaticBoard = () => {
           connG.clear();
@@ -2597,6 +2665,15 @@ export const GameScene = memo(function GameScene({
               pair.durationBg.fill({ color: 0x08182d, alpha: 0.9 });
               pair.durationBg.stroke({ color: 0x8ab6ff, alpha: 0.45, width: 1 });
             }
+          });
+
+          mapTextAnnotations.forEach((annotation) => {
+            const label = mapTextAnnotationLabelMap.get(annotation.id);
+            const origin = boardLayout.textAnnotationOriginsById[annotation.id];
+            if (!label || !origin) return;
+            label.x = origin.x;
+            label.y = origin.y;
+            label.visible = true;
           });
         };
         drawStaticBoard();

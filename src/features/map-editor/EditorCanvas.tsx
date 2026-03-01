@@ -19,6 +19,12 @@ type Interaction =
       lastWorldY: number;
     }
   | {
+      kind: "textDrag";
+      annotationId: string;
+      lastWorldX: number;
+      lastWorldY: number;
+    }
+  | {
       kind: "marquee";
       anchorX: number;
       anchorY: number;
@@ -44,10 +50,12 @@ type EditorCanvasProps = {
   onSelectionChange: (next: EditorSelectionState) => void;
   onSetConnectFrom: (nodeId: string | null) => void;
   onMoveNodes: (nodeIds: string[], deltaWorldX: number, deltaWorldY: number) => void;
+  onMoveTextAnnotation: (annotationId: string, deltaWorldX: number, deltaWorldY: number) => void;
   onCreateEdge: (fromNodeId: string, toNodeId: string) => void;
   onDeleteEdgeBetween: (fromNodeId: string, toNodeId: string) => void;
   onDeleteSelection: () => void;
   onPlaceNodeAtWorld: (kind: EditorNode["kind"], worldX: number, worldY: number) => void;
+  onPlaceTextAtWorld: (worldX: number, worldY: number) => void;
   onBeginNodeDrag?: () => void;
   onEndNodeDrag?: () => void;
 };
@@ -55,6 +63,8 @@ type EditorCanvasProps = {
 const WORLD_ZOOM_MIN = 0.35;
 const WORLD_ZOOM_MAX = 2;
 const EDGE_COLOR = "#94a3b8";
+const DEFAULT_TEXT_COLOR = "#f8fafc";
+const DEFAULT_TEXT_SIZE = 18;
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -128,6 +138,7 @@ const EMPTY_SELECTION: EditorSelectionState = {
   selectedNodeIds: [],
   primaryNodeId: null,
   selectedEdgeId: null,
+  selectedTextAnnotationId: null,
 };
 
 export function EditorCanvas({
@@ -145,10 +156,12 @@ export function EditorCanvas({
   onSelectionChange,
   onSetConnectFrom,
   onMoveNodes,
+  onMoveTextAnnotation,
   onCreateEdge,
   onDeleteEdgeBetween,
   onDeleteSelection,
   onPlaceNodeAtWorld,
+  onPlaceTextAtWorld,
   onBeginNodeDrag,
   onEndNodeDrag,
 }: EditorCanvasProps): JSX.Element {
@@ -233,6 +246,20 @@ export function EditorCanvas({
         };
       }
 
+      if (current.kind === "textDrag") {
+        const world = toLocalWorld(event.clientX, event.clientY);
+        const deltaWorldX = world.x - current.lastWorldX;
+        const deltaWorldY = world.y - current.lastWorldY;
+        if (Math.abs(deltaWorldX) > 0 || Math.abs(deltaWorldY) > 0) {
+          onMoveTextAnnotation(current.annotationId, deltaWorldX, deltaWorldY);
+        }
+        return {
+          ...current,
+          lastWorldX: world.x,
+          lastWorldY: world.y,
+        };
+      }
+
       if (current.kind === "marquee") {
         const local = toLocal(event.clientX, event.clientY);
         return {
@@ -248,13 +275,13 @@ export function EditorCanvas({
     if (tool === "connect" && connectFromNodeId) {
       setPreviewPointer(toLocal(event.clientX, event.clientY));
     }
-  }, [connectFromNodeId, onMoveNodes, onViewportChange, toLocal, toLocalWorld, tool]);
+  }, [connectFromNodeId, onMoveNodes, onMoveTextAnnotation, onViewportChange, toLocal, toLocalWorld, tool]);
 
   const handleGlobalMouseUp = useCallback(() => {
     setInteraction((current) => {
       if (!current) return null;
 
-      if (current.kind === "nodeDrag") {
+      if (current.kind === "nodeDrag" || current.kind === "textDrag") {
         onEndNodeDrag?.();
       } else if (current.kind === "marquee") {
         const intersectingNodeIds = getNodesIntersectingScreenRect(
@@ -302,12 +329,19 @@ export function EditorCanvas({
 
       const isCanvasNode = target.closest("[data-node-id]");
       const isCanvasEdge = target.closest("[data-edge-id]");
-      if (isCanvasNode || isCanvasEdge) return;
+      const isCanvasText = target.closest("[data-text-annotation-id]");
+      if (isCanvasNode || isCanvasEdge || isCanvasText) return;
       if (event.button !== 0) return;
 
       if (tool === "place" && activePlacementKind) {
         const world = toLocalWorld(event.clientX, event.clientY);
         onPlaceNodeAtWorld(activePlacementKind, world.x, world.y);
+        return;
+      }
+
+      if (tool === "text") {
+        const world = toLocalWorld(event.clientX, event.clientY);
+        onPlaceTextAtWorld(world.x, world.y);
         return;
       }
 
@@ -330,7 +364,7 @@ export function EditorCanvas({
       onSetConnectFrom(null);
       onSelectionChange(EMPTY_SELECTION);
     },
-    [activePlacementKind, addPan, onPlaceNodeAtWorld, onSelectionChange, onSetConnectFrom, selection, spacePanActive, toLocal, toLocalWorld, tool],
+    [activePlacementKind, addPan, onPlaceNodeAtWorld, onPlaceTextAtWorld, onSelectionChange, onSetConnectFrom, selection, spacePanActive, toLocal, toLocalWorld, tool],
   );
 
   const handleCanvasWheel = useCallback((event: WheelEvent<SVGSVGElement>) => {
@@ -416,8 +450,36 @@ export function EditorCanvas({
       selectedNodeIds: [],
       primaryNodeId: null,
       selectedEdgeId: edgeId,
+      selectedTextAnnotationId: null,
     });
   }, [onSelectionChange, onSetConnectFrom]);
+
+  const handleTextMouseDown = useCallback(
+    (annotationId: string, event: MouseEvent<SVGGElement>) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onSetConnectFrom(null);
+      onSelectionChange({
+        selectedNodeIds: [],
+        primaryNodeId: null,
+        selectedEdgeId: null,
+        selectedTextAnnotationId: annotationId,
+      });
+
+      if (tool !== "select") return;
+
+      const world = toLocalWorld(event.clientX, event.clientY);
+      onBeginNodeDrag?.();
+      setInteraction({
+        kind: "textDrag",
+        annotationId,
+        lastWorldX: world.x,
+        lastWorldY: world.y,
+      });
+    },
+    [onBeginNodeDrag, onSelectionChange, onSetConnectFrom, toLocalWorld, tool]
+  );
 
   const marqueeRect = interaction?.kind === "marquee"
     ? {
@@ -615,6 +677,57 @@ export function EditorCanvas({
               >
                 {secondaryLabel}
               </text>
+            </g>
+          );
+        })}
+
+        {config.textAnnotations.map((annotation) => {
+          const x = Number(annotation.styleHint.x);
+          const y = Number(annotation.styleHint.y);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+          const position = toScreenSpace({ x, y }, viewport);
+          const fontSize = Math.max(8, Math.min(96, (annotation.styleHint.size ?? DEFAULT_TEXT_SIZE) * viewport.zoom));
+          const lineHeight = fontSize * 1.25;
+          const lines = annotation.text.split("\n");
+          const isSelected = selection.selectedTextAnnotationId === annotation.id;
+
+          return (
+            <g
+              key={annotation.id}
+              data-text-annotation-id={annotation.id}
+              transform={`translate(${position.x}, ${position.y})`}
+              onMouseDown={(event) => handleTextMouseDown(annotation.id, event)}
+              style={{ cursor: tool === "select" ? "grab" : "pointer" }}
+            >
+              <text
+                data-testid="editor-map-text-annotation"
+                fill={annotation.styleHint.color ?? DEFAULT_TEXT_COLOR}
+                fontSize={fontSize}
+                fontFamily="var(--font-jetbrains-mono)"
+                paintOrder="stroke"
+                stroke="rgba(0,0,0,0.72)"
+                strokeWidth={4}
+                strokeLinejoin="round"
+              >
+                {lines.map((line, index) => (
+                  <tspan key={`${annotation.id}-${index}`} x={0} dy={index === 0 ? 0 : lineHeight}>
+                    {line}
+                  </tspan>
+                ))}
+              </text>
+              {isSelected && (
+                <rect
+                  x={-8}
+                  y={-fontSize}
+                  width={Math.max(36, annotation.text.split("\n").reduce((max, line) => Math.max(max, line.length), 0) * fontSize * 0.65 + 16)}
+                  height={Math.max(lineHeight, lines.length * lineHeight)}
+                  fill="none"
+                  stroke="#c4b5fd"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 4"
+                  pointerEvents="none"
+                />
+              )}
             </g>
           );
         })}

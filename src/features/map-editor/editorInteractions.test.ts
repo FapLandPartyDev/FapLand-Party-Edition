@@ -50,6 +50,13 @@ const makeConfig = (): EditorGraphConfig => ({
       weight: 1,
     },
   ],
+  textAnnotations: [
+    {
+      id: "text-1",
+      text: "Read this",
+      styleHint: { x: 260, y: 80, color: "#f8fafc", size: 18 },
+    },
+  ],
   randomRoundPools: [],
   cumRoundRefs: [],
   pathChoiceTimeoutMs: 6000,
@@ -65,6 +72,7 @@ const makeConfig = (): EditorGraphConfig => ({
   },
   economy: { startingMoney: 120, scorePerCumRoundSuccess: 420 },
   dice: { min: 1, max: 6 },
+  saveMode: "none",
 });
 
 describe("editorInteractions", () => {
@@ -74,6 +82,7 @@ describe("editorInteractions", () => {
         selectedNodeIds: [],
         primaryNodeId: null,
         selectedEdgeId: "edge-a",
+        selectedTextAnnotationId: null,
       },
       ["node-a"],
       "node-a"
@@ -94,6 +103,7 @@ describe("editorInteractions", () => {
         selectedNodeIds: [],
         primaryNodeId: null,
         selectedEdgeId: null,
+        selectedTextAnnotationId: null,
       },
       ["node-a"],
       "node-a"
@@ -124,9 +134,24 @@ describe("editorInteractions", () => {
       selectedNodeIds: ["path-1"],
       primaryNodeId: "path-1",
       selectedEdgeId: null,
+      selectedTextAnnotationId: null,
     });
     expect(next.nodes.map((node) => node.id)).toEqual(["start", "end"]);
     expect(next.edges).toEqual([]);
+  });
+
+  it("deletes selected text annotations without changing nodes or edges", () => {
+    const config = makeConfig();
+    const next = deleteSelectionFromConfig(config, {
+      selectedNodeIds: [],
+      primaryNodeId: null,
+      selectedEdgeId: null,
+      selectedTextAnnotationId: "text-1",
+    });
+
+    expect(next.textAnnotations).toEqual([]);
+    expect(next.nodes).toEqual(config.nodes);
+    expect(next.edges).toEqual(config.edges);
   });
 
   it("builds numeric hotkey mapping for first nine tiles", () => {

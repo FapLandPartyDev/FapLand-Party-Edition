@@ -13,6 +13,7 @@ const TOOL_ITEMS: ReadonlyArray<{
   { id: "select", shortcut: "V", icon: "⊹" },
   { id: "place", shortcut: "P", icon: "◆" },
   { id: "connect", shortcut: "C", icon: "⤳" },
+  { id: "text", shortcut: "T", icon: "T" },
 ];
 
 interface EditorToolbarProps {
@@ -66,6 +67,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(
       select: t`Select`,
       place: t`Place`,
       connect: t`Connect`,
+      text: t`Text`,
     };
 
     return (

@@ -123,6 +123,17 @@ export type BoardField = {
   effects?: GameEffect[];
 };
 
+export type MapTextAnnotation = {
+  id: string;
+  text: string;
+  styleHint: {
+    x: number;
+    y: number;
+    color?: string;
+    size?: number;
+  };
+};
+
 export type RuntimeGraphEdge = {
   id: string;
   fromNodeId: string;
@@ -232,6 +243,7 @@ export type ActivePerkEffect = {
 
 export type GameConfig = {
   board: BoardField[];
+  mapTextAnnotations?: MapTextAnnotation[];
   runtimeGraph: RuntimeGraphConfig;
   dice: {
     min: number;

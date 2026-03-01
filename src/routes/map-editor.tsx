@@ -24,6 +24,7 @@ import {
   type EditorGraphConfig,
   type EditorNode,
   type EditorSelectionState,
+  type EditorTextAnnotation,
   type MapEditorTool,
   type ViewportState,
 } from "../features/map-editor/EditorState";
@@ -65,6 +66,7 @@ import { EditorToolbar } from "../features/map-editor/components/EditorToolbar";
 import { TileSidebar } from "../features/map-editor/components/TileSidebar";
 import { NodeInspectorPanel } from "../features/map-editor/components/NodeInspectorPanel";
 import { EdgeInspectorPanel } from "../features/map-editor/components/EdgeInspectorPanel";
+import { TextInspectorPanel } from "../features/map-editor/components/TextInspectorPanel";
 import { GraphSettingsPanel } from "../features/map-editor/components/GraphSettingsPanel";
 import { ValidationPanel } from "../features/map-editor/components/ValidationPanel";
 import { EditorStatusBar } from "../features/map-editor/components/EditorStatusBar";
@@ -82,9 +84,12 @@ const DEFAULT_EDITOR_VIEWPORT: ViewportState = {
   y: 60,
   zoom: 0.9,
 };
+const DEFAULT_TEXT_ANNOTATION_TEXT = "Guidance text";
+const DEFAULT_TEXT_ANNOTATION_COLOR = "#f8fafc";
+const DEFAULT_TEXT_ANNOTATION_SIZE = 18;
 type MapEditorInstalledRound = InstalledRound | InstalledRoundCatalogEntry;
 
-type InspectorTab = "node" | "edge" | "settings" | "validation";
+type InspectorTab = "node" | "edge" | "text" | "settings" | "validation";
 type ResolutionModalState =
   | {
       context: "import";
@@ -219,6 +224,7 @@ const makeStartingConfig = (): EditorGraphConfig => ({
     },
     { id: "edge-round-1-end", fromNodeId: "round-1", toNodeId: "end", gateCost: 0, weight: 1 },
   ],
+  textAnnotations: [],
   randomRoundPools: [],
   cumRoundRefs: [],
   pathChoiceTimeoutMs: 12000,
@@ -263,6 +269,7 @@ const idsEqual = (left: string[], right: string[]): boolean => {
 const selectionsEqual = (left: EditorSelectionState, right: EditorSelectionState): boolean =>
   left.primaryNodeId === right.primaryNodeId &&
   left.selectedEdgeId === right.selectedEdgeId &&
+  left.selectedTextAnnotationId === right.selectedTextAnnotationId &&
   idsEqual(left.selectedNodeIds, right.selectedNodeIds);
 
 type GraphUpdateFn = (previous: EditorGraphConfig) => EditorGraphConfig;
@@ -545,11 +552,32 @@ function MapEditorPage() {
     if (selectedPlaylistId) return;
     const playlistId = getMapEditorTestPlaylistId();
     if (!playlistId) return;
-    const playlist = playlistList.find((entry) => entry.id === playlistId);
-    clearMapEditorTestSession();
-    if (!playlist) return;
-    openPlaylistForEditing(playlist);
-  }, [openPlaylistForEditing, playlistList, selectedPlaylistId]);
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const playlist = await playlists.getById(playlistId);
+        if (cancelled || selectedPlaylistIdRef.current !== null) return;
+
+        updatePlaylistListEntry(playlist);
+        openPlaylistForEditing(playlist);
+      } catch (error) {
+        console.error("Failed to reopen tested map in editor", error);
+        if (!cancelled) {
+          setSaveNotice(error instanceof Error ? error.message : "Failed to reopen tested map.");
+        }
+      } finally {
+        if (!cancelled) {
+          clearMapEditorTestSession();
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [openPlaylistForEditing, selectedPlaylistId, updatePlaylistListEntry]);
 
   useEffect(() => {
     if (selectedPlaylistId) return;
@@ -621,6 +649,16 @@ function MapEditorPage() {
         ? (config.edges.find((edge) => edge.id === selection.selectedEdgeId) ?? null)
         : null,
     [config.edges, selection.selectedEdgeId]
+  );
+
+  const selectedTextAnnotation = useMemo(
+    () =>
+      selection.selectedTextAnnotationId
+        ? (config.textAnnotations.find(
+            (annotation) => annotation.id === selection.selectedTextAnnotationId
+          ) ?? null)
+        : null,
+    [config.textAnnotations, selection.selectedTextAnnotationId]
   );
 
   const outgoingEdgesForSelectedNode = useMemo(() => {
@@ -699,6 +737,32 @@ function MapEditorPage() {
           ...previous,
           nodes: nextNodes,
         };
+      });
+    },
+    [updateGraphConfig]
+  );
+
+  const patchTextAnnotation = useCallback(
+    (annotationId: string, patch: Partial<Omit<EditorTextAnnotation, "id">>) => {
+      updateGraphConfig((previous) => {
+        let changed = false;
+        const nextTextAnnotations = previous.textAnnotations.map((annotation) => {
+          if (annotation.id !== annotationId) return annotation;
+          changed = true;
+          return {
+            ...annotation,
+            ...patch,
+            styleHint: patch.styleHint
+              ? { ...annotation.styleHint, ...patch.styleHint }
+              : annotation.styleHint,
+          };
+        });
+        return changed
+          ? {
+              ...previous,
+              textAnnotations: nextTextAnnotations,
+            }
+          : previous;
       });
     },
     [updateGraphConfig]
@@ -947,6 +1011,7 @@ function MapEditorPage() {
         selectedNodeIds: [toNodeId],
         primaryNodeId: toNodeId,
         selectedEdgeId: null,
+        selectedTextAnnotationId: null,
       });
     },
     [commitSelection, flashTouchedEdge, updateGraphConfig]
@@ -1040,6 +1105,38 @@ function MapEditorPage() {
     [updateGraphConfig]
   );
 
+  const moveTextAnnotation = useCallback(
+    (annotationId: string, deltaWorldX: number, deltaWorldY: number) => {
+      if (deltaWorldX === 0 && deltaWorldY === 0) return;
+      const changed = updateGraphConfig((previous) => {
+        let moved = false;
+        const nextTextAnnotations = previous.textAnnotations.map((annotation) => {
+          if (annotation.id !== annotationId) return annotation;
+          moved = true;
+          return {
+            ...annotation,
+            styleHint: {
+              ...annotation.styleHint,
+              x: annotation.styleHint.x + deltaWorldX,
+              y: annotation.styleHint.y + deltaWorldY,
+            },
+          };
+        });
+        return moved
+          ? {
+              ...previous,
+              textAnnotations: nextTextAnnotations,
+            }
+          : previous;
+      }, false);
+
+      if (changed) {
+        dragSessionRef.current.moved = true;
+      }
+    },
+    [updateGraphConfig]
+  );
+
   const placeNodeAtWorld = useCallback(
     (kind: EditorNode["kind"], worldX: number, worldY: number) => {
       const tileDefinition = tilesByKind.get(kind);
@@ -1088,9 +1185,48 @@ function MapEditorPage() {
         selectedNodeIds: [createdNodeId],
         primaryNodeId: createdNodeId,
         selectedEdgeId: null,
+        selectedTextAnnotationId: null,
       });
     },
     [commitSelection, flashPlacedNode, perkOptions, tilesByKind, updateGraphConfig]
+  );
+
+  const placeTextAtWorld = useCallback(
+    (worldX: number, worldY: number) => {
+      let createdAnnotationId: string | null = null;
+      const changed = updateGraphConfig((previous) => {
+        const nextAnnotation: EditorTextAnnotation = {
+          id: createEditorId("text"),
+          text: DEFAULT_TEXT_ANNOTATION_TEXT,
+          styleHint: {
+            x: worldX,
+            y: worldY,
+            color: DEFAULT_TEXT_ANNOTATION_COLOR,
+            size: DEFAULT_TEXT_ANNOTATION_SIZE,
+          },
+        };
+        createdAnnotationId = nextAnnotation.id;
+        return {
+          ...previous,
+          textAnnotations: [...previous.textAnnotations, nextAnnotation],
+        };
+      });
+
+      if (!changed || !createdAnnotationId) {
+        playMapInvalidActionSound();
+        return;
+      }
+
+      playMapPlaceNodeSound();
+      commitSelection({
+        selectedNodeIds: [],
+        primaryNodeId: null,
+        selectedEdgeId: null,
+        selectedTextAnnotationId: createdAnnotationId,
+      });
+      setInspectorTab("text");
+    },
+    [commitSelection, updateGraphConfig]
   );
 
   const deleteSelection = useCallback(() => {
@@ -1652,6 +1788,13 @@ function MapEditorPage() {
         return;
       }
 
+      if (key === "t") {
+        event.preventDefault();
+        playSelectSound();
+        setTool("text");
+        return;
+      }
+
       if (key === "g") {
         event.preventDefault();
         playSelectSound();
@@ -1705,6 +1848,10 @@ function MapEditorPage() {
 
   // Auto-switch inspector tab based on selection
   useEffect(() => {
+    if (selection.selectedTextAnnotationId) {
+      setInspectorTab("text");
+      return;
+    }
     if (selection.selectedEdgeId) {
       setInspectorTab("edge");
       return;
@@ -1712,7 +1859,7 @@ function MapEditorPage() {
     if (selection.primaryNodeId) {
       setInspectorTab("node");
     }
-  }, [selection.primaryNodeId, selection.selectedEdgeId]);
+  }, [selection.primaryNodeId, selection.selectedEdgeId, selection.selectedTextAnnotationId]);
 
   const categoryTabs = useMemo<Array<{ id: TileCatalogCategory["id"] | "all"; label: string }>>(
     () => [{ id: "all", label: t`All` }, ...tileCatalog.categories],
@@ -1723,6 +1870,7 @@ function MapEditorPage() {
     () => [
       { id: "node", label: t`Node` },
       { id: "edge", label: t`Edge` },
+      { id: "text", label: t`Text` },
       { id: "settings", label: t`Settings` },
       { id: "validation", label: t`Checks` },
     ],
@@ -1982,10 +2130,12 @@ function MapEditorPage() {
                 onSelectionChange={commitSelection}
                 onSetConnectFrom={setConnectFromNodeId}
                 onMoveNodes={moveNodes}
+                onMoveTextAnnotation={moveTextAnnotation}
                 onCreateEdge={createEdge}
                 onDeleteEdgeBetween={deleteEdgeBetween}
                 onDeleteSelection={deleteSelection}
                 onPlaceNodeAtWorld={placeNodeAtWorld}
+                onPlaceTextAtWorld={placeTextAtWorld}
                 onBeginNodeDrag={() => {
                   dragSessionRef.current.active = true;
                   dragSessionRef.current.moved = false;
@@ -2005,7 +2155,9 @@ function MapEditorPage() {
               <EditorStatusBar
                 tool={tool}
                 nodeCount={config.nodes.length}
-                selectedCount={selection.selectedNodeIds.length}
+                selectedCount={
+                  selection.selectedNodeIds.length + (selection.selectedTextAnnotationId ? 1 : 0)
+                }
                 activeTileLabel={activeTile?.label ?? null}
                 selectedEdgeLabel={selectedEdgeLabel}
               />
@@ -2077,6 +2229,12 @@ function MapEditorPage() {
                       allEdges={config.edges}
                       onPatchEdge={patchEdge}
                       onDeleteEdge={deleteEdgeById}
+                    />
+                  )}
+                  {inspectorTab === "text" && (
+                    <TextInspectorPanel
+                      selectedTextAnnotation={selectedTextAnnotation}
+                      onPatchTextAnnotation={patchTextAnnotation}
                     />
                   )}
                   {inspectorTab === "settings" && (

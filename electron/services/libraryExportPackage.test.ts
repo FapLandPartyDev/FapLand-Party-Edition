@@ -44,7 +44,9 @@ vi.mock("./phash/binaries", () => ({
 }));
 
 vi.mock("./playlistExportCompression", async () => {
-  const actual = await vi.importActual<typeof import("./playlistExportCompression")>("./playlistExportCompression");
+  const actual = await vi.importActual<typeof import("./playlistExportCompression")>(
+    "./playlistExportCompression"
+  );
   return {
     ...actual,
     detectAv1Encoder: detectAv1EncoderMock,
@@ -64,6 +66,7 @@ type TestRound = {
   startTime: number | null;
   endTime: number | null;
   type: "Normal" | "Interjection" | "Cum";
+  excludeFromRandom?: boolean;
   installSourceKey: string | null;
   heroId: string | null;
   hero: {
@@ -218,6 +221,126 @@ describe("libraryExportPackage", () => {
     });
     expect(result.videoTotals.estimatedReencodeVideos).toBe(1);
     expect(result.estimate.expectedVideoBytes).toBeGreaterThan(0);
+  });
+
+  it("exports random exclusion only for excluded standalone round sidecars", async () => {
+    installDbMocks([
+      {
+        id: "round-1",
+        name: "Excluded Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        excludeFromRandom: true,
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri: "https://example.com/excluded.mp4", funscriptUri: null }],
+      },
+      {
+        id: "round-2",
+        name: "Included Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        excludeFromRandom: false,
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri: "https://example.com/included.mp4", funscriptUri: null }],
+      },
+    ]);
+
+    const result = await exportLibraryPackage({
+      directoryPath: rootDir,
+      includeMedia: false,
+    });
+
+    const excluded = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Excluded Round.round"), "utf8")
+    ) as { excludeFromRandom?: boolean };
+    const included = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Included Round.round"), "utf8")
+    ) as { excludeFromRandom?: boolean };
+
+    expect(excluded.excludeFromRandom).toBe(true);
+    expect(included.excludeFromRandom).toBeUndefined();
+  });
+
+  it("exports random exclusion per hero round entry", async () => {
+    const hero = {
+      id: "hero-1",
+      name: "Hero One",
+      author: null,
+      description: null,
+      phash: null,
+    };
+    installDbMocks([
+      {
+        id: "round-1",
+        name: "Round A",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        excludeFromRandom: true,
+        installSourceKey: null,
+        heroId: "hero-1",
+        hero,
+        resources: [{ videoUri: "https://example.com/a.mp4", funscriptUri: null }],
+      },
+      {
+        id: "round-2",
+        name: "Round B",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        excludeFromRandom: false,
+        installSourceKey: null,
+        heroId: "hero-1",
+        hero,
+        resources: [{ videoUri: "https://example.com/b.mp4", funscriptUri: null }],
+      },
+    ]);
+
+    const result = await exportLibraryPackage({
+      directoryPath: rootDir,
+      includeMedia: false,
+    });
+
+    const parsedHero = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Hero One.hero"), "utf8")
+    ) as {
+      excludeFromRandom?: boolean;
+      rounds: Array<{ name: string; excludeFromRandom?: boolean }>;
+    };
+
+    expect(parsedHero.excludeFromRandom).toBeUndefined();
+    expect(parsedHero.rounds.find((round) => round.name === "Round A")?.excludeFromRandom).toBe(
+      true
+    );
+    expect(
+      parsedHero.rounds.find((round) => round.name === "Round B")?.excludeFromRandom
+    ).toBeUndefined();
   });
 
   it("aborts an in-flight export and reports aborted status", async () => {

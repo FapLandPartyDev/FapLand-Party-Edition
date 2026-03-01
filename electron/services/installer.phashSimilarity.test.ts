@@ -12,6 +12,7 @@ type RoundRow = {
   installSourceKey: string | null;
   previewImage: string | null;
   difficulty: number | null;
+  excludeFromRandom: boolean;
 };
 
 type HeroRow = {
@@ -161,6 +162,7 @@ function buildDbMock() {
               id: entry.id,
               installSourceKey: entry.installSourceKey,
               previewImage: entry.previewImage,
+              resources: [],
             }))
         ),
       },
@@ -198,6 +200,7 @@ function buildDbMock() {
                 installSourceKey: string | null;
                 previewImage: string | null;
                 difficulty: number | null;
+                excludeFromRandom?: boolean;
               };
               const id = `round-${state.nextRoundId++}`;
               state.roundsById.set(id, {
@@ -205,6 +208,7 @@ function buildDbMock() {
                 installSourceKey: payload.installSourceKey,
                 previewImage: payload.previewImage,
                 difficulty: payload.difficulty ?? null,
+                excludeFromRandom: payload.excludeFromRandom ?? false,
               });
               if (payload.installSourceKey) {
                 state.roundIdByInstallSourceKey.set(payload.installSourceKey, id);
@@ -270,16 +274,28 @@ function buildDbMock() {
           returning: vi.fn(async () => {
             if (table !== round) return [];
             const id = extractFirstSqlParam(where);
-            if (typeof id !== "string") return [];
-            const existing = state.roundsById.get(id);
+            const inputInstallSourceKey = (input as { installSourceKey: string | null })
+              .installSourceKey;
+            const targetId =
+              typeof id === "string" && state.roundsById.has(id)
+                ? id
+                : inputInstallSourceKey
+                  ? state.roundIdByInstallSourceKey.get(inputInstallSourceKey)
+                  : undefined;
+            if (!targetId) return [];
+            const existing = state.roundsById.get(targetId);
             if (!existing) return [];
-            state.roundsById.set(id, {
+            state.roundsById.set(targetId, {
               ...existing,
-              installSourceKey: (input as { installSourceKey: string | null }).installSourceKey,
+              installSourceKey: inputInstallSourceKey,
               previewImage: (input as { previewImage: string | null }).previewImage,
-              difficulty: (input as { difficulty?: number | null }).difficulty ?? existing.difficulty,
+              difficulty:
+                (input as { difficulty?: number | null }).difficulty ?? existing.difficulty,
+              excludeFromRandom:
+                (input as { excludeFromRandom?: boolean }).excludeFromRandom ??
+                existing.excludeFromRandom,
             });
-            return [{ id }];
+            return [{ id: targetId }];
           }),
         })),
       })),
@@ -459,6 +475,94 @@ describe("installer phash similarity", () => {
     expect(state.resourceRows[0]?.funscriptUri).toBe(toLocalMediaUri(funscriptPath));
   });
 
+  it("imports optional random exclusion from .round sidecars", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-installer-excluded-round-"));
+    const roundPath = path.join(root, "portable.round");
+    await fs.writeFile(
+      roundPath,
+      JSON.stringify({
+        name: "Portable Round",
+        excludeFromRandom: true,
+        resources: [],
+      })
+    );
+
+    const { importInstallSidecarFile } = await import("./installer");
+    const result = await importInstallSidecarFile(roundPath);
+
+    expect(result.status.stats.installed).toBe(1);
+    expect(state.roundsById.get("round-1")?.excludeFromRandom).toBe(true);
+  });
+
+  it("imports random exclusion per .hero round entry", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-installer-excluded-hero-"));
+    const heroPath = path.join(root, "portable.hero");
+    await fs.writeFile(
+      heroPath,
+      JSON.stringify({
+        name: "Portable Hero",
+        rounds: [
+          {
+            name: "Round A",
+            excludeFromRandom: true,
+            resources: [],
+          },
+          {
+            name: "Round B",
+            resources: [],
+          },
+        ],
+      })
+    );
+
+    const { importInstallSidecarFile } = await import("./installer");
+    const result = await importInstallSidecarFile(heroPath);
+
+    expect(result.status.stats.installed).toBe(2);
+    expect(state.roundsById.get("round-1")?.excludeFromRandom).toBe(true);
+    expect(state.roundsById.get("round-2")?.excludeFromRandom).toBe(false);
+  });
+
+  it("preserves missing random exclusion on update and clears explicit false", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-installer-exclusion-update-"));
+    const roundPath = path.join(root, "portable.round");
+    await fs.writeFile(
+      roundPath,
+      JSON.stringify({
+        name: "Portable Round",
+        excludeFromRandom: true,
+        resources: [],
+      })
+    );
+
+    const { importInstallSidecarFile } = await import("./installer");
+    const currentRound = () =>
+      state.roundsById.get(state.roundIdByInstallSourceKey.get(roundPath) ?? "");
+    await importInstallSidecarFile(roundPath);
+    expect(currentRound()?.excludeFromRandom).toBe(true);
+
+    await fs.writeFile(
+      roundPath,
+      JSON.stringify({
+        name: "Portable Round",
+        resources: [],
+      })
+    );
+    await importInstallSidecarFile(roundPath);
+    expect(currentRound()?.excludeFromRandom).toBe(true);
+
+    await fs.writeFile(
+      roundPath,
+      JSON.stringify({
+        name: "Portable Round",
+        excludeFromRandom: false,
+        resources: [],
+      })
+    );
+    await importInstallSidecarFile(roundPath);
+    expect(currentRound()?.excludeFromRandom).toBe(false);
+  });
+
   it("calculates missing difficulty from an attached funscript during import", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "f-land-installer-difficulty-"));
     const mediaDir = path.join(root, "media");
@@ -472,7 +576,9 @@ describe("installer phash similarity", () => {
       roundPath,
       JSON.stringify({
         name: "Portable Round",
-        resources: [{ videoUri: "./media/portable.mp4", funscriptUri: "./media/portable.funscript" }],
+        resources: [
+          { videoUri: "./media/portable.mp4", funscriptUri: "./media/portable.funscript" },
+        ],
       })
     );
     calculateFunscriptDifficultyFromUriMock.mockResolvedValue(4);
@@ -481,7 +587,9 @@ describe("installer phash similarity", () => {
     const result = await importInstallSidecarFile(roundPath);
 
     expect(result.status.stats.installed).toBe(1);
-    expect(calculateFunscriptDifficultyFromUriMock).toHaveBeenCalledWith(toLocalMediaUri(funscriptPath));
+    expect(calculateFunscriptDifficultyFromUriMock).toHaveBeenCalledWith(
+      toLocalMediaUri(funscriptPath)
+    );
     expect(state.roundsById.get("round-1")?.difficulty).toBe(4);
   });
 
@@ -499,7 +607,9 @@ describe("installer phash similarity", () => {
       JSON.stringify({
         name: "Portable Round",
         difficulty: 2,
-        resources: [{ videoUri: "./media/portable.mp4", funscriptUri: "./media/portable.funscript" }],
+        resources: [
+          { videoUri: "./media/portable.mp4", funscriptUri: "./media/portable.funscript" },
+        ],
       })
     );
 
@@ -562,8 +672,7 @@ describe("installer phash similarity", () => {
             phash: "website-hero-a",
             resources: [
               {
-                videoUri:
-                  "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3Da",
+                videoUri: "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3Da",
               },
             ],
           },
@@ -572,8 +681,7 @@ describe("installer phash similarity", () => {
             phash: "website-hero-b",
             resources: [
               {
-                videoUri:
-                  "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3Db",
+                videoUri: "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3Db",
               },
             ],
           },

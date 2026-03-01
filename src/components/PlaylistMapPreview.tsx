@@ -12,11 +12,21 @@ type PreviewNode = {
   radius: number;
 };
 
+type PreviewTextAnnotation = {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  color: string;
+  fontSize: number;
+};
+
 const PREVIEW_WIDTH = 320;
 const PREVIEW_HEIGHT = 220;
 const PREVIEW_PADDING = 18;
 
 const PREVIEW_NODE_RADIUS = 4.2;
+const PREVIEW_TEXT_COLOR = "#f8fafc";
 
 function toFiniteNumber(value: unknown): number | null {
   if (typeof value !== "number") return null;
@@ -30,6 +40,8 @@ function getPreviewGraph(config: PlaylistConfig) {
   }
   return layoutLinearGraphFromPlaylist(config.boardConfig);
 }
+
+const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
 export function PlaylistMapPreview({
   config,
@@ -49,9 +61,26 @@ export function PlaylistMapPreview({
       radius: PREVIEW_NODE_RADIUS * clampPreviewNodeScale(getNodeScale(node)),
     }))
   ), [graph.nodes]);
+  const positionedTextAnnotations = useMemo<PreviewTextAnnotation[]>(() => (
+    graph.textAnnotations
+      .map((annotation) => {
+        const x = toFiniteNumber(annotation.styleHint.x);
+        const y = toFiniteNumber(annotation.styleHint.y);
+        if (x === null || y === null) return null;
+        return {
+          id: annotation.id,
+          text: annotation.text,
+          x,
+          y,
+          color: annotation.styleHint.color ?? PREVIEW_TEXT_COLOR,
+          fontSize: clamp((annotation.styleHint.size ?? 18) * 0.45, 7, 14),
+        };
+      })
+      .filter((annotation): annotation is PreviewTextAnnotation => Boolean(annotation))
+  ), [graph.textAnnotations]);
 
   const bounds = useMemo(() => {
-    if (positionedNodes.length === 0) {
+    if (positionedNodes.length === 0 && positionedTextAnnotations.length === 0) {
       return {
         minX: 0,
         minY: 0,
@@ -60,8 +89,14 @@ export function PlaylistMapPreview({
       };
     }
 
-    const xValues = positionedNodes.map((node) => node.x);
-    const yValues = positionedNodes.map((node) => node.y);
+    const xValues = [
+      ...positionedNodes.map((node) => node.x),
+      ...positionedTextAnnotations.map((annotation) => annotation.x),
+    ];
+    const yValues = [
+      ...positionedNodes.map((node) => node.y),
+      ...positionedTextAnnotations.map((annotation) => annotation.y),
+    ];
 
     return {
       minX: Math.min(...xValues),
@@ -69,7 +104,7 @@ export function PlaylistMapPreview({
       maxX: Math.max(...xValues),
       maxY: Math.max(...yValues),
     };
-  }, [positionedNodes]);
+  }, [positionedNodes, positionedTextAnnotations]);
 
   const projectedNodes = useMemo(() => {
     const rangeX = Math.max(1, bounds.maxX - bounds.minX);
@@ -85,6 +120,21 @@ export function PlaylistMapPreview({
       py: PREVIEW_PADDING + ((node.y - bounds.minY) * scale),
     }));
   }, [bounds.maxX, bounds.maxY, bounds.minX, bounds.minY, positionedNodes]);
+
+  const projectedTextAnnotations = useMemo(() => {
+    const rangeX = Math.max(1, bounds.maxX - bounds.minX);
+    const rangeY = Math.max(1, bounds.maxY - bounds.minY);
+    const scale = Math.min(
+      (PREVIEW_WIDTH - (PREVIEW_PADDING * 2)) / rangeX,
+      (PREVIEW_HEIGHT - (PREVIEW_PADDING * 2)) / rangeY,
+    );
+
+    return positionedTextAnnotations.map((annotation) => ({
+      ...annotation,
+      px: PREVIEW_PADDING + ((annotation.x - bounds.minX) * scale),
+      py: PREVIEW_PADDING + ((annotation.y - bounds.minY) * scale),
+    }));
+  }, [bounds.maxX, bounds.maxY, bounds.minX, bounds.minY, positionedTextAnnotations]);
 
   const projectedNodeById = useMemo(
     () => new Map(projectedNodes.map((node) => [node.id, node])),
@@ -108,7 +158,7 @@ export function PlaylistMapPreview({
       .filter((edge): edge is { id: string; x1: number; y1: number; x2: number; y2: number } => Boolean(edge))
   ), [graph.edges, projectedNodeById]);
 
-  if (projectedNodes.length === 0) {
+  if (projectedNodes.length === 0 && projectedTextAnnotations.length === 0) {
     return (
       <div className={className}>
         <div className="flex h-full items-center justify-center rounded-xl border border-zinc-700/70 bg-zinc-900/65 text-xs uppercase tracking-[0.14em] text-zinc-400">
@@ -155,6 +205,23 @@ export function PlaylistMapPreview({
               strokeWidth={0.85}
             />
           </g>
+        ))}
+
+        {projectedTextAnnotations.map((annotation) => (
+          <text
+            key={annotation.id}
+            data-testid="playlist-map-text-annotation"
+            x={annotation.px}
+            y={annotation.py}
+            fill={annotation.color}
+            fontSize={annotation.fontSize}
+            fontFamily="var(--font-jetbrains-mono)"
+            paintOrder="stroke"
+            stroke="rgba(0,0,0,0.72)"
+            strokeWidth={2}
+          >
+            {annotation.text}
+          </text>
         ))}
       </svg>
     </div>

@@ -30,7 +30,7 @@ export const EditorStatusBar: React.FC<EditorStatusBarProps> = React.memo(
         <StatusItem label={t`Tile`} value={activeTileLabel ?? "—"} />
         <StatusItem label={t`Edge`} value={selectedEdgeLabel} />
         <div className="flex-1" />
-        <span className="text-zinc-600">V/P/C · 1-9 · L · X · ⌘Z · ⌘S · Space+Drag</span>
+        <span className="text-zinc-600">V/P/C/T · 1-9 · L · X · ⌘Z · ⌘S · Space+Drag</span>
       </div>
     );
   }

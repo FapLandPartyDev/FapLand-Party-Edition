@@ -62,6 +62,7 @@ function makeLinearConfig(): PlaylistConfig {
     },
     roundStartDelayMs: 20000,
     dice: { min: 1, max: 6 },
+    saveMode: "none",
   };
 }
 
@@ -85,6 +86,7 @@ function makeGraphConfig(): PlaylistConfig {
         { id: "edge-1", fromNodeId: "start", toNodeId: "node-round", weight: 1 },
         { id: "edge-2", fromNodeId: "node-round", toNodeId: "end", weight: 1 },
       ],
+      textAnnotations: [],
       randomRoundPools: [
         {
           id: "pool-1",
@@ -118,6 +120,7 @@ function makeGraphConfig(): PlaylistConfig {
     },
     roundStartDelayMs: 20000,
     dice: { min: 1, max: 6 },
+    saveMode: "none",
   };
 }
 

@@ -40,6 +40,7 @@ export const replaceNodeSelection = (
     selectedNodeIds: Array.from(new Set(nodeIds)),
     primaryNodeId,
     selectedEdgeId: null,
+    selectedTextAnnotationId: null,
   };
 };
 
@@ -58,6 +59,7 @@ export const mergeNodeSelection = (
     selectedNodeIds: mergedIds,
     primaryNodeId: selection.primaryNodeId ?? fallbackPrimaryNodeId ?? mergedIds[0] ?? null,
     selectedEdgeId: null,
+    selectedTextAnnotationId: null,
   };
 };
 
@@ -80,6 +82,7 @@ export const toggleNodeSelection = (selection: EditorSelectionState, nodeId: str
     selectedNodeIds,
     primaryNodeId,
     selectedEdgeId: null,
+    selectedTextAnnotationId: null,
   };
 };
 
@@ -145,6 +148,17 @@ export const deleteSelectionFromConfig = (
     return {
       ...config,
       edges: nextEdges,
+    };
+  }
+
+  if (selection.selectedTextAnnotationId) {
+    const nextTextAnnotations = config.textAnnotations.filter(
+      (annotation) => annotation.id !== selection.selectedTextAnnotationId
+    );
+    if (nextTextAnnotations.length === config.textAnnotations.length) return config;
+    return {
+      ...config,
+      textAnnotations: nextTextAnnotations,
     };
   }
 

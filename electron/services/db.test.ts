@@ -14,6 +14,7 @@ vi.mock("electron", () => ({
 }));
 
 import {
+  markRoundExcludeFromRandomMigrationIfManuallyApplied,
   migratePortableDatabaseIfNeeded,
   repairSinglePlayerRunSaveSchema,
   resolveDatabaseUrl,
@@ -39,6 +40,68 @@ describe("drizzle migration journal", () => {
       .sort();
 
     expect(journalTags).toEqual(migrationFiles);
+  });
+});
+
+describe("markRoundExcludeFromRandomMigrationIfManuallyApplied", () => {
+  const execute = vi.fn<(_: string) => Promise<ExecuteResult>>();
+  const dbInstance = {
+    $client: {
+      execute,
+    },
+  } as never;
+
+  beforeEach(() => {
+    execute.mockReset();
+  });
+
+  it("records the migration when the column was added manually after the previous migration", async () => {
+    execute.mockImplementation(async (sql: string) => {
+      if (sql.includes("sqlite_master")) {
+        return { rows: [{ name: "__drizzle_migrations" }] };
+      }
+      if (sql.includes('SELECT created_at FROM "__drizzle_migrations"')) {
+        return { rows: [{ created_at: 1775692800000 }] };
+      }
+      if (sql.includes('PRAGMA table_info("Round")')) {
+        return { rows: [{ name: "id" }, { name: "excludeFromRandom" }] };
+      }
+      return { rows: [] };
+    });
+
+    await markRoundExcludeFromRandomMigrationIfManuallyApplied(
+      dbInstance,
+      path.resolve(process.cwd(), "drizzle")
+    );
+
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO "__drizzle_migrations"')
+    );
+    expect(execute).toHaveBeenCalledWith(expect.stringContaining("1776643200000"));
+  });
+
+  it("does not record the migration when earlier migrations are not recorded", async () => {
+    execute.mockImplementation(async (sql: string) => {
+      if (sql.includes("sqlite_master")) {
+        return { rows: [{ name: "__drizzle_migrations" }] };
+      }
+      if (sql.includes('SELECT created_at FROM "__drizzle_migrations"')) {
+        return { rows: [{ created_at: 1775001600000 }] };
+      }
+      if (sql.includes('PRAGMA table_info("Round")')) {
+        return { rows: [{ name: "id" }, { name: "excludeFromRandom" }] };
+      }
+      return { rows: [] };
+    });
+
+    await markRoundExcludeFromRandomMigrationIfManuallyApplied(
+      dbInstance,
+      path.resolve(process.cwd(), "drizzle")
+    );
+
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO "__drizzle_migrations"')
+    );
   });
 });
 

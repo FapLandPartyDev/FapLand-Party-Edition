@@ -29,6 +29,7 @@ const makeGraph = (): EditorGraphConfig => ({
     { id: "edge-start-mid", fromNodeId: "start", toNodeId: "mid", weight: 1, gateCost: 0 },
     { id: "edge-mid-end", fromNodeId: "mid", toNodeId: "end", weight: 1, gateCost: 0 },
   ],
+  textAnnotations: [],
   randomRoundPools: [],
   cumRoundRefs: [],
   pathChoiceTimeoutMs: 6000,
@@ -44,6 +45,7 @@ const makeGraph = (): EditorGraphConfig => ({
   },
   economy: { startingMoney: 120, scorePerCumRoundSuccess: 420 },
   dice: { min: 1, max: 6 },
+  saveMode: "none",
 });
 
 describe("realignGraph", () => {

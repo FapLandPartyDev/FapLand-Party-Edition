@@ -447,6 +447,7 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                   selectedNodeIds: [],
                   primaryNodeId: null,
                   selectedEdgeId: edge.id,
+                  selectedTextAnnotationId: null,
                 })
               }
             >

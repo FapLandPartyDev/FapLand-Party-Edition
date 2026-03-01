@@ -1,4 +1,4 @@
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EditorCanvas } from "./EditorCanvas";
 import type { EditorGraphConfig, EditorSelectionState, ViewportState } from "./EditorState";
@@ -29,6 +29,7 @@ const baseConfig: EditorGraphConfig = {
       weight: 1,
     },
   ],
+  textAnnotations: [],
   randomRoundPools: [],
   cumRoundRefs: [],
   pathChoiceTimeoutMs: 6000,
@@ -44,12 +45,14 @@ const baseConfig: EditorGraphConfig = {
   },
   economy: { startingMoney: 120, scorePerCumRoundSuccess: 420 },
   dice: { min: 1, max: 6 },
+  saveMode: "none",
 };
 
 const selection: EditorSelectionState = {
   selectedNodeIds: [],
   primaryNodeId: null,
   selectedEdgeId: null,
+  selectedTextAnnotationId: null,
 };
 
 const viewport: ViewportState = {
@@ -78,10 +81,12 @@ describe("EditorCanvas", () => {
         onSelectionChange={vi.fn()}
         onSetConnectFrom={vi.fn()}
         onMoveNodes={vi.fn()}
+        onMoveTextAnnotation={vi.fn()}
         onCreateEdge={vi.fn()}
         onDeleteEdgeBetween={vi.fn()}
         onDeleteSelection={vi.fn()}
         onPlaceNodeAtWorld={vi.fn()}
+        onPlaceTextAtWorld={vi.fn()}
       />
     );
 
@@ -118,10 +123,12 @@ describe("EditorCanvas", () => {
         onSelectionChange={vi.fn()}
         onSetConnectFrom={vi.fn()}
         onMoveNodes={vi.fn()}
+        onMoveTextAnnotation={vi.fn()}
         onCreateEdge={vi.fn()}
         onDeleteEdgeBetween={vi.fn()}
         onDeleteSelection={vi.fn()}
         onPlaceNodeAtWorld={vi.fn()}
+        onPlaceTextAtWorld={vi.fn()}
       />
     );
 
@@ -164,10 +171,12 @@ describe("EditorCanvas", () => {
         onSelectionChange={vi.fn()}
         onSetConnectFrom={vi.fn()}
         onMoveNodes={vi.fn()}
+        onMoveTextAnnotation={vi.fn()}
         onCreateEdge={vi.fn()}
         onDeleteEdgeBetween={vi.fn()}
         onDeleteSelection={vi.fn()}
         onPlaceNodeAtWorld={vi.fn()}
+        onPlaceTextAtWorld={vi.fn()}
       />
     );
 
@@ -185,5 +194,122 @@ describe("EditorCanvas", () => {
     expect(Number(edgeLine?.getAttribute("x2"))).toBe(520);
     expect(Number(edgeLine?.getAttribute("y1"))).toBeGreaterThan(140);
     expect(Number(edgeLine?.getAttribute("y2"))).toBeGreaterThan(140);
+  });
+
+  it("renders text annotations with custom color and size", () => {
+    const config: EditorGraphConfig = {
+      ...baseConfig,
+      textAnnotations: [
+        {
+          id: "text-1",
+          text: "Take the safe path",
+          styleHint: { x: 240, y: 260, color: "#10b981", size: 22 },
+        },
+      ],
+    };
+
+    const { getByTestId } = render(
+      <EditorCanvas
+        config={config}
+        selection={selection}
+        connectFromNodeId={null}
+        tool="select"
+        activePlacementKind={null}
+        viewport={viewport}
+        showGrid={false}
+        spacePanActive={false}
+        onViewportChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        onSetConnectFrom={vi.fn()}
+        onMoveNodes={vi.fn()}
+        onMoveTextAnnotation={vi.fn()}
+        onCreateEdge={vi.fn()}
+        onDeleteEdgeBetween={vi.fn()}
+        onDeleteSelection={vi.fn()}
+        onPlaceNodeAtWorld={vi.fn()}
+        onPlaceTextAtWorld={vi.fn()}
+      />
+    );
+
+    const text = getByTestId("editor-map-text-annotation");
+    expect(text.textContent).toBe("Take the safe path");
+    expect(text.getAttribute("fill")).toBe("#10b981");
+    expect(text.getAttribute("font-size")).toBe("22");
+  });
+
+  it("places text annotations with the text tool", () => {
+    const onPlaceTextAtWorld = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        config={baseConfig}
+        selection={selection}
+        connectFromNodeId={null}
+        tool="text"
+        activePlacementKind={null}
+        viewport={viewport}
+        showGrid={false}
+        spacePanActive={false}
+        onViewportChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        onSetConnectFrom={vi.fn()}
+        onMoveNodes={vi.fn()}
+        onMoveTextAnnotation={vi.fn()}
+        onCreateEdge={vi.fn()}
+        onDeleteEdgeBetween={vi.fn()}
+        onDeleteSelection={vi.fn()}
+        onPlaceNodeAtWorld={vi.fn()}
+        onPlaceTextAtWorld={onPlaceTextAtWorld}
+      />
+    );
+
+    const svg = container.querySelector("svg");
+    expect(svg).not.toBeNull();
+    fireEvent.mouseDown(svg!, { button: 0, clientX: 300, clientY: 180 });
+    expect(onPlaceTextAtWorld).toHaveBeenCalledWith(300, 180);
+  });
+
+  it("selects text annotations on click", () => {
+    const onSelectionChange = vi.fn();
+    const config: EditorGraphConfig = {
+      ...baseConfig,
+      textAnnotations: [
+        {
+          id: "text-1",
+          text: "Take the safe path",
+          styleHint: { x: 240, y: 260, color: "#10b981", size: 22 },
+        },
+      ],
+    };
+
+    const { getByTestId } = render(
+      <EditorCanvas
+        config={config}
+        selection={selection}
+        connectFromNodeId={null}
+        tool="select"
+        activePlacementKind={null}
+        viewport={viewport}
+        showGrid={false}
+        spacePanActive={false}
+        onViewportChange={vi.fn()}
+        onSelectionChange={onSelectionChange}
+        onSetConnectFrom={vi.fn()}
+        onMoveNodes={vi.fn()}
+        onMoveTextAnnotation={vi.fn()}
+        onCreateEdge={vi.fn()}
+        onDeleteEdgeBetween={vi.fn()}
+        onDeleteSelection={vi.fn()}
+        onPlaceNodeAtWorld={vi.fn()}
+        onPlaceTextAtWorld={vi.fn()}
+      />
+    );
+
+    fireEvent.mouseDown(getByTestId("editor-map-text-annotation"), { button: 0, clientX: 240, clientY: 260 });
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      selectedNodeIds: [],
+      primaryNodeId: null,
+      selectedEdgeId: null,
+      selectedTextAnnotationId: "text-1",
+    });
   });
 });

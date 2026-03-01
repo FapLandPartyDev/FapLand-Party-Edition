@@ -6,6 +6,7 @@ describe("install sidecar schemas", () => {
     const parsed = ZRoundSidecar.parse({
       name: "Test Round",
       author: "Tester",
+      excludeFromRandom: true,
       resources: [
         {
           videoUri: "https://cdn.example.com/video.mp4",
@@ -18,6 +19,7 @@ describe("install sidecar schemas", () => {
     });
 
     expect(parsed.name).toBe("Test Round");
+    expect(parsed.excludeFromRandom).toBe(true);
     expect(parsed.resources).toHaveLength(1);
     expect(parsed.hero?.name).toBe("Alpha Hero");
   });
@@ -29,18 +31,56 @@ describe("install sidecar schemas", () => {
         {
           name: "Hero Prime Round 1",
           type: "Normal",
+          excludeFromRandom: true,
           resources: [
             {
               videoUri: "https://cdn.example.com/hero-round-1.mp4",
             },
           ],
         },
+        {
+          name: "Hero Prime Round 2",
+          type: "Normal",
+          resources: [],
+        },
       ],
     });
 
     expect(parsed.name).toBe("Hero Prime");
-    expect(parsed.rounds).toHaveLength(1);
+    expect(parsed.rounds).toHaveLength(2);
+    expect(parsed.rounds[0]?.excludeFromRandom).toBe(true);
+    expect(parsed.rounds[1]?.excludeFromRandom).toBeUndefined();
     expect(parsed.rounds[0]?.resources[0]?.videoUri).toContain("hero-round-1.mp4");
+  });
+
+  it("parses older .round sidecars without random exclusion", () => {
+    const parsed = ZRoundSidecar.parse({
+      name: "Legacy Round",
+      resources: [],
+    });
+
+    expect(parsed.excludeFromRandom).toBeUndefined();
+  });
+
+  it("rejects non-boolean random exclusion values", () => {
+    const stringResult = ZRoundSidecar.safeParse({
+      name: "Invalid String Exclusion",
+      excludeFromRandom: "true",
+      resources: [],
+    });
+    const numberResult = ZHeroSidecar.safeParse({
+      name: "Invalid Number Exclusion",
+      rounds: [
+        {
+          name: "Round 1",
+          excludeFromRandom: 1,
+          resources: [],
+        },
+      ],
+    });
+
+    expect(stringResult.success).toBe(false);
+    expect(numberResult.success).toBe(false);
   });
 
   it("parses webpage URLs intended for yt-dlp resolution", () => {
@@ -53,7 +93,9 @@ describe("install sidecar schemas", () => {
       ],
     });
 
-    expect(parsed.resources[0]?.videoUri).toBe("https://www.pornhub.com/view_video.php?viewkey=test123");
+    expect(parsed.resources[0]?.videoUri).toBe(
+      "https://www.pornhub.com/view_video.php?viewkey=test123"
+    );
   });
 
   it("parses package-relative resource paths", () => {

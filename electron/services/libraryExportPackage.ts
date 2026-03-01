@@ -166,6 +166,7 @@ type ExportableRound = {
   startTime: number | null;
   endTime: number | null;
   type: "Normal" | "Interjection" | "Cum";
+  excludeFromRandom: boolean;
   installSourceKey: string | null;
   heroId: string | null;
   hero: ExportableHero | null;
@@ -779,6 +780,7 @@ function toRoundSidecarPayload(entry: RoundResourceEntry, includeMedia: boolean)
     startTime: entry.round.startTime ?? undefined,
     endTime: entry.round.endTime ?? undefined,
     type: entry.round.type,
+    excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
     resources: [
       {
         videoUri: includeMedia
@@ -816,6 +818,7 @@ function toHeroSidecarPayload(
         startTime: entry.round.startTime ?? undefined,
         endTime: entry.round.endTime ?? undefined,
         type: entry.round.type,
+        excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
         resources: [
           {
             videoUri: includeMedia
@@ -1596,7 +1599,10 @@ export async function exportLibraryPackage(
       const sidecarBaseName = sanitizeFileSystemName(entry.round.name, `round__${entry.round.id}`);
       const fileName = toUniqueCaseInsensitiveFileName(usedSidecarNames, sidecarBaseName, ".round");
       updatePhase("writing", `Writing sidecar ${fileName}...`);
-      await writeJsonFile(path.join(exportDir, fileName), toRoundSidecarPayload(entry, includeMedia));
+      await writeJsonFile(
+        path.join(exportDir, fileName),
+        toRoundSidecarPayload(entry, includeMedia)
+      );
       incrementStat("roundFiles");
       incrementProgress();
       roundFiles += 1;
@@ -1615,7 +1621,10 @@ export async function exportLibraryPackage(
       const sidecarBaseName = sanitizeFileSystemName(group.hero.name, `hero__${group.hero.id}`);
       const fileName = toUniqueCaseInsensitiveFileName(usedSidecarNames, sidecarBaseName, ".hero");
       updatePhase("writing", `Writing sidecar ${fileName}...`);
-      await writeJsonFile(path.join(exportDir, fileName), toHeroSidecarPayload(group.hero, group.entries, includeMedia));
+      await writeJsonFile(
+        path.join(exportDir, fileName),
+        toHeroSidecarPayload(group.hero, group.entries, includeMedia)
+      );
       incrementStat("heroFiles");
       incrementProgress();
       heroFiles += 1;

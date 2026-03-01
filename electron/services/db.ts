@@ -2,6 +2,7 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { app } from "electron";
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { getNodeEnv } from "../../src/zod/env";
@@ -18,9 +19,21 @@ let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 let databaseReadyPromise: Promise<void> | null = null;
 let dbClientUrl: string = "";
 
+const ROUND_EXCLUDE_FROM_RANDOM_MIGRATION_TAG = "0005_round_exclude_from_random";
+
 function rowValueToString(row: Record<string, unknown>, key: string): string | null {
   const value = row[key];
   return typeof value === "string" ? value : null;
+}
+
+function rowValueToNumber(row: Record<string, unknown>, key: string): number | null {
+  const value = row[key];
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 async function hasTable(
@@ -55,6 +68,69 @@ async function hasIndex(
     const rowRecord = row as Record<string, unknown>;
     return rowValueToString(rowRecord, "name") === indexName;
   });
+}
+
+async function readMigrationJournalEntry(
+  migrationsFolder: string,
+  migrationTag: string
+): Promise<{ when: number } | null> {
+  const journal = JSON.parse(
+    await fs.readFile(path.join(migrationsFolder, "meta", "_journal.json"), "utf8")
+  ) as { entries?: Array<{ tag?: unknown; when?: unknown }> };
+
+  const entry = (journal.entries ?? []).find((candidate) => candidate.tag === migrationTag);
+  if (!entry || typeof entry.tag !== "string" || typeof entry.when !== "number") return null;
+
+  return { when: entry.when };
+}
+
+async function readMigrationHash(migrationsFolder: string, migrationTag: string): Promise<string> {
+  const migrationSql = await fs.readFile(
+    path.join(migrationsFolder, `${migrationTag}.sql`),
+    "utf8"
+  );
+  return crypto.createHash("sha256").update(migrationSql).digest("hex");
+}
+
+export async function markRoundExcludeFromRandomMigrationIfManuallyApplied(
+  dbInstance: ReturnType<typeof drizzle<typeof schema>>,
+  migrationsFolder: string
+): Promise<void> {
+  const migrationsTableExists = await hasTable(dbInstance, "__drizzle_migrations");
+  if (!migrationsTableExists) return;
+
+  const latestMigrationResult = await dbInstance.$client.execute(
+    `SELECT created_at FROM "__drizzle_migrations" ORDER BY created_at DESC LIMIT 1`
+  );
+  const latestMigration = latestMigrationResult.rows[0] as Record<string, unknown> | undefined;
+  if (!latestMigration) return;
+
+  const latestMigrationCreatedAt = rowValueToNumber(latestMigration, "created_at");
+  if (latestMigrationCreatedAt === null) return;
+
+  const targetMigration = await readMigrationJournalEntry(
+    migrationsFolder,
+    ROUND_EXCLUDE_FROM_RANDOM_MIGRATION_TAG
+  );
+  if (!targetMigration || latestMigrationCreatedAt >= targetMigration.when) return;
+
+  const previousMigration = await readMigrationJournalEntry(
+    migrationsFolder,
+    "0004_round_query_indexes"
+  );
+  if (!previousMigration || latestMigrationCreatedAt < previousMigration.when) return;
+
+  const columnExists = await hasColumn(dbInstance, "Round", "excludeFromRandom");
+  if (!columnExists) return;
+
+  const migrationHash = await readMigrationHash(
+    migrationsFolder,
+    ROUND_EXCLUDE_FROM_RANDOM_MIGRATION_TAG
+  );
+  await dbInstance.$client.execute(
+    `INSERT INTO "__drizzle_migrations" ("hash", "created_at") VALUES` +
+      `('${migrationHash}', ${targetMigration.when})`
+  );
 }
 
 async function repairLegacyPlaylistSchema(
@@ -289,6 +365,7 @@ export async function ensureAppDatabaseReady(): Promise<void> {
         ? path.join(process.resourcesPath, "drizzle")
         : path.join(app.getAppPath(), "drizzle");
 
+      await markRoundExcludeFromRandomMigrationIfManuallyApplied(dbInstance, migrationsFolder);
       await migrate(dbInstance, { migrationsFolder });
       await repairLegacyPlaylistSchema(dbInstance);
       await repairCheatModeSchema(dbInstance);

@@ -45,7 +45,9 @@ vi.mock("./phash/binaries", () => ({
 }));
 
 vi.mock("./playlistExportCompression", async () => {
-  const actual = await vi.importActual<typeof import("./playlistExportCompression")>("./playlistExportCompression");
+  const actual = await vi.importActual<typeof import("./playlistExportCompression")>(
+    "./playlistExportCompression"
+  );
   return {
     ...actual,
     detectAv1Encoder: detectAv1EncoderMock,
@@ -65,6 +67,7 @@ type TestRound = {
   startTime: number | null;
   endTime: number | null;
   type: "Normal" | "Interjection" | "Cum";
+  excludeFromRandom?: boolean;
   installSourceKey: string | null;
   heroId: string | null;
   hero: {
@@ -82,7 +85,9 @@ type TestRound = {
   }>;
 };
 
-function buildLinearConfig(roundRefs: Array<{ idHint?: string; name: string; type?: "Normal" | "Cum" }>) {
+function buildLinearConfig(
+  roundRefs: Array<{ idHint?: string; name: string; type?: "Normal" | "Cum" }>
+) {
   return {
     playlistVersion: 1,
     boardConfig: {
@@ -206,10 +211,12 @@ describe("exportPlaylistPackage", () => {
       };
     });
     transcodeVideoToAv1Mock.mockReset();
-    transcodeVideoToAv1Mock.mockImplementation(async ({ sourcePath, outputPath }: { sourcePath: string; outputPath: string }) => {
-      const input = await fs.readFile(sourcePath);
-      await fs.writeFile(outputPath, Buffer.concat([Buffer.from("av1:"), input]));
-    });
+    transcodeVideoToAv1Mock.mockImplementation(
+      async ({ sourcePath, outputPath }: { sourcePath: string; outputPath: string }) => {
+        const input = await fs.readFile(sourcePath);
+        await fs.writeFile(outputPath, Buffer.concat([Buffer.from("av1:"), input]));
+      }
+    );
     clearApprovedDialogPathsForTests();
     ({
       exportPlaylistPackage,
@@ -229,26 +236,30 @@ describe("exportPlaylistPackage", () => {
     const videoPath = path.join(rootDir, "local-video.mp4");
     await fs.writeFile(videoPath, "video-data");
 
-    const rounds: TestRound[] = [{
-      id: "round-1",
-      name: "Round One",
-      author: "Tester",
-      description: null,
-      bpm: null,
-      difficulty: null,
-      phash: null,
-      startTime: null,
-      endTime: null,
-      type: "Normal",
-      installSourceKey: null,
-      heroId: null,
-      hero: null,
-      resources: [{
-        videoUri: toLocalMediaUri(videoPath),
-        funscriptUri: null,
-        durationMs: 120_000,
-      }],
-    }];
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Round One",
+        author: "Tester",
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: toLocalMediaUri(videoPath),
+            funscriptUri: null,
+            durationMs: 120_000,
+          },
+        ],
+      },
+    ];
     installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Round One" }]));
 
     const result = await analyzePlaylistExportPackage({
@@ -279,27 +290,31 @@ describe("exportPlaylistPackage", () => {
     const videoPath = path.join(rootDir, "local-video.mp4");
     const funscriptPath = path.join(rootDir, "local-video.funscript");
     await fs.writeFile(videoPath, "video-data");
-    await fs.writeFile(funscriptPath, "{\"actions\":[{\"at\":0,\"pos\":50}]}");
+    await fs.writeFile(funscriptPath, '{"actions":[{"at":0,"pos":50}]}');
 
-    const rounds: TestRound[] = [{
-      id: "round-1",
-      name: "Round One",
-      author: "Tester",
-      description: "Standalone",
-      bpm: 120,
-      difficulty: 2,
-      phash: "round-hash",
-      startTime: null,
-      endTime: null,
-      type: "Normal",
-      installSourceKey: null,
-      heroId: null,
-      hero: null,
-      resources: [{
-        videoUri: toLocalMediaUri(videoPath),
-        funscriptUri: toLocalMediaUri(funscriptPath),
-      }],
-    }];
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Round One",
+        author: "Tester",
+        description: "Standalone",
+        bpm: 120,
+        difficulty: 2,
+        phash: "round-hash",
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: toLocalMediaUri(videoPath),
+            funscriptUri: toLocalMediaUri(funscriptPath),
+          },
+        ],
+      },
+    ];
     installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Round One" }]));
 
     approveDialogPath("playlistExportDirectory", rootDir);
@@ -322,14 +337,18 @@ describe("exportPlaylistPackage", () => {
 
     const readmeContent = await fs.readFile(path.join(result.exportDir, "README.md"), "utf8");
     expect(readmeContent).toContain("# Welcome to Fap Land Party Edition!");
-    expect(readmeContent).toContain("https://github.com/FapLandPartyDev/FapLand-Party-Edition/releases");
-    expect(readmeContent).toContain("Click **\"Install rounds\"**.");
+    expect(readmeContent).toContain(
+      "https://github.com/FapLandPartyDev/FapLand-Party-Edition/releases"
+    );
+    expect(readmeContent).toContain('Click **"Install rounds"**.');
     expect(readmeContent).toContain("## Exported Videos");
     expect(readmeContent).toContain("- Round One");
 
     const roundFile = fileNames.find((entry) => entry.endsWith(".round"));
     expect(roundFile).toBeTruthy();
-    const parsedRound = JSON.parse(await fs.readFile(path.join(result.exportDir, roundFile!), "utf8")) as {
+    const parsedRound = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, roundFile!), "utf8")
+    ) as {
       resources: Array<{ videoUri: string; funscriptUri?: string }>;
     };
     expect(parsedRound.resources[0]?.videoUri.startsWith("./")).toBe(true);
@@ -337,10 +356,79 @@ describe("exportPlaylistPackage", () => {
     expect(parsedRound.resources[0]?.funscriptUri?.startsWith("./")).toBe(true);
     expect(parsedRound.resources[0]?.funscriptUri?.includes("/media/")).toBe(false);
 
-    const copiedVideo = path.join(result.exportDir, parsedRound.resources[0]!.videoUri.replace("./", ""));
-    const copiedScript = path.join(result.exportDir, parsedRound.resources[0]!.funscriptUri!.replace("./", ""));
+    const copiedVideo = path.join(
+      result.exportDir,
+      parsedRound.resources[0]!.videoUri.replace("./", "")
+    );
+    const copiedScript = path.join(
+      result.exportDir,
+      parsedRound.resources[0]!.funscriptUri!.replace("./", "")
+    );
     expect(await fs.readFile(copiedVideo, "utf8")).toBe("video-data");
-    expect(await fs.readFile(copiedScript, "utf8")).toContain("\"actions\"");
+    expect(await fs.readFile(copiedScript, "utf8")).toContain('"actions"');
+  });
+
+  it("exports random exclusion only for excluded standalone round sidecars", async () => {
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Excluded Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        excludeFromRandom: true,
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri: "https://example.com/excluded.mp4", funscriptUri: null }],
+      },
+      {
+        id: "round-2",
+        name: "Included Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        excludeFromRandom: false,
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [{ videoUri: "https://example.com/included.mp4", funscriptUri: null }],
+      },
+    ];
+    installDbMocks(
+      rounds,
+      buildLinearConfig([
+        { idHint: "round-1", name: "Excluded Round" },
+        { idHint: "round-2", name: "Included Round" },
+      ])
+    );
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    const result = await exportPlaylistPackage({
+      playlistId: "playlist-1",
+      directoryPath: rootDir,
+      includeMedia: false,
+    });
+
+    const excluded = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Excluded Round.round"), "utf8")
+    ) as { excludeFromRandom?: boolean };
+    const included = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Included Round.round"), "utf8")
+    ) as { excludeFromRandom?: boolean };
+
+    expect(excluded.excludeFromRandom).toBe(true);
+    expect(included.excludeFromRandom).toBeUndefined();
   });
 
   it("reencodes non-AV1 videos when AV1 export is enabled and includes compression metadata in the README", async () => {
@@ -352,26 +440,30 @@ describe("exportPlaylistPackage", () => {
     const videoPath = path.join(rootDir, "local-video.mp4");
     await fs.writeFile(videoPath, "video-data");
 
-    const rounds: TestRound[] = [{
-      id: "round-1",
-      name: "Round One",
-      author: "Tester",
-      description: null,
-      bpm: null,
-      difficulty: null,
-      phash: null,
-      startTime: null,
-      endTime: null,
-      type: "Normal",
-      installSourceKey: null,
-      heroId: null,
-      hero: null,
-      resources: [{
-        videoUri: toLocalMediaUri(videoPath),
-        funscriptUri: null,
-        durationMs: 120_000,
-      }],
-    }];
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Round One",
+        author: "Tester",
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: toLocalMediaUri(videoPath),
+            funscriptUri: null,
+            durationMs: 120_000,
+          },
+        ],
+      },
+    ];
     installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Round One" }]));
 
     approveDialogPath("playlistExportDirectory", rootDir);
@@ -383,14 +475,16 @@ describe("exportPlaylistPackage", () => {
     });
 
     expect(transcodeVideoToAv1Mock).toHaveBeenCalledTimes(1);
-    expect(transcodeVideoToAv1Mock).toHaveBeenCalledWith(expect.objectContaining({
-      sourcePath: expect.stringContaining(`${path.sep}.work${path.sep}`),
-      strength: 80,
-      encoder: {
-        name: "av1_nvenc",
-        kind: "hardware",
-      },
-    }));
+    expect(transcodeVideoToAv1Mock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourcePath: expect.stringContaining(`${path.sep}.work${path.sep}`),
+        strength: 80,
+        encoder: {
+          name: "av1_nvenc",
+          kind: "hardware",
+        },
+      })
+    );
     expect(result.compression).toMatchObject({
       enabled: true,
       encoderName: "av1_nvenc",
@@ -418,41 +512,47 @@ describe("exportPlaylistPackage", () => {
     const videoPath = path.join(rootDir, "local-video.mp4");
     await fs.writeFile(videoPath, "video-data");
 
-    transcodeVideoToAv1Mock.mockImplementationOnce(async ({
-      sourcePath,
-      outputPath,
-      onProgress,
-    }: {
-      sourcePath: string;
-      outputPath: string;
-      onProgress?: (progress: { encodedDurationMs: number }) => void;
-    }) => {
-      onProgress?.({ encodedDurationMs: 30_000 });
-      await transcodeRelease.promise;
-      const input = await fs.readFile(sourcePath);
-      await fs.writeFile(outputPath, Buffer.concat([Buffer.from("av1:"), input]));
-    });
+    transcodeVideoToAv1Mock.mockImplementationOnce(
+      async ({
+        sourcePath,
+        outputPath,
+        onProgress,
+      }: {
+        sourcePath: string;
+        outputPath: string;
+        onProgress?: (progress: { encodedDurationMs: number }) => void;
+      }) => {
+        onProgress?.({ encodedDurationMs: 30_000 });
+        await transcodeRelease.promise;
+        const input = await fs.readFile(sourcePath);
+        await fs.writeFile(outputPath, Buffer.concat([Buffer.from("av1:"), input]));
+      }
+    );
 
-    const rounds: TestRound[] = [{
-      id: "round-1",
-      name: "Round One",
-      author: "Tester",
-      description: null,
-      bpm: null,
-      difficulty: null,
-      phash: null,
-      startTime: null,
-      endTime: null,
-      type: "Normal",
-      installSourceKey: null,
-      heroId: null,
-      hero: null,
-      resources: [{
-        videoUri: toLocalMediaUri(videoPath),
-        funscriptUri: null,
-        durationMs: 120_000,
-      }],
-    }];
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Round One",
+        author: "Tester",
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: toLocalMediaUri(videoPath),
+            funscriptUri: null,
+            durationMs: 120_000,
+          },
+        ],
+      },
+    ];
     installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Round One" }]));
 
     approveDialogPath("playlistExportDirectory", rootDir);
@@ -476,7 +576,9 @@ describe("exportPlaylistPackage", () => {
             },
           },
         });
-        expect(getPlaylistExportPackageStatus().compression?.liveProgress.etaSecondsRemaining).toBeGreaterThan(0);
+        expect(
+          getPlaylistExportPackageStatus().compression?.liveProgress.etaSecondsRemaining
+        ).toBeGreaterThan(0);
       });
     } finally {
       transcodeRelease.resolve();
@@ -498,40 +600,40 @@ describe("exportPlaylistPackage", () => {
     const videoPath = path.join(rootDir, "local-video.mp4");
     await fs.writeFile(videoPath, "video-data");
 
-    transcodeVideoToAv1Mock.mockImplementationOnce(async ({
-      sourcePath,
-      outputPath,
-    }: {
-      sourcePath: string;
-      outputPath: string;
-    }) => {
-      expect(sourcePath).not.toBe(videoPath);
-      expect(sourcePath).toContain(`${path.sep}.work${path.sep}`);
-      await fs.rm(videoPath, { force: true });
-      const input = await fs.readFile(sourcePath);
-      await fs.writeFile(outputPath, Buffer.concat([Buffer.from("av1:"), input]));
-    });
+    transcodeVideoToAv1Mock.mockImplementationOnce(
+      async ({ sourcePath, outputPath }: { sourcePath: string; outputPath: string }) => {
+        expect(sourcePath).not.toBe(videoPath);
+        expect(sourcePath).toContain(`${path.sep}.work${path.sep}`);
+        await fs.rm(videoPath, { force: true });
+        const input = await fs.readFile(sourcePath);
+        await fs.writeFile(outputPath, Buffer.concat([Buffer.from("av1:"), input]));
+      }
+    );
 
-    const rounds: TestRound[] = [{
-      id: "round-1",
-      name: "Round One",
-      author: "Tester",
-      description: null,
-      bpm: null,
-      difficulty: null,
-      phash: null,
-      startTime: null,
-      endTime: null,
-      type: "Normal",
-      installSourceKey: null,
-      heroId: null,
-      hero: null,
-      resources: [{
-        videoUri: toLocalMediaUri(videoPath),
-        funscriptUri: null,
-        durationMs: 120_000,
-      }],
-    }];
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Round One",
+        author: "Tester",
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: null,
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: toLocalMediaUri(videoPath),
+            funscriptUri: null,
+            durationMs: 120_000,
+          },
+        ],
+      },
+    ];
     installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Round One" }]));
 
     approveDialogPath("playlistExportDirectory", rootDir);
@@ -592,10 +694,13 @@ describe("exportPlaylistPackage", () => {
         resources: [{ videoUri: toLocalMediaUri(videoPath), funscriptUri: null }],
       },
     ];
-    installDbMocks(rounds, buildLinearConfig([
-      { idHint: "round-1", name: "Round A" },
-      { idHint: "round-2", name: "Round B", type: "Cum" },
-    ]));
+    installDbMocks(
+      rounds,
+      buildLinearConfig([
+        { idHint: "round-1", name: "Round A" },
+        { idHint: "round-2", name: "Round B", type: "Cum" },
+      ])
+    );
 
     approveDialogPath("playlistExportDirectory", rootDir);
     const result = await exportPlaylistPackage({
@@ -609,12 +714,89 @@ describe("exportPlaylistPackage", () => {
     expect(fileNames.filter((entry) => entry.endsWith(".mp4"))).toHaveLength(1);
 
     const heroFile = fileNames.find((entry) => entry.endsWith(".hero"));
-    const parsedHero = JSON.parse(await fs.readFile(path.join(result.exportDir, heroFile!), "utf8")) as {
+    const parsedHero = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, heroFile!), "utf8")
+    ) as {
       rounds: Array<{ resources: Array<{ videoUri: string }> }>;
     };
     expect(parsedHero.rounds).toHaveLength(2);
     expect(parsedHero.rounds[0]?.resources[0]?.videoUri).toBe("./Hero One.mp4");
     expect(parsedHero.rounds[1]?.resources[0]?.videoUri).toBe("./Hero One.mp4");
+  });
+
+  it("exports random exclusion per hero round entry", async () => {
+    const sharedHero = {
+      id: "hero-1",
+      name: "Hero One",
+      author: "Curator",
+      description: "Shared hero",
+      phash: "hero-hash",
+    };
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Round A",
+        author: "Curator",
+        description: null,
+        bpm: null,
+        difficulty: 3,
+        phash: "round-a",
+        startTime: 0,
+        endTime: 5000,
+        type: "Normal",
+        excludeFromRandom: true,
+        installSourceKey: null,
+        heroId: "hero-1",
+        hero: sharedHero,
+        resources: [{ videoUri: "https://example.com/a.mp4", funscriptUri: null }],
+      },
+      {
+        id: "round-2",
+        name: "Round B",
+        author: "Curator",
+        description: null,
+        bpm: null,
+        difficulty: 4,
+        phash: "round-b",
+        startTime: 5000,
+        endTime: 10000,
+        type: "Cum",
+        excludeFromRandom: false,
+        installSourceKey: null,
+        heroId: "hero-1",
+        hero: sharedHero,
+        resources: [{ videoUri: "https://example.com/b.mp4", funscriptUri: null }],
+      },
+    ];
+    installDbMocks(
+      rounds,
+      buildLinearConfig([
+        { idHint: "round-1", name: "Round A" },
+        { idHint: "round-2", name: "Round B", type: "Cum" },
+      ])
+    );
+
+    approveDialogPath("playlistExportDirectory", rootDir);
+    const result = await exportPlaylistPackage({
+      playlistId: "playlist-1",
+      directoryPath: rootDir,
+      includeMedia: false,
+    });
+
+    const parsedHero = JSON.parse(
+      await fs.readFile(path.join(result.exportDir, "Hero One.hero"), "utf8")
+    ) as {
+      excludeFromRandom?: boolean;
+      rounds: Array<{ name: string; excludeFromRandom?: boolean }>;
+    };
+
+    expect(parsedHero.excludeFromRandom).toBeUndefined();
+    expect(parsedHero.rounds.find((round) => round.name === "Round A")?.excludeFromRandom).toBe(
+      true
+    );
+    expect(
+      parsedHero.rounds.find((round) => round.name === "Round B")?.excludeFromRandom
+    ).toBeUndefined();
   });
 
   it("keeps separate .round sidecars when non-hero rounds share a video", async () => {
@@ -655,10 +837,13 @@ describe("exportPlaylistPackage", () => {
         resources: [{ videoUri: toLocalMediaUri(videoPath), funscriptUri: null }],
       },
     ];
-    installDbMocks(rounds, buildLinearConfig([
-      { idHint: "round-1", name: "Round A" },
-      { idHint: "round-2", name: "Round B" },
-    ]));
+    installDbMocks(
+      rounds,
+      buildLinearConfig([
+        { idHint: "round-1", name: "Round A" },
+        { idHint: "round-2", name: "Round B" },
+      ])
+    );
 
     approveDialogPath("playlistExportDirectory", rootDir);
     const result = await exportPlaylistPackage({
@@ -672,40 +857,46 @@ describe("exportPlaylistPackage", () => {
   });
 
   it("downloads stash-backed resources with authenticated fetch", async () => {
-    const rounds: TestRound[] = [{
-      id: "round-1",
-      name: "Stash Round",
-      author: null,
-      description: null,
-      bpm: null,
-      difficulty: null,
-      phash: "stash-round",
-      startTime: null,
-      endTime: null,
-      type: "Normal",
-      installSourceKey: "stash:https://stash.example.com:scene:123",
-      heroId: null,
-      hero: null,
-      resources: [{
-        videoUri: "https://stash.example.com/scene/123/stream",
-        funscriptUri: null,
-      }],
-    }];
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Stash Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: "stash-round",
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: "stash:https://stash.example.com:scene:123",
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: "https://stash.example.com/scene/123/stream",
+            funscriptUri: null,
+          },
+        ],
+      },
+    ];
     installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Stash Round" }]));
-    listExternalSourcesMock.mockReturnValue([{
-      id: "stash-1",
-      kind: "stash",
-      name: "Main Stash",
-      enabled: true,
-      baseUrl: "https://stash.example.com",
-      authMode: "none",
-      apiKey: null,
-      username: null,
-      password: null,
-      tagSelections: [],
-      createdAt: "2026-03-18T00:00:00.000Z",
-      updatedAt: "2026-03-18T00:00:00.000Z",
-    }]);
+    listExternalSourcesMock.mockReturnValue([
+      {
+        id: "stash-1",
+        kind: "stash",
+        name: "Main Stash",
+        enabled: true,
+        baseUrl: "https://stash.example.com",
+        authMode: "none",
+        apiKey: null,
+        username: null,
+        password: null,
+        tagSelections: [],
+        createdAt: "2026-03-18T00:00:00.000Z",
+        updatedAt: "2026-03-18T00:00:00.000Z",
+      },
+    ]);
     fetchStashMediaWithAuthMock.mockResolvedValue(new Response("stash-video", { status: 200 }));
 
     approveDialogPath("playlistExportDirectory", rootDir);
@@ -721,25 +912,29 @@ describe("exportPlaylistPackage", () => {
   });
 
   it("downloads generic remote resources with plain fetch", async () => {
-    const rounds: TestRound[] = [{
-      id: "round-1",
-      name: "Remote Round",
-      author: null,
-      description: null,
-      bpm: null,
-      difficulty: null,
-      phash: "remote-round",
-      startTime: null,
-      endTime: null,
-      type: "Normal",
-      installSourceKey: null,
-      heroId: null,
-      hero: null,
-      resources: [{
-        videoUri: "https://cdn.example.com/remote.mp4",
-        funscriptUri: null,
-      }],
-    }];
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Remote Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: "remote-round",
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: "https://cdn.example.com/remote.mp4",
+            funscriptUri: null,
+          },
+        ],
+      },
+    ];
     installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Remote Round" }]));
     fetchMock.mockResolvedValue(new Response("remote-video", { status: 200 }));
 
@@ -753,7 +948,7 @@ describe("exportPlaylistPackage", () => {
       "https://cdn.example.com/remote.mp4",
       expect.objectContaining({
         signal: expect.any(AbortSignal),
-      }),
+      })
     );
     const fileNamesAfter = await fs.readdir(result.exportDir);
     expect(fileNamesAfter.some((entry) => entry.endsWith(".round"))).toBe(true);
@@ -761,32 +956,40 @@ describe("exportPlaylistPackage", () => {
 
   it("reports progress and allows aborting an in-flight export", async () => {
     const fetchStarted = Promise.withResolvers<void>();
-    const rounds: TestRound[] = [{
-      id: "round-1",
-      name: "Remote Round",
-      author: null,
-      description: null,
-      bpm: null,
-      difficulty: null,
-      phash: "remote-round",
-      startTime: null,
-      endTime: null,
-      type: "Normal",
-      installSourceKey: null,
-      heroId: null,
-      hero: null,
-      resources: [{
-        videoUri: "https://cdn.example.com/remote.mp4",
-        funscriptUri: null,
-      }],
-    }];
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Remote Round",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: "remote-round",
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: "https://cdn.example.com/remote.mp4",
+            funscriptUri: null,
+          },
+        ],
+      },
+    ];
     installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Remote Round" }]));
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
       if (init?.method === "HEAD") {
-        return Promise.resolve(new Response(null, { status: 200, headers: { "content-length": "10" } }));
+        return Promise.resolve(
+          new Response(null, { status: 200, headers: { "content-length": "10" } })
+        );
       }
       if (init?.headers instanceof Headers && init.headers.get("Range") === "bytes=0-0") {
-        return Promise.resolve(new Response("", { status: 206, headers: { "content-range": "bytes 0-0/10" } }));
+        return Promise.resolve(
+          new Response("", { status: 206, headers: { "content-range": "bytes 0-0/10" } })
+        );
       }
       return new Promise<Response>((_resolve, reject) => {
         fetchStarted.resolve();
@@ -795,9 +998,13 @@ describe("exportPlaylistPackage", () => {
           reject(new DOMException("Aborted", "AbortError"));
           return;
         }
-        signal?.addEventListener("abort", () => {
-          reject(new DOMException("Aborted", "AbortError"));
-        }, { once: true });
+        signal?.addEventListener(
+          "abort",
+          () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          },
+          { once: true }
+        );
       });
     });
 
@@ -834,32 +1041,38 @@ describe("exportPlaylistPackage", () => {
   it("rejects unapproved export directories", async () => {
     installDbMocks([], buildLinearConfig([]));
 
-    await expect(exportPlaylistPackage({
-      playlistId: "playlist-1",
-      directoryPath: rootDir,
-    })).rejects.toThrow("Path must be selected through the system dialog.");
+    await expect(
+      exportPlaylistPackage({
+        playlistId: "playlist-1",
+        directoryPath: rootDir,
+      })
+    ).rejects.toThrow("Path must be selected through the system dialog.");
   });
 
   it("fails when the target folder already exists", async () => {
-    const rounds: TestRound[] = [{
-      id: "round-1",
-      name: "Round One",
-      author: null,
-      description: null,
-      bpm: null,
-      difficulty: null,
-      phash: "round-one",
-      startTime: null,
-      endTime: null,
-      type: "Normal",
-      installSourceKey: null,
-      heroId: null,
-      hero: null,
-      resources: [{
-        videoUri: "https://cdn.example.com/round-one.mp4",
-        funscriptUri: null,
-      }],
-    }];
+    const rounds: TestRound[] = [
+      {
+        id: "round-1",
+        name: "Round One",
+        author: null,
+        description: null,
+        bpm: null,
+        difficulty: null,
+        phash: "round-one",
+        startTime: null,
+        endTime: null,
+        type: "Normal",
+        installSourceKey: null,
+        heroId: null,
+        hero: null,
+        resources: [
+          {
+            videoUri: "https://cdn.example.com/round-one.mp4",
+            funscriptUri: null,
+          },
+        ],
+      },
+    ];
     installDbMocks(rounds, buildLinearConfig([{ idHint: "round-1", name: "Round One" }]));
     fetchMock.mockResolvedValue(new Response("video", { status: 200 }));
 
@@ -868,20 +1081,24 @@ describe("exportPlaylistPackage", () => {
     await fs.mkdir(existingDir, { recursive: true });
     approveDialogPath("playlistExportDirectory", rootDir);
 
-    await expect(exportPlaylistPackage({
-      playlistId: "playlist-1",
-      directoryPath: rootDir,
-    })).rejects.toThrow(`Export target already exists: ${existingDir}`);
+    await expect(
+      exportPlaylistPackage({
+        playlistId: "playlist-1",
+        directoryPath: rootDir,
+      })
+    ).rejects.toThrow(`Export target already exists: ${existingDir}`);
   });
 
   it("fails when the playlist contains unresolved round refs", async () => {
     installDbMocks([], buildLinearConfig([{ idHint: "missing-round", name: "Missing Round" }]));
     approveDialogPath("playlistExportDirectory", rootDir);
 
-    await expect(exportPlaylistPackage({
-      playlistId: "playlist-1",
-      directoryPath: rootDir,
-    })).rejects.toThrow("Playlist export failed because some round refs are unresolved");
+    await expect(
+      exportPlaylistPackage({
+        playlistId: "playlist-1",
+        directoryPath: rootDir,
+      })
+    ).rejects.toThrow("Playlist export failed because some round refs are unresolved");
   });
 });
 

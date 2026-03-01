@@ -54,6 +54,13 @@ const graphConfig: PlaylistConfig = {
       { id: "edge-b", fromNodeId: "path-1", toNodeId: "round-1", gateCost: 0, weight: 1 },
       { id: "edge-c", fromNodeId: "round-1", toNodeId: "end", gateCost: 0, weight: 1 },
     ],
+    textAnnotations: [
+      {
+        id: "text-1",
+        text: "Choose wisely",
+        styleHint: { x: 280, y: 60, color: "#10b981", size: 22 },
+      },
+    ],
     randomRoundPools: [],
     cumRoundRefs: [],
     pathChoiceTimeoutMs: 6000,
@@ -64,6 +71,7 @@ const graphConfig: PlaylistConfig = {
   economy: baseEconomy,
   roundStartDelayMs: 20000,
   dice: { min: 1, max: 6 },
+  saveMode: "none",
 };
 
 const linearConfig: PlaylistConfig = {
@@ -83,6 +91,7 @@ const linearConfig: PlaylistConfig = {
   economy: baseEconomy,
   roundStartDelayMs: 20000,
   dice: { min: 1, max: 6 },
+  saveMode: "none",
 };
 
 describe("PlaylistMapPreview", () => {
@@ -129,6 +138,7 @@ describe("PlaylistMapPreview", () => {
           { id: "edge-a", fromNodeId: "start", toNodeId: "path-1", gateCost: 0, weight: 1 },
           { id: "edge-b", fromNodeId: "path-1", toNodeId: "end", gateCost: 0, weight: 1 },
         ],
+        textAnnotations: [],
         randomRoundPools: [],
         cumRoundRefs: [],
         pathChoiceTimeoutMs: 6000,
@@ -161,5 +171,35 @@ describe("PlaylistMapPreview", () => {
     const pathNode = nodes[1];
     expect(pathNode?.getAttribute("fill")).toBe("#10b981");
     expect(pathNode?.getAttribute("r")).toBe("8.4");
+  });
+
+  it("renders graph text annotations", () => {
+    render(<PlaylistMapPreview config={graphConfig} />);
+
+    const annotation = screen.getByTestId("playlist-map-text-annotation");
+    expect(annotation.textContent).toBe("Choose wisely");
+    expect(annotation.getAttribute("fill")).toBe("#10b981");
+  });
+
+  it("includes distant text annotations in preview bounds", () => {
+    const graphBoard = graphConfig.boardConfig as GraphBoardConfig;
+    const config: PlaylistConfig = {
+      ...graphConfig,
+      boardConfig: {
+        ...graphBoard,
+        textAnnotations: [
+          {
+            id: "text-far",
+            text: "Far note",
+            styleHint: { x: 2000, y: 100, color: "#f8fafc", size: 18 },
+          },
+        ],
+      },
+    };
+
+    render(<PlaylistMapPreview config={config} />);
+
+    const annotation = screen.getByTestId("playlist-map-text-annotation");
+    expect(Number(annotation.getAttribute("x"))).toBeLessThanOrEqual(302);
   });
 });

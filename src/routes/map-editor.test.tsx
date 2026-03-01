@@ -106,6 +106,7 @@ const mocks = vi.hoisted(() => ({
   },
   playlists: {
     list: vi.fn(),
+    getById: vi.fn(),
     getActive: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -356,6 +357,13 @@ beforeEach(() => {
     }
   });
   mocks.playlists.list.mockImplementation(async () => mocks.loaderData.availablePlaylists);
+  mocks.playlists.getById.mockImplementation(async (playlistId: string) => {
+    const playlist = (mocks.loaderData.availablePlaylists as Array<{ id: string }>).find(
+      (entry) => entry.id === playlistId
+    );
+    if (!playlist) throw new Error("Playlist not found.");
+    return playlist;
+  });
   mocks.playlists.getActive.mockImplementation(async () => mocks.loaderData.activePlaylist);
   mocks.playlists.analyzeImportFile.mockImplementation(async () => ({
     metadata: {
@@ -543,7 +551,45 @@ describe("MapEditorRoute", () => {
     window.sessionStorage.setItem("mapEditor.testPlaylistId", "playlist-1");
     render(<Component />);
     await screen.findByTestId("tool-value");
+    expect(mocks.playlists.getById).toHaveBeenCalledWith("playlist-1");
     expect(screen.queryByText("Select Playlist")).toBeNull();
+    expect(window.sessionStorage.getItem("mapEditor.testPlaylistId")).toBeNull();
+  });
+
+  it("opens the fresh tested playlist instead of stale loader data when returning from game", async () => {
+    const stalePlaylist = makePlaylist("playlist-1", "Test Playlist");
+    const freshPlaylist = makePlaylist("playlist-1", "Test Playlist");
+    freshPlaylist.config.boardConfig.nodes = [
+      ...freshPlaylist.config.boardConfig.nodes,
+      {
+        id: "fresh-path",
+        name: "Fresh Path",
+        kind: "path",
+        styleHint: { x: 1320, y: 210, width: 190, height: 84 },
+      },
+    ];
+    freshPlaylist.config.boardConfig.edges = [
+      ...freshPlaylist.config.boardConfig.edges,
+      {
+        id: "edge-end-fresh-path",
+        fromNodeId: "end",
+        toNodeId: "fresh-path",
+        gateCost: 0,
+        weight: 1,
+      },
+    ];
+    mocks.loaderData.availablePlaylists = [stalePlaylist];
+    mocks.loaderData.activePlaylist = stalePlaylist;
+    mocks.playlists.getById.mockResolvedValue(freshPlaylist);
+    window.sessionStorage.setItem("mapEditor.testPlaylistId", "playlist-1");
+
+    render(<Component />);
+
+    await screen.findByTestId("tool-value");
+    expect(mocks.playlists.getById).toHaveBeenCalledWith("playlist-1");
+    await waitFor(() => {
+      expect(screen.getByTestId("node-count").textContent).toBe("5");
+    });
   });
 
   it("arms place mode and keeps sticky placement active", async () => {

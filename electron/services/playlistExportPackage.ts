@@ -172,6 +172,7 @@ type ExportableRound = {
   startTime: number | null;
   endTime: number | null;
   type: "Normal" | "Interjection" | "Cum";
+  excludeFromRandom: boolean;
   installSourceKey: string | null;
   heroId: string | null;
   hero: ExportableHero | null;
@@ -1142,6 +1143,7 @@ function toRoundSidecarPayload(entry: RoundResourceEntry, includeMedia: boolean)
     startTime: entry.round.startTime ?? undefined,
     endTime: entry.round.endTime ?? undefined,
     type: entry.round.type,
+    excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
     resources: [
       {
         videoUri:
@@ -1181,6 +1183,7 @@ function createHeroSidecarPayload(
         startTime: entry.round.startTime ?? undefined,
         endTime: entry.round.endTime ?? undefined,
         type: entry.round.type,
+        excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
         resources: [
           {
             videoUri:

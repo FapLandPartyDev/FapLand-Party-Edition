@@ -11,6 +11,10 @@ const DEFAULT_NODE_HEIGHT = 84;
 const DEFAULT_LAYOUT_SPACING_X = 320;
 const DEFAULT_LAYOUT_SPACING_Y = 180;
 const DEFAULT_NODE_SCALE = 1;
+const DEFAULT_TEXT_SIZE = 18;
+const MIN_TEXT_SIZE = 10;
+const MAX_TEXT_SIZE = 72;
+const MAX_TEXT_LENGTH = 500;
 
 export type EditorNodeKind =
   | "start"
@@ -54,6 +58,17 @@ export interface EditorEdge {
   label?: string;
 }
 
+export interface EditorTextAnnotation {
+  id: string;
+  text: string;
+  styleHint: {
+    x: number;
+    y: number;
+    color?: string;
+    size?: number;
+  };
+}
+
 export interface EditorRandomPoolCandidate {
   roundRef: PortableRoundRef;
   weight: number;
@@ -70,6 +85,7 @@ export interface EditorGraphConfig {
   startNodeId: string;
   nodes: EditorNode[];
   edges: EditorEdge[];
+  textAnnotations: EditorTextAnnotation[];
   randomRoundPools: EditorRandomPool[];
   cumRoundRefs: PortableRoundRef[];
   pathChoiceTimeoutMs: number;
@@ -87,18 +103,20 @@ export interface ViewportState {
   zoom: number;
 }
 
-export type MapEditorTool = "select" | "place" | "connect";
+export type MapEditorTool = "select" | "place" | "connect" | "text";
 
 export interface EditorSelectionState {
   selectedNodeIds: string[];
   primaryNodeId: string | null;
   selectedEdgeId: string | null;
+  selectedTextAnnotationId: string | null;
 }
 
 export const EMPTY_EDITOR_SELECTION: EditorSelectionState = {
   selectedNodeIds: [],
   primaryNodeId: null,
   selectedEdgeId: null,
+  selectedTextAnnotationId: null,
 };
 
 const toFiniteNumber = (value: unknown): number | null => {
@@ -154,6 +172,42 @@ const normalizeStyleHint = (styleHint?: EditorStyleHint): EditorStyleHint | unde
   return next;
 };
 
+const normalizeTextAnnotation = (annotation: unknown): EditorTextAnnotation | null => {
+  if (typeof annotation !== "object" || annotation === null) return null;
+  const candidate = annotation as {
+    id?: unknown;
+    text?: unknown;
+    styleHint?: {
+      x?: unknown;
+      y?: unknown;
+      color?: unknown;
+      size?: unknown;
+    };
+  };
+  if (typeof candidate.id !== "string") return null;
+  const id = candidate.id.trim();
+  if (!id) return null;
+  if (typeof candidate.text !== "string") return null;
+  const text = candidate.text.trim().slice(0, MAX_TEXT_LENGTH);
+  if (!text) return null;
+  const x = toFiniteNumber(candidate.styleHint?.x);
+  const y = toFiniteNumber(candidate.styleHint?.y);
+  if (x === null || y === null) return null;
+
+  const styleHint: EditorTextAnnotation["styleHint"] = { x, y };
+  if (typeof candidate.styleHint?.color === "string" && candidate.styleHint.color.trim().length > 0) {
+    styleHint.color = candidate.styleHint.color.trim();
+  }
+  const size = toFiniteNumber(candidate.styleHint?.size);
+  styleHint.size = size === null ? DEFAULT_TEXT_SIZE : clamp(size, MIN_TEXT_SIZE, MAX_TEXT_SIZE);
+
+  return {
+    id,
+    text,
+    styleHint,
+  };
+};
+
 export const sanitizeNodeKind = (kind: string | undefined): EditorNodeKind => {
   if (
     kind === "start"
@@ -207,11 +261,16 @@ export const toEditorGraphConfig = (input: GraphBoardConfig): EditorGraphConfig 
     })),
   }));
 
+  const textAnnotations = (input.textAnnotations ?? [])
+    .map((annotation) => normalizeTextAnnotation(annotation))
+    .filter((annotation): annotation is EditorTextAnnotation => Boolean(annotation));
+
   return {
     mode: "graph",
     startNodeId: input.startNodeId,
     nodes,
     edges,
+    textAnnotations,
     randomRoundPools,
     cumRoundRefs: input.cumRoundRefs.map((ref) => ({ ...ref })),
     pathChoiceTimeoutMs: clamp(Math.floor(input.pathChoiceTimeoutMs), 1000, 30000),
@@ -334,6 +393,7 @@ export const layoutLinearGraphFromPlaylist = (config: LinearBoardConfig): Editor
     startNodeId: "start",
     nodes,
     edges,
+    textAnnotations: [],
     randomRoundPools: [],
     cumRoundRefs: config.cumRoundRefs.map((ref) => ({ ...ref })),
     pathChoiceTimeoutMs: 12000,
@@ -389,6 +449,14 @@ export const toGraphBoardConfig = (input: EditorGraphConfig): GraphBoardConfig =
     weight: edge.weight,
     label: edge.label,
   })),
+  textAnnotations: input.textAnnotations
+    .map((annotation) => normalizeTextAnnotation(annotation))
+    .filter((annotation): annotation is EditorTextAnnotation => Boolean(annotation))
+    .map((annotation) => ({
+      id: annotation.id,
+      text: annotation.text,
+      styleHint: { ...annotation.styleHint },
+    })),
   randomRoundPools: input.randomRoundPools
     .map((pool) => ({
       id: pool.id,

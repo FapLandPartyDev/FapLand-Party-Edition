@@ -442,6 +442,73 @@ describe("playlistSchema", () => {
     expect(runtimeConfig.board.find((node) => node.id === "start")?.styleHint?.size).toBe(1.8);
   });
 
+  it("defaults graph text annotations to empty and round-trips annotations into runtime config", () => {
+    const parsedWithoutAnnotations = ZPlaylistConfig.parse(
+      buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [{ id: "edge-a", fromNodeId: "start", toNodeId: "end" }],
+        randomRoundPools: [],
+        cumRoundRefs: [],
+        pathChoiceTimeoutMs: 6000,
+      })
+    );
+
+    expect(parsedWithoutAnnotations.boardConfig.mode).toBe("graph");
+    if (parsedWithoutAnnotations.boardConfig.mode !== "graph") {
+      throw new Error("Expected graph board config");
+    }
+    expect(parsedWithoutAnnotations.boardConfig.textAnnotations).toEqual([]);
+
+    const parsed = ZPlaylistConfig.parse(
+      buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [{ id: "edge-a", fromNodeId: "start", toNodeId: "end" }],
+        textAnnotations: [
+          {
+            id: "text-1",
+            text: "Choose wisely",
+            styleHint: { x: 10, y: 20, color: "#10b981", size: 22 },
+          },
+        ],
+        randomRoundPools: [],
+        cumRoundRefs: [],
+        pathChoiceTimeoutMs: 6000,
+      })
+    );
+
+    expect(parsed.boardConfig.mode).toBe("graph");
+    if (parsed.boardConfig.mode !== "graph") {
+      throw new Error("Expected graph board config");
+    }
+
+    expect(parsed.boardConfig.textAnnotations).toHaveLength(1);
+    const editorConfig = toEditorGraphConfig(parsed.boardConfig);
+    expect(editorConfig.textAnnotations[0]?.text).toBe("Choose wisely");
+    const roundTripped = toGraphBoardConfig(editorConfig);
+    expect(roundTripped.textAnnotations[0]).toEqual({
+      id: "text-1",
+      text: "Choose wisely",
+      styleHint: { x: 10, y: 20, color: "#10b981", size: 22 },
+    });
+
+    const runtimeConfig = toGameConfigFromPlaylist(parsed, []);
+    expect(runtimeConfig.mapTextAnnotations?.[0]).toEqual({
+      id: "text-1",
+      text: "Choose wisely",
+      styleHint: { x: 10, y: 20, color: "#10b981", size: 22 },
+    });
+  });
+
   it("copies forced-stop round nodes into runtime board fields", () => {
     const parsed = ZPlaylistConfig.parse(
       buildConfig({
