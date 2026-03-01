@@ -108,6 +108,8 @@ const mocks = vi.hoisted(() => ({
     getActive: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    duplicate: vi.fn(),
+    remove: vi.fn(),
     analyzeImportFile: vi.fn(),
     analyzeExportPackage: vi.fn(),
     importFromFile: vi.fn(),
@@ -249,8 +251,7 @@ function getCanvasNodePositions() {
 }
 
 async function enterEditor() {
-  const label = await screen.findByText("Edit Test Playlist");
-  fireEvent.click(label);
+  fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
   await screen.findByPlaceholderText("Search tiles");
 }
 
@@ -321,11 +322,29 @@ beforeEach(() => {
     error: null,
   });
 
-  mocks.playlists.create.mockImplementation(async ({ name }: { name: string }) =>
-    makePlaylist("playlist-new", name)
-  );
-  mocks.playlists.list.mockResolvedValue(mocks.loaderData.availablePlaylists);
-  mocks.playlists.getActive.mockResolvedValue(mocks.loaderData.activePlaylist);
+  mocks.playlists.create.mockImplementation(async ({ name }: { name: string }) => {
+    const created = makePlaylist("playlist-new", name);
+    mocks.loaderData.availablePlaylists = [created, ...(mocks.loaderData.availablePlaylists as typeof mocks.loaderData.availablePlaylists)];
+    return created;
+  });
+  mocks.playlists.duplicate.mockImplementation(async (playlistId: string) => {
+    const duplicated = makePlaylist(`${playlistId}-copy`, "Test Playlist Copy");
+    mocks.loaderData.availablePlaylists = [
+      duplicated,
+      ...(mocks.loaderData.availablePlaylists as typeof mocks.loaderData.availablePlaylists),
+    ];
+    return duplicated;
+  });
+  mocks.playlists.remove.mockImplementation(async (playlistId: string) => {
+    mocks.loaderData.availablePlaylists = (
+      mocks.loaderData.availablePlaylists as Array<{ id: string }>
+    ).filter((playlist) => playlist.id !== playlistId);
+    if ((mocks.loaderData.activePlaylist as { id: string } | null)?.id === playlistId) {
+      mocks.loaderData.activePlaylist = null;
+    }
+  });
+  mocks.playlists.list.mockImplementation(async () => mocks.loaderData.availablePlaylists);
+  mocks.playlists.getActive.mockImplementation(async () => mocks.loaderData.activePlaylist);
   mocks.playlists.analyzeImportFile.mockImplementation(async () => ({
     metadata: {
       name: "Imported Playlist",
@@ -397,8 +416,8 @@ beforeEach(() => {
     },
   });
   mocks.playlists.update.mockImplementation(
-    async ({ playlistId, config }: { playlistId: string; config: unknown }) => ({
-      ...makePlaylist(playlistId, "Test Playlist"),
+    async ({ playlistId, name, config }: { playlistId: string; name?: string; config: unknown }) => ({
+      ...makePlaylist(playlistId, name ?? "Test Playlist"),
       config,
     })
   );
@@ -472,6 +491,32 @@ describe("MapEditorRoute", () => {
     render(<MapEditorRoute />);
     expect(screen.getByText("Select Playlist")).toBeDefined();
     expect(screen.queryByTestId("tool-value")).toBeNull();
+  });
+
+  it("copies an advanced playlist from the picker and opens the duplicate", async () => {
+    render(<MapEditorRoute />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.duplicate).toHaveBeenCalledWith("playlist-1");
+    });
+    expect(await screen.findByDisplayValue("Test Playlist Copy")).toBeDefined();
+  });
+
+  it("deletes an advanced playlist from the picker after confirmation", async () => {
+    render(<MapEditorRoute />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(screen.getByText("Delete Playlist?")).toBeDefined();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[1]!);
+
+    await waitFor(() => {
+      expect(mocks.playlists.remove).toHaveBeenCalledWith("playlist-1");
+    });
+    expect(screen.queryByText("Test Playlist")).toBeNull();
+    expect(screen.getByText('Deleted "Test Playlist".')).toBeDefined();
   });
 
   it("auto-opens tested playlist when returning from game", async () => {
@@ -813,6 +858,29 @@ describe("MapEditorRoute", () => {
     expect(updateCall.config.economy.scorePerCumRoundSuccess).toBe(180);
     expect(updateCall.config.perkPool.enabledPerkIds).toContain("loaded-dice");
     expect(updateCall.config.perkPool.enabledAntiPerkIds).toContain("jammed-dice");
+  });
+
+  it("persists renamed map names from the advanced editor header", async () => {
+    render(<MapEditorRoute />);
+    await enterEditor();
+
+    fireEvent.change(screen.getByLabelText("Map name"), {
+      target: { value: "Renamed Test Playlist" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mocks.playlists.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playlistId: "playlist-1",
+        name: "Renamed Test Playlist",
+      })
+    );
+    expect(screen.getByDisplayValue("Renamed Test Playlist")).toBeDefined();
   });
 
   it("shows and persists force stop for round nodes only", async () => {

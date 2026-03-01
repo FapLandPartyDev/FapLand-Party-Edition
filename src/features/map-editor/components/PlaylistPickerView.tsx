@@ -9,10 +9,13 @@ interface PlaylistPickerViewProps {
     activePlaylistId: string;
     newPlaylistName: string;
     createPlaylistPending: boolean;
+    managePlaylistPendingId: string | null;
     saveNotice: string | null;
     onNewPlaylistNameChange: (name: string) => void;
     onCreatePlaylist: () => void;
     onOpenPlaylist: (playlist: StoredPlaylist) => void;
+    onDuplicatePlaylist: (playlist: StoredPlaylist) => void;
+    onDeletePlaylist: (playlist: StoredPlaylist) => void;
     onNavigateBack: () => void;
 }
 
@@ -21,10 +24,13 @@ export const PlaylistPickerView: React.FC<PlaylistPickerViewProps> = React.memo(
     activePlaylistId,
     newPlaylistName,
     createPlaylistPending,
+    managePlaylistPendingId,
     saveNotice,
     onNewPlaylistNameChange,
     onCreatePlaylist,
     onOpenPlaylist,
+    onDuplicatePlaylist,
+    onDeletePlaylist,
     onNavigateBack,
 }) => {
     const scopeRef = useRef<HTMLDivElement | null>(null);
@@ -76,17 +82,21 @@ export const PlaylistPickerView: React.FC<PlaylistPickerViewProps> = React.memo(
                         <p className="text-xs uppercase tracking-[0.14em] text-zinc-400">Playlists</p>
                         <div className="mt-3 space-y-2">
                             {playlistList.map((playlist) => (
-                                <button
+                                <div
                                     key={playlist.id}
-                                    type="button"
-                                    className="w-full rounded-lg border border-zinc-700/70 bg-zinc-900/60 px-3 py-2 text-left hover:border-cyan-400/60"
-                                    onMouseEnter={playHoverSound}
-                                    onClick={() => onOpenPlaylist(playlist)}
-                                    data-controller-focus-id={`map-editor-picker-${playlist.id}`}
-                                    data-controller-initial={playlist.id === activePlaylistId ? "true" : undefined}
+                                    className="rounded-lg border border-zinc-700/70 bg-zinc-900/60 px-3 py-2"
                                 >
                                     <div className="flex items-center justify-between gap-3">
-                                        <p className="text-sm font-semibold text-zinc-100">{playlist.name}</p>
+                                        <button
+                                            type="button"
+                                            className="min-w-0 flex-1 text-left hover:text-cyan-100"
+                                            onMouseEnter={playHoverSound}
+                                            onClick={() => onOpenPlaylist(playlist)}
+                                            data-controller-focus-id={`map-editor-picker-${playlist.id}`}
+                                            data-controller-initial={playlist.id === activePlaylistId ? "true" : undefined}
+                                        >
+                                            <p className="truncate text-sm font-semibold text-zinc-100">{playlist.name}</p>
+                                        </button>
                                         {playlist.id === activePlaylistId && (
                                             <span className="rounded border border-emerald-500/55 bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-emerald-100">
                                                 Active
@@ -94,10 +104,35 @@ export const PlaylistPickerView: React.FC<PlaylistPickerViewProps> = React.memo(
                                         )}
                                     </div>
                                     <p className="mt-1 text-xs text-zinc-400">{playlist.description ?? "No description"}</p>
-                                    <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-cyan-200">
-                                        Edit {playlist.name}
-                                    </p>
-                                </button>
+                                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                                        <button
+                                            type="button"
+                                            className="rounded-md border border-cyan-500/35 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-cyan-100 hover:border-cyan-400/60 hover:bg-cyan-500/20"
+                                            onMouseEnter={playHoverSound}
+                                            onClick={() => onOpenPlaylist(playlist)}
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={managePlaylistPendingId === playlist.id}
+                                            className="rounded-md border border-violet-500/35 bg-violet-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-violet-100 hover:border-violet-400/60 hover:bg-violet-500/20 disabled:opacity-50"
+                                            onMouseEnter={playHoverSound}
+                                            onClick={() => onDuplicatePlaylist(playlist)}
+                                        >
+                                            {managePlaylistPendingId === playlist.id ? "Working..." : "Copy"}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={managePlaylistPendingId === playlist.id}
+                                            className="rounded-md border border-rose-500/35 bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-rose-100 hover:border-rose-400/60 hover:bg-rose-500/20 disabled:opacity-50"
+                                            onMouseEnter={playHoverSound}
+                                            onClick={() => onDeletePlaylist(playlist)}
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     </section>

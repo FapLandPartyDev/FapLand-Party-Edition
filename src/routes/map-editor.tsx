@@ -281,8 +281,14 @@ export function MapEditorRoute() {
   const [playlistList, setPlaylistList] = useState<StoredPlaylist[]>(availablePlaylists);
   const [activePlaylistId, setActivePlaylistId] = useState(activePlaylist?.id ?? "");
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
+  const [playlistNameDraft, setPlaylistNameDraft] = useState("");
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [createPlaylistPending, setCreatePlaylistPending] = useState(false);
+  const [managePlaylistPendingId, setManagePlaylistPendingId] = useState<string | null>(null);
+  const [playlistPendingAction, setPlaylistPendingAction] = useState<"duplicate" | "delete" | null>(
+    null
+  );
+  const [playlistDeleteTarget, setPlaylistDeleteTarget] = useState<StoredPlaylist | null>(null);
   const [importPending, setImportPending] = useState(false);
   const [savePending, setSavePending] = useState(false);
   const [testMapPending, setTestMapPending] = useState(false);
@@ -325,6 +331,9 @@ export function MapEditorRoute() {
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("node");
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const editorScopeRef = useRef<HTMLDivElement | null>(null);
+  const selectedPlaylistIdRef = useRef<string | null>(selectedPlaylistId);
+  selectedPlaylistIdRef.current = selectedPlaylistId;
+  const playlistPickerRevisionRef = useRef(0);
 
   const undoManagerRef = useRef(
     new UndoManager<EditorGraphConfig>(makeStartingConfig(), {
@@ -474,6 +483,12 @@ export function MapEditorRoute() {
         : null,
     [playlistList, selectedPlaylistId]
   );
+  const normalizedPlaylistNameDraft = playlistNameDraft.trim();
+  const hasPlaylistNameChange =
+    selectedPlaylist !== null &&
+    normalizedPlaylistNameDraft.length > 0 &&
+    normalizedPlaylistNameDraft !== selectedPlaylist.name;
+  const isEditorDirty = isDirty || hasPlaylistNameChange;
 
   const applyEditorConfig = useCallback(
     (nextConfig: EditorGraphConfig) => {
@@ -496,12 +511,14 @@ export function MapEditorRoute() {
     (playlist: StoredPlaylist) => {
       playSelectSound();
       setSelectedPlaylistId(playlist.id);
+      setPlaylistNameDraft(playlist.name);
       applyEditorConfig(toEditorConfigFromPlaylist(playlist));
     },
     [applyEditorConfig]
   );
 
   const updatePlaylistListEntry = useCallback((updated: StoredPlaylist) => {
+    playlistPickerRevisionRef.current += 1;
     setPlaylistList((previous) => {
       const hasEntry = previous.some((playlist) => playlist.id === updated.id);
       if (!hasEntry) return [updated, ...previous];
@@ -510,9 +527,16 @@ export function MapEditorRoute() {
   }, []);
 
   const refreshPlaylistPickerData = useCallback(async () => {
+    const revisionAtStart = playlistPickerRevisionRef.current;
     try {
       const available = await playlists.list();
       const active = available.length > 0 ? await playlists.getActive() : null;
+      if (
+        playlistPickerRevisionRef.current !== revisionAtStart ||
+        selectedPlaylistIdRef.current !== null
+      ) {
+        return;
+      }
       setPlaylistList(withActivePlaylist(available, active));
       setActivePlaylistId(active?.id ?? "");
     } catch (error) {
@@ -1187,6 +1211,13 @@ export function MapEditorRoute() {
 
   const persistEditedPlaylist = useCallback(
     async (playlist: StoredPlaylist): Promise<StoredPlaylist | null> => {
+      const nextName = playlistNameDraft.trim();
+      if (!nextName) {
+        playMapInvalidActionSound();
+        setSaveNotice("Cannot continue: Map name cannot be empty.");
+        return null;
+      }
+
       const validation = validateGraphConfig(configRef.current, installedRounds);
       if (validation.hardBlocked) {
         playMapInvalidActionSound();
@@ -1197,9 +1228,11 @@ export function MapEditorRoute() {
 
       const updated = await playlists.update({
         playlistId: playlist.id,
+        name: nextName,
         config: createUpdatedPlaylistConfig(playlist),
       });
       updatePlaylistListEntry(updated);
+      setPlaylistNameDraft(updated.name);
       if (importedPlaylistReview?.playlistId === playlist.id) {
         setImportedPlaylistReview(null);
       }
@@ -1215,6 +1248,7 @@ export function MapEditorRoute() {
       createUpdatedPlaylistConfig,
       importedPlaylistReview?.playlistId,
       installedRounds,
+      playlistNameDraft,
       updatePlaylistListEntry,
     ]
   );
@@ -1246,28 +1280,89 @@ export function MapEditorRoute() {
     updatePlaylistListEntry,
   ]);
 
+  const handleDuplicatePlaylist = useCallback(
+    async (playlist: StoredPlaylist) => {
+      if (managePlaylistPendingId) return;
+      playSelectSound();
+      setManagePlaylistPendingId(playlist.id);
+      setPlaylistPendingAction("duplicate");
+      setSaveNotice(null);
+      try {
+        const duplicated = await playlists.duplicate(playlist.id);
+        updatePlaylistListEntry(duplicated);
+        openPlaylistForEditing(duplicated);
+        setSaveNotice(`Copied "${playlist.name}" to "${duplicated.name}".`);
+      } catch (error) {
+        console.error("Failed to copy playlist from map editor", error);
+        setSaveNotice(error instanceof Error ? error.message : "Failed to copy playlist.");
+        playMapInvalidActionSound();
+      } finally {
+        setManagePlaylistPendingId(null);
+        setPlaylistPendingAction(null);
+      }
+    },
+    [managePlaylistPendingId, openPlaylistForEditing, updatePlaylistListEntry]
+  );
+
+  const requestDeletePlaylist = useCallback(
+    (playlist: StoredPlaylist) => {
+      if (managePlaylistPendingId) return;
+      playSelectSound();
+      setPlaylistDeleteTarget(playlist);
+    },
+    [managePlaylistPendingId]
+  );
+
+  const confirmDeletePlaylist = useCallback(async () => {
+    if (!playlistDeleteTarget || managePlaylistPendingId) return;
+    setManagePlaylistPendingId(playlistDeleteTarget.id);
+    setPlaylistPendingAction("delete");
+    setSaveNotice(null);
+    try {
+      await playlists.remove(playlistDeleteTarget.id);
+      playlistPickerRevisionRef.current += 1;
+      setPlaylistList((previous) =>
+        previous.filter((playlist) => playlist.id !== playlistDeleteTarget.id)
+      );
+      if (activePlaylistId === playlistDeleteTarget.id) {
+        setActivePlaylistId("");
+      }
+      setSaveNotice(`Deleted "${playlistDeleteTarget.name}".`);
+      setPlaylistDeleteTarget(null);
+    } catch (error) {
+      console.error("Failed to delete playlist from map editor", error);
+      setSaveNotice(error instanceof Error ? error.message : "Failed to delete playlist.");
+      playMapInvalidActionSound();
+    } finally {
+      setManagePlaylistPendingId(null);
+      setPlaylistPendingAction(null);
+    }
+  }, [activePlaylistId, managePlaylistPendingId, playlistDeleteTarget]);
+
   const handleOpenPlaylistPicker = useCallback(() => {
-    if (isDirty) {
+    if (isEditorDirty) {
       setDiscardPlaylistDialogOpen(true);
       return;
     }
     playSelectSound();
     setSelectedPlaylistId(null);
+    setPlaylistNameDraft("");
     setSaveNotice(null);
     void refreshPlaylistPickerData();
-  }, [isDirty, refreshPlaylistPickerData]);
+  }, [isEditorDirty, refreshPlaylistPickerData]);
 
   const confirmDiscardAndOpenPicker = useCallback(() => {
     setDiscardPlaylistDialogOpen(false);
     playSelectSound();
     setSelectedPlaylistId(null);
+    setPlaylistNameDraft("");
     setSaveNotice(null);
     void refreshPlaylistPickerData();
   }, [refreshPlaylistPickerData]);
 
   const handleImportPlaylist = useCallback(async () => {
     if (importPending || savePending || testMapPending) return;
-    if (selectedPlaylist && isDirty) {
+    if (selectedPlaylist && isEditorDirty) {
       setDiscardImportDialogOpen(true);
       return;
     }
@@ -1314,7 +1409,7 @@ export function MapEditorRoute() {
     }
   }, [
     importPending,
-    isDirty,
+    isEditorDirty,
     openPlaylistForEditing,
     savePending,
     selectedPlaylist,
@@ -1380,7 +1475,7 @@ export function MapEditorRoute() {
       );
       if (!filePath) return;
 
-      const playlistToExport = isDirty
+      const playlistToExport = isEditorDirty
         ? await persistEditedPlaylist(selectedPlaylist)
         : selectedPlaylist;
       if (!playlistToExport) return;
@@ -1396,7 +1491,7 @@ export function MapEditorRoute() {
     }
   }, [
     importPending,
-    isDirty,
+    isEditorDirty,
     persistEditedPlaylist,
     savePending,
     selectedPlaylist,
@@ -1427,7 +1522,7 @@ export function MapEditorRoute() {
         );
         if (!directoryPath) return false;
 
-        const playlistToExport = isDirty
+        const playlistToExport = isEditorDirty
           ? await persistEditedPlaylist(selectedPlaylist)
           : selectedPlaylist;
         if (!playlistToExport) return false;
@@ -1464,7 +1559,14 @@ export function MapEditorRoute() {
         return false;
       }
     },
-    [importPending, isDirty, persistEditedPlaylist, savePending, selectedPlaylist, testMapPending]
+    [
+      importPending,
+      isEditorDirty,
+      persistEditedPlaylist,
+      savePending,
+      selectedPlaylist,
+      testMapPending,
+    ]
   );
 
   const handleAbortPlaylistExport = useCallback(async () => {
@@ -1711,19 +1813,42 @@ export function MapEditorRoute() {
 
   if (!selectedPlaylist) {
     return (
-      <PlaylistPickerView
-        playlistList={playlistList}
-        activePlaylistId={activePlaylistId}
-        newPlaylistName={newPlaylistName}
-        createPlaylistPending={createPlaylistPending}
-        saveNotice={saveNotice}
-        onNewPlaylistNameChange={setNewPlaylistName}
-        onCreatePlaylist={() => {
-          void handleCreatePlaylist();
-        }}
-        onOpenPlaylist={openPlaylistForEditing}
-        onNavigateBack={navigateBack}
-      />
+      <>
+        <PlaylistPickerView
+          playlistList={playlistList}
+          activePlaylistId={activePlaylistId}
+          newPlaylistName={newPlaylistName}
+          createPlaylistPending={createPlaylistPending}
+          managePlaylistPendingId={managePlaylistPendingId}
+          saveNotice={saveNotice}
+          onNewPlaylistNameChange={setNewPlaylistName}
+          onCreatePlaylist={() => {
+            void handleCreatePlaylist();
+          }}
+          onOpenPlaylist={openPlaylistForEditing}
+          onDuplicatePlaylist={(playlist) => {
+            void handleDuplicatePlaylist(playlist);
+          }}
+          onDeletePlaylist={requestDeletePlaylist}
+          onNavigateBack={navigateBack}
+        />
+        <ConfirmDialog
+          isOpen={playlistDeleteTarget !== null}
+          title="Delete Playlist?"
+          message={
+            playlistDeleteTarget
+              ? `Delete "${playlistDeleteTarget.name}"? This cannot be undone.`
+              : ""
+          }
+          confirmLabel="Delete"
+          variant="danger"
+          isPending={playlistPendingAction === "delete"}
+          onConfirm={() => {
+            void confirmDeletePlaylist();
+          }}
+          onCancel={() => setPlaylistDeleteTarget(null)}
+        />
+      </>
     );
   }
   /* ──────────────────────── Main editor view ──────────── */
@@ -1738,8 +1863,22 @@ export function MapEditorRoute() {
             <div>
               <h1 className="text-lg font-bold tracking-tight text-white">Map Editor</h1>
               <p className="text-xs text-zinc-500">
-                <span className="text-cyan-400">{selectedPlaylist.name}</span>
-                {isDirty && <span className="ml-1.5 text-amber-400">• unsaved</span>}
+                <label className="sr-only" htmlFor="map-editor-name">
+                  Map name
+                </label>
+                <input
+                  id="map-editor-name"
+                  type="text"
+                  value={playlistNameDraft}
+                  onChange={(event) => {
+                    setPlaylistNameDraft(event.target.value);
+                    setSaveNotice(null);
+                  }}
+                  className="min-w-[14rem] rounded-md border border-cyan-500/20 bg-cyan-500/8 px-2.5 py-1 text-sm font-semibold text-cyan-200 outline-none transition focus:border-cyan-400/50 focus:bg-cyan-500/12 focus:text-cyan-100"
+                  placeholder="Map name"
+                  aria-label="Map name"
+                />
+                {isEditorDirty && <span className="ml-1.5 text-amber-400">• unsaved</span>}
               </p>
             </div>
           </div>
@@ -1852,7 +1991,7 @@ export function MapEditorRoute() {
                 alignmentStrategy={alignmentStrategy}
                 canRealign={config.nodes.length >= 2}
                 showGrid={showGrid}
-                isDirty={isDirty}
+                isDirty={isEditorDirty}
                 savePending={savePending || importPending}
                 testMapPending={testMapPending}
                 canUndo={historyState.canUndo}
