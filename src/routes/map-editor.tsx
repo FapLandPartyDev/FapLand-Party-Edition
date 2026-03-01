@@ -19,7 +19,11 @@ import {
   type PlaylistResolutionAnalysis,
 } from "../game/playlistResolution";
 import { resolvePortableRoundRef, toPortableRoundRef } from "../game/playlistRuntime";
-import { EditorCanvas, type QuickAddTileOption } from "../features/map-editor/EditorCanvas";
+import {
+  EditorCanvas,
+  type ContextMenuTarget,
+  type QuickAddTileOption,
+} from "../features/map-editor/EditorCanvas";
 import {
   createEditorId,
   createHeroNodeChain,
@@ -60,9 +64,12 @@ import {
 import {
   clearMapEditorTestSession,
   getMapEditorTestPlaylistId,
-  setMapEditorTestSession,
+  setMapEditorTestOverride,
 } from "../features/map-editor/testSession";
-import { validateGraphConfig } from "../features/map-editor/validateGraphConfig";
+import {
+  validateGraphConfig,
+  type GraphValidationMessage,
+} from "../features/map-editor/validateGraphConfig";
 import { db, type InstalledRound, type InstalledRoundCatalogEntry } from "../services/db";
 import { getInstalledRoundCatalogCached } from "../services/installedRoundsCache";
 import {
@@ -101,6 +108,15 @@ import { useControllerSurface } from "../controller";
 import type { ActionKind } from "../game/automation/registry";
 import type { AutomationCondition } from "../game/automation/schema";
 import { useCustomRoadPalettes } from "../features/map-editor/useCustomRoadPalettes";
+import {
+  type HeroLibrarySort,
+  type MapEditorDraftSnapshot,
+  type MapEditorSaveStatus,
+  type MapEditorSidebarTab,
+  type RoundLibrarySort,
+  type RoundTypeFilter,
+} from "../features/map-editor/mapEditorDraft";
+import { buildMapEditorTestConfig } from "../features/map-editor/buildMapEditorTestConfig";
 
 const DEFAULT_TILE_CATALOG: TileCatalog = {
   version: 1,
@@ -548,6 +564,7 @@ const buildRepeatedRoundAssignment = (
 type GraphUpdateFn = (previous: EditorGraphConfig) => EditorGraphConfig;
 
 type HeroPlacementData = {
+  heroId: string;
   heroName: string;
   chainNodes: HeroChainNodeInput[];
 };
@@ -577,7 +594,13 @@ function MapEditorPage() {
   const [playlistDeleteTarget, setPlaylistDeleteTarget] = useState<StoredPlaylist | null>(null);
   const [importPending, setImportPending] = useState(false);
   const [savePending, setSavePending] = useState(false);
+  const [draftSaveStatus, setDraftSaveStatus] = useState<MapEditorSaveStatus>("saved");
   const [testMapPending, setTestMapPending] = useState(false);
+  const [nodeContextMenu, setNodeContextMenu] = useState<{
+    nodeId: string;
+    screenX: number;
+    screenY: number;
+  } | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [exportStatus, setExportStatus] = useState<PlaylistExportPackageStatus | null>(null);
   const [showPackExportDialog, setShowPackExportDialog] = useState(false);
@@ -596,6 +619,7 @@ function MapEditorPage() {
   const [linearConversionDialogOpen, setLinearConversionDialogOpen] = useState(false);
   const [discardPlaylistDialogOpen, setDiscardPlaylistDialogOpen] = useState(false);
   const [discardImportDialogOpen, setDiscardImportDialogOpen] = useState(false);
+  const [failedSaveExitTarget, setFailedSaveExitTarget] = useState<"home" | "picker" | null>(null);
   const [config, setConfig] = useState<EditorGraphConfig>(makeStartingConfig);
   const configRef = useRef(config);
   configRef.current = config;
@@ -612,7 +636,13 @@ function MapEditorPage() {
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
 
   const [tileCatalog, setTileCatalog] = useState<TileCatalog>(DEFAULT_TILE_CATALOG);
+  const [sidebarTab, setSidebarTab] = useState<MapEditorSidebarTab>("tiles");
   const [tileSearch, setTileSearch] = useState("");
+  const [roundSearch, setRoundSearch] = useState("");
+  const [roundTypeFilter, setRoundTypeFilter] = useState<RoundTypeFilter>("all");
+  const [roundSort, setRoundSort] = useState<RoundLibrarySort>("name");
+  const [heroSearch, setHeroSearch] = useState("");
+  const [heroSort, setHeroSort] = useState<HeroLibrarySort>("name");
   const [activeCategory, setActiveCategory] = useState<TileCatalogCategory["id"] | "all">("all");
   const [activePlacementKind, setActivePlacementKind] = useState<EditorNode["kind"]>("path");
   const [heroPlacementData, setHeroPlacementData] = useState<HeroPlacementData | null>(null);
@@ -629,10 +659,12 @@ function MapEditorPage() {
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("node");
   const [selectedAutomationRuleId, setSelectedAutomationRuleId] = useState<string | null>(null);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const editorScopeRef = useRef<HTMLDivElement | null>(null);
   const selectedPlaylistIdRef = useRef<string | null>(selectedPlaylistId);
   selectedPlaylistIdRef.current = selectedPlaylistId;
   const playlistPickerRevisionRef = useRef(0);
+  const draftSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const undoManagerRef = useRef(
     new UndoManager<EditorGraphConfig>(makeStartingConfig(), {
@@ -797,6 +829,92 @@ function MapEditorPage() {
         : null,
     [playlistList, selectedPlaylistId]
   );
+  const draftRevisionRef = useRef(0);
+  const buildDraftSnapshot = useCallback(
+    (): MapEditorDraftSnapshot => ({
+      version: 1,
+      name: playlistNameDraft,
+      config: configRef.current,
+      viewport,
+      showGrid,
+      snapToGrid,
+      sidebar: {
+        activeTab: sidebarTab,
+        activeCategory,
+        tileSearch,
+        roundSearch,
+        roundTypeFilter,
+        roundSort,
+        heroSearch,
+        heroSort,
+      },
+    }),
+    [
+      heroSearch,
+      heroSort,
+      playlistNameDraft,
+      roundSearch,
+      roundSort,
+      roundTypeFilter,
+      showGrid,
+      sidebarTab,
+      snapToGrid,
+      tileSearch,
+      viewport,
+      activeCategory,
+    ]
+  );
+  const flushEditorDraft = useCallback(async (): Promise<boolean> => {
+    if (!selectedPlaylist) return true;
+    const playlistId = selectedPlaylist.id;
+    const snapshot = buildDraftSnapshot();
+    const revision = draftRevisionRef.current;
+    setDraftSaveStatus("saving");
+    let saveSucceeded = false;
+    const operation = draftSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        await playlists.saveEditorDraft(playlistId, snapshot);
+        saveSucceeded = true;
+      });
+    draftSaveQueueRef.current = operation.then(
+      () => undefined,
+      () => undefined
+    );
+    try {
+      await operation;
+      if (draftRevisionRef.current === revision) setDraftSaveStatus("saved");
+      return saveSucceeded;
+    } catch (error) {
+      console.error("Failed to save map editor draft", error);
+      setDraftSaveStatus("error");
+      setSaveNotice(error instanceof Error ? error.message : "Failed to save editor draft.");
+      return false;
+    }
+  }, [buildDraftSnapshot, selectedPlaylist]);
+
+  useEffect(() => {
+    if (!selectedPlaylist) return;
+    draftRevisionRef.current += 1;
+    const dirtyTimer = window.setTimeout(() => setDraftSaveStatus("dirty"), 0);
+    const timer = window.setTimeout(() => {
+      void flushEditorDraft();
+    }, 750);
+    return () => {
+      window.clearTimeout(dirtyTimer);
+      window.clearTimeout(timer);
+    };
+  }, [buildDraftSnapshot, flushEditorDraft, selectedPlaylist]);
+
+  useEffect(() => {
+    if (!selectedPlaylist || draftSaveStatus === "saved") return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [draftSaveStatus, selectedPlaylist]);
   const normalizedPlaylistNameDraft = playlistNameDraft.trim();
   const hasPlaylistNameChange =
     selectedPlaylist !== null &&
@@ -822,14 +940,54 @@ function MapEditorPage() {
     [syncHistoryState]
   );
 
-  const openPlaylistForEditing = useCallback(
-    (playlist: StoredPlaylist) => {
-      playSelectSound();
-      setSelectedPlaylistId(playlist.id);
-      setPlaylistNameDraft(playlist.name);
-      applyEditorConfig(toEditorConfigFromPlaylist(playlist));
+  const applyDraftSnapshot = useCallback(
+    (snapshot: MapEditorDraftSnapshot) => {
+      applyEditorConfig(snapshot.config);
+      setPlaylistNameDraft(snapshot.name);
+      setViewport(snapshot.viewport);
+      setShowGrid(snapshot.showGrid);
+      setSnapToGrid(snapshot.snapToGrid);
+      setSidebarTab(snapshot.sidebar.activeTab);
+      setActiveCategory(snapshot.sidebar.activeCategory as TileCatalogCategory["id"] | "all");
+      setTileSearch(snapshot.sidebar.tileSearch);
+      setRoundSearch(snapshot.sidebar.roundSearch);
+      setRoundTypeFilter(snapshot.sidebar.roundTypeFilter);
+      setRoundSort(snapshot.sidebar.roundSort);
+      setHeroSearch(snapshot.sidebar.heroSearch);
+      setHeroSort(snapshot.sidebar.heroSort);
     },
     [applyEditorConfig]
+  );
+
+  const openPlaylistForEditing = useCallback(
+    async (playlist: StoredPlaylist) => {
+      playSelectSound();
+      setSelectedPlaylistId(playlist.id);
+      selectedPlaylistIdRef.current = playlist.id;
+      setPlaylistNameDraft(playlist.name);
+      applyEditorConfig(toEditorConfigFromPlaylist(playlist));
+      setDraftSaveStatus("saved");
+      try {
+        const draft = await playlists.getEditorDraft(playlist.id);
+        if (!draft || selectedPlaylistIdRef.current !== playlist.id) return;
+        const draftUpdatedAt = new Date(draft.updatedAt).getTime();
+        const playlistUpdatedAt = new Date(playlist.updatedAt).getTime();
+        if (draftUpdatedAt < playlistUpdatedAt) {
+          await playlists.deleteEditorDraft(playlist.id);
+          return;
+        }
+        applyDraftSnapshot(draft.snapshot);
+        const canonicalConfig = toEditorConfigFromPlaylist(playlist);
+        setIsDirty(
+          draft.snapshot.name !== playlist.name ||
+            JSON.stringify(draft.snapshot.config) !== JSON.stringify(canonicalConfig)
+        );
+      } catch (error) {
+        console.error("Failed to restore map editor draft", error);
+        setSaveNotice("The saved map opened, but its editor draft could not be restored.");
+      }
+    },
+    [applyDraftSnapshot, applyEditorConfig]
   );
 
   const updatePlaylistListEntry = useCallback((updated: StoredPlaylist) => {
@@ -917,6 +1075,20 @@ function MapEditorPage() {
         name: round.name,
         author: round.author ?? null,
         type: round.type ?? null,
+        difficulty: round.difficulty ?? null,
+        durationSec: getRoundDurationSec(round),
+        previewImage:
+          "previewImage" in round && typeof round.previewImage === "string"
+            ? round.previewImage
+            : null,
+        startTime:
+          typeof round.startTime === "number" && Number.isFinite(round.startTime)
+            ? round.startTime
+            : null,
+        endTime:
+          typeof round.endTime === "number" && Number.isFinite(round.endTime)
+            ? round.endTime
+            : null,
       })),
     [installedRounds]
   );
@@ -1106,7 +1278,7 @@ function MapEditorPage() {
         },
         name: round.name,
       }));
-      return { heroName: heroGroup.heroName, chainNodes };
+      return { heroId: heroGroup.heroId, heroName: heroGroup.heroName, chainNodes };
     },
     [heroGroups]
   );
@@ -2880,17 +3052,18 @@ function MapEditorPage() {
     }
   }, [activePlaylistId, managePlaylistPendingId, playlistDeleteTarget]);
 
-  const handleOpenPlaylistPicker = useCallback(() => {
-    if (isEditorDirty) {
-      setDiscardPlaylistDialogOpen(true);
+  const handleOpenPlaylistPicker = useCallback(async () => {
+    if (!(await flushEditorDraft())) {
+      setFailedSaveExitTarget("picker");
       return;
     }
     playSelectSound();
     setSelectedPlaylistId(null);
+    selectedPlaylistIdRef.current = null;
     setPlaylistNameDraft("");
     setSaveNotice(null);
     void refreshPlaylistPickerData();
-  }, [isEditorDirty, refreshPlaylistPickerData]);
+  }, [flushEditorDraft, refreshPlaylistPickerData]);
 
   const confirmDiscardAndOpenPicker = useCallback(() => {
     setDiscardPlaylistDialogOpen(false);
@@ -2954,6 +3127,7 @@ function MapEditorPage() {
     setSavePending(true);
     setSaveNotice(null);
     try {
+      if (!(await flushEditorDraft())) return;
       const filePath = await window.electronAPI.dialog.selectPlaylistExportPath(
         selectedPlaylist.name
       );
@@ -2975,6 +3149,7 @@ function MapEditorPage() {
     }
   }, [
     importPending,
+    flushEditorDraft,
     isEditorDirty,
     persistEditedPlaylist,
     savePending,
@@ -3001,6 +3176,7 @@ function MapEditorPage() {
       setSavePending(true);
       setSaveNotice(null);
       try {
+        if (!(await flushEditorDraft())) return false;
         const directoryPath = await window.electronAPI.dialog.selectPlaylistExportDirectory(
           selectedPlaylist.name
         );
@@ -3045,6 +3221,7 @@ function MapEditorPage() {
     },
     [
       importPending,
+      flushEditorDraft,
       isEditorDirty,
       persistEditedPlaylist,
       savePending,
@@ -3070,6 +3247,16 @@ function MapEditorPage() {
     if (importPending || savePending || testMapPending) return;
     setSavePending(true);
     try {
+      const draftSaved = await flushEditorDraft();
+      if (!draftSaved) return;
+      const currentValidation = validateGraphConfig(configRef.current, installedRounds);
+      if (!playlistNameDraft.trim() || currentValidation.hardBlocked) {
+        const issueCount = currentValidation.errors.length + (playlistNameDraft.trim() ? 0 : 1);
+        setSaveNotice(
+          `Draft saved — fix ${issueCount} playability issue${issueCount === 1 ? "" : "s"} before exporting.`
+        );
+        return;
+      }
       await persistEditedPlaylist(selectedPlaylist);
     } catch (error) {
       console.error("Failed to save playlist from map editor", error);
@@ -3078,7 +3265,16 @@ function MapEditorPage() {
     } finally {
       setSavePending(false);
     }
-  }, [importPending, persistEditedPlaylist, savePending, selectedPlaylist, testMapPending]);
+  }, [
+    flushEditorDraft,
+    importPending,
+    installedRounds,
+    persistEditedPlaylist,
+    playlistNameDraft,
+    savePending,
+    selectedPlaylist,
+    testMapPending,
+  ]);
 
   const handleConfirmLinearConversion = useCallback(async () => {
     setLinearConversionDialogOpen(false);
@@ -3137,39 +3333,86 @@ function MapEditorPage() {
     updatePlaylistListEntry,
   ]);
 
-  const handleTestMap = useCallback(async () => {
-    if (!selectedPlaylist) return;
-    if (importPending || savePending || testMapPending) return;
-    setTestMapPending(true);
-    try {
-      const updated = await persistEditedPlaylist(selectedPlaylist);
-      if (!updated) return;
-      await playlists.setActive(updated.id);
-      setActivePlaylistId(updated.id);
-      setMapEditorTestSession(updated.id);
-      playSelectSound();
-      await navigate({
-        to: "/game",
-        search: {
-          playlistId: updated.id,
-          launchNonce: Date.now(),
-        },
-      });
-    } catch (error) {
-      console.error("Failed to start map test", error);
-      setSaveNotice(error instanceof Error ? error.message : "Failed to start map test.");
-      playMapInvalidActionSound();
-    } finally {
-      setTestMapPending(false);
+  const handleTestMap = useCallback(
+    async (testStartNodeId?: string) => {
+      if (!selectedPlaylist) return;
+      if (importPending || savePending || testMapPending) return;
+      setTestMapPending(true);
+      try {
+        if (!(await flushEditorDraft())) return;
+        const candidateConfig = createUpdatedPlaylistConfig(selectedPlaylist);
+        const testBuild = buildMapEditorTestConfig(
+          configRef.current,
+          candidateConfig,
+          installedRounds,
+          testStartNodeId
+        );
+        if (!testBuild.ok) {
+          setSaveNotice(
+            `Cannot test: ${testBuild.blockingIssues[0] ?? "Map cannot be repaired safely."}`
+          );
+          setInspectorCollapsed(false);
+          setInspectorTab("validation");
+          playMapInvalidActionSound();
+          return;
+        }
+        const launchNonce = Date.now();
+        setMapEditorTestOverride({
+          version: 1,
+          playlistId: selectedPlaylist.id,
+          launchNonce,
+          ...(testStartNodeId ? { startNodeId: testStartNodeId } : {}),
+          config: testBuild.config,
+          repair: testBuild.repair,
+        });
+        playSelectSound();
+        await navigate({
+          to: "/game",
+          search: {
+            playlistId: selectedPlaylist.id,
+            launchNonce,
+          },
+        });
+      } catch (error) {
+        console.error("Failed to start map test", error);
+        setSaveNotice(error instanceof Error ? error.message : "Failed to start map test.");
+        playMapInvalidActionSound();
+      } finally {
+        setTestMapPending(false);
+      }
+    },
+    [
+      createUpdatedPlaylistConfig,
+      flushEditorDraft,
+      importPending,
+      installedRounds,
+      navigate,
+      savePending,
+      selectedPlaylist,
+      testMapPending,
+    ]
+  );
+
+  const handleEditorContextMenu = useCallback((target: ContextMenuTarget) => {
+    if (target.kind !== "node") {
+      setNodeContextMenu(null);
+      return;
     }
-  }, [
-    importPending,
-    navigate,
-    persistEditedPlaylist,
-    savePending,
-    selectedPlaylist,
-    testMapPending,
-  ]);
+    setNodeContextMenu({
+      nodeId: target.nodeId,
+      screenX: target.screenX,
+      screenY: target.screenY,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!nodeContextMenu) return;
+    const close = () => setNodeContextMenu(null);
+    window.addEventListener("mousedown", close);
+    return () => {
+      window.removeEventListener("mousedown", close);
+    };
+  }, [nodeContextMenu]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -3209,13 +3452,14 @@ function MapEditorPage() {
         return;
       }
 
-      if (!usesCommand && key === "x") {
+      if (!usesCommand && (key === "x" || event.key === "Delete" || event.key === "Backspace")) {
         event.preventDefault();
+        event.stopImmediatePropagation();
         deleteSelection();
         return;
       }
 
-      if (event.key >= "1" && event.key <= "9") {
+      if (sidebarTab === "tiles" && event.key >= "1" && event.key <= "9") {
         const tileId = hotkeyMap[event.key];
         if (!tileId) return;
         const tile = tileById.get(tileId);
@@ -3227,6 +3471,15 @@ function MapEditorPage() {
 
       if (key === "escape") {
         event.preventDefault();
+        event.stopImmediatePropagation();
+        if (nodeContextMenu) {
+          setNodeContextMenu(null);
+          return;
+        }
+        if (helpOpen) {
+          setHelpOpen(false);
+          return;
+        }
         setConnectFromNodeId(null);
         commitSelection(EMPTY_EDITOR_SELECTION);
         return;
@@ -3289,11 +3542,11 @@ function MapEditorPage() {
       setSpacePanActive(false);
     };
 
-    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onWindowBlur);
     return () => {
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onWindowBlur);
     };
@@ -3306,8 +3559,11 @@ function MapEditorPage() {
     handleSavePlaylist,
     handleUndo,
     hotkeyMap,
+    helpOpen,
+    nodeContextMenu,
     resetView,
     selectedPlaylist,
+    sidebarTab,
     tileById,
   ]);
 
@@ -3370,10 +3626,45 @@ function MapEditorPage() {
     setTool("connect");
   }, []);
 
-  const navigateBack = useCallback(() => {
+  const handleSelectValidationIssue = useCallback(
+    (issue: GraphValidationMessage) => {
+      if (issue.nodeId) {
+        const node = configRef.current.nodes.find((entry) => entry.id === issue.nodeId);
+        commitSelection({
+          selectedNodeIds: [issue.nodeId],
+          primaryNodeId: issue.nodeId,
+          selectedEdgeId: null,
+          selectedTextAnnotationId: null,
+        });
+        setInspectorTab("node");
+        if (node?.styleHint) {
+          setViewport((previous) => ({
+            ...previous,
+            x: window.innerWidth * 0.5 - Number(node.styleHint?.x ?? 0) * previous.zoom,
+            y: window.innerHeight * 0.45 - Number(node.styleHint?.y ?? 0) * previous.zoom,
+          }));
+        }
+      } else if (issue.edgeId) {
+        commitSelection({
+          selectedNodeIds: [],
+          primaryNodeId: null,
+          selectedEdgeId: issue.edgeId,
+          selectedTextAnnotationId: null,
+        });
+        setInspectorTab("edge");
+      }
+    },
+    [commitSelection]
+  );
+
+  const navigateBack = useCallback(async () => {
+    if (selectedPlaylist && !(await flushEditorDraft())) {
+      setFailedSaveExitTarget("home");
+      return;
+    }
     playSelectSound();
-    navigate({ to: "/" });
-  }, [navigate]);
+    await navigate({ to: "/" });
+  }, [flushEditorDraft, navigate, selectedPlaylist]);
 
   useControllerSurface({
     id: "map-editor-main-route",
@@ -3382,7 +3673,7 @@ function MapEditorPage() {
     enabled: Boolean(selectedPlaylist),
     initialFocusId: "map-editor-export-fplay",
     onBack: () => {
-      navigateBack();
+      void navigateBack();
       return true;
     },
   });
@@ -3394,25 +3685,19 @@ function MapEditorPage() {
           message: t`Add a start node from the left sidebar or use Place mode.`,
           actionLabel: null,
         }
-      : validation.errors.length > 0
+      : tool === "connect" && !connectFromNodeId
         ? {
-            tone: "rose" as const,
-            message: validation.errors[0]?.message ?? t`Map contains validation errors.`,
-            actionLabel: t`Review validation`,
+            tone: "cyan" as const,
+            message: t`Select a node to start connecting.`,
+            actionLabel: null,
           }
-        : tool === "connect" && !connectFromNodeId
+        : tool === "place" && activeTile
           ? {
               tone: "cyan" as const,
-              message: t`Select a node to start connecting.`,
+              message: t`Click the canvas to place ${activeTile.label}.`,
               actionLabel: null,
             }
-          : tool === "place" && activeTile
-            ? {
-                tone: "cyan" as const,
-                message: t`Click the canvas to place ${activeTile.label}.`,
-                actionLabel: null,
-              }
-            : null;
+          : null;
 
   /* ──────────────────────── Playlist picker view ──────────── */
 
@@ -3487,6 +3772,17 @@ function MapEditorPage() {
                   aria-label={t`Map name`}
                 />
                 {isEditorDirty && <span className="ml-1.5 text-amber-400">{t`• unsaved`}</span>}
+                <span
+                  className={`ml-2 ${draftSaveStatus === "error" ? "text-rose-400" : draftSaveStatus === "saved" ? "text-emerald-500" : "text-zinc-500"}`}
+                >
+                  {draftSaveStatus === "saving"
+                    ? t`Saving…`
+                    : draftSaveStatus === "dirty"
+                      ? t`Unsaved changes`
+                      : draftSaveStatus === "error"
+                        ? t`Save failed — Retry`
+                        : t`Draft saved`}
+                </span>
               </p>
             </div>
           </div>
@@ -3580,20 +3876,33 @@ function MapEditorPage() {
         {/* ── 3-column editor layout ─────────────────── */}
         <div className="flex min-h-0 flex-1 overflow-hidden">
           {/* ── Left: Tile sidebar ─────────────────── */}
-          <div data-controller-skip="true">
+          <div className="h-full min-h-0 flex-shrink-0" data-controller-skip="true">
             <TileSidebar
+              activeTab={sidebarTab}
               categoryTabs={categoryTabs}
               activeCategory={activeCategory}
               tileSearch={tileSearch}
+              roundSearch={roundSearch}
+              roundTypeFilter={roundTypeFilter}
+              roundSort={roundSort}
+              heroSearch={heroSearch}
+              heroSort={heroSort}
               filteredTiles={filteredTiles}
               activePlacementKind={activePlacementKind}
               heroGroups={heroGroups}
+              armedHeroId={heroPlacementData?.heroId ?? null}
               isHeroPlacementActive={heroPlacementData !== null}
               rounds={paletteRounds}
               armedRoundId={roundPlacementData?.roundId ?? null}
               isRoundPlacementActive={roundPlacementData !== null}
+              onTabChange={setSidebarTab}
               onCategoryChange={setActiveCategory}
-              onSearchChange={setTileSearch}
+              onTileSearchChange={setTileSearch}
+              onRoundSearchChange={setRoundSearch}
+              onRoundTypeFilterChange={setRoundTypeFilter}
+              onRoundSortChange={setRoundSort}
+              onHeroSearchChange={setHeroSearch}
+              onHeroSortChange={setHeroSort}
               onArmTile={armTile}
               onArmHero={armHero}
               onArmRound={armRound}
@@ -3615,6 +3924,14 @@ function MapEditorPage() {
                 canUndo={historyState.canUndo}
                 canRedo={historyState.canRedo}
                 canBulkEditRounds={canBulkEditRounds}
+                selectionCount={
+                  selection.selectedNodeIds.length +
+                  (selection.selectedEdgeId ? 1 : 0) +
+                  (selection.selectedTextAnnotationId ? 1 : 0)
+                }
+                validationErrorCount={validation.errors.length}
+                draftSaveStatus={draftSaveStatus}
+                helpOpen={helpOpen}
                 onSetTool={setTool}
                 onAlignmentStrategyChange={setAlignmentStrategy}
                 onRealignGraph={handleRealignGraph}
@@ -3633,19 +3950,16 @@ function MapEditorPage() {
                 onTestMap={() => {
                   void handleTestMap();
                 }}
+                onHelpOpenChange={setHelpOpen}
               />
             </div>
 
             <div className="relative min-h-0 flex-1 bg-black/20" data-controller-skip="true">
               {editorGuidance && (
                 <div
-                  className={`pointer-events-auto absolute left-3 top-3 z-20 max-w-sm rounded-xl border px-4 py-3 text-xs shadow-2xl backdrop-blur-xl ${
-                    editorGuidance.tone === "rose"
-                      ? "border-rose-300/40 bg-rose-950/85 text-rose-100"
-                      : "border-cyan-300/35 bg-zinc-950/85 text-cyan-100"
-                  }`}
-                  role={editorGuidance.tone === "rose" ? "alert" : "status"}
-                  aria-live={editorGuidance.tone === "rose" ? "assertive" : "polite"}
+                  className="pointer-events-auto absolute left-3 top-3 z-20 max-w-sm rounded-xl border border-cyan-300/35 bg-zinc-950/85 px-4 py-3 text-xs text-cyan-100 shadow-2xl backdrop-blur-xl"
+                  role="status"
+                  aria-live="polite"
                 >
                   <p>{editorGuidance.message}</p>
                   {editorGuidance.actionLabel && (
@@ -3706,7 +4020,35 @@ function MapEditorPage() {
                   dragSessionRef.current.active = false;
                   dragSessionRef.current.moved = false;
                 }}
+                onContextMenu={handleEditorContextMenu}
               />
+              {nodeContextMenu && (
+                <div
+                  role="menu"
+                  tabIndex={-1}
+                  aria-label={t`Node actions`}
+                  className="absolute z-40 min-w-52 rounded-xl border border-cyan-300/30 bg-zinc-950/95 p-1.5 shadow-2xl backdrop-blur-xl"
+                  style={{
+                    left: Math.max(8, nodeContextMenu.screenX),
+                    top: Math.max(8, nodeContextMenu.screenY),
+                  }}
+                  onMouseDown={(event) => event.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={testMapPending || importPending || savePending}
+                    className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15 focus:bg-cyan-400/15 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => {
+                      const nodeId = nodeContextMenu.nodeId;
+                      setNodeContextMenu(null);
+                      void handleTestMap(nodeId);
+                    }}
+                  >
+                    <Trans>Test map from here</Trans>
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex-shrink-0 border-t border-white/6">
@@ -3716,7 +4058,11 @@ function MapEditorPage() {
                 selectedCount={
                   selection.selectedNodeIds.length + (selection.selectedTextAnnotationId ? 1 : 0)
                 }
-                activeTileLabel={activeTile?.label ?? null}
+                activeTileLabel={
+                  heroPlacementData
+                    ? `${heroPlacementData.heroName} (hero chain)`
+                    : (roundPlacementData?.displayName ?? activeTile?.label ?? null)
+                }
                 selectedEdgeLabel={selectedEdgeLabel}
               />
             </div>
@@ -3894,7 +4240,12 @@ function MapEditorPage() {
                       onRemoveAction={removeAutomationAction}
                     />
                   )}
-                  {inspectorTab === "validation" && <ValidationPanel validation={validation} />}
+                  {inspectorTab === "validation" && (
+                    <ValidationPanel
+                      validation={validation}
+                      onSelectIssue={handleSelectValidationIssue}
+                    />
+                  )}
                 </div>
               </>
             )}
@@ -4054,6 +4405,28 @@ function MapEditorPage() {
         variant="warning"
         onConfirm={doImportPlaylist}
         onCancel={() => setDiscardImportDialogOpen(false)}
+      />
+      <ConfirmDialog
+        isOpen={failedSaveExitTarget !== null}
+        title={t`Draft Save Failed`}
+        message={t`The latest editor changes could not be saved. Stay and retry, or exit without saving those changes.`}
+        confirmLabel={t`Exit Without Saving`}
+        cancelLabel={t`Stay and Retry`}
+        variant="danger"
+        onConfirm={() => {
+          const target = failedSaveExitTarget;
+          setFailedSaveExitTarget(null);
+          if (target === "home") {
+            void navigate({ to: "/" });
+            return;
+          }
+          setSelectedPlaylistId(null);
+          selectedPlaylistIdRef.current = null;
+          setPlaylistNameDraft("");
+          setSaveNotice(null);
+          void refreshPlaylistPickerData();
+        }}
+        onCancel={() => setFailedSaveExitTarget(null)}
       />
     </div>
   );

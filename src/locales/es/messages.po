@@ -1,17 +1,14 @@
 msgid ""
 msgstr ""
-"POT-Creation-Date: 2026-04-12 20:48+0200\n"
-"MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=utf-8\n"
-"Content-Transfer-Encoding: 8bit\n"
-"X-Generator: @lingui/cli\n"
-"Language: es\n"
-": \n"
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: \n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
+"Language: \n"
 "Language-Team: \n"
+"Content-Type: \n"
+"Content-Transfer-Encoding: \n"
 "Plural-Forms: \n"
 
 #: src/routes/multiplayer.tsx:761
@@ -368,7 +365,7 @@ msgid "{installedRoundCount}/{MULTIPLAYER_MINIMUM_ROUNDS} installed"
 msgstr "{installedRoundCount}/{MULTIPLAYER_MINIMUM_ROUNDS} instaladas"
 
 #. placeholder {0}: item.shortcut
-#: src/features/map-editor/components/EditorToolbar.tsx:95
+#: src/features/map-editor/components/EditorToolbar.tsx:120
 msgid "{label} ({0})"
 msgstr "{label} ({0})"
 
@@ -399,6 +396,10 @@ msgstr "{syncQueueCount} entradas de resultados multijugador siguen en cola."
 msgid "{transcodeCompletedLabel} / {transcodeTotalLabel} encoded"
 msgstr "{transcodeCompletedLabel} / {transcodeTotalLabel} codificados"
 
+#: src/features/map-editor/components/EditorToolbar.tsx:252
+msgid "{validationErrorCount} issues"
+msgstr "{validationErrorCount} problemas"
+
 #. js-lingui-explicit-id
 #: src/features/playlist-picker/PlaylistPicker.tsx:116
 msgid "playlist-picker.updated.days"
@@ -414,7 +415,7 @@ msgstr "{value, plural, one {hace # hora} other {hace # horas}}"
 msgid "playlist-picker.updated.minutes"
 msgstr "{value, plural, one {hace # minuto} other {hace # minutos}}"
 
-#: src/routes/map-editor.tsx:3489
+#: src/routes/map-editor.tsx:3774
 msgid "• unsaved"
 msgstr "• sin guardar"
 
@@ -704,7 +705,7 @@ msgstr "Añadir"
 msgid "Add a content folder or import a single hero/round file."
 msgstr "Añade una carpeta de contenido o importa un archivo individual de héroe/ronda."
 
-#: src/routes/map-editor.tsx:3394
+#: src/routes/map-editor.tsx:3685
 msgid "Add a start node from the left sidebar or use Place mode."
 msgstr "Añade un nodo de inicio desde la barra lateral izquierda o usa el modo Colocar."
 
@@ -1007,6 +1008,7 @@ msgstr "Después:"
 msgid "Aligning timeline with haptics before playback starts."
 msgstr "Alineando la línea de tiempo con háptica antes de que comience la reproducción."
 
+#: src/features/map-editor/components/TileSidebar.tsx:311
 #: src/features/playlist-picker/PlaylistPicker.tsx:245
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:277
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3379
@@ -1015,7 +1017,7 @@ msgstr "Alineando la línea de tiempo con háptica antes de que comience la repr
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3418
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3430
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3442
-#: src/routes/map-editor.tsx:3339
+#: src/routes/map-editor.tsx:3595
 msgid "All"
 msgstr "Todo"
 
@@ -1370,7 +1372,7 @@ msgid "Applied offset to 1 hero round."
 msgstr "Offset aplicado a 1 ronda de héroe."
 
 #. placeholder {0}: updated.name
-#: src/routes/map-editor.tsx:3965
+#: src/routes/map-editor.tsx:4316
 msgid "Applied playlist resolutions to \"{0}\"."
 msgstr "Resoluciones de lista aplicadas a \\\"{0}\\\"."
 
@@ -1412,11 +1414,11 @@ msgstr "Aplicar valores predeterminados"
 msgid "Apply directly"
 msgstr "Aplicar directamente"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:175
+#: src/features/map-editor/components/EditorToolbar.tsx:208
 msgid "Apply Layout"
 msgstr "Aplicar Diseño"
 
-#: src/routes/map-editor.tsx:2682
+#: src/routes/map-editor.tsx:2854
 msgid "Apply Order"
 msgstr "Aplicar orden"
 
@@ -1429,7 +1431,7 @@ msgstr "Aplicar Ventaja"
 msgid "Apply progression override"
 msgstr "Aplicar modificación de progreso"
 
-#: src/routes/map-editor.tsx:2686
+#: src/routes/map-editor.tsx:2858
 #: src/routes/playlist-workshop.tsx:2188
 msgid "Apply Progressive"
 msgstr "Aplicar progresivo"
@@ -1439,7 +1441,7 @@ msgstr "Aplicar progresivo"
 msgid "Apply recommended settings for weak hardware"
 msgstr "Aplicar ajustes recomendados para hardware débil"
 
-#: src/routes/map-editor.tsx:3914
+#: src/routes/map-editor.tsx:4265
 #: src/routes/playlist-workshop.tsx:4174
 msgid "Apply Resolutions"
 msgstr "Aplicar Resoluciones"
@@ -1474,7 +1476,7 @@ msgstr "Aplicando..."
 msgid "Approximate"
 msgstr "Aproximado"
 
-#: src/routes/map-editor.tsx:4013
+#: src/routes/map-editor.tsx:4364
 msgid "Are you sure you want to reset the graph? This will delete all progress made."
 msgstr "¿Estás seguro de que quieres reiniciar el grafo? Esto eliminará todo el progreso realizado."
 
@@ -1675,7 +1677,7 @@ msgid "Automation is still in development. Expect bugs and some things not to wo
 msgstr "La automatización aún está en desarrollo. Espera errores y que algunas cosas aún no funcionen."
 
 #: src/features/map-editor/components/AutomationPanel.tsx:148
-#: src/routes/map-editor.tsx:3349
+#: src/routes/map-editor.tsx:3605
 msgid "Automations"
 msgstr "Automatizaciones"
 
@@ -1717,7 +1719,7 @@ msgstr "Rondas Disponibles"
 msgid "Back"
 msgstr "Atrás"
 
-#: src/routes/game.tsx:999
+#: src/routes/game.tsx:1023
 msgid "Back to Editor"
 msgstr "Volver al Editor"
 
@@ -2263,7 +2265,7 @@ msgstr "Comprobando..."
 msgid "Checkpoint"
 msgstr "Punto de Control"
 
-#: src/routes/game.tsx:786
+#: src/routes/game.tsx:804
 msgid "Checkpoint reached. Game saved."
 msgstr "Punto de control alcanzado. Juego guardado."
 
@@ -2271,7 +2273,7 @@ msgstr "Punto de control alcanzado. Juego guardado."
 msgid "Checkpoint:"
 msgstr "Punto de control:"
 
-#: src/routes/map-editor.tsx:3350
+#: src/routes/map-editor.tsx:3606
 msgid "Checks"
 msgstr "Comprobaciones"
 
@@ -2284,6 +2286,10 @@ msgstr "Chino"
 #: src/routes/first-start.tsx:257
 msgid "first-start.step.booru.title"
 msgstr "Elige un prompt de búsqueda booru"
+
+#: src/features/map-editor/components/TileSidebar.tsx:384
+msgid "Choose a hero to place all of their rounds as a connected chain."
+msgstr "Elige un héroe para colocar todas sus rondas como una cadena conectada."
 
 #: src/routes/playlist-workshop.tsx:5317
 msgid "Choose a new name for this playlist."
@@ -2472,7 +2478,7 @@ msgid "Click export to choose a destination and generate the package."
 msgstr "Haz clic en exportar para elegir un destino y generar el paquete."
 
 #. placeholder {0}: activeTile.label
-#: src/routes/map-editor.tsx:3412
+#: src/routes/map-editor.tsx:3697
 msgid "Click the canvas to place {0}."
 msgstr "Haz clic en el lienzo para colocar {0}."
 
@@ -2498,6 +2504,7 @@ msgstr "cerrar"
 #: src/components/GlobalMusicOverlay.tsx:328
 #: src/components/PlaylistPackExportDialog.tsx:191
 #: src/features/converter/MassTrimHeroesDialog.tsx:256
+#: src/features/map-editor/components/EditorToolbar.tsx:289
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:191
 #: src/features/rounds/library/dialogs/WebsiteRoundInstallDialog.tsx:119
 #: src/features/rounds/library/ui/Modal.tsx:61
@@ -2697,7 +2704,7 @@ msgid "Confirmation text did not match. No changes were made."
 msgstr "El texto de confirmación no coincidió. No se hicieron cambios."
 
 #: src/components/GlobalHandyOverlay.tsx:570
-#: src/features/map-editor/components/EditorToolbar.tsx:80
+#: src/features/map-editor/components/EditorToolbar.tsx:105
 #: src/routes/first-start.tsx:2838
 #: src/routes/settings.tsx:4993
 msgid "Connect"
@@ -2721,7 +2728,7 @@ msgstr "Conectar Desde Aquí"
 msgid "first-start.step.eroscripts.title"
 msgstr "Conecta tu cuenta de EroScripts"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:266
+#: src/features/map-editor/components/EditorToolbar.tsx:294
 msgid "Connect: C, then choose source and target nodes."
 msgstr "Conectar: C, luego elige los nodos de origen y destino."
 
@@ -2798,7 +2805,7 @@ msgstr "Continuar en caso de error"
 msgid "Continue the saved run for this playlist"
 msgstr "Continuar la partida guardada de esta lista"
 
-#: src/routes/map-editor.tsx:3917
+#: src/routes/map-editor.tsx:4268
 #: src/routes/playlist-workshop.tsx:1590
 #: src/routes/playlist-workshop.tsx:4177
 msgid "Continue Unresolved"
@@ -2916,12 +2923,12 @@ msgstr "Convertir a modo difícil"
 msgid "Convert to hero"
 msgstr "Convertirse en héroe"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:217
-#: src/routes/map-editor.tsx:4032
+#: src/features/map-editor/components/EditorToolbar.tsx:255
+#: src/routes/map-editor.tsx:4383
 msgid "Convert to Linear"
 msgstr "Convertir a lineal"
 
-#: src/routes/map-editor.tsx:4030
+#: src/routes/map-editor.tsx:4381
 msgid "Convert to Linear Playlist?"
 msgstr "¿Convertir a playlist lineal?"
 
@@ -2935,7 +2942,7 @@ msgid "command-palette.converter.description"
 msgstr "Convertir vídeos a rondas jugables"
 
 #. placeholder {0}: updated.name
-#: src/routes/map-editor.tsx:3114
+#: src/routes/map-editor.tsx:3310
 msgid "Converted \"{0}\" to a linear playlist."
 msgstr "\"{0}\" se convirtió en una playlist lineal."
 
@@ -3215,7 +3222,7 @@ msgstr "Punto de correrse"
 msgid "CUM POINT SAVED"
 msgstr "PUNTO DE CORRERSE GUARDADO"
 
-#: src/routes/game.tsx:948
+#: src/routes/game.tsx:966
 msgid "Cum Point saved. You can resume here later."
 msgstr "Punto de correrse guardado. Puedes continuar aquí más tarde."
 
@@ -3441,11 +3448,10 @@ msgstr "Diferir la generación de phash para un momento posterior."
 
 #: src/features/converter/SegmentCard.tsx:439
 #: src/features/map-editor/components/AutomationPanel.tsx:288
-#: src/features/map-editor/components/EditorToolbar.tsx:140
 #: src/features/playlist-picker/PlaylistPicker.tsx:560
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3059
 #: src/routes/highscores.tsx:1228
-#: src/routes/map-editor.tsx:3449
+#: src/routes/map-editor.tsx:3734
 #: src/routes/playlist-workshop.tsx:1555
 #: src/routes/playlist-workshop.tsx:2382
 #: src/routes/playlist-workshop.tsx:2975
@@ -3461,7 +3467,7 @@ msgstr "Eliminar \"{0}\""
 
 #. placeholder {0}: pickerTargetPlaylist.name
 #. placeholder {0}: playlistDeleteTarget.name
-#: src/routes/map-editor.tsx:3446
+#: src/routes/map-editor.tsx:3731
 #: src/routes/playlist-workshop.tsx:1554
 msgid "Delete \"{0}\"? This cannot be undone."
 msgstr "¿Eliminar \\\"{0}\\\"? Esto no se puede deshacer."
@@ -3473,6 +3479,10 @@ msgstr "Eliminar {deleteSelectedRoundCount} rondas"
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1924
 msgid "Delete {deleteSelectedRoundCount} selected round entries from the database?"
 msgstr "¿Eliminar {deleteSelectedRoundCount} entradas de rondas seleccionadas de la base de datos?"
+
+#: src/features/map-editor/components/EditorToolbar.tsx:167
+msgid "Delete {selectionCount} selected items"
+msgstr "Eliminar {selectionCount} elementos seleccionados"
 
 #. placeholder {0}: activePlaylist.name
 #: src/routes/playlist-workshop.tsx:4119
@@ -3524,7 +3534,7 @@ msgstr "Eliminar archivos originales después de una migración exitosa"
 msgid "Delete Playlist"
 msgstr "Eliminar Lista de Reproducción"
 
-#: src/routes/map-editor.tsx:3443
+#: src/routes/map-editor.tsx:3728
 msgid "Delete Playlist?"
 msgstr "¿Eliminar Lista de Reproducción?"
 
@@ -3569,6 +3579,10 @@ msgstr "Eliminar selección"
 msgid "Delete Selected Rounds?"
 msgstr "¿Eliminar rondas seleccionadas?"
 
+#: src/features/map-editor/components/EditorToolbar.tsx:167
+msgid "Delete selection"
+msgstr "Eliminar selección"
+
 #: src/features/converter/HeroPanel.tsx:75
 msgid "Delete source round after save"
 msgstr "Eliminar ronda de origen después de guardar"
@@ -3578,9 +3592,9 @@ msgstr "Eliminar ronda de origen después de guardar"
 msgid "settings.help.shortcuts.mapEditor.deleteSelection"
 msgstr "Eliminar la selección actual."
 
-#: src/features/map-editor/components/EditorToolbar.tsx:267
-msgid "Delete: X removes the selected node, edge, or text."
-msgstr "Eliminar: X elimina el nodo, borde o texto seleccionado."
+#: src/features/map-editor/components/EditorToolbar.tsx:295
+msgid "Delete: Delete or Backspace removes the selection. X is also supported."
+msgstr "Eliminar: Supr o Retroceso elimina la selección. También se admite X."
 
 #. placeholder {0}: result.deletedCount
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1063
@@ -3745,7 +3759,9 @@ msgstr "¿Te corriste como se indicó?"
 msgid "Did you cum?"
 msgstr "¿Te corriste?"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:206
+#: src/features/map-editor/components/EditorToolbar.tsx:239
+#: src/features/map-editor/components/TileSidebar.tsx:320
+#: src/features/map-editor/components/TileSidebar.tsx:335
 #: src/features/rounds/library/components/DifficultyBadge.tsx:18
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:75
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1837
@@ -3837,7 +3853,7 @@ msgstr "Desactivar caché de shaders en disco"
 msgid "Disable GPU VSync"
 msgstr "Desactivar VSync de la GPU"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:129
+#: src/features/map-editor/components/EditorToolbar.tsx:154
 msgid "Disable Snap"
 msgstr "Desactivar ajuste"
 
@@ -3884,13 +3900,13 @@ msgstr "Desactiva la aceleración por hardware en el próximo inicio. Usar solo 
 msgid "Disabling both checks may result in a bad user experience for you and other players"
 msgstr "Desactivar ambas comprobaciones puede provocar una mala experiencia para ti y otros jugadores"
 
-#: src/routes/map-editor.tsx:4044
-#: src/routes/map-editor.tsx:4053
+#: src/routes/map-editor.tsx:4395
+#: src/routes/map-editor.tsx:4404
 msgid "Discard Changes"
 msgstr "Descartar Cambios"
 
-#: src/routes/map-editor.tsx:4042
-#: src/routes/map-editor.tsx:4051
+#: src/routes/map-editor.tsx:4393
+#: src/routes/map-editor.tsx:4402
 msgid "Discard Changes?"
 msgstr "¿Descartar Cambios?"
 
@@ -3898,11 +3914,11 @@ msgstr "¿Descartar Cambios?"
 msgid "Discard Item"
 msgstr "Descartar Objeto"
 
-#: src/routes/map-editor.tsx:4043
+#: src/routes/map-editor.tsx:4394
 msgid "Discard unsaved map changes and choose another playlist?"
 msgstr "¿Descartar los cambios no guardados del mapa y elegir otra lista de reproducción?"
 
-#: src/routes/map-editor.tsx:4052
+#: src/routes/map-editor.tsx:4403
 msgid "Discard unsaved map changes and import another playlist?"
 msgstr "¿Descartar los cambios no guardados del mapa e importar otra lista de reproducción?"
 
@@ -4038,6 +4054,14 @@ msgstr "Descargando..."
 msgid "Draft"
 msgstr "Borrador"
 
+#: src/routes/map-editor.tsx:4411
+msgid "Draft Save Failed"
+msgstr "Error al guardar el borrador"
+
+#: src/routes/map-editor.tsx:3784
+msgid "Draft saved"
+msgstr "Borrador guardado"
+
 #: src/routes/playlist-workshop.tsx:5006
 #: src/routes/playlist-workshop.tsx:5007
 msgid "Drag to reorder"
@@ -4058,6 +4082,7 @@ msgid "Duplicate"
 msgstr "Duplicar"
 
 #: src/components/game/RoundVideoOverlay.tsx:5456
+#: src/features/map-editor/components/TileSidebar.tsx:321
 #: src/routes/playlist-workshop.tsx:4710
 msgid "Duration"
 msgstr "Duración"
@@ -4079,7 +4104,7 @@ msgid "Easiest"
 msgstr "Más Fácil"
 
 #: src/features/map-editor/components/EditorStatusBar.tsx:31
-#: src/routes/map-editor.tsx:3346
+#: src/routes/map-editor.tsx:3602
 msgid "Edge"
 msgstr "Conexión"
 
@@ -4189,7 +4214,7 @@ msgstr "Activa primero el guardado en Punto de control o En todas partes."
 msgid "Enable or disable fullscreen mode for the game window."
 msgstr "Activa o desactiva el modo pantalla completa para la ventana del juego."
 
-#: src/features/map-editor/components/EditorToolbar.tsx:129
+#: src/features/map-editor/components/EditorToolbar.tsx:154
 msgid "Enable Snap"
 msgstr "Activar ajuste"
 
@@ -4384,6 +4409,10 @@ msgstr "Error en la búsqueda de EroScripts."
 msgid "Error"
 msgstr "Error"
 
+#: src/features/map-editor/components/EditorToolbar.tsx:298
+msgid "Escape closes open tools or clears the selection."
+msgstr "Escape cierra las herramientas abiertas o borra la selección."
+
 #: src/components/LibraryExportOverlay.tsx:212
 #: src/components/PlaylistExportOverlay.tsx:218
 msgid "Est. Encode Time"
@@ -4477,9 +4506,13 @@ msgstr "Excluido:"
 msgid "Executable: {0}"
 msgstr "Ejecutable: {0}"
 
-#: src/routes/map-editor.tsx:3553
+#: src/routes/map-editor.tsx:3849
 msgid "Exit"
 msgstr "Salir"
+
+#: src/routes/map-editor.tsx:4413
+msgid "Exit Without Saving"
+msgstr "Salir sin guardar"
 
 #: src/features/rounds/library/components/GroupHeaders.tsx:78
 msgid "Expand"
@@ -4596,7 +4629,7 @@ msgstr "Exportación completada."
 msgid "Export Debug File"
 msgstr "Exportar archivo de depuración"
 
-#: src/routes/map-editor.tsx:3505
+#: src/routes/map-editor.tsx:3801
 msgid "Export Fplay"
 msgstr "Exportar Fplay"
 
@@ -4604,7 +4637,7 @@ msgstr "Exportar Fplay"
 msgid "Export library"
 msgstr "Exportar biblioteca"
 
-#: src/routes/map-editor.tsx:3517
+#: src/routes/map-editor.tsx:3813
 #: src/routes/playlist-workshop.tsx:2495
 msgid "Export Pack"
 msgstr "Exportar Paquete"
@@ -4751,8 +4784,8 @@ msgstr "Error al borrar las cookies de inicio de sesión."
 msgid "Failed to convert hero group back to a round."
 msgstr "No se pudo convertir el grupo de héroe de vuelta a una ronda."
 
-#: src/routes/map-editor.tsx:3086
-#: src/routes/map-editor.tsx:3122
+#: src/routes/map-editor.tsx:3282
+#: src/routes/map-editor.tsx:3318
 msgid "Failed to convert playlist to linear."
 msgstr "No se pudo convertir la playlist a lineal."
 
@@ -5545,7 +5578,7 @@ msgstr "Obtén una carga de salto que termina inmediatamente una ronda normal ac
 msgid "settings.help.shortcuts.gameDebug.title"
 msgstr "Depuración del juego"
 
-#: src/routes/game.tsx:972
+#: src/routes/game.tsx:990
 msgid "Game saved."
 msgstr "Juego guardado."
 
@@ -5638,17 +5671,17 @@ msgid "Gift guaranteed perk"
 msgstr "Regalar ventaja garantizada"
 
 #: src/components/game/GameScene.tsx:5501
-#: src/routes/game.tsx:999
+#: src/routes/game.tsx:1023
 msgid "Give Up"
 msgstr "Rendirse"
-
-#: src/features/map-editor/components/AutomationPanel.tsx:235
-msgid "Global"
-msgstr "Global"
 
 #. js-lingui-explicit-id
 #: src/routes/settings.tsx:310
 msgid "settings.help.shortcuts.global.title"
+msgstr "Global"
+
+#: src/features/map-editor/components/AutomationPanel.tsx:235
+msgid "Global"
 msgstr "Global"
 
 #: src/routes/settings.tsx:1538
@@ -5720,7 +5753,7 @@ msgstr "Grafo"
 msgid "playlist-picker.mode.graph"
 msgstr "Grafo"
 
-#: src/features/map-editor/components/ValidationPanel.tsx:20
+#: src/features/map-editor/components/ValidationPanel.tsx:22
 msgid "Graph is valid"
 msgstr "El grafo es válido"
 
@@ -5754,7 +5787,7 @@ msgstr "Modo seguro de gráficos"
 msgid "Graphics setting saved. Restart the app to apply it."
 msgstr "Configuración de gráficos guardada. Reinicie la aplicación para aplicarla."
 
-#: src/features/map-editor/components/EditorToolbar.tsx:165
+#: src/features/map-editor/components/EditorToolbar.tsx:198
 msgid "Grid tidy"
 msgstr "Ordenar cuadrícula"
 
@@ -5939,7 +5972,7 @@ msgid "Hero rounds only"
 msgstr "Solo rondas de héroe"
 
 #: src/components/LibraryExportOverlay.tsx:124
-#: src/features/map-editor/components/TileSidebar.tsx:305
+#: src/features/map-editor/components/TileSidebar.tsx:170
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:222
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2982
 #: src/routes/playlist-workshop.tsx:3112
@@ -5956,7 +5989,7 @@ msgstr "Los héroes y las rondas son los paquetes de contenido que el juego usa 
 msgid "Hidden for built-in server"
 msgstr "Oculto para el servidor integrado"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:123
+#: src/features/map-editor/components/EditorToolbar.tsx:148
 msgid "Hide Grid"
 msgstr "Ocultar Cuadrícula"
 
@@ -6226,7 +6259,7 @@ msgstr "Importar Archivo"
 msgid "Import Order Preview"
 msgstr "Vista Previa del Orden de Importación"
 
-#: src/routes/map-editor.tsx:3913
+#: src/routes/map-editor.tsx:4264
 #: src/routes/playlist-workshop.tsx:1588
 #: src/routes/playlist-workshop.tsx:4173
 msgid "Import with Selected Resolutions"
@@ -6245,12 +6278,12 @@ msgid "Imported"
 msgstr "Importado"
 
 #. placeholder {0}: imported.playlist.name
-#: src/routes/map-editor.tsx:3984
+#: src/routes/map-editor.tsx:4335
 msgid "Imported \"{0}\" with unresolved refs preserved."
 msgstr "Se importó \\\"{0}\\\" con referencias sin resolver preservadas."
 
 #. placeholder {0}: imported.playlist.name
-#: src/routes/map-editor.tsx:3938
+#: src/routes/map-editor.tsx:4289
 msgid "Imported \"{0}\"."
 msgstr "Se importó \\\"{0}\\\"."
 
@@ -6819,6 +6852,10 @@ msgstr "Referencia de atajos de teclado"
 msgid "Keyboard shortcut reference for the app, editor, and gameplay screens."
 msgstr "Referencia de atajos de teclado para la app, el editor y las pantallas de juego."
 
+#: src/features/map-editor/components/EditorToolbar.tsx:284
+msgid "Keyboard shortcuts"
+msgstr "Atajos de teclado"
+
 #: src/routes/settings.tsx:7606
 msgid "Keyboard Shortcuts"
 msgstr "Atajos de Teclado"
@@ -6883,19 +6920,19 @@ msgstr "Supervivencia Más Reciente"
 msgid "Latest v{0}"
 msgstr "Última v{0}"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:161
+#: src/features/map-editor/components/EditorToolbar.tsx:194
 msgid "Layered ->"
 msgstr "En capas ->"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:162
+#: src/features/map-editor/components/EditorToolbar.tsx:195
 msgid "Layered down"
 msgstr "En capas abajo"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:163
+#: src/features/map-editor/components/EditorToolbar.tsx:196
 msgid "Layered up"
 msgstr "En capas arriba"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:157
+#: src/features/map-editor/components/EditorToolbar.tsx:190
 msgid "Layout"
 msgstr "Diseño"
 
@@ -7151,6 +7188,7 @@ msgstr "Cargando ajustes de seguridad..."
 
 #: src/components/RoutePending.tsx:11
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1518
+#: src/features/map-editor/components/TileSidebar.tsx:336
 #: src/routes/first-start.tsx:2290
 #: src/routes/highscores.tsx:1123
 #: src/routes/settings.tsx:3248
@@ -7470,13 +7508,13 @@ msgstr "Active manualmente un escaneo para calcular hashes perceptuales para las
 msgid "Map Appearance"
 msgstr "Aspecto del mapa"
 
-#: src/routes/map-editor.tsx:3400
-msgid "Map contains validation errors."
-msgstr "El mapa contiene errores de validación."
+#: src/features/map-editor/components/TileSidebar.tsx:166
+msgid "Map content library"
+msgstr "Biblioteca de contenido del mapa"
 
 #: src/features/playlist-picker/PlaylistPicker.tsx:163
 #: src/routes/index.tsx:363
-#: src/routes/map-editor.tsx:3471
+#: src/routes/map-editor.tsx:3756
 msgid "Map Editor"
 msgstr "Editor de Mapas"
 
@@ -7490,14 +7528,14 @@ msgstr "Editor de mapas"
 msgid "command-palette.map-editor"
 msgstr "Editor de mapas"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:224
-#: src/features/map-editor/components/EditorToolbar.tsx:262
+#: src/features/map-editor/components/EditorToolbar.tsx:264
+#: src/features/map-editor/components/EditorToolbar.tsx:281
 msgid "Map editor help"
 msgstr "Ayuda del editor de mapas"
 
-#: src/routes/map-editor.tsx:3475
-#: src/routes/map-editor.tsx:3486
-#: src/routes/map-editor.tsx:3487
+#: src/routes/map-editor.tsx:3760
+#: src/routes/map-editor.tsx:3771
+#: src/routes/map-editor.tsx:3772
 msgid "Map name"
 msgstr "Nombre del mapa"
 
@@ -8062,6 +8100,8 @@ msgstr "N/D"
 
 #: src/features/map-editor/components/automation/BackgroundPresetEditor.tsx:255
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:385
+#: src/features/map-editor/components/TileSidebar.tsx:319
+#: src/features/map-editor/components/TileSidebar.tsx:379
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:36
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:43
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1843
@@ -8341,8 +8381,13 @@ msgid "No heroes match this search."
 msgstr "Ningún héroe coincide con esta búsqueda."
 
 #: src/features/converter/ConverterSourcePicker.tsx:520
+#: src/features/map-editor/components/TileSidebar.tsx:432
 msgid "No heroes match your search."
 msgstr "Ningún hero coincide con tu búsqueda."
+
+#: src/features/map-editor/components/TileSidebar.tsx:427
+msgid "No heroes with installed rounds are available yet."
+msgstr "Aún no hay héroes con rondas instaladas disponibles."
 
 #: src/features/converter/ConverterSourcePicker.tsx:521
 msgid "No heroes with rounds available. Create a hero first."
@@ -8351,6 +8396,10 @@ msgstr "No hay heroes con rondas disponibles. Crea un hero primero."
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1350
 msgid "No installed cum rounds found."
 msgstr "No se encontraron rondas de corrida instaladas."
+
+#: src/features/map-editor/components/TileSidebar.tsx:347
+msgid "No installed rounds are available yet."
+msgstr "Aún no hay rondas instaladas disponibles."
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1345
 msgid "No installed rounds match the current filter."
@@ -8485,10 +8534,10 @@ msgid "No rounds match this filter"
 msgstr "Ninguna ronda coincide con este filtro"
 
 #: src/features/converter/ConverterSourcePicker.tsx:486
+#: src/features/map-editor/components/TileSidebar.tsx:352
 msgid "No rounds match your filters."
 msgstr "Ninguna ronda coincide con tus filtros."
 
-#: src/features/map-editor/components/TileSidebar.tsx:278
 #: src/routes/playlist-workshop.tsx:3341
 msgid "No rounds match your search."
 msgstr "Ninguna ronda coincide con tu búsqueda."
@@ -8551,7 +8600,7 @@ msgstr "Aún no hay ventajas almacenadas."
 msgid "No supported video files found in selected folder."
 msgstr "No se encontraron archivos de vídeo compatibles en la carpeta seleccionada."
 
-#: src/features/map-editor/components/TileSidebar.tsx:203
+#: src/features/map-editor/components/TileSidebar.tsx:281
 msgid "No tiles match this filter."
 msgstr "Ninguna casilla coincide con este filtro."
 
@@ -8593,9 +8642,13 @@ msgstr "Sin experiencia"
 msgid "antiperk.sequence.noRest.status"
 msgstr "Anti-ventaja sin descanso activa..."
 
-#: src/routes/map-editor.tsx:3345
+#: src/routes/map-editor.tsx:3601
 msgid "Node"
 msgstr "Nodo"
+
+#: src/routes/map-editor.tsx:4029
+msgid "Node actions"
+msgstr "Acciones de nodo"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:482
 msgid "Node color"
@@ -8971,7 +9024,7 @@ msgstr "Opciones"
 msgid "OR"
 msgstr "O"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:191
+#: src/features/map-editor/components/EditorToolbar.tsx:224
 msgid "Order"
 msgstr "Orden"
 
@@ -9264,13 +9317,13 @@ msgstr "Elige archivos de música de tu ordenador, o añade vídeos y listas de 
 msgid "Pin Round Progress Bar"
 msgstr "Fijar barra de progreso de ronda"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:79
+#: src/features/map-editor/components/EditorToolbar.tsx:104
 msgid "Place"
 msgstr "Posición"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:265
-msgid "Place: P or a tile shortcut, then click the canvas."
-msgstr "Colocar: P o un atajo de baldosa, luego haz clic en el lienzo."
+#: src/features/map-editor/components/EditorToolbar.tsx:293
+msgid "Place: P or a visible tile shortcut, then click the canvas."
+msgstr "Colocar: P o un atajo de casilla visible, luego haz clic en el lienzo."
 
 #: src/routes/settings.tsx:2748
 #: src/routes/settings.tsx:2749
@@ -9652,6 +9705,7 @@ msgstr "Evita que la GPU componga las capas de renderizado. Puede solucionar par
 
 #: src/components/game/GameScene.tsx:5264
 #: src/features/map-editor/components/AutomationPanel.tsx:378
+#: src/features/map-editor/components/TileSidebar.tsx:337
 #: src/routes/settings.tsx:6000
 msgid "Preview"
 msgstr "Vista previa"
@@ -9729,7 +9783,7 @@ msgstr "Progreso"
 msgid "Progression & Skill Tree"
 msgstr "Árbol de progresión y habilidades"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:201
+#: src/features/map-editor/components/EditorToolbar.tsx:234
 msgid "Progressive"
 msgstr "Progresivo"
 
@@ -9813,7 +9867,7 @@ msgid "Rail B"
 msgstr "Raíl B"
 
 #: src/features/converter/VideoPreview.tsx:237
-#: src/features/map-editor/components/EditorToolbar.tsx:196
+#: src/features/map-editor/components/EditorToolbar.tsx:229
 msgid "Random"
 msgstr "Aleatorio"
 
@@ -9882,6 +9936,7 @@ msgid "Ready to join or host"
 msgstr "Listo para unirte o crear"
 
 #: src/components/GlobalMusicOverlay.tsx:134
+#: src/features/map-editor/components/EditorToolbar.tsx:252
 msgid "Ready to play"
 msgstr "Listo para reproducir"
 
@@ -9990,7 +10045,7 @@ msgstr "Registros de tus partidas y sesiones anteriores."
 msgid "Redirecting"
 msgstr "Redirigiendo"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:149
+#: src/features/map-editor/components/EditorToolbar.tsx:182
 msgid "Redo"
 msgstr "Rehacer"
 
@@ -10164,7 +10219,7 @@ msgstr "Renombrar lista de reproducción"
 msgid "Renaming..."
 msgstr "Renombrando..."
 
-#: src/routes/map-editor.tsx:2679
+#: src/routes/map-editor.tsx:2851
 msgid "Reorder rounds by difficulty?"
 msgstr "¿Reordenar rondas por dificultad?"
 
@@ -10221,19 +10276,23 @@ msgstr "Repositorio:"
 msgid "Required Player Level"
 msgstr "Nivel de jugador requerido"
 
-#: src/routes/map-editor.tsx:2684
+#: src/features/map-editor/components/ValidationPanel.tsx:28
+msgid "Required to play"
+msgstr "Necesario para jugar"
+
+#: src/routes/map-editor.tsx:2856
 msgid "Reroll Random"
 msgstr "Reasignar aleatoriamente"
 
-#: src/routes/map-editor.tsx:2674
+#: src/routes/map-editor.tsx:2846
 msgid "Reroll rounds in order?"
 msgstr "¿Reasignar rondas en orden?"
 
-#: src/routes/map-editor.tsx:2678
+#: src/routes/map-editor.tsx:2850
 msgid "Reroll rounds progressively?"
 msgstr "¿Reasignar rondas progresivamente?"
 
-#: src/routes/map-editor.tsx:2676
+#: src/routes/map-editor.tsx:2848
 msgid "Reroll rounds randomly?"
 msgstr "¿Reasignar rondas aleatoriamente?"
 
@@ -10265,12 +10324,12 @@ msgstr "Restablecer probabilidad de anti-perk tras activarse"
 msgid "Reset defaults"
 msgstr "Restablecer valores predeterminados"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:155
-#: src/routes/map-editor.tsx:4014
+#: src/features/map-editor/components/EditorToolbar.tsx:188
+#: src/routes/map-editor.tsx:4365
 msgid "Reset Graph"
 msgstr "Restablecer grafo"
 
-#: src/routes/map-editor.tsx:4012
+#: src/routes/map-editor.tsx:4363
 msgid "Reset Graph?"
 msgstr "¿Restablecer grafo?"
 
@@ -10348,7 +10407,7 @@ msgstr "Restablecer el perfil auténtico"
 msgid "Reset to map palette"
 msgstr "Restablecer a paleta del mapa"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:133
+#: src/features/map-editor/components/EditorToolbar.tsx:158
 msgid "Reset View"
 msgstr "Restablecer vista"
 
@@ -10368,7 +10427,7 @@ msgstr "Restablece la probabilidad de interjección a su valor inicial después 
 #. placeholder {0}: activePlaylist.name
 #. placeholder {0}: lobby?.name ?? t`Lobby Playlist`
 #. placeholder {0}: selectedPlaylist.name
-#: src/routes/map-editor.tsx:3527
+#: src/routes/map-editor.tsx:3823
 #: src/routes/multiplayer-lobby.tsx:935
 #: src/routes/playlist-workshop.tsx:2509
 msgid "Resolve {0}"
@@ -10557,10 +10616,6 @@ msgstr "Revisa el tamaño estimado del paquete y el tiempo de compresión antes 
 msgid "Review the folder before import. Ordered by filename (natural sort), so entries like 2, 10, and 100 stay in human order."
 msgstr "Revisa la carpeta antes de importar. Ordenado por nombre de archivo (orden natural), así que entradas como 2, 10 y 100 se mantienen en orden humano."
 
-#: src/routes/map-editor.tsx:3401
-msgid "Review validation"
-msgstr "Revisar validación"
-
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:512
 msgid "Road Palette"
 msgstr "Paleta de caminos"
@@ -10623,6 +10678,10 @@ msgstr "Conversor de rondas"
 #: src/components/CommandPalette.tsx:69
 msgid "command-palette.converter"
 msgstr "Conversor de rondas"
+
+#: src/features/map-editor/components/TileSidebar.tsx:380
+msgid "Round count"
+msgstr "Número de rondas"
 
 #: src/routes/playlist-workshop.tsx:2569
 msgid "Round Count"
@@ -10721,14 +10780,13 @@ msgid "Round type"
 msgstr "Tipo de ronda"
 
 #: src/components/game/PlaylistLaunchTransition.tsx:35
-#: src/features/map-editor/components/TileSidebar.tsx:334
 #: src/routes/playlist-workshop.tsx:3139
 msgid "rounds"
 msgstr "rondas"
 
 #: src/features/converter/SegmentList.tsx:90
-#: src/features/map-editor/components/EditorToolbar.tsx:188
-#: src/features/map-editor/components/TileSidebar.tsx:226
+#: src/features/map-editor/components/EditorToolbar.tsx:221
+#: src/features/map-editor/components/TileSidebar.tsx:170
 #: src/routes/multiplayer.tsx:913
 #: src/routes/single-player-setup.tsx:936
 msgid "Rounds"
@@ -10816,7 +10874,7 @@ msgstr "Puntos seguros"
 
 #: src/features/converter/SegmentList.tsx:96
 #: src/features/map-editor/components/CustomPaletteManager.tsx:289
-#: src/features/map-editor/components/EditorToolbar.tsx:244
+#: src/features/map-editor/components/EditorToolbar.tsx:315
 #: src/routes/playlist-workshop.tsx:2273
 #: src/routes/settings.tsx:7076
 #: src/routes/settings.tsx:8100
@@ -10849,7 +10907,11 @@ msgstr "Guardar actual como paleta"
 msgid "Save Endpoint"
 msgstr "Guardar punto final"
 
-#: src/routes/game.tsx:966
+#: src/routes/map-editor.tsx:3783
+msgid "Save failed — Retry"
+msgstr "Error al guardar — Reintentar"
+
+#: src/routes/game.tsx:984
 msgid "Save Game"
 msgstr "Guardar partida"
 
@@ -10896,9 +10958,9 @@ msgstr "Guardar sin probar"
 msgid "Save-enabled runs are marked as assisted in local highscores and run history."
 msgstr "Las partidas con guardado activado se marcan como asistidas en las puntuaciones máximas locales y el historial de partidas."
 
-#: src/features/map-editor/components/EditorToolbar.tsx:269
-msgid "Save/test: Ctrl/Cmd+S saves, Test Map launches the run."
-msgstr "Guardar/probar: Ctrl/Cmd+S guarda, Probar mapa inicia la ejecución."
+#: src/features/map-editor/components/EditorToolbar.tsx:297
+msgid "Save: Ctrl/Cmd+S saves the current draft."
+msgstr "Guardar: Ctrl/Cmd+S guarda el borrador actual."
 
 #: src/routes/settings.tsx:4770
 msgid "Saved TCode URL"
@@ -10909,7 +10971,7 @@ msgid "Saving checkpoint…"
 msgstr "Guardando punto de control…"
 
 #: src/features/converter/HeroPanel.tsx:98
-#: src/features/map-editor/components/EditorToolbar.tsx:244
+#: src/features/map-editor/components/EditorToolbar.tsx:315
 #: src/features/rounds/library/dialogs/BulkAndConversionDialogs.tsx:26
 #: src/features/rounds/library/dialogs/EditHeroDialog.tsx:30
 #: src/features/rounds/library/dialogs/EditRoundDialog.tsx:37
@@ -10922,6 +10984,7 @@ msgid "Saving..."
 msgstr "Guardando..."
 
 #: src/features/map-editor/components/CustomPaletteManager.tsx:289
+#: src/routes/map-editor.tsx:3779
 msgid "Saving…"
 msgstr "Guardando…"
 
@@ -11088,6 +11151,10 @@ msgstr "Buscar en EroScripts"
 msgid "Search free EroScripts topics, attach direct funscripts, or install discovered videos with an optional downloaded copy."
 msgstr "Busca temas gratuitos de EroScripts, adjunta funscripts directos o instala vídeos encontrados con una copia descargada opcional."
 
+#: src/features/map-editor/components/TileSidebar.tsx:370
+msgid "Search heroes or their rounds"
+msgstr "Buscar héroes o sus rondas"
+
 #: src/features/converter/MassTrimHeroesDialog.tsx:147
 msgid "Search heroes..."
 msgstr "Buscar héroes..."
@@ -11121,7 +11188,7 @@ msgstr "Prompt de búsqueda"
 msgid "Search prompt used for loading-screen media from rule34/booru sites."
 msgstr "Prompt de búsqueda usado para medios de pantalla de carga desde sitios rule34/booru."
 
-#: src/features/map-editor/components/TileSidebar.tsx:237
+#: src/features/map-editor/components/TileSidebar.tsx:298
 #: src/routes/playlist-workshop.tsx:4553
 msgid "Search rounds"
 msgstr "Buscar rondas"
@@ -11135,7 +11202,7 @@ msgstr "Rondas de búsqueda, héroes, autores…"
 msgid "Search tags"
 msgstr "Buscar etiquetas"
 
-#: src/features/map-editor/components/TileSidebar.tsx:151
+#: src/features/map-editor/components/TileSidebar.tsx:239
 msgid "Search tiles"
 msgstr "Buscar casillas"
 
@@ -11223,7 +11290,7 @@ msgstr "Sel"
 
 #: src/components/PlaylistPackExportDialog.tsx:289
 #: src/components/PlaylistPackExportDialog.tsx:351
-#: src/features/map-editor/components/EditorToolbar.tsx:78
+#: src/features/map-editor/components/EditorToolbar.tsx:103
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3011
 msgid "Select"
 msgstr "Seleccionar"
@@ -11244,7 +11311,7 @@ msgstr "Selecciona una dependencia para inspeccionar su licencia."
 msgid "Select a node to inspect"
 msgstr "Selecciona un nodo para inspeccionar"
 
-#: src/routes/map-editor.tsx:3406
+#: src/routes/map-editor.tsx:3691
 msgid "Select a node to start connecting."
 msgstr "Selecciona un nodo para empezar a conectar."
 
@@ -11408,7 +11475,7 @@ msgstr "Seleccionar visibles"
 msgid "playlist-workshop.section.playlist.description"
 msgstr "Selecciona, crea y gestiona listas de reproducción."
 
-#: src/features/map-editor/components/EditorToolbar.tsx:264
+#: src/features/map-editor/components/EditorToolbar.tsx:292
 msgid "Select/move: V, then drag nodes or text."
 msgstr "Seleccionar/mover: V, luego arrastra nodos o texto."
 
@@ -11573,7 +11640,7 @@ msgstr "Configura los gemidos de juego para que las ventajas de gemidos tengan c
 
 #: src/features/map-editor/components/AutomationPanel.tsx:370
 #: src/routes/index.tsx:381
-#: src/routes/map-editor.tsx:3348
+#: src/routes/map-editor.tsx:3604
 #: src/routes/settings.tsx:2798
 #: src/routes/settings.tsx:7342
 msgid "Settings"
@@ -11695,7 +11762,7 @@ msgstr "Mostrar importaciones deshabilitadas"
 msgid "Show Disconnected Haptics Status"
 msgstr "Mostrar estado de háptica desconectada"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:123
+#: src/features/map-editor/components/EditorToolbar.tsx:148
 msgid "Show Grid"
 msgstr "Mostrar cuadrícula"
 
@@ -11955,7 +12022,7 @@ msgstr "Paquetes más pequeños. Tarda más porque los vídeos pueden ser recodi
 msgid "Smallest Packs"
 msgstr "Paquetes más pequeños"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:164
+#: src/features/map-editor/components/EditorToolbar.tsx:197
 msgid "Snake"
 msgstr "Serpiente"
 
@@ -11993,11 +12060,12 @@ msgstr "Algunas rondas pueden no reproducirse; las rondas sin caché usan la ver
 msgid "Something went wrong"
 msgstr "Algo salió mal"
 
+#: src/features/map-editor/components/TileSidebar.tsx:555
 #: src/features/rounds/library/InstalledRoundsPage.tsx:3480
 msgid "Sort"
 msgstr "Ordenar"
 
-#: src/routes/map-editor.tsx:2687
+#: src/routes/map-editor.tsx:2859
 #: src/routes/playlist-workshop.tsx:2184
 #: src/routes/playlist-workshop.tsx:2823
 msgid "Sort by Difficulty"
@@ -12240,7 +12308,7 @@ msgid "Starting percent chance."
 msgstr "Porcentaje de probabilidad inicial."
 
 #: src/components/PlaylistPackExportDialog.tsx:547
-#: src/features/map-editor/components/EditorToolbar.tsx:254
+#: src/features/map-editor/components/EditorToolbar.tsx:325
 #: src/routes/settings.tsx:3853
 #: src/routes/settings.tsx:4045
 #: src/routes/single-player-setup.tsx:800
@@ -12297,6 +12365,10 @@ msgstr "Estado"
 #: src/routes/multiplayer-lobby.tsx:571
 msgid "Status:"
 msgstr "Estado:"
+
+#: src/routes/map-editor.tsx:4414
+msgid "Stay and Retry"
+msgstr "Quedarse y reintentar"
 
 #. js-lingui-explicit-id
 #: src/game/data/perks.ts:610
@@ -12446,7 +12518,7 @@ msgstr "Sobreviviste"
 msgid "Survived:"
 msgstr "Sobreviviste:"
 
-#: src/routes/map-editor.tsx:3543
+#: src/routes/map-editor.tsx:3839
 msgid "Switch"
 msgstr "Cambiar"
 
@@ -12637,6 +12709,10 @@ msgstr "Las rondas de plantilla no tienen un recurso multimedia principal, por l
 msgid "settings.help.shortcuts.mapEditor.panning"
 msgstr "Activar temporalmente el paneo."
 
+#: src/routes/game.tsx:1015
+msgid "temporary exits added"
+msgstr "salidas temporales añadidas"
+
 #: src/routes/settings.tsx:6319
 msgid "Temporary progression is clearly marked and removed when Cheat Mode is disabled"
 msgstr "El progreso temporal está claramente marcado y se elimina al desactivar el modo de trucos"
@@ -12658,13 +12734,21 @@ msgstr "Dispositivo de prueba"
 msgid "Test Intermediary (I)"
 msgstr "Probar intermedio (I)"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:254
+#: src/features/map-editor/components/EditorToolbar.tsx:325
 msgid "Test Map"
 msgstr "Probar mapa"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:81
+#: src/routes/map-editor.tsx:4048
+msgid "Test map from here"
+msgstr "Probar mapa desde aquí"
+
+#: src/routes/game.tsx:1014
+msgid "Test mode"
+msgstr "Modo de prueba"
+
+#: src/features/map-editor/components/EditorToolbar.tsx:106
 #: src/features/map-editor/components/TextInspectorPanel.tsx:64
-#: src/routes/map-editor.tsx:3347
+#: src/routes/map-editor.tsx:3603
 msgid "Text"
 msgstr "Texto"
 
@@ -12754,6 +12838,10 @@ msgstr "El mínimo global de multijugador ayuda a asegurar que todos partan de u
 #: src/features/rounds/library/dialogs/BulkAndConversionDialogs.tsx:97
 msgid "The hero will be removed and the kept round will become a standalone entry. This cannot be undone in-app."
 msgstr "El héroe será eliminado y la ronda conservada se convertirá en una entrada independiente. Esto no se puede deshacer en la aplicación."
+
+#: src/routes/map-editor.tsx:4412
+msgid "The latest editor changes could not be saved. Stay and retry, or exit without saving those changes."
+msgstr "Los últimos cambios del editor no pudieron guardarse. Quédate y reintenta, o sal sin guardar esos cambios."
 
 #: src/routes/settings.tsx:6324
 msgid "The mark on your highscores cannot be removed later"
@@ -12863,7 +12951,7 @@ msgstr "Ayudaron a mejorar y pulir el juego."
 msgid "This {mediaLabel} is hidden while safe mode is active."
 msgstr "Este {mediaLabel} está oculto mientras el modo seguro está activo."
 
-#: src/routes/map-editor.tsx:4022
+#: src/routes/map-editor.tsx:4373
 msgid "This changes every fixed round node in the current map. Continue?"
 msgstr "Esto cambia todos los nodos de ronda fija en el mapa actual. ¿Continuar?"
 
@@ -12871,11 +12959,11 @@ msgstr "Esto cambia todos los nodos de ronda fija en el mapa actual. ¿Continuar
 msgid "This changes the order of the entire selected round list. Continue?"
 msgstr "Esto cambia el orden de toda la lista de rondas seleccionadas. ¿Continuar?"
 
-#: src/routes/map-editor.tsx:974
+#: src/routes/map-editor.tsx:1146
 msgid "This conversion follows the first path from Start. Branches, graph-only nodes, text, gates, labels, and map styling may be lost if the map is complicated."
 msgstr "Esta conversión sigue el primer camino desde Inicio. Las ramas, nodos exclusivos de gráfico, texto, puertas, etiquetas y estilo del mapa pueden perderse si el mapa es complicado."
 
-#: src/routes/map-editor.tsx:977
+#: src/routes/map-editor.tsx:1149
 msgid "This conversion would drop {droppedNodeCount} nodes and {droppedEdgeCount} edges."
 msgstr "Esta conversión eliminaría {droppedNodeCount} nodos y {droppedEdgeCount} aristas."
 
@@ -12995,7 +13083,7 @@ msgstr "Esto reemplazará la ejecución guardada para \"{0}\". Reanudar mantiene
 msgid "Tile"
 msgstr "Casilla"
 
-#: src/features/map-editor/components/TileSidebar.tsx:117
+#: src/features/map-editor/components/TileSidebar.tsx:170
 msgid "Tiles"
 msgstr "Casillas"
 
@@ -13267,7 +13355,7 @@ msgstr "No disponible"
 msgid "Unban"
 msgstr "Desbanear"
 
-#: src/features/map-editor/components/EditorToolbar.tsx:142
+#: src/features/map-editor/components/EditorToolbar.tsx:175
 msgid "Undo"
 msgstr "Deshacer"
 
@@ -13280,7 +13368,7 @@ msgstr "Deshacer la última edición del grafo."
 msgid "Undo the last segment edit."
 msgstr "Deshacer la última edición de segmento."
 
-#: src/features/map-editor/components/EditorToolbar.tsx:268
+#: src/features/map-editor/components/EditorToolbar.tsx:296
 msgid "Undo/redo: Ctrl/Cmd+Z and Ctrl/Cmd+Y."
 msgstr "Deshacer/rehacer: Ctrl/Cmd+Z y Ctrl/Cmd+Y."
 
@@ -13300,6 +13388,10 @@ msgstr "desconocido"
 #: src/routes/playlist-workshop.tsx:4698
 msgid "Unknown"
 msgstr "Desconocido"
+
+#: src/features/map-editor/components/TileSidebar.tsx:334
+msgid "Unknown author"
+msgstr "Autor desconocido"
 
 #. js-lingui-explicit-id
 #: src/routes/playlist-workshop.tsx:750
@@ -13328,9 +13420,17 @@ msgstr "Archivo desconocido"
 msgid "Unlock Lobby"
 msgstr "Desbloquear sala"
 
+#: src/routes/game.tsx:1014
+msgid "unreachable nodes skipped"
+msgstr "nodos inalcanzables omitidos"
+
 #: src/features/map-editor/components/GraphSettingsPanel.tsx:1279
 msgid "Unresolved"
 msgstr "Sin resolver"
+
+#: src/routes/map-editor.tsx:3781
+msgid "Unsaved changes"
+msgstr "Cambios sin guardar"
 
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:1195
 msgid "Up"
@@ -13657,6 +13757,10 @@ msgstr "Advertencia: las partidas de esta lista se marcan como asistidas en la p
 msgid "Warning: This cannot be undone."
 msgstr "Advertencia: Esto no se puede deshacer."
 
+#: src/features/map-editor/components/ValidationPanel.tsx:47
+msgid "Warnings"
+msgstr "Advertencias"
+
 #: src/routes/highscores.tsx:960
 msgid "Watched"
 msgstr "Visto"
@@ -13785,8 +13889,8 @@ msgstr "Con medios"
 
 #: src/routes/first-start.tsx:2062
 #: src/routes/first-start.tsx:2092
-#: src/routes/map-editor.tsx:3505
-#: src/routes/map-editor.tsx:3517
+#: src/routes/map-editor.tsx:3801
+#: src/routes/map-editor.tsx:3813
 msgid "Working..."
 msgstr "Trabajando..."
 

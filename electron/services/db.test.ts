@@ -17,6 +17,7 @@ vi.mock("electron", () => ({
 }));
 
 import {
+  configureDatabaseConnection,
   markRoundExcludeFromRandomMigrationIfManuallyApplied,
   migratePortableDatabaseIfNeeded,
   repairInstalledLibrarySchema,
@@ -108,6 +109,17 @@ describe("drizzle migration journal", () => {
       client.close();
       await fs.rm(tempRoot, { recursive: true, force: true });
     }
+  });
+});
+
+describe("configureDatabaseConnection", () => {
+  it("waits for short-lived SQLite write contention", async () => {
+    const execute = vi.fn(async () => ({ rows: [] }));
+    const dbInstance = { $client: { execute } } as never;
+
+    await configureDatabaseConnection(dbInstance);
+
+    expect(execute).toHaveBeenCalledWith("PRAGMA busy_timeout = 5000");
   });
 });
 

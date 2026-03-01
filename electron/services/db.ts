@@ -22,6 +22,7 @@ let dbClientUrl: string = "";
 
 const ROUND_EXCLUDE_FROM_RANDOM_MIGRATION_TAG = "0005_round_exclude_from_random";
 const DATABASE_BACKUP_DIR_NAME = "database-backups";
+const DATABASE_BUSY_TIMEOUT_MS = 5_000;
 
 function rowValueToString(row: Record<string, unknown>, key: string): string | null {
   const value = row[key];
@@ -514,6 +515,14 @@ export function getDb() {
   return db;
 }
 
+export async function configureDatabaseConnection(
+  dbInstance: ReturnType<typeof drizzle<typeof schema>>
+): Promise<void> {
+  // Autosaves and background library work can briefly overlap. Waiting for the
+  // active writer avoids surfacing a transient SQLITE_BUSY error to the user.
+  await dbInstance.$client.execute(`PRAGMA busy_timeout = ${DATABASE_BUSY_TIMEOUT_MS}`);
+}
+
 /**
  * Drop the cached connection after a failed startup or before an offline
  * recovery operation. libSQL opens its file lazily, so clearing this reference
@@ -562,6 +571,7 @@ export async function ensureAppDatabaseReady(): Promise<void> {
         ? path.join(process.resourcesPath, "drizzle")
         : path.join(app.getAppPath(), "drizzle");
 
+      await configureDatabaseConnection(dbInstance);
       await runPreMigrationDatabaseBackup(dbInstance);
       await markRoundExcludeFromRandomMigrationIfManuallyApplied(dbInstance, migrationsFolder);
       await migrate(dbInstance, { migrationsFolder });

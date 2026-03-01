@@ -565,4 +565,46 @@ describe("EditorCanvas", () => {
     expect(onDropRoundAtWorld).toHaveBeenCalledWith("round-12", 100, 100);
     expect(onDropHeroAtWorld).toHaveBeenCalledWith("hero-4", 100, 100);
   });
+
+  it("opens node actions only from a right click", () => {
+    const onContextMenu = vi.fn();
+    const { container } = render(
+      <EditorCanvas
+        config={baseConfig}
+        selection={selection}
+        connectFromNodeId={null}
+        tool="select"
+        activePlacementKind={null}
+        viewport={viewport}
+        showGrid={false}
+        spacePanActive={false}
+        onViewportChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        onSetConnectFrom={vi.fn()}
+        onMoveNodes={vi.fn()}
+        onMoveTextAnnotation={vi.fn()}
+        onCreateEdge={vi.fn()}
+        onDeleteEdgeBetween={vi.fn()}
+        onDeleteSelection={vi.fn()}
+        onPlaceNodeAtWorld={vi.fn()}
+        onPlaceHeroChainAtWorld={vi.fn()}
+        isHeroPlacementActive={false}
+        onPlaceTextAtWorld={vi.fn()}
+        onContextMenu={onContextMenu}
+      />
+    );
+
+    const startNode = container.querySelector('[data-node-id="start"]')!;
+    fireEvent.mouseDown(startNode, { button: 0, clientX: 140, clientY: 120 });
+    fireEvent.mouseUp(window, { button: 0, clientX: 140, clientY: 120 });
+    expect(onContextMenu).not.toHaveBeenCalled();
+
+    fireEvent.contextMenu(startNode, { clientX: 140, clientY: 120 });
+    expect(onContextMenu).toHaveBeenCalledWith({
+      kind: "node",
+      nodeId: "start",
+      screenX: 140,
+      screenY: 120,
+    });
+  });
 });

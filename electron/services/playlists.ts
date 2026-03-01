@@ -7,6 +7,11 @@ import {
   type PlaylistConfig,
 } from "../../src/game/playlistSchema";
 import {
+  ZMapEditorDraftSnapshot,
+  type MapEditorDraftRecord,
+  type MapEditorDraftSnapshot,
+} from "../../src/features/map-editor/mapEditorDraft";
+import {
   analyzePlaylistResolution,
   applyPlaylistResolutionMapping,
   resolveRoundPhash,
@@ -15,7 +20,7 @@ import {
 import { approveDialogPath, assertApprovedDialogPath } from "./dialogPathApproval";
 import { getDb } from "./db";
 import { eq, desc, isNotNull, and } from "drizzle-orm";
-import { playlist, playlistTrackPlay, round } from "./db/schema";
+import { mapEditorDraft, playlist, playlistTrackPlay, round } from "./db/schema";
 import { getStore } from "./store";
 import { isPackageRelativeMediaPath, toLocalMediaUri } from "./localMedia";
 
@@ -228,6 +233,38 @@ export async function listPlaylists(): Promise<PlaylistRecord[]> {
 export async function getPlaylistById(playlistId: string): Promise<PlaylistRecord | null> {
   const row = await getDb().query.playlist.findFirst({ where: eq(playlist.id, playlistId) });
   return row ? rowToRecord(row) : null;
+}
+
+export async function getMapEditorDraft(playlistId: string): Promise<MapEditorDraftRecord | null> {
+  const row = await getDb().query.mapEditorDraft.findFirst({
+    where: eq(mapEditorDraft.playlistId, playlistId),
+  });
+  if (!row) return null;
+  return {
+    playlistId: row.playlistId,
+    snapshot: ZMapEditorDraftSnapshot.parse(JSON.parse(row.snapshotJson) as unknown),
+    updatedAt: row.updatedAt,
+  };
+}
+
+export async function saveMapEditorDraft(
+  playlistId: string,
+  snapshot: MapEditorDraftSnapshot
+): Promise<MapEditorDraftRecord> {
+  const normalized = ZMapEditorDraftSnapshot.parse(snapshot);
+  const now = new Date();
+  await getDb()
+    .insert(mapEditorDraft)
+    .values({ playlistId, snapshotJson: JSON.stringify(normalized), updatedAt: now })
+    .onConflictDoUpdate({
+      target: mapEditorDraft.playlistId,
+      set: { snapshotJson: JSON.stringify(normalized), updatedAt: now },
+    });
+  return { playlistId, snapshot: normalized, updatedAt: now };
+}
+
+export async function deleteMapEditorDraft(playlistId: string): Promise<void> {
+  await getDb().delete(mapEditorDraft).where(eq(mapEditorDraft.playlistId, playlistId));
 }
 
 export async function createPlaylist(input: {

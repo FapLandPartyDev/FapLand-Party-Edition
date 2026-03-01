@@ -4,6 +4,7 @@ import { playHoverSound, playSelectSound } from "../../../utils/audio";
 import { GameDropdown } from "../../../components/ui/GameDropdown";
 import type { MapEditorTool, MapRoundBulkAction } from "../EditorState";
 import type { GraphAlignmentStrategy } from "../graphAlignment";
+import type { MapEditorSaveStatus } from "../mapEditorDraft";
 
 const TOOL_ITEMS: ReadonlyArray<{
   id: MapEditorTool;
@@ -28,6 +29,10 @@ interface EditorToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
   canBulkEditRounds: boolean;
+  selectionCount: number;
+  validationErrorCount: number;
+  draftSaveStatus: MapEditorSaveStatus;
+  helpOpen: boolean;
   onSetTool: (tool: MapEditorTool) => void;
   onAlignmentStrategyChange: (strategy: GraphAlignmentStrategy) => void;
   onRealignGraph: () => void;
@@ -42,6 +47,7 @@ interface EditorToolbarProps {
   onConvertToLinear: () => void;
   onSave: () => void;
   onTestMap: () => void;
+  onHelpOpenChange: (open: boolean) => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(
@@ -57,6 +63,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(
     canUndo,
     canRedo,
     canBulkEditRounds,
+    selectionCount,
+    validationErrorCount,
+    draftSaveStatus,
+    helpOpen,
     onSetTool,
     onAlignmentStrategyChange,
     onRealignGraph,
@@ -71,9 +81,24 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(
     onConvertToLinear,
     onSave,
     onTestMap,
+    onHelpOpenChange,
   }) => {
     const { t } = useLingui();
-    const [helpOpen, setHelpOpen] = React.useState(false);
+    const helpRootRef = React.useRef<HTMLDivElement>(null);
+    const helpButtonRef = React.useRef<HTMLButtonElement>(null);
+    const helpWasOpenRef = React.useRef(false);
+    React.useEffect(() => {
+      if (helpWasOpenRef.current && !helpOpen) helpButtonRef.current?.focus();
+      helpWasOpenRef.current = helpOpen;
+    }, [helpOpen]);
+    React.useEffect(() => {
+      if (!helpOpen) return;
+      const onPointerDown = (event: PointerEvent) => {
+        if (!helpRootRef.current?.contains(event.target as Node)) onHelpOpenChange(false);
+      };
+      document.addEventListener("pointerdown", onPointerDown);
+      return () => document.removeEventListener("pointerdown", onPointerDown);
+    }, [helpOpen, onHelpOpenChange]);
     const toolLabels: Record<MapEditorTool, string> = {
       select: t`Select`,
       place: t`Place`,
@@ -137,7 +162,15 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(
 
         {/* ── Edit actions ─────────────────── */}
         <div className="flex items-center gap-1">
-          <ToolbarIconButton label={t`Delete`} shortcut="X" icon="✕" onClick={onDelete} />
+          <ToolbarIconButton
+            label={
+              selectionCount > 1 ? t`Delete ${selectionCount} selected items` : t`Delete selection`
+            }
+            shortcut="Delete / Backspace"
+            icon="✕"
+            onClick={onDelete}
+            disabled={selectionCount === 0}
+          />
           <ToolbarIconButton
             label={t`Undo`}
             shortcut="⌘Z"
@@ -213,32 +246,70 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(
 
         {/* ── Persist actions ─────────────────── */}
         <div className="flex items-center gap-1.5">
+          <span
+            className={`hidden rounded-full border px-2 py-1 text-[10px] font-semibold lg:inline ${validationErrorCount === 0 ? "border-emerald-500/30 text-emerald-300" : "border-amber-500/30 text-amber-300"}`}
+          >
+            {validationErrorCount === 0 ? t`Ready to play` : t`${validationErrorCount} issues`}
+          </span>
           <ToolbarIconButton
             label={t`Convert to Linear`}
             icon="⇄"
             onClick={onConvertToLinear}
             disabled={savePending || testMapPending}
           />
-          <button
-            type="button"
-            aria-label={t`Map editor help`}
-            aria-expanded={helpOpen}
-            className="editor-tool-button rounded-md border border-violet-500/35 bg-violet-500/10 px-2.5 py-1.5 text-xs font-bold text-violet-100 transition-all hover:border-violet-400/60 hover:bg-violet-500/20"
-            onMouseEnter={playHoverSound}
-            onClick={() => {
-              playSelectSound();
-              setHelpOpen((open) => !open);
-            }}
-            data-controller-focus-id="map-editor-toolbar-help"
-          >
-            ?
-          </button>
+          <div ref={helpRootRef} className="relative">
+            <button
+              ref={helpButtonRef}
+              type="button"
+              aria-label={t`Map editor help`}
+              aria-haspopup="dialog"
+              aria-expanded={helpOpen}
+              className="editor-tool-button rounded-md border border-violet-500/35 bg-violet-500/10 px-2.5 py-1.5 text-xs font-bold text-violet-100 transition-all hover:border-violet-400/60 hover:bg-violet-500/20"
+              onMouseEnter={playHoverSound}
+              onClick={() => {
+                playSelectSound();
+                onHelpOpenChange(!helpOpen);
+              }}
+              data-controller-focus-id="map-editor-toolbar-help"
+            >
+              ?
+            </button>
+            {helpOpen && (
+              <div
+                className="absolute bottom-auto right-0 top-10 z-50 max-h-[min(26rem,70vh)] w-80 overflow-y-auto rounded-xl border border-violet-300/25 bg-zinc-950/98 p-4 text-xs text-zinc-300 shadow-2xl backdrop-blur-xl"
+                role="dialog"
+                aria-label={t`Map editor help`}
+              >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="font-bold text-violet-100">{t`Keyboard shortcuts`}</p>
+                  <button
+                    type="button"
+                    className="rounded px-2 py-1 text-zinc-400 hover:bg-white/8 hover:text-white"
+                    onClick={() => onHelpOpenChange(false)}
+                  >{t`Close`}</button>
+                </div>
+                <ul className="space-y-1.5">
+                  <li>{t`Select/move: V, then drag nodes or text.`}</li>
+                  <li>{t`Place: P or a visible tile shortcut, then click the canvas.`}</li>
+                  <li>{t`Connect: C, then choose source and target nodes.`}</li>
+                  <li>{t`Delete: Delete or Backspace removes the selection. X is also supported.`}</li>
+                  <li>{t`Undo/redo: Ctrl/Cmd+Z and Ctrl/Cmd+Y.`}</li>
+                  <li>{t`Save: Ctrl/Cmd+S saves the current draft.`}</li>
+                  <li>{t`Escape closes open tools or clears the selection.`}</li>
+                </ul>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             className="editor-tool-button rounded-md border border-emerald-500/45 bg-emerald-500/12 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition-all hover:border-emerald-400/65 hover:bg-emerald-500/20 disabled:opacity-40"
             onMouseEnter={playHoverSound}
             onClick={onSave}
-            disabled={savePending || testMapPending || !isDirty}
+            disabled={
+              savePending ||
+              testMapPending ||
+              (!isDirty && draftSaveStatus !== "error" && draftSaveStatus !== "dirty")
+            }
             data-controller-focus-id="map-editor-toolbar-save"
           >
             {savePending ? t`Saving...` : t`Save`}
@@ -254,22 +325,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(
             {testMapPending ? t`Starting...` : t`Test Map`}
           </button>
         </div>
-        {helpOpen && (
-          <div
-            className="absolute right-2 top-12 z-20 w-72 rounded-xl border border-violet-300/25 bg-zinc-950/95 p-4 text-xs text-zinc-300 shadow-2xl backdrop-blur-xl"
-            role="status"
-          >
-            <p className="mb-2 font-bold text-violet-100">{t`Map editor help`}</p>
-            <ul className="space-y-1.5">
-              <li>{t`Select/move: V, then drag nodes or text.`}</li>
-              <li>{t`Place: P or a tile shortcut, then click the canvas.`}</li>
-              <li>{t`Connect: C, then choose source and target nodes.`}</li>
-              <li>{t`Delete: X removes the selected node, edge, or text.`}</li>
-              <li>{t`Undo/redo: Ctrl/Cmd+Z and Ctrl/Cmd+Y.`}</li>
-              <li>{t`Save/test: Ctrl/Cmd+S saves, Test Map launches the run.`}</li>
-            </ul>
-          </div>
-        )}
       </div>
     );
   }

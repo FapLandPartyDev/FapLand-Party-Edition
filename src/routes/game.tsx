@@ -8,6 +8,7 @@ import { BlockCommandPalette } from "../contexts/CommandPaletteGuardContext";
 import {
   clearMapEditorTestSession,
   getMapEditorTestPlaylistId,
+  getMapEditorTestOverride,
   setMapEditorTestSession,
 } from "../features/map-editor/testSession";
 import { createInitialGameState, isEndlessMode } from "../game/engine";
@@ -373,7 +374,12 @@ export const Route = createFileRoute("/game")({
       throw new Error("No playlist available.");
     }
 
-    const playedByPool = await playlists.getDistinctPlayedByPool(activePlaylist.id);
+    const mapEditorTestOverride = getMapEditorTestOverride(activePlaylist.id, deps.launchNonce);
+    const effectivePlaylist = mapEditorTestOverride
+      ? { ...activePlaylist, config: mapEditorTestOverride.config }
+      : activePlaylist;
+
+    const playedByPool = await playlists.getDistinctPlayedByPool(effectivePlaylist.id);
     let savedSnapshot: SinglePlayerRunSaveSnapshot | null = null;
     let resumeRedirectNotice: string | null = null;
 
@@ -388,7 +394,7 @@ export const Route = createFileRoute("/game")({
               ? JSON.parse(savedRun.snapshotJson)
               : savedRun.snapshotJson
           );
-          if (parsedSnapshot.playlistId !== activePlaylist.id) {
+          if (parsedSnapshot.playlistId !== effectivePlaylist.id) {
             throw new Error("Saved run playlist mismatch.");
           }
           savedSnapshot = parsedSnapshot;
@@ -417,7 +423,10 @@ export const Route = createFileRoute("/game")({
       cheatModeEnabled,
       initialApplyPerkDirectly,
       moaningAvailable,
-      activePlaylist,
+      activePlaylist: effectivePlaylist,
+      mapEditorTestRepair: mapEditorTestOverride?.repair ?? null,
+      mapEditorTestStartNodeId: mapEditorTestOverride?.startNodeId ?? null,
+      isMapEditorTestRun: getMapEditorTestPlaylistId() === effectivePlaylist.id,
       progressionProfile,
       playedByPool,
       savedSnapshot,
@@ -451,6 +460,9 @@ function GameRoute() {
     savedSnapshot,
     resumeRequested,
     resumeRedirectNotice,
+    mapEditorTestRepair,
+    mapEditorTestStartNodeId,
+    isMapEditorTestRun,
   } = Route.useLoaderData();
   const navigate = useNavigate();
   const search = GameSearchSchema.parse(Route.useSearch());
@@ -462,7 +474,6 @@ function GameRoute() {
   const hasNavigatedToResultRef = useRef(false);
   const [sessionStartedAtMs] = useState(() => resolveSessionStartedAtMs(savedSnapshot));
   const mapEditorTestPlaylistIdRef = useRef<string | null>(getMapEditorTestPlaylistId());
-  const isMapEditorTestRun = mapEditorTestPlaylistIdRef.current !== null;
   const [progressionAwardSourceId] = useState(() => crypto.randomUUID());
   const runProgressionBlockReason =
     savedSnapshot?.progressionBlockReason ??
@@ -516,8 +527,14 @@ function GameRoute() {
 
   const config = useMemo(() => {
     const baseConfig = toGameConfigFromPlaylist(activePlaylist.config, installedRounds);
+    const runtimeGraph =
+      mapEditorTestStartNodeId &&
+      baseConfig.runtimeGraph.nodeIndexById[mapEditorTestStartNodeId] !== undefined
+        ? { ...baseConfig.runtimeGraph, startNodeId: mapEditorTestStartNodeId }
+        : baseConfig.runtimeGraph;
     return {
       ...baseConfig,
+      runtimeGraph,
       economy: {
         ...baseConfig.economy,
         ...economyOverrides,
@@ -544,6 +561,7 @@ function GameRoute() {
     economyOverrides,
     handyConnected,
     installedRounds,
+    mapEditorTestStartNodeId,
     moaningAvailable,
   ]);
 
@@ -991,6 +1009,12 @@ function GameRoute() {
 
   return (
     <BlockCommandPalette>
+      {mapEditorTestRepair && (
+        <div className="pointer-events-none fixed left-1/2 top-3 z-[90] -translate-x-1/2 rounded-full border border-cyan-400/35 bg-zinc-950/90 px-4 py-2 text-xs font-semibold text-cyan-100 shadow-xl backdrop-blur">
+          {t`Test mode`}: {mapEditorTestRepair.omittedNodeCount} {t`unreachable nodes skipped`} ·{" "}
+          {mapEditorTestRepair.temporaryExitCount} {t`temporary exits added`}
+        </div>
+      )}
       <GameScene
         initialState={initialState}
         sessionStartedAtMs={sessionStartedAtMs}

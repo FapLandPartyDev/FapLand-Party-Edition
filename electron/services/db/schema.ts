@@ -105,6 +105,16 @@ export const playlist = sqliteTable("Playlist", {
     .$defaultFn(() => new Date()),
 });
 
+export const mapEditorDraft = sqliteTable("MapEditorDraft", {
+  playlistId: text("playlistId")
+    .primaryKey()
+    .references(() => playlist.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  snapshotJson: text("snapshotJson").notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 export const playlistTrackPlay = sqliteTable(
   "PlaylistTrackPlay",
   {
@@ -389,8 +399,16 @@ export const resourceRelations = relations(resource, ({ one }) => ({
   }),
 }));
 
-export const playlistRelations = relations(playlist, ({ many }) => ({
+export const playlistRelations = relations(playlist, ({ many, one }) => ({
   tracks: many(playlistTrackPlay),
+  editorDraft: one(mapEditorDraft),
+}));
+
+export const mapEditorDraftRelations = relations(mapEditorDraft, ({ one }) => ({
+  playlist: one(playlist, {
+    fields: [mapEditorDraft.playlistId],
+    references: [playlist.id],
+  }),
 }));
 
 export const playlistTrackPlayRelations = relations(playlistTrackPlay, ({ one }) => ({

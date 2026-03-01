@@ -129,6 +129,9 @@ const mocks = vi.hoisted(() => ({
   playlists: {
     list: vi.fn(),
     getById: vi.fn(),
+    getEditorDraft: vi.fn(),
+    saveEditorDraft: vi.fn(),
+    deleteEditorDraft: vi.fn(),
     getActive: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -208,8 +211,7 @@ vi.mock("../features/map-editor/EditorCanvas", () => ({
           type="button"
           onClick={() => {
             const onPlaceNodeAtWorld = props.onPlaceNodeAtWorld as
-              | ((kind: string, x: number, y: number) => void)
-              | undefined;
+              ((kind: string, x: number, y: number) => void) | undefined;
             const activePlacementKind = props.activePlacementKind as string | undefined;
             onPlaceNodeAtWorld?.(activePlacementKind ?? "path", 320, 220);
           }}
@@ -407,6 +409,13 @@ beforeEach(() => {
     if (!playlist) throw new Error("Playlist not found.");
     return playlist;
   });
+  mocks.playlists.getEditorDraft.mockResolvedValue(null);
+  mocks.playlists.saveEditorDraft.mockImplementation(async (playlistId, snapshot) => ({
+    playlistId,
+    snapshot,
+    updatedAt: new Date(),
+  }));
+  mocks.playlists.deleteEditorDraft.mockResolvedValue(undefined);
   mocks.playlists.getActive.mockImplementation(async () => mocks.loaderData.activePlaylist);
   mocks.playlists.analyzeImportFile.mockImplementation(async () => ({
     metadata: {
@@ -734,6 +743,19 @@ describe("MapEditorRoute", () => {
     });
   });
 
+  it("uses Backspace to delete the selection without navigating away", async () => {
+    render(<Component />);
+    await enterEditor();
+    fireEvent.click(screen.getAllByRole("button", { name: /Path/i })[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Place Via Canvas" }));
+    await waitFor(() => expect(screen.getByTestId("node-count").textContent).toBe("5"));
+
+    fireEvent.keyDown(window, { key: "Backspace", code: "Backspace" });
+
+    await waitFor(() => expect(screen.getByTestId("node-count").textContent).toBe("4"));
+    expect(mocks.navigate).not.toHaveBeenCalledWith({ to: "/" });
+  });
+
   it("deletes a selected edge from the edge inspector", async () => {
     render(<Component />);
     await enterEditor();
@@ -937,15 +959,18 @@ describe("MapEditorRoute", () => {
     expect(mocks.playlists.setActive).not.toHaveBeenCalled();
   });
 
-  it("tests the map by saving, activating playlist, and navigating to game", async () => {
+  it("tests the current draft through a transient config without replacing the playlist", async () => {
+    mocks.loaderData = {
+      ...mocks.loaderData,
+      installedRounds: [{ id: "round-1-installed", name: "Round 1", author: null, type: "Normal" }],
+    };
     render(<Component />);
     await enterEditor();
 
     fireEvent.click(screen.getByRole("button", { name: "Test Map" }));
 
     await waitFor(() => {
-      expect(mocks.playlists.update).toHaveBeenCalledTimes(1);
-      expect(mocks.playlists.setActive).toHaveBeenCalledWith("playlist-1");
+      expect(mocks.playlists.saveEditorDraft).toHaveBeenCalled();
       expect(mocks.navigate).toHaveBeenCalledWith({
         to: "/game",
         search: {
@@ -954,6 +979,41 @@ describe("MapEditorRoute", () => {
         },
       });
     });
+    expect(mocks.playlists.update).not.toHaveBeenCalled();
+    expect(mocks.playlists.setActive).not.toHaveBeenCalled();
+  });
+
+  it("starts a map test from the node action menu", async () => {
+    mocks.loaderData = {
+      ...mocks.loaderData,
+      installedRounds: [{ id: "round-1-installed", name: "Round 1", author: null, type: "Normal" }],
+    };
+    render(<Component />);
+    await enterEditor();
+
+    await act(async () => {
+      (
+        mocks.canvasProps as {
+          onContextMenu?: (target: {
+            kind: "node";
+            nodeId: string;
+            screenX: number;
+            screenY: number;
+          }) => void;
+        } | null
+      )?.onContextMenu?.({ kind: "node", nodeId: "path-1", screenX: 250, screenY: 180 });
+    });
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Test map from here" }));
+
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalled());
+    const stored = JSON.parse(
+      window.sessionStorage.getItem("mapEditor.testOverride") ?? "null"
+    ) as {
+      startNodeId?: string;
+    } | null;
+    expect(stored?.startNodeId).toBe("path-1");
+    expect(mocks.playlists.update).not.toHaveBeenCalled();
   });
 
   it("does not show a playlist import button in the graph editor", async () => {

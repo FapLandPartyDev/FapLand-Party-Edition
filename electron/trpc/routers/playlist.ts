@@ -6,8 +6,10 @@ import {
   deletePlaylist,
   duplicatePlaylist,
   ensureEndlessPlaylist,
+  deleteMapEditorDraft,
   exportPlaylistToFile,
   getActivePlaylist,
+  getMapEditorDraft,
   getDistinctPlayedByPool,
   getPlaylistById,
   getPlaylistPlayHistory,
@@ -15,8 +17,10 @@ import {
   listPlaylists,
   recordPlaylistTrackPlay,
   setActivePlaylist,
+  saveMapEditorDraft,
   updatePlaylist,
 } from "../../services/playlists";
+import { ZMapEditorDraftSnapshot } from "../../../src/features/map-editor/mapEditorDraft";
 import { exportPlaylistPackage as exportPlaylistPackageBundle } from "../../services/playlistExportPackage";
 import {
   analyzePlaylistExportPackage,
@@ -24,6 +28,20 @@ import {
   requestPlaylistExportPackageAbort,
 } from "../../services/playlistExportPackage";
 import { publicProcedure, router } from "../trpc";
+
+function getDeepestErrorMessage(error: unknown): string {
+  let current = error;
+  let message = "Unknown database error";
+  const visited = new Set<unknown>();
+
+  while (current instanceof Error && !visited.has(current)) {
+    visited.add(current);
+    if (current.message) message = current.message;
+    current = current.cause;
+  }
+
+  return message;
+}
 
 export const playlistRouter = router({
   list: publicProcedure.query(() => {
@@ -39,6 +57,33 @@ export const playlistRouter = router({
       }
       return playlist;
     }),
+
+  getEditorDraft: publicProcedure
+    .input(z.object({ playlistId: z.string().min(1) }))
+    .query(({ input }) => getMapEditorDraft(input.playlistId)),
+
+  saveEditorDraft: publicProcedure
+    .input(
+      z.object({
+        playlistId: z.string().min(1),
+        snapshot: ZMapEditorDraftSnapshot,
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        return await saveMapEditorDraft(input.playlistId, input.snapshot);
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Failed to save map editor draft: ${getDeepestErrorMessage(error)}`,
+          cause: error,
+        });
+      }
+    }),
+
+  deleteEditorDraft: publicProcedure
+    .input(z.object({ playlistId: z.string().min(1) }))
+    .mutation(({ input }) => deleteMapEditorDraft(input.playlistId)),
 
   create: publicProcedure
     .input(

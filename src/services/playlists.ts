@@ -1,5 +1,6 @@
 import { trpc } from "./trpc";
 import type { PlaylistConfig } from "../game/playlistSchema";
+import type { MapEditorDraftSnapshot } from "../features/map-editor/mapEditorDraft";
 
 export type StoredPlaylist = Awaited<ReturnType<typeof trpc.playlist.list.query>>[number];
 export type PlaylistImportAnalysisResult = Awaited<
@@ -19,6 +20,10 @@ export type PlaylistExportPackageAnalysis = Awaited<
 export const playlists = {
   list: () => trpc.playlist.list.query(),
   getById: (playlistId: string) => trpc.playlist.getById.query({ playlistId }),
+  getEditorDraft: (playlistId: string) => trpc.playlist.getEditorDraft.query({ playlistId }),
+  saveEditorDraft: (playlistId: string, snapshot: MapEditorDraftSnapshot) =>
+    trpc.playlist.saveEditorDraft.mutate({ playlistId, snapshot }),
+  deleteEditorDraft: (playlistId: string) => trpc.playlist.deleteEditorDraft.mutate({ playlistId }),
   getActive: () => trpc.playlist.getActive.query(),
   setActive: (playlistId: string) => trpc.playlist.setActive.mutate({ playlistId }),
   create: (input: { name: string; description?: string | null; config?: PlaylistConfig }) =>
