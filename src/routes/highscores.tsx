@@ -164,10 +164,10 @@ export const Route = createFileRoute("/highscores")({
       initialSyncQueueCount: queued.length,
     };
   },
-  component: HighscoresRoute,
+  component: HighscoresPage,
 });
 
-export function HighscoresRoute() {
+function HighscoresPage() {
   const sfwMode = useSfwMode();
   const navigate = useNavigate();
   const {

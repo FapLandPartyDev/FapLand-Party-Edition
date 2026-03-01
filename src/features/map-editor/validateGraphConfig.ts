@@ -1,5 +1,5 @@
 import { resolvePortableRoundRef } from "../../game/playlistRuntime";
-import type { InstalledRound } from "../../services/db";
+import type { InstalledRound, InstalledRoundCatalogEntry } from "../../services/db";
 import type { EditorGraphConfig, EditorNodeKind } from "./EditorState";
 
 type ValidationSeverity = "error" | "warning";
@@ -30,7 +30,7 @@ const isKnownKind = (kind: EditorNodeKind): boolean => {
 
 export function validateGraphConfig(
   config: EditorGraphConfig,
-  installedRounds: InstalledRound[],
+  installedRounds: Array<InstalledRound | InstalledRoundCatalogEntry>,
   options: {
     allowSelfLoops?: boolean;
   } = {},

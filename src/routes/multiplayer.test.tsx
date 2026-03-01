@@ -50,9 +50,7 @@ const mocks = vi.hoisted(() => ({
         config: createLinearPlaylistConfig(100),
       },
     ],
-    installedRounds: Array.from({ length: 100 }, (_, index) => ({
-      id: `round-${index + 1}`,
-    })),
+    installedRoundCount: 100,
     profiles: [
       {
         id: "default-server",
@@ -107,6 +105,12 @@ const mocks = vi.hoisted(() => ({
   })),
   sfwModeEnabled: false,
   assertMultiplayerAllowed: vi.fn(),
+  countInstalled: vi.fn(async () => 100),
+  findInstalled: vi.fn(async () =>
+    Array.from({ length: 100 }, (_, index) => ({
+      id: `round-${index + 1}`,
+    }))
+  ),
 }));
 
 function createAuthStatus(overrides: Record<string, unknown> = {}) {
@@ -141,7 +145,8 @@ vi.mock("../components/AnimatedBackground", () => ({
 vi.mock("../services/db", () => ({
   db: {
     round: {
-      findInstalled: vi.fn(),
+      countInstalled: mocks.countInstalled,
+      findInstalled: mocks.findInstalled,
     },
   },
 }));
@@ -202,9 +207,13 @@ beforeEach(() => {
       config: createLinearPlaylistConfig(100),
     },
   ];
-  mocks.loaderData.installedRounds = Array.from({ length: 100 }, (_, index) => ({
-    id: `round-${index + 1}`,
-  }));
+  mocks.loaderData.installedRoundCount = 100;
+  mocks.countInstalled.mockResolvedValue(100);
+  mocks.findInstalled.mockResolvedValue(
+    Array.from({ length: 100 }, (_, index) => ({
+      id: `round-${index + 1}`,
+    }))
+  );
   mocks.loaderData.skipRoundsCheck = false;
   mocks.search.inviteCode = "";
   mocks.assertMultiplayerAllowed.mockResolvedValue(undefined);
@@ -249,6 +258,15 @@ afterEach(() => {
 });
 
 describe("MultiplayerRoute", () => {
+  it("loads multiplayer menu data via installed round count only", async () => {
+    const loader = (Route as unknown as { loader: () => Promise<unknown> }).loader;
+
+    await loader();
+
+    expect(mocks.countInstalled).toHaveBeenCalled();
+    expect(mocks.findInstalled).not.toHaveBeenCalled();
+  });
+
   it("shows a go back button in the header and returns to the main menu", () => {
     const Component = (Route as unknown as { component: () => ReactElement }).component;
     render(<Component />);
@@ -301,9 +319,10 @@ describe("MultiplayerRoute", () => {
       );
       expect(mocks.buildMultiplayerPlaylistSnapshot).toHaveBeenCalledWith(
         mocks.loaderData.activePlaylist.config,
-        mocks.loaderData.installedRounds,
+        expect.any(Array),
         { name: "Playlist One" },
       );
+      expect(mocks.findInstalled).toHaveBeenCalled();
     });
   });
 
@@ -314,9 +333,7 @@ describe("MultiplayerRoute", () => {
       config: createLinearPlaylistConfig(140),
     };
     mocks.loaderData.availablePlaylists = [mocks.loaderData.activePlaylist];
-    mocks.loaderData.installedRounds = Array.from({ length: 110 }, (_, index) => ({
-      id: `round-${index + 1}`,
-    }));
+    mocks.loaderData.installedRoundCount = 110;
 
     const Component = (Route as unknown as { component: () => ReactElement }).component;
     render(<Component />);
@@ -332,9 +349,7 @@ describe("MultiplayerRoute", () => {
   });
 
   it("blocks invite-code joins when the preview requires more rounds than installed", async () => {
-    mocks.loaderData.installedRounds = Array.from({ length: 110 }, (_, index) => ({
-      id: `round-${index + 1}`,
-    }));
+    mocks.loaderData.installedRoundCount = 110;
     mocks.getLobbyJoinPreview.mockResolvedValue({
       lobbyId: "lobby-2",
       inviteCode: "ROOM140",

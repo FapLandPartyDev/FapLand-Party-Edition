@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -107,8 +108,6 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
   const userPausedRef = useRef(false);
   const resumeAfterVideoRef = useRef(false);
   const shuffleBagRef = useRef<number[]>([]);
-  const currentIndexRef = useRef(0);
-  const getNextIndexRef = useRef<(fromIndex: number) => number | null>(() => null);
   const activeTrackPathRef = useRef<string | null>(null);
 
   const currentTrack = queue[currentIndex] ?? null;
@@ -175,13 +174,21 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
     [loopMode, queue.length, shuffle]
   );
 
-  useEffect(() => {
-    currentIndexRef.current = currentIndex;
-  }, [currentIndex]);
+  const handleTimeUpdate = useEffectEvent((audio: HTMLAudioElement) => {
+    setCurrentTime((previous) => (previous !== audio.currentTime ? audio.currentTime : previous));
+  });
 
-  useEffect(() => {
-    getNextIndexRef.current = getNextIndex;
-  }, [getNextIndex]);
+  const handleEnded = useEffectEvent(() => {
+    const nextIndex = getNextIndex(currentIndex);
+    if (nextIndex === null) {
+      setIsPlaying(false);
+      userPausedRef.current = true;
+      return;
+    }
+    userPausedRef.current = false;
+    setCurrentIndex(nextIndex);
+    void persist(MUSIC_CURRENT_INDEX_KEY, nextIndex);
+  });
 
   useEffect(() => {
     const audio = new Audio();
@@ -191,31 +198,17 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
 
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
-    const handleTimeUpdate = () => {
-      if (audio.currentTime !== currentTime) {
-        setCurrentTime(audio.currentTime);
-      }
-    };
     const handleLoadedMetadata = () => {
       setDuration(audio.duration || 0);
     };
-    const handleEnded = () => {
-      const nextIndex = getNextIndexRef.current(currentIndexRef.current);
-      if (nextIndex === null) {
-        setIsPlaying(false);
-        userPausedRef.current = true;
-        return;
-      }
-      userPausedRef.current = false;
-      setCurrentIndex(nextIndex);
-      void persist(MUSIC_CURRENT_INDEX_KEY, nextIndex);
-    };
+    const onTimeUpdate = () => handleTimeUpdate(audio);
+    const onEnded = () => handleEnded();
 
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("pause", handlePause);
-    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("ended", onEnded);
 
     return () => {
       audio.pause();
@@ -223,13 +216,12 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
       audio.load();
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("ended", onEnded);
       audioRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- currentTime is intentionally read from closure to avoid recreating audio element on every time update
-  }, [persist]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

@@ -1,7 +1,7 @@
 import React from "react";
 import { playHoverSound } from "../../../utils/audio";
 import { useSfwMode } from "../../../hooks/useSfwMode";
-import type { InstalledRound } from "../../../services/db";
+import type { InstalledRound, InstalledRoundCatalogEntry } from "../../../services/db";
 import { abbreviateNsfwText } from "../../../utils/sfwText";
 import type { EditorGraphConfig } from "../EditorState";
 import { resolvePortableRoundRef } from "../../../game/playlistRuntime";
@@ -17,8 +17,8 @@ interface GraphSettingsPanelProps {
   perkOptions: ReadonlyArray<PerkDefinition>;
   antiPerkOptions: ReadonlyArray<PerkDefinition>;
   cumRoundRefs: EditorGraphConfig["cumRoundRefs"];
-  cumRounds: ReadonlyArray<InstalledRound>;
-  installedRounds: ReadonlyArray<InstalledRound>;
+  cumRounds: ReadonlyArray<InstalledRound | InstalledRoundCatalogEntry>;
+  installedRounds: ReadonlyArray<InstalledRound | InstalledRoundCatalogEntry>;
   selectedCumRoundIdSet: ReadonlySet<string>;
   onSetPerkTriggerChance: (value: number) => void;
   onSetProbabilityScaling: (
@@ -33,7 +33,7 @@ interface GraphSettingsPanelProps {
   onToggleAntiPerk: (perkId: string) => void;
   onSetAllPerksEnabled: (enabled: boolean) => void;
   onSetAllAntiPerksEnabled: (enabled: boolean) => void;
-  onToggleCumRound: (round: InstalledRound) => void;
+  onToggleCumRound: (round: InstalledRound | InstalledRoundCatalogEntry) => void;
   onMoveCumRound: (roundId: string, direction: -1 | 1) => void;
   onRemoveCumRoundByIndex: (index: number) => void;
 }

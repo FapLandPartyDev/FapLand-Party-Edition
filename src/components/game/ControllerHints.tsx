@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useControllerSurface } from "../../controller";
 import type { ControllerAction } from "../../controller/types";
 import { playHoverSound } from "../../utils/audio";
@@ -42,6 +42,14 @@ function ControllerHints({
   enabled = true,
 }: ControllerHintsProps) {
   const [hasController, setHasController] = useState(false);
+  const updateHasController = useEffectEvent(() => {
+    const gamepads = navigator.getGamepads?.();
+    if (!gamepads) {
+      setHasController(false);
+      return;
+    }
+    setHasController(gamepads.some((gp) => gp !== null));
+  });
 
   useEffect(() => {
     if (!enabled) {
@@ -51,15 +59,6 @@ function ControllerHints({
 
   useEffect(() => {
     if (!enabled) return;
-
-    const updateHasController = () => {
-      const gamepads = navigator.getGamepads?.();
-      if (!gamepads) {
-        setHasController(false);
-        return;
-      }
-      setHasController(gamepads.some((gp) => gp !== null));
-    };
 
     updateHasController();
 
@@ -106,4 +105,4 @@ function ControllerHints({
   );
 }
 
-export default memo(ControllerHints);
+export default ControllerHints;

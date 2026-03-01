@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { usePlayableVideoFallback } from "../hooks/usePlayableVideoFallback";
 import { useSfwMode } from "../hooks/useSfwMode";
 import { trpc } from "../services/trpc";
@@ -33,6 +33,10 @@ const PARTICLE_COLORS = [
   "rgba(255,255,255,0.3)",
 ];
 
+const LIGHT_BACKGROUND_VIDEO_LIMIT = 6;
+const LIGHT_PARTICLE_COUNT = 6;
+const FULL_PARTICLE_COUNT = 18;
+
 function generateParticles(count: number): Particle[] {
   return Array.from({ length: count }, (_, i) => ({
     id: i,
@@ -47,6 +51,7 @@ function generateParticles(count: number): Particle[] {
 
 interface AnimatedBackgroundProps {
   videoUris?: string[];
+  quality?: "light" | "full";
 }
 
 function getRandomVideoIndex(videoCount: number): number {
@@ -54,16 +59,36 @@ function getRandomVideoIndex(videoCount: number): number {
   return Math.floor(Math.random() * videoCount);
 }
 
+function toOriginalVideoSrc(uri: string): string {
+  if (
+    uri.startsWith("http://") ||
+    uri.startsWith("https://") ||
+    uri.startsWith("app://") ||
+    uri.startsWith("file://")
+  ) {
+    return uri;
+  }
+  return convertFileSrc(uri);
+}
+
 export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
-  ({ videoUris = [] }) => {
+  ({ videoUris = [], quality = "light" }) => {
+    const effectiveVideoUris = useMemo(
+      () =>
+        quality === "light" ? videoUris.slice(0, LIGHT_BACKGROUND_VIDEO_LIMIT) : videoUris,
+      [quality, videoUris]
+    );
     const [currentVideoIndex, setCurrentVideoIndex] = useState(() =>
-      getRandomVideoIndex(videoUris.length)
+      getRandomVideoIndex(effectiveVideoUris.length)
     );
     const [nextVideoIndex, setNextVideoIndex] = useState<number | null>(null);
     const [backgroundVideoEnabled, setBackgroundVideoEnabled] = useState(
       DEFAULT_BACKGROUND_VIDEO_ENABLED
     );
-    const particles = useMemo(() => generateParticles(18), []);
+    const particles = useMemo(
+      () => generateParticles(quality === "light" ? LIGHT_PARTICLE_COUNT : FULL_PARTICLE_COUNT),
+      [quality]
+    );
     const sfwMode = useSfwMode();
     const { getVideoSrc, ensurePlayableVideo, handleVideoError } = usePlayableVideoFallback();
 
@@ -101,16 +126,22 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
       };
     }, []);
 
-    // Crossfade trigger
     useEffect(() => {
-      if (!backgroundVideoEnabled || videoUris.length <= 1) return;
-      const interval = setInterval(() => {
+      if (!backgroundVideoEnabled || effectiveVideoUris.length <= 1) return;
+
+      const interval = window.setInterval(() => {
+        if (quality === "light") {
+          setCurrentVideoIndex((prev) => (prev + 1) % effectiveVideoUris.length);
+          return;
+        }
+
         setNextVideoIndex((prev) =>
-          prev !== null ? prev : (currentVideoIndex + 1) % videoUris.length
+          prev !== null ? prev : (currentVideoIndex + 1) % effectiveVideoUris.length
         );
       }, 15000);
-      return () => clearInterval(interval);
-    }, [backgroundVideoEnabled, videoUris.length, currentVideoIndex]);
+
+      return () => window.clearInterval(interval);
+    }, [backgroundVideoEnabled, currentVideoIndex, effectiveVideoUris.length, quality]);
 
     useEffect(() => {
       if (backgroundVideoEnabled) return;
@@ -119,39 +150,69 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
     }, [backgroundVideoEnabled]);
 
     useEffect(() => {
-      if (videoUris.length === 0) {
+      if (effectiveVideoUris.length === 0) {
         setCurrentVideoIndex(0);
         setNextVideoIndex(null);
         return;
       }
 
       setCurrentVideoIndex((prev) =>
-        prev < videoUris.length ? prev : getRandomVideoIndex(videoUris.length)
+        prev < effectiveVideoUris.length ? prev : getRandomVideoIndex(effectiveVideoUris.length)
       );
-      setNextVideoIndex((prev) => (prev !== null && prev < videoUris.length ? prev : null));
-    }, [videoUris.length]);
+      setNextVideoIndex((prev) =>
+        quality === "full" && prev !== null && prev < effectiveVideoUris.length ? prev : null
+      );
+    }, [effectiveVideoUris.length, quality]);
 
-    // Finalize crossfade
     useEffect(() => {
-      if (nextVideoIndex === null) return;
-      const timeout = setTimeout(() => {
+      if (quality === "light") {
+        setNextVideoIndex(null);
+      }
+    }, [quality]);
+
+    useEffect(() => {
+      if (quality !== "full" || nextVideoIndex === null) return;
+      const timeout = window.setTimeout(() => {
         setCurrentVideoIndex(nextVideoIndex);
         setNextVideoIndex(null);
       }, 2500);
-      return () => clearTimeout(timeout);
-    }, [nextVideoIndex]);
+      return () => window.clearTimeout(timeout);
+    }, [nextVideoIndex, quality]);
 
-    const renderVideo = (uri: string, isNext: boolean, isCurrent: boolean) => {
-      const originalSrc =
-        uri.startsWith("http://") ||
-        uri.startsWith("https://") ||
-        uri.startsWith("app://") ||
-        uri.startsWith("file://")
-          ? uri
-          : convertFileSrc(uri);
+    const renderVideo = (uri: string, options?: { isNext?: boolean; isCurrent?: boolean }) => {
+      const originalSrc = toOriginalVideoSrc(uri);
       const src = getVideoSrc(originalSrc);
       if (!src) return null;
-      const isVisible = isNext || (isCurrent && nextVideoIndex === null);
+
+      if (quality === "light") {
+        return (
+          <video
+            key={uri}
+            src={src}
+            autoPlay
+            muted
+            loop
+            playsInline
+            onLoadedMetadata={() => {
+              void ensurePlayableVideo(originalSrc);
+            }}
+            onError={() => {
+              void handleVideoError(originalSrc);
+            }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              opacity: 0.18,
+              filter: "saturate(1.25) brightness(0.82)",
+            }}
+          />
+        );
+      }
+
+      const isVisible = options?.isNext || (options?.isCurrent && nextVideoIndex === null);
       return (
         <video
           key={uri}
@@ -173,7 +234,7 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
             height: "100%",
             objectFit: "cover",
             opacity: isVisible ? 0.22 : 0,
-            zIndex: isNext ? 10 : 0,
+            zIndex: options?.isNext ? 10 : 0,
             transition: "opacity 2.5s ease-in-out",
             willChange: "opacity",
             filter: "saturate(1.4) brightness(0.85)",
@@ -182,151 +243,151 @@ export const AnimatedBackground: React.FC<AnimatedBackgroundProps> = React.memo(
       );
     };
 
-    const background = useMemo(
-      () => (
-        <div
-          className="fixed inset-0 overflow-hidden pointer-events-none -z-10 parallax-bg"
-          style={{ background: "#050508" }}
-        >
-          {/* ── Video layer ── */}
-          {backgroundVideoEnabled && !sfwMode && videoUris.length > 0 && (
-            <div className="absolute inset-0">
-              {videoUris.map((uri, idx) => {
-                const isCurrent = idx === currentVideoIndex;
-                const isNext = idx === nextVideoIndex;
-                if (!isCurrent && !isNext) return null;
-                return renderVideo(uri, isNext, isCurrent);
-              })}
-            </div>
-          )}
+    const currentVideoUri = effectiveVideoUris[currentVideoIndex] ?? null;
 
-          {/* ── Animated ambient orbs (always shown) ── */}
-          <div className="absolute inset-0" aria-hidden>
-            {/* Orb 1 — purple, top-left */}
-            <div
-              className="absolute animate-orb-drift animate-pulse-glow"
-              style={{
-                top: "-15%",
-                left: "-10%",
-                width: "65vw",
-                height: "65vw",
-                borderRadius: "50%",
-                background:
-                  "radial-gradient(circle, rgba(139,92,246,0.35) 0%, rgba(139,92,246,0.08) 60%, transparent 80%)",
-                filter: "blur(60px)",
-              }}
-            />
-            {/* Orb 2 — indigo, top-right */}
-            <div
-              className="absolute animate-orb-drift-2 animate-pulse-glow"
-              style={{
-                top: "5%",
-                right: "-15%",
-                width: "55vw",
-                height: "55vw",
-                borderRadius: "50%",
-                background:
-                  "radial-gradient(circle, rgba(99,102,241,0.28) 0%, rgba(99,102,241,0.06) 60%, transparent 80%)",
-                filter: "blur(70px)",
-                animationDelay: "-6s, -3s",
-              }}
-            />
-            {/* Orb 3 — pink, bottom-center */}
-            <div
-              className="absolute animate-orb-drift animate-pulse-glow"
-              style={{
-                bottom: "-25%",
-                left: "20%",
-                width: "70vw",
-                height: "70vw",
-                borderRadius: "50%",
-                background:
-                  "radial-gradient(circle, rgba(236,72,153,0.18) 0%, rgba(236,72,153,0.04) 60%, transparent 80%)",
-                filter: "blur(80px)",
-                animationDelay: "-10s, -5s",
-              }}
-            />
-            {/* Orb 4 — fuchsia accent, mid-right */}
-            <div
-              className="absolute animate-orb-drift-2"
-              style={{
-                top: "40%",
-                right: "5%",
-                width: "35vw",
-                height: "35vw",
-                borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(167,139,250,0.2) 0%, transparent 70%)",
-                filter: "blur(50px)",
-                animationDelay: "-14s",
-              }}
-            />
+    return (
+      <div
+        className={`fixed inset-0 overflow-hidden pointer-events-none -z-10 ${quality === "full" ? "parallax-bg" : ""}`}
+        style={{ background: "#050508" }}
+      >
+        {backgroundVideoEnabled && !sfwMode && effectiveVideoUris.length > 0 && (
+          <div className="absolute inset-0" data-testid="animated-background-video-layer">
+            {quality === "light"
+              ? currentVideoUri
+                ? renderVideo(currentVideoUri)
+                : null
+              : effectiveVideoUris.map((uri, idx) => {
+                  const isCurrent = idx === currentVideoIndex;
+                  const isNext = idx === nextVideoIndex;
+                  if (!isCurrent && !isNext) return null;
+                  return renderVideo(uri, { isCurrent, isNext });
+                })}
           </div>
+        )}
 
-          {/* ── Floating particles ── */}
-          <div className="absolute inset-0 overflow-hidden" aria-hidden>
-            {particles.map((p) => (
+        <div className="absolute inset-0" aria-hidden>
+          <div
+            className="absolute"
+            style={{
+              top: "-15%",
+              left: "-10%",
+              width: "65vw",
+              height: "65vw",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(139,92,246,0.35) 0%, rgba(139,92,246,0.08) 60%, transparent 80%)",
+              filter: "blur(60px)",
+              animation:
+                quality === "light"
+                  ? "orb-drift 20s ease-in-out infinite, orb-fade 6s ease-in-out infinite"
+                  : "orb-drift 20s ease-in-out infinite, pulse-glow 4s ease-in-out infinite",
+            }}
+          />
+          <div
+            className="absolute"
+            style={{
+              top: "5%",
+              right: "-15%",
+              width: "55vw",
+              height: "55vw",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(99,102,241,0.28) 0%, rgba(99,102,241,0.06) 60%, transparent 80%)",
+              filter: "blur(70px)",
+              animation:
+                quality === "light"
+                  ? "orb-drift-2 27s ease-in-out -6s infinite, orb-fade 6s ease-in-out -2s infinite"
+                  : "orb-drift-2 27s ease-in-out -6s infinite, pulse-glow 4s ease-in-out -3s infinite",
+            }}
+          />
+          {quality === "full" && (
+            <>
               <div
-                key={p.id}
-                className="particle"
+                className="absolute"
                 style={{
-                  left: `${p.x}%`,
-                  bottom: "-6px",
-                  width: `${p.size}px`,
-                  height: `${p.size}px`,
-                  background: p.color,
-                  boxShadow: `0 0 ${p.size * 2}px ${p.color}`,
-                  animationDuration: `${p.duration}s`,
-                  animationDelay: `${p.delay}s`,
-                  ["--tx" as string]: `${p.tx}px`,
+                  bottom: "-25%",
+                  left: "20%",
+                  width: "70vw",
+                  height: "70vw",
+                  borderRadius: "50%",
+                  background:
+                    "radial-gradient(circle, rgba(236,72,153,0.18) 0%, rgba(236,72,153,0.04) 60%, transparent 80%)",
+                  filter: "blur(80px)",
+                  animation:
+                    "orb-drift 20s ease-in-out -10s infinite, pulse-glow 4s ease-in-out -5s infinite",
                 }}
               />
-            ))}
-          </div>
+              <div
+                className="absolute animate-orb-drift-2"
+                style={{
+                  top: "40%",
+                  right: "5%",
+                  width: "35vw",
+                  height: "35vw",
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, rgba(167,139,250,0.2) 0%, transparent 70%)",
+                  filter: "blur(50px)",
+                  animationDelay: "-14s",
+                }}
+              />
+            </>
+          )}
+        </div>
 
-          {/* ── Fine grid texture ── */}
-          <div
-            className="absolute inset-0 z-10"
-            style={{
-              backgroundImage: `
+        <div className="absolute inset-0 overflow-hidden" aria-hidden>
+          {particles.map((particle) => (
+            <div
+              key={particle.id}
+              className="particle"
+              style={{
+                left: `${particle.x}%`,
+                bottom: "-6px",
+                width: `${particle.size}px`,
+                height: `${particle.size}px`,
+                background: particle.color,
+                boxShadow: `0 0 ${particle.size * 2}px ${particle.color}`,
+                animationDuration: `${particle.duration}s`,
+                animationDelay: `${particle.delay}s`,
+                ["--tx" as string]: `${particle.tx}px`,
+              }}
+            />
+          ))}
+        </div>
+
+        {quality === "full" && (
+          <>
+            <div
+              className="absolute inset-0 z-10"
+              data-testid="animated-background-grid"
+              style={{
+                backgroundImage: `
                         linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
                         linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)
                     `,
-              backgroundSize: "60px 60px",
-            }}
-            aria-hidden
-          />
+                backgroundSize: "60px 60px",
+              }}
+              aria-hidden
+            />
+            <div
+              className="absolute inset-0 z-10 scanlines opacity-40"
+              data-testid="animated-background-scanlines"
+              aria-hidden
+            />
+          </>
+        )}
 
-          {/* ── Scanlines ── */}
-          <div className="absolute inset-0 z-10 scanlines opacity-40" aria-hidden />
-
-          {/* ── Chromatic vignette ── */}
-          <div
-            className="absolute inset-0 z-20"
-            style={{
-              background: `
+        <div
+          className="absolute inset-0 z-20"
+          style={{
+            background: `
                         radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(5,5,8,0.7) 100%),
                         linear-gradient(to bottom, rgba(5,5,8,0.6) 0%, transparent 20%, transparent 80%, rgba(5,5,8,0.9) 100%)
                     `,
-            }}
-            aria-hidden
-          />
-        </div>
-      ),
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- renderVideo is a pure function of values already in deps
-      [
-        backgroundVideoEnabled,
-        videoUris,
-        currentVideoIndex,
-        nextVideoIndex,
-        particles,
-        getVideoSrc,
-        ensurePlayableVideo,
-        handleVideoError,
-        sfwMode,
-      ]
+          }}
+          aria-hidden
+        />
+      </div>
     );
-
-    return background;
   }
 );
 

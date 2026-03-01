@@ -1,4 +1,5 @@
 import { trpc } from "./trpc";
+import { invalidateInstalledRoundCaches } from "./installedRoundsCache";
 
 /**
  * Re-export Prisma inferred types directly from the tRPC client.
@@ -9,6 +10,13 @@ export type Hero = Awaited<ReturnType<typeof trpc.db.getHeroes.query>>[number];
 export type Round = Awaited<ReturnType<typeof trpc.db.getHeroRounds.query>>[number];
 export type Resource = NonNullable<Awaited<ReturnType<typeof trpc.db.getResource.query>>>;
 export type InstalledRound = Awaited<ReturnType<typeof trpc.db.getInstalledRounds.query>>[number];
+export type InstalledRoundCatalogEntry = Awaited<
+  ReturnType<typeof trpc.db.getInstalledRoundCatalog.query>
+>[number];
+export type InstalledRoundMediaResources = NonNullable<
+  Awaited<ReturnType<typeof trpc.db.getRoundMediaResources.query>>
+>;
+export type BackgroundVideoUri = Awaited<ReturnType<typeof trpc.db.getBackgroundVideoUris.query>>[number];
 export type InstallScanStatus = Awaited<ReturnType<typeof trpc.db.getInstallScanStatus.query>>;
 export type InstallFolderScanResult = Awaited<
   ReturnType<typeof trpc.db.scanInstallFolderOnce.mutate>
@@ -55,9 +63,16 @@ export type VideoDownloadProgress = Awaited<
   ReturnType<typeof trpc.db.getWebsiteVideoDownloadProgresses.query>
 >[number];
 
+async function withInstalledRoundCacheInvalidation<T>(action: () => Promise<T>): Promise<T> {
+  const result = await action();
+  invalidateInstalledRoundCaches();
+  return result;
+}
+
 export const db = {
   resource: {
     findMany: () => trpc.db.getResources.query(),
+    findBackgroundVideos: (limit = 6) => trpc.db.getBackgroundVideoUris.query({ limit }),
     findFirst: (roundId: string) => trpc.db.getResource.query({ roundId }),
   },
   hero: {
@@ -67,13 +82,19 @@ export const db = {
       name: string;
       author?: string | null;
       description?: string | null;
-    }) => trpc.db.updateHero.mutate(input),
-    delete: (id: string) => trpc.db.deleteHero.mutate({ id }),
+    }) => withInstalledRoundCacheInvalidation(() => trpc.db.updateHero.mutate(input)),
+    delete: (id: string) => withInstalledRoundCacheInvalidation(() => trpc.db.deleteHero.mutate({ id })),
   },
   round: {
     findByHero: (heroId: string) => trpc.db.getHeroRounds.query({ heroId }),
     findInstalled: (includeDisabled = false, includeTemplates = false) =>
       trpc.db.getInstalledRounds.query({ includeDisabled, includeTemplates }),
+    findInstalledCatalog: (includeDisabled = false, includeTemplates = false) =>
+      trpc.db.getInstalledRoundCatalog.query({ includeDisabled, includeTemplates }),
+    getMediaResources: (roundId: string, includeDisabled = false) =>
+      trpc.db.getRoundMediaResources.query({ roundId, includeDisabled }),
+    countInstalled: (includeDisabled = false, includeTemplates = false) =>
+      trpc.db.getInstalledRoundCount.query({ includeDisabled, includeTemplates }),
     getDisabledIds: () => trpc.db.getDisabledRoundIds.query(),
     update: (input: {
       id: string;
@@ -86,42 +107,46 @@ export const db = {
       endTime?: number | null;
       funscriptUri?: string | null;
       type: "Normal" | "Interjection" | "Cum";
-    }) => trpc.db.updateRound.mutate(input),
+    }) => withInstalledRoundCacheInvalidation(() => trpc.db.updateRound.mutate(input)),
     createWebsiteRound: (input: { name: string; videoUri: string; funscriptUri?: string | null }) =>
-      trpc.db.createWebsiteRound.mutate(input),
+      withInstalledRoundCacheInvalidation(() => trpc.db.createWebsiteRound.mutate(input)),
     checkWebsiteVideoSupport: (videoUri: string) =>
       trpc.db.checkWebsiteRoundVideoSupport.query({ videoUri }),
-    delete: (id: string) => trpc.db.deleteRound.mutate({ id }),
+    delete: (id: string) => withInstalledRoundCacheInvalidation(() => trpc.db.deleteRound.mutate({ id })),
     repairTemplate: (input: { roundId: string; installedRoundId: string }) =>
-      trpc.db.repairTemplateRound.mutate(input),
+      withInstalledRoundCacheInvalidation(() => trpc.db.repairTemplateRound.mutate(input)),
     retryTemplateLinking: (input?: { roundId?: string; heroId?: string }) =>
-      trpc.db.retryTemplateLinking.mutate(input),
+      withInstalledRoundCacheInvalidation(() => trpc.db.retryTemplateLinking.mutate(input)),
     convertHeroGroupToRound: (input: {
       keepRoundId: string;
       roundIds: string[];
       heroId?: string | null;
       roundName: string;
-    }) => trpc.db.convertHeroGroupToRound.mutate(input),
+    }) => withInstalledRoundCacheInvalidation(() => trpc.db.convertHeroGroupToRound.mutate(input)),
   },
   template: {
     repairHero: (input: {
       heroId: string;
       sourceHeroId: string;
       assignments?: Array<{ roundId: string; installedRoundId: string }>;
-    }) => trpc.db.repairTemplateHero.mutate(input),
+    }) => withInstalledRoundCacheInvalidation(() => trpc.db.repairTemplateHero.mutate(input)),
     retryLinking: (input?: { roundId?: string; heroId?: string }) =>
-      trpc.db.retryTemplateLinking.mutate(input),
+      withInstalledRoundCacheInvalidation(() => trpc.db.retryTemplateLinking.mutate(input)),
   },
   install: {
     getScanStatus: () => trpc.db.getInstallScanStatus.query(),
     abortScan: () => trpc.db.abortInstallScan.mutate(),
-    scanNow: () => trpc.db.scanInstallSources.mutate(),
+    scanNow: () => withInstalledRoundCacheInvalidation(() => trpc.db.scanInstallSources.mutate()),
     inspectFolder: (folderPath: string) => trpc.db.inspectInstallFolder.query({ folderPath }),
     scanFolderOnce: (folderPath: string, omitCheckpointRounds = true) =>
-      trpc.db.scanInstallFolderOnce.mutate({ folderPath, omitCheckpointRounds }),
+      withInstalledRoundCacheInvalidation(() =>
+        trpc.db.scanInstallFolderOnce.mutate({ folderPath, omitCheckpointRounds })
+      ),
     inspectSidecarFile: (filePath: string) => trpc.db.inspectInstallSidecarFile.query({ filePath }),
     importSidecarFile: (filePath: string, allowedBaseDomains?: string[]) =>
-      trpc.db.importInstallSidecarFile.mutate({ filePath, allowedBaseDomains }),
+      withInstalledRoundCacheInvalidation(() =>
+        trpc.db.importInstallSidecarFile.mutate({ filePath, allowedBaseDomains })
+      ),
     importLegacyWithPlan: (
       folderPath: string,
       reviewedSlots: Array<{
@@ -132,11 +157,16 @@ export const db = {
         excludedFromImport: boolean;
       }>,
       deferPhash?: boolean
-    ) => trpc.db.importLegacyFolderWithPlan.mutate({ folderPath, reviewedSlots, deferPhash }),
+    ) =>
+      withInstalledRoundCacheInvalidation(() =>
+        trpc.db.importLegacyFolderWithPlan.mutate({ folderPath, reviewedSlots, deferPhash })
+      ),
     getAutoScanFolders: () => trpc.db.getAutoScanFolders.query(),
     addAutoScanFolder: (folderPath: string) => trpc.db.addAutoScanFolder.mutate({ folderPath }),
     addAutoScanFolderAndScan: (folderPath: string) =>
-      trpc.db.addAutoScanFolderAndScan.mutate({ folderPath }),
+      withInstalledRoundCacheInvalidation(() =>
+        trpc.db.addAutoScanFolderAndScan.mutate({ folderPath })
+      ),
     removeAutoScanFolder: (folderPath: string) =>
       trpc.db.removeAutoScanFolder.mutate({ folderPath }),
     exportDatabase: (includeResourceUris = false) =>
@@ -160,7 +190,7 @@ export const db = {
     getExportPackageStatus: () => trpc.db.getLibraryExportPackageStatus.query(),
     abortExportPackage: () => trpc.db.abortLibraryExportPackage.mutate(),
     openExportFolder: () => trpc.db.openInstallExportFolder.mutate(),
-    clearAllData: () => trpc.db.clearAllData.mutate(),
+    clearAllData: () => withInstalledRoundCacheInvalidation(() => trpc.db.clearAllData.mutate()),
   },
   gameProfile: {
     getLocalHighscore: () => trpc.db.getLocalHighscore.query(),
@@ -202,13 +232,8 @@ export const db = {
     deleteRun: (id: string) => trpc.db.deleteSinglePlayerRun.mutate({ id }),
   },
   singlePlayerSaves: {
-    upsert: (input: {
-      playlistId: string;
-      playlistName: string;
-      playlistFormatVersion?: number | null;
-      saveMode: "checkpoint" | "everywhere";
-      snapshot: unknown;
-    }) => trpc.db.upsertSinglePlayerRunSave.mutate(input),
+    upsert: (input: Parameters<typeof trpc.db.upsertSinglePlayerRunSave.mutate>[0]) =>
+      trpc.db.upsertSinglePlayerRunSave.mutate(input),
     getByPlaylist: (playlistId: string) => trpc.db.getSinglePlayerRunSave.query({ playlistId }),
     list: () => trpc.db.listSinglePlayerRunSaves.query(),
     deleteByPlaylist: (playlistId: string) =>

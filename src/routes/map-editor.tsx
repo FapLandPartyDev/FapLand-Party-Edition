@@ -44,7 +44,8 @@ import {
   setMapEditorTestSession,
 } from "../features/map-editor/testSession";
 import { validateGraphConfig } from "../features/map-editor/validateGraphConfig";
-import { db, type InstalledRound } from "../services/db";
+import { db, type InstalledRound, type InstalledRoundCatalogEntry } from "../services/db";
+import { getInstalledRoundCatalogCached } from "../services/installedRoundsCache";
 import {
   playlists,
   type PlaylistExportPackageStatus,
@@ -80,6 +81,7 @@ const DEFAULT_EDITOR_VIEWPORT: ViewportState = {
   y: 60,
   zoom: 0.9,
 };
+type MapEditorInstalledRound = InstalledRound | InstalledRoundCatalogEntry;
 
 type InspectorTab = "node" | "edge" | "settings" | "validation";
 type ResolutionModalState =
@@ -114,9 +116,9 @@ function toManualMappingRecord(
   ) as Record<string, string | null>;
 }
 
-const getInstalledRounds = async (): Promise<InstalledRound[]> => {
+const getInstalledRounds = async (): Promise<InstalledRoundCatalogEntry[]> => {
   try {
-    return await db.round.findInstalled();
+    return await getInstalledRoundCatalogCached();
   } catch (error) {
     console.error("Failed to fetch installed rounds for map editor", error);
     return [];
@@ -179,7 +181,7 @@ export const Route = createFileRoute("/map-editor")({
       activePlaylist,
     };
   },
-  component: MapEditorRoute,
+  component: MapEditorPage,
 });
 
 const makeStartingConfig = (): EditorGraphConfig => ({
@@ -271,10 +273,10 @@ const selectionsEqual = (left: EditorSelectionState, right: EditorSelectionState
 
 type GraphUpdateFn = (previous: EditorGraphConfig) => EditorGraphConfig;
 
-export function MapEditorRoute() {
+function MapEditorPage() {
   const navigate = useNavigate();
   const { installedRounds, availablePlaylists, activePlaylist } = Route.useLoaderData() as {
-    installedRounds: InstalledRound[];
+    installedRounds: MapEditorInstalledRound[];
     availablePlaylists: StoredPlaylist[];
     activePlaylist: StoredPlaylist | null;
   };
@@ -708,7 +710,7 @@ export function MapEditorRoute() {
   );
 
   const toggleCumRound = useCallback(
-    (round: InstalledRound) => {
+    (round: MapEditorInstalledRound) => {
       updateGraphConfig((previous) => {
         const nextCumRoundRefs = [...previous.cumRoundRefs];
         const existingIndex = nextCumRoundRefs.findIndex(
@@ -1359,63 +1361,6 @@ export function MapEditorRoute() {
     setSaveNotice(null);
     void refreshPlaylistPickerData();
   }, [refreshPlaylistPickerData]);
-
-  const handleImportPlaylist = useCallback(async () => {
-    if (importPending || savePending || testMapPending) return;
-    if (selectedPlaylist && isEditorDirty) {
-      setDiscardImportDialogOpen(true);
-      return;
-    }
-
-    playSelectSound();
-    setImportPending(true);
-    setSaveNotice(null);
-    try {
-      const filePath = await window.electronAPI.dialog.selectPlaylistImportFile();
-      if (!filePath) return;
-      const analysis = await playlists.analyzeImportFile(filePath);
-      if (analysis.resolution.counts.missing > 0) {
-        setResolutionModalState({
-          context: "import",
-          title: `Import ${analysis.metadata.name}`,
-          filePath,
-          analysis: analysis.resolution,
-        });
-        return;
-      }
-      const imported = await playlists.importFromFile({ filePath });
-      updatePlaylistListEntry(imported.playlist);
-      setActivePlaylistId(imported.playlist.id);
-      openPlaylistForEditing(imported.playlist);
-      if (analysis.resolution.issues.length > 0) {
-        setImportedPlaylistReview({
-          playlistId: imported.playlist.id,
-          analysis: analysis.resolution,
-        });
-      } else {
-        setImportedPlaylistReview(null);
-      }
-      setSaveNotice(
-        analysis.resolution.counts.suggested > 0
-          ? `Imported "${imported.playlist.name}" with ${analysis.resolution.counts.suggested} auto-resolved ref(s).`
-          : `Imported "${imported.playlist.name}".`
-      );
-    } catch (error) {
-      console.error("Failed to import playlist from map editor", error);
-      setSaveNotice(error instanceof Error ? error.message : "Failed to import playlist.");
-      playMapInvalidActionSound();
-    } finally {
-      setImportPending(false);
-    }
-  }, [
-    importPending,
-    isEditorDirty,
-    openPlaylistForEditing,
-    savePending,
-    selectedPlaylist,
-    testMapPending,
-    updatePlaylistListEntry,
-  ]);
 
   const doImportPlaylist = useCallback(async () => {
     setDiscardImportDialogOpen(false);

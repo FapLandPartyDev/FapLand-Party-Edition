@@ -61,7 +61,7 @@ vi.mock("../../contexts/HandyContext", () => ({
   useHandy: () => mocks.handy,
 }));
 
-vi.mock("../GlobalHandyOverlay", () => ({
+vi.mock("../globalHandyOverlayControls", () => ({
   openGlobalHandyOverlay: mocks.openGlobalHandyOverlay,
 }));
 

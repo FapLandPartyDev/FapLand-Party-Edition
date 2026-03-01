@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { MenuButton } from "../components/MenuButton";
-import { openGlobalMusicOverlay } from "../components/GlobalMusicOverlay";
-import { openGlobalHandyOverlay } from "../components/GlobalHandyOverlay";
 import { openGlobalCommandPalette } from "../components/CommandPalette";
+import { openGlobalHandyOverlay } from "../components/globalHandyOverlayControls";
+import { openGlobalMusicOverlay } from "../components/globalMusicOverlayControls";
 import { useControllerSurface } from "../controller";
 import {
   MULTIPLAYER_MINIMUM_ROUNDS,
@@ -26,22 +26,46 @@ import "../styles.css";
 
 const FIRST_START_COMPLETED_KEY = "app.firstStart.completed";
 
+type OverallHighscore = {
+  score: number;
+  localCheatMode: boolean;
+  localAssisted: boolean;
+  localAssistedSaveMode: "checkpoint" | "everywhere" | null;
+};
+
+type HomeData = {
+  videos: string[];
+  overallHighscore: OverallHighscore;
+  cumLoadCount: number;
+  installedRoundCount: number;
+  skipRoundsCheck: boolean;
+};
+
+const DEFAULT_HOME_DATA: HomeData = {
+  videos: [],
+  overallHighscore: {
+    score: 0,
+    localCheatMode: false,
+    localAssisted: false,
+    localAssistedSaveMode: null,
+  },
+  cumLoadCount: 0,
+  installedRoundCount: 0,
+  skipRoundsCheck: false,
+};
+
+let pendingHomeDataLoad: Promise<HomeData> | null = null;
+
 const getVideos = async (): Promise<string[]> => {
   try {
-    const resources = await db.resource.findMany();
-    return resources.map((r) => r.videoUri);
+    return await db.resource.findBackgroundVideos(6);
   } catch (error) {
     console.error("Error fetching resources", error);
     return [];
   }
 };
 
-const getOverallHighscore = async (): Promise<{
-  score: number;
-  localCheatMode: boolean;
-  localAssisted: boolean;
-  localAssistedSaveMode: "checkpoint" | "everywhere" | null;
-}> => {
+const getOverallHighscore = async (): Promise<OverallHighscore> => {
   try {
     const [localResult, cachedMatches] = await Promise.all([
       db.gameProfile.getLocalHighscore().catch(() => ({
@@ -84,14 +108,61 @@ const getOverallHighscore = async (): Promise<{
   }
 };
 
-const Home = memo(() => {
-  const { videos, overallHighscore, cumLoadCount, installedRounds, skipRoundsCheck } =
-    Route.useLoaderData();
+const loadHomeData = async (): Promise<HomeData> => {
+  if (!pendingHomeDataLoad) {
+    pendingHomeDataLoad = Promise.all([
+      getVideos(),
+      getOverallHighscore(),
+      db.singlePlayerHistory.getCumLoadCount().catch(() => 0),
+      db.round.countInstalled().catch(() => 0),
+      trpc.store.get.query({ key: MULTIPLAYER_SKIP_ROUNDS_CHECK_KEY }),
+    ])
+      .then(([videos, overallHighscore, cumLoadCount, installedRoundCount, rawSkipRoundsCheck]) => {
+        const skipRoundsCheck =
+          rawSkipRoundsCheck === true || rawSkipRoundsCheck === "true"
+            ? true
+            : rawSkipRoundsCheck === false || rawSkipRoundsCheck === "false"
+              ? false
+              : false;
+
+        return { videos, overallHighscore, cumLoadCount, installedRoundCount, skipRoundsCheck };
+      })
+      .finally(() => {
+        pendingHomeDataLoad = null;
+      });
+  }
+
+  return pendingHomeDataLoad;
+};
+
+const Home = () => {
+  const [homeData, setHomeData] = useState<HomeData>(DEFAULT_HOME_DATA);
   const navigate = useNavigate();
   const { connected, isConnecting, error, connectionKey } = useHandy();
   const appUpdate = useAppUpdate();
   const sfwModeEnabled = useSfwMode();
   const scopeRef = useRef<HTMLDivElement | null>(null);
+  const { videos, overallHighscore, cumLoadCount, installedRoundCount, skipRoundsCheck } = homeData;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadHomeData()
+      .then((data) => {
+        if (cancelled) return;
+
+        startTransition(() => {
+          setHomeData(data);
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load home screen data", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const options: MenuOption[] = useMemo(() => {
     const nextOptions: MenuOption[] = [
@@ -113,12 +184,12 @@ const Home = memo(() => {
             disabled:
               sfwModeEnabled ||
               appUpdate.state.status === "update_available" ||
-              (!skipRoundsCheck && installedRounds.length < MULTIPLAYER_MINIMUM_ROUNDS),
+              (!skipRoundsCheck && installedRoundCount < MULTIPLAYER_MINIMUM_ROUNDS),
             subLabel: sfwModeEnabled
               ? "Blocked By SFW Mode"
               : appUpdate.state.status === "update_available"
                 ? "Update Required"
-                : !skipRoundsCheck && installedRounds.length < MULTIPLAYER_MINIMUM_ROUNDS
+                : !skipRoundsCheck && installedRoundCount < MULTIPLAYER_MINIMUM_ROUNDS
                   ? `${MULTIPLAYER_MINIMUM_ROUNDS} Rounds Required`
                   : undefined,
             action: () => navigate({ to: "/multiplayer" }),
@@ -189,7 +260,7 @@ const Home = memo(() => {
     });
 
     return nextOptions;
-  }, [appUpdate, navigate, installedRounds, sfwModeEnabled, skipRoundsCheck]);
+  }, [appUpdate, navigate, installedRoundCount, sfwModeEnabled, skipRoundsCheck]);
 
   const { selectedIndex, handleMouseEnter, handleClick, currentOptions, depth, goBack } =
     useMenuNavigation(options);
@@ -619,26 +690,9 @@ const Home = memo(() => {
       </div>
     </div>
   );
-});
+};
 
 export const Route = createFileRoute("/")({
-  loader: async () => {
-    const [videos, overallHighscore, cumLoadCount, installedRounds, rawSkipRoundsCheck] =
-      await Promise.all([
-        getVideos(),
-        getOverallHighscore(),
-        db.singlePlayerHistory.getCumLoadCount().catch(() => 0),
-        db.round.findInstalled(),
-        trpc.store.get.query({ key: MULTIPLAYER_SKIP_ROUNDS_CHECK_KEY }),
-      ]);
-    const skipRoundsCheck =
-      rawSkipRoundsCheck === true || rawSkipRoundsCheck === "true"
-        ? true
-        : rawSkipRoundsCheck === false || rawSkipRoundsCheck === "false"
-          ? false
-          : false;
-    return { videos, overallHighscore, cumLoadCount, installedRounds, skipRoundsCheck };
-  },
   component: Home,
 });
 

@@ -8,6 +8,7 @@ import {
   type PortableRoundRef,
 } from "./playlistSchema";
 import {
+  type PlaylistResolutionRoundLike,
   resolvePortableRoundRefExact,
   toPortableRoundRefFromRound,
 } from "./playlistResolution";
@@ -41,14 +42,14 @@ function buildRandomInstalledRoundPool(
   };
 }
 
-export function toPortableRoundRef(round: InstalledRound): PortableRoundRef {
+export function toPortableRoundRef(round: PlaylistResolutionRoundLike): PortableRoundRef {
   return toPortableRoundRefFromRound(round);
 }
 
-export function resolvePortableRoundRef(
+export function resolvePortableRoundRef<T extends PlaylistResolutionRoundLike>(
   ref: PortableRoundRef,
-  installedRounds: ReadonlyArray<InstalledRound>,
-): InstalledRound | null {
+  installedRounds: ReadonlyArray<T>,
+): T | null {
   return resolvePortableRoundRefExact(ref, installedRounds);
 }
 
@@ -368,7 +369,9 @@ export function toGameConfigFromPlaylist(
   };
 }
 
-export function createDefaultPlaylistConfig(installedRounds: ReadonlyArray<InstalledRound>): PlaylistConfig {
+export function createDefaultPlaylistConfig<T extends PlaylistResolutionRoundLike>(
+  installedRounds: ReadonlyArray<T>
+): PlaylistConfig {
   const normalRoundOrder = installedRounds
     .filter((round) => (round.type ?? "Normal") === "Normal")
     .map(toPortableRoundRef);
@@ -418,5 +421,6 @@ export function createDefaultPlaylistConfig(installedRounds: ReadonlyArray<Insta
       min: 1,
       max: 6,
     },
+    saveMode: "checkpoint",
   };
 }

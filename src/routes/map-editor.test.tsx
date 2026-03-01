@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -133,7 +134,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => () => ({
+  createFileRoute: () => (config: Record<string, unknown>) => ({
+    ...config,
     useLoaderData: () => mocks.loaderData,
   }),
   useNavigate: () => mocks.navigate,
@@ -237,7 +239,9 @@ vi.mock("../features/map-editor/tileCatalog", () => ({
 
 vi.mock("../utils/audio", () => mocks.audio);
 
-import { MapEditorRoute } from "./map-editor";
+import { Route } from "./map-editor";
+
+const Component = (Route as unknown as { component: () => ReactElement }).component;
 
 function getCanvasNodePositions() {
   const props = mocks.canvasProps as {
@@ -488,13 +492,13 @@ afterEach(() => {
 
 describe("MapEditorRoute", () => {
   it("requires selecting a playlist before opening the editor", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     expect(screen.getByText("Select Playlist")).toBeDefined();
     expect(screen.queryByTestId("tool-value")).toBeNull();
   });
 
   it("copies an advanced playlist from the picker and opens the duplicate", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
 
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
 
@@ -505,7 +509,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("deletes an advanced playlist from the picker after confirmation", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(screen.getByText("Delete Playlist?")).toBeDefined();
@@ -521,13 +525,13 @@ describe("MapEditorRoute", () => {
 
   it("auto-opens tested playlist when returning from game", async () => {
     window.sessionStorage.setItem("mapEditor.testPlaylistId", "playlist-1");
-    render(<MapEditorRoute />);
+    render(<Component />);
     await screen.findByTestId("tool-value");
     expect(screen.queryByText("Select Playlist")).toBeNull();
   });
 
   it("arms place mode and keeps sticky placement active", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     fireEvent.click(screen.getAllByRole("button", { name: /Path/i })[0]!);
@@ -545,7 +549,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("ignores tool shortcuts while typing in search input", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     const searchInput = await screen.findByPlaceholderText("Search tiles");
@@ -558,7 +562,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("deletes selection and restores with undo shortcut", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     fireEvent.click(screen.getAllByRole("button", { name: /Path/i })[0]!);
@@ -582,7 +586,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("deletes a selected edge from the edge inspector", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     await act(async () => {
@@ -607,7 +611,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("shows layout controls and applies the selected layout strategy", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     const before = getCanvasNodePositions();
@@ -620,7 +624,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("applies layout shortcut when not typing and ignores it while typing", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     const searchInput = screen.getByPlaceholderText("Search tiles");
@@ -637,7 +641,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("undoes and redoes a layout apply as one history step", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     const original = getCanvasNodePositions();
@@ -661,7 +665,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("tests the map by saving, activating playlist, and navigating to game", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     fireEvent.click(screen.getByRole("button", { name: "Test Map" }));
@@ -680,7 +684,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("does not show a playlist import button in the graph editor", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
 
     expect(screen.queryByRole("button", { name: "Import .fplay" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Import" })).toBeNull();
@@ -691,7 +695,7 @@ describe("MapEditorRoute", () => {
       "/tmp/test-playlist.fplay"
     );
 
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     fireEvent.click(screen.getByRole("button", { name: "Apply Layout" }));
@@ -713,7 +717,7 @@ describe("MapEditorRoute", () => {
   it("exports the current graph playlist package after persisting dirty changes", async () => {
     vi.mocked(window.electronAPI.dialog.selectPlaylistExportDirectory).mockResolvedValue("/tmp");
 
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     fireEvent.click(screen.getByRole("button", { name: "Apply Layout" }));
@@ -789,7 +793,7 @@ describe("MapEditorRoute", () => {
       },
     });
 
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     fireEvent.click(screen.getByRole("button", { name: "Export Pack" }));
@@ -818,7 +822,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("persists graph perk settings and enabled perks", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
@@ -861,7 +865,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("persists renamed map names from the advanced editor header", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     fireEvent.change(screen.getByLabelText("Map name"), {
@@ -904,7 +908,7 @@ describe("MapEditorRoute", () => {
       ],
     };
 
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     const canvasProps = mocks.canvasProps as {
@@ -955,7 +959,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("updates and resets node color and size from the inspector", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     await act(async () => {
@@ -1008,7 +1012,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("does not reset the graph when reset confirmation is cancelled", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     fireEvent.click(screen.getAllByRole("button", { name: /Path/i })[0]!);
@@ -1024,7 +1028,7 @@ describe("MapEditorRoute", () => {
   });
 
   it("resets the graph after explicit confirmation", async () => {
-    render(<MapEditorRoute />);
+    render(<Component />);
     await enterEditor();
 
     fireEvent.click(screen.getAllByRole("button", { name: /Path/i })[0]!);

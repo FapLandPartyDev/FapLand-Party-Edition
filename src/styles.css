@@ -67,6 +67,17 @@ body {
   }
 }
 
+@keyframes orb-fade {
+  0%,
+  100% {
+    opacity: 0.42;
+  }
+
+  50% {
+    opacity: 0.68;
+  }
+}
+
 @keyframes orb-drift {
   0% {
     transform: translate(0px, 0px) scale(1);
@@ -412,6 +423,10 @@ body {
 
 .animate-orb-drift-2 {
   animation: orb-drift-2 27s ease-in-out infinite;
+}
+
+.animate-orb-fade {
+  animation: orb-fade 6s ease-in-out infinite;
 }
 
 .animate-entrance {

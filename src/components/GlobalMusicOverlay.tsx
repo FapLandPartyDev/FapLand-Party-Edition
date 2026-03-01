@@ -3,13 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useControllerSubscription, useControllerSurface } from "../controller";
 import type { MusicLoopMode } from "../constants/musicSettings";
 import { useGlobalMusic } from "../hooks/useGlobalMusic";
+import { subscribeToGlobalMusicOverlayOpen } from "./globalMusicOverlayControls";
 import { playHoverSound, playSelectSound } from "../utils/audio";
 
-let _setOpenFromOutside: ((open: boolean) => void) | null = null;
-
-export function openGlobalMusicOverlay() {
-  _setOpenFromOutside?.(true);
-}
+export { openGlobalMusicOverlay } from "./globalMusicOverlayControls";
 
 function isEditableElement(target: Element | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -95,11 +92,11 @@ export function GlobalMusicOverlay() {
   const [open, setOpen] = useState(false);
   const setOpenRef = useRef(setOpen);
   setOpenRef.current = setOpen;
+
   useEffect(() => {
-    _setOpenFromOutside = (value) => setOpenRef.current(value);
-    return () => {
-      _setOpenFromOutside = null;
-    };
+    return subscribeToGlobalMusicOverlayOpen(() => {
+      setOpenRef.current(true);
+    });
   }, []);
   const [isAddingTracks, setIsAddingTracks] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);

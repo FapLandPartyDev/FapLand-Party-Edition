@@ -784,35 +784,49 @@ export function getDisabledRoundIdSet(): Set<string> {
   return new Set(getDisabledRoundIds());
 }
 
+export function createMediaUriResolver(
+  sources: ReadonlyArray<ExternalSource> = listExternalSources().filter((source) => source.enabled)
+): (uri: string, purpose: MediaPurpose) => string {
+  return (uri: string, purpose: MediaPurpose): string => {
+    const normalizedUri = normalizeNullableText(uri);
+    if (!normalizedUri) return uri;
+
+    for (const source of sources) {
+      const provider = getProviderForKind(source);
+      if (!provider.canHandleUri(normalizedUri, source)) continue;
+      return provider.resolvePlayableUri(normalizedUri, source, purpose);
+    }
+
+    if (purpose === "video" && isWebsiteVideoCandidateUri(normalizedUri)) {
+      return buildWebsiteVideoProxyUri(normalizedUri);
+    }
+
+    return normalizedUri;
+  };
+}
+
 export function resolveMediaUri(uri: string, purpose: MediaPurpose): string {
-  const normalizedUri = normalizeNullableText(uri);
-  if (!normalizedUri) return uri;
+  return createMediaUriResolver()(uri, purpose);
+}
 
-  const sources = listExternalSources().filter((source) => source.enabled);
-
-  for (const source of sources) {
-    const provider = getProviderForKind(source);
-    if (!provider.canHandleUri(normalizedUri, source)) continue;
-    return provider.resolvePlayableUri(normalizedUri, source, purpose);
-  }
-
-  if (purpose === "video" && isWebsiteVideoCandidateUri(normalizedUri)) {
-    return buildWebsiteVideoProxyUri(normalizedUri);
-  }
-
-  return normalizedUri;
+export function createResourceUriResolver(
+  sources: ReadonlyArray<ExternalSource> = listExternalSources().filter((source) => source.enabled)
+): (resource: { videoUri: string; funscriptUri: string | null }) => {
+  videoUri: string;
+  funscriptUri: string | null;
+} {
+  const resolveUri = createMediaUriResolver(sources);
+  return (resource: { videoUri: string; funscriptUri: string | null }) => ({
+    videoUri: resolveUri(resource.videoUri, "video"),
+    funscriptUri: resource.funscriptUri ? resolveUri(resource.funscriptUri, "funscript") : null,
+  });
 }
 
 export function resolveResourceUris(resource: { videoUri: string; funscriptUri: string | null }): {
   videoUri: string;
   funscriptUri: string | null;
 } {
-  return {
-    videoUri: resolveMediaUri(resource.videoUri, "video"),
-    funscriptUri: resource.funscriptUri
-      ? resolveMediaUri(resource.funscriptUri, "funscript")
-      : null,
-  };
+  return createResourceUriResolver()(resource);
 }
 
 function toAllowedSourceBaseUrl(source: ExternalSource): string {

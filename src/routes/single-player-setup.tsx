@@ -16,7 +16,8 @@ import type { PlaylistConfig } from "../game/playlistSchema";
 import { getSaveModeEmoji } from "../game/saveMode";
 import { describePlaylistBoard } from "../game/playlistStats";
 import { resolvePortableRoundRef } from "../game/playlistRuntime";
-import { db, type InstalledRound } from "../services/db";
+import { db, type InstalledRoundCatalogEntry } from "../services/db";
+import { getInstalledRoundCatalogCached } from "../services/installedRoundsCache";
 import { playlists, type StoredPlaylist } from "../services/playlists";
 import { trpc } from "../services/trpc";
 import { formatDurationLabel, getRoundDurationSec } from "../utils/duration";
@@ -30,7 +31,10 @@ const withActivePlaylist = (playlistsToShow: StoredPlaylist[], activePlaylist: S
   return [activePlaylist, ...playlistsToShow];
 };
 
-const estimatePlaylistDurationSec = (config: PlaylistConfig, installedRounds: InstalledRound[]): number => {
+const estimatePlaylistDurationSec = (
+  config: PlaylistConfig,
+  installedRounds: InstalledRoundCatalogEntry[]
+): number => {
   if (config.boardConfig.mode === "linear") {
     const safeSet = new Set(config.boardConfig.safePointIndices);
     const explicitRefsByIndex = config.boardConfig.normalRoundRefsByIndex;
@@ -74,7 +78,7 @@ export const Route = createFileRoute("/single-player-setup")({
   loader: async () => {
     const [availablePlaylists, installedRounds, savedRuns] = await Promise.all([
       playlists.list(),
-      db.round.findInstalled(),
+      getInstalledRoundCatalogCached(),
       db.singlePlayerSaves.list(),
     ]);
     const activePlaylist = availablePlaylists.length > 0 ? await playlists.getActive() : null;
@@ -86,16 +90,16 @@ export const Route = createFileRoute("/single-player-setup")({
       savedRuns,
     };
   },
-  component: SinglePlayerSetupRoute,
+  component: SinglePlayerSetupPage,
 });
 
-export function SinglePlayerSetupRoute() {
+function SinglePlayerSetupPage() {
   const navigate = useNavigate();
   const search = SinglePlayerSetupSearchSchema.parse(Route.useSearch());
   const { availablePlaylists, activePlaylist, installedRounds, savedRuns } = Route.useLoaderData() as {
     availablePlaylists: StoredPlaylist[];
     activePlaylist: StoredPlaylist | null;
-    installedRounds: InstalledRound[];
+    installedRounds: InstalledRoundCatalogEntry[];
     savedRuns: Awaited<ReturnType<typeof db.singlePlayerSaves.list>>;
   };
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(activePlaylist?.id ?? availablePlaylists[0]?.id ?? null);

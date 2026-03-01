@@ -19,17 +19,20 @@ const toneStyles: Record<StatPillTone, string> = {
   indigo: "border-indigo-300/30 bg-indigo-500/10 text-indigo-100",
 };
 
-export const StatPill: React.FC<StatPillProps> = React.memo(
-  ({ label, value, tone = "violet", className = "" }) => {
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-150 ${toneStyles[tone]} ${className}`}
-      >
-        <span className="opacity-70">{label}:</span>
-        <span className="font-semibold">{value}</span>
-      </span>
-    );
-  }
-);
+export const StatPill: React.FC<StatPillProps> = ({
+  label,
+  value,
+  tone = "violet",
+  className = "",
+}) => {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-150 ${toneStyles[tone]} ${className}`}
+    >
+      <span className="opacity-70">{label}:</span>
+      <span className="font-semibold">{value}</span>
+    </span>
+  );
+};
 
 StatPill.displayName = "StatPill";

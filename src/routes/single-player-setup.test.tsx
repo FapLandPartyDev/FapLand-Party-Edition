@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { InstalledRound } from "../services/db";
@@ -99,6 +100,15 @@ const mocks = vi.hoisted(() => ({
     savedRuns: [] as unknown[],
   },
   navigate: vi.fn(),
+  db: {
+    round: {
+      findInstalled: vi.fn(async () => []),
+    },
+    singlePlayerSaves: {
+      list: vi.fn(async () => []),
+      deleteByPlaylist: vi.fn(async () => undefined),
+    },
+  },
   playlists: {
     setActive: vi.fn(),
   },
@@ -113,7 +123,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => () => ({
+  createFileRoute: () => (config: Record<string, unknown>) => ({
+    ...config,
     useLoaderData: () => mocks.loaderData,
     useSearch: () => mocks.search,
   }),
@@ -146,6 +157,10 @@ vi.mock("../services/playlists", () => ({
   playlists: mocks.playlists,
 }));
 
+vi.mock("../services/db", () => ({
+  db: mocks.db,
+}));
+
 vi.mock("../services/trpc", () => ({
   trpc: mocks.trpc,
 }));
@@ -156,11 +171,14 @@ vi.mock("../utils/audio", () => ({
   playSelectSound: vi.fn(),
 }));
 
-import { SinglePlayerSetupRoute } from "./single-player-setup";
+import { Route } from "./single-player-setup";
+
+const Component = (Route as unknown as { component: () => ReactElement }).component;
 
 beforeEach(() => {
   mocks.playlists.setActive.mockResolvedValue(undefined);
   mocks.trpc.store.get.query.mockResolvedValue(false);
+  mocks.db.singlePlayerSaves.deleteByPlaylist.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -178,7 +196,7 @@ describe("SinglePlayerSetupRoute", () => {
       savedRuns: [],
     };
 
-    render(<SinglePlayerSetupRoute />);
+    render(<Component />);
     fireEvent.click(screen.getByRole("button", { name: "Go Back" }));
 
     expect(mocks.navigate).toHaveBeenCalledWith({ to: "/" });
@@ -195,7 +213,7 @@ describe("SinglePlayerSetupRoute", () => {
       savedRuns: [],
     };
 
-    render(<SinglePlayerSetupRoute />);
+    render(<Component />);
     fireEvent.click(screen.getByRole("button", { name: "Start Selected Playlist" }));
     await vi.advanceTimersByTimeAsync(PLAYLIST_LAUNCH_DURATION_MS);
     await Promise.resolve();
@@ -219,7 +237,7 @@ describe("SinglePlayerSetupRoute", () => {
       savedRuns: [],
     };
 
-    render(<SinglePlayerSetupRoute />);
+    render(<Component />);
     fireEvent.click(screen.getByRole("button", { name: /Second Playlist/i }));
     fireEvent.click(screen.getByRole("button", { name: "Open Playlist Workshop" }));
 
@@ -243,7 +261,7 @@ describe("SinglePlayerSetupRoute", () => {
       savedRuns: [],
     };
 
-    render(<SinglePlayerSetupRoute />);
+    render(<Component />);
     expect(screen.getByTestId("playlist-preview")).toBeDefined();
 
     fireEvent.click(screen.getByRole("button", { name: "Start Selected Playlist" }));
@@ -264,7 +282,7 @@ describe("SinglePlayerSetupRoute", () => {
       savedRuns: [],
     };
 
-    render(<SinglePlayerSetupRoute />);
+    render(<Component />);
     const startButton = screen.getByRole("button", { name: "Start Selected Playlist" });
 
     fireEvent.click(startButton);
@@ -284,9 +302,10 @@ describe("SinglePlayerSetupRoute", () => {
       availablePlaylists: [playlist],
       activePlaylist: playlist,
       installedRounds: [],
+      savedRuns: [],
     };
 
-    render(<SinglePlayerSetupRoute />);
+    render(<Component />);
     fireEvent.click(screen.getByRole("button", { name: "Start Selected Playlist" }));
 
     await waitFor(() => {
@@ -301,9 +320,10 @@ describe("SinglePlayerSetupRoute", () => {
       availablePlaylists: [],
       activePlaylist: null,
       installedRounds: [],
+      savedRuns: [],
     };
 
-    render(<SinglePlayerSetupRoute />);
+    render(<Component />);
 
     expect(screen.getByText("No Playlist Yet")).toBeDefined();
     expect(screen.getByRole("button", { name: "Open Playlist Workshop" })).toBeDefined();
@@ -327,9 +347,10 @@ describe("SinglePlayerSetupRoute", () => {
       availablePlaylists: [playlist],
       activePlaylist: playlist,
       installedRounds: [makeRound("web-round", "Web Round", "pending")],
+      savedRuns: [],
     };
 
-    render(<SinglePlayerSetupRoute />);
+    render(<Component />);
 
     expect(screen.getAllByText("Caching ongoing").length).toBeGreaterThan(0);
     const startButton = screen.getByRole("button", { name: "Caching Ongoing" });
@@ -343,7 +364,6 @@ describe("SinglePlayerSetupRoute", () => {
   });
 
   it("allows starting during caching when the experimental override is enabled", async () => {
-    vi.useFakeTimers();
     mocks.trpc.store.get.query.mockResolvedValue(true);
 
     const basePlaylist = makePlaylist("playlist-1", "Web Playlist");
@@ -366,7 +386,7 @@ describe("SinglePlayerSetupRoute", () => {
       savedRuns: [],
     };
 
-    render(<SinglePlayerSetupRoute />);
+    render(<Component />);
 
     await waitFor(() => {
       expect(
@@ -377,6 +397,7 @@ describe("SinglePlayerSetupRoute", () => {
     const startButton = screen.getByRole("button", { name: "Start With Web Fallback" });
     expect(startButton.getAttribute("disabled")).toBeNull();
 
+    vi.useFakeTimers();
     fireEvent.click(startButton);
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(PLAYLIST_LAUNCH_DURATION_MS);

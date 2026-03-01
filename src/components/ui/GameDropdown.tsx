@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 export type GameOption<T extends string> = {
   value: T;
@@ -36,23 +36,14 @@ export function GameDropdown<T extends string>({
 
   const selectedIndex = options.findIndex((opt) => opt.value === value);
 
-  const enabledIndices = useMemo(
-    () =>
-      options.reduce<number[]>((indices, option, index) => {
-        if (!option.disabled) {
-          indices.push(index);
-        }
-        return indices;
-      }, []),
-    [options]
-  );
-
-  const getDefaultHighlightedIndex = () => {
-    if (selectedIndex >= 0 && !options[selectedIndex]?.disabled) {
-      return selectedIndex;
+  const enabledIndices = options.reduce<number[]>((indices, option, index) => {
+    if (!option.disabled) {
+      indices.push(index);
     }
-    return enabledIndices[0] ?? -1;
-  };
+    return indices;
+  }, []);
+  const defaultHighlightedIndex =
+    selectedIndex >= 0 && !options[selectedIndex]?.disabled ? selectedIndex : (enabledIndices[0] ?? -1);
 
   const focusOption = (index: number) => {
     if (index < 0) return;
@@ -61,7 +52,7 @@ export function GameDropdown<T extends string>({
     });
   };
 
-  const openMenu = (preferredIndex = getDefaultHighlightedIndex()) => {
+  const openMenu = (preferredIndex = defaultHighlightedIndex) => {
     setHighlightedIndex(preferredIndex);
     setOpen(true);
     focusOption(preferredIndex);
@@ -118,11 +109,11 @@ export function GameDropdown<T extends string>({
 
   useEffect(() => {
     if (!open) return;
-    const nextIndex = getDefaultHighlightedIndex();
+    const nextIndex = defaultHighlightedIndex;
     if (nextIndex !== highlightedIndex) {
       setHighlightedIndex(nextIndex);
     }
-  }, [getDefaultHighlightedIndex, highlightedIndex, open]);
+  }, [defaultHighlightedIndex, highlightedIndex, open]);
 
   const selected = options.find((opt) => opt.value === value) ?? options[0];
 
@@ -159,7 +150,7 @@ export function GameDropdown<T extends string>({
           setOpen((prev) => {
             const nextOpen = !prev;
             if (nextOpen) {
-              const nextIndex = getDefaultHighlightedIndex();
+              const nextIndex = defaultHighlightedIndex;
               setHighlightedIndex(nextIndex);
               focusOption(nextIndex);
             }

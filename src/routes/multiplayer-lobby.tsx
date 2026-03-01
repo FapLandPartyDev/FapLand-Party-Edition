@@ -8,7 +8,7 @@ import {
   assertMultiplayerAllowed,
   useMultiplayerSfwRedirect,
 } from "../hooks/useMultiplayerSfwGuard";
-import { db } from "../services/db";
+import { getInstalledRoundCatalogCached } from "../services/installedRoundsCache";
 import {
   banLobbyPlayer,
   getLobbySnapshot,
@@ -44,7 +44,7 @@ export const Route = createFileRoute("/multiplayer-lobby")({
     const [snapshot, ownPlayer, installedRounds] = await Promise.all([
       getLobbySnapshot(search.lobbyId),
       getOwnLobbyPlayer(search.lobbyId),
-      db.round.findInstalled(),
+      getInstalledRoundCatalogCached(),
     ]);
 
     return {
@@ -106,7 +106,7 @@ function MultiplayerLobbyRoute() {
 
   const [snapshot, setSnapshot] = useState<MultiplayerLobbySnapshot | null>(initialSnapshot);
   const [ownPlayer, setOwnPlayer] = useState<MultiplayerLobbyPlayer | null>(initialOwnPlayer);
-  const [installedRounds, setInstalledRounds] = useState(initialInstalledRounds);
+  const installedRounds = initialInstalledRounds;
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedTarget, setCopiedTarget] = useState<"code" | "link" | null>(null);
@@ -131,15 +131,13 @@ function MultiplayerLobbyRoute() {
   );
 
   const refreshLobby = useCallback(async () => {
-    const [nextSnapshot, nextOwnPlayer, nextInstalledRounds] = await Promise.all([
+    const [nextSnapshot, nextOwnPlayer] = await Promise.all([
       getLobbySnapshot(search.lobbyId),
       getOwnLobbyPlayer(search.lobbyId),
-      db.round.findInstalled(),
     ]);
 
     setSnapshot(nextSnapshot);
     setOwnPlayer(nextOwnPlayer);
-    setInstalledRounds(nextInstalledRounds);
   }, [search.lobbyId]);
 
   useEffect(() => {

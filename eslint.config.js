@@ -44,7 +44,7 @@ export default tseslint.config(
     rules: {
       ...react.configs.recommended.rules,
       ...react.configs["jsx-runtime"].rules,
-      ...reactHooks.configs.recommended.rules,
+      ...reactHooks.configs.flat.recommended.rules,
       ...jsxA11y.flatConfigs.recommended.rules,
       "react/prop-types": "off",
       "react-refresh/only-export-components": ["warn", { allowExportNames: ["Route"] }],

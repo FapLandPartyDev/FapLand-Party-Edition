@@ -29,6 +29,13 @@
       "when": 1775001600000,
       "tag": "0003_single_player_saves_and_assisted_scores",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775692800000,
+      "tag": "0004_round_query_indexes",
+      "breakpoints": true
     }
   ]
 }

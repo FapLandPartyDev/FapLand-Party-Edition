@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -86,7 +87,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => () => ({
+  createFileRoute: () => (config: Record<string, unknown>) => ({
+    ...config,
     useLoaderData: () => mocks.loaderData,
   }),
   useNavigate: () => mocks.navigate,
@@ -108,6 +110,10 @@ vi.mock("../components/MenuButton", () => ({
   ),
 }));
 
+vi.mock("../hooks/useSfwMode", () => ({
+  useSfwMode: () => false,
+}));
+
 vi.mock("../utils/audio", () => ({
   resolveAssetUrl: (path: string) => path,
   playHoverSound: vi.fn(),
@@ -123,7 +129,9 @@ class AudioMock {
   pause() {}
 }
 
-import { HighscoresRoute } from "./highscores";
+import { Route } from "./highscores";
+
+const Component = (Route as unknown as { component: () => ReactElement }).component;
 
 describe("HighscoresRoute", () => {
   afterEach(() => {
@@ -200,7 +208,7 @@ describe("HighscoresRoute", () => {
   });
 
   it("renders survived duration for new rows and fallback for legacy rows", () => {
-    render(<HighscoresRoute />);
+    render(<Component />);
     fireEvent.click(screen.getByRole("button", { name: "Single-Player" }));
 
     expect(screen.getAllByText(/Survived:/)).toHaveLength(2);
@@ -212,7 +220,7 @@ describe("HighscoresRoute", () => {
   });
 
   it("deletes a run from the single-player history view", async () => {
-    render(<HighscoresRoute />);
+    render(<Component />);
     fireEvent.click(screen.getAllByRole("button", { name: "Single-Player" })[0]!);
     fireEvent.click(screen.getByRole("button", { name: "Delete run 540" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm Deletion" }));
@@ -224,7 +232,7 @@ describe("HighscoresRoute", () => {
   });
 
   it("does not delete a run when confirmation is cancelled", async () => {
-    render(<HighscoresRoute />);
+    render(<Component />);
     fireEvent.click(screen.getAllByRole("button", { name: "Single-Player" })[0]!);
     fireEvent.click(screen.getByRole("button", { name: "Delete run 540" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));

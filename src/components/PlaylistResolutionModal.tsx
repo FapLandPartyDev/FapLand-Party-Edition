@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useControllerSurface } from "../controller";
-import type { InstalledRound } from "../services/db";
+import type { InstalledRound, InstalledRoundCatalogEntry } from "../services/db";
 import type {
   PlaylistResolutionAnalysis,
   PlaylistResolutionIssue,
@@ -9,7 +9,7 @@ import type {
 type PlaylistResolutionModalProps = {
   open: boolean;
   title: string;
-  installedRounds: InstalledRound[];
+  installedRounds: Array<InstalledRound | InstalledRoundCatalogEntry>;
   analysis: PlaylistResolutionAnalysis;
   initialOverrides?: Record<string, string | null | undefined>;
   primaryActionLabel: string;
@@ -19,7 +19,9 @@ type PlaylistResolutionModalProps = {
   onSecondaryAction?: (manualMappingByRefKey: Record<string, string | null | undefined>) => void;
 };
 
-function formatRoundMeta(round: Pick<InstalledRound, "author" | "difficulty" | "type">): string {
+function formatRoundMeta(
+  round: Pick<InstalledRound | InstalledRoundCatalogEntry, "author" | "difficulty" | "type">
+): string {
   const parts = [round.author ?? "Unknown Author", round.type ?? "Normal"];
   if (typeof round.difficulty === "number") {
     parts.push(`Difficulty ${round.difficulty}`);
@@ -84,7 +86,8 @@ export function PlaylistResolutionModal({
   );
 
   const issueCandidatesByKey = useMemo(() => {
-    return analysis.issues.reduce<Record<string, InstalledRound[]>>((acc, issue) => {
+    return analysis.issues.reduce<Record<string, Array<InstalledRound | InstalledRoundCatalogEntry>>>(
+      (acc, issue) => {
       const query = (searchByKey[issue.key] ?? "").trim().toLowerCase();
       const sameTypeOnly = sameTypeOnlyByKey[issue.key] ?? true;
       const suggestionIds = new Set(issue.suggestions.map((entry) => entry.roundId));
@@ -93,7 +96,11 @@ export function PlaylistResolutionModal({
       );
       const suggestions = issue.suggestions
         .map((entry) => roundById.get(entry.roundId))
-        .filter((round): round is InstalledRound => Boolean(round));
+        .filter(
+          (
+            round
+          ): round is InstalledRound | InstalledRoundCatalogEntry => Boolean(round)
+        );
       const filteredInstalled = installedRounds.filter((round) => {
         if (sameTypeOnly && issue.ref.type && (round.type ?? "Normal") !== issue.ref.type)
           return false;
@@ -121,7 +128,9 @@ export function PlaylistResolutionModal({
       });
       acc[issue.key] = combined.slice(0, 16);
       return acc;
-    }, {});
+    },
+    {}
+    );
   }, [analysis.issues, installedRounds, roundById, sameTypeOnlyByKey, searchByKey]);
 
   useControllerSurface({

@@ -31,9 +31,29 @@ const { clearWebsiteVideoCacheMock, clearPlayableVideoCacheMock } = vi.hoisted((
   clearPlayableVideoCacheMock: vi.fn(),
 }));
 
+const { getWebsiteVideoCacheStateMock } = vi.hoisted(() => ({
+  getWebsiteVideoCacheStateMock: vi.fn(async () => "not_applicable"),
+}));
+
 const { calculateFunscriptDifficultyFromUriMock } = vi.hoisted(() => ({
   calculateFunscriptDifficultyFromUriMock: vi.fn(async () => null),
 }));
+
+const {
+  createResourceUriResolverMock,
+  getDisabledRoundIdSetMock,
+  resolveResourceUrisMock,
+} = vi.hoisted(() => {
+  const resolveResourceUrisMock = vi.fn(
+    (input: { videoUri: string; funscriptUri: string | null }) => input
+  );
+
+  return {
+    createResourceUriResolverMock: vi.fn(() => resolveResourceUrisMock),
+    getDisabledRoundIdSetMock: vi.fn(() => new Set<string>()),
+    resolveResourceUrisMock,
+  };
+});
 
 vi.mock("../../services/db", () => ({
   getDb: getDbMock,
@@ -56,7 +76,7 @@ vi.mock("../../services/store", () => ({
 
 vi.mock("../../services/webVideo", () => ({
   clearWebsiteVideoCache: clearWebsiteVideoCacheMock,
-  getWebsiteVideoCacheState: vi.fn(),
+  getWebsiteVideoCacheState: getWebsiteVideoCacheStateMock,
   getWebsiteVideoTargetUrl: vi.fn((uri: string) => {
     const trimmed = uri.trim();
     if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
@@ -74,6 +94,12 @@ vi.mock("../../services/playableVideo", () => ({
 
 vi.mock("../../services/funscript", () => ({
   calculateFunscriptDifficultyFromUri: calculateFunscriptDifficultyFromUriMock,
+}));
+
+vi.mock("../../services/integrations", () => ({
+  createResourceUriResolver: createResourceUriResolverMock,
+  getDisabledRoundIdSet: getDisabledRoundIdSetMock,
+  resolveResourceUris: resolveResourceUrisMock,
 }));
 
 import { dbRouter } from "./db";
@@ -171,6 +197,7 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     vi.clearAllMocks();
     clearWebsiteVideoCacheMock.mockResolvedValue(undefined);
     clearPlayableVideoCacheMock.mockResolvedValue(undefined);
+    getWebsiteVideoCacheStateMock.mockResolvedValue("not_applicable");
     calculateFunscriptDifficultyFromUriMock.mockResolvedValue(null);
     exportInstalledDatabaseMock.mockResolvedValue({
       exportDir: "/tmp/f-land/export/2026-03-05T20-00-00.000Z",
@@ -382,7 +409,7 @@ describe("dbRouter local highscore and multiplayer cache", () => {
                   ...existing,
                   resources: [...resourcesByIdRef.values()]
                     .filter((entry) => entry.roundId === value)
-                    .map((entry) => ({ id: entry.id, videoUri: entry.videoUri })),
+                    .map((entry) => ({ ...entry })),
                 };
               }
               return existing;
@@ -394,19 +421,34 @@ describe("dbRouter local highscore and multiplayer cache", () => {
                 ...fallback,
                 resources: [...resourcesByIdRef.values()]
                   .filter((entry) => entry.roundId === fallback.id)
-                  .map((entry) => ({ id: entry.id, videoUri: entry.videoUri })),
+                  .map((entry) => ({ ...entry })),
               };
             }
             return fallback;
           }),
-          findMany: vi.fn(async (input: { where: unknown }) => {
+          findMany: vi.fn(async (input: {
+            where?: unknown;
+            with?: { resources?: unknown; hero?: unknown };
+            columns?: Record<string, boolean>;
+          }) => {
             const ids = extractSqlParams(input.where).filter((value): value is string => typeof value === "string");
-            if (ids.length === 0) {
-              return [...roundsByIdRef.values()];
-            }
-            return ids
+            const baseRows =
+              ids.length === 0
+                ? [...roundsByIdRef.values()]
+                : ids
               .map((id) => roundsByIdRef.get(id))
               .filter((entry): entry is RoundRow => entry !== undefined);
+
+            if (!input.with?.resources) {
+              return baseRows;
+            }
+
+            return baseRows.map((entry) => ({
+              ...entry,
+              resources: [...resourcesByIdRef.values()]
+                .filter((resourceEntry) => resourceEntry.roundId === entry.id)
+                .map((resourceEntry) => ({ ...resourceEntry })),
+            }));
           }),
         },
         resource: {
@@ -415,7 +457,13 @@ describe("dbRouter local highscore and multiplayer cache", () => {
             const [roundId] = values;
             return [...resourcesByIdRef.values()].find((entry) => entry.roundId === roundId && !entry.disabled) ?? null;
           }),
-          findMany: vi.fn(async () => [...resourcesByIdRef.values()]),
+          findMany: vi.fn(async () =>
+            [...resourcesByIdRef.values()].sort((a, b) => {
+              const createdDelta = b.createdAt.getTime() - a.createdAt.getTime();
+              if (createdDelta !== 0) return createdDelta;
+              return a.id.localeCompare(b.id);
+            })
+          ),
         },
       },
       select: vi.fn(() => ({
@@ -1240,5 +1288,154 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     expect(storeMockRef.clear).not.toHaveBeenCalled();
     expect(clearWebsiteVideoCacheMock).toHaveBeenCalledTimes(1);
     expect(clearPlayableVideoCacheMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts installed rounds using the same filtering semantics as getInstalledRounds", async () => {
+    const caller = createRendererCaller();
+
+    roundsByIdRef.set("round-2", {
+      id: "round-2",
+      name: "Disabled Resource Round",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: null,
+      endTime: null,
+      type: "Normal",
+      installSourceKey: null,
+      previewImage: null,
+      phash: null,
+      createdAt: new Date("2026-03-06T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:00.000Z"),
+    });
+    resourcesByIdRef.set("resource-2", {
+      id: "resource-2",
+      roundId: "round-2",
+      videoUri: "file:///tmp/round-2.mp4",
+      funscriptUri: null,
+      phash: null,
+      durationMs: null,
+      disabled: true,
+      createdAt: new Date("2026-03-06T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:00.000Z"),
+    });
+    roundsByIdRef.set("round-3", {
+      id: "round-3",
+      name: "Template Round",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: null,
+      endTime: null,
+      type: "Normal",
+      installSourceKey: null,
+      previewImage: null,
+      phash: null,
+      createdAt: new Date("2026-03-07T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-07T00:00:00.000Z"),
+    });
+
+    await expect(caller.getInstalledRoundCount()).resolves.toBe(1);
+    await expect(caller.getInstalledRoundCount({ includeTemplates: true })).resolves.toBe(3);
+    await expect(caller.getInstalledRoundCount({ includeDisabled: true })).resolves.toBe(2);
+  });
+
+  it("returns installed round catalog entries without resolved media uris", async () => {
+    const caller = createRendererCaller();
+
+    getWebsiteVideoCacheStateMock.mockResolvedValueOnce("cached");
+
+    const result = await caller.getInstalledRoundCatalog();
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      id: "round-1",
+      name: "Round One",
+      resources: [
+        {
+          id: "resource-1",
+          disabled: false,
+          websiteVideoCacheStatus: "cached",
+        },
+      ],
+    });
+    expect(result[0]?.resources[0]).not.toHaveProperty("videoUri");
+    expect(result[0]?.resources[0]).not.toHaveProperty("funscriptUri");
+  });
+
+  it("returns round media resources with request-scoped uri resolution", async () => {
+    const caller = createRendererCaller();
+    const existingResource = resourcesByIdRef.get("resource-1");
+    if (existingResource) {
+      existingResource.durationMs = 5000;
+    }
+    createResourceUriResolverMock.mockReturnValueOnce(
+      (resource: { videoUri: string; funscriptUri: string | null }) => ({
+        videoUri: `app://external/stash?target=${encodeURIComponent(resource.videoUri)}`,
+        funscriptUri: resource.funscriptUri,
+      })
+    );
+
+    await expect(caller.getRoundMediaResources({ roundId: "round-1" })).resolves.toMatchObject({
+      roundId: "round-1",
+      resources: [
+        {
+          id: "resource-1",
+          videoUri: "app://external/stash?target=file%3A%2F%2F%2Ftmp%2Fround-1.mp4",
+          funscriptUri: null,
+        },
+      ],
+    });
+  });
+
+  it("returns sampled background video uris without pending website videos and respects the limit", async () => {
+    const caller = createRendererCaller();
+
+    resourcesByIdRef.set("resource-2", {
+      id: "resource-2",
+      roundId: "round-1",
+      videoUri: "https://example.com/pending",
+      funscriptUri: null,
+      phash: null,
+      durationMs: null,
+      disabled: false,
+      createdAt: new Date("2026-03-08T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-08T00:00:00.000Z"),
+    });
+    resourcesByIdRef.set("resource-3", {
+      id: "resource-3",
+      roundId: "round-1",
+      videoUri: "file:///tmp/round-3.mp4",
+      funscriptUri: null,
+      phash: null,
+      durationMs: null,
+      disabled: false,
+      createdAt: new Date("2026-03-07T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-07T00:00:00.000Z"),
+    });
+    resourcesByIdRef.set("resource-4", {
+      id: "resource-4",
+      roundId: "round-1",
+      videoUri: "https://example.com/cached",
+      funscriptUri: null,
+      phash: null,
+      durationMs: null,
+      disabled: false,
+      createdAt: new Date("2026-03-09T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-09T00:00:00.000Z"),
+    });
+    getWebsiteVideoCacheStateMock.mockImplementation(async (uri: string) => {
+      if (uri.includes("pending")) return "pending";
+      if (uri.includes("cached")) return "cached";
+      return "not_applicable";
+    });
+
+    const result = await caller.getBackgroundVideoUris({ limit: 2 });
+
+    expect(result).toHaveLength(2);
+    expect(result.some((uri) => uri.includes("pending"))).toBe(false);
+    expect(result[0]).toContain("cached");
   });
 });

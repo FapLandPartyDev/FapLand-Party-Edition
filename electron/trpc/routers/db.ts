@@ -12,7 +12,11 @@ import {
   getLibraryExportPackageStatus,
   requestLibraryExportPackageAbort,
 } from "../../services/libraryExportPackage";
-import { getDisabledRoundIdSet, resolveResourceUris } from "../../services/integrations";
+import {
+  createResourceUriResolver,
+  getDisabledRoundIdSet,
+  resolveResourceUris,
+} from "../../services/integrations";
 import { getStore } from "../../services/store";
 import { resolveVideoDurationMsForUri } from "../../services/videoDuration";
 import { calculateFunscriptDifficultyFromUri } from "../../services/funscript";
@@ -58,7 +62,7 @@ import {
   resolveWebsiteVideoStream,
 } from "../../services/webVideo";
 import { publicProcedure, router } from "../trpc";
-import { eq, desc, asc, inArray } from "drizzle-orm";
+import { and, eq, desc, asc, inArray } from "drizzle-orm";
 import {
   gameProfile,
   singlePlayerRunHistory,
@@ -140,6 +144,144 @@ async function hydrateResourceDurationMs(
       await db.update(resource).set({ durationMs }).where(eq(resource.id, entry.id));
     })
   );
+}
+
+type InstalledRoundQueryEntry = {
+  id: string;
+  resources: Array<{
+    id: string;
+    disabled: boolean;
+  }>;
+};
+
+type WebsiteVideoCacheStatus = Awaited<ReturnType<typeof getWebsiteVideoCacheState>>;
+
+function getVisibleResources<T extends { disabled: boolean }>(
+  resources: T[],
+  includeDisabled: boolean
+): T[] {
+  return includeDisabled ? resources : resources.filter((entry) => !entry.disabled);
+}
+
+function shouldIncludeInstalledRound(
+  entry: InstalledRoundQueryEntry,
+  options: {
+    includeDisabled: boolean;
+    includeTemplates: boolean;
+    disabledRoundIds: Set<string>;
+  }
+): boolean {
+  const { includeDisabled, includeTemplates, disabledRoundIds } = options;
+  const visibleResources = getVisibleResources(entry.resources, includeDisabled);
+
+  if (!includeDisabled && disabledRoundIds.has(entry.id)) {
+    return false;
+  }
+
+  if (!includeTemplates && visibleResources.length === 0) {
+    return false;
+  }
+
+  return true;
+}
+
+function createWebsiteVideoCacheStatusLoader(): (videoUri: string) => Promise<WebsiteVideoCacheStatus> {
+  const websiteVideoCacheStateByUri = new Map<string, Promise<WebsiteVideoCacheStatus>>();
+
+  return (videoUri: string) => {
+    const existing = websiteVideoCacheStateByUri.get(videoUri);
+    if (existing) return existing;
+    const pending = getWebsiteVideoCacheState(videoUri);
+    websiteVideoCacheStateByUri.set(videoUri, pending);
+    return pending;
+  };
+}
+
+type CatalogRoundResource = {
+  id: string;
+  disabled: boolean;
+  phash: string | null;
+  durationMs: number | null;
+  videoUri: string;
+};
+
+async function toInstalledRoundCatalogEntry(
+  entry: {
+    id: string;
+    name: string;
+    author: string | null;
+    description: string | null;
+    bpm: number | null;
+    difficulty: number | null;
+    phash: string | null;
+    startTime: number | null;
+    endTime: number | null;
+    type: "Normal" | "Interjection" | "Cum";
+    installSourceKey: string | null;
+    previewImage: string | null;
+    heroId: string | null;
+    hero: {
+      id: string;
+      name: string;
+      author: string | null;
+      description: string | null;
+    } | null;
+    resources: CatalogRoundResource[];
+  },
+  getCachedStateForUri: (videoUri: string) => Promise<WebsiteVideoCacheStatus>
+): Promise<{
+  id: string;
+  name: string;
+  author: string | null;
+  description: string | null;
+  bpm: number | null;
+  difficulty: number | null;
+  phash: string | null;
+  startTime: number | null;
+  endTime: number | null;
+  type: "Normal" | "Interjection" | "Cum" | null;
+  installSourceKey: string | null;
+  previewImage: string | null;
+  heroId: string | null;
+  hero: {
+    id: string;
+    name: string;
+    author: string | null;
+    description: string | null;
+  } | null;
+  resources: Array<{
+    id: string;
+    disabled: boolean;
+    phash: string | null;
+    durationMs: number | null;
+    websiteVideoCacheStatus: WebsiteVideoCacheStatus;
+  }>;
+}> {
+  return {
+    id: entry.id,
+    name: entry.name,
+    author: entry.author,
+    description: entry.description,
+    bpm: entry.bpm,
+    difficulty: entry.difficulty,
+    phash: entry.phash,
+    startTime: entry.startTime,
+    endTime: entry.endTime,
+    type: entry.type ?? null,
+    installSourceKey: entry.installSourceKey,
+    previewImage: entry.previewImage,
+    heroId: entry.heroId,
+    hero: entry.hero,
+    resources: await Promise.all(
+      entry.resources.map(async (resourceEntry) => ({
+        id: resourceEntry.id,
+        disabled: resourceEntry.disabled,
+        phash: resourceEntry.phash,
+        durationMs: resourceEntry.durationMs,
+        websiteVideoCacheStatus: await getCachedStateForUri(resourceEntry.videoUri),
+      }))
+    ),
+  };
 }
 
 export const dbRouter = router({
@@ -945,6 +1087,91 @@ export const dbRouter = router({
     }));
   }),
 
+  getBackgroundVideoUris: publicProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().int().min(1).max(24).optional(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      const limit = input?.limit ?? 6;
+      const disabledRoundIds = [...getDisabledRoundIdSet()];
+      const db = getDb();
+
+      const resources = await db.query.resource.findMany({
+        where: (res, operators) => {
+          const clauses = [operators.eq(res.disabled, false)];
+          if (disabledRoundIds.length > 0) {
+            clauses.push(operators.notInArray(res.roundId, disabledRoundIds));
+          }
+          return clauses.length === 1 ? clauses[0] : and(...clauses);
+        },
+        orderBy: [desc(resource.createdAt), asc(resource.id)],
+      });
+
+      const playableUris: string[] = [];
+      for (const entry of resources) {
+        const status = await getWebsiteVideoCacheState(entry.videoUri);
+        if (status === "pending") {
+          continue;
+        }
+
+        playableUris.push(
+          resolveResourceUris({
+            videoUri: entry.videoUri,
+            funscriptUri: entry.funscriptUri,
+          }).videoUri
+        );
+
+        if (playableUris.length >= limit) {
+          break;
+        }
+      }
+
+      return playableUris;
+    }),
+
+  getInstalledRoundCount: publicProcedure
+    .input(
+      z
+        .object({
+          includeDisabled: z.boolean().optional(),
+          includeTemplates: z.boolean().optional(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      const db = getDb();
+      const includeDisabled = input?.includeDisabled ?? false;
+      const includeTemplates = input?.includeTemplates ?? false;
+      const disabledRoundIds = getDisabledRoundIdSet();
+
+      const rounds = await db.query.round.findMany({
+        columns: {
+          id: true,
+        },
+        with: {
+          resources: {
+            columns: {
+              id: true,
+              disabled: true,
+            },
+          },
+        },
+        orderBy: [desc(round.createdAt)],
+      });
+
+      return rounds.filter((entry) =>
+        shouldIncludeInstalledRound(entry, {
+          includeDisabled,
+          includeTemplates,
+          disabledRoundIds,
+        })
+      ).length;
+    }),
+
   getInstalledRounds: publicProcedure
     .input(
       z
@@ -959,45 +1186,34 @@ export const dbRouter = router({
       const includeDisabled = input?.includeDisabled ?? false;
       const includeTemplates = input?.includeTemplates ?? false;
       const disabledRoundIds = getDisabledRoundIdSet();
-      const websiteVideoCacheStateByUri = new Map<
-        string,
-        Promise<Awaited<ReturnType<typeof getWebsiteVideoCacheState>>>
-      >();
+      const getCachedStateForUri = createWebsiteVideoCacheStatusLoader();
+      const resolveResourceUrisForRequest = createResourceUriResolver();
 
       const rounds = await db.query.round.findMany({
         with: {
           hero: true,
-          resources: includeDisabled
-            ? true
-            : {
-                where: (r, { eq }) => eq(r.disabled, false),
-              },
+          resources: true,
         },
         orderBy: [desc(round.createdAt)],
       });
 
-      const filteredRounds = rounds.filter((r) => {
-        const isTemplate = r.resources.length === 0;
-        if (!includeTemplates && isTemplate) return false;
-        if (!includeDisabled) {
-          if (disabledRoundIds.has(r.id)) return false;
-          if (!includeTemplates && r.resources.length === 0) return false;
-        }
-        return true;
-      });
+      const filteredRounds = rounds
+        .map((entry) => ({
+          ...entry,
+          resources: getVisibleResources(entry.resources, includeDisabled),
+        }))
+        .filter((entry) =>
+          shouldIncludeInstalledRound(entry, {
+            includeDisabled,
+            includeTemplates,
+            disabledRoundIds,
+          })
+        );
 
       await hydrateResourceDurationMs(
         db,
         filteredRounds.flatMap((entry) => entry.resources)
       );
-
-      const getCachedStateForUri = (videoUri: string) => {
-        const existing = websiteVideoCacheStateByUri.get(videoUri);
-        if (existing) return existing;
-        const pending = getWebsiteVideoCacheState(videoUri);
-        websiteVideoCacheStateByUri.set(videoUri, pending);
-        return pending;
-      };
 
       return await Promise.all(
         filteredRounds.map(async (entry) => ({
@@ -1005,7 +1221,7 @@ export const dbRouter = router({
           resources: await Promise.all(
             entry.resources.map(async (res) => ({
               ...res,
-              ...resolveResourceUris({
+              ...resolveResourceUrisForRequest({
                 videoUri: res.videoUri,
                 funscriptUri: res.funscriptUri,
               }),
@@ -1014,6 +1230,129 @@ export const dbRouter = router({
           ),
         }))
       );
+    }),
+
+  getInstalledRoundCatalog: publicProcedure
+    .input(
+      z
+        .object({
+          includeDisabled: z.boolean().optional(),
+          includeTemplates: z.boolean().optional(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      const db = getDb();
+      const includeDisabled = input?.includeDisabled ?? false;
+      const includeTemplates = input?.includeTemplates ?? false;
+      const disabledRoundIds = getDisabledRoundIdSet();
+      const getCachedStateForUri = createWebsiteVideoCacheStatusLoader();
+
+      const rounds = await db.query.round.findMany({
+        columns: {
+          id: true,
+          name: true,
+          author: true,
+          description: true,
+          bpm: true,
+          difficulty: true,
+          phash: true,
+          startTime: true,
+          endTime: true,
+          type: true,
+          installSourceKey: true,
+          previewImage: true,
+          heroId: true,
+        },
+        with: {
+          hero: {
+            columns: {
+              id: true,
+              name: true,
+              author: true,
+              description: true,
+            },
+          },
+          resources: {
+            columns: {
+              id: true,
+              disabled: true,
+              phash: true,
+              durationMs: true,
+              videoUri: true,
+            },
+          },
+        },
+        orderBy: [desc(round.createdAt)],
+      });
+
+      const filteredRounds = rounds
+        .map((entry) => ({
+          ...entry,
+          resources: getVisibleResources(entry.resources, includeDisabled),
+        }))
+        .filter((entry) =>
+          shouldIncludeInstalledRound(entry, {
+            includeDisabled,
+            includeTemplates,
+            disabledRoundIds,
+          })
+        );
+
+      return await Promise.all(
+        filteredRounds.map((entry) => toInstalledRoundCatalogEntry(entry, getCachedStateForUri))
+      );
+    }),
+
+  getRoundMediaResources: publicProcedure
+    .input(
+      z.object({
+        roundId: z.string().min(1),
+        includeDisabled: z.boolean().optional(),
+      })
+    )
+    .query(async ({ input }) => {
+      const db = getDb();
+      const includeDisabled = input.includeDisabled ?? false;
+      const disabledRoundIds = getDisabledRoundIdSet();
+      const getCachedStateForUri = createWebsiteVideoCacheStatusLoader();
+      const resolveResourceUrisForRequest = createResourceUriResolver();
+      const roundEntry = await db.query.round.findFirst({
+        where: eq(round.id, input.roundId),
+        columns: {
+          id: true,
+        },
+        with: {
+          resources: true,
+        },
+      });
+
+      if (!roundEntry) {
+        return null;
+      }
+      if (!includeDisabled && disabledRoundIds.has(roundEntry.id)) {
+        return null;
+      }
+
+      const visibleResources = getVisibleResources(roundEntry.resources, includeDisabled);
+      await hydrateResourceDurationMs(db, visibleResources);
+
+      return {
+        roundId: roundEntry.id,
+        resources: await Promise.all(
+          visibleResources.map(async (resourceEntry) => ({
+            id: resourceEntry.id,
+            disabled: resourceEntry.disabled,
+            phash: resourceEntry.phash,
+            durationMs: resourceEntry.durationMs,
+            ...resolveResourceUrisForRequest({
+              videoUri: resourceEntry.videoUri,
+              funscriptUri: resourceEntry.funscriptUri,
+            }),
+            websiteVideoCacheStatus: await getCachedStateForUri(resourceEntry.videoUri),
+          }))
+        ),
+      };
     }),
 
   getDisabledRoundIds: publicProcedure.query(async () => {

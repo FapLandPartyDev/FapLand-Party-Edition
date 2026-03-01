@@ -14,6 +14,7 @@ export const resource = sqliteTable('Resource', {
     updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 }, (table) => ({
     phashIdx: index('Resource_phash_idx').on(table.phash),
+    roundIdIdx: index('Resource_roundId_idx').on(table.roundId),
 }));
 
 export const hero = sqliteTable('Hero', {
@@ -42,7 +43,10 @@ export const round = sqliteTable('Round', {
     heroId: text('heroId').references(() => hero.id, { onDelete: 'set null' }),
     createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
     updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-});
+}, (table) => ({
+    createdAtIdx: index('Round_createdAt_idx').on(table.createdAt),
+    heroIdIdx: index('Round_heroId_idx').on(table.heroId),
+}));
 
 export const playlist = sqliteTable('Playlist', {
     id: text('id').primaryKey().$defaultFn(() => createId()),

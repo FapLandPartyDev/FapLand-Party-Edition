@@ -58,7 +58,7 @@ import { isGameDevelopmentMode } from "../../utils/devFeatures";
 import { useSfwMode } from "../../hooks/useSfwMode";
 import { abbreviateNsfwText } from "../../utils/sfwText";
 import { SfwOneTimeOverridePrompt } from "../SfwGuard";
-import { openGlobalHandyOverlay } from "../GlobalHandyOverlay";
+import { openGlobalHandyOverlay } from "../globalHandyOverlayControls";
 import {
   extractBeatbarMotionEvents,
   getAntiPerkSequenceDefinition,

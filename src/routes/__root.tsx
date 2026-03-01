@@ -1,9 +1,7 @@
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, Suspense, lazy, type ErrorInfo, type ReactNode, useEffect, useState } from "react";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CommandPalette } from "../components/CommandPalette";
-import { GlobalHandyOverlay } from "../components/GlobalHandyOverlay";
-import { GlobalMusicOverlay } from "../components/GlobalMusicOverlay";
 import { ControllerProvider } from "../controller";
 import { CommandPaletteGuardProvider } from "../contexts/CommandPaletteGuardContext";
 import { ForegroundMediaProvider } from "../contexts/ForegroundMediaContext";
@@ -13,6 +11,16 @@ import { useGlobalParallax } from "../hooks/useGlobalParallax";
 import "../styles.css";
 
 let queryClient: QueryClient | null = null;
+
+const LazyGlobalHandyOverlay = lazy(async () => {
+  const module = await import("../components/GlobalHandyOverlay");
+  return { default: module.GlobalHandyOverlay };
+});
+
+const LazyGlobalMusicOverlay = lazy(async () => {
+  const module = await import("../components/GlobalMusicOverlay");
+  return { default: module.GlobalMusicOverlay };
+});
 
 type RootErrorBoundaryProps = {
   children: ReactNode;
@@ -92,6 +100,51 @@ function getQueryClient(): QueryClient {
   return queryClient;
 }
 
+function DeferredGlobalOverlayHost() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId: number | null = null;
+    let idleId: number | null = null;
+
+    const mount = () => {
+      if (!cancelled) {
+        setMounted(true);
+      }
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(mount, { timeout: 1200 });
+    } else {
+      timeoutId = window.setTimeout(mount, 400);
+    }
+
+    return () => {
+      cancelled = true;
+
+      if (idleId !== null && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
+
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <LazyGlobalHandyOverlay />
+      <LazyGlobalMusicOverlay />
+    </Suspense>
+  );
+}
+
 function RootComponent() {
   useGlobalParallax();
 
@@ -106,8 +159,7 @@ function RootComponent() {
                   <Outlet />
                   <CommandPalette />
                 </CommandPaletteGuardProvider>
-                <GlobalHandyOverlay />
-                <GlobalMusicOverlay />
+                <DeferredGlobalOverlayHost />
               </HandyProvider>
             </GlobalMusicProvider>
           </ForegroundMediaProvider>

@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -126,7 +127,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => () => ({
+  createFileRoute: () => (config: Record<string, unknown>) => ({
+    ...config,
     useLoaderData: () => mocks.loaderData,
     useSearch: () => mocks.searchData,
   }),
@@ -253,7 +255,9 @@ vi.mock("../utils/audio", () => ({
   playSelectSound: vi.fn(),
 }));
 
-import { PlaylistWorkshopRoute } from "./playlist-workshop";
+import { Route } from "./playlist-workshop";
+
+const Component = (Route as unknown as { component: () => ReactElement }).component;
 
 beforeEach(() => {
   window.sessionStorage.clear();
@@ -309,7 +313,7 @@ describe("PlaylistWorkshopRoute", () => {
       activePlaylist: null,
     };
 
-    render(<PlaylistWorkshopRoute />);
+    render(<Component />);
 
     expect(screen.getByText(/no playlist exists yet\./i)).toBeDefined();
     expect(screen.getByRole("button", { name: "Create Playlist" })).toBeDefined();
@@ -318,7 +322,7 @@ describe("PlaylistWorkshopRoute", () => {
 
   it("directs graph playlists to the advanced map editor", async () => {
     mocks.searchData = { open: "active" };
-    render(<PlaylistWorkshopRoute />);
+    render(<Component />);
 
     expect(screen.getByText("Opening Graph Editor")).toBeDefined();
     expect(
@@ -334,7 +338,7 @@ describe("PlaylistWorkshopRoute", () => {
   });
 
   it("keeps the workshop overview accessible for graph playlists by default", async () => {
-    render(<PlaylistWorkshopRoute />);
+    render(<Component />);
 
     expect(screen.getByText("Select Playlist")).toBeDefined();
     expect(screen.getByText("Open A Playlist")).toBeDefined();
@@ -355,7 +359,7 @@ describe("PlaylistWorkshopRoute", () => {
     mocks.playlists.list.mockResolvedValue([playlist]);
     mocks.playlists.getActive.mockResolvedValue(playlist);
 
-    render(<PlaylistWorkshopRoute />);
+    render(<Component />);
 
     fireEvent.click(screen.getByRole("button", { name: /linear playlist.*open/i }));
     fireEvent.click(screen.getByRole("button", { name: /timing & probabilities/i }));

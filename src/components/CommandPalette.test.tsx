@@ -20,11 +20,11 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => mocks.navigate,
 }));
 
-vi.mock("./GlobalMusicOverlay", () => ({
+vi.mock("./globalMusicOverlayControls", () => ({
   openGlobalMusicOverlay: mocks.openGlobalMusicOverlay,
 }));
 
-vi.mock("./GlobalHandyOverlay", () => ({
+vi.mock("./globalHandyOverlayControls", () => ({
   openGlobalHandyOverlay: mocks.openGlobalHandyOverlay,
 }));
 

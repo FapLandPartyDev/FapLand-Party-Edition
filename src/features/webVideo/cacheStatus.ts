@@ -1,5 +1,5 @@
 import { collectPlaylistRefs, createPortableRoundRefResolver } from "../../game/playlistResolution";
-import type { InstalledRound } from "../../services/db";
+import type { InstalledRound, InstalledRoundCatalogEntry } from "../../services/db";
 import type { StoredPlaylist } from "../../services/playlists";
 
 export type PlaylistWebsiteCacheSummary = {
@@ -9,7 +9,7 @@ export type PlaylistWebsiteCacheSummary = {
 };
 
 export function getInstalledRoundWebsiteVideoCacheStatus(
-  round: InstalledRound
+  round: InstalledRound | InstalledRoundCatalogEntry
 ): "not_applicable" | "cached" | "pending" {
   let hasCachedResource = false;
 
@@ -27,7 +27,7 @@ export function getInstalledRoundWebsiteVideoCacheStatus(
 
 export function buildPlaylistWebsiteCacheSummary(
   playlists: StoredPlaylist[],
-  installedRounds: InstalledRound[]
+  installedRounds: Array<InstalledRound | InstalledRoundCatalogEntry>
 ): Map<string, PlaylistWebsiteCacheSummary> {
   const roundResolver = createPortableRoundRefResolver(installedRounds);
   const summaryByPlaylistId = new Map<string, PlaylistWebsiteCacheSummary>();

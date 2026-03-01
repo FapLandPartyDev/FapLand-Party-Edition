@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { openGlobalHandyOverlay } from "./GlobalHandyOverlay";
-import { openGlobalMusicOverlay } from "./GlobalMusicOverlay";
+import { openGlobalHandyOverlay } from "./globalHandyOverlayControls";
+import { openGlobalMusicOverlay } from "./globalMusicOverlayControls";
 import { playHoverSound, playSelectSound } from "../utils/audio";
 import { useCommandPaletteGuard } from "../contexts/CommandPaletteGuardContext";
 import { useHandy } from "../contexts/HandyContext";

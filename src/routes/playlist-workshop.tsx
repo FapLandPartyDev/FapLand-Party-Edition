@@ -28,9 +28,11 @@ import {
 import { setMapEditorTestSession } from "../features/map-editor/testSession";
 import { getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "../game/data/perks";
 import { PERK_RARITY_META, resolvePerkRarity } from "../game/data/perkRarity";
+import { useInstalledRoundMedia } from "../hooks/useInstalledRoundMedia";
 import { usePlayableVideoFallback } from "../hooks/usePlayableVideoFallback";
 import { useSfwMode } from "../hooks/useSfwMode";
-import { db, type InstalledRound } from "../services/db";
+import { db, type InstalledRound, type InstalledRoundCatalogEntry } from "../services/db";
+import { getInstalledRoundCatalogCached } from "../services/installedRoundsCache";
 import {
   playlists,
   type PlaylistExportPackageStatus,
@@ -76,6 +78,7 @@ const DEFAULT_INTERMEDIARY_RETURN_PAUSE_SEC = 4;
 type NewPlaylistMode = "fully-random" | "progressive-random";
 type NormalRoundSort = "selected-first" | "queue" | "name-asc" | "name-desc" | "author";
 type DurationFilter = "any" | "short" | "medium" | "long" | "unknown";
+type WorkshopInstalledRound = InstalledRound | InstalledRoundCatalogEntry;
 type ResolutionModalState =
   | {
       context: "import";
@@ -260,7 +263,7 @@ function sortPerksByRarityAndName(perks: ReadonlyArray<PerkDefinition>): PerkDef
   });
 }
 
-function shuffleRounds(rounds: InstalledRound[]): InstalledRound[] {
+function shuffleRounds(rounds: WorkshopInstalledRound[]): WorkshopInstalledRound[] {
   const next = [...rounds];
   for (let i = next.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -271,7 +274,7 @@ function shuffleRounds(rounds: InstalledRound[]): InstalledRound[] {
   return next;
 }
 
-function buildProgressiveRandomOrder(rounds: InstalledRound[]): InstalledRound[] {
+function buildProgressiveRandomOrder(rounds: WorkshopInstalledRound[]): WorkshopInstalledRound[] {
   if (rounds.length <= 1) return [...rounds];
 
   const difficultyValues = rounds.map((round) => round.difficulty ?? 1);
@@ -287,7 +290,7 @@ function buildProgressiveRandomOrder(rounds: InstalledRound[]): InstalledRound[]
   };
 
   const pool = [...rounds];
-  const picked: InstalledRound[] = [];
+  const picked: WorkshopInstalledRound[] = [];
 
   while (pool.length > 0) {
     const progress = picked.length / Math.max(1, rounds.length - 1);
@@ -321,9 +324,9 @@ function buildProgressiveRandomOrder(rounds: InstalledRound[]): InstalledRound[]
   return picked;
 }
 
-const getInstalledRounds = async (): Promise<InstalledRound[]> => {
+const getInstalledRounds = async (): Promise<InstalledRoundCatalogEntry[]> => {
   try {
-    return await db.round.findInstalled();
+    return await getInstalledRoundCatalogCached();
   } catch (error) {
     console.error("Failed to fetch installed rounds", error);
     return [];
@@ -332,7 +335,7 @@ const getInstalledRounds = async (): Promise<InstalledRound[]> => {
 
 function toEditableSetup(
   playlist: StoredPlaylist,
-  installedRounds: InstalledRound[]
+  installedRounds: Array<InstalledRound | InstalledRoundCatalogEntry>
 ): EditableLinearSetup {
   const config = playlist.config;
 
@@ -413,18 +416,18 @@ function toEditableSetup(
 
 function toLinearBoardConfig(
   setup: EditableLinearSetup,
-  installedRounds: InstalledRound[]
+  installedRounds: WorkshopInstalledRound[]
 ): LinearBoardConfig {
   const roundById = new Map(installedRounds.map((round) => [round.id, round]));
 
   const normalRoundOrder = setup.normalRoundOrder
     .map((id) => roundById.get(id))
-    .filter((round): round is InstalledRound => Boolean(round))
+    .filter((round): round is WorkshopInstalledRound => Boolean(round))
     .map(toPortableRoundRef);
 
   const cumRoundRefs = setup.enabledCumRoundIds
     .map((id) => roundById.get(id))
-    .filter((round): round is InstalledRound => Boolean(round))
+    .filter((round): round is WorkshopInstalledRound => Boolean(round))
     .map(toPortableRoundRef);
 
   return {
@@ -443,7 +446,9 @@ function toLinearBoardConfig(
   };
 }
 
-function createEmptyEditableSetup(installedRounds: InstalledRound[]): EditableLinearSetup {
+function createEmptyEditableSetup(
+  installedRounds: Array<InstalledRound | InstalledRoundCatalogEntry>
+): EditableLinearSetup {
   return toEditableSetup(
     {
       id: "__empty__",
@@ -469,10 +474,10 @@ export const Route = createFileRoute("/playlist-workshop")({
     const activePlaylist = availablePlaylists.length > 0 ? await playlists.getActive() : null;
     return { installedRounds, availablePlaylists, activePlaylist };
   },
-  component: PlaylistWorkshopRoute,
+  component: PlaylistWorkshopPage,
 });
 
-export function PlaylistWorkshopRoute() {
+function PlaylistWorkshopPage() {
   const sfwMode = useSfwMode();
   const navigate = useNavigate();
   const search = PlaylistWorkshopSearchSchema.parse(Route.useSearch());
@@ -488,7 +493,7 @@ export function PlaylistWorkshopRoute() {
     availablePlaylists,
     activePlaylist: loaderActivePlaylist,
   } = Route.useLoaderData() as {
-    installedRounds: InstalledRound[];
+    installedRounds: WorkshopInstalledRound[];
     availablePlaylists: StoredPlaylist[];
     activePlaylist: StoredPlaylist | null;
   };
@@ -519,6 +524,7 @@ export function PlaylistWorkshopRoute() {
   const [normalRoundSort, setNormalRoundSort] = useState<NormalRoundSort>("selected-first");
   const [normalRoundDurationFilter, setNormalRoundDurationFilter] = useState<DurationFilter>("any");
   const [activePreviewRound, setActivePreviewRound] = useState<InstalledRound | null>(null);
+  const [previewInstalledRounds, setPreviewInstalledRounds] = useState<InstalledRound[] | null>(null);
   const [resolutionModalState, setResolutionModalState] = useState<ResolutionModalState | null>(
     null
   );
@@ -614,11 +620,14 @@ export function PlaylistWorkshopRoute() {
   }, [savePending]);
 
   const normalRounds = useMemo(
-    () => installedRounds.filter((round: InstalledRound) => (round.type ?? "Normal") === "Normal"),
+    () =>
+      installedRounds.filter(
+        (round: WorkshopInstalledRound) => (round.type ?? "Normal") === "Normal"
+      ),
     [installedRounds]
   );
   const cumRounds = useMemo(
-    () => installedRounds.filter((round: InstalledRound) => round.type === "Cum"),
+    () => installedRounds.filter((round: WorkshopInstalledRound) => round.type === "Cum"),
     [installedRounds]
   );
   const perks = useMemo(() => sortPerksByRarityAndName(getSinglePlayerPerkPool()), []);
@@ -665,9 +674,9 @@ export function PlaylistWorkshopRoute() {
       matchesDurationFilter(getRoundDurationSec(round), normalRoundDurationFilter)
     );
 
-    const compareByName = (a: InstalledRound, b: InstalledRound) =>
+    const compareByName = (a: WorkshopInstalledRound, b: WorkshopInstalledRound) =>
       collator.compare(a.name, b.name);
-    const compareByAuthor = (a: InstalledRound, b: InstalledRound) =>
+    const compareByAuthor = (a: WorkshopInstalledRound, b: WorkshopInstalledRound) =>
       collator.compare(a.author ?? "Unknown Author", b.author ?? "Unknown Author") ||
       compareByName(a, b);
 
@@ -805,7 +814,7 @@ export function PlaylistWorkshopRoute() {
   function buildNewPlaylistConfig(mode: NewPlaylistMode) {
     const base = createDefaultPlaylistConfig(installedRounds);
     const normalRounds = installedRounds.filter(
-      (round: InstalledRound) => (round.type ?? "Normal") === "Normal"
+      (round: WorkshopInstalledRound) => (round.type ?? "Normal") === "Normal"
     );
     const ordered =
       mode === "fully-random"
@@ -1283,9 +1292,19 @@ export function PlaylistWorkshopRoute() {
     });
   };
 
-  const handlePlayRound = (round: InstalledRound) => {
+  const handlePlayRound = async (round: WorkshopInstalledRound) => {
     playSelectSound();
-    setActivePreviewRound(round);
+    try {
+      const fullInstalledRounds = await db.round.findInstalled();
+      const matchedRound = fullInstalledRounds.find((entry) => entry.id === round.id) ?? null;
+      if (!matchedRound) {
+        return;
+      }
+      setPreviewInstalledRounds(fullInstalledRounds);
+      setActivePreviewRound(matchedRound);
+    } catch (error) {
+      console.error("Failed to load preview round media", error);
+    }
   };
 
   const setVisibleNormalRoundsSelected = (nextSelected: boolean) => {
@@ -1332,7 +1351,7 @@ export function PlaylistWorkshopRoute() {
         selectedRoundIds.length > 0
           ? selectedRoundIds
               .map((roundId) => normalRounds.find((round) => round.id === roundId))
-              .filter((round): round is InstalledRound => Boolean(round))
+              .filter((round): round is WorkshopInstalledRound => Boolean(round))
           : normalRounds;
 
       if (sourceRounds.length === 0) return prev;
@@ -1979,7 +1998,7 @@ export function PlaylistWorkshopRoute() {
                     </div>
                   </div>
                   <div className="mt-4 grid max-h-[60vh] gap-2 overflow-y-auto pr-1">
-                    {visibleNormalRounds.map((round: InstalledRound) => {
+                    {visibleNormalRounds.map((round: WorkshopInstalledRound) => {
                       const selected = selectedNormalSet.has(round.id);
                       const placement = normalRoundPlacement[round.id];
                       const durationSec = getRoundDurationSec(round);
@@ -2095,7 +2114,7 @@ export function PlaylistWorkshopRoute() {
                     </p>
                   </div>
                   <div className="grid gap-2">
-                    {cumRounds.map((round: InstalledRound) => {
+                    {cumRounds.map((round: WorkshopInstalledRound) => {
                       const selected = selectedCumSet.has(round.id);
                       const durationSec = getRoundDurationSec(round);
                       return (
@@ -2799,7 +2818,7 @@ export function PlaylistWorkshopRoute() {
       {activePreviewRound && (
         <RoundVideoOverlay
           activeRound={activePreview}
-          installedRounds={installedRounds}
+          installedRounds={previewInstalledRounds ?? []}
           currentPlayer={undefined}
           intermediaryProbability={1}
           allowAutomaticIntermediaries
@@ -2838,10 +2857,11 @@ function WorkshopRoundPreview({
   round,
   onOpenPreview,
 }: {
-  round: InstalledRound;
-  onOpenPreview: (round: InstalledRound) => void;
+  round: WorkshopInstalledRound;
+  onOpenPreview: (round: WorkshopInstalledRound) => void;
 }) {
-  const previewUri = round.resources[0]?.videoUri;
+  const { mediaResources, isLoading, loadMediaResources } = useInstalledRoundMedia(round.id);
+  const previewUri = mediaResources?.resources[0]?.videoUri ?? null;
   const previewImage = round.previewImage;
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [isPreviewActive, setIsPreviewActive] = useState(false);
@@ -2881,8 +2901,10 @@ function WorkshopRoundPreview({
   };
 
   const startPreview = async () => {
-    if (!previewUri) return;
     setIsPreviewActive(true);
+    const ensuredResources = previewUri ? mediaResources : await loadMediaResources();
+    const ensuredPreviewUri = previewUri ?? ensuredResources?.resources[0]?.videoUri ?? null;
+    if (!ensuredPreviewUri) return;
     const video = videoRef.current;
     if (!video || video.readyState < HTMLMediaElement.HAVE_METADATA) return;
     const { startSec } = resolvePreviewWindow(video);
@@ -3002,7 +3024,7 @@ function WorkshopRoundPreview({
         </SfwGuard>
       ) : !previewImage ? (
         <div className="flex h-full items-center justify-center text-[10px] font-[family-name:var(--font-jetbrains-mono)] uppercase tracking-[0.25em] text-zinc-500">
-          No Preview
+          {isLoading ? "Loading..." : "No Preview"}
         </div>
       ) : null}
 

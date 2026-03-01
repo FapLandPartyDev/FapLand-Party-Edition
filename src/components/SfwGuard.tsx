@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type SyntheticEvent } from "react";
 import { useSfwModeState } from "../hooks/useSfwMode";
 
 type SfwGuardProps = {
@@ -17,10 +17,19 @@ export function SfwOneTimeOverridePrompt({
   onConfirm,
 }: SfwOneTimeOverridePromptProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const stopEventPropagation = (event: SyntheticEvent) => {
+    event.stopPropagation();
+  };
 
   return (
-    <div className="absolute inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="flex max-w-sm flex-col items-center gap-3 rounded-xl border border-zinc-700/50 bg-zinc-800/90 px-6 py-5 text-center shadow-lg backdrop-blur-sm">
+    <div
+      className="absolute inset-0 z-[60] flex items-center justify-center p-4"
+      onClick={stopEventPropagation}
+    >
+      <div
+        className="flex max-w-sm flex-col items-center gap-3 rounded-xl border border-zinc-700/50 bg-zinc-800/90 px-6 py-5 text-center shadow-lg backdrop-blur-sm"
+        onClick={stopEventPropagation}
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="h-6 w-6 text-zinc-400"
@@ -49,10 +58,14 @@ export function SfwOneTimeOverridePrompt({
       </div>
 
       {confirmOpen && (
-        <div className="absolute inset-0 z-[70] flex items-center justify-center bg-black/72 p-4">
+        <div
+          className="absolute inset-0 z-[70] flex items-center justify-center bg-black/72 p-4"
+          onClick={stopEventPropagation}
+        >
           <div
             aria-modal="true"
             className="w-full max-w-md rounded-2xl border border-zinc-700/60 bg-[linear-gradient(145deg,rgba(18,18,24,0.98),rgba(30,18,36,0.96))] p-5 text-zinc-100 shadow-[0_0_40px_rgba(0,0,0,0.45)]"
+            onClick={stopEventPropagation}
             role="dialog"
           >
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-amber-200/80">

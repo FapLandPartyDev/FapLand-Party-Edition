@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent } from "react";
 import { playHoverSound, playSelectSound } from "../utils/audio";
 
 interface VirtualScrollerProps {
@@ -27,49 +27,40 @@ export function VirtualScroller({
   const [editValue, setEditValue] = useState("");
   const startDragRef = useRef<{ x: number; val: number } | null>(null);
 
-  const commitValue = useCallback(
-    (nextVal: number) => {
-      let clamped = nextVal;
-      if (clamped < min) clamped = min;
-      if (clamped > max) clamped = max;
+  const commitValue = useEffectEvent((nextValue: number) => {
+    let clamped = nextValue;
+    if (clamped < min) clamped = min;
+    if (clamped > max) clamped = max;
 
-      // Snap to step if step is an integer (for typical millisecond usage)
-      if (Number.isInteger(step)) {
-        clamped = Math.round(clamped / step) * step;
-      }
+    if (Number.isInteger(step)) {
+      clamped = Math.round(clamped / step) * step;
+    }
 
-      if (clamped !== value) {
-        onChange(clamped);
-      }
-    },
-    [max, min, onChange, step, value]
-  );
+    if (clamped !== value) {
+      onChange(clamped);
+    }
+  });
 
   useEffect(() => {
-    const handlePointerMove = (e: PointerEvent) => {
+    const handlePointerMove = (event: PointerEvent) => {
       if (!isDragging || !startDragRef.current) return;
 
-      e.preventDefault();
-      const deltaX = e.clientX - startDragRef.current.x;
-
-      // Adjust sensitivity based on shift/alt modifiers
+      event.preventDefault();
+      const deltaX = event.clientX - startDragRef.current.x;
       let multiplier = 1;
-      if (e.shiftKey) multiplier = 10;
-      if (e.altKey) multiplier = 0.1;
+      if (event.shiftKey) multiplier = 10;
+      if (event.altKey) multiplier = 0.1;
 
-      // Calculate step-based change
-      const rawDelta = deltaX * step * multiplier * 0.5; // 0.5 is base sensitivity
-
+      const rawDelta = deltaX * step * multiplier * 0.5;
       commitValue(startDragRef.current.val + rawDelta);
     };
 
     const handlePointerUp = () => {
-      if (isDragging) {
-        setIsDragging(false);
-        startDragRef.current = null;
-        playSelectSound();
-        document.body.style.cursor = "default";
-      }
+      if (!isDragging) return;
+      setIsDragging(false);
+      startDragRef.current = null;
+      playSelectSound();
+      document.body.style.cursor = "default";
     };
 
     if (isDragging) {
@@ -83,15 +74,13 @@ export function VirtualScroller({
     };
   }, [commitValue, isDragging, step]);
 
-  const handlePointerDown = (e: React.PointerEvent) => {
+  const handlePointerDown = (event: React.PointerEvent) => {
     if (isEditing) return;
 
-    e.preventDefault();
+    event.preventDefault();
     setIsDragging(true);
-    startDragRef.current = { x: e.clientX, val: value };
+    startDragRef.current = { x: event.clientX, val: value };
     playHoverSound();
-
-    // Attempt to set grabbing cursor
     document.body.style.cursor = "ew-resize";
   };
 
@@ -101,16 +90,16 @@ export function VirtualScroller({
     playSelectSound();
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
       const parsed = parseFloat(editValue);
-      if (!isNaN(parsed)) {
+      if (!Number.isNaN(parsed)) {
         commitValue(parsed);
       }
       setIsEditing(false);
       playSelectSound();
-    } else if (e.key === "Escape") {
+    } else if (event.key === "Escape") {
       setIsEditing(false);
     }
   };
@@ -118,19 +107,19 @@ export function VirtualScroller({
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
       {label && (
-        <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">{label}</span>
+        <span className="text-xs font-medium uppercase tracking-wider text-zinc-400">{label}</span>
       )}
 
       <div
         className={`relative flex h-9 items-center justify-center overflow-hidden rounded-xl border transition-all duration-200
-          ${isDragging ? "border-violet-400/80 bg-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.3)] scale-[1.02]" : "border-zinc-700/80 bg-black/50 hover:border-violet-300/50 hover:bg-black/70"}
+          ${isDragging ? "scale-[1.02] border-violet-400/80 bg-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.3)]" : "border-zinc-700/80 bg-black/50 hover:border-violet-300/50 hover:bg-black/70"}
           ${isEditing ? "border-cyan-400/80 bg-black" : ""}
         `}
         onPointerDown={handlePointerDown}
         onDoubleClick={handleDoubleClick}
       >
         {isDragging && (
-          <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(139,92,246,0.1)_50%,transparent_75%)] bg-[length:24px_24px] animate-[slide_1s_linear_infinite]" />
+          <div className="absolute inset-0 animate-[slide_1s_linear_infinite] bg-[linear-gradient(45deg,transparent_25%,rgba(139,92,246,0.1)_50%,transparent_75%)] bg-[length:24px_24px]" />
         )}
 
         {isEditing ? (
@@ -139,18 +128,18 @@ export function VirtualScroller({
             autoFocus
             type="text"
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(event) => setEditValue(event.target.value)}
             onBlur={() => {
               const parsed = parseFloat(editValue);
-              if (!isNaN(parsed)) commitValue(parsed);
+              if (!Number.isNaN(parsed)) commitValue(parsed);
               setIsEditing(false);
             }}
             onKeyDown={handleKeyDown}
-            className="w-full h-full bg-transparent text-center font-[family-name:var(--font-jetbrains-mono)] text-sm text-cyan-100 outline-none"
+            className="h-full w-full bg-transparent text-center font-[family-name:var(--font-jetbrains-mono)] text-sm text-cyan-100 outline-none"
           />
         ) : (
           <span
-            className={`font-[family-name:var(--font-jetbrains-mono)] text-sm select-none pointer-events-none transition-colors ${isDragging ? "text-violet-100 font-bold" : "text-zinc-200"}`}
+            className={`pointer-events-none select-none font-[family-name:var(--font-jetbrains-mono)] text-sm transition-colors ${isDragging ? "font-bold text-violet-100" : "text-zinc-200"}`}
           >
             {formatValue(value)}
           </span>

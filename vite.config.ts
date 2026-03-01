@@ -30,10 +30,6 @@ function createManualChunks(id: string): string | undefined {
     return "router-query-vendor";
   }
 
-  if (normalizedId.includes("/pixi.js/") || normalizedId.includes("/@pixi/")) {
-    return "pixi-vendor";
-  }
-
   if (normalizedId.includes("/@supabase/")) {
     return "supabase-vendor";
   }
@@ -109,9 +105,34 @@ export default defineConfig(({ command, mode }) => {
       }),
       tailwindcss(),
       TanStackRouterVite({
-        routeFileIgnorePattern: "\\.(test|spec)\\.(ts|tsx)$",
+        routeFileIgnorePattern:
+          "(\\.(test|spec)\\.(ts|tsx)$|(^|/)(gameSavePolicy|roundRows|roundsSelectors)\\.ts$)",
+        autoCodeSplitting: true,
+        codeSplittingOptions: {
+          defaultBehavior: [],
+          splitBehavior: ({ routeId }) => {
+            if (routeId === "__root__" || routeId === "/") {
+              return [];
+            }
+
+            return [["loader", "component", "pendingComponent", "errorComponent", "notFoundComponent"]];
+          },
+        },
       }),
-      viteReact(),
+      viteReact({
+        include: /\.[jt]sx?$/,
+        babel: {
+          plugins: [
+            [
+              "babel-plugin-react-compiler",
+              {
+                compilationMode: "infer",
+                panicThreshold: "none",
+              },
+            ],
+          ],
+        },
+      }),
       electron({
         main: {
           entry: ["electron/main.ts", "electron/phashWorker.ts"],

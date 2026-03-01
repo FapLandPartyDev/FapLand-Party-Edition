@@ -14,15 +14,18 @@ type MockAppUpdate = {
 };
 
 const mocks = vi.hoisted(() => ({
-  loaderData: {
-    videos: [],
-    overallHighscore: 0,
-    cumLoadCount: 0,
-    installedRounds: [],
-    skipRoundsCheck: false,
-  },
   navigate: vi.fn(),
   closeWindow: vi.fn(async () => true),
+  findBackgroundVideos: vi.fn(async () => []),
+  getLocalHighscore: vi.fn(async () => ({
+    highscore: 0,
+    highscoreCheatMode: false,
+    highscoreAssisted: false,
+    highscoreAssistedSaveMode: null,
+  })),
+  listMatchCache: vi.fn(async () => []),
+  getCumLoadCount: vi.fn(async () => 0),
+  countInstalled: vi.fn(async () => 0),
   appUpdate: {
     state: {
       status: "idle",
@@ -53,10 +56,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => (config: Record<string, unknown>) => ({
-    ...config,
-    useLoaderData: () => mocks.loaderData,
-  }),
+  createFileRoute: () => (config: Record<string, unknown>) => config,
   useNavigate: () => mocks.navigate,
 }));
 
@@ -116,8 +116,20 @@ vi.mock("../features/webVideo/components/WebsiteVideoScanStatusPoller", () => ({
 
 vi.mock("../services/db", () => ({
   db: {
-    install: {
-      getScanStatus: vi.fn(async () => null),
+    resource: {
+      findBackgroundVideos: mocks.findBackgroundVideos,
+    },
+    gameProfile: {
+      getLocalHighscore: mocks.getLocalHighscore,
+    },
+    multiplayer: {
+      listMatchCache: mocks.listMatchCache,
+    },
+    singlePlayerHistory: {
+      getCumLoadCount: mocks.getCumLoadCount,
+    },
+    round: {
+      countInstalled: mocks.countInstalled,
     },
   },
 }));
@@ -148,6 +160,32 @@ describe("Home route update menu", () => {
   beforeEach(() => {
     mocks.navigate.mockReset();
     mocks.closeWindow.mockClear();
+    mocks.findBackgroundVideos.mockResolvedValue([]);
+    mocks.getLocalHighscore.mockResolvedValue({
+      highscore: 0,
+      highscoreCheatMode: false,
+      highscoreAssisted: false,
+      highscoreAssistedSaveMode: null,
+    });
+    mocks.listMatchCache.mockResolvedValue([]);
+    mocks.getCumLoadCount.mockResolvedValue(0);
+    mocks.countInstalled.mockResolvedValue(0);
+    mocks.appUpdate.state = {
+      status: "idle",
+      currentVersion: "0.1.2",
+      latestVersion: null,
+      checkedAtIso: null,
+      releasePageUrl: "https://example.com/release",
+      downloadUrl: null,
+      releaseNotes: null,
+      publishedAtIso: null,
+      canAutoUpdate: false,
+      errorMessage: null,
+    } as AppUpdateState;
+    mocks.appUpdate.actionLabel = "Check for Updates";
+    mocks.appUpdate.menuBadge = undefined;
+    mocks.appUpdate.menuTone = "default";
+    mocks.appUpdate.systemMessage = "No update check has run yet.";
     mocks.appUpdate.triggerPrimaryAction.mockClear();
     mocks.sfwModeEnabled = false;
 
@@ -210,6 +248,16 @@ describe("Home route update menu", () => {
     expect(screen.queryByRole("button", { name: /Download Latest Version/ })).toBeNull();
   });
 
+  it("loads home menu data via count and sampled background videos", async () => {
+    const Component = (Route as unknown as { component: () => ReactElement }).component;
+    render(<Component />);
+
+    await waitFor(() => {
+      expect(mocks.findBackgroundVideos).toHaveBeenCalledWith(6);
+      expect(mocks.countInstalled).toHaveBeenCalled();
+    });
+  });
+
   it("shows the update action when an update is available", async () => {
     mocks.appUpdate.state = {
       ...mocks.appUpdate.state,
@@ -234,7 +282,7 @@ describe("Home route update menu", () => {
   });
 
   it("opens the first start workflow when onboarding was not completed yet", async () => {
-    vi.mocked(trpc.store.get.query).mockResolvedValueOnce(false);
+    vi.mocked(trpc.store.get.query).mockResolvedValue(false);
 
     const Component = (Route as unknown as { component: () => ReactElement }).component;
     render(<Component />);
@@ -262,13 +310,18 @@ describe("Home route update menu", () => {
 
   it("hides the cum load counter while sfw mode is enabled", () => {
     mocks.sfwModeEnabled = true;
-    mocks.loaderData.overallHighscore = 900;
-    mocks.loaderData.cumLoadCount = 7;
+    mocks.getLocalHighscore.mockResolvedValue({
+      highscore: 900,
+      highscoreCheatMode: false,
+      highscoreAssisted: false,
+      highscoreAssistedSaveMode: null,
+    });
+    mocks.getCumLoadCount.mockResolvedValue(7);
 
     const Component = (Route as unknown as { component: () => ReactElement }).component;
     render(<Component />);
 
-    expect(screen.queryByText(/cum loads extracted/i)).toBeNull();
+    expect(screen.queryByText(/7 total/i)).toBeNull();
   });
 
   it("replaces the main menu title while sfw mode is enabled", () => {
@@ -278,7 +331,7 @@ describe("Home route update menu", () => {
     render(<Component />);
 
     expect(screen.queryByRole("heading", { name: /fap land/i })).toBeNull();
-    expect(screen.getByRole("heading", { name: /safe mode enabled/i })).toBeDefined();
+    expect(screen.getByRole("heading", { name: /safe mode/i })).toBeDefined();
     expect(screen.queryByText(/party edition/i)).toBeNull();
     expect(screen.getByText(/safe experience/i)).toBeDefined();
   });

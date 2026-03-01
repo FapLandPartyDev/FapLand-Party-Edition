@@ -1,10 +1,11 @@
 import React from "react";
 import { resolvePortableRoundRef } from "../../../game/playlistRuntime";
+import { useInstalledRoundMedia } from "../../../hooks/useInstalledRoundMedia";
 import { usePlayableVideoFallback } from "../../../hooks/usePlayableVideoFallback";
 import { SfwGuard } from "../../../components/SfwGuard";
 import { playHoverSound, playSelectSound } from "../../../utils/audio";
 import { GameDropdown } from "../../../components/ui/GameDropdown";
-import type { InstalledRound } from "../../../services/db";
+import type { InstalledRound, InstalledRoundCatalogEntry } from "../../../services/db";
 import type { EditorEdge, EditorNode, EditorSelectionState } from "../EditorState";
 import { getNodeKindColor, toColorInputValue } from "../nodeVisuals";
 
@@ -26,7 +27,7 @@ const NODE_KIND_OPTIONS: EditorNode["kind"][] = [
 interface NodeInspectorPanelProps {
   selectedNode: EditorNode | null;
   outgoingEdges: ReadonlyArray<EditorEdge>;
-  installedRounds: ReadonlyArray<InstalledRound>;
+  installedRounds: ReadonlyArray<InstalledRound | InstalledRoundCatalogEntry>;
   perkOptions: ReadonlyArray<PerkOption>;
   onPatchNode: (nodeId: string, patch: Partial<EditorNode>) => void;
   onCommitSelection: (selection: EditorSelectionState) => void;
@@ -35,7 +36,7 @@ interface NodeInspectorPanelProps {
 }
 
 function formatInstalledRoundMeta(
-  round: Pick<InstalledRound, "author" | "difficulty" | "type">
+  round: Pick<InstalledRound | InstalledRoundCatalogEntry, "author" | "difficulty" | "type">
 ): string {
   const parts = [round.author ?? "Unknown Author", round.type ?? "Normal"];
   if (typeof round.difficulty === "number") {
@@ -436,8 +437,8 @@ NodeInspectorPanel.displayName = "NodeInspectorPanel";
 
 const InstalledRoundPicker: React.FC<{
   selectedRoundId: string | null;
-  installedRounds: ReadonlyArray<InstalledRound>;
-  onSelectRound: (round: InstalledRound) => void;
+  installedRounds: ReadonlyArray<InstalledRound | InstalledRoundCatalogEntry>;
+  onSelectRound: (round: InstalledRound | InstalledRoundCatalogEntry) => void;
   onClearSelection: () => void;
 }> = React.memo(({ selectedRoundId, installedRounds, onSelectRound, onClearSelection }) => {
   const [query, setQuery] = React.useState("");
@@ -527,8 +528,13 @@ const InstalledRoundPicker: React.FC<{
 
 InstalledRoundPicker.displayName = "InstalledRoundPicker";
 
-function SelectedRoundPreview({ round }: { round: InstalledRound | null }) {
-  const previewUri = round?.resources[0]?.videoUri;
+function SelectedRoundPreview({
+  round,
+}: {
+  round: InstalledRound | InstalledRoundCatalogEntry | null;
+}) {
+  const { mediaResources, isLoading, loadMediaResources } = useInstalledRoundMedia(round?.id ?? null);
+  const previewUri = mediaResources?.resources[0]?.videoUri ?? null;
   const previewImage = round?.previewImage ?? null;
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const [isPreviewActive, setIsPreviewActive] = React.useState(false);
@@ -568,8 +574,11 @@ function SelectedRoundPreview({ round }: { round: InstalledRound | null }) {
   };
 
   const startPreview = async () => {
-    if (!previewUri) return;
     setIsPreviewActive(true);
+    const ensuredResources =
+      previewUri || !round ? mediaResources : await loadMediaResources();
+    const ensuredPreviewUri = previewUri ?? ensuredResources?.resources[0]?.videoUri ?? null;
+    if (!ensuredPreviewUri) return;
     const video = videoRef.current;
     if (!video || video.readyState < HTMLMediaElement.HAVE_METADATA) return;
     const { startSec } = resolvePreviewWindow(video);
@@ -679,7 +688,7 @@ function SelectedRoundPreview({ round }: { round: InstalledRound | null }) {
               </SfwGuard>
             ) : !previewImage ? (
               <div className="flex h-full items-center justify-center text-[10px] font-[family-name:var(--font-jetbrains-mono)] uppercase tracking-[0.25em] text-zinc-500">
-                No Preview
+                {isLoading ? "Loading..." : "No Preview"}
               </div>
             ) : null}
 

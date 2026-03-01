@@ -1,3 +1,5 @@
+import "pixi.js/browser";
+import "pixi.js/unsafe-eval";
 import {
   Application,
   Container,

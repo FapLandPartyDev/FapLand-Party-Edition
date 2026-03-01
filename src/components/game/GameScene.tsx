@@ -4,9 +4,11 @@
  * for the perk-selection overlay (which uses HTML for accessibility/ease).
  */
 
+import "pixi.js/browser";
+import "pixi.js/unsafe-eval";
 import { Application, Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
 import "pixi.js/events";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useControllerSurface } from "../../controller";
 import {
   CONTROLLER_SUPPORT_ENABLED_EVENT,
@@ -1661,20 +1663,20 @@ export const GameScene = memo(function GameScene({
     showHandyNotification(externalNotification.message);
   }, [externalNotification, showHandyNotification]);
 
+  const updateHasConnectedGamepad = useEffectEvent(() => {
+    const gamepads = navigator.getGamepads?.();
+    if (!gamepads) {
+      setHasConnectedGamepad(false);
+      return;
+    }
+    setHasConnectedGamepad(gamepads.some((gp) => gp !== null));
+  });
+
   useEffect(() => {
     if (!controllerSupportEnabled) {
       setHasConnectedGamepad(false);
       return;
     }
-
-    const updateHasConnectedGamepad = () => {
-      const gamepads = navigator.getGamepads?.();
-      if (!gamepads) {
-        setHasConnectedGamepad(false);
-        return;
-      }
-      setHasConnectedGamepad(gamepads.some((gp) => gp !== null));
-    };
 
     updateHasConnectedGamepad();
 

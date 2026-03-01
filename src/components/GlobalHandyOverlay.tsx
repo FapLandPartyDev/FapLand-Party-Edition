@@ -8,13 +8,10 @@ import {
   THEHANDY_OFFSET_STEP_MS,
 } from "../constants/theHandy";
 import { useHandy } from "../contexts/HandyContext";
+import { subscribeToGlobalHandyOverlayOpen } from "./globalHandyOverlayControls";
 import { playHoverSound, playSelectSound } from "../utils/audio";
 
-let _setOpenFromOutside: ((open: boolean) => void) | null = null;
-
-export function openGlobalHandyOverlay() {
-  _setOpenFromOutside?.(true);
-}
+export { openGlobalHandyOverlay } from "./globalHandyOverlayControls";
 
 function isEditableElement(target: Element | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -55,10 +52,9 @@ export function GlobalHandyOverlay() {
   setOpenRef.current = setOpen;
 
   useEffect(() => {
-    _setOpenFromOutside = (value) => setOpenRef.current(value);
-    return () => {
-      _setOpenFromOutside = null;
-    };
+    return subscribeToGlobalHandyOverlayOpen(() => {
+      setOpenRef.current(true);
+    });
   }, []);
 
   useEffect(() => {

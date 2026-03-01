@@ -27,7 +27,6 @@ import {
   type PlaylistConfig,
   type PortableRoundRef,
 } from "../game/playlistSchema";
-import { collectPlaylistRefs, createPortableRoundRefResolver } from "../game/playlistResolution";
 import { getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "../game/data/perks";
 import { MenuButton } from "../components/MenuButton";
 import {
@@ -47,6 +46,18 @@ import { playlists, type StoredPlaylist } from "../services/playlists";
 import { trpc } from "../services/trpc";
 import { importOpenedFile } from "../services/openedFiles";
 import { buildRoundRenderRowsWithOptions, type RoundRenderRow } from "./roundRows";
+import {
+  buildAggregateDownloadProgress,
+  buildDownloadProgressByUri,
+  buildPlaylistsByRoundId,
+  buildSourceHeroOptions,
+  filterAndSortRounds,
+  toIndexedRound,
+  type ScriptFilter,
+  type SortMode,
+  type SourceHeroOption,
+  type TypeFilter,
+} from "./roundsSelectors";
 import { usePlayableVideoFallback } from "../hooks/usePlayableVideoFallback";
 import { useSfwMode } from "../hooks/useSfwMode";
 import { playHoverSound, playSelectSound } from "../utils/audio";
@@ -71,9 +82,6 @@ import {
   normalizeInstallWebFunscriptUrlEnabled,
 } from "../constants/experimentalFeatures";
 
-type TypeFilter = "all" | NonNullable<InstalledRound["type"]>;
-type ScriptFilter = "all" | "installed" | "missing";
-type SortMode = "newest" | "oldest" | "difficulty" | "bpm" | "length" | "name";
 type GroupMode = "hero" | "playlist";
 type EditableRoundType = "Normal" | "Interjection" | "Cum";
 type RoundEditDraft = {
@@ -521,7 +529,6 @@ function LibraryErrorState({
 
 const DEFAULT_INTERMEDIARY_LOADING_DURATION_SEC = 5;
 const DEFAULT_INTERMEDIARY_RETURN_PAUSE_SEC = 4;
-const roundNameCollator = new Intl.Collator();
 const ROUND_SECTIONS: RoundSection[] = [
   {
     id: "library",
@@ -538,28 +545,6 @@ const ROUND_SECTIONS: RoundSection[] = [
       "Install new rounds, import portable files, and manage database exports from one place.",
   },
 ];
-
-type IndexedRound = {
-  round: InstalledRound;
-  searchText: string;
-  roundType: NonNullable<InstalledRound["type"]>;
-  hasScript: boolean;
-  createdAtMs: number;
-  difficultyValue: number;
-  bpmValue: number;
-  lengthSec: number;
-};
-
-type PlaylistMembership = {
-  playlistId: string;
-  playlistName: string;
-};
-
-type SourceHeroOption = {
-  heroId: string;
-  heroName: string;
-  rounds: InstalledRound[];
-};
 
 function toLegacyPlaylistConfig(orderedSlots: LegacyImportedSlot[]): PlaylistConfig {
   const safePointIndices: number[] = [];
@@ -682,21 +667,6 @@ function parseOptionalFloat(value: string): number | null {
   const parsed = Number(trimmed);
   if (!Number.isFinite(parsed)) return Number.NaN;
   return parsed;
-}
-
-function toIndexedRound(round: InstalledRound): IndexedRound {
-  return {
-    round,
-    searchText: [round.name, round.author ?? "", round.hero?.name ?? "", round.description ?? ""]
-      .join("\n")
-      .toLowerCase(),
-    roundType: round.type ?? "Normal",
-    hasScript: Boolean(round.resources[0]?.funscriptUri),
-    createdAtMs: Date.parse(String(round.createdAt)) || 0,
-    difficultyValue: round.difficulty ?? 0,
-    bpmValue: round.bpm ?? 0,
-    lengthSec: getRoundDurationSec(round),
-  };
 }
 
 function isTemplateRound(round: InstalledRound): boolean {
@@ -1495,25 +1465,15 @@ export function InstalledRoundsPage() {
     };
   }, [refreshInstalledRounds]);
 
-  const downloadProgressByUri = useMemo(() => {
-    const map = new Map<string, VideoDownloadProgress>();
-    for (const progress of downloadProgresses) {
-      map.set(progress.url, progress);
-    }
-    return map;
-  }, [downloadProgresses]);
+  const downloadProgressByUri = useMemo(
+    () => buildDownloadProgressByUri(downloadProgresses),
+    [downloadProgresses]
+  );
 
-  const aggregateDownloadProgress = useMemo(() => {
-    if (downloadProgresses.length === 0) return null;
-    const totalPercent = downloadProgresses.reduce((sum, p) => sum + p.percent, 0);
-    const avgPercent = Math.round(totalPercent / downloadProgresses.length);
-    const totalDownloaded = downloadProgresses.reduce(
-      (sum, p) => sum + (p.downloadedBytes ?? 0),
-      0
-    );
-    const totalSize = downloadProgresses.reduce((sum, p) => sum + (p.totalBytes ?? 0), 0);
-    return { count: downloadProgresses.length, avgPercent, totalDownloaded, totalSize };
-  }, [downloadProgresses]);
+  const aggregateDownloadProgress = useMemo(
+    () => buildAggregateDownloadProgress(downloadProgresses),
+    [downloadProgresses]
+  );
 
   const getDownloadProgressForVideoUri = useCallback(
     (videoUri: string): VideoDownloadProgress | null => {
@@ -1542,68 +1502,20 @@ export function InstalledRoundsPage() {
   );
 
   const indexedRounds = useMemo(() => rounds.map(toIndexedRound), [rounds]);
-  const filteredRounds = useMemo(() => {
-    const normalized = deferredQuery.trim().toLowerCase();
-    const result =
-      normalized.length === 0 && typeFilter === "all" && scriptFilter === "all"
-        ? [...indexedRounds]
-        : indexedRounds.filter((entry) => {
-            if (typeFilter !== "all" && entry.roundType !== typeFilter) {
-              return false;
-            }
-            if (scriptFilter !== "all" && entry.hasScript !== (scriptFilter === "installed")) {
-              return false;
-            }
-            if (normalized.length > 0 && !entry.searchText.includes(normalized)) {
-              return false;
-            }
-            return true;
-          });
-
-    result.sort((a, b) => {
-      if (sortMode === "oldest") {
-        return a.createdAtMs - b.createdAtMs;
-      }
-      if (sortMode === "difficulty") {
-        return b.difficultyValue - a.difficultyValue;
-      }
-      if (sortMode === "bpm") {
-        return b.bpmValue - a.bpmValue;
-      }
-      if (sortMode === "length") {
-        return b.lengthSec - a.lengthSec;
-      }
-      if (sortMode === "name") {
-        return roundNameCollator.compare(a.round.name, b.round.name);
-      }
-      return b.createdAtMs - a.createdAtMs;
-    });
-
-    return result.map((entry) => entry.round);
-  }, [deferredQuery, indexedRounds, scriptFilter, sortMode, typeFilter]);
+  const filteredRounds = useMemo(
+    () =>
+      filterAndSortRounds({
+        indexedRounds,
+        query: deferredQuery,
+        typeFilter,
+        scriptFilter,
+        sortMode,
+      }),
+    [deferredQuery, indexedRounds, scriptFilter, sortMode, typeFilter]
+  );
   const playlistsByRoundId = useMemo(() => {
     if (groupMode !== "playlist" || availablePlaylists.length === 0) return null;
-
-    const roundResolver = createPortableRoundRefResolver(rounds);
-    const memberships = new Map<string, PlaylistMembership[]>();
-
-    for (const playlist of availablePlaylists) {
-      const seenRoundIds = new Set<string>();
-      for (const entry of collectPlaylistRefs(playlist.config)) {
-        const resolved = roundResolver.resolve(entry.ref);
-        if (!resolved || seenRoundIds.has(resolved.id)) continue;
-        seenRoundIds.add(resolved.id);
-        const existing = memberships.get(resolved.id);
-        const membership = { playlistId: playlist.id, playlistName: playlist.name };
-        if (existing) {
-          existing.push(membership);
-        } else {
-          memberships.set(resolved.id, [membership]);
-        }
-      }
-    }
-
-    return memberships;
+    return buildPlaylistsByRoundId(availablePlaylists, rounds);
   }, [availablePlaylists, groupMode, rounds]);
   const playlistWebsiteCacheSummaryById = useMemo(
     () =>
@@ -1632,23 +1544,10 @@ export function InstalledRoundsPage() {
     () => rounds.filter((round) => Boolean(round.resources[0]?.funscriptUri)).length,
     [rounds]
   );
-  const sourceHeroOptions = useMemo<SourceHeroOption[]>(() => {
-    const groups = new Map<string, SourceHeroOption>();
-    for (const round of rounds) {
-      if (!round.heroId || !round.hero || isTemplateRound(round)) continue;
-      const existing = groups.get(round.heroId);
-      if (existing) {
-        existing.rounds.push(round);
-        continue;
-      }
-      groups.set(round.heroId, {
-        heroId: round.heroId,
-        heroName: round.hero.name,
-        rounds: [round],
-      });
-    }
-    return [...groups.values()].sort((a, b) => a.heroName.localeCompare(b.heroName));
-  }, [rounds]);
+  const sourceHeroOptions = useMemo<SourceHeroOption[]>(
+    () => buildSourceHeroOptions(rounds),
+    [rounds]
+  );
   const hasActiveFilters =
     queryInput.trim().length > 0 || typeFilter !== "all" || scriptFilter !== "all";
   const activeFilterCount =

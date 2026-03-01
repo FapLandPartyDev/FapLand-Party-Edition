@@ -108,10 +108,10 @@ export const Route = createFileRoute("/multiplayer")({
   validateSearch: (search) => MultiplayerSearchSchema.parse(search),
   loader: async () => {
     await assertMultiplayerAllowed();
-    const [availablePlaylists, installedRounds, profiles, activeProfile, rawSkipRoundsCheck] =
+    const [availablePlaylists, installedRoundCount, profiles, activeProfile, rawSkipRoundsCheck] =
       await Promise.all([
         playlists.list(),
-        db.round.findInstalled(),
+        db.round.countInstalled(),
         listMultiplayerServerProfiles(),
         getOptionalActiveMultiplayerServerProfile(),
         trpc.store.get.query({ key: MULTIPLAYER_SKIP_ROUNDS_CHECK_KEY }),
@@ -127,7 +127,7 @@ export const Route = createFileRoute("/multiplayer")({
     return {
       activePlaylist,
       availablePlaylists,
-      installedRounds,
+      installedRoundCount,
       profiles,
       activeProfile,
       skipRoundsCheck,
@@ -147,7 +147,7 @@ function MultiplayerRoute() {
   const {
     activePlaylist,
     availablePlaylists,
-    installedRounds,
+    installedRoundCount,
     profiles,
     activeProfile,
     skipRoundsCheck,
@@ -237,13 +237,13 @@ function MultiplayerRoute() {
     : false;
   const hasServerProfiles = serverProfiles.length > 0;
   const hasPlayablePlaylist = availablePlaylists.length > 0 && selectedPlaylist !== null;
-  const hasEnoughRounds = installedRounds.length >= MULTIPLAYER_MINIMUM_ROUNDS;
+  const hasEnoughRounds = installedRoundCount >= MULTIPLAYER_MINIMUM_ROUNDS;
   const selectedPlaylistRequiredRounds = selectedPlaylist
     ? getMultiplayerRequiredRounds(selectedPlaylist.config)
     : MULTIPLAYER_MINIMUM_ROUNDS;
   const roundsBlocked = !skipRoundsCheck && !hasEnoughRounds;
   const selectedPlaylistBlocked =
-    !skipRoundsCheck && installedRounds.length < selectedPlaylistRequiredRounds;
+    !skipRoundsCheck && installedRoundCount < selectedPlaylistRequiredRounds;
   const canPlay =
     onboardingStatus === "ready" && serverConfigured && !authBootstrapPending && !roundsBlocked;
   const selectedServerEndpointLabel = selectedServer
@@ -477,9 +477,9 @@ function MultiplayerRoute() {
       setError("Select a playlist before hosting a lobby.");
       return;
     }
-    if (!skipRoundsCheck && installedRounds.length < selectedPlaylistRequiredRounds) {
+    if (!skipRoundsCheck && installedRoundCount < selectedPlaylistRequiredRounds) {
       setError(
-        `This playlist requires at least ${selectedPlaylistRequiredRounds} installed rounds. You have ${installedRounds.length}.`
+        `This playlist requires at least ${selectedPlaylistRequiredRounds} installed rounds. You have ${installedRoundCount}.`
       );
       return;
     }
@@ -488,6 +488,7 @@ function MultiplayerRoute() {
     setError(null);
     try {
       await setActiveMultiplayerServerProfile(selectedServer.id);
+      const installedRounds = await db.round.findInstalled();
       const snapshot = buildMultiplayerPlaylistSnapshot(selectedPlaylist.config, installedRounds, {
         name: selectedPlaylist.name,
       });
@@ -547,7 +548,7 @@ function MultiplayerRoute() {
         }
         const blockedReason = getLobbyJoinBlockedReason(
           preview,
-          installedRounds.length,
+          installedRoundCount,
           skipRoundsCheck
         );
         if (blockedReason) {
@@ -577,7 +578,7 @@ function MultiplayerRoute() {
     },
     [
       displayName,
-      installedRounds.length,
+      installedRoundCount,
       inviteCode,
       navigate,
       onboardingStatus,
@@ -638,24 +639,24 @@ function MultiplayerRoute() {
     : onboardingMessage;
   const createDisabledReason = !canPlay
     ? roundsBlocked
-      ? `You need at least ${MULTIPLAYER_MINIMUM_ROUNDS} installed rounds to host. You have ${installedRounds.length}.`
+      ? `You need at least ${MULTIPLAYER_MINIMUM_ROUNDS} installed rounds to host. You have ${installedRoundCount}.`
       : authBootstrapPending
         ? "Finish account setup to host."
         : "Resolve multiplayer readiness first."
     : !hasPlayablePlaylist
       ? "Create or select a playlist before hosting."
       : selectedPlaylistBlocked
-        ? `This playlist requires at least ${selectedPlaylistRequiredRounds} installed rounds. You have ${installedRounds.length}.`
+        ? `This playlist requires at least ${selectedPlaylistRequiredRounds} installed rounds. You have ${installedRoundCount}.`
         : null;
   const createWarning =
     hasPlayablePlaylist &&
     skipRoundsCheck &&
-    installedRounds.length < selectedPlaylistRequiredRounds
+    installedRoundCount < selectedPlaylistRequiredRounds
       ? `Experimental override active: ${selectedPlaylist?.name ?? "This playlist"} is tuned for at least ${selectedPlaylistRequiredRounds} installed rounds, and disabling the checks may result in a bad user experience.`
       : null;
   const joinDisabledReason = !canPlay
     ? roundsBlocked
-      ? `You need at least ${MULTIPLAYER_MINIMUM_ROUNDS} installed rounds to join. You have ${installedRounds.length}.`
+      ? `You need at least ${MULTIPLAYER_MINIMUM_ROUNDS} installed rounds to join. You have ${installedRoundCount}.`
       : authBootstrapPending
         ? "Finish account setup to join."
         : "Resolve multiplayer readiness first."
@@ -668,9 +669,9 @@ function MultiplayerRoute() {
       publicLobbies.map((lobby) => {
         const joinBlockedReason = !canPlay
           ? (joinDisabledReason ?? "Resolve multiplayer readiness first.")
-          : getLobbyJoinBlockedReason(lobby, installedRounds.length, skipRoundsCheck);
+          : getLobbyJoinBlockedReason(lobby, installedRoundCount, skipRoundsCheck);
         const joinWarning =
-          skipRoundsCheck && installedRounds.length < lobby.requiredRoundCount
+          skipRoundsCheck && installedRoundCount < lobby.requiredRoundCount
             ? `Experimental override active. This lobby expects ${lobby.requiredRoundCount} installed rounds, and joining below that may result in a bad user experience.`
             : null;
 
@@ -716,7 +717,7 @@ function MultiplayerRoute() {
     [
       canPlay,
       handleJoinLobby,
-      installedRounds.length,
+      installedRoundCount,
       joinDisabledReason,
       joinPending,
       publicLobbies,
@@ -779,7 +780,7 @@ function MultiplayerRoute() {
               </h2>
               <p className="mt-1 text-sm text-rose-200/80">
                 Multiplayer requires at least {MULTIPLAYER_MINIMUM_ROUNDS} installed rounds. You
-                have <span className="font-bold text-rose-100">{installedRounds.length}</span>.
+                have <span className="font-bold text-rose-100">{installedRoundCount}</span>.
                 Install more via the{" "}
                 <button
                   type="button"
@@ -841,7 +842,7 @@ function MultiplayerRoute() {
               <span
                 className={`text-sm ${hasEnoughRounds ? "text-emerald-200" : "text-amber-200"}`}
               >
-                {installedRounds.length} installed
+                {installedRoundCount} installed
               </span>
             </div>
             <div className="flex items-end gap-2 self-end">

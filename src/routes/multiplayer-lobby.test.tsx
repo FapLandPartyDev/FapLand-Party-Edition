@@ -125,6 +125,10 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => mocks.navigate,
 }));
 
+vi.mock("../components/multiplayer/MultiplayerUpdateGuard", () => ({
+  MultiplayerUpdateGuard: ({ children }: { children: ReactElement }) => children,
+}));
+
 vi.mock("../components/AnimatedBackground", () => ({
   AnimatedBackground: () => null,
 }));

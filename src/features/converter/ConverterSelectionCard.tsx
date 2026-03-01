@@ -72,17 +72,35 @@ export const ConverterSelectionCard: React.FC<ConverterSelectionCardProps> = Rea
       setIsPreviewActive(false);
     };
 
+    const handleActivate = () => {
+      playSelectSound();
+      onClick();
+    };
+
     return (
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onMouseEnter={playHoverSound}
         onMouseMove={handlePreviewActivate}
         onMouseLeave={handlePreviewDeactivate}
         onFocus={handlePreviewActivate}
         onBlur={handlePreviewDeactivate}
-        onClick={() => {
-          playSelectSound();
-          onClick();
+        onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          handleActivate();
+        }}
+        onClick={(event) => {
+          const target = event.target as HTMLElement;
+          const interactiveTarget = target.closest(
+            'button, a, input, select, textarea, [role="button"], [role="link"]'
+          );
+          if (interactiveTarget && interactiveTarget !== event.currentTarget) {
+            return;
+          }
+          handleActivate();
         }}
         className="group flex flex-col gap-2 rounded-2xl border border-purple-400/25 bg-zinc-950/55 p-4 text-left backdrop-blur-xl transition-all duration-200 hover:border-violet-300/50 hover:bg-zinc-950/70"
       >
@@ -162,7 +180,7 @@ export const ConverterSelectionCard: React.FC<ConverterSelectionCardProps> = Rea
             </span>
           )}
         </div>
-      </button>
+      </div>
     );
   }
 );

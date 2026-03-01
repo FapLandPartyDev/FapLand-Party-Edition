@@ -6,11 +6,12 @@ import {
   dialog,
   Menu,
   shell,
+  session,
   type OpenDialogOptions,
 } from "electron";
 import path from "node:path";
 import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { createIPCHandler } from "trpc-electron/main";
@@ -39,6 +40,7 @@ const pendingOpenedFiles: string[] = [];
 const pendingAuthCallbacks: string[] = [];
 let appOpenRendererReady = false;
 let mainWindowRef: BrowserWindow | null = null;
+let rendererDevToolsWindowRef: BrowserWindow | null = null;
 let trpcIpcHandler: { attachWindow: (window: BrowserWindow) => void } | null = null;
 
 function reportFatalStartupError(error: unknown): void {
@@ -124,7 +126,241 @@ process.env = normalizedProcessEnv;
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 const RENDERER_DIST = path.join(APP_ROOT, "dist");
 const isDevServerEnabled = Boolean(VITE_DEV_SERVER_URL);
+const isDevelopmentToolsEnabled = isDevServerEnabled || env.enableDevFeatures;
+const remoteDebuggingPort = env.remoteDebuggingPort ?? (isDevelopmentToolsEnabled ? 9222 : null);
 const PACKAGED_RENDERER_ENTRY_URL = "app://renderer/index.html";
+const REACT_DEVTOOLS_EXTENSION_ID = "fmkadmapgofadopljbjfkapdkoienihi";
+
+type DevToolsTarget = {
+  type?: string;
+  title?: string;
+  url?: string;
+  devtoolsFrontendUrl?: string;
+  devtoolsFrontendUrlCompat?: string;
+  webSocketDebuggerUrl?: string;
+};
+
+if (remoteDebuggingPort !== null) {
+  app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1");
+  app.commandLine.appendSwitch("remote-debugging-port", String(remoteDebuggingPort));
+}
+
+function getReactDevToolsUserDataRoots(): string[] {
+  const home = app.getPath("home");
+  const localAppData = process.env.LOCALAPPDATA;
+
+  switch (process.platform) {
+    case "darwin":
+      return [
+        path.join(home, "Library/Application Support/Google/Chrome"),
+        path.join(home, "Library/Application Support/Google/Chrome Beta"),
+        path.join(home, "Library/Application Support/Chromium"),
+        path.join(home, "Library/Application Support/BraveSoftware/Brave-Browser"),
+        path.join(home, "Library/Application Support/Microsoft Edge"),
+      ];
+    case "win32":
+      if (!localAppData) return [];
+      return [
+        path.join(localAppData, "Google/Chrome/User Data"),
+        path.join(localAppData, "Google/Chrome Beta/User Data"),
+        path.join(localAppData, "Chromium/User Data"),
+        path.join(localAppData, "BraveSoftware/Brave-Browser/User Data"),
+        path.join(localAppData, "Microsoft/Edge/User Data"),
+      ];
+    default:
+      return [
+        path.join(home, ".config/google-chrome"),
+        path.join(home, ".config/google-chrome-beta"),
+        path.join(home, ".config/chromium"),
+        path.join(home, ".config/BraveSoftware/Brave-Browser"),
+        path.join(home, ".config/microsoft-edge"),
+      ];
+  }
+}
+
+async function findReactDevToolsExtensionPath(): Promise<string | null> {
+  const versionCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+  for (const userDataRoot of getReactDevToolsUserDataRoots()) {
+    let profileNames: string[];
+    try {
+      const entries = await readdir(userDataRoot, { withFileTypes: true });
+      profileNames = entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+        .filter((name) => name === "Default" || name.startsWith("Profile "));
+    } catch {
+      continue;
+    }
+
+    for (const profileName of profileNames.sort((left, right) => {
+      if (left === "Default") return -1;
+      if (right === "Default") return 1;
+      return versionCollator.compare(left, right);
+    })) {
+      const extensionRoot = path.join(
+        userDataRoot,
+        profileName,
+        "Extensions",
+        REACT_DEVTOOLS_EXTENSION_ID
+      );
+
+      let versionNames: string[];
+      try {
+        const versionEntries = await readdir(extensionRoot, { withFileTypes: true });
+        versionNames = versionEntries
+          .filter((entry) => entry.isDirectory())
+          .map((entry) => entry.name)
+          .sort((left, right) => versionCollator.compare(right, left));
+      } catch {
+        continue;
+      }
+
+      for (const versionName of versionNames) {
+        const manifestPath = path.join(extensionRoot, versionName, "manifest.json");
+        try {
+          const manifestStat = await stat(manifestPath);
+          if (manifestStat.isFile()) {
+            return path.join(extensionRoot, versionName);
+          }
+        } catch {
+          // Keep looking through other installed copies.
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+async function installReactDevTools(): Promise<void> {
+  if (!isDevelopmentToolsEnabled) return;
+
+  const existingExtension = session.defaultSession.getExtension(REACT_DEVTOOLS_EXTENSION_ID);
+  if (existingExtension) return;
+
+  const extensionPath = await findReactDevToolsExtensionPath();
+  if (!extensionPath) {
+    console.warn(
+      "React DevTools extension was not found in a local Chrome/Chromium profile. Install it in your browser to enable the React Profiler tab inside Electron DevTools."
+    );
+    return;
+  }
+
+  try {
+    await session.defaultSession.loadExtension(extensionPath);
+    console.log(`Loaded React DevTools from ${extensionPath}`);
+  } catch (error) {
+    console.warn("Failed to load React DevTools extension", error);
+  }
+}
+
+async function logRemoteInspectorUrl(mainWindow: BrowserWindow): Promise<void> {
+  if (remoteDebuggingPort === null) return;
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${remoteDebuggingPort}/json/list`);
+    if (!response.ok) return;
+
+    const targets = (await response.json()) as DevToolsTarget[];
+    const currentUrl = mainWindow.webContents.getURL();
+    const target =
+      targets.find((entry) => entry.type === "page" && entry.url === currentUrl) ??
+      targets.find((entry) => entry.type === "page" && entry.title === mainWindow.getTitle()) ??
+      targets.find((entry) => entry.type === "page");
+
+    const frontendPath = target?.devtoolsFrontendUrlCompat ?? target?.devtoolsFrontendUrl;
+    const wsUrl = target?.webSocketDebuggerUrl;
+    const wsPath = wsUrl?.replace(/^ws:\/\/127\.0\.0\.1:\d+/, "127.0.0.1:" + remoteDebuggingPort);
+
+    if (wsPath) {
+      console.log(
+        `Open this in Chrome for the renderer inspector: devtools://devtools/bundled/inspector.html?ws=${wsPath}`
+      );
+    }
+
+    if (frontendPath) {
+      const inspectorUrl =
+        frontendPath.startsWith("http://") || frontendPath.startsWith("https://")
+          ? frontendPath
+          : `http://127.0.0.1:${remoteDebuggingPort}${frontendPath}`;
+
+      console.log(`Fallback remote inspector URL: ${inspectorUrl}`);
+    }
+  } catch (error) {
+    console.warn("Failed to resolve remote Chrome DevTools frontend URL", error);
+  }
+}
+
+function showRendererDevTools(mainWindow: BrowserWindow): void {
+  if (!isDevelopmentToolsEnabled) return;
+  if (mainWindow.isDestroyed()) return;
+
+  let devToolsWindow = rendererDevToolsWindowRef;
+  if (!devToolsWindow || devToolsWindow.isDestroyed()) {
+    devToolsWindow = new BrowserWindow({
+      width: 1280,
+      height: 900,
+      title: "F-Land DevTools",
+      autoHideMenuBar: true,
+      show: false,
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+        devTools: false,
+      },
+    });
+    rendererDevToolsWindowRef = devToolsWindow;
+
+    devToolsWindow.on("closed", () => {
+      if (rendererDevToolsWindowRef === devToolsWindow) {
+        rendererDevToolsWindowRef = null;
+      }
+
+      if (!mainWindow.isDestroyed() && mainWindow.webContents.isDevToolsOpened()) {
+        mainWindow.webContents.closeDevTools();
+      }
+    });
+  }
+
+  mainWindow.webContents.setDevToolsWebContents(devToolsWindow.webContents);
+  mainWindow.webContents.once("devtools-opened", () => {
+    if (!devToolsWindow?.isDestroyed()) {
+      devToolsWindow.show();
+      devToolsWindow.focus();
+    }
+  });
+
+  mainWindow.webContents.openDevTools({
+    mode: "detach",
+    activate: true,
+  });
+
+  setTimeout(() => {
+    if (mainWindow.isDestroyed()) return;
+    console.log(`Renderer DevTools opened: ${mainWindow.webContents.isDevToolsOpened()}`);
+  }, 250);
+}
+
+function scheduleRendererDevTools(mainWindow: BrowserWindow): void {
+  if (!isDevelopmentToolsEnabled) return;
+
+  let opened = false;
+  const openOnce = () => {
+    if (opened || mainWindow.isDestroyed()) return;
+    opened = true;
+    showRendererDevTools(mainWindow);
+  };
+
+  mainWindow.once("ready-to-show", () => {
+    setTimeout(openOnce, 150);
+  });
+
+  mainWindow.webContents.once("did-finish-load", () => {
+    setTimeout(openOnce, 150);
+  });
+}
 
 function normalizeOpenedFilePath(rawPath: string): string | null {
   const trimmed = rawPath.trim();
@@ -371,7 +607,9 @@ function isAllowedNavigationTarget(target: string): boolean {
   }
 }
 
-function createWindow(): BrowserWindow {
+async function createWindow(): Promise<BrowserWindow> {
+  await installReactDevTools();
+
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -381,7 +619,7 @@ function createWindow(): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: !isDevServerEnabled,
-      devTools: isDevServerEnabled,
+      devTools: isDevelopmentToolsEnabled,
       webSecurity: true,
       allowRunningInsecureContent: false,
       spellcheck: false,
@@ -404,7 +642,7 @@ function createWindow(): BrowserWindow {
   }
 
   // Forward renderer console logs to terminal during development
-  if (isDevServerEnabled) {
+  if (isDevelopmentToolsEnabled) {
     mainWindow.webContents.on("console-message", (details) => {
       console.log(
         `[Renderer Console] ${details.sourceId}:${details.lineNumber} - ${details.message}`
@@ -442,12 +680,16 @@ function createWindow(): BrowserWindow {
     }
 
     if (
-      isDevServerEnabled &&
+      isDevelopmentToolsEnabled &&
       (input.key === "F12" ||
         (input.control && input.shift && input.key.toLowerCase() === "i") ||
         (input.meta && input.alt && input.key.toLowerCase() === "i"))
     ) {
-      mainWindow.webContents.toggleDevTools();
+      if (mainWindow.webContents.isDevToolsOpened()) {
+        mainWindow.webContents.closeDevTools();
+      } else {
+        showRendererDevTools(mainWindow);
+      }
       event.preventDefault();
       return;
     }
@@ -469,12 +711,26 @@ function createWindow(): BrowserWindow {
 
   if (isDevServerEnabled && VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadURL(PACKAGED_RENDERER_ENTRY_URL);
   }
 
+  scheduleRendererDevTools(mainWindow);
+
+  if (remoteDebuggingPort !== null) {
+    mainWindow.webContents.once("did-finish-load", () => {
+      setTimeout(() => {
+        void logRemoteInspectorUrl(mainWindow);
+      }, 250);
+    });
+  }
+
   mainWindow.on("closed", () => {
+    if (rendererDevToolsWindowRef && !rendererDevToolsWindowRef.isDestroyed()) {
+      rendererDevToolsWindowRef.close();
+      rendererDevToolsWindowRef = null;
+    }
+
     if (mainWindowRef === mainWindow) {
       mainWindowRef = null;
       appOpenRendererReady = false;
@@ -861,6 +1117,12 @@ function registerAuthCallbackIpc() {
 app
   .whenReady()
   .then(async () => {
+    if (remoteDebuggingPort !== null) {
+      console.log(
+        `Chrome DevTools remote debugging available on http://127.0.0.1:${remoteDebuggingPort}`
+      );
+    }
+
     app.setAsDefaultProtocolClient("fland");
     await initStore();
     await ensureAppDatabaseReady();
@@ -871,7 +1133,7 @@ app
     registerAuthCallbackIpc();
     broadcastUpdateState();
     Menu.setApplicationMenu(null);
-    createWindow();
+    await createWindow();
     void initializeAppUpdater().catch((error) => {
       console.error("Startup update check failed", error);
     });
@@ -883,7 +1145,7 @@ app
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
+        void createWindow();
       }
     });
   })
