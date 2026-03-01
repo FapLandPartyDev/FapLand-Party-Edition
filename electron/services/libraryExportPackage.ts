@@ -187,6 +187,7 @@ type VideoTask = {
   preferredBaseName: string;
   originalExtension: string;
   probe: PlaylistExportVideoProbe;
+  isStashSource: boolean;
   output: ExportedMediaFile | null;
 };
 
@@ -195,6 +196,7 @@ type FunscriptTask = {
   uri: string;
   installSourceKey: string | null;
   preferredBaseName: string;
+  isStashSource: boolean;
   output: ExportedMediaFile | null;
 };
 
@@ -552,6 +554,23 @@ async function resolveRemoteResponse(
   });
 }
 
+function findStashSourceForUri(
+  uri: string,
+  installSourceKey: string | null
+): ExternalSourceRecord | null {
+  const enabledSources = listExternalSources().filter((source) => source.enabled);
+  for (const source of enabledSources) {
+    if (source.kind !== "stash") continue;
+    const shouldUseByInstallSource = installSourceKey?.startsWith(
+      `stash:${normalizeBaseUrl(source.baseUrl)}:scene:`
+    );
+    const shouldUseByUri = stashProvider.canHandleUri(uri, source);
+    if (!shouldUseByInstallSource && !shouldUseByUri) continue;
+    return source as ExternalSourceRecord;
+  }
+  return null;
+}
+
 function registerTransferController(controller: AbortController): void {
   activeTransferAbortControllers.add(controller);
 }
@@ -771,7 +790,7 @@ function unregisterEncodeChild(child: ChildProcess): void {
   activeEncodeChildren.delete(child);
 }
 
-function toRoundSidecarPayload(entry: RoundResourceEntry, includeMedia: boolean) {
+function toRoundSidecarPayload(entry: RoundResourceEntry) {
   return ZRoundSidecar.parse({
     name: entry.round.name,
     author: entry.round.author ?? undefined,
@@ -790,9 +809,7 @@ function toRoundSidecarPayload(entry: RoundResourceEntry, includeMedia: boolean)
     excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
     resources: [
       {
-        videoUri: includeMedia
-          ? (entry.materialized.video?.relativePath ?? entry.resource.videoUri)
-          : entry.resource.videoUri,
+        videoUri: entry.materialized.video?.relativePath ?? entry.resource.videoUri,
         funscriptUri:
           entry.materialized.funscript?.relativePath ?? entry.resource.funscriptUri ?? undefined,
       },
@@ -802,8 +819,7 @@ function toRoundSidecarPayload(entry: RoundResourceEntry, includeMedia: boolean)
 
 function toHeroSidecarPayload(
   hero: ExportableHero,
-  entries: RoundResourceEntry[],
-  includeMedia: boolean
+  entries: RoundResourceEntry[]
 ) {
   return ZHeroSidecar.parse({
     name: hero.name,
@@ -833,9 +849,7 @@ function toHeroSidecarPayload(
         excludeFromRandom: entry.round.excludeFromRandom ? true : undefined,
         resources: [
           {
-            videoUri: includeMedia
-              ? (entry.materialized.video?.relativePath ?? entry.resource.videoUri)
-              : entry.resource.videoUri,
+            videoUri: entry.materialized.video?.relativePath ?? entry.resource.videoUri,
             funscriptUri:
               entry.materialized.funscript?.relativePath ??
               entry.resource.funscriptUri ??
@@ -863,6 +877,7 @@ function buildResourceInventory(rounds: ExportableRound[]): {
       resourceReferences.push({ round, resource, preferredBaseName });
 
       const canonicalVideoKey = canonicalizeResourceKey(resource.videoUri);
+      const videoIsStash = Boolean(findStashSourceForUri(resource.videoUri, round.installSourceKey));
       if (!videoTaskByKey.has(canonicalVideoKey)) {
         videoTaskByKey.set(canonicalVideoKey, {
           canonicalKey: canonicalVideoKey,
@@ -877,6 +892,7 @@ function buildResourceInventory(rounds: ExportableRound[]): {
             durationMs: resource.durationMs ?? null,
             fileSizeBytes: null,
           },
+          isStashSource: videoIsStash,
           output: null,
         });
       } else if (resource.durationMs && !videoTaskByKey.get(canonicalVideoKey)?.probe.durationMs) {
@@ -888,12 +904,14 @@ function buildResourceInventory(rounds: ExportableRound[]): {
 
       if (resource.funscriptUri) {
         const canonicalFunscriptKey = canonicalizeResourceKey(resource.funscriptUri);
+        const funscriptIsStash = Boolean(findStashSourceForUri(resource.funscriptUri, round.installSourceKey));
         if (!funscriptTaskByKey.has(canonicalFunscriptKey)) {
           funscriptTaskByKey.set(canonicalFunscriptKey, {
             canonicalKey: canonicalFunscriptKey,
             uri: resource.funscriptUri,
             installSourceKey: round.installSourceKey,
             preferredBaseName,
+            isStashSource: funscriptIsStash,
             output: null,
           });
         }
@@ -1508,9 +1526,18 @@ export async function exportLibraryPackage(
     const usedMediaNames = new Set<string>();
     const usedSidecarNames = new Set<string>();
 
-    if (includeMedia) {
+    // Stash-sourced media must always be bundled (the URLs are meaningless outside the
+    // local Stash server). For non-stash resources we respect the includeMedia flag.
+    const videoTasksToMaterialize = includeMedia
+      ? prepared.videoTasks
+      : prepared.videoTasks.filter((task) => task.isStashSource);
+    const funscriptTasksToMaterialize = includeMedia
+      ? prepared.funscriptTasks
+      : prepared.funscriptTasks.filter((task) => task.isStashSource);
+
+    if (videoTasksToMaterialize.length > 0) {
       allocateMediaOutputs({
-        tasks: prepared.videoTasks,
+        tasks: videoTasksToMaterialize,
         usedNames: usedMediaNames,
         packageDir: exportDir,
         compressionMode: prepared.effectiveCompressionMode,
@@ -1518,7 +1545,7 @@ export async function exportLibraryPackage(
     }
 
     allocateMediaOutputs({
-      tasks: prepared.funscriptTasks,
+      tasks: funscriptTasksToMaterialize,
       usedNames: usedMediaNames,
       packageDir: exportDir,
       compressionMode: prepared.effectiveCompressionMode,
@@ -1528,8 +1555,10 @@ export async function exportLibraryPackage(
     let reencodedVideos = 0;
     let alreadyAv1Copied = 0;
 
-    if (includeMedia) {
-      for (const task of prepared.videoTasks) {
+    // Materialize all tasks that have been allocated an output path.
+    const videoTasksWithOutput = prepared.videoTasks.filter((task) => task.output !== null);
+    if (videoTasksWithOutput.length > 0) {
+      for (const task of videoTasksWithOutput) {
         const result = await materializeVideoTask({
           task,
           workDir,
@@ -1546,24 +1575,21 @@ export async function exportLibraryPackage(
       }
     }
 
-    for (const task of prepared.funscriptTasks) {
+    const funscriptTasksWithOutput = prepared.funscriptTasks.filter((task) => task.output !== null);
+    for (const task of funscriptTasksWithOutput) {
       await materializeFunscriptTask(task);
     }
 
+    // Build output maps from all tasks that were materialized (stash tasks are always
+    // included; other tasks depend on the includeMedia flag).
     const videoOutputByKey = new Map<string, ExportedMediaFile>(
-      includeMedia
-        ? prepared.videoTasks
-            .filter((task): task is VideoTask & { output: ExportedMediaFile } =>
-              Boolean(task.output)
-            )
-            .map((task) => [`video:${task.canonicalKey}`, task.output])
-        : []
+      prepared.videoTasks
+        .filter((task): task is VideoTask & { output: ExportedMediaFile } => Boolean(task.output))
+        .map((task) => [`video:${task.canonicalKey}`, task.output])
     );
     const funscriptOutputByKey = new Map<string, ExportedMediaFile>(
       prepared.funscriptTasks
-        .filter((task): task is FunscriptTask & { output: ExportedMediaFile } =>
-          Boolean(task.output)
-        )
+        .filter((task): task is FunscriptTask & { output: ExportedMediaFile } => Boolean(task.output))
         .map((task) => [`funscript:${task.canonicalKey}`, task.output])
     );
 
@@ -1571,12 +1597,14 @@ export async function exportLibraryPackage(
       const funscriptKey = entry.resource.funscriptUri
         ? `funscript:${canonicalizeResourceKey(entry.resource.funscriptUri)}`
         : null;
-      let video = null;
 
-      if (includeMedia) {
-        const videoKey = `video:${canonicalizeResourceKey(entry.resource.videoUri)}`;
-        video = videoOutputByKey.get(videoKey) ?? null;
-        if (!video) {
+      const videoKey = `video:${canonicalizeResourceKey(entry.resource.videoUri)}`;
+      const video = videoOutputByKey.get(videoKey) ?? null;
+
+      // When includeMedia is true but a non-stash video has no output, that's an error.
+      if (includeMedia && !video) {
+        const task = prepared.videoTasks.find((t) => t.canonicalKey === canonicalizeResourceKey(entry.resource.videoUri));
+        if (task && !task.isStashSource) {
           throw new Error(`Exported video output is missing for ${entry.resource.videoUri}`);
         }
       }
@@ -1586,7 +1614,7 @@ export async function exportLibraryPackage(
         resource: entry.resource,
         materialized: {
           canonicalVideoKey: canonicalizeResourceKey(entry.resource.videoUri),
-          video: video ?? null,
+          video,
           funscript: funscriptKey ? (funscriptOutputByKey.get(funscriptKey) ?? null) : null,
         },
       };
@@ -1613,7 +1641,7 @@ export async function exportLibraryPackage(
       updatePhase("writing", `Writing sidecar ${fileName}...`);
       await writeJsonFile(
         path.join(exportDir, fileName),
-        toRoundSidecarPayload(entry, includeMedia)
+        toRoundSidecarPayload(entry)
       );
       incrementStat("roundFiles");
       incrementProgress();
@@ -1635,7 +1663,7 @@ export async function exportLibraryPackage(
       updatePhase("writing", `Writing sidecar ${fileName}...`);
       await writeJsonFile(
         path.join(exportDir, fileName),
-        toHeroSidecarPayload(group.hero, group.entries, includeMedia)
+        toHeroSidecarPayload(group.hero, group.entries)
       );
       incrementStat("heroFiles");
       incrementProgress();
