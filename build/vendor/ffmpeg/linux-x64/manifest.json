@@ -1,6 +1,6 @@
 {
-  "releaseName": "Auto-Build 2026-05-13 13:53",
-  "publishedAt": "2026-05-13T13:54:46Z",
-  "assetName": "ffmpeg-N-124445-g22d06b39ce-linux64-gpl.tar.xz",
-  "sha256": "82c50cbf4cdaf07278061bb8440cda7610d0fe782c26e86d280fe2c4b73e9c13"
+  "releaseName": "Latest Auto-Build (2026-05-17 13:15)",
+  "publishedAt": "2026-05-17T14:18:16Z",
+  "assetName": "ffmpeg-master-latest-linux64-gpl.tar.xz",
+  "sha256": "b0335856b58a9e906df64aafe663f489691928bcb3cdf86526380f32ce0da6a0"
 }
