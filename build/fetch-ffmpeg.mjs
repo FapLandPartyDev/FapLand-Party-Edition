@@ -17,13 +17,13 @@ if (!targetKey) {
 
 const TARGETS = {
   "linux-x64": {
-    assetPattern: /^ffmpeg-N-\d+-g[0-9a-f]+-linux64-gpl\.tar\.xz$/,
+    assetPattern: /^ffmpeg-master-latest-linux64-gpl\.tar\.xz$/,
     archiveType: "tar.xz",
     ffmpegBinaryName: "ffmpeg",
     ffprobeBinaryName: "ffprobe",
   },
   "win32-x64": {
-    assetPattern: /^ffmpeg-N-\d+-g[0-9a-f]+-win64-gpl\.zip$/,
+    assetPattern: /^ffmpeg-master-latest-win64-gpl\.zip$/,
     archiveType: "zip",
     ffmpegBinaryName: "ffmpeg.exe",
     ffprobeBinaryName: "ffprobe.exe",
