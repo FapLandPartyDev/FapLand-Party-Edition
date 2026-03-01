@@ -1,6 +1,7 @@
 import { trpc } from "../trpc";
 import { normalizeHandyStrokeState } from "../theHandyConfig";
 import { getScriptActionsUri } from "./scriptEnhancement";
+import { nativeDeviceSummary } from "./multifunplayerNative";
 import type { FunscriptAction } from "../../game/media/playback";
 import type { HapticsConnectionConfig, HapticsRuntimeAdapter, HapticsSession } from "./types";
 
@@ -43,7 +44,7 @@ export const multifunplayerAdapter: HapticsRuntimeAdapter<MultiFunPlayerSession>
     return {
       provider: "multifunplayer",
       success: status.running && status.clients > 0,
-      deviceName: "MultiFunPlayer",
+      deviceName: nativeDeviceSummary(status.native) ?? "MultiFunPlayer",
       message:
         status.error ??
         (!status.running

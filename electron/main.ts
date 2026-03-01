@@ -6,11 +6,13 @@ import {
   dialog,
   Menu,
   shell,
+  nativeImage,
   session,
   type OpenDialogOptions,
 } from "electron";
 import path from "node:path";
-import { createReadStream } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { appendFile, readdir, stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
@@ -18,7 +20,7 @@ import { createIPCHandler } from "trpc-electron/main";
 import { config as loadDotenv } from "dotenv";
 import { appRouter } from "./trpc/router";
 import { installMcp } from "./mcp/integration";
-import { multifunplayerBridge } from "./services/multifunplayer";
+import { multifunplayerBridge, startSavedBridge } from "./services/multifunplayer";
 import { getNodeEnv } from "../src/zod/env";
 import { isVideoExtension, SUPPORTED_VIDEO_EXTENSIONS } from "../src/constants/videoFormats";
 import { approveDialogPath } from "./services/dialogPathApproval";
@@ -1722,20 +1724,47 @@ function registerGpuCrashHandlerOnce(): void {
   });
 }
 
+const FUNLINK_ID_KEY = "funlink.id";
+// Funlink limits the icon data URI to 64 KiB.
+const FUNLINK_ICON_LIMIT = 64 * 1024;
+
+/** The stable install ID and icon that MultiFunPlayer shows in its connect prompt. */
+function funlinkIdentity() {
+  let id = safeStoreGet(FUNLINK_ID_KEY);
+  if (typeof id !== "string" || !/^[A-Za-z0-9._-]{1,64}$/.test(id)) {
+    id = randomUUID();
+    safeStoreSet(FUNLINK_ID_KEY, id);
+  }
+  const logo = [RENDERER_DIST, path.join(APP_ROOT, "public")]
+    .map((directory) => path.join(directory, "logo192.png"))
+    .find((file) => existsSync(file));
+  const image = logo ? nativeImage.createFromPath(logo) : null;
+  const png =
+    image && !image.isEmpty()
+      ? image.resize({ width: 128, height: 128, quality: "good" }).toPNG()
+      : null;
+  const icon = png ? `data:image/png;base64,${png.toString("base64")}` : null;
+  return {
+    id: id as string,
+    ...(icon && icon.length <= FUNLINK_ICON_LIMIT ? { icon } : {}),
+  };
+}
+
 function runNormalStartupOnce(): Promise<void> {
   if (normalStartupPromise) return normalStartupPromise;
 
   normalStartupPromise = (async () => {
     await initStore();
     if (startupRecoveryActive) return;
-    if (safeStoreGet("multifunplayer.enabled") === true) {
-      const port = Number(safeStoreGet("multifunplayer.port") ?? 8080);
-      if (Number.isInteger(port) && port >= 1024 && port <= 65535) {
-        await multifunplayerBridge.start(port).catch((error: unknown) => {
-          console.error("MultiFunPlayer bridge failed to start", error);
-        });
-      }
-    }
+    multifunplayerBridge.version = app.getVersion();
+    multifunplayerBridge.funlink = funlinkIdentity();
+    await startSavedBridge(
+      multifunplayerBridge,
+      safeStoreGet("multifunplayer.enabled"),
+      safeStoreGet("multifunplayer.port")
+    ).catch((error: unknown) => {
+      console.error("MultiFunPlayer bridge failed to start", error);
+    });
     debugLog.info("startup", "Store initialized");
     initializeDebugLogging();
     pendingGpuRecoveryHint = safeStoreGet(GRAPHICS_GPU_CRASH_HINT_PENDING_KEY) === true;
@@ -1876,7 +1905,17 @@ app.on("window-all-closed", () => {
   }
 });
 
-app.on("before-quit", () => {
+let bridgeStopped = false;
+app.on("before-quit", (event) => {
+  // Give MultiFunPlayer the bridge's goodbye before quitting, so its connect
+  // card disappears at once. A hub that does not answer delays quitting by at
+  // most the request timeout.
+  if (!bridgeStopped && multifunplayerBridge.status().running) {
+    event.preventDefault();
+    bridgeStopped = true;
+    void multifunplayerBridge.stop().finally(() => app.quit());
+    return;
+  }
   void multifunplayerBridge.stop();
   void mcpRuntime?.stop();
 });

@@ -38,6 +38,22 @@ export const multifunplayerRouter = router({
       })
     )
     .mutation(({ input }) => multifunplayerBridge.update(input)),
+  setRange: publicProcedure
+    .input(
+      z
+        .object({
+          output: z.string().min(1).max(100),
+          axis: z.string().regex(/^[A-Z][0-9]$/),
+          minimum: z.number().finite().min(0).max(1),
+          maximum: z.number().finite().min(0).max(1),
+        })
+        .refine(({ minimum, maximum }) => maximum - minimum >= 0.01 - 1e-9, {
+          message: "The range must span at least 1%.",
+        })
+    )
+    .mutation(({ input }) =>
+      multifunplayerBridge.setRange(input.output, input.axis, input.minimum, input.maximum)
+    ),
   clear: publicProcedure
     .input(z.object({ key: z.string() }))
     .mutation(({ input }) => multifunplayerBridge.clear(input.key)),

@@ -1,5 +1,18 @@
 # What's New
 
+## v0.6.32-beta.1
+
+### Added
+
+- **Funlink test integration** — compatible MultiFunPlayer builds can discover the local FapLand bridge and offer a connection. The bridge announces itself while running and tells discovered hubs when it stops.
+- Compatible MultiFunPlayer builds can report connected devices and sync status and expose output ranges for adjustment in FapLand. The manual OFS connection remains available.
+
+### Changed
+
+- The local MultiFunPlayer bridge starts automatically unless it was disabled in Hardware & Sync.
+
+---
+
 ## v0.6.31
 
 ### Added

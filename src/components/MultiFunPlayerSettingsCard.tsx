@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Trans } from "@lingui/react/macro";
 import { trpc } from "../services/trpc";
+import type { MfpNativePeer } from "../services/haptics/multifunplayerNative";
+import { MultiFunPlayerDevicePanel } from "./MultiFunPlayerDevicePanel";
 
 export function MultiFunPlayerSettingsCard() {
   const [status, setStatus] = useState<{
@@ -8,6 +10,7 @@ export function MultiFunPlayerSettingsCard() {
     clients: number;
     port: number;
     error: string | null;
+    native?: MfpNativePeer | null;
   } | null>(null);
   const [port, setPort] = useState("8080");
   const [busy, setBusy] = useState(false);
@@ -55,6 +58,9 @@ export function MultiFunPlayerSettingsCard() {
     <section className="rounded-3xl border border-cyan-400/25 bg-zinc-950/55 p-5 text-zinc-200 backdrop-blur-xl">
       <h2 className="text-lg font-extrabold text-cyan-100">MultiFunPlayer</h2>
       <p className="mt-2 text-sm">
+        <Trans>Funlink device discovery is a test integration.</Trans>
+      </p>
+      <p className="mt-2 text-sm">
         <Trans>
           Enable the bridge, then add an OFS player in MultiFunPlayer and connect it to the address
           below. Configure your multi-axis device output in MultiFunPlayer.
@@ -71,6 +77,13 @@ export function MultiFunPlayerSettingsCard() {
           After connecting the OFS player, press Connect below to use the hardware controls. Stop
           and the cum button pause device playback. Stroke range adjusts the primary axis; configure
           other axes and output limits in MultiFunPlayer.
+        </Trans>
+      </p>
+      <p className="mt-2 text-sm">
+        <Trans>
+          MultiFunPlayer builds with the FapLand link also report their devices and sync state here,
+          and their output ranges can be adjusted from FapLand. Other players keep working through
+          the plain OFS connection.
         </Trans>
       </p>
       <p className="mt-2 text-sm">
@@ -117,6 +130,11 @@ export function MultiFunPlayerSettingsCard() {
           <Trans>Bridge stopped</Trans>
         )}
       </p>
+      {status?.running && status.native ? (
+        <div className="mt-4">
+          <MultiFunPlayerDevicePanel peer={status.native} />
+        </div>
+      ) : null}
       {error || status?.error ? (
         <p className="mt-2 text-sm text-rose-300" role="alert">
           {error ?? status?.error}

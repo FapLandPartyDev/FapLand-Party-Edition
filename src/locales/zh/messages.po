@@ -32,7 +32,7 @@ msgstr "配置的设备"
 msgid "Back Up Now"
 msgstr "立即备份"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:109
+#: src/components/MultiFunPlayerSettingsCard.tsx:122
 msgid "Enable bridge"
 msgstr "启用桥接"
 
@@ -353,7 +353,7 @@ msgstr "作弊模式"
 msgid "This filename match is weak or tied. Verify it before downloading."
 msgstr "此文件名匹配度较低或存在歧义。请在下载前进行核对。"
 
-#: src/components/GlobalHandyOverlay.tsx:577
+#: src/components/GlobalHandyOverlay.tsx:592
 #: src/routes/first-start.tsx:2977
 msgid "Disconnect"
 msgstr "断开连接"
@@ -881,7 +881,7 @@ msgstr "更改此项只影响之后的 EroScripts 下载。现有缓存文件不
 msgid "Visibility is"
 msgstr "可见性为"
 
-#: src/components/GlobalHandyOverlay.tsx:638
+#: src/components/GlobalHandyOverlay.tsx:653
 msgid "reset in-game"
 msgstr "在游戏中重置"
 
@@ -1118,7 +1118,7 @@ msgstr "选择可见"
 msgid "{0} safe points"
 msgstr "{0} 个安全点"
 
-#: src/components/GlobalHandyOverlay.tsx:586
+#: src/components/GlobalHandyOverlay.tsx:601
 msgid "Device active"
 msgstr "设备已激活"
 
@@ -1430,7 +1430,7 @@ msgstr "安装拖放的文件？"
 msgid "Continue the saved run for this playlist"
 msgstr "继续此播放列表的已保存运行"
 
-#: src/components/GlobalHandyOverlay.tsx:180
+#: src/components/GlobalHandyOverlay.tsx:187
 msgid "Haptics reconnect failed."
 msgstr "触觉重新连接失败。"
 
@@ -1479,6 +1479,10 @@ msgstr "清空选择"
 #: src/features/map-editor/components/EditorToolbar.tsx:158
 msgid "Reset View"
 msgstr "重置视图"
+
+#: src/components/MultiFunPlayerDevicePanel.tsx:134
+msgid "native link"
+msgstr "原生连接"
 
 #: src/features/progression/ProgressionCheatConsole.tsx:186
 msgid "Apply progression override"
@@ -1674,7 +1678,7 @@ msgid "Controls the range of the dice used for movement. Default is 1 to 6."
 msgstr "控制用于移动的骰子范围。默认为 1 到 6。"
 
 #: src/components/game/RoundVideoOverlay.tsx:5041
-#: src/components/GlobalHandyOverlay.tsx:148
+#: src/components/GlobalHandyOverlay.tsx:155
 msgid "Haptics resumed."
 msgstr "触觉已恢复。"
 
@@ -2103,7 +2107,7 @@ msgstr "下载最新版本"
 msgid "Linking {0}"
 msgstr "正在关联 {0}"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:109
+#: src/components/MultiFunPlayerSettingsCard.tsx:122
 msgid "Disable bridge"
 msgstr "禁用桥接"
 
@@ -2136,7 +2140,7 @@ msgstr "重新排序已选回合？"
 msgid "Your level will not progress while cheat mode is active"
 msgstr "作弊模式启用期间，你的等级不会提升"
 
-#: src/components/GlobalHandyOverlay.tsx:543
+#: src/components/GlobalHandyOverlay.tsx:558
 msgid "MultiFunPlayer connected"
 msgstr "MultiFunPlayer 已连接"
 
@@ -2373,7 +2377,7 @@ msgid "Could not sync remote results. Showing cached data."
 msgstr "无法同步远程结果。显示缓存数据。"
 
 #: src/components/game/RoundVideoOverlay.tsx:5815
-#: src/components/GlobalHandyOverlay.tsx:459
+#: src/components/GlobalHandyOverlay.tsx:466
 msgid "Save Offset to Round"
 msgstr "保存偏移量到回合"
 
@@ -2381,7 +2385,7 @@ msgstr "保存偏移量到回合"
 msgid "Select an item first."
 msgstr "请先选择一个物品。"
 
-#: src/components/GlobalHandyOverlay.tsx:545
+#: src/components/GlobalHandyOverlay.tsx:560
 msgid "TCode device connected"
 msgstr "TCode 设备已连接"
 
@@ -2449,7 +2453,7 @@ msgid "Downloading:"
 msgstr "正在下载："
 
 #: src/components/game/RoundVideoOverlay.tsx:1228
-#: src/components/GlobalHandyOverlay.tsx:114
+#: src/components/GlobalHandyOverlay.tsx:121
 msgid "Offset saved to round."
 msgstr "偏移量已保存到回合。"
 
@@ -2960,6 +2964,10 @@ msgstr "最终分数"
 msgid "Complete"
 msgstr "完成"
 
+#: src/components/MultiFunPlayerDevicePanel.tsx:130
+msgid "MultiFunPlayer devices"
+msgstr "MultiFunPlayer 设备"
+
 #: src/routes/settings.tsx:2012
 msgid "VideoHash FFmpeg Source"
 msgstr "VideoHash FFmpeg 来源"
@@ -3020,7 +3028,7 @@ msgid "Escape closes open tools or clears the selection."
 msgstr "Escape 可关闭打开的工具或清除选中项。"
 
 #. placeholder {0}: status.clients
-#: src/components/MultiFunPlayerSettingsCard.tsx:115
+#: src/components/MultiFunPlayerSettingsCard.tsx:128
 msgid "Bridge running. Connected players: {0}"
 msgstr "桥接运行中。已连接的播放器：{0}"
 
@@ -3437,6 +3445,11 @@ msgstr "信息"
 msgid "Retry analysis"
 msgstr "重试分析"
 
+#. placeholder {0}: nativeOutputName(output)
+#: src/components/MultiFunPlayerDevicePanel.tsx:111
+msgid "{0} {name} maximum"
+msgstr "{0} {name} 最大值"
+
 #: src/components/ClearDataDialog.tsx:108
 msgid "App Settings & Preferences"
 msgstr "应用设置与偏好"
@@ -3477,7 +3490,7 @@ msgstr "大小"
 msgid "Playlist exported."
 msgstr "播放列表已导出。"
 
-#: src/components/GlobalHandyOverlay.tsx:180
+#: src/components/GlobalHandyOverlay.tsx:187
 msgid "Haptics reconnected."
 msgstr "触觉已重新连接。"
 
@@ -3486,7 +3499,7 @@ msgstr "触觉已重新连接。"
 msgid "Intermediary increase"
 msgstr "中间环节增量"
 
-#: src/components/GlobalHandyOverlay.tsx:492
+#: src/components/GlobalHandyOverlay.tsx:503
 #: src/features/progression/ProgressionCheatConsole.tsx:210
 #: src/routes/settings.tsx:5422
 msgid "Max"
@@ -4000,6 +4013,10 @@ msgstr "过滤器"
 msgid "Website Video Cache"
 msgstr "网站视频缓存"
 
+#: src/components/MultiFunPlayerDevicePanel.tsx:76
+msgid "Out of sync"
+msgstr "不同步"
+
 #: src/routes/settings.tsx:6959
 msgid "Loading external sources..."
 msgstr "正在加载外部来源..."
@@ -4314,6 +4331,10 @@ msgstr "活跃的封禁"
 msgid "Reroll Random"
 msgstr "随机重掷"
 
+#: src/components/GlobalHandyOverlay.tsx:557
+msgid "MultiFunPlayer: {nativeDevices}"
+msgstr "MultiFunPlayer：{nativeDevices}"
+
 #: src/features/converter/ConverterSourcePicker.tsx:441
 msgid "Minimum length"
 msgstr "最小时长"
@@ -4327,7 +4348,7 @@ msgstr "等级"
 msgid "Ban {0}"
 msgstr "封禁 {0}"
 
-#: src/components/GlobalHandyOverlay.tsx:541
+#: src/components/GlobalHandyOverlay.tsx:554
 msgid "Intiface device connected"
 msgstr "Intiface 设备已连接"
 
@@ -4405,6 +4426,11 @@ msgstr "玩家落到这里时额外前进的节点数。"
 #: src/routes/multiplayer-match.tsx:1655
 msgid "No players available for moderation."
 msgstr "没有可供管理的玩家。"
+
+#. placeholder {0}: nativeOutputName(output)
+#: src/components/MultiFunPlayerDevicePanel.tsx:110
+msgid "{0} {name} minimum"
+msgstr "{0} {name} 最小值"
 
 #: src/features/converter/VideoPreview.tsx:246
 msgid "Skip cuts in preview"
@@ -4552,7 +4578,7 @@ msgstr "未知作者"
 msgid "Loop"
 msgstr "循环"
 
-#: src/components/GlobalHandyOverlay.tsx:599
+#: src/components/GlobalHandyOverlay.tsx:614
 msgid "Start Haptics"
 msgstr "启动触觉"
 
@@ -4579,7 +4605,7 @@ msgstr "已禁用"
 msgid "Start Test"
 msgstr "开始测试"
 
-#: src/components/GlobalHandyOverlay.tsx:500
+#: src/components/GlobalHandyOverlay.tsx:511
 #: src/routes/settings.tsx:5430
 msgid "TheHandy stroke maximum slider"
 msgstr "TheHandy 冲程最大滑块"
@@ -4769,7 +4795,8 @@ msgid "Warning: This cannot be undone."
 msgstr "警告：此操作无法撤销。"
 
 #: src/components/game/RoundVideoOverlay.tsx:4734
-#: src/components/GlobalHandyOverlay.tsx:240
+#: src/components/GlobalHandyOverlay.tsx:247
+#: src/components/MultiFunPlayerDevicePanel.tsx:74
 #: src/routes/settings.tsx:5223
 msgid "Syncing"
 msgstr "同步中"
@@ -4807,6 +4834,10 @@ msgstr "从"
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1637
 msgid "Attached the hard-mode script to {0} hero rounds."
 msgstr "已将困难模式脚本附加到 {0} 个主角回合。"
+
+#: src/components/MultiFunPlayerDevicePanel.tsx:223
+msgid "Hide extra axes"
+msgstr "隐藏额外轴"
 
 #: src/routes/playlist-workshop.tsx:2573
 msgid "Loading the round library before saving…"
@@ -4952,7 +4983,7 @@ msgstr ""
 "\n"
 "这仅移除数据库条目。磁盘上的文件将保持不变。"
 
-#: src/components/GlobalHandyOverlay.tsx:489
+#: src/components/GlobalHandyOverlay.tsx:500
 #: src/routes/settings.tsx:5419
 msgid "Min"
 msgstr "最小"
@@ -5010,7 +5041,7 @@ msgstr "未选择源 — 请查看下方候选项。"
 msgid "Library"
 msgstr "库"
 
-#: src/components/GlobalHandyOverlay.tsx:536
+#: src/components/GlobalHandyOverlay.tsx:549
 msgid "Connection"
 msgstr "连接"
 
@@ -5023,7 +5054,7 @@ msgstr "踢出"
 msgid "Maximum interjections per triggered round"
 msgstr "每个触发关卡的最大插入片段数"
 
-#: src/components/GlobalHandyOverlay.tsx:610
+#: src/components/GlobalHandyOverlay.tsx:625
 msgid "start / stop"
 msgstr "启动 / 停止"
 
@@ -5043,6 +5074,10 @@ msgstr "没有可用的预览"
 #: src/components/PlaylistPackExportDialog.tsx:562
 msgid "Compression Time"
 msgstr "压缩时间"
+
+#: src/components/MultiFunPlayerDevicePanel.tsx:75
+msgid "In sync"
+msgstr "已同步"
 
 #: src/routes/multiplayer.tsx:689
 msgid "You need at least {MULTIPLAYER_MINIMUM_ROUNDS} installed rounds to host. You have {installedRoundCount}."
@@ -5906,7 +5941,7 @@ msgstr "对当前 funscript 运行自动检测。"
 msgid "Create a cut from the global IN and OUT markers on the selected timeline segment."
 msgstr "根据全局 IN 和 OUT 标记，在所选时间线片段上创建一个切分。"
 
-#: src/components/GlobalHandyOverlay.tsx:512
+#: src/components/GlobalHandyOverlay.tsx:523
 #: src/routes/settings.tsx:5444
 msgid "Current stroke"
 msgstr "当前冲程"
@@ -6097,7 +6132,7 @@ msgstr "已恢复此回合的正常 funscript 动作。"
 msgid "Skipped 1 round without a media resource."
 msgstr "跳过了 1 个没有媒体资源的回合。"
 
-#: src/components/GlobalHandyOverlay.tsx:561
+#: src/components/GlobalHandyOverlay.tsx:576
 msgid "Reconnect"
 msgstr "重新连接"
 
@@ -6317,7 +6352,7 @@ msgid "Will replace"
 msgstr "将替换"
 
 #: src/components/game/RoundVideoOverlay.tsx:5930
-#: src/components/GlobalHandyOverlay.tsx:583
+#: src/components/GlobalHandyOverlay.tsx:598
 msgid "Playback"
 msgstr "播放"
 
@@ -6416,7 +6451,7 @@ msgstr "你的自定义和导入的播放列表。"
 msgid "Progressive Random"
 msgstr "渐进随机"
 
-#: src/components/GlobalHandyOverlay.tsx:176
+#: src/components/GlobalHandyOverlay.tsx:183
 msgid "Reconnecting haptics..."
 msgstr "正在重新连接触觉..."
 
@@ -6438,7 +6473,7 @@ msgstr "管理你已存储的增益和当前激活的效果。"
 msgid "Restored normal funscript motion for {0} hero rounds."
 msgstr "已恢复英雄 {0} 个回合的正常 funscript 动作。"
 
-#: src/components/GlobalHandyOverlay.tsx:136
+#: src/components/GlobalHandyOverlay.tsx:143
 msgid "Haptics stroke reset."
 msgstr "触觉行程已重置。"
 
@@ -7085,7 +7120,7 @@ msgstr "缺少触觉连接设置。"
 msgid "Unresolved"
 msgstr "未解决"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:84
+#: src/components/MultiFunPlayerSettingsCard.tsx:97
 msgid "Port"
 msgstr "端口"
 
@@ -7423,7 +7458,7 @@ msgstr "{0}/{1} 已激活"
 msgid "Logged in as {0}"
 msgstr "已以 {0} 登录"
 
-#: src/components/GlobalHandyOverlay.tsx:577
+#: src/components/GlobalHandyOverlay.tsx:592
 #: src/features/map-editor/components/EditorToolbar.tsx:105
 #: src/routes/first-start.tsx:2984
 #: src/routes/settings.tsx:5172
@@ -7553,7 +7588,7 @@ msgstr "缓存进行中"
 msgid "Stash connection succeeded."
 msgstr "Stash 连接成功。"
 
-#: src/components/GlobalHandyOverlay.tsx:577
+#: src/components/GlobalHandyOverlay.tsx:592
 #: src/routes/first-start.tsx:2970
 #: src/routes/settings.tsx:5169
 msgid "Connecting..."
@@ -7720,6 +7755,11 @@ msgstr "转换为 AV1"
 msgid "No license file was found in this package directory. The SPDX identifier above was read from the installed package metadata."
 msgstr "在此包目录中未找到许可证文件。上面的 SPDX 标识符是从已安装的包元数据中读取的。"
 
+#. placeholder {0}: secondary.length
+#: src/components/MultiFunPlayerDevicePanel.tsx:225
+msgid "Extra axes ({0})"
+msgstr "额外轴（{0}）"
+
 #: src/features/map-editor/components/AutomationPanel.tsx:136
 msgid "Experimental feature"
 msgstr "实验性功能"
@@ -7845,7 +7885,7 @@ msgstr "删除数据"
 msgid "Link Discord"
 msgstr "关联 Discord"
 
-#: src/components/GlobalHandyOverlay.tsx:144
+#: src/components/GlobalHandyOverlay.tsx:151
 msgid "Haptics stopped."
 msgstr "触觉已停止。"
 
@@ -7917,7 +7957,7 @@ msgstr "临时排名"
 msgid "See what you played and which rounds defeated you most often."
 msgstr "查看你游玩过什么，以及哪些回合最常击败你。"
 
-#: src/components/GlobalHandyOverlay.tsx:546
+#: src/components/GlobalHandyOverlay.tsx:561
 msgid "Device connected"
 msgstr "设备已连接"
 
@@ -8072,7 +8112,7 @@ msgstr "硬件性能预设"
 msgid "No difficulties"
 msgstr "无难度"
 
-#: src/components/GlobalHandyOverlay.tsx:586
+#: src/components/GlobalHandyOverlay.tsx:601
 msgid "Device stopped"
 msgstr "设备已停止"
 
@@ -8403,6 +8443,10 @@ msgstr "每次后台 pHash 处理的回合数"
 #: src/routes/settings.tsx:8970
 msgid "Please enter a valid number."
 msgstr "请输入有效数字。"
+
+#: src/components/MultiFunPlayerDevicePanel.tsx:73
+msgid "Loading script"
+msgstr "正在加载脚本"
 
 #: src/features/map-editor/components/AutomationPanel.tsx:194
 msgid "Build \"if this happens, do that\" rules here."
@@ -9169,7 +9213,7 @@ msgid "Exact:"
 msgstr "精确："
 
 #: src/components/game/RoundVideoOverlay.tsx:4731
-#: src/components/GlobalHandyOverlay.tsx:239
+#: src/components/GlobalHandyOverlay.tsx:246
 #: src/routes/settings.tsx:4706
 msgid "Synced"
 msgstr "已同步"
@@ -9368,7 +9412,7 @@ msgstr "浏览 1 条缓存的比赛结果并展开个人玩家排名。"
 msgid "Unlimited"
 msgstr "无限制"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:77
+#: src/components/MultiFunPlayerSettingsCard.tsx:90
 msgid "In MultiFunPlayer, turn off \"Update motion providers when paused\" for generated axes so Stop also pauses their motion."
 msgstr "在 MultiFunPlayer 中，为生成动作的轴关闭“Update motion providers when paused”，使停止操作也能暂停这些轴的运动。"
 
@@ -9413,7 +9457,7 @@ msgid "Select a search result to inspect downloadable files."
 msgstr "选择一个搜索结果以查看可下载文件。"
 
 #: src/components/game/RoundVideoOverlay.tsx:4727
-#: src/components/GlobalHandyOverlay.tsx:235
+#: src/components/GlobalHandyOverlay.tsx:242
 #: src/routes/settings.tsx:5223
 msgid "Stopped"
 msgstr "已停止"
@@ -9647,7 +9691,7 @@ msgstr "等级"
 msgid "Expected Size"
 msgstr "预计大小"
 
-#: src/components/GlobalHandyOverlay.tsx:529
+#: src/components/GlobalHandyOverlay.tsx:540
 #: src/routes/settings.tsx:5465
 msgid "Reset Stroke"
 msgstr "重置冲程"
@@ -9675,7 +9719,7 @@ msgid "Delete Playlist?"
 msgstr "删除播放列表？"
 
 #: src/components/game/GameScene.tsx:5428
-#: src/components/GlobalHandyOverlay.tsx:432
+#: src/components/GlobalHandyOverlay.tsx:439
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:500
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:541
 #: src/features/map-editor/components/TextInspectorPanel.tsx:119
@@ -9720,7 +9764,7 @@ msgstr "已安装库"
 msgid "Refresh failed."
 msgstr "刷新失败。"
 
-#: src/components/GlobalHandyOverlay.tsx:632
+#: src/components/GlobalHandyOverlay.tsx:647
 msgid "fine 1ms tuning"
 msgstr "精确 1ms 调整"
 
@@ -9795,7 +9839,7 @@ msgstr "正在清除..."
 msgid "When enabled, holding 'S' during the first 5 seconds of app startup will automatically enable SFW Mode. Useful for emergency situations."
 msgstr "启用时，在应用启动的前 5 秒内按住 'S' 将自动启用 SFW 模式。适用于紧急情况。"
 
-#: src/components/GlobalHandyOverlay.tsx:372
+#: src/components/GlobalHandyOverlay.tsx:379
 msgid "Fine tune delay if motion leads or lags video"
 msgstr "如果运动超前或滞后于视频，请微调延迟"
 
@@ -9803,7 +9847,7 @@ msgstr "如果运动超前或滞后于视频，请微调延迟"
 msgid "Keep current"
 msgstr "保持当前"
 
-#: src/components/GlobalHandyOverlay.tsx:626
+#: src/components/GlobalHandyOverlay.tsx:641
 msgid "adjust in-game"
 msgstr "在游戏中调整"
 
@@ -9825,7 +9869,7 @@ msgstr "存储已安装便携式包的提取包内容。"
 msgid "Install Web Video"
 msgstr "安装网页视频"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:70
+#: src/components/MultiFunPlayerSettingsCard.tsx:76
 msgid "After connecting the OFS player, press Connect below to use the hardware controls. Stop and the cum button pause device playback. Stroke range adjusts the primary axis; configure other axes and output limits in MultiFunPlayer."
 msgstr "连接 OFS 播放器后，点击下方的连接即可使用硬件控制。停止和射精按钮会暂停设备播放。行程范围调整主轴；请在 MultiFunPlayer 中配置其他轴和输出限制。"
 
@@ -10854,7 +10898,7 @@ msgstr "迁移完成：已迁移 {0} 个缓存文件夹{1}{2}。"
 msgid "The round library could not be loaded. Saving is disabled to protect the existing queue."
 msgstr "无法加载关卡库。已禁用保存以保护现有队列。"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:117
+#: src/components/MultiFunPlayerSettingsCard.tsx:130
 msgid "Bridge stopped"
 msgstr "桥接已停止"
 
@@ -10918,7 +10962,7 @@ msgstr "继续"
 msgid "Multiplayer"
 msgstr "多人模式"
 
-#: src/components/GlobalHandyOverlay.tsx:475
+#: src/components/GlobalHandyOverlay.tsx:485
 #: src/routes/settings.tsx:5403
 msgid "Adjust the active haptics stroke range."
 msgstr "调整活动的触觉行程范围。"
@@ -10947,7 +10991,7 @@ msgstr "WebSocket"
 msgid "Set background media and the road colors used between nodes."
 msgstr "设置背景媒体以及节点之间使用的道路颜色。"
 
-#: src/components/GlobalHandyOverlay.tsx:334
+#: src/components/GlobalHandyOverlay.tsx:341
 msgid "Close haptics overlay"
 msgstr "关闭触觉叠加层"
 
@@ -11213,6 +11257,10 @@ msgstr "重置为真实档案"
 msgid "Convert legacy script to hard mode"
 msgstr "将旧版脚本转换为困难模式"
 
+#: src/components/MultiFunPlayerDevicePanel.tsx:236
+msgid "Disabled in MultiFunPlayer"
+msgstr "已在 MultiFunPlayer 中禁用"
+
 #: src/routes/multiplayer.tsx:966
 msgid "Switch to Sign In"
 msgstr "切换到登录"
@@ -11277,7 +11325,7 @@ msgstr "导航"
 msgid "Update Endpoint"
 msgstr "更新端点"
 
-#: src/components/GlobalHandyOverlay.tsx:547
+#: src/components/GlobalHandyOverlay.tsx:562
 msgid "No device connected"
 msgstr "未连接设备"
 
@@ -11436,7 +11484,7 @@ msgstr "完全随机"
 msgid "Inclusive count after the independent intermediary chance succeeds."
 msgstr "独立中间概率成功后的包含计数。"
 
-#: src/components/GlobalHandyOverlay.tsx:316
+#: src/components/GlobalHandyOverlay.tsx:323
 msgid "to toggle"
 msgstr "切换"
 
@@ -12185,7 +12233,7 @@ msgstr "Booru缓存已清除。"
 msgid "Server"
 msgstr "服务器"
 
-#: src/components/GlobalHandyOverlay.tsx:309
+#: src/components/GlobalHandyOverlay.tsx:316
 msgid "Haptics Controls"
 msgstr "触觉控制"
 
@@ -12250,7 +12298,7 @@ msgstr "搜索 EroScripts"
 msgid "Per rank"
 msgstr "每个等级"
 
-#: src/components/GlobalHandyOverlay.tsx:312
+#: src/components/GlobalHandyOverlay.tsx:319
 msgid "Press"
 msgstr "按下"
 
@@ -12358,7 +12406,7 @@ msgstr "返回"
 msgid "Technical preferences for power users."
 msgstr "面向高级用户的技术偏好设置。"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:64
+#: src/components/MultiFunPlayerSettingsCard.tsx:70
 msgid "Round playback sends the active funscript and matching axis files from the script folder. Use MultiFunPlayer axis links or motion providers for axes without scripts."
 msgstr "回合播放会发送当前 funscript 及脚本文件夹中匹配的轴文件。对于没有脚本的轴，请使用 MultiFunPlayer 的轴联动或动作生成器。"
 
@@ -12465,7 +12513,7 @@ msgstr "移除"
 msgid "Trigger chance controls how often a perk choice appears. In singleplayer, the computer can also randomly hit you with one of the enabled anti-perks based on the anti-perk chance settings. The enabled lists below define what can show up during a run."
 msgstr "触发概率控制增益选择出现的频率。在单人模式中，电脑还可以根据反增益概率设置随机对你施加已启用的反增益之一。下面的已启用列表定义了运行期间可能出现的内容。"
 
-#: src/components/GlobalHandyOverlay.tsx:499
+#: src/components/GlobalHandyOverlay.tsx:510
 #: src/routes/settings.tsx:5429
 msgid "TheHandy stroke minimum slider"
 msgstr "TheHandy 冲程最小滑块"
@@ -12610,7 +12658,7 @@ msgstr "增益概率"
 msgid "Failed to retry template hero linking."
 msgstr "重试模板 Hero 链接失败。"
 
-#: src/components/GlobalHandyOverlay.tsx:472
+#: src/components/GlobalHandyOverlay.tsx:479
 #: src/routes/settings.tsx:5400
 msgid "Stroke Adjustment"
 msgstr "冲程调整"
@@ -13113,7 +13161,7 @@ msgid "Add a start node from the left sidebar or use Place mode."
 msgstr "从左侧边栏添加起始节点，或使用放置模式。"
 
 #. placeholder {0}: deviceSlots.length
-#: src/components/GlobalHandyOverlay.tsx:238
+#: src/components/GlobalHandyOverlay.tsx:245
 msgid "{0} devices synced"
 msgstr "{0} 设备已同步"
 
@@ -13190,7 +13238,7 @@ msgstr "关闭批量修剪"
 msgid "Add all rounds from a hero at once"
 msgstr "一次添加某个 Hero 的所有回合"
 
-#: src/components/GlobalHandyOverlay.tsx:616
+#: src/components/GlobalHandyOverlay.tsx:631
 msgid "reconnect"
 msgstr "重新连接"
 
@@ -13508,6 +13556,10 @@ msgstr "选择已安装的回合"
 msgid "Z-A"
 msgstr "Z-A（降序）"
 
+#: src/components/GlobalHandyOverlay.tsx:483
+msgid "Scales the round script. Device ranges apply after it."
+msgstr "缩放回合脚本。设备范围随后生效。"
+
 #: src/components/PlaylistPackExportDialog.tsx:646
 msgid "The export will skip media files and package into a single .fpack file."
 msgstr "导出将跳过媒体文件并打包为单个 .fpack 文件。"
@@ -13521,7 +13573,7 @@ msgid "License Details"
 msgstr "许可证详情"
 
 #: src/components/game/RoundVideoOverlay.tsx:5048
-#: src/components/GlobalHandyOverlay.tsx:151
+#: src/components/GlobalHandyOverlay.tsx:158
 msgid "No connected haptics device to toggle."
 msgstr "没有已连接的触觉设备可切换。"
 
@@ -14128,6 +14180,10 @@ msgstr "打开主题"
 msgid "Equipped title"
 msgstr "装备称号"
 
+#: src/components/MultiFunPlayerDevicePanel.tsx:72
+msgid "Waiting for round"
+msgstr "等待回合"
+
 #: src/routes/settings.tsx:8162
 msgid "Background Jobs"
 msgstr "后台任务"
@@ -14153,7 +14209,7 @@ msgstr "在 EroScripts 网站登录后，搜索弹窗和下载会使用你的账
 msgid "Graph"
 msgstr "图"
 
-#: src/components/GlobalHandyOverlay.tsx:599
+#: src/components/GlobalHandyOverlay.tsx:614
 msgid "Stop Haptics"
 msgstr "停止触觉"
 
@@ -14169,7 +14225,7 @@ msgstr "播放列表名称"
 msgid "Recently updated"
 msgstr "最近更新"
 
-#: src/components/GlobalHandyOverlay.tsx:388
+#: src/components/GlobalHandyOverlay.tsx:395
 msgid "Haptics global offset slider"
 msgstr "触觉全局偏移滑块"
 
@@ -14513,6 +14569,10 @@ msgstr "均衡（400 单位/秒）"
 msgid "Applied offset to 1 hero round."
 msgstr "已将偏移应用到 1 个主角回合。"
 
+#: src/components/MultiFunPlayerSettingsCard.tsx:83
+msgid "MultiFunPlayer builds with the FapLand link also report their devices and sync state here, and their output ranges can be adjusted from FapLand. Other players keep working through the plain OFS connection."
+msgstr "支持 FapLand 连接的 MultiFunPlayer 版本还会在此报告其设备和同步状态，并可在 FapLand 中调整其输出范围。其他播放器仍通过普通 OFS 连接工作。"
+
 #: src/features/converter/shortcuts.ts:135
 msgid "Set the selected segment type to Normal."
 msgstr "将选中片段类型设置为普通。"
@@ -14538,6 +14598,10 @@ msgstr "选择项目"
 #: src/features/converter/useConverterState.ts:507
 msgid "Failed to convert the funscript."
 msgstr "Funscript 转换失败。"
+
+#: src/components/MultiFunPlayerDevicePanel.tsx:150
+msgid "No outputs are configured in MultiFunPlayer."
+msgstr "MultiFunPlayer 中未配置任何输出。"
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2177
 msgid "Match installed heroes and rounds to catalog files"
@@ -14614,7 +14678,7 @@ msgstr "在从网页安装对话框中显示可选的远程 Funscript URL 字段
 msgid "Infinite run with random rounds. Dice locked to 1. No dice-related perks. Anti-perks can be toggled in the playlist settings."
 msgstr "随机回合的无限模式。骰子锁定为1。无骰子相关增益。反增益可在播放列表设置中切换。"
 
-#: src/components/GlobalHandyOverlay.tsx:293
+#: src/components/GlobalHandyOverlay.tsx:300
 msgid "Global haptics controls"
 msgstr "全局触觉控制"
 
@@ -14795,6 +14859,10 @@ msgstr "发送此反增益前，请先选择目标玩家。"
 msgid "No Playlist Yet"
 msgstr "尚无播放列表"
 
+#: src/components/MultiFunPlayerDevicePanel.tsx:195
+msgid "This output has no adjustable axes."
+msgstr "此输出没有可调节的轴。"
+
 #: src/routes/highscores.tsx:1294
 msgid "Multiplayer Result History"
 msgstr "多人结果历史"
@@ -14924,6 +14992,10 @@ msgstr "正在打开 Discord..."
 msgid "Move Start Here"
 msgstr "将起点移到此处"
 
+#: src/components/MultiFunPlayerSettingsCard.tsx:61
+msgid "Funlink device discovery is a test integration."
+msgstr "Funlink 设备发现是一项测试集成。"
+
 #. placeholder {0}: formatByteSize(estimate?.expectedVideoBytes ?? 0)
 #. placeholder {1}: effectiveMode === "av1" ? `, estimated encode time: ${formatDurationEstimate(estimate?.estimatedCompressionSeconds ?? 0)}.` : "."
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:647
@@ -14957,7 +15029,7 @@ msgstr "全部清除"
 #: src/components/game/RoundVideoOverlay.tsx:4572
 #: src/components/game/RoundVideoOverlay.tsx:5085
 #: src/components/game/RoundVideoOverlay.tsx:5800
-#: src/components/GlobalHandyOverlay.tsx:338
+#: src/components/GlobalHandyOverlay.tsx:345
 #: src/components/GlobalMusicOverlay.tsx:328
 #: src/components/PlaylistPackExportDialog.tsx:220
 #: src/features/converter/MassTrimHeroesDialog.tsx:256
@@ -14993,7 +15065,7 @@ msgstr "根据转换后的困难模式脚本重新计算受影响回合的难度
 msgid "Report Bug"
 msgstr "报告错误"
 
-#: src/components/GlobalHandyOverlay.tsx:369
+#: src/components/GlobalHandyOverlay.tsx:376
 msgid "Sync Offset"
 msgstr "同步偏移"
 
@@ -15341,7 +15413,7 @@ msgstr "连接密钥"
 msgid "Select {displayName}"
 msgstr "选择 {displayName}"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:58
+#: src/components/MultiFunPlayerSettingsCard.tsx:64
 msgid "Enable the bridge, then add an OFS player in MultiFunPlayer and connect it to the address below. Configure your multi-axis device output in MultiFunPlayer."
 msgstr "启用桥接，然后在 MultiFunPlayer 中添加 OFS 播放器并连接到下方地址。请在 MultiFunPlayer 中配置多轴设备输出。"
 
@@ -15395,7 +15467,7 @@ msgid "Security settings update failed."
 msgstr "安全设置更新失败。"
 
 #: src/components/game/RoundVideoOverlay.tsx:4725
-#: src/components/GlobalHandyOverlay.tsx:233
+#: src/components/GlobalHandyOverlay.tsx:240
 #: src/routes/index.tsx:445
 #: src/routes/settings.tsx:4701
 msgid "Disconnected"

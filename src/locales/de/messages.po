@@ -32,7 +32,7 @@ msgstr "Konfigurierte Geräte"
 msgid "Back Up Now"
 msgstr "Jetzt sichern"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:109
+#: src/components/MultiFunPlayerSettingsCard.tsx:122
 msgid "Enable bridge"
 msgstr "Brücke aktivieren"
 
@@ -353,7 +353,7 @@ msgstr "Cheat-Modus"
 msgid "This filename match is weak or tied. Verify it before downloading."
 msgstr "Dieser Dateinamen-Treffer ist schwach oder uneindeutig. Überprüfe ihn vor dem Herunterladen."
 
-#: src/components/GlobalHandyOverlay.tsx:577
+#: src/components/GlobalHandyOverlay.tsx:592
 #: src/routes/first-start.tsx:2977
 msgid "Disconnect"
 msgstr "Trennen"
@@ -881,7 +881,7 @@ msgstr "Diese Änderung betrifft nur zukünftige EroScripts-Downloads. Vorhanden
 msgid "Visibility is"
 msgstr "Sichtbarkeit ist"
 
-#: src/components/GlobalHandyOverlay.tsx:638
+#: src/components/GlobalHandyOverlay.tsx:653
 msgid "reset in-game"
 msgstr "im Spiel zurückgesetzt"
 
@@ -1118,7 +1118,7 @@ msgstr "Sichtbare auswählen"
 msgid "{0} safe points"
 msgstr "{0} sichere Punkte"
 
-#: src/components/GlobalHandyOverlay.tsx:586
+#: src/components/GlobalHandyOverlay.tsx:601
 msgid "Device active"
 msgstr "Gerät aktiv"
 
@@ -1430,7 +1430,7 @@ msgstr "Abgelegte Dateien installieren?"
 msgid "Continue the saved run for this playlist"
 msgstr "Setzen Sie den gespeicherten Lauf für diese Playlist fort"
 
-#: src/components/GlobalHandyOverlay.tsx:180
+#: src/components/GlobalHandyOverlay.tsx:187
 msgid "Haptics reconnect failed."
 msgstr "Haptik-Wiederverbindung fehlgeschlagen."
 
@@ -1479,6 +1479,10 @@ msgstr "Auswahl aufheben"
 #: src/features/map-editor/components/EditorToolbar.tsx:158
 msgid "Reset View"
 msgstr "Ansicht zurücksetzen"
+
+#: src/components/MultiFunPlayerDevicePanel.tsx:134
+msgid "native link"
+msgstr "native Verbindung"
 
 #: src/features/progression/ProgressionCheatConsole.tsx:186
 msgid "Apply progression override"
@@ -1674,7 +1678,7 @@ msgid "Controls the range of the dice used for movement. Default is 1 to 6."
 msgstr "Steuert die Reichweite der für die Bewegung verwendeten Würfel. Der Standardwert ist 1 bis 6."
 
 #: src/components/game/RoundVideoOverlay.tsx:5041
-#: src/components/GlobalHandyOverlay.tsx:148
+#: src/components/GlobalHandyOverlay.tsx:155
 msgid "Haptics resumed."
 msgstr "Haptik fortgesetzt."
 
@@ -2103,7 +2107,7 @@ msgstr "Laden Sie die neueste Version herunter"
 msgid "Linking {0}"
 msgstr "Verknüpfe {0}"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:109
+#: src/components/MultiFunPlayerSettingsCard.tsx:122
 msgid "Disable bridge"
 msgstr "Brücke deaktivieren"
 
@@ -2136,7 +2140,7 @@ msgstr "Ausgewählte Runden neu anordnen?"
 msgid "Your level will not progress while cheat mode is active"
 msgstr "Deine Stufe steigt nicht, solange der Cheat-Modus aktiv ist"
 
-#: src/components/GlobalHandyOverlay.tsx:543
+#: src/components/GlobalHandyOverlay.tsx:558
 msgid "MultiFunPlayer connected"
 msgstr "MultiFunPlayer verbunden"
 
@@ -2373,7 +2377,7 @@ msgid "Could not sync remote results. Showing cached data."
 msgstr "Remote-Ergebnisse konnten nicht synchronisiert werden. Zwischengespeicherte Daten werden angezeigt."
 
 #: src/components/game/RoundVideoOverlay.tsx:5815
-#: src/components/GlobalHandyOverlay.tsx:459
+#: src/components/GlobalHandyOverlay.tsx:466
 msgid "Save Offset to Round"
 msgstr "Offset in Runde speichern"
 
@@ -2381,7 +2385,7 @@ msgstr "Offset in Runde speichern"
 msgid "Select an item first."
 msgstr "Wählen Sie zunächst einen Artikel aus."
 
-#: src/components/GlobalHandyOverlay.tsx:545
+#: src/components/GlobalHandyOverlay.tsx:560
 msgid "TCode device connected"
 msgstr "TCode-Gerät verbunden"
 
@@ -2449,7 +2453,7 @@ msgid "Downloading:"
 msgstr "Herunterladen:"
 
 #: src/components/game/RoundVideoOverlay.tsx:1228
-#: src/components/GlobalHandyOverlay.tsx:114
+#: src/components/GlobalHandyOverlay.tsx:121
 msgid "Offset saved to round."
 msgstr "Offset in der Runde gespeichert."
 
@@ -2960,6 +2964,10 @@ msgstr "Endergebnis"
 msgid "Complete"
 msgstr "Abgeschlossen"
 
+#: src/components/MultiFunPlayerDevicePanel.tsx:130
+msgid "MultiFunPlayer devices"
+msgstr "MultiFunPlayer-Geräte"
+
 #: src/routes/settings.tsx:2012
 msgid "VideoHash FFmpeg Source"
 msgstr "VideoHash FFmpeg-Quelle"
@@ -3020,7 +3028,7 @@ msgid "Escape closes open tools or clears the selection."
 msgstr "Esc schließt geöffnete Werkzeuge oder hebt die Auswahl auf."
 
 #. placeholder {0}: status.clients
-#: src/components/MultiFunPlayerSettingsCard.tsx:115
+#: src/components/MultiFunPlayerSettingsCard.tsx:128
 msgid "Bridge running. Connected players: {0}"
 msgstr "Brücke läuft. Verbundene Player: {0}"
 
@@ -3437,6 +3445,11 @@ msgstr "Info"
 msgid "Retry analysis"
 msgstr "Analyse erneut versuchen"
 
+#. placeholder {0}: nativeOutputName(output)
+#: src/components/MultiFunPlayerDevicePanel.tsx:111
+msgid "{0} {name} maximum"
+msgstr "{0} {name} Maximum"
+
 #: src/components/ClearDataDialog.tsx:108
 msgid "App Settings & Preferences"
 msgstr "App-Einstellungen & Präferenzen"
@@ -3477,7 +3490,7 @@ msgstr "Größe"
 msgid "Playlist exported."
 msgstr "Playlist exportiert."
 
-#: src/components/GlobalHandyOverlay.tsx:180
+#: src/components/GlobalHandyOverlay.tsx:187
 msgid "Haptics reconnected."
 msgstr "Haptik wieder verbunden."
 
@@ -3486,7 +3499,7 @@ msgstr "Haptik wieder verbunden."
 msgid "Intermediary increase"
 msgstr "Zwischenerhöhung"
 
-#: src/components/GlobalHandyOverlay.tsx:492
+#: src/components/GlobalHandyOverlay.tsx:503
 #: src/features/progression/ProgressionCheatConsole.tsx:210
 #: src/routes/settings.tsx:5422
 msgid "Max"
@@ -4000,6 +4013,10 @@ msgstr "Filter"
 msgid "Website Video Cache"
 msgstr "Webseitenvideo-Cache"
 
+#: src/components/MultiFunPlayerDevicePanel.tsx:76
+msgid "Out of sync"
+msgstr "Nicht synchron"
+
 #: src/routes/settings.tsx:6959
 msgid "Loading external sources..."
 msgstr "Externe Quellen werden geladen..."
@@ -4314,6 +4331,10 @@ msgstr "Aktive Verbote"
 msgid "Reroll Random"
 msgstr "Zufällig neu würfeln"
 
+#: src/components/GlobalHandyOverlay.tsx:557
+msgid "MultiFunPlayer: {nativeDevices}"
+msgstr "MultiFunPlayer: {nativeDevices}"
+
 #: src/features/converter/ConverterSourcePicker.tsx:441
 msgid "Minimum length"
 msgstr "Mindestlänge"
@@ -4327,7 +4348,7 @@ msgstr "Ränge"
 msgid "Ban {0}"
 msgstr "Verbot {0}"
 
-#: src/components/GlobalHandyOverlay.tsx:541
+#: src/components/GlobalHandyOverlay.tsx:554
 msgid "Intiface device connected"
 msgstr "Intiface-Gerät verbunden"
 
@@ -4405,6 +4426,11 @@ msgstr "Anzahl zusätzlicher Knoten, die der Spieler beim Landen hier vorwärts 
 #: src/routes/multiplayer-match.tsx:1655
 msgid "No players available for moderation."
 msgstr "Es stehen keine Spieler zur Moderation zur Verfügung."
+
+#. placeholder {0}: nativeOutputName(output)
+#: src/components/MultiFunPlayerDevicePanel.tsx:110
+msgid "{0} {name} minimum"
+msgstr "{0} {name} Minimum"
 
 #: src/features/converter/VideoPreview.tsx:246
 msgid "Skip cuts in preview"
@@ -4552,7 +4578,7 @@ msgstr "Unbekannter Autor"
 msgid "Loop"
 msgstr "Wiederholung"
 
-#: src/components/GlobalHandyOverlay.tsx:599
+#: src/components/GlobalHandyOverlay.tsx:614
 msgid "Start Haptics"
 msgstr "Haptik starten"
 
@@ -4579,7 +4605,7 @@ msgstr "Deaktiviert"
 msgid "Start Test"
 msgstr "Test starten"
 
-#: src/components/GlobalHandyOverlay.tsx:500
+#: src/components/GlobalHandyOverlay.tsx:511
 #: src/routes/settings.tsx:5430
 msgid "TheHandy stroke maximum slider"
 msgstr "TheHandy Hub-Maximum-Schieberegler"
@@ -4769,7 +4795,8 @@ msgid "Warning: This cannot be undone."
 msgstr "Warnung: Dies kann nicht rückgängig gemacht werden."
 
 #: src/components/game/RoundVideoOverlay.tsx:4734
-#: src/components/GlobalHandyOverlay.tsx:240
+#: src/components/GlobalHandyOverlay.tsx:247
+#: src/components/MultiFunPlayerDevicePanel.tsx:74
 #: src/routes/settings.tsx:5223
 msgid "Syncing"
 msgstr "Synchronisiert gerade"
@@ -4807,6 +4834,10 @@ msgstr "Von"
 #: src/features/rounds/library/InstalledRoundsPage.tsx:1637
 msgid "Attached the hard-mode script to {0} hero rounds."
 msgstr "Das Hardmodus-Skript wurde an {0} Helden-Runden angehängt."
+
+#: src/components/MultiFunPlayerDevicePanel.tsx:223
+msgid "Hide extra axes"
+msgstr "Zusätzliche Achsen ausblenden"
 
 #: src/routes/playlist-workshop.tsx:2573
 msgid "Loading the round library before saving…"
@@ -4952,7 +4983,7 @@ msgstr ""
 "\n"
 "Dadurch wird nur der Datenbankeintrag entfernt. Dateien auf der Festplatte bleiben unberührt."
 
-#: src/components/GlobalHandyOverlay.tsx:489
+#: src/components/GlobalHandyOverlay.tsx:500
 #: src/routes/settings.tsx:5419
 msgid "Min"
 msgstr "Min"
@@ -5010,7 +5041,7 @@ msgstr "Keine Quelle ausgewählt – prüfen Sie die Kandidaten unten."
 msgid "Library"
 msgstr "Bibliothek"
 
-#: src/components/GlobalHandyOverlay.tsx:536
+#: src/components/GlobalHandyOverlay.tsx:549
 msgid "Connection"
 msgstr "Verbindung"
 
@@ -5023,7 +5054,7 @@ msgstr "Kick"
 msgid "Maximum interjections per triggered round"
 msgstr "Maximale Zwischenrufe pro ausgelöster Runde"
 
-#: src/components/GlobalHandyOverlay.tsx:610
+#: src/components/GlobalHandyOverlay.tsx:625
 msgid "start / stop"
 msgstr "starten/stoppen"
 
@@ -5043,6 +5074,10 @@ msgstr "Keine Vorschau verfügbar"
 #: src/components/PlaylistPackExportDialog.tsx:562
 msgid "Compression Time"
 msgstr "Komprimierungszeit"
+
+#: src/components/MultiFunPlayerDevicePanel.tsx:75
+msgid "In sync"
+msgstr "Synchron"
 
 #: src/routes/multiplayer.tsx:689
 msgid "You need at least {MULTIPLAYER_MINIMUM_ROUNDS} installed rounds to host. You have {installedRoundCount}."
@@ -5906,7 +5941,7 @@ msgstr "Führen Sie die automatische Erkennung für das aktuelle Funscript aus."
 msgid "Create a cut from the global IN and OUT markers on the selected timeline segment."
 msgstr "Erstelle aus den globalen IN- und OUT-Markern einen Schnitt im ausgewählten Timeline-Segment."
 
-#: src/components/GlobalHandyOverlay.tsx:512
+#: src/components/GlobalHandyOverlay.tsx:523
 #: src/routes/settings.tsx:5444
 msgid "Current stroke"
 msgstr "Aktueller Hub"
@@ -6097,7 +6132,7 @@ msgstr "Normale Funscript-Bewegung für diese Runde wiederhergestellt."
 msgid "Skipped 1 round without a media resource."
 msgstr "1 Runde ohne Medienressource übersprungen."
 
-#: src/components/GlobalHandyOverlay.tsx:561
+#: src/components/GlobalHandyOverlay.tsx:576
 msgid "Reconnect"
 msgstr "Neu verbinden"
 
@@ -6317,7 +6352,7 @@ msgid "Will replace"
 msgstr "Wird ersetzt"
 
 #: src/components/game/RoundVideoOverlay.tsx:5930
-#: src/components/GlobalHandyOverlay.tsx:583
+#: src/components/GlobalHandyOverlay.tsx:598
 msgid "Playback"
 msgstr "Wiedergabe"
 
@@ -6416,7 +6451,7 @@ msgstr "Deine benutzerdefinierten und importierten Playlists."
 msgid "Progressive Random"
 msgstr "Progressiver Zufall"
 
-#: src/components/GlobalHandyOverlay.tsx:176
+#: src/components/GlobalHandyOverlay.tsx:183
 msgid "Reconnecting haptics..."
 msgstr "Haptik wird neu verbunden..."
 
@@ -6438,7 +6473,7 @@ msgstr "Verwalte deine gespeicherten Perks und aktiven Effekte."
 msgid "Restored normal funscript motion for {0} hero rounds."
 msgstr "Normale Funscript-Bewegung für {0} Heldenrunden wiederhergestellt."
 
-#: src/components/GlobalHandyOverlay.tsx:136
+#: src/components/GlobalHandyOverlay.tsx:143
 msgid "Haptics stroke reset."
 msgstr "Haptik-Hub zurückgesetzt."
 
@@ -7085,7 +7120,7 @@ msgstr "Haptik-Verbindungseinstellungen fehlen."
 msgid "Unresolved"
 msgstr "Ungelöst"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:84
+#: src/components/MultiFunPlayerSettingsCard.tsx:97
 msgid "Port"
 msgstr "Port"
 
@@ -7423,7 +7458,7 @@ msgstr "{0}/{1} aktiv"
 msgid "Logged in as {0}"
 msgstr "Angemeldet als {0}"
 
-#: src/components/GlobalHandyOverlay.tsx:577
+#: src/components/GlobalHandyOverlay.tsx:592
 #: src/features/map-editor/components/EditorToolbar.tsx:105
 #: src/routes/first-start.tsx:2984
 #: src/routes/settings.tsx:5172
@@ -7553,7 +7588,7 @@ msgstr "Caching läuft"
 msgid "Stash connection succeeded."
 msgstr "Die Stash-Verbindung war erfolgreich."
 
-#: src/components/GlobalHandyOverlay.tsx:577
+#: src/components/GlobalHandyOverlay.tsx:592
 #: src/routes/first-start.tsx:2970
 #: src/routes/settings.tsx:5169
 msgid "Connecting..."
@@ -7720,6 +7755,11 @@ msgstr "Konvertieren Sie in AV1"
 msgid "No license file was found in this package directory. The SPDX identifier above was read from the installed package metadata."
 msgstr "Keine Lizenzdatei in diesem Paketverzeichnis gefunden. Der obige SPDX-Bezeichner wurde aus den Metadaten des installierten Pakets gelesen."
 
+#. placeholder {0}: secondary.length
+#: src/components/MultiFunPlayerDevicePanel.tsx:225
+msgid "Extra axes ({0})"
+msgstr "Zusätzliche Achsen ({0})"
+
 #: src/features/map-editor/components/AutomationPanel.tsx:136
 msgid "Experimental feature"
 msgstr "Experimentelle Funktion"
@@ -7845,7 +7885,7 @@ msgstr "Daten entfernen"
 msgid "Link Discord"
 msgstr "Discord verknüpfen"
 
-#: src/components/GlobalHandyOverlay.tsx:144
+#: src/components/GlobalHandyOverlay.tsx:151
 msgid "Haptics stopped."
 msgstr "Haptik gestoppt."
 
@@ -7917,7 +7957,7 @@ msgstr "Temporäre Rangliste"
 msgid "See what you played and which rounds defeated you most often."
 msgstr "Sieh, was du gespielt hast und welche Runden dich am häufigsten besiegt haben."
 
-#: src/components/GlobalHandyOverlay.tsx:546
+#: src/components/GlobalHandyOverlay.tsx:561
 msgid "Device connected"
 msgstr "Gerät angeschlossen"
 
@@ -8072,7 +8112,7 @@ msgstr "Hardware-Leistungsprofile"
 msgid "No difficulties"
 msgstr "Keine Schwierigkeiten"
 
-#: src/components/GlobalHandyOverlay.tsx:586
+#: src/components/GlobalHandyOverlay.tsx:601
 msgid "Device stopped"
 msgstr "Gerät gestoppt"
 
@@ -8403,6 +8443,10 @@ msgstr "Runden pro Hintergrund-pHash-Durchlauf"
 #: src/routes/settings.tsx:8970
 msgid "Please enter a valid number."
 msgstr "Bitte geben Sie eine gültige Nummer ein."
+
+#: src/components/MultiFunPlayerDevicePanel.tsx:73
+msgid "Loading script"
+msgstr "Skript wird geladen"
 
 #: src/features/map-editor/components/AutomationPanel.tsx:194
 msgid "Build \"if this happens, do that\" rules here."
@@ -9169,7 +9213,7 @@ msgid "Exact:"
 msgstr "Genau:"
 
 #: src/components/game/RoundVideoOverlay.tsx:4731
-#: src/components/GlobalHandyOverlay.tsx:239
+#: src/components/GlobalHandyOverlay.tsx:246
 #: src/routes/settings.tsx:4706
 msgid "Synced"
 msgstr "Synchronisiert"
@@ -9368,7 +9412,7 @@ msgstr "Durchsuchen Sie 1 zwischengespeicherte Spielergebnisse und erweitern Sie
 msgid "Unlimited"
 msgstr "Unbegrenzt"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:77
+#: src/components/MultiFunPlayerSettingsCard.tsx:90
 msgid "In MultiFunPlayer, turn off \"Update motion providers when paused\" for generated axes so Stop also pauses their motion."
 msgstr "Deaktiviere in MultiFunPlayer „Update motion providers when paused“ für generierte Achsen, damit Stop auch deren Bewegung pausiert."
 
@@ -9413,7 +9457,7 @@ msgid "Select a search result to inspect downloadable files."
 msgstr "Wähle ein Suchergebnis aus, um herunterladbare Dateien zu prüfen."
 
 #: src/components/game/RoundVideoOverlay.tsx:4727
-#: src/components/GlobalHandyOverlay.tsx:235
+#: src/components/GlobalHandyOverlay.tsx:242
 #: src/routes/settings.tsx:5223
 msgid "Stopped"
 msgstr "Gestoppt"
@@ -9647,7 +9691,7 @@ msgstr "Stufe"
 msgid "Expected Size"
 msgstr "Erwartete Größe"
 
-#: src/components/GlobalHandyOverlay.tsx:529
+#: src/components/GlobalHandyOverlay.tsx:540
 #: src/routes/settings.tsx:5465
 msgid "Reset Stroke"
 msgstr "Hub zurücksetzen"
@@ -9675,7 +9719,7 @@ msgid "Delete Playlist?"
 msgstr "Playlist löschen?"
 
 #: src/components/game/GameScene.tsx:5428
-#: src/components/GlobalHandyOverlay.tsx:432
+#: src/components/GlobalHandyOverlay.tsx:439
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:500
 #: src/features/map-editor/components/NodeInspectorPanel.tsx:541
 #: src/features/map-editor/components/TextInspectorPanel.tsx:119
@@ -9720,7 +9764,7 @@ msgstr "Installierte Bibliothek"
 msgid "Refresh failed."
 msgstr "Aktualisierung fehlgeschlagen."
 
-#: src/components/GlobalHandyOverlay.tsx:632
+#: src/components/GlobalHandyOverlay.tsx:647
 msgid "fine 1ms tuning"
 msgstr "feine 1ms-Abstimmung"
 
@@ -9795,7 +9839,7 @@ msgstr "Wird geloscht..."
 msgid "When enabled, holding 'S' during the first 5 seconds of app startup will automatically enable SFW Mode. Useful for emergency situations."
 msgstr "Wenn diese Option aktiviert ist, wird der SFW-Modus automatisch aktiviert, wenn Sie während der ersten 5 Sekunden des App-Starts „S“ gedrückt halten. Nützlich für Notsituationen."
 
-#: src/components/GlobalHandyOverlay.tsx:372
+#: src/components/GlobalHandyOverlay.tsx:379
 msgid "Fine tune delay if motion leads or lags video"
 msgstr "Verzogerung fein abstimmen, wenn die Bewegung dem Video voraus ist oder hinterherhangt"
 
@@ -9803,7 +9847,7 @@ msgstr "Verzogerung fein abstimmen, wenn die Bewegung dem Video voraus ist oder 
 msgid "Keep current"
 msgstr "Aktuelle beibehalten"
 
-#: src/components/GlobalHandyOverlay.tsx:626
+#: src/components/GlobalHandyOverlay.tsx:641
 msgid "adjust in-game"
 msgstr "im Spiel anpassen"
 
@@ -9825,7 +9869,7 @@ msgstr "Extrahierte Paket-Inhalte werden für installierte portable Pakete gespe
 msgid "Install Web Video"
 msgstr "Webvideo installieren"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:70
+#: src/components/MultiFunPlayerSettingsCard.tsx:76
 msgid "After connecting the OFS player, press Connect below to use the hardware controls. Stop and the cum button pause device playback. Stroke range adjusts the primary axis; configure other axes and output limits in MultiFunPlayer."
 msgstr "Klicke nach dem Verbinden des OFS-Players unten auf Verbinden, um die Hardware-Steuerung zu nutzen. Stop und die Kommen-Schaltfläche pausieren die Gerätewiedergabe. Der Hubbereich passt die Hauptachse an; konfiguriere andere Achsen und Ausgabelimits in MultiFunPlayer."
 
@@ -10854,7 +10898,7 @@ msgstr "Migration abgeschlossen: {0} Cache-Ordner migriert{1}{2}."
 msgid "The round library could not be loaded. Saving is disabled to protect the existing queue."
 msgstr "Die Rundenbibliothek konnte nicht geladen werden. Das Speichern ist deaktiviert, um die bestehende Warteschlange zu schützen."
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:117
+#: src/components/MultiFunPlayerSettingsCard.tsx:130
 msgid "Bridge stopped"
 msgstr "Brücke gestoppt"
 
@@ -10918,7 +10962,7 @@ msgstr "Fortfahren"
 msgid "Multiplayer"
 msgstr "Mehrspieler"
 
-#: src/components/GlobalHandyOverlay.tsx:475
+#: src/components/GlobalHandyOverlay.tsx:485
 #: src/routes/settings.tsx:5403
 msgid "Adjust the active haptics stroke range."
 msgstr "Passen Sie den aktiven Haptik-Hubbereich an."
@@ -10947,7 +10991,7 @@ msgstr "WebSocket"
 msgid "Set background media and the road colors used between nodes."
 msgstr "Lege Hintergrundmedien und die Straßenfarben zwischen den Knoten fest."
 
-#: src/components/GlobalHandyOverlay.tsx:334
+#: src/components/GlobalHandyOverlay.tsx:341
 msgid "Close haptics overlay"
 msgstr "Haptik-Overlay schließen"
 
@@ -11213,6 +11257,10 @@ msgstr "Auf echtes Profil zurücksetzen"
 msgid "Convert legacy script to hard mode"
 msgstr "Legacy-Skript in Hardmodus konvertieren"
 
+#: src/components/MultiFunPlayerDevicePanel.tsx:236
+msgid "Disabled in MultiFunPlayer"
+msgstr "In MultiFunPlayer deaktiviert"
+
 #: src/routes/multiplayer.tsx:966
 msgid "Switch to Sign In"
 msgstr "Wechseln Sie zu Anmelden"
@@ -11277,7 +11325,7 @@ msgstr "navigieren"
 msgid "Update Endpoint"
 msgstr "Endpunkt aktualisieren"
 
-#: src/components/GlobalHandyOverlay.tsx:547
+#: src/components/GlobalHandyOverlay.tsx:562
 msgid "No device connected"
 msgstr "Kein Gerät angeschlossen"
 
@@ -11436,7 +11484,7 @@ msgstr "Völlig zufällig"
 msgid "Inclusive count after the independent intermediary chance succeeds."
 msgstr "Inklusive Zählung, nachdem die unabhängige Zwischenchance erfolgreich war."
 
-#: src/components/GlobalHandyOverlay.tsx:316
+#: src/components/GlobalHandyOverlay.tsx:323
 msgid "to toggle"
 msgstr "zum Umschalten"
 
@@ -12185,7 +12233,7 @@ msgstr "Booru-Cache geleert."
 msgid "Server"
 msgstr "Server"
 
-#: src/components/GlobalHandyOverlay.tsx:309
+#: src/components/GlobalHandyOverlay.tsx:316
 msgid "Haptics Controls"
 msgstr "Haptik-Steuerung"
 
@@ -12250,7 +12298,7 @@ msgstr "EroScripts durchsuchen"
 msgid "Per rank"
 msgstr "Pro Rang"
 
-#: src/components/GlobalHandyOverlay.tsx:312
+#: src/components/GlobalHandyOverlay.tsx:319
 msgid "Press"
 msgstr "Drucke"
 
@@ -12358,7 +12406,7 @@ msgstr "Geh zurück"
 msgid "Technical preferences for power users."
 msgstr "Technische Vorlieben für Power-User."
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:64
+#: src/components/MultiFunPlayerSettingsCard.tsx:70
 msgid "Round playback sends the active funscript and matching axis files from the script folder. Use MultiFunPlayer axis links or motion providers for axes without scripts."
 msgstr "Bei der Rundenwiedergabe werden das aktive Funscript und passende Achsendateien aus dem Skriptordner gesendet. Verwende für Achsen ohne Skripte die Achsenverknüpfungen oder Bewegungsanbieter von MultiFunPlayer."
 
@@ -12465,7 +12513,7 @@ msgstr "Entfernen"
 msgid "Trigger chance controls how often a perk choice appears. In singleplayer, the computer can also randomly hit you with one of the enabled anti-perks based on the anti-perk chance settings. The enabled lists below define what can show up during a run."
 msgstr "Die Triggerchance steuert, wie oft eine Perk-Auswahl erscheint. Im Einzelspielermodus kann der Computer Sie basierend auf den Anti-Perk-Chance-Einstellungen auch zufällig mit einem der aktivierten Anti-Perks treffen. Die folgenden aktivierten Listen definieren, was während eines Laufs angezeigt werden kann."
 
-#: src/components/GlobalHandyOverlay.tsx:499
+#: src/components/GlobalHandyOverlay.tsx:510
 #: src/routes/settings.tsx:5429
 msgid "TheHandy stroke minimum slider"
 msgstr "TheHandy Hub-Minimum-Schieberegler"
@@ -12610,7 +12658,7 @@ msgstr "Vergünstigungspreise"
 msgid "Failed to retry template hero linking."
 msgstr "Die Verknüpfung mit dem Vorlagenhelden konnte nicht wiederholt werden."
 
-#: src/components/GlobalHandyOverlay.tsx:472
+#: src/components/GlobalHandyOverlay.tsx:479
 #: src/routes/settings.tsx:5400
 msgid "Stroke Adjustment"
 msgstr "Hubanpassung"
@@ -13113,7 +13161,7 @@ msgid "Add a start node from the left sidebar or use Place mode."
 msgstr "Fügen Sie einen Startknoten aus der linken Seitenleiste hinzu oder verwenden Sie den Platzierungsmodus."
 
 #. placeholder {0}: deviceSlots.length
-#: src/components/GlobalHandyOverlay.tsx:238
+#: src/components/GlobalHandyOverlay.tsx:245
 msgid "{0} devices synced"
 msgstr "{0} Geräte synchronisiert"
 
@@ -13190,7 +13238,7 @@ msgstr "Massen-Kürzung schließen"
 msgid "Add all rounds from a hero at once"
 msgstr "Alle Runden eines Helden auf einmal hinzufügen"
 
-#: src/components/GlobalHandyOverlay.tsx:616
+#: src/components/GlobalHandyOverlay.tsx:631
 msgid "reconnect"
 msgstr "neu verbinden"
 
@@ -13508,6 +13556,10 @@ msgstr "Wählen Sie installierte Runde"
 msgid "Z-A"
 msgstr "Z-A"
 
+#: src/components/GlobalHandyOverlay.tsx:483
+msgid "Scales the round script. Device ranges apply after it."
+msgstr "Skaliert das Runden-Skript. Gerätebereiche gelten danach."
+
 #: src/components/PlaylistPackExportDialog.tsx:646
 msgid "The export will skip media files and package into a single .fpack file."
 msgstr "Der Export überspringt Mediendateien und verpackt alles in eine einzelne .fpack-Datei."
@@ -13521,7 +13573,7 @@ msgid "License Details"
 msgstr "Lizenzdetails"
 
 #: src/components/game/RoundVideoOverlay.tsx:5048
-#: src/components/GlobalHandyOverlay.tsx:151
+#: src/components/GlobalHandyOverlay.tsx:158
 msgid "No connected haptics device to toggle."
 msgstr "Kein verbundenes Haptik-Gerät zum Umschalten."
 
@@ -14128,6 +14180,10 @@ msgstr "Thema öffnen"
 msgid "Equipped title"
 msgstr "Ausgestatteter Titel"
 
+#: src/components/MultiFunPlayerDevicePanel.tsx:72
+msgid "Waiting for round"
+msgstr "Warte auf Runde"
+
 #: src/routes/settings.tsx:8162
 msgid "Background Jobs"
 msgstr "Hintergrundaufgaben"
@@ -14153,7 +14209,7 @@ msgstr "Melde dich auf der EroScripts-Website an, damit Such-Popup und Downloads
 msgid "Graph"
 msgstr "Graph"
 
-#: src/components/GlobalHandyOverlay.tsx:599
+#: src/components/GlobalHandyOverlay.tsx:614
 msgid "Stop Haptics"
 msgstr "Haptik stoppen"
 
@@ -14169,7 +14225,7 @@ msgstr "Name der Playlist"
 msgid "Recently updated"
 msgstr "Kürzlich aktualisiert"
 
-#: src/components/GlobalHandyOverlay.tsx:388
+#: src/components/GlobalHandyOverlay.tsx:395
 msgid "Haptics global offset slider"
 msgstr "Globaler Haptik-Offset-Schieberegler"
 
@@ -14513,6 +14569,10 @@ msgstr "Ausgewogen (400 Einheiten/s)"
 msgid "Applied offset to 1 hero round."
 msgstr "Offset auf 1 Hero-Runde angewendet."
 
+#: src/components/MultiFunPlayerSettingsCard.tsx:83
+msgid "MultiFunPlayer builds with the FapLand link also report their devices and sync state here, and their output ranges can be adjusted from FapLand. Other players keep working through the plain OFS connection."
+msgstr "MultiFunPlayer-Versionen mit FapLand-Verbindung melden hier zusätzlich ihre Geräte und den Synchronisationsstatus, und ihre Ausgabebereiche lassen sich in FapLand anpassen. Andere Player funktionieren weiterhin über die normale OFS-Verbindung."
+
 #: src/features/converter/shortcuts.ts:135
 msgid "Set the selected segment type to Normal."
 msgstr "Setzen Sie den ausgewählten Segmenttyp auf „Normal“."
@@ -14538,6 +14598,10 @@ msgstr "Wählen Sie Artikel aus"
 #: src/features/converter/useConverterState.ts:507
 msgid "Failed to convert the funscript."
 msgstr "Das Funscript konnte nicht konvertiert werden."
+
+#: src/components/MultiFunPlayerDevicePanel.tsx:150
+msgid "No outputs are configured in MultiFunPlayer."
+msgstr "In MultiFunPlayer sind keine Ausgaben eingerichtet."
 
 #: src/features/rounds/library/InstalledRoundsPage.tsx:2177
 msgid "Match installed heroes and rounds to catalog files"
@@ -14614,7 +14678,7 @@ msgstr "Stellt ein optionales Remote-Funscript-URL-Feld im Dialogfeld „Aus dem
 msgid "Infinite run with random rounds. Dice locked to 1. No dice-related perks. Anti-perks can be toggled in the playlist settings."
 msgstr "Endloser Lauf mit zufälligen Runden. Würfel auf 1 gesperrt. Keine würfelbezogenen Perks. Anti-Perks können in den Playlist-Einstellungen umgeschaltet werden."
 
-#: src/components/GlobalHandyOverlay.tsx:293
+#: src/components/GlobalHandyOverlay.tsx:300
 msgid "Global haptics controls"
 msgstr "Globale Haptik-Steuerung"
 
@@ -14795,6 +14859,10 @@ msgstr "Wählen Sie einen Zielspieler aus, bevor Sie diesen Anti-Perk senden."
 msgid "No Playlist Yet"
 msgstr "Noch keine Playlist"
 
+#: src/components/MultiFunPlayerDevicePanel.tsx:195
+msgid "This output has no adjustable axes."
+msgstr "Diese Ausgabe hat keine einstellbaren Achsen."
+
 #: src/routes/highscores.tsx:1294
 msgid "Multiplayer Result History"
 msgstr "Multiplayer-Ergebnisverlauf"
@@ -14924,6 +14992,10 @@ msgstr "Discord wird eröffnet..."
 msgid "Move Start Here"
 msgstr "Start hierher verschieben"
 
+#: src/components/MultiFunPlayerSettingsCard.tsx:61
+msgid "Funlink device discovery is a test integration."
+msgstr "Die Geräteerkennung über Funlink ist eine Testintegration."
+
 #. placeholder {0}: formatByteSize(estimate?.expectedVideoBytes ?? 0)
 #. placeholder {1}: effectiveMode === "av1" ? `, estimated encode time: ${formatDurationEstimate(estimate?.estimatedCompressionSeconds ?? 0)}.` : "."
 #: src/features/rounds/library/dialogs/LibraryExportDialog.tsx:647
@@ -14957,7 +15029,7 @@ msgstr "Alle löschen"
 #: src/components/game/RoundVideoOverlay.tsx:4572
 #: src/components/game/RoundVideoOverlay.tsx:5085
 #: src/components/game/RoundVideoOverlay.tsx:5800
-#: src/components/GlobalHandyOverlay.tsx:338
+#: src/components/GlobalHandyOverlay.tsx:345
 #: src/components/GlobalMusicOverlay.tsx:328
 #: src/components/PlaylistPackExportDialog.tsx:220
 #: src/features/converter/MassTrimHeroesDialog.tsx:256
@@ -14993,7 +15065,7 @@ msgstr "Die Schwierigkeit der betroffenen Runden anhand des konvertierten Hardmo
 msgid "Report Bug"
 msgstr "Fehler melden"
 
-#: src/components/GlobalHandyOverlay.tsx:369
+#: src/components/GlobalHandyOverlay.tsx:376
 msgid "Sync Offset"
 msgstr "Synchronisierungsoffset"
 
@@ -15341,7 +15413,7 @@ msgstr "Verbindungsschlüssel"
 msgid "Select {displayName}"
 msgstr "{displayName} auswählen"
 
-#: src/components/MultiFunPlayerSettingsCard.tsx:58
+#: src/components/MultiFunPlayerSettingsCard.tsx:64
 msgid "Enable the bridge, then add an OFS player in MultiFunPlayer and connect it to the address below. Configure your multi-axis device output in MultiFunPlayer."
 msgstr "Aktiviere die Brücke, füge dann in MultiFunPlayer einen OFS-Player hinzu und verbinde ihn mit der unten angezeigten Adresse. Konfiguriere die Ausgabe deines Mehrachsengeräts in MultiFunPlayer."
 
@@ -15395,7 +15467,7 @@ msgid "Security settings update failed."
 msgstr "Die Aktualisierung der Sicherheitseinstellungen ist fehlgeschlagen."
 
 #: src/components/game/RoundVideoOverlay.tsx:4725
-#: src/components/GlobalHandyOverlay.tsx:233
+#: src/components/GlobalHandyOverlay.tsx:240
 #: src/routes/index.tsx:445
 #: src/routes/settings.tsx:4701
 msgid "Disconnected"

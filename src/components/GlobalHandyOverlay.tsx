@@ -15,8 +15,13 @@ import {
   getSaveOffsetToRoundCallback,
 } from "./globalHandyOverlayControls";
 import { HandyStrokeRangeControl } from "./HandyStrokeRangeControl";
+import { MultiFunPlayerDevicePanel } from "./MultiFunPlayerDevicePanel";
 import { playHoverSound, playSelectSound } from "../utils/audio";
 import { formatHandyStrokeBoundPercent } from "../services/theHandyConfig";
+import {
+  nativeDeviceSummary,
+  useMultiFunPlayerNative,
+} from "../services/haptics/multifunplayerNative";
 
 export { openGlobalHandyOverlay } from "./globalHandyOverlayControls";
 
@@ -77,6 +82,8 @@ export function GlobalHandyOverlay() {
   const [strokeMaxSliderValue, setStrokeMaxSliderValue] = useState(
     formatHandyStrokeBoundPercent(strokeMax)
   );
+  const nativePeer = useMultiFunPlayerNative(500, open && provider === "multifunplayer");
+  const nativeDevices = nativeDeviceSummary(nativePeer);
   const overlayRef = useRef<HTMLElement | null>(null);
   const setOpenRef = useRef(setOpen);
 
@@ -472,7 +479,11 @@ export function GlobalHandyOverlay() {
                         <Trans>Stroke Adjustment</Trans>
                       </p>
                       <p className="mt-0.5 text-[10px] text-zinc-400">
-                        <Trans>Adjust the active haptics stroke range.</Trans>
+                        {nativePeer ? (
+                          <Trans>Scales the round script. Device ranges apply after it.</Trans>
+                        ) : (
+                          <Trans>Adjust the active haptics stroke range.</Trans>
+                        )}
                       </p>
                     </div>
                     <div className="text-right">
@@ -530,6 +541,8 @@ export function GlobalHandyOverlay() {
                   </button>
                 </div>
 
+                {nativePeer ? <MultiFunPlayerDevicePanel peer={nativePeer} /> : null}
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
                     <p className="text-xs font-semibold text-white">
@@ -540,7 +553,9 @@ export function GlobalHandyOverlay() {
                         ? provider === "intiface" && intifaceDeviceName
                           ? t`Intiface device connected`
                           : provider === "multifunplayer"
-                            ? t`MultiFunPlayer connected`
+                            ? nativeDevices
+                              ? t`MultiFunPlayer: ${nativeDevices}`
+                              : t`MultiFunPlayer connected`
                             : provider === "tcode"
                               ? t`TCode device connected`
                               : t`Device connected`

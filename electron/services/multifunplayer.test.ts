@@ -187,6 +187,86 @@ describe("MultiFunPlayer OFS bridge", () => {
     );
   });
 
+  it("answers the native hello and relays device state and range edits", async () => {
+    const bridge = await start();
+    bridge.version = "0.6.31";
+    const { client, messages } = await connect(bridge);
+    expect(bridge.status().native).toBeNull();
+    client.send(
+      JSON.stringify({
+        type: "command",
+        name: "mfp_hello",
+        data: { protocol: 1, application: "MultiFunPlayer", version: "0.1.0" },
+      })
+    );
+    await vi.waitFor(() =>
+      expect(messages.find((message) => message.name === "fapland_hello")?.data).toEqual({
+        protocol: 1,
+        application: "FapLand",
+        version: "0.6.31",
+      })
+    );
+    await bridge.setMedia({ key: "round", videoUri: "video.mp4", scriptUri: null, actions: [] });
+    bridge.update({ key: "round", time: 2, duration: 10, speed: 1, playing: true });
+    const state = {
+      outputs: [
+        {
+          id: "serial:0",
+          kind: "Serial",
+          detail: "/dev/ttyUSB0",
+          status: "connected",
+          error: null,
+          rate: 60,
+          axes: [
+            { axis: "L0", enabled: true, minimum: 0, maximum: 1 },
+            { axis: "R1", enabled: true, minimum: 0.2, maximum: 0.8 },
+          ],
+        },
+      ],
+      axes: [{ axis: "L0", name: "Up/Down", script: "F-Land.funscript", syncing: false }],
+      playback: { media: "video.mp4", playing: true, position: 2.05, duration: 10, speed: 1 },
+    };
+    client.send(JSON.stringify({ type: "command", name: "mfp_state", data: state }));
+    await vi.waitFor(() => expect(bridge.status().native?.state?.outputs).toHaveLength(1));
+    const native = bridge.status().native!;
+    expect(native).toMatchObject({ application: "MultiFunPlayer", version: "0.1.0" });
+    expect(native.driftMs).toBeGreaterThan(0);
+    expect(native.driftMs).toBeLessThan(100);
+
+    expect(bridge.setRange("serial:0", "R1", 0.1, 0.6)).toBe(true);
+    expect(bridge.setRange("serial:0", "R2", 0.1, 0.6)).toBe(false);
+    await vi.waitFor(() =>
+      expect(messages.find((message) => message.name === "fapland_set_range")?.data).toEqual({
+        output: "serial:0",
+        axis: "R1",
+        minimum: 0.1,
+        maximum: 0.6,
+      })
+    );
+    expect(bridge.status().native?.state?.outputs[0]?.axes[1]).toMatchObject({
+      minimum: 0.1,
+      maximum: 0.6,
+    });
+
+    client.terminate();
+    await vi.waitFor(() => expect(bridge.status().native).toBeNull());
+  });
+
+  it("keeps legacy OFS players on the plain stream", async () => {
+    const bridge = await start();
+    const { client, messages } = await connect(bridge);
+    // OFS players may send their own commands. They must not enable the extension.
+    client.send(JSON.stringify({ type: "command", name: "change_play", data: { playing: true } }));
+    client.send(JSON.stringify({ type: "command", name: "mfp_state", data: { outputs: [] } }));
+    client.send("{malformed");
+    await bridge.setMedia({ key: "round", videoUri: "video.mp4", scriptUri: null, actions: [] });
+    bridge.update({ key: "round", time: 1, duration: 10, speed: 1, playing: true });
+    await vi.waitFor(() => expect(messages.at(-1)?.name).toBe("play_change"));
+    expect(messages.some((message) => message.name.startsWith("fapland_"))).toBe(false);
+    expect(bridge.setRange("serial:0", "L0", 0, 1)).toBe(false);
+    expect(bridge.status()).toMatchObject({ clients: 1, native: null });
+  });
+
   it("pauses if renderer updates stop", async () => {
     const bridge = await start();
     const { messages } = await connect(bridge);

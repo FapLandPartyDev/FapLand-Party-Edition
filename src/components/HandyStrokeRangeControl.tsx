@@ -26,6 +26,8 @@ type HandyStrokeRangeControlProps = {
   trackClassName?: string;
   activeTrackClassName?: string;
   thumbClassName?: string;
+  /** Compact rows carry secondary controls next to a regular primary slider. */
+  size?: "regular" | "compact";
 };
 
 function clampPercent(value: number): number {
@@ -43,7 +45,13 @@ export function HandyStrokeRangeControl({
   trackClassName = "bg-white/10",
   activeTrackClassName = "bg-cyan-400/70",
   thumbClassName = "",
+  size = "regular",
 }: HandyStrokeRangeControlProps) {
+  const compact = size === "compact";
+  // Compact thumbs stay quieter than the primary control beside them.
+  const thumbStyle = compact
+    ? "h-3.5 w-3.5 border border-cyan-100/70 from-zinc-100 to-cyan-200 shadow-[0_2px_6px_rgba(34,211,238,0.2)]"
+    : "h-5 w-5 border-2 border-cyan-50 from-emerald-300 to-cyan-400 shadow-[0_6px_18px_rgba(34,211,238,0.35)]";
   const trackRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<StrokeDrag | null>(null);
 
@@ -168,10 +176,10 @@ export function HandyStrokeRangeControl({
   };
 
   return (
-    <div className="relative h-10">
+    <div className={`relative ${compact ? "h-6" : "h-10"}`}>
       <div
         ref={trackRef}
-        className={`absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 touch-none ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+        className={`absolute inset-x-0 top-1/2 ${compact ? "h-1.5" : "h-2"} -translate-y-1/2 touch-none ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
         onPointerDown={handleTrackPointerDown}
       >
         <div className={`absolute inset-0 rounded-full ${trackClassName}`} />
@@ -190,7 +198,7 @@ export function HandyStrokeRangeControl({
         disabled={disabled}
         onPointerDown={(event) => handleThumbPointerDown(event, "min")}
         onKeyDown={handleThumbKeyDown("min")}
-        className={`absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-50 bg-gradient-to-b from-emerald-300 to-cyan-400 shadow-[0_6px_18px_rgba(34,211,238,0.35)] transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 ${thumbClassName}`}
+        className={`absolute top-1/2 ${thumbStyle} -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-b transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 ${thumbClassName}`}
         style={{ left: `${minValue}%` }}
       />
       <button
@@ -199,7 +207,7 @@ export function HandyStrokeRangeControl({
         disabled={disabled}
         onPointerDown={(event) => handleThumbPointerDown(event, "max")}
         onKeyDown={handleThumbKeyDown("max")}
-        className={`absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-50 bg-gradient-to-b from-emerald-300 to-cyan-400 shadow-[0_6px_18px_rgba(34,211,238,0.35)] transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 ${thumbClassName}`}
+        className={`absolute top-1/2 ${thumbStyle} -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-b transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 ${thumbClassName}`}
         style={{ left: `${maxValue}%` }}
       />
     </div>

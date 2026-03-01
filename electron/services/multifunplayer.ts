@@ -1,7 +1,71 @@
-import { WebSocket, WebSocketServer } from "ws";
+import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
+import { z } from "zod";
 import { fromLocalMediaUri } from "./localMedia";
+import { FunlinkAnnouncer } from "./funlink";
+
+// MultiFunPlayer builds that know FapLand's native extension open with
+// mfp_hello. Older players, including the Windows release, never send it and
+// keep the plain OFS stream below.
+export const MFP_NATIVE_PROTOCOL = 1;
+
+const axisId = z.string().regex(/^[A-Z][0-9]$/);
+const unit = z.number().finite().min(0).max(1);
+const nativeHelloSchema = z.object({
+  protocol: z.number().int().min(1),
+  application: z.string().max(200),
+  version: z.string().max(100).nullish(),
+});
+const nativeStateSchema = z.object({
+  outputs: z
+    .array(
+      z.object({
+        id: z.string().max(100),
+        kind: z.string().max(100),
+        detail: z.string().max(500).nullish(),
+        status: z.enum(["connected", "connecting", "disconnecting", "disconnected", "failed"]),
+        error: z.string().max(1000).nullish(),
+        rate: z.number().int().nullish(),
+        axes: z
+          .array(z.object({ axis: axisId, enabled: z.boolean(), minimum: unit, maximum: unit }))
+          .max(64),
+      })
+    )
+    .max(64),
+  axes: z
+    .array(
+      z.object({
+        axis: axisId,
+        name: z.string().max(200),
+        script: z.string().max(1000).nullish(),
+        motionProvider: z.string().max(200).nullish(),
+        link: axisId.nullish(),
+        syncing: z.boolean(),
+      })
+    )
+    .max(64),
+  playback: z.object({
+    media: z.string().max(1000).nullish(),
+    playing: z.boolean(),
+    position: z.number().finite().nullish(),
+    duration: z.number().finite().nullish(),
+    speed: z.number().finite(),
+  }),
+});
+
+export type MfpNativeState = z.infer<typeof nativeStateSchema>;
+export type MfpNativeOutput = MfpNativeState["outputs"][number];
+export type MfpNativeAxis = MfpNativeState["axes"][number];
+export type MfpNativePeer = {
+  application: string;
+  version: string | null;
+  protocol: number;
+  state: MfpNativeState | null;
+  updatedAt: number | null;
+  /** MultiFunPlayer's media position minus F-Land's, while both play the same round. */
+  driftMs: number | null;
+};
 
 export type MfpFrame = {
   key: string;
@@ -93,6 +157,12 @@ export class MultiFunPlayerBridge {
   private runId = 0;
   private port = 8080;
   private error: string | null = null;
+  private native = new Map<WebSocket, MfpNativePeer>();
+  /** Announced to native players in fapland_hello. */
+  version: string | null = null;
+  /** Lets MultiFunPlayer offer to connect; unset until the install ID is known. */
+  funlink: { id: string; icon?: string } | null = null;
+  private announcer = new FunlinkAnnouncer();
 
   status() {
     return {
@@ -101,7 +171,83 @@ export class MultiFunPlayerBridge {
       runId: this.runId,
       clients: this.server?.clients.size ?? 0,
       error: this.error,
+      native: this.nativePeer(),
+      hubs: this.announcer.hubs(),
     };
+  }
+
+  /** The most recently reporting native player. Others keep their own state. */
+  private nativePeer(): MfpNativePeer | null {
+    let latest: MfpNativePeer | null = null;
+    for (const peer of this.native.values()) {
+      if (!latest || (peer.updatedAt ?? 0) > (latest.updatedAt ?? 0)) latest = peer;
+    }
+    return latest;
+  }
+
+  /** Moves both travel bounds of one output axis in every native player. */
+  setRange(output: string, axis: string, minimum: number, maximum: number) {
+    let sent = false;
+    for (const [client, peer] of this.native) {
+      const target = peer.state?.outputs
+        .find((candidate) => candidate.id === output)
+        ?.axes.find((candidate) => candidate.axis === axis);
+      if (!target) continue;
+      // Reflect the request until the player reports the applied range.
+      target.minimum = minimum;
+      target.maximum = maximum;
+      this.send(client, event("fapland_set_range", { output, axis, minimum, maximum }));
+      sent = true;
+    }
+    return sent;
+  }
+
+  private receive(client: WebSocket, data: RawData, isBinary: boolean) {
+    if (isBinary) return;
+    let message: { type?: unknown; name?: unknown; data?: unknown };
+    try {
+      message = JSON.parse(data.toString());
+    } catch {
+      return;
+    }
+    // F-Land owns playback. OFS playback commands are deliberately ignored.
+    if (message?.type !== "command") return;
+    if (message.name === "mfp_hello") {
+      const hello = nativeHelloSchema.safeParse(message.data);
+      if (!hello.success) return;
+      this.native.set(client, {
+        application: hello.data.application,
+        version: hello.data.version ?? null,
+        protocol: Math.min(hello.data.protocol, MFP_NATIVE_PROTOCOL),
+        state: null,
+        updatedAt: null,
+        driftMs: null,
+      });
+      this.send(
+        client,
+        event("fapland_hello", {
+          protocol: MFP_NATIVE_PROTOCOL,
+          application: "FapLand",
+          version: this.version,
+        })
+      );
+    } else if (message.name === "mfp_state") {
+      const peer = this.native.get(client);
+      const state = nativeStateSchema.safeParse(message.data);
+      if (!peer || !state.success) return;
+      peer.state = state.data;
+      peer.updatedAt = Date.now();
+      peer.driftMs = this.drift(state.data);
+    }
+  }
+
+  private drift(state: MfpNativeState): number | null {
+    const frame = this.frame;
+    const position = state.playback.position;
+    if (!frame?.playing || !state.playback.playing || position == null) return null;
+    if (Date.now() - this.updatedAt > 1000) return null;
+    const expected = frame.time + ((Date.now() - this.updatedAt) / 1000) * frame.speed;
+    return Math.round((position - expected) * 1000);
   }
 
   async start(port: number) {
@@ -109,14 +255,21 @@ export class MultiFunPlayerBridge {
     await this.stop();
     this.port = port;
     this.error = null;
-    const server = new WebSocketServer({ host: "127.0.0.1", port, path: "/ofs", maxPayload: 4096 });
+    // Native state reports list every output and axis of the player.
+    const server = new WebSocketServer({
+      host: "127.0.0.1",
+      port,
+      path: "/ofs",
+      maxPayload: 256 * 1024,
+    });
     this.server = server;
     server.on("error", (error) => {
       this.error = error.message;
     });
     server.on("connection", (client) => {
       client.on("error", () => client.terminate());
-      // F-Land owns playback. Incoming OFS commands are deliberately ignored.
+      client.on("close", () => this.native.delete(client));
+      client.on("message", (data, isBinary) => this.receive(client, data, isBinary));
       this.sendMedia(client);
       this.sendFrame(client);
     });
@@ -135,11 +288,34 @@ export class MultiFunPlayerBridge {
         this.broadcastFrame();
       }
     }, 250);
+    // Port 0 lets the system choose; report the port actually in use.
+    const address = server.address();
+    if (address && typeof address !== "string") this.port = address.port;
     this.runId++;
     this.timer.unref();
+    this.announce();
+  }
+
+  private announce() {
+    const address = this.server?.address();
+    if (!this.funlink || !address || typeof address === "string") return;
+    void this.announcer.start({
+      id: this.funlink.id,
+      name: "FapLand (Funlink test)",
+      ...(this.version ? { version: this.version } : {}),
+      ...(this.funlink.icon ? { icon: this.funlink.icon } : {}),
+      services: [
+        {
+          protocol: "ofs-ws",
+          endpoint: `ws://127.0.0.1:${address.port}/ofs`,
+          features: ["fapland-native"],
+        },
+      ],
+    });
   }
 
   async stop() {
+    await this.announcer.stop();
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     const server = this.server;
@@ -149,6 +325,7 @@ export class MultiFunPlayerBridge {
     this.pendingKey = null;
     this.frame = null;
     this.scripts = [];
+    this.native.clear();
     if (!server) return;
     for (const client of server.clients) client.terminate();
     await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -245,6 +422,27 @@ export class MultiFunPlayerBridge {
 
   private broadcastFrame() {
     for (const client of this.server?.clients ?? []) this.sendFrame(client);
+  }
+}
+
+/**
+ * Starts the bridge from the saved settings. Without a saved choice it runs,
+ * so MultiFunPlayer can offer to connect, and takes any free port when the
+ * default one is busy. A bridge the user turned off stays off.
+ */
+export async function startSavedBridge(
+  bridge: MultiFunPlayerBridge,
+  enabled: unknown,
+  savedPort: unknown
+) {
+  if (enabled === false) return;
+  const port = Number(savedPort ?? 8080);
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) return;
+  try {
+    await bridge.start(port);
+  } catch (error) {
+    if (enabled === true) throw error;
+    await bridge.start(0);
   }
 }
 
