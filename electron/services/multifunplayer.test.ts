@@ -38,6 +38,24 @@ async function start() {
 }
 
 describe("MultiFunPlayer OFS bridge", () => {
+  it("tracks fresh incoming connections without treating a listener as connected", async () => {
+    const bridge = await start();
+    expect(bridge.status()).toMatchObject({ clients: 0, connectionId: 0 });
+    const first = await connect(bridge);
+    expect(bridge.status()).toMatchObject({ clients: 1, connectionId: 1 });
+    const second = await connect(bridge);
+    expect(bridge.status()).toMatchObject({ clients: 2, connectionId: 1 });
+    first.client.close();
+    second.client.close();
+    await vi.waitFor(() => expect(bridge.status().clients).toBe(0));
+    await connect(bridge);
+    expect(bridge.status()).toMatchObject({ clients: 1, connectionId: 2 });
+    await bridge.stop();
+    await bridge.start(0);
+    await connect(bridge);
+    expect(bridge.status()).toMatchObject({ clients: 1, connectionId: 3 });
+  });
+
   it("updates every axis live without resetting media, and retains the offset on reconnect", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "fland-mfp-"));
     directories.push(directory);

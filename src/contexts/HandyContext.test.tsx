@@ -37,8 +37,9 @@ const mocks = vi.hoisted(() => ({
     minAbsolute: null,
     maxAbsolute: null,
   })),
-  getQuery: vi.fn(async (_input: { key: string }): Promise<unknown> => null),
+  getQuery: vi.fn<(input: { key: string }) => Promise<unknown>>(async () => null),
   setMutate: vi.fn(async () => undefined),
+  bridgeStatus: vi.fn(),
 }));
 
 vi.mock("../services/handyApi", () => ({
@@ -57,6 +58,7 @@ vi.mock("../services/haptics/runtime", () => ({
 
 vi.mock("../services/trpc", () => ({
   trpc: {
+    multifunplayer: { status: { query: mocks.bridgeStatus } },
     store: {
       get: {
         query: mocks.getQuery,
@@ -219,6 +221,7 @@ describe("HandyContext", () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
+    mocks.bridgeStatus.mockResolvedValue({ running: true, clients: 0, connectionId: 0 });
     mocks.verifyConnection.mockResolvedValue({ success: true, provider: "thehandy" });
     mocks.issueHandySession.mockResolvedValue({
       provider: "thehandy",
@@ -255,6 +258,73 @@ describe("HandyContext", () => {
     }));
     mocks.getQuery.mockResolvedValue(null);
     mocks.setMutate.mockResolvedValue(undefined);
+  });
+
+  it("adopts a real player once, respects disconnect, and accepts a fresh connection", async () => {
+    mocks.bridgeStatus.mockResolvedValue({ running: true, clients: 0, connectionId: 0 });
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+    await waitFor(() => expect(mocks.bridgeStatus).toHaveBeenCalled());
+    expect(screen.getByTestId("connected").textContent).toBe("false");
+    expect(screen.getByTestId("device-count").textContent).toBe("0");
+
+    mocks.bridgeStatus.mockResolvedValue({ running: true, clients: 1, connectionId: 1 });
+    await waitFor(() => expect(screen.getByTestId("connected").textContent).toBe("true"), {
+      timeout: 2500,
+    });
+    expect(screen.getByTestId("provider").textContent).toBe("multifunplayer");
+    expect(screen.getByTestId("device-count").textContent).toBe("1");
+    fireEvent.click(screen.getByText("disconnect"));
+    await waitFor(() => expect(screen.getByTestId("connected").textContent).toBe("false"));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+    });
+    expect(screen.getByTestId("connected").textContent).toBe("false");
+
+    mocks.bridgeStatus.mockResolvedValue({ running: true, clients: 1, connectionId: 2 });
+    await waitFor(() => expect(screen.getByTestId("connected").textContent).toBe("true"), {
+      timeout: 2500,
+    });
+    expect(screen.getByTestId("device-count").textContent).toBe("1");
+    mocks.bridgeStatus.mockResolvedValue({ running: true, clients: 0, connectionId: 2 });
+    await waitFor(() => expect(screen.getByTestId("connected").textContent).toBe("false"), {
+      timeout: 2500,
+    });
+  });
+
+  it("retains saved MultiFunPlayer calibration when an incoming player activates it", async () => {
+    const stroke = { min: 0.2, max: 0.8, minAbsolute: null, maxAbsolute: null };
+    mocks.getQuery.mockImplementation(async ({ key }: { key: string }) =>
+      key === "haptics.deviceSlots.v1"
+        ? [
+            {
+              id: "mfp",
+              label: "MultiFunPlayer",
+              enabled: false,
+              config: { provider: "multifunplayer", stroke },
+              stroke,
+              offsetMs: -125,
+            },
+          ]
+        : null
+    );
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+    await waitFor(() => expect(mocks.bridgeStatus).toHaveBeenCalled());
+    mocks.bridgeStatus.mockResolvedValue({ running: true, clients: 1, connectionId: 1 });
+    await waitFor(() => expect(screen.getByTestId("connected").textContent).toBe("true"), {
+      timeout: 2500,
+    });
+    expect(screen.getByTestId("stroke-min").textContent).toBe("0.2");
+    expect(screen.getByTestId("stroke-max").textContent).toBe("0.8");
+    expect(screen.getByTestId("offset-ms").textContent).toBe("-125");
+    expect(screen.getByTestId("device-count").textContent).toBe("1");
   });
 
   it("migrates saved TCode hardware to one calibrated MultiFunPlayer entry", async () => {

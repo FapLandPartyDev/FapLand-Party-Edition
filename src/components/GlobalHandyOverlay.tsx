@@ -468,78 +468,80 @@ export function GlobalHandyOverlay() {
                   )}
                 </div>
 
-                <div
-                  className={`rounded-xl border border-white/10 bg-white/[0.04] p-4 ${
-                    !connected || strokeLoading ? "opacity-70" : ""
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold text-white">
-                        <Trans>Stroke Adjustment</Trans>
-                      </p>
-                      <p className="mt-0.5 text-[10px] text-zinc-400">
-                        {nativePeer ? (
-                          <Trans>Scales the round script. Device ranges apply after it.</Trans>
-                        ) : (
-                          <Trans>Adjust the active haptics stroke range.</Trans>
-                        )}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <span className="bg-gradient-to-r from-cyan-100 via-sky-100 to-indigo-100 bg-clip-text text-3xl font-black tracking-tight text-transparent">
-                        {strokePercent}
-                      </span>
-                      <span className="text-sm font-semibold text-zinc-400">%</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <div className="mb-2 flex items-center justify-between text-[10px] text-zinc-400">
-                      <span>
-                        <Trans>Min</Trans>: {strokeMinSliderValue}%
-                      </span>
-                      <span>
-                        <Trans>Max</Trans>: {strokeMaxSliderValue}%
-                      </span>
-                    </div>
-                    <HandyStrokeRangeControl
-                      minValue={strokeMinSliderValue}
-                      maxValue={strokeMaxSliderValue}
-                      disabled={!connected || isConnecting || strokeLoading}
-                      minAriaLabel={t`TheHandy stroke minimum slider`}
-                      maxAriaLabel={t`TheHandy stroke maximum slider`}
-                      onPreview={(nextMinPercent, nextMaxPercent) => {
-                        setStrokeMinSliderValue(nextMinPercent);
-                        setStrokeMaxSliderValue(nextMaxPercent);
-                      }}
-                      onCommit={commitStrokeSlider}
-                      trackClassName="bg-white/10"
-                      activeTrackClassName="bg-cyan-400/70"
-                    />
-                  </div>
-
-                  <div className="mt-3 text-sm text-zinc-300">
-                    <Trans>Current stroke</Trans>: {formatHandyStrokeBoundPercent(strokeMin)}% -{" "}
-                    {formatHandyStrokeBoundPercent(strokeMax)}%
-                  </div>
-
-                  {strokeError ? (
-                    <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-400/12 px-3 py-2 text-xs text-amber-100">
-                      {strokeError}
-                    </div>
-                  ) : null}
-
-                  <button
-                    type="button"
-                    disabled={!connected || isConnecting || strokeLoading}
-                    className="mt-4 w-full rounded-lg border border-white/15 bg-white/[0.08] py-2 text-xs font-semibold text-zinc-200 transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={handleStrokeReset}
-                    onMouseEnter={() => playHoverSound()}
+                {provider !== "multifunplayer" || !connected ? (
+                  <div
+                    className={`rounded-xl border border-white/10 bg-white/[0.04] p-4 ${
+                      !connected || strokeLoading ? "opacity-70" : ""
+                    }`}
                   >
-                    <Trans>Reset Stroke</Trans>
-                  </button>
-                </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold text-white">
+                          <Trans>Stroke Adjustment</Trans>
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-zinc-400">
+                          {nativePeer ? (
+                            <Trans>Scales the round script. Device ranges apply after it.</Trans>
+                          ) : (
+                            <Trans>Adjust the active haptics stroke range.</Trans>
+                          )}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="bg-gradient-to-r from-cyan-100 via-sky-100 to-indigo-100 bg-clip-text text-3xl font-black tracking-tight text-transparent">
+                          {strokePercent}
+                        </span>
+                        <span className="text-sm font-semibold text-zinc-400">%</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <div className="mb-2 flex items-center justify-between text-[10px] text-zinc-400">
+                        <span>
+                          <Trans>Min</Trans>: {strokeMinSliderValue}%
+                        </span>
+                        <span>
+                          <Trans>Max</Trans>: {strokeMaxSliderValue}%
+                        </span>
+                      </div>
+                      <HandyStrokeRangeControl
+                        minValue={strokeMinSliderValue}
+                        maxValue={strokeMaxSliderValue}
+                        disabled={!connected || isConnecting || strokeLoading}
+                        minAriaLabel={t`TheHandy stroke minimum slider`}
+                        maxAriaLabel={t`TheHandy stroke maximum slider`}
+                        onPreview={(nextMinPercent, nextMaxPercent) => {
+                          setStrokeMinSliderValue(nextMinPercent);
+                          setStrokeMaxSliderValue(nextMaxPercent);
+                        }}
+                        onCommit={commitStrokeSlider}
+                        trackClassName="bg-white/10"
+                        activeTrackClassName="bg-cyan-400/70"
+                      />
+                    </div>
+
+                    <div className="mt-3 text-sm text-zinc-300">
+                      <Trans>Current stroke</Trans>: {formatHandyStrokeBoundPercent(strokeMin)}% -{" "}
+                      {formatHandyStrokeBoundPercent(strokeMax)}%
+                    </div>
+
+                    {strokeError ? (
+                      <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-400/12 px-3 py-2 text-xs text-amber-100">
+                        {strokeError}
+                      </div>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      disabled={!connected || isConnecting || strokeLoading}
+                      className="mt-4 w-full rounded-lg border border-white/15 bg-white/[0.08] py-2 text-xs font-semibold text-zinc-200 transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={handleStrokeReset}
+                      onMouseEnter={() => playHoverSound()}
+                    >
+                      <Trans>Reset Stroke</Trans>
+                    </button>
+                  </div>
+                ) : null}
 
                 {nativePeer ? <MultiFunPlayerDevicePanel peer={nativePeer} /> : null}
 

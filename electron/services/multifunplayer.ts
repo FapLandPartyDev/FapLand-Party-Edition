@@ -155,6 +155,7 @@ export class MultiFunPlayerBridge {
   private generation = 0;
   private pendingKey: string | null = null;
   private runId = 0;
+  private connectionId = 0;
   private port = 8080;
   private error: string | null = null;
   private native = new Map<WebSocket, MfpNativePeer>();
@@ -169,6 +170,7 @@ export class MultiFunPlayerBridge {
       running: this.server?.address() != null,
       port: this.port,
       runId: this.runId,
+      connectionId: this.connectionId,
       clients: this.server?.clients.size ?? 0,
       error: this.error,
       native: this.nativePeer(),
@@ -267,6 +269,8 @@ export class MultiFunPlayerBridge {
       this.error = error.message;
     });
     server.on("connection", (client) => {
+      // A real OFS connection carries the user's intent; listening alone does not.
+      if (server.clients.size === 1) this.connectionId++;
       client.on("error", () => client.terminate());
       client.on("close", () => this.native.delete(client));
       client.on("message", (data, isBinary) => this.receive(client, data, isBinary));

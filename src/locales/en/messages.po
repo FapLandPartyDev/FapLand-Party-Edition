@@ -355,7 +355,7 @@ msgstr "Cheat Mode"
 msgid "This filename match is weak or tied. Verify it before downloading."
 msgstr "This filename match is weak or tied. Verify it before downloading."
 
-#: src/components/GlobalHandyOverlay.tsx:592
+#: src/components/GlobalHandyOverlay.tsx:594
 #: src/routes/first-start.tsx:2977
 msgid "Disconnect"
 msgstr "Disconnect"
@@ -883,7 +883,7 @@ msgstr "Changing this only affects future EroScripts downloads. Existing cached 
 msgid "Visibility is"
 msgstr "Visibility is"
 
-#: src/components/GlobalHandyOverlay.tsx:653
+#: src/components/GlobalHandyOverlay.tsx:655
 msgid "reset in-game"
 msgstr "reset in-game"
 
@@ -1120,7 +1120,7 @@ msgstr "Select visible"
 msgid "{0} safe points"
 msgstr "{0} safe points"
 
-#: src/components/GlobalHandyOverlay.tsx:601
+#: src/components/GlobalHandyOverlay.tsx:603
 msgid "Device active"
 msgstr "Device active"
 
@@ -2142,7 +2142,7 @@ msgstr "Reorder selected rounds?"
 msgid "Your level will not progress while cheat mode is active"
 msgstr "Your level will not progress while cheat mode is active"
 
-#: src/components/GlobalHandyOverlay.tsx:558
+#: src/components/GlobalHandyOverlay.tsx:560
 msgid "MultiFunPlayer connected"
 msgstr "MultiFunPlayer connected"
 
@@ -2387,7 +2387,7 @@ msgstr "Save Offset to Round"
 msgid "Select an item first."
 msgstr "Select an item first."
 
-#: src/components/GlobalHandyOverlay.tsx:560
+#: src/components/GlobalHandyOverlay.tsx:562
 msgid "TCode device connected"
 msgstr "TCode device connected"
 
@@ -3501,7 +3501,7 @@ msgstr "Haptics reconnected."
 msgid "Intermediary increase"
 msgstr "Intermediary increase"
 
-#: src/components/GlobalHandyOverlay.tsx:503
+#: src/components/GlobalHandyOverlay.tsx:504
 #: src/features/progression/ProgressionCheatConsole.tsx:210
 #: src/routes/settings.tsx:5422
 msgid "Max"
@@ -4333,7 +4333,7 @@ msgstr "Active Bans"
 msgid "Reroll Random"
 msgstr "Reroll Random"
 
-#: src/components/GlobalHandyOverlay.tsx:557
+#: src/components/GlobalHandyOverlay.tsx:559
 msgid "MultiFunPlayer: {nativeDevices}"
 msgstr "MultiFunPlayer: {nativeDevices}"
 
@@ -4350,7 +4350,7 @@ msgstr "ranks"
 msgid "Ban {0}"
 msgstr "Ban {0}"
 
-#: src/components/GlobalHandyOverlay.tsx:554
+#: src/components/GlobalHandyOverlay.tsx:556
 msgid "Intiface device connected"
 msgstr "Intiface device connected"
 
@@ -4580,7 +4580,7 @@ msgstr "Unknown Author"
 msgid "Loop"
 msgstr "Loop"
 
-#: src/components/GlobalHandyOverlay.tsx:614
+#: src/components/GlobalHandyOverlay.tsx:616
 msgid "Start Haptics"
 msgstr "Start Haptics"
 
@@ -4607,7 +4607,7 @@ msgstr "Disabled"
 msgid "Start Test"
 msgstr "Start Test"
 
-#: src/components/GlobalHandyOverlay.tsx:511
+#: src/components/GlobalHandyOverlay.tsx:512
 #: src/routes/settings.tsx:5430
 msgid "TheHandy stroke maximum slider"
 msgstr "TheHandy stroke maximum slider"
@@ -4985,7 +4985,7 @@ msgstr ""
 "\n"
 "This removes only the database entry. Files on disk will be left untouched."
 
-#: src/components/GlobalHandyOverlay.tsx:500
+#: src/components/GlobalHandyOverlay.tsx:501
 #: src/routes/settings.tsx:5419
 msgid "Min"
 msgstr "Min"
@@ -5043,7 +5043,7 @@ msgstr "No source selected — review the candidates below."
 msgid "Library"
 msgstr "Library"
 
-#: src/components/GlobalHandyOverlay.tsx:549
+#: src/components/GlobalHandyOverlay.tsx:551
 msgid "Connection"
 msgstr "Connection"
 
@@ -5056,7 +5056,7 @@ msgstr "Kick"
 msgid "Maximum interjections per triggered round"
 msgstr "Maximum interjections per triggered round"
 
-#: src/components/GlobalHandyOverlay.tsx:625
+#: src/components/GlobalHandyOverlay.tsx:627
 msgid "start / stop"
 msgstr "start / stop"
 
@@ -5943,7 +5943,7 @@ msgstr "Run auto-detection on the current funscript."
 msgid "Create a cut from the global IN and OUT markers on the selected timeline segment."
 msgstr "Create a cut from the global IN and OUT markers on the selected timeline segment."
 
-#: src/components/GlobalHandyOverlay.tsx:523
+#: src/components/GlobalHandyOverlay.tsx:524
 #: src/routes/settings.tsx:5444
 msgid "Current stroke"
 msgstr "Current stroke"
@@ -6134,7 +6134,7 @@ msgstr "Restored normal funscript motion for this round."
 msgid "Skipped 1 round without a media resource."
 msgstr "Skipped 1 round without a media resource."
 
-#: src/components/GlobalHandyOverlay.tsx:576
+#: src/components/GlobalHandyOverlay.tsx:578
 msgid "Reconnect"
 msgstr "Reconnect"
 
@@ -6354,7 +6354,7 @@ msgid "Will replace"
 msgstr "Will replace"
 
 #: src/components/game/RoundVideoOverlay.tsx:5930
-#: src/components/GlobalHandyOverlay.tsx:598
+#: src/components/GlobalHandyOverlay.tsx:600
 msgid "Playback"
 msgstr "Playback"
 
@@ -7460,7 +7460,7 @@ msgstr "{0}/{1} active"
 msgid "Logged in as {0}"
 msgstr "Logged in as {0}"
 
-#: src/components/GlobalHandyOverlay.tsx:592
+#: src/components/GlobalHandyOverlay.tsx:594
 #: src/features/map-editor/components/EditorToolbar.tsx:105
 #: src/routes/first-start.tsx:2984
 #: src/routes/settings.tsx:5172
@@ -7590,7 +7590,7 @@ msgstr "Caching ongoing"
 msgid "Stash connection succeeded."
 msgstr "Stash connection succeeded."
 
-#: src/components/GlobalHandyOverlay.tsx:592
+#: src/components/GlobalHandyOverlay.tsx:594
 #: src/routes/first-start.tsx:2970
 #: src/routes/settings.tsx:5169
 msgid "Connecting..."
@@ -7959,7 +7959,7 @@ msgstr "Temporary Standings"
 msgid "See what you played and which rounds defeated you most often."
 msgstr "See what you played and which rounds defeated you most often."
 
-#: src/components/GlobalHandyOverlay.tsx:561
+#: src/components/GlobalHandyOverlay.tsx:563
 msgid "Device connected"
 msgstr "Device connected"
 
@@ -8114,7 +8114,7 @@ msgstr "Hardware performance presets"
 msgid "No difficulties"
 msgstr "No difficulties"
 
-#: src/components/GlobalHandyOverlay.tsx:601
+#: src/components/GlobalHandyOverlay.tsx:603
 msgid "Device stopped"
 msgstr "Device stopped"
 
@@ -9693,7 +9693,7 @@ msgstr "Level"
 msgid "Expected Size"
 msgstr "Expected Size"
 
-#: src/components/GlobalHandyOverlay.tsx:540
+#: src/components/GlobalHandyOverlay.tsx:541
 #: src/routes/settings.tsx:5465
 msgid "Reset Stroke"
 msgstr "Reset Stroke"
@@ -9766,7 +9766,7 @@ msgstr "Installed Library"
 msgid "Refresh failed."
 msgstr "Refresh failed."
 
-#: src/components/GlobalHandyOverlay.tsx:647
+#: src/components/GlobalHandyOverlay.tsx:649
 msgid "fine 1ms tuning"
 msgstr "fine 1ms tuning"
 
@@ -9849,7 +9849,7 @@ msgstr "Fine tune delay if motion leads or lags video"
 msgid "Keep current"
 msgstr "Keep current"
 
-#: src/components/GlobalHandyOverlay.tsx:641
+#: src/components/GlobalHandyOverlay.tsx:643
 msgid "adjust in-game"
 msgstr "adjust in-game"
 
@@ -10964,7 +10964,7 @@ msgstr "Proceed"
 msgid "Multiplayer"
 msgstr "Multiplayer"
 
-#: src/components/GlobalHandyOverlay.tsx:485
+#: src/components/GlobalHandyOverlay.tsx:486
 #: src/routes/settings.tsx:5403
 msgid "Adjust the active haptics stroke range."
 msgstr "Adjust the active haptics stroke range."
@@ -11327,7 +11327,7 @@ msgstr "navigate"
 msgid "Update Endpoint"
 msgstr "Update Endpoint"
 
-#: src/components/GlobalHandyOverlay.tsx:562
+#: src/components/GlobalHandyOverlay.tsx:564
 msgid "No device connected"
 msgstr "No device connected"
 
@@ -12515,7 +12515,7 @@ msgstr "Remove"
 msgid "Trigger chance controls how often a perk choice appears. In singleplayer, the computer can also randomly hit you with one of the enabled anti-perks based on the anti-perk chance settings. The enabled lists below define what can show up during a run."
 msgstr "Trigger chance controls how often a perk choice appears. In singleplayer, the computer can also randomly hit you with one of the enabled anti-perks based on the anti-perk chance settings. The enabled lists below define what can show up during a run."
 
-#: src/components/GlobalHandyOverlay.tsx:510
+#: src/components/GlobalHandyOverlay.tsx:511
 #: src/routes/settings.tsx:5429
 msgid "TheHandy stroke minimum slider"
 msgstr "TheHandy stroke minimum slider"
@@ -12660,7 +12660,7 @@ msgstr "Perk Rates"
 msgid "Failed to retry template hero linking."
 msgstr "Failed to retry template hero linking."
 
-#: src/components/GlobalHandyOverlay.tsx:479
+#: src/components/GlobalHandyOverlay.tsx:480
 #: src/routes/settings.tsx:5400
 msgid "Stroke Adjustment"
 msgstr "Stroke Adjustment"
@@ -13240,7 +13240,7 @@ msgstr "Close mass trim"
 msgid "Add all rounds from a hero at once"
 msgstr "Add all rounds from a hero at once"
 
-#: src/components/GlobalHandyOverlay.tsx:631
+#: src/components/GlobalHandyOverlay.tsx:633
 msgid "reconnect"
 msgstr "reconnect"
 
@@ -13558,7 +13558,7 @@ msgstr "Select installed round"
 msgid "Z-A"
 msgstr "Z-A"
 
-#: src/components/GlobalHandyOverlay.tsx:483
+#: src/components/GlobalHandyOverlay.tsx:484
 msgid "Scales the round script. Device ranges apply after it."
 msgstr "Scales the round script. Device ranges apply after it."
 
@@ -14211,7 +14211,7 @@ msgstr "Log in on the EroScripts website to make the search popup and downloads 
 msgid "Graph"
 msgstr "Graph"
 
-#: src/components/GlobalHandyOverlay.tsx:614
+#: src/components/GlobalHandyOverlay.tsx:616
 msgid "Stop Haptics"
 msgstr "Stop Haptics"
 

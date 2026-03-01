@@ -1,5 +1,15 @@
 # What's New
 
+## v0.6.32-beta.2
+
+### Fixed
+
+- **One-click MultiFunPlayer connection** — accepting FapLand's Funlink offer now activates MultiFunPlayer in FapLand automatically. A running bridge alone does not count as a connection. Saved stroke calibration and offset are retained.
+- **Connection lifecycle** — a fresh player connection can reconnect FapLand, while Disconnect and Stop remain effective for the current connection. Losing the player clears the connected state when MultiFunPlayer is the only active device.
+- **Simpler haptics controls** — connected MultiFunPlayer sessions show the MultiFunPlayer device card without the extra Stroke Adjustment card. Sync Offset and playback controls remain available.
+
+---
+
 ## v0.6.32-beta.1
 
 ### Added

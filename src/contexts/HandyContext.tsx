@@ -599,6 +599,8 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionRevision, setSessionRevision] = useState(0);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const adoptedMfpConnectionRef = useRef<number | null>(null);
   const userMutatedStateRef = useRef(false);
   const testDeviceTimerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null);
   const testDeviceSessionRef = useRef<AnyHapticsSession | null>(null);
@@ -952,7 +954,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   );
 
   useEffect(() => {
-    loadFromStore().then(
+    const restored = loadFromStore().then(
       async ({
         provider: savedProvider,
         connectionKey: savedKey,
@@ -1177,6 +1179,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
     );
+    void restored.finally(() => setSettingsLoaded(true));
   }, []);
 
   const persistOffset = useCallback(
@@ -1565,7 +1568,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setProviderState("multifunplayer");
     setError(null);
     try {
-      const config: HapticsConnectionConfig = { provider: "multifunplayer", stroke: strokeState };
+      const saved = deviceSlots.find((slot) => slot.config.provider === "multifunplayer");
+      const stroke = saved?.stroke ?? DEFAULT_STROKE_STATE;
+      const config: HapticsConnectionConfig = { provider: "multifunplayer", stroke };
       const result = await verifyHapticsConnection(config);
       if (attemptId !== connectionAttemptIdRef.current) return false;
       if (!result.success) {
@@ -1574,7 +1579,9 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
       if (activeSession) await stopHapticsPlayback(getActiveConnectionConfig(), activeSession);
       setActiveSession(null);
-      await rememberDevice(config, { label: "MultiFunPlayer" });
+      await rememberDevice(config, { label: "MultiFunPlayer", stroke });
+      setStrokeState(stroke);
+      if (saved) setGlobalOffsetMs(saved.offsetMs);
       await saveProviderToStore("multifunplayer");
       setConnected(true);
       setManuallyStopped(false);
@@ -1589,7 +1596,47 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       if (attemptId === connectionAttemptIdRef.current) setIsConnecting(false);
     }
-  }, [activeSession, getActiveConnectionConfig, rememberDevice, strokeState]);
+  }, [activeSession, deviceSlots, getActiveConnectionConfig, rememberDevice]);
+
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      try {
+        const status = await trpc.multifunplayer.status.query();
+        if (!alive || isConnecting) return;
+        if (!status.running || status.clients === 0) {
+          if (
+            provider === "multifunplayer" &&
+            connected &&
+            !deviceSlots.some((slot) => slot.enabled && slot.config.provider !== "multifunplayer")
+          ) {
+            setConnected(false);
+            setSynced(false);
+          }
+          return;
+        }
+        if (adoptedMfpConnectionRef.current === status.connectionId) return;
+        // Consume once per incoming connection. Disconnect/Stop in F-Land must
+        // remain effective until the player makes a fresh connection.
+        adoptedMfpConnectionRef.current = status.connectionId;
+        const enabled = deviceSlots.some(
+          (slot) => slot.enabled && slot.config.provider === "multifunplayer"
+        );
+        if (!connected || !enabled) await connectMultiFunPlayer();
+      } catch {
+        // A stopped or restarting bridge will be checked again next time.
+      } finally {
+        if (alive) timer = setTimeout(() => void refresh(), 1000);
+      }
+    };
+    void refresh();
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [settingsLoaded, isConnecting, connected, provider, deviceSlots, connectMultiFunPlayer]);
 
   const abortConnect = useCallback(() => {
     connectionAttemptIdRef.current += 1;

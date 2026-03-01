@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GlobalHandyOverlay } from "./GlobalHandyOverlay";
 
 const mocks = vi.hoisted(() => ({
+  nativePeer: null as null | import("../services/haptics/multifunplayerNative").MfpNativePeer,
   handy: {
-    provider: "thehandy" as const,
+    provider: "thehandy" as "thehandy" | "multifunplayer",
     connected: true,
     isConnecting: false,
     connectionKey: "conn-key",
@@ -33,6 +34,11 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
+vi.mock("../services/haptics/multifunplayerNative", async (original) => ({
+  ...(await original<typeof import("../services/haptics/multifunplayerNative")>()),
+  useMultiFunPlayerNative: () => mocks.nativePeer,
+}));
+
 vi.mock("../contexts/HandyContext", () => ({
   useHandy: () => mocks.handy,
 }));
@@ -46,6 +52,7 @@ describe("GlobalHandyOverlay", () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
+    mocks.nativePeer = null;
     mocks.handy.connected = true;
     mocks.handy.provider = "thehandy";
     mocks.handy.isConnecting = false;
@@ -73,6 +80,23 @@ describe("GlobalHandyOverlay", () => {
     expect(screen.getByText("Sync Offset")).toBeTruthy();
     expect(screen.getByText("Stroke Adjustment")).toBeTruthy();
     expect(screen.getByText("Current stroke: 12% - 88%")).toBeTruthy();
+  });
+
+  it("shows only the MultiFunPlayer device card while connected", () => {
+    mocks.handy.provider = "multifunplayer";
+    mocks.nativePeer = {
+      application: "MultiFunPlayer",
+      version: "0.1.0",
+      protocol: 1,
+      state: null,
+      updatedAt: null,
+      driftMs: null,
+    };
+    render(<GlobalHandyOverlay />);
+    fireEvent.keyDown(window, { key: "h", ctrlKey: true });
+    expect(screen.getByText("MultiFunPlayer devices")).toBeTruthy();
+    expect(screen.queryByText("Stroke Adjustment")).toBeNull();
+    expect(screen.getByText("Sync Offset")).toBeTruthy();
   });
 
   it("drags the whole stroke range and keeps its width at both limits", () => {

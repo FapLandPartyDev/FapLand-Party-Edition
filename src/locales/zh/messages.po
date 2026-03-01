@@ -353,7 +353,7 @@ msgstr "作弊模式"
 msgid "This filename match is weak or tied. Verify it before downloading."
 msgstr "此文件名匹配度较低或存在歧义。请在下载前进行核对。"
 
-#: src/components/GlobalHandyOverlay.tsx:592
+#: src/components/GlobalHandyOverlay.tsx:594
 #: src/routes/first-start.tsx:2977
 msgid "Disconnect"
 msgstr "断开连接"
@@ -881,7 +881,7 @@ msgstr "更改此项只影响之后的 EroScripts 下载。现有缓存文件不
 msgid "Visibility is"
 msgstr "可见性为"
 
-#: src/components/GlobalHandyOverlay.tsx:653
+#: src/components/GlobalHandyOverlay.tsx:655
 msgid "reset in-game"
 msgstr "在游戏中重置"
 
@@ -1118,7 +1118,7 @@ msgstr "选择可见"
 msgid "{0} safe points"
 msgstr "{0} 个安全点"
 
-#: src/components/GlobalHandyOverlay.tsx:601
+#: src/components/GlobalHandyOverlay.tsx:603
 msgid "Device active"
 msgstr "设备已激活"
 
@@ -2140,7 +2140,7 @@ msgstr "重新排序已选回合？"
 msgid "Your level will not progress while cheat mode is active"
 msgstr "作弊模式启用期间，你的等级不会提升"
 
-#: src/components/GlobalHandyOverlay.tsx:558
+#: src/components/GlobalHandyOverlay.tsx:560
 msgid "MultiFunPlayer connected"
 msgstr "MultiFunPlayer 已连接"
 
@@ -2385,7 +2385,7 @@ msgstr "保存偏移量到回合"
 msgid "Select an item first."
 msgstr "请先选择一个物品。"
 
-#: src/components/GlobalHandyOverlay.tsx:560
+#: src/components/GlobalHandyOverlay.tsx:562
 msgid "TCode device connected"
 msgstr "TCode 设备已连接"
 
@@ -3499,7 +3499,7 @@ msgstr "触觉已重新连接。"
 msgid "Intermediary increase"
 msgstr "中间环节增量"
 
-#: src/components/GlobalHandyOverlay.tsx:503
+#: src/components/GlobalHandyOverlay.tsx:504
 #: src/features/progression/ProgressionCheatConsole.tsx:210
 #: src/routes/settings.tsx:5422
 msgid "Max"
@@ -4331,7 +4331,7 @@ msgstr "活跃的封禁"
 msgid "Reroll Random"
 msgstr "随机重掷"
 
-#: src/components/GlobalHandyOverlay.tsx:557
+#: src/components/GlobalHandyOverlay.tsx:559
 msgid "MultiFunPlayer: {nativeDevices}"
 msgstr "MultiFunPlayer：{nativeDevices}"
 
@@ -4348,7 +4348,7 @@ msgstr "等级"
 msgid "Ban {0}"
 msgstr "封禁 {0}"
 
-#: src/components/GlobalHandyOverlay.tsx:554
+#: src/components/GlobalHandyOverlay.tsx:556
 msgid "Intiface device connected"
 msgstr "Intiface 设备已连接"
 
@@ -4578,7 +4578,7 @@ msgstr "未知作者"
 msgid "Loop"
 msgstr "循环"
 
-#: src/components/GlobalHandyOverlay.tsx:614
+#: src/components/GlobalHandyOverlay.tsx:616
 msgid "Start Haptics"
 msgstr "启动触觉"
 
@@ -4605,7 +4605,7 @@ msgstr "已禁用"
 msgid "Start Test"
 msgstr "开始测试"
 
-#: src/components/GlobalHandyOverlay.tsx:511
+#: src/components/GlobalHandyOverlay.tsx:512
 #: src/routes/settings.tsx:5430
 msgid "TheHandy stroke maximum slider"
 msgstr "TheHandy 冲程最大滑块"
@@ -4983,7 +4983,7 @@ msgstr ""
 "\n"
 "这仅移除数据库条目。磁盘上的文件将保持不变。"
 
-#: src/components/GlobalHandyOverlay.tsx:500
+#: src/components/GlobalHandyOverlay.tsx:501
 #: src/routes/settings.tsx:5419
 msgid "Min"
 msgstr "最小"
@@ -5041,7 +5041,7 @@ msgstr "未选择源 — 请查看下方候选项。"
 msgid "Library"
 msgstr "库"
 
-#: src/components/GlobalHandyOverlay.tsx:549
+#: src/components/GlobalHandyOverlay.tsx:551
 msgid "Connection"
 msgstr "连接"
 
@@ -5054,7 +5054,7 @@ msgstr "踢出"
 msgid "Maximum interjections per triggered round"
 msgstr "每个触发关卡的最大插入片段数"
 
-#: src/components/GlobalHandyOverlay.tsx:625
+#: src/components/GlobalHandyOverlay.tsx:627
 msgid "start / stop"
 msgstr "启动 / 停止"
 
@@ -5941,7 +5941,7 @@ msgstr "对当前 funscript 运行自动检测。"
 msgid "Create a cut from the global IN and OUT markers on the selected timeline segment."
 msgstr "根据全局 IN 和 OUT 标记，在所选时间线片段上创建一个切分。"
 
-#: src/components/GlobalHandyOverlay.tsx:523
+#: src/components/GlobalHandyOverlay.tsx:524
 #: src/routes/settings.tsx:5444
 msgid "Current stroke"
 msgstr "当前冲程"
@@ -6132,7 +6132,7 @@ msgstr "已恢复此回合的正常 funscript 动作。"
 msgid "Skipped 1 round without a media resource."
 msgstr "跳过了 1 个没有媒体资源的回合。"
 
-#: src/components/GlobalHandyOverlay.tsx:576
+#: src/components/GlobalHandyOverlay.tsx:578
 msgid "Reconnect"
 msgstr "重新连接"
 
@@ -6352,7 +6352,7 @@ msgid "Will replace"
 msgstr "将替换"
 
 #: src/components/game/RoundVideoOverlay.tsx:5930
-#: src/components/GlobalHandyOverlay.tsx:598
+#: src/components/GlobalHandyOverlay.tsx:600
 msgid "Playback"
 msgstr "播放"
 
@@ -7458,7 +7458,7 @@ msgstr "{0}/{1} 已激活"
 msgid "Logged in as {0}"
 msgstr "已以 {0} 登录"
 
-#: src/components/GlobalHandyOverlay.tsx:592
+#: src/components/GlobalHandyOverlay.tsx:594
 #: src/features/map-editor/components/EditorToolbar.tsx:105
 #: src/routes/first-start.tsx:2984
 #: src/routes/settings.tsx:5172
@@ -7588,7 +7588,7 @@ msgstr "缓存进行中"
 msgid "Stash connection succeeded."
 msgstr "Stash 连接成功。"
 
-#: src/components/GlobalHandyOverlay.tsx:592
+#: src/components/GlobalHandyOverlay.tsx:594
 #: src/routes/first-start.tsx:2970
 #: src/routes/settings.tsx:5169
 msgid "Connecting..."
@@ -7957,7 +7957,7 @@ msgstr "临时排名"
 msgid "See what you played and which rounds defeated you most often."
 msgstr "查看你游玩过什么，以及哪些回合最常击败你。"
 
-#: src/components/GlobalHandyOverlay.tsx:561
+#: src/components/GlobalHandyOverlay.tsx:563
 msgid "Device connected"
 msgstr "设备已连接"
 
@@ -8112,7 +8112,7 @@ msgstr "硬件性能预设"
 msgid "No difficulties"
 msgstr "无难度"
 
-#: src/components/GlobalHandyOverlay.tsx:601
+#: src/components/GlobalHandyOverlay.tsx:603
 msgid "Device stopped"
 msgstr "设备已停止"
 
@@ -9691,7 +9691,7 @@ msgstr "等级"
 msgid "Expected Size"
 msgstr "预计大小"
 
-#: src/components/GlobalHandyOverlay.tsx:540
+#: src/components/GlobalHandyOverlay.tsx:541
 #: src/routes/settings.tsx:5465
 msgid "Reset Stroke"
 msgstr "重置冲程"
@@ -9764,7 +9764,7 @@ msgstr "已安装库"
 msgid "Refresh failed."
 msgstr "刷新失败。"
 
-#: src/components/GlobalHandyOverlay.tsx:647
+#: src/components/GlobalHandyOverlay.tsx:649
 msgid "fine 1ms tuning"
 msgstr "精确 1ms 调整"
 
@@ -9847,7 +9847,7 @@ msgstr "如果运动超前或滞后于视频，请微调延迟"
 msgid "Keep current"
 msgstr "保持当前"
 
-#: src/components/GlobalHandyOverlay.tsx:641
+#: src/components/GlobalHandyOverlay.tsx:643
 msgid "adjust in-game"
 msgstr "在游戏中调整"
 
@@ -10962,7 +10962,7 @@ msgstr "继续"
 msgid "Multiplayer"
 msgstr "多人模式"
 
-#: src/components/GlobalHandyOverlay.tsx:485
+#: src/components/GlobalHandyOverlay.tsx:486
 #: src/routes/settings.tsx:5403
 msgid "Adjust the active haptics stroke range."
 msgstr "调整活动的触觉行程范围。"
@@ -11325,7 +11325,7 @@ msgstr "导航"
 msgid "Update Endpoint"
 msgstr "更新端点"
 
-#: src/components/GlobalHandyOverlay.tsx:562
+#: src/components/GlobalHandyOverlay.tsx:564
 msgid "No device connected"
 msgstr "未连接设备"
 
@@ -12513,7 +12513,7 @@ msgstr "移除"
 msgid "Trigger chance controls how often a perk choice appears. In singleplayer, the computer can also randomly hit you with one of the enabled anti-perks based on the anti-perk chance settings. The enabled lists below define what can show up during a run."
 msgstr "触发概率控制增益选择出现的频率。在单人模式中，电脑还可以根据反增益概率设置随机对你施加已启用的反增益之一。下面的已启用列表定义了运行期间可能出现的内容。"
 
-#: src/components/GlobalHandyOverlay.tsx:510
+#: src/components/GlobalHandyOverlay.tsx:511
 #: src/routes/settings.tsx:5429
 msgid "TheHandy stroke minimum slider"
 msgstr "TheHandy 冲程最小滑块"
@@ -12658,7 +12658,7 @@ msgstr "增益概率"
 msgid "Failed to retry template hero linking."
 msgstr "重试模板 Hero 链接失败。"
 
-#: src/components/GlobalHandyOverlay.tsx:479
+#: src/components/GlobalHandyOverlay.tsx:480
 #: src/routes/settings.tsx:5400
 msgid "Stroke Adjustment"
 msgstr "冲程调整"
@@ -13238,7 +13238,7 @@ msgstr "关闭批量修剪"
 msgid "Add all rounds from a hero at once"
 msgstr "一次添加某个 Hero 的所有回合"
 
-#: src/components/GlobalHandyOverlay.tsx:631
+#: src/components/GlobalHandyOverlay.tsx:633
 msgid "reconnect"
 msgstr "重新连接"
 
@@ -13556,7 +13556,7 @@ msgstr "选择已安装的回合"
 msgid "Z-A"
 msgstr "Z-A（降序）"
 
-#: src/components/GlobalHandyOverlay.tsx:483
+#: src/components/GlobalHandyOverlay.tsx:484
 msgid "Scales the round script. Device ranges apply after it."
 msgstr "缩放回合脚本。设备范围随后生效。"
 
@@ -14209,7 +14209,7 @@ msgstr "在 EroScripts 网站登录后，搜索弹窗和下载会使用你的账
 msgid "Graph"
 msgstr "图"
 
-#: src/components/GlobalHandyOverlay.tsx:614
+#: src/components/GlobalHandyOverlay.tsx:616
 msgid "Stop Haptics"
 msgstr "停止触觉"
 

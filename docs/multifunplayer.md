@@ -10,17 +10,23 @@ local bridge and offer a connection. The manual OFS setup below is also availabl
 2. In MultiFunPlayer, add **OFS** under media players. Set its address to
    `ws://127.0.0.1:8080/ofs` (or the port shown in F-Land), then connect.
 3. Add and connect your device output in MultiFunPlayer, and configure its axes,
-   ranges and speed limits. Press **Connect** in F-Land to add it as a hardware device.
+   ranges and speed limits. Accepting the Funlink offer, or connecting the OFS player
+   manually, automatically adds MultiFunPlayer as a hardware device in F-Land.
 4. Play a round or a round preview in F-Land. Playback, pauses, seeks, speed changes
    and the F-Land script offset are sent automatically. A connected-player count
    appears in Hardware settings. The bridge setting persists across app restarts.
 
 MultiFunPlayer replaces the direct TCode hardware option. Saved TCode devices migrate
 into one MultiFunPlayer entry, preserving the first entry's stroke range and offset.
-Connect the OFS player before using F-Land's **Connect** button.
+Connect the OFS player to activate it in F-Land. Listening for a player or discovering
+a Funlink hub alone does not activate hardware. F-Land checks incoming connections
+every second; no second **Connect** click is needed. **Disconnect** remains effective
+until a fresh player connection arrives or you explicitly reconnect in F-Land.
 
 The normal hardware Stop/Resume controls and the cum button pause playback through
-OFS. The stroke-range sliders scale the primary stroke timeline inside F-Land;
+OFS. When MultiFunPlayer is connected, the haptics overlay shows its device card instead
+of the extra Stroke Adjustment card. Saved F-Land stroke calibration still scales
+the primary stroke timeline;
 MultiFunPlayer's own axis/output limits still apply. Configure other axes there.
 For axes using motion providers, turn off **Update motion providers when paused**
 in MultiFunPlayer so a playback pause also pauses generated motion. OFS controls
