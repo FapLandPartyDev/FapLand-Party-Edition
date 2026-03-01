@@ -1,3 +1,7 @@
+import {
+  AUTOMATION_ACTION_DESCRIPTORS,
+  AUTOMATION_TRIGGER_DESCRIPTORS,
+} from "../../game/automation/registry";
 import { resolvePortableRoundRef } from "../../game/playlistRuntime";
 import type { InstalledRound, InstalledRoundCatalogEntry } from "../../services/db";
 import type { EditorGraphConfig, EditorNodeKind } from "./EditorState";
@@ -38,6 +42,7 @@ const isKnownKind = (kind: EditorNodeKind): boolean => {
     kind === "round" ||
     kind === "randomRound" ||
     kind === "perk" ||
+    kind === "event" ||
     kind === "catapult"
   );
 };
@@ -58,6 +63,9 @@ export function validateGraphConfig(
   const installedRoundRefs = installedRounds.map((round) => round.id);
   const installedRoundRefSet = new Set(installedRoundRefs);
   const outgoingCountByNodeId = new Map<string, number>();
+  const knownTriggerIds = new Set(AUTOMATION_TRIGGER_DESCRIPTORS.map((entry) => entry.kind));
+  const knownActionIds = new Set(AUTOMATION_ACTION_DESCRIPTORS.map((entry) => entry.kind));
+  const allRuleIds = new Set((config.automations ?? []).map((rule) => rule.id));
 
   const addError = (message: string, path: string, nodeId?: string, edgeId?: string) => {
     errors.push({ ...toMessage(message, path, "error"), nodeId, edgeId });
@@ -102,6 +110,22 @@ export function validateGraphConfig(
           );
         }
       }
+      node.roundPlaylistRefs?.forEach((roundRef, index) => {
+        const resolved = resolvePortableRoundRef(roundRef, installedRounds);
+        if (!resolved) {
+          addWarning(
+            `Round node "${node.id}" video queue item #${index + 1} has unresolved round reference`,
+            `nodes.${node.id}.roundPlaylistRefs.${index}`,
+            node.id
+          );
+        }
+      });
+    } else if (node.roundPlaylistRefs) {
+      addError(
+        `Only round nodes may define a video queue`,
+        `nodes.${node.id}.roundPlaylistRefs`,
+        node.id
+      );
     }
 
     if (node.kind !== "round" && node.kind !== "perk" && typeof node.forceStop === "boolean") {
@@ -114,6 +138,38 @@ export function validateGraphConfig(
 
     if (node.kind !== "round" && typeof node.skippable === "boolean") {
       addError(`Only round nodes may define skippable`, `nodes.${node.id}.skippable`, node.id);
+    }
+
+    if (
+      node.kind !== "round" &&
+      node.kind !== "randomRound" &&
+      typeof node.autoAdvanceAfterCompletion === "boolean"
+    ) {
+      addError(
+        `Only round and random round nodes may define auto-advance`,
+        `nodes.${node.id}.autoAdvanceAfterCompletion`,
+        node.id
+      );
+    }
+
+    if (
+      node.kind !== "round" &&
+      node.kind !== "randomRound" &&
+      typeof node.hiddenFromMap === "boolean"
+    ) {
+      addError(
+        `Only round and random round nodes may define hidden-from-map`,
+        `nodes.${node.id}.hiddenFromMap`,
+        node.id
+      );
+    }
+
+    if (node.hiddenFromMap && !node.autoAdvanceAfterCompletion) {
+      addError(
+        `Hidden technical nodes must also auto-advance`,
+        `nodes.${node.id}.hiddenFromMap`,
+        node.id
+      );
     }
 
     if (node.kind === "end" && node.roundRef) {
@@ -306,6 +362,13 @@ export function validateGraphConfig(
         node.id
       );
     }
+    if ((node.autoAdvanceAfterCompletion || node.hiddenFromMap) && outgoingCount !== 1) {
+      addError(
+        `Technical transition nodes must have exactly one outgoing edge`,
+        `nodes.${node.id}`,
+        node.id
+      );
+    }
   }
 
   const usedPoolIds = new Set<string>();
@@ -359,10 +422,182 @@ export function validateGraphConfig(
     }
   }
 
+  for (const edge of config.edges) {
+    const fromNode = nodeById.get(edge.fromNodeId);
+    if (fromNode?.autoAdvanceAfterCompletion && (edge.gateCost ?? 0) !== 0) {
+      addError(
+        `Auto-advance node "${fromNode.id}" must use a zero-cost outgoing edge`,
+        `edges.${edge.id}.gateCost`,
+        fromNode.id,
+        edge.id
+      );
+    }
+  }
+
   for (const [index, ref] of config.cumRoundRefs.entries()) {
     const resolved = resolvePortableRoundRef(ref, installedRounds);
     if (!resolved) {
       addWarning(`Cum round #${index + 1} has unresolved round reference`, `cumRoundRefs.${index}`);
+    }
+  }
+
+  const trackIds = new Set(config.music.tracks.map((track) => track.id));
+  const ruleIds = new Set<string>();
+  for (const rule of config.automations ?? []) {
+    if (ruleIds.has(rule.id)) {
+      addError(`Duplicate automation rule id "${rule.id}"`, `automations.${rule.id}`);
+    }
+    ruleIds.add(rule.id);
+    if (!knownTriggerIds.has(rule.trigger.kind)) {
+      addError(
+        `Unknown automation trigger "${rule.trigger.kind}"`,
+        `automations.${rule.id}.trigger`
+      );
+    }
+    if (rule.scope.kind === "node" && !nodeById.has(rule.scope.nodeId)) {
+      addError(
+        `Automation "${rule.name}" references missing node "${rule.scope.nodeId}"`,
+        `automations.${rule.id}.scope`,
+        rule.scope.nodeId
+      );
+    }
+    if (
+      (rule.trigger.kind === "node.enter" ||
+        rule.trigger.kind === "node.leave" ||
+        rule.trigger.kind === "node.stay") &&
+      rule.trigger.nodeId &&
+      !nodeById.has(rule.trigger.nodeId)
+    ) {
+      addError(
+        `Automation "${rule.name}" trigger references missing node "${rule.trigger.nodeId}"`,
+        `automations.${rule.id}.trigger`,
+        rule.trigger.nodeId
+      );
+    }
+    if (rule.actions.length === 0) {
+      addError(
+        `Automation "${rule.name}" requires at least one action`,
+        `automations.${rule.id}.actions`
+      );
+    }
+    for (const step of rule.actions) {
+      if (!knownActionIds.has(step.action.kind)) {
+        addError(
+          `Unknown automation action "${step.action.kind}"`,
+          `automations.${rule.id}.actions.${step.id}`
+        );
+      }
+      if (step.action.kind === "music.playTrack" && !trackIds.has(step.action.trackId)) {
+        addError(
+          `Automation "${rule.name}" references missing music track "${step.action.trackId}"`,
+          `automations.${rule.id}.actions.${step.id}`
+        );
+      }
+      if (step.action.kind === "graph.removeNode" && !step.action.fallbackNodeId) {
+        addWarning(
+          `Automation "${rule.name}" removes node "${step.action.nodeId}" without fallbackNodeId`,
+          `automations.${rule.id}.actions.${step.id}`
+        );
+      }
+      if (
+        step.action.kind === "graph.removeNode" &&
+        step.action.fallbackNodeId &&
+        !nodeById.has(step.action.fallbackNodeId)
+      ) {
+        addError(
+          `Automation "${rule.name}" uses missing fallback node "${step.action.fallbackNodeId}"`,
+          `automations.${rule.id}.actions.${step.id}`,
+          step.action.fallbackNodeId
+        );
+      }
+      if (step.action.kind === "graph.patchNode" && !nodeById.has(step.action.nodeId)) {
+        addError(
+          `Automation "${rule.name}" patches missing node "${step.action.nodeId}"`,
+          `automations.${rule.id}.actions.${step.id}`
+        );
+      }
+      if (step.action.kind === "graph.removeNode" && !nodeById.has(step.action.nodeId)) {
+        addError(
+          `Automation "${rule.name}" removes missing node "${step.action.nodeId}"`,
+          `automations.${rule.id}.actions.${step.id}`
+        );
+      }
+      if (step.action.kind === "graph.addEdge") {
+        if (!nodeById.has(step.action.edge.fromNodeId)) {
+          addError(
+            `Automation "${rule.name}" adds edge from missing node "${step.action.edge.fromNodeId}"`,
+            `automations.${rule.id}.actions.${step.id}`,
+            step.action.edge.fromNodeId
+          );
+        }
+        if (!nodeById.has(step.action.edge.toNodeId)) {
+          addError(
+            `Automation "${rule.name}" adds edge to missing node "${step.action.edge.toNodeId}"`,
+            `automations.${rule.id}.actions.${step.id}`,
+            step.action.edge.toNodeId
+          );
+        }
+      }
+      if (step.action.kind === "graph.removeEdge" && !edgeIds.has(step.action.edgeId)) {
+        addError(
+          `Automation "${rule.name}" removes missing edge "${step.action.edgeId}"`,
+          `automations.${rule.id}.actions.${step.id}`,
+          undefined,
+          step.action.edgeId
+        );
+      }
+      if (step.action.kind === "graph.patchEdge") {
+        if (!edgeIds.has(step.action.edgeId)) {
+          addError(
+            `Automation "${rule.name}" patches missing edge "${step.action.edgeId}"`,
+            `automations.${rule.id}.actions.${step.id}`,
+            undefined,
+            step.action.edgeId
+          );
+        }
+        if (step.action.patch.fromNodeId && !nodeById.has(step.action.patch.fromNodeId)) {
+          addError(
+            `Automation "${rule.name}" patches edge from missing node "${step.action.patch.fromNodeId}"`,
+            `automations.${rule.id}.actions.${step.id}`,
+            step.action.patch.fromNodeId
+          );
+        }
+        if (step.action.patch.toNodeId && !nodeById.has(step.action.patch.toNodeId)) {
+          addError(
+            `Automation "${rule.name}" patches edge to missing node "${step.action.patch.toNodeId}"`,
+            `automations.${rule.id}.actions.${step.id}`,
+            step.action.patch.toNodeId
+          );
+        }
+      }
+      if (step.action.kind === "graph.setStartNode" && !nodeById.has(step.action.nodeId)) {
+        addError(
+          `Automation "${rule.name}" sets missing start node "${step.action.nodeId}"`,
+          `automations.${rule.id}.actions.${step.id}`
+        );
+      }
+      if (
+        (step.action.kind === "rule.enable" ||
+          step.action.kind === "rule.disable" ||
+          step.action.kind === "rule.setCooldownMs") &&
+        !allRuleIds.has(step.action.ruleId)
+      ) {
+        addError(
+          `Automation "${rule.name}" targets missing rule "${step.action.ruleId}"`,
+          `automations.${rule.id}.actions.${step.id}`
+        );
+      }
+      if (
+        (step.action.kind === "rule.enable" ||
+          step.action.kind === "rule.disable" ||
+          step.action.kind === "rule.setCooldownMs") &&
+        step.action.ruleId === rule.id
+      ) {
+        addWarning(
+          `Automation "${rule.name}" targets itself; verify cooldowns carefully`,
+          `automations.${rule.id}.actions.${step.id}`
+        );
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 import React from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import type { PortableRoundRef } from "../../../game/playlistSchema";
 import { resolvePortableRoundRef } from "../../../game/playlistRuntime";
 import { useInstalledRoundMedia } from "../../../hooks/useInstalledRoundMedia";
 import { usePlayableVideoFallback } from "../../../hooks/usePlayableVideoFallback";
@@ -24,6 +25,7 @@ const NODE_KIND_OPTIONS: EditorNode["kind"][] = [
   "round",
   "randomRound",
   "perk",
+  "event",
   "catapult",
 ];
 
@@ -31,12 +33,14 @@ interface NodeInspectorPanelProps {
   selectedNode: EditorNode | null;
   outgoingEdges: ReadonlyArray<EditorEdge>;
   installedRounds: ReadonlyArray<InstalledRound | InstalledRoundCatalogEntry>;
+  randomPoolIds: ReadonlyArray<string>;
   perkOptions: ReadonlyArray<PerkOption>;
   antiPerkOptions: ReadonlyArray<PerkOption>;
   onPatchNode: (nodeId: string, patch: Partial<EditorNode>) => void;
   onCommitSelection: (selection: EditorSelectionState) => void;
   onSetTool: (tool: "connect") => void;
   onSetConnectFrom: (nodeId: string) => void;
+  onCreateAutomationForNode: (nodeId: string) => void;
 }
 
 function formatInstalledRoundMeta(
@@ -50,17 +54,44 @@ function formatInstalledRoundMeta(
   return parts.join(" • ");
 }
 
+function toCsv(values: string[] | undefined): string {
+  return (values ?? []).join(", ");
+}
+
+function fromCsv(value: string): string[] | undefined {
+  const items = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  return items.length > 0 ? [...new Set(items)] : undefined;
+}
+
+function toPortableRoundRefFromInstalledRound(
+  round: InstalledRound | InstalledRoundCatalogEntry
+): PortableRoundRef {
+  return {
+    idHint: round.id,
+    name: round.name,
+    author: round.author ?? undefined,
+    type: round.type ?? undefined,
+    installSourceKeyHint: round.installSourceKey ?? undefined,
+    phash: round.phash ?? undefined,
+  };
+}
+
 export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
   ({
     selectedNode,
     outgoingEdges,
     installedRounds,
+    randomPoolIds,
     perkOptions,
     antiPerkOptions,
     onPatchNode,
     onCommitSelection,
     onSetTool,
     onSetConnectFrom,
+    onCreateAutomationForNode,
   }) => {
     const { t } = useLingui();
     if (!selectedNode) {
@@ -113,13 +144,15 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                         ? t`Safe Point`
                         : kind === "campfire"
                           ? t`Campfire`
-                        : kind === "round"
-                          ? t`Round`
-                          : kind === "randomRound"
-                            ? t`Random Round`
-                            : kind === "catapult"
-                              ? t`Catapult`
-                              : t`Perk`,
+                          : kind === "round"
+                            ? t`Round`
+                            : kind === "randomRound"
+                              ? t`Random Round`
+                              : kind === "event"
+                                ? t`Event`
+                                : kind === "catapult"
+                                  ? t`Catapult`
+                                  : t`Perk`,
             }))}
             onChange={(kind) => {
               onPatchNode(selectedNode.id, {
@@ -128,6 +161,19 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                   kind === "round" ? (selectedNode.roundRef ?? { name: t`Round` }) : undefined,
                 forceStop: kind === "round" || kind === "perk" ? selectedNode.forceStop : undefined,
                 skippable: kind === "round" ? selectedNode.skippable : undefined,
+                autoAdvanceAfterCompletion:
+                  kind === "round" || kind === "randomRound"
+                    ? selectedNode.autoAdvanceAfterCompletion
+                    : undefined,
+                roundPlaylistRefs:
+                  kind === "round"
+                    ? (selectedNode.roundPlaylistRefs ??
+                      (selectedNode.roundRef ? [selectedNode.roundRef] : undefined))
+                    : undefined,
+                hiddenFromMap: undefined,
+                selectionMode:
+                  kind === "randomRound" ? (selectedNode.selectionMode ?? "installed") : undefined,
+                filter: kind === "randomRound" ? selectedNode.filter : undefined,
                 checkpointRestMs: kind === "safePoint" ? selectedNode.checkpointRestMs : undefined,
                 pauseBonusMs: kind === "campfire" ? selectedNode.pauseBonusMs : undefined,
                 visualId:
@@ -142,6 +188,14 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
             }}
           />
         </div>
+
+        <button
+          type="button"
+          className="w-full rounded-md border border-fuchsia-500/35 bg-fuchsia-500/10 px-3 py-2 text-left text-xs font-medium text-fuchsia-100 transition-colors hover:border-fuchsia-400/55 hover:bg-fuchsia-500/20"
+          onClick={() => onCreateAutomationForNode(selectedNode.id)}
+        >
+          <Trans>Add automation for this node</Trans>
+        </button>
 
         <div className="rounded-lg border border-white/6 bg-black/20 p-2.5">
           <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
@@ -254,22 +308,23 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                     roundRef: {
                       name: selectedNode.roundRef?.name?.trim() || t`Round`,
                     },
+                    roundPlaylistRefs: undefined,
                   });
                 }}
                 onSelectRound={(round) => {
+                  const roundRef = toPortableRoundRefFromInstalledRound(round);
                   onPatchNode(selectedNode.id, {
-                    roundRef: {
-                      idHint: round.id,
-                      name: round.name,
-                      author: round.author ?? undefined,
-                      type: round.type ?? undefined,
-                      installSourceKeyHint: round.installSourceKey ?? undefined,
-                      phash: round.phash ?? undefined,
-                    },
+                    roundRef,
+                    roundPlaylistRefs: [roundRef],
                   });
                 }}
               />
             </div>
+            <RoundQueueEditor
+              selectedNode={selectedNode}
+              installedRounds={installedRounds}
+              onPatchNode={onPatchNode}
+            />
             <label className="block">
               <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
                 <Trans>Force stop</Trans>
@@ -312,6 +367,23 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                 </span>
               </label>
             </label>
+            <label className="block">
+              <label className="mt-1 flex items-start gap-2 rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-2 text-xs text-zinc-200">
+                <input
+                  type="checkbox"
+                  checked={Boolean(selectedNode.autoAdvanceAfterCompletion)}
+                  onChange={(event) =>
+                    onPatchNode(selectedNode.id, {
+                      autoAdvanceAfterCompletion: event.target.checked || undefined,
+                    })
+                  }
+                  className="mt-0.5"
+                />
+                <span>
+                  <Trans>Auto-advance to the next node after this round completes.</Trans>
+                </span>
+              </label>
+            </label>
             <SelectedRoundPreview
               round={
                 selectedNode.roundRef
@@ -333,7 +405,7 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
               step="1"
               value={
                 typeof selectedNode.checkpointRestMs === "number" &&
-                  selectedNode.checkpointRestMs > 0
+                selectedNode.checkpointRestMs > 0
                   ? Math.floor(selectedNode.checkpointRestMs / 1000)
                   : ""
               }
@@ -387,8 +459,100 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
         )}
 
         {selectedNode.kind === "randomRound" && (
-          <div className="rounded-lg border border-amber-400/20 bg-amber-500/8 p-2.5 text-xs text-amber-100">
-            <Trans>This node plays a random installed round. It does not need a random pool.</Trans>
+          <div className="space-y-3 rounded-lg border border-amber-400/20 bg-amber-500/8 p-2.5">
+            <GameDropdown
+              label={t`Selection mode`}
+              value={selectedNode.selectionMode ?? "installed"}
+              options={[
+                { value: "installed", label: t`Installed library` },
+                { value: "pool", label: t`Named pool` },
+              ]}
+              onChange={(value) =>
+                onPatchNode(selectedNode.id, { selectionMode: value as "installed" | "pool" })
+              }
+            />
+            <GameDropdown
+              label={t`Random pool`}
+              value={selectedNode.randomPoolId ?? ""}
+              options={[
+                { value: "", label: t`None` },
+                ...randomPoolIds.map((poolId) => ({ value: poolId, label: poolId })),
+              ]}
+              onChange={(value) =>
+                onPatchNode(selectedNode.id, { randomPoolId: value.trim() || undefined })
+              }
+            />
+            <label className="block">
+              <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+                <Trans>Tags filter</Trans>
+              </span>
+              <input
+                type="text"
+                value={toCsv(selectedNode.filter?.tags)}
+                onChange={(event) =>
+                  onPatchNode(selectedNode.id, {
+                    filter: { ...(selectedNode.filter ?? {}), tags: fromCsv(event.target.value) },
+                  })
+                }
+                placeholder={t`tag-one, tag-two`}
+                className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+                <Trans>Author filter</Trans>
+              </span>
+              <input
+                type="text"
+                value={toCsv(selectedNode.filter?.authorNames)}
+                onChange={(event) =>
+                  onPatchNode(selectedNode.id, {
+                    filter: {
+                      ...(selectedNode.filter ?? {}),
+                      authorNames: fromCsv(event.target.value),
+                    },
+                  })
+                }
+                placeholder={t`author-one, author-two`}
+                className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-500">
+                <Trans>Library filter</Trans>
+              </span>
+              <input
+                type="text"
+                value={toCsv(selectedNode.filter?.libraryLabels)}
+                onChange={(event) =>
+                  onPatchNode(selectedNode.id, {
+                    filter: {
+                      ...(selectedNode.filter ?? {}),
+                      libraryLabels: fromCsv(event.target.value),
+                    },
+                  })
+                }
+                placeholder={t`library-one, library-two`}
+                className="mt-1 w-full rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-1.5 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
+              />
+            </label>
+            <label className="block">
+              <label className="mt-1 flex items-start gap-2 rounded-md border border-zinc-700/50 bg-zinc-950/60 px-2.5 py-2 text-xs text-zinc-200">
+                <input
+                  type="checkbox"
+                  checked={Boolean(selectedNode.autoAdvanceAfterCompletion)}
+                  onChange={(event) =>
+                    onPatchNode(selectedNode.id, {
+                      autoAdvanceAfterCompletion: event.target.checked || undefined,
+                    })
+                  }
+                  className="mt-0.5"
+                />
+                <span>
+                  <Trans>Auto-advance to the next node after this scene completes.</Trans>
+                </span>
+              </label>
+            </label>
           </div>
         )}
 
@@ -405,7 +569,8 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                 max="20"
                 step="1"
                 value={
-                  typeof selectedNode.catapultForward === "number" && selectedNode.catapultForward > 0
+                  typeof selectedNode.catapultForward === "number" &&
+                  selectedNode.catapultForward > 0
                     ? String(selectedNode.catapultForward)
                     : ""
                 }
@@ -425,7 +590,9 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                 placeholder={t`2`}
               />
               <p className="mt-1 text-[11px] text-zinc-500">
-                <Trans>Number of additional nodes the player moves forward when landing here.</Trans>
+                <Trans>
+                  Number of additional nodes the player moves forward when landing here.
+                </Trans>
               </p>
             </label>
             <label className="block">
@@ -434,7 +601,9 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                   type="checkbox"
                   checked={Boolean(selectedNode.catapultLandingOnly)}
                   onChange={(event) =>
-                    onPatchNode(selectedNode.id, { catapultLandingOnly: event.target.checked || undefined })
+                    onPatchNode(selectedNode.id, {
+                      catapultLandingOnly: event.target.checked || undefined,
+                    })
                   }
                   className="mt-0.5"
                 />
@@ -580,10 +749,11 @@ const PerkPicker: React.FC<{
     <div className="mt-1 space-y-1 rounded-lg border border-zinc-700/50 bg-zinc-950/40 p-2">
       <button
         type="button"
-        className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${!selectedPerkId
-          ? "border-pink-400/50 bg-pink-500/12 text-pink-100"
-          : "border-zinc-700/50 bg-zinc-950/60 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
-          }`}
+        className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${
+          !selectedPerkId
+            ? "border-pink-400/50 bg-pink-500/12 text-pink-100"
+            : "border-zinc-700/50 bg-zinc-950/60 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
+        }`}
         onMouseEnter={playHoverSound}
         onClick={() => {
           playSelectSound();
@@ -599,10 +769,11 @@ const PerkPicker: React.FC<{
             <button
               key={perk.id}
               type="button"
-              className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${selected
-                ? "border-pink-400/50 bg-pink-500/12 text-pink-100"
-                : "border-zinc-700/40 bg-zinc-950/50 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
-                }`}
+              className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${
+                selected
+                  ? "border-pink-400/50 bg-pink-500/12 text-pink-100"
+                  : "border-zinc-700/40 bg-zinc-950/50 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
+              }`}
               onMouseEnter={playHoverSound}
               onClick={() => {
                 playSelectSound();
@@ -624,10 +795,11 @@ const PerkPicker: React.FC<{
                 <button
                   key={perk.id}
                   type="button"
-                  className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${selected
-                    ? "border-red-400/50 bg-red-500/12 text-red-100"
-                    : "border-zinc-700/40 bg-zinc-950/50 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
-                    }`}
+                  className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${
+                    selected
+                      ? "border-red-400/50 bg-red-500/12 text-red-100"
+                      : "border-zinc-700/40 bg-zinc-950/50 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
+                  }`}
                   onMouseEnter={playHoverSound}
                   onClick={() => {
                     playSelectSound();
@@ -647,103 +819,233 @@ const PerkPicker: React.FC<{
 
 PerkPicker.displayName = "PerkPicker";
 
+const RoundQueueEditor: React.FC<{
+  selectedNode: EditorNode;
+  installedRounds: ReadonlyArray<InstalledRound | InstalledRoundCatalogEntry>;
+  onPatchNode: (nodeId: string, patch: Partial<EditorNode>) => void;
+}> = React.memo(({ selectedNode, installedRounds, onPatchNode }) => {
+  const { t } = useLingui();
+  const queue = selectedNode.roundPlaylistRefs?.length
+    ? selectedNode.roundPlaylistRefs
+    : selectedNode.roundRef
+      ? [selectedNode.roundRef]
+      : [];
+
+  const commitQueue = React.useCallback(
+    (nextQueue: PortableRoundRef[]) => {
+      const cleanQueue = nextQueue.filter((ref) => ref.name?.trim());
+      onPatchNode(selectedNode.id, {
+        roundPlaylistRefs: cleanQueue.length > 1 ? cleanQueue : undefined,
+        roundRef: cleanQueue[0] ?? selectedNode.roundRef,
+      });
+    },
+    [onPatchNode, selectedNode.id, selectedNode.roundRef]
+  );
+
+  const selectedIds = new Set(queue.map((ref) => ref.idHint).filter(Boolean));
+
+  return (
+    <div className="rounded-lg border border-cyan-400/20 bg-cyan-500/8 p-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-cyan-200">
+            <Trans>Video Queue</Trans>
+          </p>
+          <p className="mt-1 text-[11px] text-zinc-400">
+            <Trans>Play intros, the main round, and outros back to back.</Trans>
+          </p>
+        </div>
+        <span className="shrink-0 rounded border border-cyan-400/30 px-2 py-1 text-[10px] font-medium text-cyan-100">
+          {queue.length}
+        </span>
+      </div>
+
+      <div className="mt-2 space-y-1.5">
+        {queue.map((ref, index) => (
+          <div
+            key={`${ref.idHint ?? ref.name}-${index}`}
+            className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-md border border-zinc-700/45 bg-zinc-950/60 px-2.5 py-2 text-xs"
+          >
+            <div className="min-w-0">
+              <div className="truncate font-medium text-zinc-100">
+                {index + 1}. {ref.name}
+              </div>
+              <div className="mt-0.5 truncate text-[11px] text-zinc-500">
+                {ref.author ?? t`Unknown Author`}
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label={t`Move video up`}
+                disabled={index === 0}
+                className="rounded border border-zinc-700/50 px-2 py-1 text-[11px] text-zinc-300 transition-colors hover:border-zinc-500/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() => {
+                  const next = [...queue];
+                  const [item] = next.splice(index, 1);
+                  if (!item) return;
+                  next.splice(index - 1, 0, item);
+                  commitQueue(next);
+                }}
+              >
+                <Trans>Up</Trans>
+              </button>
+              <button
+                type="button"
+                aria-label={t`Move video down`}
+                disabled={index === queue.length - 1}
+                className="rounded border border-zinc-700/50 px-2 py-1 text-[11px] text-zinc-300 transition-colors hover:border-zinc-500/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() => {
+                  const next = [...queue];
+                  const [item] = next.splice(index, 1);
+                  if (!item) return;
+                  next.splice(index + 1, 0, item);
+                  commitQueue(next);
+                }}
+              >
+                <Trans>Down</Trans>
+              </button>
+              <button
+                type="button"
+                aria-label={t`Remove video`}
+                disabled={queue.length <= 1}
+                className="rounded border border-red-500/35 px-2 py-1 text-[11px] text-red-100 transition-colors hover:border-red-400/60 disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() => commitQueue(queue.filter((_, entryIndex) => entryIndex !== index))}
+              >
+                <Trans>Remove</Trans>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-2">
+        <InstalledRoundPicker
+          selectedRoundId={null}
+          installedRounds={installedRounds.filter((round) => !selectedIds.has(round.id))}
+          hideClearSelection
+          onClearSelection={() => undefined}
+          onSelectRound={(round) => {
+            commitQueue([...queue, toPortableRoundRefFromInstalledRound(round)]);
+          }}
+        />
+      </div>
+    </div>
+  );
+});
+
+RoundQueueEditor.displayName = "RoundQueueEditor";
+
 const InstalledRoundPicker: React.FC<{
   selectedRoundId: string | null;
   installedRounds: ReadonlyArray<InstalledRound | InstalledRoundCatalogEntry>;
   onSelectRound: (round: InstalledRound | InstalledRoundCatalogEntry) => void;
   onClearSelection: () => void;
-}> = React.memo(({ selectedRoundId, installedRounds, onSelectRound, onClearSelection }) => {
-  const { t } = useLingui();
-  const [query, setQuery] = React.useState("");
+  hideClearSelection?: boolean;
+}> = React.memo(
+  ({
+    selectedRoundId,
+    installedRounds,
+    onSelectRound,
+    onClearSelection,
+    hideClearSelection = false,
+  }) => {
+    const { t } = useLingui();
+    const [query, setQuery] = React.useState("");
 
-  const filteredRounds = React.useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const matches = installedRounds.filter((round) => {
-      if (!normalizedQuery) return true;
-      const haystack =
-        `${round.name} ${round.author ?? ""} ${round.type ?? t`Normal`} ${round.difficulty ?? ""}`.toLowerCase();
-      return haystack.includes(normalizedQuery);
-    });
-
-    return [...matches].sort((left, right) => {
-      if (left.id === selectedRoundId) return -1;
-      if (right.id === selectedRoundId) return 1;
-      return left.name.localeCompare(right.name, undefined, {
-        sensitivity: "base",
-        numeric: true,
+    const filteredRounds = React.useMemo(() => {
+      const normalizedQuery = query.trim().toLowerCase();
+      const matches = installedRounds.filter((round) => {
+        if (!normalizedQuery) return true;
+        const haystack =
+          `${round.name} ${round.author ?? ""} ${round.type ?? t`Normal`} ${round.difficulty ?? ""}`.toLowerCase();
+        return haystack.includes(normalizedQuery);
       });
-    });
-  }, [installedRounds, query, selectedRoundId]);
 
-  React.useEffect(() => {
-    setQuery("");
-  }, [selectedRoundId]);
+      return [...matches].sort((left, right) => {
+        if (left.id === selectedRoundId) return -1;
+        if (right.id === selectedRoundId) return 1;
+        return left.name.localeCompare(right.name, undefined, {
+          sensitivity: "base",
+          numeric: true,
+        });
+      });
+    }, [installedRounds, query, selectedRoundId]);
 
-  return (
-    <div className="mt-1 space-y-2 rounded-lg border border-zinc-700/50 bg-zinc-950/40 p-2">
-      <input
-        type="text"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        className="w-full rounded-md border border-zinc-700/50 bg-zinc-950/70 px-2.5 py-2 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
-        placeholder={t`Search by round, author, or type`}
-      />
-      <button
-        type="button"
-        className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${selectedRoundId
-          ? "border-zinc-700/50 bg-zinc-950/60 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
-          : "border-cyan-400/50 bg-cyan-500/12 text-cyan-100"
-          }`}
-        onMouseEnter={playHoverSound}
-        onClick={onClearSelection}
-      >
-        <div className="font-medium">{t`Custom / none`}</div>
-        <div className="mt-1 text-[11px] text-zinc-500">
-          <Trans>Keep the manual round name without linking to an installed round.</Trans>
-        </div>
-      </button>
-      <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
-        {filteredRounds.map((round) => {
-          const selected = round.id === selectedRoundId;
-          return (
-            <button
-              key={round.id}
-              type="button"
-              className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${selected
-                ? "border-cyan-400/50 bg-cyan-500/12 text-cyan-100"
-                : "border-zinc-700/40 bg-zinc-950/50 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
-                }`}
-              onMouseEnter={playHoverSound}
-              onClick={() => {
-                playSelectSound();
-                onSelectRound(round);
-              }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-medium">{round.name}</span>
-                {selected && (
-                  <span className="text-[10px] uppercase tracking-[0.1em]">{t`Selected`}</span>
-                )}
-              </div>
-              <div className="mt-1 text-[11px] text-zinc-500">
-                {formatInstalledRoundMeta(round, {
-                  unknownAuthor: t`Unknown Author`,
-                  normal: t`Normal`,
-                  difficulty: (value) => t`Difficulty ${value}`,
-                })}
-              </div>
-            </button>
-          );
-        })}
-        {filteredRounds.length === 0 && (
-          <div className="rounded-md border border-zinc-800 bg-black/25 px-2.5 py-3 text-xs text-zinc-400">
-            <Trans>No installed rounds match the current filter.</Trans>
-          </div>
+    React.useEffect(() => {
+      setQuery("");
+    }, [selectedRoundId]);
+
+    return (
+      <div className="mt-1 space-y-2 rounded-lg border border-zinc-700/50 bg-zinc-950/40 p-2">
+        <input
+          type="text"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          className="w-full rounded-md border border-zinc-700/50 bg-zinc-950/70 px-2.5 py-2 text-xs text-zinc-100 outline-none transition-colors focus:border-cyan-500/50"
+          placeholder={t`Search by round, author, or type`}
+        />
+        {!hideClearSelection && (
+          <button
+            type="button"
+            className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${
+              selectedRoundId
+                ? "border-zinc-700/50 bg-zinc-950/60 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
+                : "border-cyan-400/50 bg-cyan-500/12 text-cyan-100"
+            }`}
+            onMouseEnter={playHoverSound}
+            onClick={onClearSelection}
+          >
+            <div className="font-medium">{t`Custom / none`}</div>
+            <div className="mt-1 text-[11px] text-zinc-500">
+              <Trans>Keep the manual round name without linking to an installed round.</Trans>
+            </div>
+          </button>
         )}
+        <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
+          {filteredRounds.map((round) => {
+            const selected = round.id === selectedRoundId;
+            return (
+              <button
+                key={round.id}
+                type="button"
+                className={`block w-full rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${
+                  selected
+                    ? "border-cyan-400/50 bg-cyan-500/12 text-cyan-100"
+                    : "border-zinc-700/40 bg-zinc-950/50 text-zinc-300 hover:border-zinc-500/60 hover:text-white"
+                }`}
+                onMouseEnter={playHoverSound}
+                onClick={() => {
+                  playSelectSound();
+                  onSelectRound(round);
+                }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-medium">{round.name}</span>
+                  {selected && (
+                    <span className="text-[10px] uppercase tracking-[0.1em]">{t`Selected`}</span>
+                  )}
+                </div>
+                <div className="mt-1 text-[11px] text-zinc-500">
+                  {formatInstalledRoundMeta(round, {
+                    unknownAuthor: t`Unknown Author`,
+                    normal: t`Normal`,
+                    difficulty: (value) => t`Difficulty ${value}`,
+                  })}
+                </div>
+              </button>
+            );
+          })}
+          {filteredRounds.length === 0 && (
+            <div className="rounded-md border border-zinc-800 bg-black/25 px-2.5 py-3 text-xs text-zinc-400">
+              <Trans>No installed rounds match the current filter.</Trans>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
 
 InstalledRoundPicker.displayName = "InstalledRoundPicker";
 
@@ -757,8 +1059,7 @@ function SelectedRoundPreview({
     round?.id ?? null
   );
   const previewUri = mediaResources?.resources[0]?.videoUri ?? null;
-  const previewImage =
-    round && "previewImage" in round ? (round.previewImage ?? null) : null;
+  const previewImage = round && "previewImage" in round ? (round.previewImage ?? null) : null;
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const [isPreviewActive, setIsPreviewActive] = React.useState(false);
   const { getVideoSrc, ensurePlayableVideo, handleVideoError } = usePlayableVideoFallback();
@@ -880,7 +1181,7 @@ function SelectedRoundPreview({
                     if (!video) return;
                     const { startSec } = resolvePreviewWindow(video);
                     video.currentTime = startSec;
-                    void video.play().catch(() => { });
+                    void video.play().catch(() => {});
                   }}
                   onTimeUpdate={() => {
                     if (!isPreviewActive) return;
@@ -894,7 +1195,7 @@ function SelectedRoundPreview({
                     if (endSec !== null && video.currentTime >= endSec - 0.04) {
                       video.currentTime = startSec;
                       if (video.paused) {
-                        void video.play().catch(() => { });
+                        void video.play().catch(() => {});
                       }
                     }
                   }}
@@ -904,7 +1205,7 @@ function SelectedRoundPreview({
                     if (!video) return;
                     const { startSec } = resolvePreviewWindow(video);
                     video.currentTime = startSec;
-                    void video.play().catch(() => { });
+                    void video.play().catch(() => {});
                   }}
                 />
               </SfwGuard>

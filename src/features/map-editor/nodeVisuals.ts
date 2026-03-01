@@ -14,6 +14,7 @@ type NodeVisualKind =
   | "round"
   | "randomRound"
   | "perk"
+  | "event"
   | "catapult";
 
 type StyleHintLike = {
@@ -37,6 +38,7 @@ const KIND_COLORS: Record<NodeVisualKind, string> = {
   round: "#38bdf8",
   randomRound: "#f59e0b",
   perk: "#ec4899",
+  event: "#f43f5e",
   catapult: "#06b6d4",
 };
 

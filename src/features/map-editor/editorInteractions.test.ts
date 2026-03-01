@@ -144,6 +144,51 @@ describe("editorInteractions", () => {
     expect(next.edges).toEqual([]);
   });
 
+  it("removes automations scoped to deleted nodes", () => {
+    const config: EditorGraphConfig = {
+      ...makeConfig(),
+      automations: [
+        {
+          id: "auto-global",
+          name: "Global",
+          enabled: true,
+          scope: { kind: "global" },
+          trigger: { kind: "round.lifecycle", phase: "ended" },
+          actions: [{ id: "a1", action: { kind: "ui.showToast", message: "done" } }],
+          cooldownMs: 0,
+          stopAfterMatch: false,
+        },
+        {
+          id: "auto-path-1",
+          name: "Path 1",
+          enabled: true,
+          scope: { kind: "node", nodeId: "path-1" },
+          trigger: { kind: "node.enter", nodeId: "path-1" },
+          actions: [{ id: "a2", action: { kind: "ui.showToast", message: "entered" } }],
+          cooldownMs: 0,
+          stopAfterMatch: false,
+        },
+        {
+          id: "auto-start",
+          name: "Start",
+          enabled: true,
+          scope: { kind: "node", nodeId: "start" },
+          trigger: { kind: "node.enter", nodeId: "start" },
+          actions: [{ id: "a3", action: { kind: "ui.showToast", message: "start" } }],
+          cooldownMs: 0,
+          stopAfterMatch: false,
+        },
+      ],
+    };
+    const next = deleteSelectionFromConfig(config, {
+      selectedNodeIds: ["path-1"],
+      primaryNodeId: "path-1",
+      selectedEdgeId: null,
+      selectedTextAnnotationId: null,
+    });
+    expect(next.automations?.map((r) => r.id)).toEqual(["auto-global", "auto-start"]);
+  });
+
   it("clears startNodeId when the only start node is deleted", () => {
     const config = makeConfig();
     const next = deleteSelectionFromConfig(config, {

@@ -8,6 +8,7 @@ interface ImportMetaEnv {
     readonly VITE_MULTIPLAYER_DEVELOPMENT_SUPABASE_ANON_KEY?: string;
     readonly VITE_GAME_ENV?: string;
     readonly FLAND_ENABLE_DEV_FEATURES: string;
+    readonly FLAND_STARTUP_SAFE_MODE: string;
     readonly FLAND_UPDATE_REPOSITORY: string;
 }
 

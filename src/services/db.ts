@@ -6,13 +6,37 @@ import { invalidateInstalledRoundCaches } from "./installedRoundsCache";
  * No manual type definitions needed — types flow from the Prisma schema
  * on the main process all the way to the renderer.
  */
-export type Hero = Awaited<ReturnType<typeof trpc.db.getHeroes.query>>[number];
-export type Round = Awaited<ReturnType<typeof trpc.db.getHeroRounds.query>>[number];
-export type Resource = NonNullable<Awaited<ReturnType<typeof trpc.db.getResource.query>>>;
-export type InstalledRound = Awaited<ReturnType<typeof trpc.db.getInstalledRounds.query>>[number];
-export type InstalledRoundCatalogEntry = Awaited<
+type HeroFromTrpc = Awaited<ReturnType<typeof trpc.db.getHeroes.query>>[number];
+type RoundFromTrpc = Awaited<ReturnType<typeof trpc.db.getHeroRounds.query>>[number];
+type InstalledRoundFromTrpc = Awaited<ReturnType<typeof trpc.db.getInstalledRounds.query>>[number];
+type InstalledRoundCatalogEntryFromTrpc = Awaited<
   ReturnType<typeof trpc.db.getInstalledRoundCatalog.query>
 >[number];
+
+export type Hero = HeroFromTrpc & { tags?: string[] };
+export type Round = RoundFromTrpc & {
+  tags?: string[];
+  libraryLabel?: string | null;
+};
+export type Resource = NonNullable<Awaited<ReturnType<typeof trpc.db.getResource.query>>>;
+export type InstalledRound = Omit<InstalledRoundFromTrpc, "hero"> & {
+  tags?: string[];
+  libraryLabel?: string | null;
+  hero:
+    | (NonNullable<InstalledRoundFromTrpc["hero"]> & {
+        tags?: string[];
+      })
+    | null;
+};
+export type InstalledRoundCatalogEntry = Omit<InstalledRoundCatalogEntryFromTrpc, "hero"> & {
+  tags?: string[];
+  libraryLabel?: string | null;
+  hero:
+    | (NonNullable<InstalledRoundCatalogEntryFromTrpc["hero"]> & {
+        tags?: string[];
+      })
+    | null;
+};
 export type InstalledRoundPlaybackEntry = Awaited<
   ReturnType<typeof trpc.db.getInstalledRoundPlaybackEntry.query>
 >;
@@ -91,6 +115,7 @@ export const db = {
       name: string;
       author?: string | null;
       description?: string | null;
+      tags?: string[];
     }) => withInstalledRoundCacheInvalidation(() => trpc.db.updateHero.mutate(input)),
     delete: (id: string) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.deleteHero.mutate({ id })),
@@ -115,6 +140,7 @@ export const db = {
       name: string;
       author?: string | null;
       description?: string | null;
+      tags?: string[];
       bpm?: number | null;
       difficulty?: number | null;
       startTime?: number | null;
@@ -122,6 +148,7 @@ export const db = {
       funscriptUri?: string | null;
       type: "Normal" | "Interjection" | "Cum";
       excludeFromRandom?: boolean;
+      libraryLabel?: string | null;
     }) => withInstalledRoundCacheInvalidation(() => trpc.db.updateRound.mutate(input)),
     createWebsiteRound: (input: { name: string; videoUri: string; funscriptUri?: string | null }) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.createWebsiteRound.mutate(input)),

@@ -637,8 +637,7 @@ describe("RoundVideoOverlay", () => {
         activeRound={createActiveRound()}
         installedRounds={[
           createInstalledRound("round-1", null, {
-            videoUri:
-              "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3D1",
+            videoUri: "app://external/web-url?target=https%3A%2F%2Fexample.com%2Fwatch%3Fv%3D1",
           }),
         ]}
         currentPlayer={undefined}
@@ -1378,6 +1377,67 @@ describe("RoundVideoOverlay", () => {
     renderOverlay({ allowDebugRoundControls: true });
     expect(await screen.findByText("Segment: Main")).not.toBeNull();
     expect(screen.queryByText("Intermediary queue: 0")).toBeNull();
+  });
+
+  it("does not show the next video dev button for single-video rounds", async () => {
+    renderOverlay({ allowDebugRoundControls: true });
+
+    expect(await screen.findByText("Segment: Main")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Next Video" })).toBeNull();
+  });
+
+  it("advances to the next playlist video from the dev button without finishing the round", async () => {
+    const onFinishRound = vi.fn();
+    const activeRound = {
+      ...createActiveRound("round-1"),
+      playlistRoundIds: ["round-1", "round-2"],
+    };
+    const { container } = renderOverlay({
+      activeRound,
+      installedRounds: [
+        createInstalledRound("round-1", null, { videoUri: "/intro.mp4", name: "Intro" }),
+        createInstalledRound("round-2", null, { videoUri: "/main.mp4", name: "Main" }),
+      ],
+      allowDebugRoundControls: true,
+      onFinishRound,
+    });
+
+    const nextButton = await screen.findByRole("button", { name: "Next Video" });
+    expect((nextButton as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByText("Video queue: 1/2")).not.toBeNull();
+
+    fireEvent.click(nextButton);
+
+    expect(onFinishRound).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(container.querySelector("video")?.getAttribute("src")).toBe("/main.mp4");
+      expect(screen.getByText("Video queue: 2/2")).not.toBeNull();
+    });
+    expect((screen.getByRole("button", { name: "Next Video" }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+  });
+
+  it("keeps dev skip finishing the whole playlist round immediately", async () => {
+    const onFinishRound = vi.fn();
+    renderOverlay({
+      activeRound: {
+        ...createActiveRound("round-1"),
+        playlistRoundIds: ["round-1", "round-2"],
+      },
+      installedRounds: [
+        createInstalledRound("round-1", null, { videoUri: "/intro.mp4", name: "Intro" }),
+        createInstalledRound("round-2", null, { videoUri: "/main.mp4", name: "Main" }),
+      ],
+      allowDebugRoundControls: true,
+      onFinishRound,
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Dev Skip (K)" }));
+
+    await waitFor(() => {
+      expect(onFinishRound).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("shows the intermediary queue only in development mode", async () => {

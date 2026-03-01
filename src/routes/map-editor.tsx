@@ -30,6 +30,7 @@ import {
   toEditorGraphConfig,
   toGraphBoardConfig,
   type EditorEdge,
+  type EditorAutomationRule,
   type EditorGraphConfig,
   type EditorNode,
   type EditorSelectionState,
@@ -82,9 +83,17 @@ import { EdgeInspectorPanel } from "../features/map-editor/components/EdgeInspec
 import { TextInspectorPanel } from "../features/map-editor/components/TextInspectorPanel";
 import { GraphSettingsPanel } from "../features/map-editor/components/GraphSettingsPanel";
 import { ValidationPanel } from "../features/map-editor/components/ValidationPanel";
+import { AutomationPanel } from "../features/map-editor/components/AutomationPanel";
+import { buildDefaultAction } from "../features/map-editor/components/automation/ActionStepEditor";
 import { EditorStatusBar } from "../features/map-editor/components/EditorStatusBar";
+import {
+  createAutomationRule,
+  createAutomationTemplate,
+} from "../features/map-editor/automationTemplates";
 import { realignGraph, type GraphAlignmentStrategy } from "../features/map-editor/graphAlignment";
 import { useControllerSurface } from "../controller";
+import type { ActionKind } from "../game/automation/registry";
+import type { AutomationCondition } from "../game/automation/schema";
 
 const DEFAULT_TILE_CATALOG: TileCatalog = {
   version: 1,
@@ -107,7 +116,7 @@ const getFileNameFromPath = (filePath: string): string => {
 };
 type MapEditorInstalledRound = InstalledRound | InstalledRoundCatalogEntry;
 
-type InspectorTab = "node" | "edge" | "text" | "settings" | "validation";
+type InspectorTab = "node" | "edge" | "text" | "settings" | "automation" | "validation";
 type ResolutionModalState =
   | {
       context: "import";
@@ -187,6 +196,7 @@ const toEditorConfigFromPlaylist = (playlist: StoredPlaylist): EditorGraphConfig
       tracks: playlist.config.music?.tracks.map((track) => ({ ...track })) ?? [],
       loop: playlist.config.music?.loop ?? true,
     },
+    automations: graphConfig.automations ?? [],
   };
 };
 
@@ -282,6 +292,7 @@ const makeStartingConfig = (): EditorGraphConfig => ({
     tracks: [],
     loop: true,
   },
+  automations: [],
 });
 
 const createPlaylistConfigFromEditorConfig = (editorConfig: EditorGraphConfig): PlaylistConfig =>
@@ -507,6 +518,7 @@ function MapEditorPage() {
   const [recentlyTouchedEdgeIds, setRecentlyTouchedEdgeIds] = useState<string[]>([]);
 
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("node");
+  const [selectedAutomationRuleId, setSelectedAutomationRuleId] = useState<string | null>(null);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const editorScopeRef = useRef<HTMLDivElement | null>(null);
   const selectedPlaylistIdRef = useRef<string | null>(selectedPlaylistId);
@@ -649,6 +661,13 @@ function MapEditorPage() {
   }, [config.nodes, connectFromNodeId]);
 
   useEffect(() => {
+    if (!selectedAutomationRuleId) return;
+    if (!(config.automations ?? []).some((rule) => rule.id === selectedAutomationRuleId)) {
+      setSelectedAutomationRuleId(null);
+    }
+  }, [config.automations, selectedAutomationRuleId]);
+
+  useEffect(() => {
     if (tool !== "connect") {
       setConnectFromNodeId(null);
     }
@@ -676,6 +695,7 @@ function MapEditorPage() {
       syncHistoryState();
       setSelection(EMPTY_EDITOR_SELECTION);
       setConnectFromNodeId(null);
+      setSelectedAutomationRuleId(null);
       setTool("select");
       setViewport(DEFAULT_EDITOR_VIEWPORT);
       setSpacePanActive(false);
@@ -945,6 +965,353 @@ function MapEditorPage() {
       });
     },
     [updateGraphConfig]
+  );
+
+  const addAutomationRule = useCallback(
+    (rule: EditorAutomationRule) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        automations: [...(previous.automations ?? []), rule],
+      }));
+      setSelectedAutomationRuleId(rule.id);
+      setInspectorTab("automation");
+    },
+    [updateGraphConfig]
+  );
+
+  const patchAutomationRule = useCallback(
+    (ruleId: string, patch: Partial<EditorAutomationRule>) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        automations: (previous.automations ?? []).map((rule) =>
+          rule.id === ruleId ? { ...rule, ...patch } : rule
+        ),
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const patchAutomationTrigger = useCallback(
+    (ruleId: string, trigger: EditorAutomationRule["trigger"]) => {
+      patchAutomationRule(ruleId, { trigger });
+    },
+    [patchAutomationRule]
+  );
+
+  const patchAutomationConditionsOperator = useCallback(
+    (ruleId: string, operator: "all" | "any") => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        automations: (previous.automations ?? []).map((rule) =>
+          rule.id === ruleId
+            ? {
+                ...rule,
+                conditions: {
+                  operator,
+                  conditions: rule.conditions?.conditions ?? [],
+                },
+              }
+            : rule
+        ),
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const addAutomationCondition = useCallback(
+    (ruleId: string, kind: string = "currentNode") => {
+      const conditionDefaults: Record<string, AutomationCondition> = {
+        currentNode: {
+          kind: "currentNode",
+          comparator: "is",
+          nodeId: configRef.current.startNodeId,
+        },
+        triggerNode: {
+          kind: "triggerNode",
+          comparator: "is",
+          nodeId: configRef.current.startNodeId,
+        },
+        hasPerk: { kind: "hasPerk", perkId: "" },
+        hasAntiPerk: { kind: "hasAntiPerk", perkId: "" },
+        playerMoney: { kind: "playerMoney", comparator: "gt", value: 0 },
+        playerScore: { kind: "playerScore", comparator: "gt", value: 0 },
+        shieldRounds: { kind: "shieldRounds", comparator: "gt", value: 0 },
+        restRemainingMs: { kind: "restRemainingMs", comparator: "gt", value: 0 },
+        restState: { kind: "restState", state: "paused" },
+        roundState: { kind: "roundState", state: "active" },
+        musicState: { kind: "musicState", state: "playing" },
+        currentTrack: {
+          kind: "currentTrack",
+          comparator: "is",
+          trackId: configRef.current.music.tracks[0]?.id ?? "",
+        },
+        background: { kind: "background", comparator: "isSet" },
+        ruleCooldown: { kind: "ruleCooldown", state: "active" },
+      };
+      const newCondition = conditionDefaults[kind] ?? {
+        kind: "currentNode",
+        comparator: "is",
+        nodeId: configRef.current.startNodeId,
+      };
+      updateGraphConfig((previous) => ({
+        ...previous,
+        automations: (previous.automations ?? []).map((rule) =>
+          rule.id === ruleId
+            ? {
+                ...rule,
+                conditions: {
+                  operator: rule.conditions?.operator ?? "all",
+                  conditions: [...(rule.conditions?.conditions ?? []), newCondition],
+                },
+              }
+            : rule
+        ),
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const patchAutomationCondition = useCallback(
+    (ruleId: string, path: number[], patch: Record<string, unknown>) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        automations: (previous.automations ?? []).map((rule) => {
+          if (rule.id !== ruleId) return rule;
+          if (path.length !== 1) return rule;
+          const index = path[0]!;
+          const conditions = [...(rule.conditions?.conditions ?? [])];
+          const current = conditions[index];
+          if (!current || "operator" in current) return rule;
+          conditions[index] = { ...current, ...patch };
+          return {
+            ...rule,
+            conditions: {
+              operator: rule.conditions?.operator ?? "all",
+              conditions,
+            },
+          };
+        }),
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const replaceAutomationConditionKind = useCallback(
+    (ruleId: string, path: number[], kind: string) => {
+      const conditionDefaults: Record<string, AutomationCondition> = {
+        currentNode: {
+          kind: "currentNode",
+          comparator: "is",
+          nodeId: configRef.current.startNodeId,
+        },
+        triggerNode: {
+          kind: "triggerNode",
+          comparator: "is",
+          nodeId: configRef.current.startNodeId,
+        },
+        hasPerk: { kind: "hasPerk", perkId: "" },
+        hasAntiPerk: { kind: "hasAntiPerk", perkId: "" },
+        playerMoney: { kind: "playerMoney", comparator: "gt", value: 0 },
+        playerScore: { kind: "playerScore", comparator: "gt", value: 0 },
+        shieldRounds: { kind: "shieldRounds", comparator: "gt", value: 0 },
+        restRemainingMs: { kind: "restRemainingMs", comparator: "gt", value: 0 },
+        restState: { kind: "restState", state: "paused" },
+        roundState: { kind: "roundState", state: "active" },
+        musicState: { kind: "musicState", state: "playing" },
+        currentTrack: {
+          kind: "currentTrack",
+          comparator: "is",
+          trackId: configRef.current.music.tracks[0]?.id ?? "",
+        },
+        background: { kind: "background", comparator: "isSet" },
+        ruleCooldown: { kind: "ruleCooldown", state: "active" },
+      };
+      const newCondition = conditionDefaults[kind] ?? {
+        kind: "currentNode",
+        comparator: "is",
+        nodeId: configRef.current.startNodeId,
+      };
+      updateGraphConfig((previous) => ({
+        ...previous,
+        automations: (previous.automations ?? []).map((rule) => {
+          if (rule.id !== ruleId) return rule;
+          if (path.length !== 1) return rule;
+          const index = path[0]!;
+          const conditions = [...(rule.conditions?.conditions ?? [])];
+          conditions[index] = newCondition;
+          return {
+            ...rule,
+            conditions: {
+              operator: rule.conditions?.operator ?? "all",
+              conditions,
+            },
+          };
+        }),
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const removeAutomationCondition = useCallback(
+    (ruleId: string, path: number[]) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        automations: (previous.automations ?? []).map((rule) => {
+          if (rule.id !== ruleId) return rule;
+          if (path.length !== 1) return rule;
+          const index = path[0]!;
+          return {
+            ...rule,
+            conditions: {
+              operator: rule.conditions?.operator ?? "all",
+              conditions: (rule.conditions?.conditions ?? []).filter((_, i) => i !== index),
+            },
+          };
+        }),
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const addAutomationConditionGroup = useCallback(
+    (ruleId: string) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        automations: (previous.automations ?? []).map((rule) =>
+          rule.id === ruleId
+            ? {
+                ...rule,
+                conditions: {
+                  operator: rule.conditions?.operator ?? "all",
+                  conditions: [
+                    ...(rule.conditions?.conditions ?? []),
+                    { operator: "any" as const, conditions: [] },
+                  ],
+                },
+              }
+            : rule
+        ),
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const addAutomationAction = useCallback(
+    (ruleId: string) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        automations: (previous.automations ?? []).map((rule) =>
+          rule.id === ruleId
+            ? {
+                ...rule,
+                actions: [
+                  ...rule.actions,
+                  {
+                    id: createEditorId("action"),
+                    action: { kind: "ui.showToast", message: "Automation fired" },
+                  },
+                ],
+              }
+            : rule
+        ),
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const patchAutomationAction = useCallback(
+    (ruleId: string, actionId: string, patch: Partial<EditorAutomationRule["actions"][number]>) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        automations: (previous.automations ?? []).map((rule) =>
+          rule.id === ruleId
+            ? {
+                ...rule,
+                actions: rule.actions.map((action) =>
+                  action.id === actionId
+                    ? {
+                        ...action,
+                        ...patch,
+                      }
+                    : action
+                ),
+              }
+            : rule
+        ),
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const patchAutomationActionKind = useCallback(
+    (ruleId: string, actionId: string, kind: string) => {
+      const defaultAction = buildDefaultAction(kind as ActionKind, configRef.current);
+      patchAutomationAction(ruleId, actionId, {
+        action: defaultAction as EditorAutomationRule["actions"][number]["action"],
+      });
+    },
+    [patchAutomationAction]
+  );
+
+  const removeAutomationAction = useCallback(
+    (ruleId: string, actionId: string) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        automations: (previous.automations ?? []).map((rule) =>
+          rule.id === ruleId
+            ? {
+                ...rule,
+                actions: rule.actions.filter((action) => action.id !== actionId),
+              }
+            : rule
+        ),
+      }));
+    },
+    [updateGraphConfig]
+  );
+
+  const duplicateAutomationRule = useCallback(
+    (ruleId: string) => {
+      const source = (configRef.current.automations ?? []).find((rule) => rule.id === ruleId);
+      if (!source) return;
+      const copy: EditorAutomationRule = {
+        ...structuredClone(source),
+        id: createEditorId("automation"),
+        name: `${source.name} Copy`,
+        actions: source.actions.map((action) => ({
+          ...structuredClone(action),
+          id: createEditorId("action"),
+        })),
+      };
+      addAutomationRule(copy);
+    },
+    [addAutomationRule]
+  );
+
+  const disableAllAutomationRules = useCallback(() => {
+    updateGraphConfig((previous) => ({
+      ...previous,
+      automations: (previous.automations ?? []).map((rule) => ({ ...rule, enabled: false })),
+    }));
+  }, [updateGraphConfig]);
+
+  const deleteAutomationRule = useCallback(
+    (ruleId: string) => {
+      updateGraphConfig((previous) => ({
+        ...previous,
+        automations: (previous.automations ?? []).filter((rule) => rule.id !== ruleId),
+      }));
+      setSelectedAutomationRuleId((previous) => (previous === ruleId ? null : previous));
+    },
+    [updateGraphConfig]
+  );
+
+  const createAutomationForNode = useCallback(
+    (nodeId: string) => {
+      const rule = createAutomationRule({ kind: "node", nodeId });
+      addAutomationRule(rule);
+    },
+    [addAutomationRule]
   );
 
   const patchTextAnnotation = useCallback(
@@ -2452,6 +2819,10 @@ function MapEditorPage() {
 
   // Auto-switch inspector tab based on selection
   useEffect(() => {
+    if (selectedAutomationRuleId) {
+      setInspectorTab("automation");
+      return;
+    }
     if (selection.selectedTextAnnotationId) {
       setInspectorTab("text");
       return;
@@ -2463,7 +2834,12 @@ function MapEditorPage() {
     if (selection.primaryNodeId) {
       setInspectorTab("node");
     }
-  }, [selection.primaryNodeId, selection.selectedEdgeId, selection.selectedTextAnnotationId]);
+  }, [
+    selectedAutomationRuleId,
+    selection.primaryNodeId,
+    selection.selectedEdgeId,
+    selection.selectedTextAnnotationId,
+  ]);
 
   const categoryTabs = useMemo<Array<{ id: TileCatalogCategory["id"] | "all"; label: string }>>(
     () => [{ id: "all", label: t`All` }, ...tileCatalog.categories],
@@ -2476,6 +2852,7 @@ function MapEditorPage() {
       { id: "edge", label: t`Edge` },
       { id: "text", label: t`Text` },
       { id: "settings", label: t`Settings` },
+      { id: "automation", label: t`Automations` },
       { id: "validation", label: t`Checks` },
     ],
     [t]
@@ -2828,7 +3205,7 @@ function MapEditorPage() {
           {/* ── Right: Collapsible inspector ─────────────────── */}
           <div
             data-controller-skip="true"
-            className={`editor-inspector flex flex-shrink-0 flex-col border-l border-white/6 bg-black/30 transition-all duration-200 ${inspectorCollapsed ? "w-10" : "w-72"}`}
+            className={`editor-inspector flex flex-shrink-0 flex-col border-l border-white/6 bg-black/30 transition-all duration-200 ${inspectorCollapsed ? "w-10" : inspectorTab === "automation" ? "w-[680px]" : "w-80"}`}
           >
             {/* ── Collapse toggle ─────────────────── */}
             <button
@@ -2871,18 +3248,20 @@ function MapEditorPage() {
                 </div>
 
                 {/* ── Tab content ─────────────────── */}
-                <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
                   {inspectorTab === "node" && (
                     <NodeInspectorPanel
                       selectedNode={selectedNode}
                       outgoingEdges={outgoingEdgesForSelectedNode}
                       installedRounds={installedRounds}
+                      randomPoolIds={config.randomRoundPools.map((pool) => pool.id)}
                       perkOptions={perkOptions}
                       antiPerkOptions={antiPerkOptions}
                       onPatchNode={patchNode}
                       onCommitSelection={commitSelection}
                       onSetTool={handleSetConnectTool}
                       onSetConnectFrom={handleSetConnectFromNode}
+                      onCreateAutomationForNode={createAutomationForNode}
                     />
                   )}
                   {inspectorTab === "edge" && (
@@ -2942,6 +3321,36 @@ function MapEditorPage() {
                       onMovePlaylistMusicTrack={movePlaylistMusicTrack}
                       onClearPlaylistMusicTracks={clearPlaylistMusicTracks}
                       onSetPlaylistMusicLoop={setPlaylistMusicLoop}
+                    />
+                  )}
+                  {inspectorTab === "automation" && (
+                    <AutomationPanel
+                      config={config}
+                      selectedRuleId={selectedAutomationRuleId}
+                      validationMessages={[...validation.errors, ...validation.warnings]}
+                      onSelectRule={setSelectedAutomationRuleId}
+                      onCreateRule={() => addAutomationRule(createAutomationRule())}
+                      onCreateRuleFromTemplate={(templateId) =>
+                        addAutomationRule(
+                          createAutomationTemplate(templateId, configRef.current, perkOptions)
+                        )
+                      }
+                      onDuplicateRule={duplicateAutomationRule}
+                      onDisableAllRules={disableAllAutomationRules}
+                      onDeleteRule={deleteAutomationRule}
+                      onPatchRule={patchAutomationRule}
+                      onPatchRuleTrigger={patchAutomationTrigger}
+                      onPatchRuleConditionsOperator={patchAutomationConditionsOperator}
+                      onAddCondition={addAutomationCondition}
+                      onPatchCondition={patchAutomationCondition}
+                      onReplaceCondition={replaceAutomationConditionKind}
+                      onRemoveCondition={removeAutomationCondition}
+                      onAddConditionGroup={addAutomationConditionGroup}
+                      onPatchConditionGroupOperator={patchAutomationConditionsOperator}
+                      onAddAction={addAutomationAction}
+                      onPatchAction={patchAutomationAction}
+                      onPatchActionKind={patchAutomationActionKind}
+                      onRemoveAction={removeAutomationAction}
                     />
                   )}
                   {inspectorTab === "validation" && <ValidationPanel validation={validation} />}

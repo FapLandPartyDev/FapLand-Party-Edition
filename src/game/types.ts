@@ -1,3 +1,12 @@
+import type {
+  AutomationActionStep,
+  AutomationCondition,
+  AutomationConditionGroup,
+  AutomationRule,
+  AutomationRuleScope,
+  AutomationTrigger,
+} from "./automation/schema";
+
 export type EffectTarget = "self" | "opponent" | "all";
 
 export type NumericStat = "diceMin" | "diceMax" | "roundPauseMs" | "perkFrequency" | "perkLuck";
@@ -106,9 +115,14 @@ export type BoardField = {
   name: string;
   kind: BoardFieldKind;
   fixedRoundId?: string;
+  playlistRoundIds?: string[];
   forceStop?: boolean;
   skippable?: boolean;
   randomPoolId?: string;
+  autoAdvanceAfterCompletion?: boolean;
+  hiddenFromMap?: boolean;
+  randomSelectionMode?: "installed" | "pool";
+  randomFilter?: RandomRoundFilter;
   checkpointRestMs?: number;
   pauseBonusMs?: number;
   visualId?: string;
@@ -128,6 +142,12 @@ export type BoardField = {
   effects?: GameEffect[];
 };
 
+export type RandomRoundFilter = {
+  tags?: string[];
+  authorNames?: string[];
+  libraryLabels?: string[];
+};
+
 export type MapTextAnnotation = {
   id: string;
   text: string;
@@ -140,6 +160,7 @@ export type MapTextAnnotation = {
 };
 
 export type MapBackgroundMedia = {
+  id?: string;
   kind: "image" | "video";
   uri: string;
   name?: string;
@@ -289,6 +310,65 @@ export type PlaylistMusicConfig = {
   loop: boolean;
 };
 
+export type RuntimeMusicState = {
+  currentTrackId: string | null;
+  currentTrackName: string | null;
+  isPlaying: boolean;
+  loop: boolean;
+};
+
+export type RuntimeMapOverrides = {
+  backgroundOverride: MapBackgroundMedia | null;
+};
+
+export type AutomationRuntimeEvent = {
+  id: string;
+  kind:
+    | "node.enter"
+    | "node.leave"
+    | "node.stay"
+    | "player.stateChanged"
+    | "player.controlUsed"
+    | "round.lifecycle"
+    | "music.stateChanged"
+    | "session.timer"
+    | "board.pathChoiceStarted"
+    | "board.pathChoiceResolved";
+  playerId?: string;
+  nodeId?: string;
+  previousNodeId?: string;
+  elapsedMs?: number;
+  repeatMode?: "once" | "repeat";
+  control?: "pause" | "skip";
+  roundPhase?: "queued" | "started" | "ended" | "skipped";
+  musicState?: "trackStarted" | "trackEnded" | "paused" | "resumed";
+  timer?: "restPauseStarted" | "restPauseElapsed" | "turnStarted";
+  stateKey?: "hasPerk" | "hasAntiPerk" | "shieldRounds" | "money" | "score";
+  timestampMs: number;
+};
+
+export type AutomationRuleRuntime = AutomationRule;
+export type AutomationTriggerRuntime = AutomationTrigger;
+export type AutomationConditionRuntime = AutomationCondition;
+export type AutomationConditionGroupRuntime = AutomationConditionGroup;
+export type AutomationActionStepRuntime = AutomationActionStep;
+export type AutomationRuleScopeRuntime = AutomationRuleScope;
+
+export type AutomationScheduledStep = {
+  executionId: string;
+  ruleId: string;
+  stepIndex: number;
+  runAtMs: number;
+  event: AutomationRuntimeEvent;
+};
+
+export type AutomationState = {
+  queuedEvents: AutomationRuntimeEvent[];
+  scheduledSteps: AutomationScheduledStep[];
+  nowMs: number;
+  executionCountThisTick: number;
+};
+
 export type GameConfig = {
   board: BoardField[];
   mapTextAnnotations?: MapTextAnnotation[];
@@ -333,6 +413,7 @@ export type GameConfig = {
   roundStartDelayMs: number;
   disableDiceAnimation?: boolean;
   playlistMusic?: PlaylistMusicConfig;
+  automations?: AutomationRuleRuntime[];
 };
 
 export type PlayerStats = {
@@ -369,6 +450,7 @@ export type ActiveRound = {
   fieldId: string;
   nodeId: string;
   roundId: string;
+  playlistRoundIds?: string[];
   roundName: string;
   skippable?: boolean;
   selectionKind: "fixed" | "random" | "cum";
@@ -428,6 +510,14 @@ export type GameState = {
   pendingPerkSelection: PendingPerkSelection | null;
   lastTraversalPathNodeIds: string[];
   playedRoundIdsByPool: Record<string, string[]>;
+  automationState: AutomationState;
+  runtimeMapOverrides: RuntimeMapOverrides;
+  runtimeMusicState: RuntimeMusicState;
+  recentAutomationEvents: AutomationRuntimeEvent[];
+  ruleCooldownsById: Record<string, number>;
+  automationRuleOverrides: Record<string, { enabled?: boolean; cooldownMs?: number }>;
+  restTimerPaused: boolean;
+  restTimerRemainingMsOverride: number | null;
   log: string[];
   lastRoll: number | null;
   completionReason: GameCompletionReason | null;

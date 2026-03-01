@@ -38,6 +38,16 @@ export function MapBackgroundMedia({
   testId = "map-background-media",
 }: MapBackgroundMediaProps) {
   if (!background) return null;
+  const mediaKey = [
+    background.kind,
+    background.uri,
+    background.fit,
+    background.position,
+    background.scale,
+    background.offsetX,
+    background.offsetY,
+    background.motion,
+  ].join(":");
 
   const effectiveOffsetX =
     background.offsetX + (background.motion === "parallax" ? parallaxOffset.x : 0);
@@ -65,6 +75,7 @@ export function MapBackgroundMedia({
     >
       {background.kind === "image" && background.fit === "tile" ? (
         <div
+          key={mediaKey}
           className="absolute inset-0"
           style={{
             ...mediaStyle,
@@ -76,6 +87,7 @@ export function MapBackgroundMedia({
         />
       ) : background.kind === "video" ? (
         <video
+          key={mediaKey}
           className="absolute inset-0 h-full w-full"
           src={background.uri}
           muted
@@ -86,6 +98,7 @@ export function MapBackgroundMedia({
         />
       ) : (
         <img
+          key={mediaKey}
           className="absolute inset-0 h-full w-full"
           src={background.uri}
           alt=""

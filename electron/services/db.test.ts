@@ -16,6 +16,8 @@ vi.mock("electron", () => ({
 import {
   markRoundExcludeFromRandomMigrationIfManuallyApplied,
   migratePortableDatabaseIfNeeded,
+  repairInstalledLibrarySchema,
+  repairRoundHeroMetadataSchema,
   repairSinglePlayerRunSaveSchema,
   resolveDatabaseUrl,
   runPreMigrationDatabaseBackup,
@@ -178,6 +180,156 @@ describe("repairSinglePlayerRunSaveSchema", () => {
     );
     expect(execute).toHaveBeenCalledWith(
       expect.stringContaining('CREATE UNIQUE INDEX "SinglePlayerRunSave_playlistId_unique"')
+    );
+  });
+});
+
+describe("repairRoundHeroMetadataSchema", () => {
+  const execute = vi.fn<(_: string) => Promise<ExecuteResult>>();
+  const dbInstance = {
+    $client: {
+      execute,
+    },
+  } as never;
+
+  beforeEach(() => {
+    execute.mockReset();
+  });
+
+  it("adds missing tagsJson columns to round and hero tables", async () => {
+    execute.mockImplementation(async (sql: string) => {
+      if (sql.includes('PRAGMA table_info("Round")')) {
+        return { rows: [{ name: "id" }] };
+      }
+      if (sql.includes('PRAGMA table_info("Hero")')) {
+        return { rows: [{ name: "id" }] };
+      }
+      return { rows: [] };
+    });
+
+    await repairRoundHeroMetadataSchema(dbInstance);
+
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining(`ALTER TABLE "Round" ADD COLUMN "tagsJson" text NOT NULL DEFAULT '[]'`)
+    );
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining(`ALTER TABLE "Hero" ADD COLUMN "tagsJson" text NOT NULL DEFAULT '[]'`)
+    );
+  });
+
+  it("does nothing when both tagsJson columns already exist", async () => {
+    execute.mockImplementation(async (sql: string) => {
+      if (sql.includes('PRAGMA table_info("Round")')) {
+        return { rows: [{ name: "id" }, { name: "tagsJson" }] };
+      }
+      if (sql.includes('PRAGMA table_info("Hero")')) {
+        return { rows: [{ name: "id" }, { name: "tagsJson" }] };
+      }
+      return { rows: [] };
+    });
+
+    await repairRoundHeroMetadataSchema(dbInstance);
+
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Round" ADD COLUMN "tagsJson"')
+    );
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Hero" ADD COLUMN "tagsJson"')
+    );
+  });
+});
+
+describe("repairInstalledLibrarySchema", () => {
+  const execute = vi.fn<(_: string) => Promise<ExecuteResult>>();
+  const dbInstance = {
+    $client: {
+      execute,
+    },
+  } as never;
+
+  beforeEach(() => {
+    execute.mockReset();
+  });
+
+  it("adds missing installed library columns across resource, round, and hero tables", async () => {
+    execute.mockImplementation(async (sql: string) => {
+      if (sql.includes('PRAGMA table_info("Resource")')) {
+        return { rows: [{ name: "id" }] };
+      }
+      if (sql.includes('PRAGMA table_info("Round")')) {
+        return { rows: [{ name: "id" }] };
+      }
+      if (sql.includes('PRAGMA table_info("Hero")')) {
+        return { rows: [{ name: "id" }] };
+      }
+      return { rows: [] };
+    });
+
+    await repairInstalledLibrarySchema(dbInstance);
+
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Resource" ADD COLUMN "durationMs" integer')
+    );
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Round" ADD COLUMN "cutRangesJson" text')
+    );
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'ALTER TABLE "Round" ADD COLUMN "excludeFromRandom" integer DEFAULT 0 NOT NULL'
+      )
+    );
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining(`ALTER TABLE "Round" ADD COLUMN "tagsJson" text NOT NULL DEFAULT '[]'`)
+    );
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining(`ALTER TABLE "Hero" ADD COLUMN "tagsJson" text NOT NULL DEFAULT '[]'`)
+    );
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Round" ADD COLUMN "libraryLabel" text')
+    );
+  });
+
+  it("does nothing when installed library columns already exist", async () => {
+    execute.mockImplementation(async (sql: string) => {
+      if (sql.includes('PRAGMA table_info("Resource")')) {
+        return { rows: [{ name: "id" }, { name: "durationMs" }] };
+      }
+      if (sql.includes('PRAGMA table_info("Round")')) {
+        return {
+          rows: [
+            { name: "id" },
+            { name: "cutRangesJson" },
+            { name: "excludeFromRandom" },
+            { name: "tagsJson" },
+            { name: "libraryLabel" },
+          ],
+        };
+      }
+      if (sql.includes('PRAGMA table_info("Hero")')) {
+        return { rows: [{ name: "id" }, { name: "tagsJson" }] };
+      }
+      return { rows: [] };
+    });
+
+    await repairInstalledLibrarySchema(dbInstance);
+
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Resource" ADD COLUMN "durationMs"')
+    );
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Round" ADD COLUMN "cutRangesJson"')
+    );
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Round" ADD COLUMN "excludeFromRandom"')
+    );
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Round" ADD COLUMN "tagsJson"')
+    );
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Hero" ADD COLUMN "tagsJson"')
+    );
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining('ALTER TABLE "Round" ADD COLUMN "libraryLabel"')
     );
   });
 });

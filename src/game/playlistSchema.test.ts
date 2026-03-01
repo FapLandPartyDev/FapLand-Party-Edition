@@ -158,6 +158,29 @@ describe("playlistSchema", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("rejects hidden technical nodes without auto-advance", () => {
+    const parsed = ZPlaylistConfig.safeParse(
+      buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          { id: "round-1", name: "Round 1", kind: "round", roundRef: { name: "Round 1" }, hiddenFromMap: true },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [
+          { id: "edge-a", fromNodeId: "start", toNodeId: "round-1" },
+          { id: "edge-b", fromNodeId: "round-1", toNodeId: "end" },
+        ],
+        randomRoundPools: [],
+        cumRoundRefs: [],
+        pathChoiceTimeoutMs: 6000,
+      })
+    );
+
+    expect(parsed.success).toBe(false);
+  });
+
   it("parses campfire nodes with pause bonuses", () => {
     const parsed = ZPlaylistConfig.safeParse(
       buildConfig({
@@ -1025,5 +1048,68 @@ describe("playlistSchema", () => {
     );
     const runtimeMissing = toGameConfigFromPlaylist(without, [makeRound("r1", "Round 1")]);
     expect(runtimeMissing.playlistMusic).toBeUndefined();
+  });
+
+  it("parses graph automations and preserves them in runtime config", () => {
+    const parsed = ZPlaylistConfig.parse(
+      buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          { id: "event-1", name: "Event 1", kind: "event" },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [
+          { id: "edge-a", fromNodeId: "start", toNodeId: "event-1" },
+          { id: "edge-b", fromNodeId: "event-1", toNodeId: "end" },
+        ],
+        randomRoundPools: [],
+        cumRoundRefs: [],
+        pathChoiceTimeoutMs: 6000,
+        automations: [
+          {
+            id: "rule-1",
+            name: "Pause on enter",
+            enabled: true,
+            scope: { kind: "node", nodeId: "event-1" },
+            trigger: { kind: "node.enter", nodeId: "event-1" },
+            conditions: {
+              operator: "all",
+              conditions: [],
+            },
+            actions: [{ id: "step-1", action: { kind: "timer.pauseRest" } }],
+            cooldownMs: 2500,
+            stopAfterMatch: false,
+          },
+        ],
+      })
+    );
+    expect(parsed.boardConfig.mode).toBe("graph");
+    if (parsed.boardConfig.mode !== "graph") return;
+    expect(parsed.boardConfig.automations).toHaveLength(1);
+    const runtime = toGameConfigFromPlaylist(parsed, []);
+    expect(runtime.automations).toHaveLength(1);
+    expect(runtime.automations?.[0]?.trigger.kind).toBe("node.enter");
+  });
+
+  it("defaults missing graph automations to an empty list", () => {
+    const parsed = ZPlaylistConfig.parse(
+      buildConfig({
+        mode: "graph",
+        startNodeId: "start",
+        nodes: [
+          { id: "start", name: "Start", kind: "start" },
+          { id: "end", name: "End", kind: "end" },
+        ],
+        edges: [{ id: "edge-a", fromNodeId: "start", toNodeId: "end" }],
+        randomRoundPools: [],
+        cumRoundRefs: [],
+        pathChoiceTimeoutMs: 6000,
+      })
+    );
+    expect(parsed.boardConfig.mode).toBe("graph");
+    if (parsed.boardConfig.mode !== "graph") return;
+    expect(parsed.boardConfig.automations).toEqual([]);
   });
 });

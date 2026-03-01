@@ -51,7 +51,11 @@ export function GameDropdown<T extends string>({
   const focusOption = (index: number) => {
     if (index < 0) return;
     requestAnimationFrame(() => {
-      optionRefs.current[index]?.focus();
+      const el = optionRefs.current[index];
+      if (el) {
+        el.focus({ preventScroll: true });
+        el.scrollIntoView({ block: "nearest" });
+      }
     });
   };
 
@@ -102,20 +106,6 @@ export function GameDropdown<T extends string>({
       document.removeEventListener("keydown", onKeyDown);
     };
   }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    if (highlightedIndex < 0) return;
-    optionRefs.current[highlightedIndex]?.focus();
-  }, [highlightedIndex, open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const nextIndex = defaultHighlightedIndex;
-    if (nextIndex !== highlightedIndex) {
-      setHighlightedIndex(nextIndex);
-    }
-  }, [defaultHighlightedIndex, highlightedIndex, open]);
 
   const selected = options.find((opt) => opt.value === value && !opt.heading) ?? options[0];
 
@@ -218,7 +208,7 @@ export function GameDropdown<T extends string>({
             highlightedIndex >= 0 ? `${listboxId}-option-${highlightedIndex}` : undefined
           }
           tabIndex={-1}
-          className={`absolute z-50 w-full overflow-hidden rounded-xl border border-violet-300/35 bg-zinc-950/95 shadow-[0_0_24px_rgba(139,92,246,0.38)] backdrop-blur-xl ${menuPositionClass}`}
+          className={`absolute z-50 w-full overflow-y-auto max-h-72 rounded-xl border border-violet-300/35 bg-zinc-950/95 shadow-[0_0_24px_rgba(139,92,246,0.38)] backdrop-blur-xl ${menuPositionClass}`}
         >
           {options.map((option, index) => {
             if (option.heading) {

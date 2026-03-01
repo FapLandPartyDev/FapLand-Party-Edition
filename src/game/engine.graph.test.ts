@@ -27,11 +27,15 @@ function makeRound(id: string, name = id, type: InstalledRound["type"] = "Normal
     previewImage: null,
     type,
     heroId: null,
+    tagsJson: "[]",
+    tags: [],
+    libraryLabel: null,
     createdAt: now,
     updatedAt: now,
     hero: null,
     resources: [],
     excludeFromRandom: false,
+    isDisabled: false,
   };
 }
 
@@ -188,6 +192,58 @@ describe("graph engine runtime", () => {
     const paidState = rollTurn(createInitialGameState(paidConfig), rounds, 1);
     expect(paidState.players[0]?.currentNodeId).toBe("paid");
     expect(paidState.players[0]?.money).toBe(100);
+  });
+
+  it("ignores outgoing graph edges whose target node is missing", () => {
+    const config = makeGraphConfig({
+      board: [
+        { id: "start", name: "Start", kind: "start" },
+        { id: "end", name: "End", kind: "end" },
+      ],
+      edges: [{ id: "dangling", fromNodeId: "start", toNodeId: "missing", gateCost: 0, weight: 1 }],
+    });
+
+    const state = rollTurn(createInitialGameState(config), [makeRound("r1")], 1);
+
+    expect(state.players[0]?.currentNodeId).toBe("start");
+    expect(state.lastTraversalPathNodeIds).toEqual(["start"]);
+    expect(state.pendingPathChoice).toBeNull();
+    expect(state.queuedRound).toBeNull();
+  });
+
+  it("ignores path choice selections whose target node disappeared", () => {
+    const config = makeGraphConfig({
+      board: [
+        { id: "start", name: "Start", kind: "start" },
+        { id: "left", name: "Left", kind: "path" },
+        { id: "right", name: "Right", kind: "path" },
+      ],
+      edges: [
+        { id: "e-left", fromNodeId: "start", toNodeId: "left", gateCost: 0, weight: 1 },
+        { id: "e-right", fromNodeId: "start", toNodeId: "right", gateCost: 0, weight: 1 },
+      ],
+    });
+    const rounds = [makeRound("r1")];
+    const paused = rollTurn(createInitialGameState(config), rounds, 1);
+    const missingRight = {
+      ...paused,
+      config: {
+        ...paused.config,
+        board: paused.config.board.filter((node) => node.id !== "right"),
+        runtimeGraph: {
+          ...paused.config.runtimeGraph,
+          nodeIndexById: {
+            start: 0,
+            left: 1,
+          },
+        },
+      },
+    };
+
+    const selected = selectPathEdge(missingRight, "e-right", rounds);
+
+    expect(selected.players[0]?.currentNodeId).toBe("start");
+    expect(selected.pendingPathChoice?.fromNodeId).toBe("start");
   });
 
   it("stops immediately at first safe point and grants a bonus roll", () => {
@@ -449,6 +505,65 @@ describe("graph engine runtime", () => {
     );
 
     expect(state.queuedRound?.roundId).toBe("normal-1");
+  });
+
+  it("auto-advances to the next scene after a technical round completes", () => {
+    const rounds = [makeRound("round-1", "Intro"), makeRound("round-2", "Scene")];
+    const config = makeGraphConfig({
+      board: [
+        { id: "start", name: "Start", kind: "start" },
+        {
+          id: "intro",
+          name: "Intro",
+          kind: "round",
+          fixedRoundId: "round-1",
+          autoAdvanceAfterCompletion: true,
+          hiddenFromMap: true,
+        },
+        { id: "scene", name: "Scene", kind: "round", fixedRoundId: "round-2" },
+        { id: "end", name: "End", kind: "end" },
+      ],
+      edges: [
+        { id: "e1", fromNodeId: "start", toNodeId: "intro", gateCost: 0, weight: 1 },
+        { id: "e2", fromNodeId: "intro", toNodeId: "scene", gateCost: 0, weight: 1 },
+        { id: "e3", fromNodeId: "scene", toNodeId: "end", gateCost: 0, weight: 1 },
+      ],
+    });
+
+    const rolled = rollTurn(createInitialGameState(config), rounds, 1);
+    const started = triggerQueuedRound(rolled);
+    const completed = completeRound(started, undefined, rounds, { perkTriggerRoll: 1 });
+
+    expect(completed.players[0]?.currentNodeId).toBe("scene");
+    expect(completed.queuedRound?.roundId).toBe("round-2");
+  });
+
+  it("does not auto-advance through a dangling graph edge after a round completes", () => {
+    const rounds = [makeRound("round-1", "Intro")];
+    const config = makeGraphConfig({
+      board: [
+        { id: "start", name: "Start", kind: "start" },
+        {
+          id: "intro",
+          name: "Intro",
+          kind: "round",
+          fixedRoundId: "round-1",
+          autoAdvanceAfterCompletion: true,
+        },
+        { id: "end", name: "End", kind: "end" },
+      ],
+      edges: [
+        { id: "e1", fromNodeId: "start", toNodeId: "intro", gateCost: 0, weight: 1 },
+        { id: "dangling", fromNodeId: "intro", toNodeId: "missing", gateCost: 0, weight: 1 },
+      ],
+    });
+
+    const rolled = rollTurn(createInitialGameState(config), rounds, 1);
+    const started = triggerQueuedRound(rolled);
+    const completed = completeRound(started, undefined, rounds, { perkTriggerRoll: 1 });
+
+    expect(completed.players[0]?.currentNodeId).toBe("intro");
+    expect(completed.queuedRound).toBeNull();
   });
 
   it("supports loops without crashing", () => {

@@ -135,6 +135,20 @@ const FALLBACK_TILES: TileCatalogTile[] = [
     tags: ["random", "core"],
   },
   {
+    id: "event-node",
+    kind: "event",
+    visualId: "event",
+    label: "Event",
+    description: "Semantic trigger node for playlist automations.",
+    category: "events",
+    color: "#f43f5e",
+    defaultName: "Event",
+    width: 190,
+    height: 84,
+    size: 1,
+    tags: ["event", "automation", "trigger"],
+  },
+  {
     id: "perk-node",
     kind: "perk",
     visualId: "perk",
@@ -263,6 +277,7 @@ export function normalizeTileKind(kind: unknown): EditorNodeKind {
     kind === "round" ||
     kind === "randomRound" ||
     kind === "perk" ||
+    kind === "event" ||
     kind === "catapult"
   ) {
     return kind;

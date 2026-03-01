@@ -241,6 +241,7 @@ function buildLinearConfig(
     },
     roundStartDelayMs: 20000,
     disableDiceAnimation: false,
+    automations: [],
   };
 }
 
@@ -254,6 +255,22 @@ function buildGraphConfig(
     if (resolved) acc[node.id] = resolved.id;
     return acc;
   }, {});
+  const resolvedPlaylistRoundIdsByNodeId = config.nodes.reduce<Record<string, string[]>>(
+    (acc, node) => {
+      if (node.kind !== "round") return acc;
+      const refs = node.roundPlaylistRefs?.length
+        ? node.roundPlaylistRefs
+        : node.roundRef
+          ? [node.roundRef]
+          : [];
+      const ids = refs
+        .map((ref) => resolvePortableRoundRef(ref, installedRounds)?.id ?? null)
+        .filter((id): id is string => Boolean(id));
+      if (ids.length > 0) acc[node.id] = [...new Set(ids)];
+      return acc;
+    },
+    {}
+  );
 
   const board: BoardField[] = config.nodes.map((node) => ({
     id: node.id,
@@ -275,9 +292,19 @@ function buildGraphConfig(
         : undefined,
     styleHint: node.styleHint,
     fixedRoundId: resolvedRoundByNodeId[node.id],
+    playlistRoundIds: resolvedPlaylistRoundIdsByNodeId[node.id],
     forceStop: node.kind === "round" || node.kind === "perk" ? node.forceStop : undefined,
     skippable: node.kind === "round" ? node.skippable : undefined,
     randomPoolId: node.randomPoolId,
+    autoAdvanceAfterCompletion:
+      node.kind === "round" || node.kind === "randomRound"
+        ? node.autoAdvanceAfterCompletion
+        : undefined,
+    hiddenFromMap:
+      node.kind === "round" || node.kind === "randomRound" ? node.hiddenFromMap : undefined,
+    randomSelectionMode:
+      node.kind === "randomRound" ? (node.selectionMode ?? "installed") : undefined,
+    randomFilter: node.kind === "randomRound" ? node.filter : undefined,
   }));
 
   const edges: RuntimeGraphEdge[] = config.edges.map((edge) => ({
@@ -361,6 +388,7 @@ function buildGraphConfig(
       scorePerCumRoundSuccess: 420,
     },
     roundStartDelayMs: 20000,
+    automations: (config.automations ?? []).map((rule) => structuredClone(rule)),
   };
 }
 
@@ -395,14 +423,18 @@ export function toGameConfigFromPlaylist(
     perkPool: playlistConfig.perkPool,
     probabilityScaling: playlistConfig.probabilityScaling,
     economy: playlistConfig.economy,
+    automations:
+      boardConfig.mode === "graph"
+        ? (boardConfig.automations ?? []).map((rule) => structuredClone(rule))
+        : [],
     playlistMusic:
       playlistConfig.music && playlistConfig.music.tracks.length > 0
         ? {
-          tracks: playlistConfig.music.tracks.map((track) => ({
-            ...track,
-          })),
-          loop: playlistConfig.music.loop,
-        }
+            tracks: playlistConfig.music.tracks.map((track) => ({
+              ...track,
+            })),
+            loop: playlistConfig.music.loop,
+          }
         : undefined,
   };
 }

@@ -516,10 +516,13 @@ function buildPendingPathPreviewSegments(state: GameState, edgeId: string): Path
   if (!pending) return [];
 
   const graph = state.config.runtimeGraph;
-  const board = state.config.board;
+  const projection = buildBoardRenderProjection(state.config.board, graph);
+  const board = projection.board;
   const layout = buildTileLayout(board);
   const centres = layout.centres;
   const segments: PathPreviewSegment[] = [];
+  const displayNodeIdByNodeId = projection.displayNodeIdByNodeId;
+  const displayIndexByNodeId = projection.nodeIndexById;
 
   let selectedEdge = graph.edgesById[edgeId];
   let currentNodeId = pending.fromNodeId;
@@ -531,8 +534,8 @@ function buildPendingPathPreviewSegments(state: GameState, edgeId: string): Path
     safety -= 1;
     if (selectedEdge.fromNodeId !== currentNodeId || remainingMoney < selectedEdge.gateCost) break;
 
-    const fromIndex = graph.nodeIndexById[selectedEdge.fromNodeId];
-    const toIndex = graph.nodeIndexById[selectedEdge.toNodeId];
+    const fromIndex = displayIndexByNodeId[displayNodeIdByNodeId[selectedEdge.fromNodeId] ?? ""];
+    const toIndex = displayIndexByNodeId[displayNodeIdByNodeId[selectedEdge.toNodeId] ?? ""];
     const from = typeof fromIndex === "number" ? centres[fromIndex] : undefined;
     const to = typeof toIndex === "number" ? centres[toIndex] : undefined;
     if (from && to) {
@@ -544,7 +547,7 @@ function buildPendingPathPreviewSegments(state: GameState, edgeId: string): Path
     remainingSteps -= 1;
     if (remainingSteps <= 0) break;
 
-    const currentField = board[graph.nodeIndexById[currentNodeId] ?? -1];
+    const currentField = state.config.board[graph.nodeIndexById[currentNodeId] ?? -1];
     if (!currentField) break;
     if (
       currentField.kind === "catapult" &&
@@ -571,6 +574,84 @@ function buildPendingPathPreviewSegments(state: GameState, edgeId: string): Path
   }
 
   return segments;
+}
+
+type BoardRenderProjection = {
+  board: BoardField[];
+  nodeIndexById: Record<string, number>;
+  displayNodeIdByNodeId: Record<string, string>;
+  edges: Array<{ edgeId: string; gateCost: number; fromNodeId: string; toNodeId: string }>;
+};
+
+function buildBoardRenderProjection(
+  board: ReadonlyArray<BoardField>,
+  graph: GameState["config"]["runtimeGraph"]
+): BoardRenderProjection {
+  const boardById = new Map(board.map((field) => [field.id, field]));
+  const visibleBoard = board.filter((field) => !field.hiddenFromMap);
+
+  if (visibleBoard.length === 0) {
+    return {
+      board: [...board],
+      nodeIndexById: board.reduce<Record<string, number>>((acc, field, index) => {
+        acc[field.id] = index;
+        return acc;
+      }, {}),
+      displayNodeIdByNodeId: board.reduce<Record<string, string>>((acc, field) => {
+        acc[field.id] = field.id;
+        return acc;
+      }, {}),
+      edges: graph.edges.map((edge) => ({
+        edgeId: edge.id,
+        gateCost: edge.gateCost,
+        fromNodeId: edge.fromNodeId,
+        toNodeId: edge.toNodeId,
+      })),
+    };
+  }
+
+  const resolveVisibleNodeId = (nodeId: string): string | null => {
+    const visited = new Set<string>();
+    let currentNodeId: string | null = nodeId;
+    while (currentNodeId) {
+      if (visited.has(currentNodeId)) return null;
+      visited.add(currentNodeId);
+      const field = boardById.get(currentNodeId);
+      if (!field) return null;
+      if (!field.hiddenFromMap) return field.id;
+      const outgoingEdgeIds: string[] = graph.outgoingEdgeIdsByNodeId[currentNodeId] ?? [];
+      if (outgoingEdgeIds.length !== 1) return null;
+      currentNodeId = graph.edgesById[outgoingEdgeIds[0] ?? ""]?.toNodeId ?? null;
+    }
+    return null;
+  };
+
+  const displayNodeIdByNodeId = board.reduce<Record<string, string>>((acc, field) => {
+    const resolved = field.hiddenFromMap ? resolveVisibleNodeId(field.id) : field.id;
+    if (resolved) {
+      acc[field.id] = resolved;
+    }
+    return acc;
+  }, {});
+
+  const projectedEdges = graph.edges.flatMap((edge) => {
+    const fromField = boardById.get(edge.fromNodeId);
+    if (!fromField || fromField.hiddenFromMap) return [];
+    const fromNodeId = displayNodeIdByNodeId[edge.fromNodeId];
+    const toNodeId = displayNodeIdByNodeId[edge.toNodeId];
+    if (!fromNodeId || !toNodeId || fromNodeId === toNodeId) return [];
+    return [{ edgeId: edge.id, gateCost: edge.gateCost, fromNodeId, toNodeId }];
+  });
+
+  return {
+    board: visibleBoard,
+    nodeIndexById: visibleBoard.reduce<Record<string, number>>((acc, field, index) => {
+      acc[field.id] = index;
+      return acc;
+    }, {}),
+    displayNodeIdByNodeId,
+    edges: projectedEdges,
+  };
 }
 
 function hashString(input: string): number {
@@ -2449,13 +2530,13 @@ export const GameScene = memo(function GameScene({
     const ZOOM_BIAS = 1.2;
     const CAMERA_MARGIN_X = 36;
     const CAMERA_MARGIN_Y = 52;
-    const boardLayout = buildTileLayout(
+    const boardProjection = buildBoardRenderProjection(
       stateRef.current.config.board,
-      stateRef.current.config.mapTextAnnotations ?? []
+      stateRef.current.config.runtimeGraph
     );
+    const boardLayout = buildTileLayout(boardProjection.board, stateRef.current.config.mapTextAnnotations ?? []);
     const roadPalette = resolveRoadPalette(stateRef.current.config.mapStyle?.roadPalette);
     const uiPalette = resolveUiPalette(roadPalette);
-    const hasCustomBackground = Boolean(stateRef.current.config.mapStyle?.background);
     const rawBoardW = boardLayout.width;
     const rawBoardH = boardLayout.height;
     const availW = W - 60; // only edge padding — board uses full width
@@ -2511,22 +2592,29 @@ export const GameScene = memo(function GameScene({
         const tileOrigins = boardLayout.origins;
         const tileDimensionsByIndex = boardLayout.dimensions;
         const tileCentres = boardLayout.centres;
-        const validatedRuntimeEdges = stateRef.current.config.runtimeGraph.edges.flatMap((edge) => {
-          const fromIndex = stateRef.current.config.runtimeGraph.nodeIndexById[edge.fromNodeId];
-          const toIndex = stateRef.current.config.runtimeGraph.nodeIndexById[edge.toNodeId];
+        const displayIndexFromNodeId = (nodeId: string | null | undefined): number =>
+          nodeId ? (boardProjection.nodeIndexById[nodeId] ?? -1) : -1;
+        const displayIndexFromRawIndex = (rawIndex: number): number => {
+          const rawField = stateRef.current.config.board[rawIndex];
+          if (!rawField) return -1;
+          return displayIndexFromNodeId(boardProjection.displayNodeIdByNodeId[rawField.id]);
+        };
+        const validatedRuntimeEdges = boardProjection.edges.flatMap((edge) => {
+          const fromIndex = boardProjection.nodeIndexById[edge.fromNodeId];
+          const toIndex = boardProjection.nodeIndexById[edge.toNodeId];
           if (
             typeof fromIndex !== "number" ||
             typeof toIndex !== "number" ||
             fromIndex < 0 ||
-            fromIndex >= stateRef.current.config.board.length ||
+            fromIndex >= boardProjection.board.length ||
             toIndex < 0 ||
-            toIndex >= stateRef.current.config.board.length
+            toIndex >= boardProjection.board.length
           ) {
             return [];
           }
           return [
             {
-              edgeId: edge.id,
+              edgeId: edge.edgeId,
               gateCost: edge.gateCost,
               from: tileCentres[fromIndex]!,
               to: tileCentres[toIndex]!,
@@ -2625,7 +2713,7 @@ export const GameScene = memo(function GameScene({
         const labelMap = new Map<string, LabelSet>();
         const gateCostLabelMap = new Map<string, Text>();
 
-        const brd = stateRef.current.config.board;
+        const brd = boardProjection.board;
         const mapTextAnnotations = stateRef.current.config.mapTextAnnotations ?? [];
         brd.forEach((field, idx) => {
           const nameT = new Text({
@@ -2898,14 +2986,20 @@ export const GameScene = memo(function GameScene({
           hit.on("pointerover", () => {
             const pending = stateRef.current.pendingPathChoice;
             if (!pending) return;
-            const option = pending.options.find((candidate) => candidate.toNodeId === field.id);
+            const option = pending.options.find(
+              (candidate) =>
+                boardProjection.displayNodeIdByNodeId[candidate.toNodeId] === field.id
+            );
             if (!option) return;
             setHighlightedPathEdgeId(option.edgeId);
           });
           hit.on("pointertap", () => {
             const pending = stateRef.current.pendingPathChoice;
             if (!pending) return;
-            const option = pending.options.find((candidate) => candidate.toNodeId === field.id);
+            const option = pending.options.find(
+              (candidate) =>
+                boardProjection.displayNodeIdByNodeId[candidate.toNodeId] === field.id
+            );
             if (!option) return;
             handleSelectPathEdgeRef.current(option.edgeId);
           });
@@ -3567,10 +3661,14 @@ export const GameScene = memo(function GameScene({
 
             const phase = tickAnimRef.current(dt);
             const s = stateRef.current;
-            const total = s.config.board.length;
-            const board = s.config.board;
+            const total = boardProjection.board.length;
+            const board = boardProjection.board;
             const currentPlayer = s.players[s.currentPlayerIndex];
-            const currentPos = currentPlayer?.position ?? 0;
+            const currentDisplayNodeId = currentPlayer
+              ? boardProjection.displayNodeIdByNodeId[currentPlayer.currentNodeId] ??
+                currentPlayer.currentNodeId
+              : null;
+            const currentPos = displayIndexFromNodeId(currentDisplayNodeId);
             const roundRewardElapsed = t - roundRewardStart;
             const showRoundReward =
               roundRewardElapsed >= 0 && roundRewardElapsed <= ROUND_REWARD_FX_DURATION;
@@ -3589,7 +3687,7 @@ export const GameScene = memo(function GameScene({
               const startNodeId = s.lastTraversalPathNodeIds[0];
               const startIdx = wrapIndex(
                 typeof startNodeId === "string"
-                  ? (s.config.runtimeGraph.nodeIndexById[startNodeId] ?? currentPos)
+                  ? displayIndexFromNodeId(boardProjection.displayNodeIdByNodeId[startNodeId] ?? startNodeId)
                   : currentPos,
                 total
               );
@@ -3604,14 +3702,18 @@ export const GameScene = memo(function GameScene({
               const startNodeId = s.lastTraversalPathNodeIds[0];
               const startIdx = wrapIndex(
                 typeof startNodeId === "string"
-                  ? (s.config.runtimeGraph.nodeIndexById[startNodeId] ?? currentPos)
+                  ? displayIndexFromNodeId(boardProjection.displayNodeIdByNodeId[startNodeId] ?? startNodeId)
                   : currentPos,
                 total
               );
               const fromIdx =
-                phase.stepIndex === 0 ? startIdx : (phase.path[phase.stepIndex - 1] ?? 0);
+                phase.stepIndex === 0
+                  ? startIdx
+                  : displayIndexFromRawIndex(phase.path[phase.stepIndex - 1] ?? 0);
               const toIdx = wrapIndex(
-                phase.path[phase.stepIndex] ?? phase.path[phase.path.length - 1] ?? currentPos,
+                displayIndexFromRawIndex(
+                  phase.path[phase.stepIndex] ?? phase.path[phase.path.length - 1] ?? currentPos
+                ),
                 total
               );
               const from = tileCentres[fromIdx] ?? tileCentre(boardLayout, fromIdx);
@@ -3666,7 +3768,9 @@ export const GameScene = memo(function GameScene({
               camY + Math.cos(t * 0.35) * 4,
               CAMERA_MARGIN_Y
             );
-            const background = stateRef.current.config.mapStyle?.background;
+            const background =
+              stateRef.current.runtimeMapOverrides.backgroundOverride ??
+              stateRef.current.config.mapStyle?.background;
             if (background?.motion === "parallax") {
               const baseBoardX = (W - scaledWidth) / 2;
               const baseBoardY = (H - 80 - scaledHeight) / 2 + 20;
@@ -3687,7 +3791,10 @@ export const GameScene = memo(function GameScene({
             if (shouldRedrawBackground) {
               lastBgRedrawAt = t;
               bgG.clear();
-              if (!hasCustomBackground) {
+              const activeBackground =
+                stateRef.current.runtimeMapOverrides.backgroundOverride ??
+                stateRef.current.config.mapStyle?.background;
+              if (!activeBackground) {
                 drawBackground(bgG, W, H, t);
               }
 
@@ -3731,8 +3838,10 @@ export const GameScene = memo(function GameScene({
               if (pendingPathChoice) {
                 const focusEdgeId =
                   highlightedPathEdgeIdRef.current ?? pendingPathChoice.options[0]?.edgeId ?? null;
-                const fromIndex =
-                  s.config.runtimeGraph.nodeIndexById[pendingPathChoice.fromNodeId] ?? -1;
+                const fromIndex = displayIndexFromNodeId(
+                  boardProjection.displayNodeIdByNodeId[pendingPathChoice.fromNodeId] ??
+                    pendingPathChoice.fromNodeId
+                );
                 if (fromIndex >= 0) {
                   const { x, y } = tileOrigins[fromIndex] ?? tileOrigin(boardLayout, fromIndex);
                   const { width, height } = tileDimensions(boardLayout, fromIndex);
@@ -3742,7 +3851,9 @@ export const GameScene = memo(function GameScene({
                 }
 
                 pendingPathChoice.options.forEach((option, optionIndex) => {
-                  const toIndex = s.config.runtimeGraph.nodeIndexById[option.toNodeId] ?? -1;
+                  const toIndex = displayIndexFromNodeId(
+                    boardProjection.displayNodeIdByNodeId[option.toNodeId] ?? option.toNodeId
+                  );
                   if (toIndex < 0) return;
 
                   const previewSegments = pendingPathPreviewByEdgeId[option.edgeId] ?? [];
@@ -3802,14 +3913,18 @@ export const GameScene = memo(function GameScene({
               const startNodeId = s.lastTraversalPathNodeIds[0];
               const startIdx = wrapIndex(
                 typeof startNodeId === "string"
-                  ? (s.config.runtimeGraph.nodeIndexById[startNodeId] ?? currentPos)
+                  ? displayIndexFromNodeId(boardProjection.displayNodeIdByNodeId[startNodeId] ?? startNodeId)
                   : currentPos,
                 total
               );
               const fromIdx =
-                phase.stepIndex === 0 ? startIdx : (phase.path[phase.stepIndex - 1] ?? 0);
+                phase.stepIndex === 0
+                  ? startIdx
+                  : displayIndexFromRawIndex(phase.path[phase.stepIndex - 1] ?? 0);
               const toIdx = wrapIndex(
-                phase.path[phase.stepIndex] ?? phase.path[phase.path.length - 1] ?? currentPos,
+                displayIndexFromRawIndex(
+                  phase.path[phase.stepIndex] ?? phase.path[phase.path.length - 1] ?? currentPos
+                ),
                 total
               );
               const from = tileCentres[fromIdx] ?? tileCentre(boardLayout, fromIdx);
@@ -4591,7 +4706,7 @@ export const GameScene = memo(function GameScene({
   return (
     <>
       <MapBackgroundMedia
-        background={state.config.mapStyle?.background}
+        background={state.runtimeMapOverrides.backgroundOverride ?? state.config.mapStyle?.background}
         className="z-0"
         parallaxOffset={backgroundParallaxOffset}
       />

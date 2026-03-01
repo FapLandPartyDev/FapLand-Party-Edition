@@ -1,8 +1,9 @@
 import * as z from "zod";
+import { ZAutomationLibrary } from "./automation/schema";
 
-export const CURRENT_PLAYLIST_VERSION = 1;
+export const CURRENT_PLAYLIST_VERSION = 2;
 export const PLAYLIST_FILE_FORMAT = "f-land.playlist";
-export const PLAYLIST_FILE_VERSION = 1;
+export const PLAYLIST_FILE_VERSION = 2;
 export const ZPlaylistSaveMode = z.enum(["none", "checkpoint", "everywhere"]);
 
 export const ZRoundType = z.enum(["Normal", "Interjection", "Cum"]);
@@ -42,6 +43,7 @@ function getUriExtension(uri: string): string | null {
 
 export const ZGraphBackgroundMedia = z
   .object({
+    id: z.string().trim().min(1).optional(),
     kind: z.enum(["image", "video"]),
     uri: z.string().trim().min(1),
     name: z.string().trim().min(1).optional(),
@@ -104,6 +106,14 @@ export const ZPortableRoundRef = z
   })
   .strict();
 
+export const ZRandomRoundFilter = z
+  .object({
+    tags: z.array(z.string().trim().min(1)).optional(),
+    authorNames: z.array(z.string().trim().min(1)).optional(),
+    libraryLabels: z.array(z.string().trim().min(1)).optional(),
+  })
+  .strict();
+
 export const ZLinearBoardConfig = z
   .object({
     mode: z.literal("linear").default("linear"),
@@ -156,9 +166,14 @@ export const ZGraphNode = z
     name: z.string().trim().min(1),
     kind: ZGraphNodeKind,
     roundRef: ZPortableRoundRef.optional(),
+    roundPlaylistRefs: z.array(ZPortableRoundRef).min(1).max(20).optional(),
     forceStop: z.boolean().optional(),
     skippable: z.boolean().optional(),
     randomPoolId: z.string().trim().min(1).optional(),
+    autoAdvanceAfterCompletion: z.boolean().optional(),
+    hiddenFromMap: z.boolean().optional(),
+    selectionMode: z.enum(["installed", "pool"]).optional(),
+    filter: ZRandomRoundFilter.optional(),
     checkpointRestMs: z.number().int().min(0).optional(),
     pauseBonusMs: z.number().int().min(0).optional(),
     visualId: z.string().trim().min(1).optional(),
@@ -232,6 +247,7 @@ export const ZGraphBoardConfig = z
     cumRoundRefs: z.array(ZPortableRoundRef).default([]),
     pathChoiceTimeoutMs: z.number().int().min(1000).max(30000).default(12000),
     style: ZGraphBoardStyle.optional(),
+    automations: ZAutomationLibrary.optional(),
   })
   .strict()
   .superRefine((value, context) => {
@@ -257,6 +273,14 @@ export const ZGraphBoardConfig = z
         });
       }
 
+      if (node.kind !== "round" && node.roundPlaylistRefs) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only round nodes may define roundPlaylistRefs (${node.id})`,
+          path: ["nodes"],
+        });
+      }
+
       if (node.kind !== "round" && node.kind !== "perk" && typeof node.forceStop === "boolean") {
         context.addIssue({
           code: z.ZodIssueCode.custom,
@@ -269,6 +293,54 @@ export const ZGraphBoardConfig = z
         context.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Only round nodes may define skippable (${node.id})`,
+          path: ["nodes"],
+        });
+      }
+
+      if (
+        node.kind !== "round" &&
+        node.kind !== "randomRound" &&
+        typeof node.autoAdvanceAfterCompletion === "boolean"
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only round and randomRound nodes may define autoAdvanceAfterCompletion (${node.id})`,
+          path: ["nodes"],
+        });
+      }
+
+      if (
+        node.kind !== "round" &&
+        node.kind !== "randomRound" &&
+        typeof node.hiddenFromMap === "boolean"
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only round and randomRound nodes may define hiddenFromMap (${node.id})`,
+          path: ["nodes"],
+        });
+      }
+
+      if (node.hiddenFromMap && !node.autoAdvanceAfterCompletion) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `hiddenFromMap requires autoAdvanceAfterCompletion (${node.id})`,
+          path: ["nodes"],
+        });
+      }
+
+      if (node.kind !== "randomRound" && node.selectionMode) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only randomRound nodes may define selectionMode (${node.id})`,
+          path: ["nodes"],
+        });
+      }
+
+      if (node.kind !== "randomRound" && node.filter) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Only randomRound nodes may define filter (${node.id})`,
           path: ["nodes"],
         });
       }
@@ -413,6 +485,30 @@ export const ZGraphBoardConfig = z
           path: ["nodes"],
         });
       }
+      if (node.autoAdvanceAfterCompletion && outgoingCount !== 1) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Node ${node.id} with autoAdvanceAfterCompletion must have exactly one outgoing edge`,
+          path: ["nodes"],
+        });
+      }
+      if (node.hiddenFromMap && outgoingCount !== 1) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Node ${node.id} hiddenFromMap must have exactly one outgoing edge`,
+          path: ["nodes"],
+        });
+      }
+      if (node.autoAdvanceAfterCompletion) {
+        const outgoingEdges = value.edges.filter((edge) => edge.fromNodeId === node.id);
+        if (outgoingEdges.some((edge) => (edge.gateCost ?? 0) !== 0)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Node ${node.id} with autoAdvanceAfterCompletion must use zero-cost outgoing edges`,
+            path: ["edges"],
+          });
+        }
+      }
     }
   });
 
@@ -517,6 +613,7 @@ export const ZPlaylistEnvelopeV1 = z
   .strict();
 
 export type PortableRoundRef = z.infer<typeof ZPortableRoundRef>;
+export type RandomRoundFilter = z.infer<typeof ZRandomRoundFilter>;
 export type LinearBoardConfig = z.infer<typeof ZLinearBoardConfig>;
 export type GraphBackgroundFit = z.infer<typeof ZGraphBackgroundFit>;
 export type GraphBackgroundPosition = z.infer<typeof ZGraphBackgroundPosition>;

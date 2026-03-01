@@ -25,6 +25,17 @@ import { trpc } from "./services/trpc";
 const router = getRouter();
 const rootElement = document.getElementById("root");
 
+function readStartupFlag(value: string | undefined): boolean {
+  if (value === undefined) return false;
+  return value === "1" || value.toLowerCase() === "true";
+}
+
+function enableStartupSafeMode() {
+  window.localStorage.setItem(SFW_MODE_ENABLED_KEY, "true");
+  window.dispatchEvent(new CustomEvent(SFW_MODE_ENABLED_EVENT, { detail: true }));
+  void trpc.store.set.mutate({ key: SFW_MODE_ENABLED_KEY, value: true }).catch(() => {});
+}
+
 if (!rootElement) {
   throw new Error("Root element not found");
 }
@@ -117,6 +128,11 @@ registerMultiplayerAuthCallbackHandler();
 function registerSafeModeStartupShortcut() {
   if (typeof window === "undefined") return;
 
+  if (readStartupFlag(import.meta.env.FLAND_STARTUP_SAFE_MODE)) {
+    enableStartupSafeMode();
+    return;
+  }
+
   const rawShortcutEnabled = window.localStorage.getItem(STARTUP_SAFE_MODE_SHORTCUT_ENABLED_KEY);
   const shortcutEnabled =
     rawShortcutEnabled !== null
@@ -127,9 +143,7 @@ function registerSafeModeStartupShortcut() {
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key.toLowerCase() === "s") {
-      window.localStorage.setItem(SFW_MODE_ENABLED_KEY, "true");
-      window.dispatchEvent(new CustomEvent(SFW_MODE_ENABLED_EVENT, { detail: true }));
-      void trpc.store.set.mutate({ key: SFW_MODE_ENABLED_KEY, value: true }).catch(() => {});
+      enableStartupSafeMode();
     }
   };
 

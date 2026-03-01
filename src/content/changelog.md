@@ -1,5 +1,34 @@
 # What's New
 
+## v0.3.0-beta
+
+### Added
+
+- Map Editor now includes an **Automation** workflow for graph playlists, with rule templates, triggers, conditions, delayed actions, cooldowns, and rule enable/disable controls.
+- Automations can react to node movement, player controls, round lifecycle events, music state, timers, and path choices, then update timers, music, backgrounds, graph nodes, graph edges, and other rules during play.
+- Round nodes can now play a queued sequence of videos, and round/random-round nodes can auto-advance through technical transitions after completion.
+- Random-round nodes now support installed-library or named-pool selection modes plus tag, author, and library filters.
+- Installed rounds and heroes now support tags, and rounds can store a library label for filtering and organization.
+- The round library now has dedicated tag, author, and library filters, and searches include round tags, hero tags, and library labels.
+- Startup SFW mode can now be forced with the `FLAND_STARTUP_SAFE_MODE` environment flag.
+
+### Changed
+
+- Playlist graph files now use version 2 to persist automation rules, background ids, round video queues, random-round filters, hidden technical nodes, and auto-advance settings.
+- Game saves now persist automation runtime state, temporary background overrides, runtime music state, rule cooldowns, automation overrides, and paused rest timers.
+- Map previews and in-game boards now hide technical nodes marked as hidden while still resolving movement through them.
+- Installed round scans now preserve imported round and hero metadata more completely, including tags and inferred library labels.
+- The game route now synchronizes automation-controlled music state with the global playlist music system.
+
+### Fixed
+
+- Existing installs now repair missing installed-library metadata columns automatically, including resource duration, round cut ranges, random exclusion, tags, and library labels.
+- Round catalog queries retry after repairing older database schemas, preventing missing-column failures after upgrades.
+- Graph validation now catches invalid automation references, unresolved video queue entries, invalid hidden/auto-advance nodes, and non-zero-cost auto-advance edges.
+- Auto-advance graph nodes now require exactly one zero-cost outgoing edge to avoid ambiguous runtime movement.
+
+---
+
 ## v0.2.12-beta
 
 ### Added

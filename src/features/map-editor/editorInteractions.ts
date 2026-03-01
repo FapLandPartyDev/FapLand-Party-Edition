@@ -1,4 +1,9 @@
-import type { EditorGraphConfig, EditorNode, EditorSelectionState, ViewportState } from "./EditorState";
+import type {
+  EditorGraphConfig,
+  EditorNode,
+  EditorSelectionState,
+  ViewportState,
+} from "./EditorState";
 import { getNodeRenderHeight, getNodeRenderWidth } from "./nodeVisuals";
 
 type SelectionRect = {
@@ -8,7 +13,9 @@ type SelectionRect = {
   endY: number;
 };
 
-const normalizeRect = (rect: SelectionRect): { left: number; right: number; top: number; bottom: number } => ({
+const normalizeRect = (
+  rect: SelectionRect
+): { left: number; right: number; top: number; bottom: number } => ({
   left: Math.min(rect.startX, rect.endX),
   right: Math.max(rect.startX, rect.endX),
   top: Math.min(rect.startY, rect.endY),
@@ -21,7 +28,9 @@ export const isTextInputElement = (target: EventTarget | null): boolean => {
   return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 };
 
-export const buildTileHotkeyMap = <T extends { id: string }>(tiles: T[]): Record<string, string> => {
+export const buildTileHotkeyMap = <T extends { id: string }>(
+  tiles: T[]
+): Record<string, string> => {
   const map: Record<string, string> = {};
   for (let index = 0; index < Math.min(9, tiles.length); index += 1) {
     const tile = tiles[index];
@@ -34,7 +43,7 @@ export const buildTileHotkeyMap = <T extends { id: string }>(tiles: T[]): Record
 export const replaceNodeSelection = (
   _selection: EditorSelectionState,
   nodeIds: string[],
-  primaryNodeId: string | null,
+  primaryNodeId: string | null
 ): EditorSelectionState => {
   return {
     selectedNodeIds: Array.from(new Set(nodeIds)),
@@ -47,7 +56,7 @@ export const replaceNodeSelection = (
 export const mergeNodeSelection = (
   selection: EditorSelectionState,
   nodeIds: string[],
-  fallbackPrimaryNodeId: string | null,
+  fallbackPrimaryNodeId: string | null
 ): EditorSelectionState => {
   const merged = new Set(selection.selectedNodeIds);
   for (const nodeId of nodeIds) {
@@ -63,7 +72,10 @@ export const mergeNodeSelection = (
   };
 };
 
-export const toggleNodeSelection = (selection: EditorSelectionState, nodeId: string): EditorSelectionState => {
+export const toggleNodeSelection = (
+  selection: EditorSelectionState,
+  nodeId: string
+): EditorSelectionState => {
   const selected = new Set(selection.selectedNodeIds);
   if (selected.has(nodeId)) {
     selected.delete(nodeId);
@@ -72,11 +84,12 @@ export const toggleNodeSelection = (selection: EditorSelectionState, nodeId: str
   }
 
   const selectedNodeIds = Array.from(selected);
-  const primaryNodeId = selectedNodeIds.length === 0
-    ? null
-    : selection.primaryNodeId === nodeId && !selected.has(nodeId)
-      ? selectedNodeIds[0] ?? null
-      : selection.primaryNodeId ?? nodeId;
+  const primaryNodeId =
+    selectedNodeIds.length === 0
+      ? null
+      : selection.primaryNodeId === nodeId && !selected.has(nodeId)
+        ? (selectedNodeIds[0] ?? null)
+        : (selection.primaryNodeId ?? nodeId);
 
   return {
     selectedNodeIds,
@@ -89,7 +102,7 @@ export const toggleNodeSelection = (selection: EditorSelectionState, nodeId: str
 export const getNodesIntersectingScreenRect = (
   nodes: EditorNode[],
   viewport: ViewportState,
-  rect: SelectionRect,
+  rect: SelectionRect
 ): string[] => {
   const normalized = normalizeRect(rect);
   const hits: string[] = [];
@@ -108,10 +121,11 @@ export const getNodesIntersectingScreenRect = (
     const right = left + width * viewport.zoom;
     const bottom = top + height * viewport.zoom;
 
-    const overlaps = right >= normalized.left
-      && left <= normalized.right
-      && bottom >= normalized.top
-      && top <= normalized.bottom;
+    const overlaps =
+      right >= normalized.left &&
+      left <= normalized.right &&
+      bottom >= normalized.top &&
+      top <= normalized.bottom;
     if (overlaps) {
       hits.push(node.id);
     }
@@ -129,22 +143,29 @@ export const resolveStartNodeId = (currentStartNodeId: string, nodes: EditorNode
 
 export const deleteSelectionFromConfig = (
   config: EditorGraphConfig,
-  selection: EditorSelectionState,
+  selection: EditorSelectionState
 ): EditorGraphConfig => {
   if (selection.selectedNodeIds.length > 0) {
     const selected = new Set(selection.selectedNodeIds);
     const nextNodes = config.nodes.filter((node) => !selected.has(node.id));
-    const nextEdges = config.edges.filter((edge) => !selected.has(edge.fromNodeId) && !selected.has(edge.toNodeId));
+    const nextEdges = config.edges.filter(
+      (edge) => !selected.has(edge.fromNodeId) && !selected.has(edge.toNodeId)
+    );
 
     if (nextNodes.length === config.nodes.length && nextEdges.length === config.edges.length) {
       return config;
     }
+
+    const nextAutomations = (config.automations ?? []).filter(
+      (rule) => !(rule.scope.kind === "node" && selected.has(rule.scope.nodeId))
+    );
 
     return {
       ...config,
       startNodeId: resolveStartNodeId(config.startNodeId, nextNodes),
       nodes: nextNodes,
       edges: nextEdges,
+      automations: nextAutomations,
     };
   }
 

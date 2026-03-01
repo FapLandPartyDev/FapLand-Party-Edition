@@ -1,4 +1,5 @@
 import { getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "../../game/data/perks";
+import type { AutomationRule } from "../../game/automation/schema";
 import type {
   GraphBackgroundFit,
   GraphBackgroundMedia,
@@ -10,6 +11,7 @@ import type {
   PlaylistConfig,
   PlaylistMusicTrack,
   PortableRoundRef,
+  RandomRoundFilter,
 } from "../../game/playlistSchema";
 
 const DEFAULT_NODE_WIDTH = 190;
@@ -104,6 +106,7 @@ export type EditorNodeKind =
   | "round"
   | "randomRound"
   | "perk"
+  | "event"
   | "catapult";
 
 export interface EditorStyleHint {
@@ -121,9 +124,14 @@ export interface EditorNode {
   name: string;
   kind: EditorNodeKind;
   roundRef?: PortableRoundRef;
+  roundPlaylistRefs?: PortableRoundRef[];
   forceStop?: boolean;
   skippable?: boolean;
   randomPoolId?: string;
+  autoAdvanceAfterCompletion?: boolean;
+  hiddenFromMap?: boolean;
+  selectionMode?: "installed" | "pool";
+  filter?: RandomRoundFilter;
   checkpointRestMs?: number;
   pauseBonusMs?: number;
   visualId?: string;
@@ -187,7 +195,10 @@ export interface EditorGraphConfig {
     tracks: PlaylistMusicTrack[];
     loop: boolean;
   };
+  automations?: EditorAutomationRule[];
 }
+
+export type EditorAutomationRule = AutomationRule;
 
 export interface GraphToLinearConversionResult {
   boardConfig: LinearBoardConfig;
@@ -288,6 +299,7 @@ export const normalizeGraphBackgroundMedia = (
       ? input.position
       : "center";
   return {
+    ...(typeof input.id === "string" && input.id.trim().length > 0 ? { id: input.id.trim() } : {}),
     kind,
     uri,
     ...(typeof input.name === "string" && input.name.trim().length > 0
@@ -411,6 +423,7 @@ export const sanitizeNodeKind = (kind: string | undefined): EditorNodeKind => {
     kind === "round" ||
     kind === "randomRound" ||
     kind === "perk" ||
+    kind === "event" ||
     kind === "catapult"
   ) {
     return kind;
@@ -425,9 +438,14 @@ export const toEditorGraphConfig = (input: GraphBoardConfig): EditorGraphConfig 
     name: node.name,
     kind: sanitizeNodeKind(node.kind),
     roundRef: node.roundRef ? { ...node.roundRef } : undefined,
+    roundPlaylistRefs: node.roundPlaylistRefs?.map((ref) => ({ ...ref })),
     forceStop: node.forceStop,
     skippable: node.skippable,
     randomPoolId: node.randomPoolId,
+    autoAdvanceAfterCompletion: node.autoAdvanceAfterCompletion,
+    hiddenFromMap: node.hiddenFromMap,
+    selectionMode: node.selectionMode,
+    filter: node.filter ? { ...node.filter } : undefined,
     checkpointRestMs: typeof node.checkpointRestMs === "number" ? node.checkpointRestMs : undefined,
     pauseBonusMs: typeof node.pauseBonusMs === "number" ? node.pauseBonusMs : undefined,
     visualId: node.visualId,
@@ -509,6 +527,7 @@ export const toEditorGraphConfig = (input: GraphBoardConfig): EditorGraphConfig 
       tracks: [],
       loop: true,
     },
+    automations: (input.automations ?? []).map((rule) => structuredClone(rule)),
   };
 };
 
@@ -638,6 +657,7 @@ export const layoutLinearGraphFromPlaylist = (config: LinearBoardConfig): Editor
       tracks: [],
       loop: true,
     },
+    automations: [],
   };
 };
 
@@ -773,9 +793,18 @@ export const toGraphBoardConfig = (input: EditorGraphConfig): GraphBoardConfig =
       name: node.name,
       kind: sanitizeNodeKind(node.kind),
       roundRef: node.roundRef ? { ...node.roundRef } : undefined,
+      roundPlaylistRefs:
+        node.kind === "round" ? node.roundPlaylistRefs?.map((ref) => ({ ...ref })) : undefined,
       forceStop: node.kind === "round" || node.kind === "perk" ? node.forceStop : undefined,
       skippable: node.kind === "round" ? node.skippable : undefined,
       randomPoolId: node.randomPoolId,
+      autoAdvanceAfterCompletion:
+        node.kind === "round" || node.kind === "randomRound"
+          ? node.autoAdvanceAfterCompletion
+          : undefined,
+      hiddenFromMap: undefined,
+      selectionMode: node.kind === "randomRound" ? node.selectionMode : undefined,
+      filter: node.kind === "randomRound" && node.filter ? { ...node.filter } : undefined,
       checkpointRestMs:
         node.kind === "safePoint" && typeof node.checkpointRestMs === "number"
           ? Math.max(0, Math.floor(node.checkpointRestMs))
@@ -829,6 +858,7 @@ export const toGraphBoardConfig = (input: EditorGraphConfig): GraphBoardConfig =
       .filter((pool) => pool.id.length > 0),
     cumRoundRefs: input.cumRoundRefs.map((ref) => ({ ...ref })),
     pathChoiceTimeoutMs: clamp(Math.floor(input.pathChoiceTimeoutMs), 1000, 30000),
+    automations: (input.automations ?? []).map((rule) => structuredClone(rule)),
     ...(style.background || style.roadPalette ? { style } : {}),
   };
 };

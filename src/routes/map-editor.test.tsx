@@ -80,7 +80,6 @@ function makePlaylist(id: string, name: string) {
         maxIntermediaryProbability: 1,
         maxAntiPerkProbability: 0.75,
       },
-      disableDiceAnimation: false,
       economy: {
         startingMoney: 120,
         moneyPerCompletedRound: 50,

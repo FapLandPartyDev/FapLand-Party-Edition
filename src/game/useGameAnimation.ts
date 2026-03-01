@@ -1,4 +1,6 @@
 import { useCallback, useRef, useState } from "react";
+import { runAutomationPass } from "./automation/execute";
+import { advanceAutomationClock, appendAutomationEvent } from "./automation/state";
 import {
   applyInventoryItemToSelf,
   adjustPlayerMoney,
@@ -25,7 +27,7 @@ import {
   playTokenLandingSound,
   playTokenStepSound,
 } from "../utils/audio";
-import type { CompletedRoundSummary, GameState } from "./types";
+import type { CompletedRoundSummary, GameConfig, GameState } from "./types";
 import type { InstalledRound } from "../services/db";
 import { resolveEffectiveRestPauseMs as getEffectiveRestPauseMs } from "./restPause";
 
@@ -33,21 +35,21 @@ export type AnimPhase =
   | { kind: "idle" }
   | { kind: "rollingDice"; elapsed: number; displayValue: number; finalValue: number }
   | {
-    kind: "diceResultReveal";
-    elapsed: number;
-    value: number;
-    playerIndex: number;
-    path: number[];
-    gateStepIndices: number[];
-  }
+      kind: "diceResultReveal";
+      elapsed: number;
+      value: number;
+      playerIndex: number;
+      path: number[];
+      gateStepIndices: number[];
+    }
   | {
-    kind: "movingToken";
-    playerIndex: number;
-    path: number[];
-    gateStepIndices: number[];
-    stepIndex: number;
-    stepElapsed: number;
-  }
+      kind: "movingToken";
+      playerIndex: number;
+      path: number[];
+      gateStepIndices: number[];
+      stepIndex: number;
+      stepElapsed: number;
+    }
   | { kind: "landingEffect"; elapsed: number }
   | { kind: "roundCountdown"; elapsed: number; remaining: number; duration: number }
   | { kind: "perkReveal"; elapsed: number };
@@ -98,14 +100,36 @@ function resolveEffectiveRestPauseMs(state: GameState): number {
   return getEffectiveRestPauseMs(state);
 }
 
-export function resolveRoundCountdownDuration(queuedRound: GameState["queuedRound"]): number {
+export function isTechnicalQueuedRound(
+  config: GameConfig,
+  queuedRound: GameState["queuedRound"]
+): boolean {
+  if (!queuedRound || queuedRound.phaseKind !== "normal") return false;
+  const nodeIndex = config.runtimeGraph.nodeIndexById[queuedRound.nodeId];
+  const field = typeof nodeIndex === "number" ? config.board[nodeIndex] : undefined;
+  if (!field) return false;
+  return Boolean(
+    (field.kind === "round" || field.kind === "randomRound") &&
+    field.hiddenFromMap &&
+    field.autoAdvanceAfterCompletion
+  );
+}
+
+export function resolveRoundCountdownDuration(
+  config: GameConfig,
+  queuedRound: GameState["queuedRound"]
+): number {
+  if (isTechnicalQueuedRound(config, queuedRound)) return 0;
   return queuedRound?.phaseKind === "cum"
     ? CUM_ROUND_COUNTDOWN_DURATION
     : NORMAL_ROUND_COUNTDOWN_DURATION;
 }
 
-function createRoundCountdownPhase(queuedRound: GameState["queuedRound"]): AnimPhase {
-  const duration = resolveRoundCountdownDuration(queuedRound);
+function createRoundCountdownPhase(
+  config: GameConfig,
+  queuedRound: GameState["queuedRound"]
+): AnimPhase {
+  const duration = resolveRoundCountdownDuration(config, queuedRound);
   return {
     kind: "roundCountdown",
     elapsed: 0,
@@ -128,6 +152,9 @@ export function useGameAnimation(
   const turnTimerElapsedRef = useRef(0);
   const pathChoiceElapsedRef = useRef(0);
   const pendingChoiceRef = useRef<string | null>(null);
+  const stayElapsedMsRef = useRef(0);
+  const stayFireCountByRuleKeyRef = useRef<Record<string, number>>({});
+  const stayNodeIdRef = useRef<string | null>(null);
 
   // Sync refs manually in transitions instead of effects to avoid stale reverts in high-frequency loops.
 
@@ -144,12 +171,13 @@ export function useGameAnimation(
 
   const commitState = useCallback(
     (nextState: GameState, options?: { syncPathChoice?: boolean }): GameState => {
-      stateRef.current = nextState;
-      setState(nextState);
+      const processedState = runAutomationPass(nextState);
+      stateRef.current = processedState;
+      setState(processedState);
       if (options?.syncPathChoice !== false) {
-        syncPathChoiceRef(nextState);
+        syncPathChoiceRef(processedState);
       }
-      return nextState;
+      return processedState;
     },
     [syncPathChoiceRef]
   );
@@ -188,18 +216,41 @@ export function useGameAnimation(
     []
   );
 
-  const resolvePostTraversalPhase = useCallback((nextState: GameState): AnimPhase => {
-    if (nextState.pendingPerkSelection) {
-      return { kind: "perkReveal", elapsed: 0 };
-    }
-    if (nextState.pendingPathChoice) {
+  const maybeStartQueuedRoundImmediately = useCallback(
+    (gameState: GameState): GameState => {
+      if (
+        !shouldAutoStartQueuedRound(gameState) ||
+        gameState.pendingPerkSelection ||
+        gameState.activeRound ||
+        !isTechnicalQueuedRound(gameState.config, gameState.queuedRound)
+      ) {
+        return gameState;
+      }
+
+      return commitState(triggerQueuedRound(gameState));
+    },
+    [commitState]
+  );
+
+  const resolvePostTraversalPhase = useCallback(
+    (nextState: GameState): AnimPhase => {
+      if (nextState.pendingPerkSelection) {
+        return { kind: "perkReveal", elapsed: 0 };
+      }
+      if (nextState.pendingPathChoice) {
+        return { kind: "idle" };
+      }
+      if (nextState.queuedRound) {
+        const resolvedState = maybeStartQueuedRoundImmediately(nextState);
+        if (!resolvedState.queuedRound) {
+          return { kind: "idle" };
+        }
+        return createRoundCountdownPhase(resolvedState.config, resolvedState.queuedRound);
+      }
       return { kind: "idle" };
-    }
-    if (nextState.queuedRound) {
-      return createRoundCountdownPhase(nextState.queuedRound);
-    }
-    return { kind: "idle" };
-  }, []);
+    },
+    [maybeStartQueuedRoundImmediately]
+  );
 
   const commitAnimPhase = useCallback((nextPhase: AnimPhase): AnimPhase => {
     animPhaseRef.current = nextPhase;
@@ -207,17 +258,20 @@ export function useGameAnimation(
     return nextPhase;
   }, []);
 
-  const queueRollPhase = useCallback((diceMin = 1, diceMax = 6): AnimPhase => {
-    const clampedMin = Math.max(1, Math.floor(diceMin));
-    const clampedMax = Math.max(clampedMin, Math.floor(diceMax));
-    const next: AnimPhase = {
-      kind: "rollingDice",
-      elapsed: 0,
-      displayValue: clampedMin,
-      finalValue: randomInt(clampedMin, clampedMax),
-    };
-    return commitAnimPhase(next);
-  }, [commitAnimPhase]);
+  const queueRollPhase = useCallback(
+    (diceMin = 1, diceMax = 6): AnimPhase => {
+      const clampedMin = Math.max(1, Math.floor(diceMin));
+      const clampedMax = Math.max(clampedMin, Math.floor(diceMax));
+      const next: AnimPhase = {
+        kind: "rollingDice",
+        elapsed: 0,
+        displayValue: clampedMin,
+        finalValue: randomInt(clampedMin, clampedMax),
+      };
+      return commitAnimPhase(next);
+    },
+    [commitAnimPhase]
+  );
 
   const handleRoll = useCallback(() => {
     const s = stateRef.current;
@@ -244,20 +298,37 @@ export function useGameAnimation(
       s.players[s.currentPlayerIndex]?.stats.diceMin ?? 1,
       s.players[s.currentPlayerIndex]?.stats.diceMax ?? 6
     );
-  }, [commitAnimPhase, commitState, installedRounds, queueRollPhase, resolvePostTraversalPhase, shouldSkipDiceAnimation]);
+  }, [
+    commitAnimPhase,
+    commitState,
+    installedRounds,
+    queueRollPhase,
+    resolvePostTraversalPhase,
+    shouldSkipDiceAnimation,
+  ]);
 
   const handleStartQueuedRound = useCallback(() => {
     const s = stateRef.current;
     if (!s.queuedRound || s.pendingPerkSelection || s.pendingPathChoice || s.activeRound) return;
     if (animPhaseRef.current.kind !== "idle") return;
 
+    if (isTechnicalQueuedRound(s.config, s.queuedRound)) {
+      commitState(triggerQueuedRound(s));
+      const next: AnimPhase = { kind: "idle" };
+      animPhaseRef.current = next;
+      setAnimPhase(next);
+      turnTimerElapsedRef.current = 0;
+      setNextAutoRollInSec(null);
+      return;
+    }
+
     playRoundStartSound();
-    const next = createRoundCountdownPhase(s.queuedRound);
+    const next = createRoundCountdownPhase(s.config, s.queuedRound);
     animPhaseRef.current = next;
     setAnimPhase(next);
     turnTimerElapsedRef.current = 0;
     setNextAutoRollInSec(null);
-  }, []);
+  }, [commitState]);
 
   const handleCompleteRound = useCallback(
     (summary?: CompletedRoundSummary) => {
@@ -374,31 +445,22 @@ export function useGameAnimation(
     toPathIndices,
   ]);
 
-  const handleSelectPerk = useCallback((perkId: string, options?: { applyDirectly?: boolean }) => {
-    const nextState = applyTransition((prev) => selectPerk(prev, perkId, options));
-    playPerkActionSound();
+  const handleSelectPerk = useCallback(
+    (perkId: string, options?: { applyDirectly?: boolean }) => {
+      const nextState = applyTransition((prev) => selectPerk(prev, perkId, options));
+      playPerkActionSound();
 
-    commitAnimPhase(
-      shouldAutoStartQueuedRound(nextState) &&
-        !nextState.pendingPerkSelection &&
-        !nextState.activeRound
-        ? createRoundCountdownPhase(nextState.queuedRound)
-        : { kind: "idle" }
-    );
-  }, [applyTransition, commitAnimPhase]);
+      commitAnimPhase(resolvePostTraversalPhase(nextState));
+    },
+    [applyTransition, commitAnimPhase, resolvePostTraversalPhase]
+  );
 
   const handleSkipPerk = useCallback(() => {
     const nextState = applyTransition((prev) => skipPerkSelection(prev));
     playPerkActionSound();
 
-    commitAnimPhase(
-      shouldAutoStartQueuedRound(nextState) &&
-        !nextState.pendingPerkSelection &&
-        !nextState.activeRound
-        ? createRoundCountdownPhase(nextState.queuedRound)
-        : { kind: "idle" }
-    );
-  }, [applyTransition, commitAnimPhase]);
+    commitAnimPhase(resolvePostTraversalPhase(nextState));
+  }, [applyTransition, commitAnimPhase, resolvePostTraversalPhase]);
 
   const handleApplyExternalPerk = useCallback(
     (input: { targetPlayerId: string; perkId: string; sourceLabel?: string }) => {
@@ -448,8 +510,16 @@ export function useGameAnimation(
   const tickAnim = useCallback(
     (dt: number): AnimPhase => {
       const phase = animPhaseRef.current;
-      const s = stateRef.current;
+      let s = stateRef.current;
+      if (dt > 0) {
+        s = commitState(advanceAutomationClock(s, dt * 1000), { syncPathChoice: false });
+      }
       const currentPlayer = s.players[s.currentPlayerIndex];
+      if ((currentPlayer?.currentNodeId ?? null) !== stayNodeIdRef.current) {
+        stayNodeIdRef.current = currentPlayer?.currentNodeId ?? null;
+        stayElapsedMsRef.current = 0;
+        stayFireCountByRuleKeyRef.current = {};
+      }
       const hasBoardSequenceAntiPerk = Boolean(
         !s.activeRound &&
         !s.pendingPathChoice &&
@@ -466,52 +536,137 @@ export function useGameAnimation(
         s.sessionPhase !== "completed";
 
       if (canCountdownRun) {
-        turnTimerElapsedRef.current += dt;
-        const pauseSec = resolveEffectiveRestPauseMs(s) / 1000;
-        const remaining = Math.max(0, pauseSec - turnTimerElapsedRef.current);
-        setNextAutoRollInSec(remaining);
+        if (turnTimerElapsedRef.current === 0) {
+          s = commitState(
+            appendAutomationEvent(s, {
+              kind: "session.timer",
+              playerId: currentPlayer?.id,
+              nodeId: currentPlayer?.currentNodeId,
+              timer: "restPauseStarted",
+            }),
+            { syncPathChoice: false }
+          );
+        }
+        if (s.restTimerPaused) {
+          const pauseSec = resolveEffectiveRestPauseMs(s) / 1000;
+          const remaining = Math.max(0, pauseSec - turnTimerElapsedRef.current);
+          setNextAutoRollInSec(remaining);
+        } else {
+          turnTimerElapsedRef.current += dt;
+          const pauseSec = resolveEffectiveRestPauseMs(s) / 1000;
+          const remaining = Math.max(0, pauseSec - turnTimerElapsedRef.current);
+          setNextAutoRollInSec(remaining);
 
-        if (turnTimerElapsedRef.current >= pauseSec) {
-          turnTimerElapsedRef.current = 0;
-          setNextAutoRollInSec(null);
-
-          let nextState = s;
-          if (s.pendingPerkSelection) {
-            nextState = skipPerkSelection(s);
-            commitState(nextState);
-          }
-
-          if (
-            shouldAutoStartQueuedRound(nextState) &&
-            !nextState.pendingPerkSelection &&
-            !nextState.activeRound
-          ) {
-            playRoundStartSound();
-            const next = createRoundCountdownPhase(nextState.queuedRound);
-            return commitAnimPhase(next);
-          }
-
-          if (
-            nextState.sessionPhase === "normal" &&
-            !nextState.activeRound &&
-            !nextState.pendingPerkSelection &&
-            !nextState.pendingPathChoice
-          ) {
-            if (shouldSkipDiceAnimation(nextState)) {
-              const rolledState = rollTurn(nextState, installedRounds);
-              commitState(rolledState);
-              playDiceResultSound();
-              return commitAnimPhase(resolvePostTraversalPhase(rolledState));
-            }
-            playDiceRollStartSound();
-            return queueRollPhase(
-              nextState.players[nextState.currentPlayerIndex]?.stats.diceMin ?? 1,
-              nextState.players[nextState.currentPlayerIndex]?.stats.diceMax ?? 6
+          if (turnTimerElapsedRef.current >= pauseSec) {
+            s = commitState(
+              appendAutomationEvent(s, {
+                kind: "session.timer",
+                playerId: currentPlayer?.id,
+                nodeId: currentPlayer?.currentNodeId,
+                timer: "restPauseElapsed",
+              }),
+              { syncPathChoice: false }
             );
+            turnTimerElapsedRef.current = 0;
+            setNextAutoRollInSec(null);
+
+            let nextState = s;
+            if (s.pendingPerkSelection) {
+              nextState = skipPerkSelection(s);
+              commitState(nextState);
+            }
+
+            if (
+              shouldAutoStartQueuedRound(nextState) &&
+              !nextState.pendingPerkSelection &&
+              !nextState.activeRound
+            ) {
+              const resolvedState = maybeStartQueuedRoundImmediately(nextState);
+              if (!resolvedState.queuedRound) {
+                return commitAnimPhase({ kind: "idle" });
+              }
+              playRoundStartSound();
+              const next = createRoundCountdownPhase(
+                resolvedState.config,
+                resolvedState.queuedRound
+              );
+              return commitAnimPhase(next);
+            }
+
+            if (
+              nextState.sessionPhase === "normal" &&
+              !nextState.activeRound &&
+              !nextState.pendingPerkSelection &&
+              !nextState.pendingPathChoice
+            ) {
+              if (shouldSkipDiceAnimation(nextState)) {
+                const rolledState = rollTurn(nextState, installedRounds);
+                commitState(rolledState);
+                playDiceResultSound();
+                return commitAnimPhase(resolvePostTraversalPhase(rolledState));
+              }
+              playDiceRollStartSound();
+              return queueRollPhase(
+                nextState.players[nextState.currentPlayerIndex]?.stats.diceMin ?? 1,
+                nextState.players[nextState.currentPlayerIndex]?.stats.diceMax ?? 6
+              );
+            }
           }
         }
       } else {
         setNextAutoRollInSec(null);
+      }
+
+      if (
+        phase.kind === "idle" &&
+        currentPlayer &&
+        !s.activeRound &&
+        !s.pendingPathChoice &&
+        !s.pendingPerkSelection
+      ) {
+        stayElapsedMsRef.current += dt * 1000;
+        const stayRules =
+          s.config.automations?.filter(
+            (
+              rule
+            ): rule is NonNullable<GameState["config"]["automations"]>[number] & {
+              trigger: {
+                kind: "node.stay";
+                nodeId?: string;
+                elapsedMs: number;
+                repeatMode: "once" | "repeat";
+              };
+            } => rule.trigger.kind === "node.stay" && rule.enabled
+          ) ?? [];
+        for (const rule of stayRules) {
+          if (rule.scope.kind === "node" && rule.scope.nodeId !== currentPlayer.currentNodeId)
+            continue;
+          if (rule.trigger.nodeId && rule.trigger.nodeId !== currentPlayer.currentNodeId) continue;
+          const threshold = Math.max(1, rule.trigger.elapsedMs);
+          const fireKey = `${rule.id}:${currentPlayer.currentNodeId}`;
+          const previousCount = stayFireCountByRuleKeyRef.current[fireKey] ?? 0;
+          const nextCount =
+            rule.trigger.repeatMode === "repeat"
+              ? Math.floor(stayElapsedMsRef.current / threshold)
+              : stayElapsedMsRef.current >= threshold
+                ? 1
+                : 0;
+          if (nextCount > previousCount) {
+            stayFireCountByRuleKeyRef.current[fireKey] = nextCount;
+            s = commitState(
+              appendAutomationEvent(s, {
+                kind: "node.stay",
+                playerId: currentPlayer.id,
+                nodeId: currentPlayer.currentNodeId,
+                elapsedMs: Math.floor(stayElapsedMsRef.current),
+                repeatMode: rule.trigger.repeatMode,
+              }),
+              { syncPathChoice: false }
+            );
+          }
+        }
+      } else {
+        stayElapsedMsRef.current = 0;
       }
 
       if (s.pendingPathChoice) {
@@ -611,7 +766,10 @@ export function useGameAnimation(
             } else if (nextS.pendingPathChoice) {
               next = { kind: "idle" };
             } else if (nextS.queuedRound) {
-              next = createRoundCountdownPhase(nextS.queuedRound);
+              const resolvedState = maybeStartQueuedRoundImmediately(nextS);
+              next = resolvedState.queuedRound
+                ? createRoundCountdownPhase(resolvedState.config, resolvedState.queuedRound)
+                : { kind: "idle" };
             } else {
               next = { kind: "landingEffect", elapsed: 0 };
             }
@@ -692,6 +850,7 @@ export function useGameAnimation(
       handleResolvePathChoiceTimeout,
       installedRounds,
       resolvePostTraversalPhase,
+      maybeStartQueuedRoundImmediately,
       queueRollPhase,
       shouldSkipDiceAnimation,
       toPathIndices,

@@ -36,6 +36,7 @@ export const hero = sqliteTable("Hero", {
   name: text("name").notNull().unique(),
   author: text("author"),
   description: text("description"),
+  tagsJson: text("tagsJson").notNull().default("[]"),
   phash: text("phash"),
   createdAt: integer("createdAt", { mode: "timestamp" })
     .notNull()
@@ -54,6 +55,7 @@ export const round = sqliteTable(
     name: text("name").notNull(),
     author: text("author"),
     description: text("description"),
+    tagsJson: text("tagsJson").notNull().default("[]"),
     bpm: real("bpm"),
     difficulty: integer("difficulty"),
     phash: text("phash"),
@@ -64,6 +66,7 @@ export const round = sqliteTable(
       .notNull()
       .default("Normal"),
     installSourceKey: text("installSourceKey").unique(),
+    libraryLabel: text("libraryLabel"),
     previewImage: text("previewImage"),
     heroId: text("heroId").references(() => hero.id, { onDelete: "set null" }),
     excludeFromRandom: integer("excludeFromRandom", { mode: "boolean" }).notNull().default(false),

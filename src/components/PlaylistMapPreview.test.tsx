@@ -183,6 +183,39 @@ describe("PlaylistMapPreview", () => {
     expect(annotation.getAttribute("fill")).toBe("#10b981");
   });
 
+  it("renders the configured map background", () => {
+    const graphBoard = graphConfig.boardConfig as GraphBoardConfig;
+    const config: PlaylistConfig = {
+      ...graphConfig,
+      boardConfig: {
+        ...graphBoard,
+        style: {
+          background: {
+            kind: "image",
+            uri: "app://media/%2Ftmp%2Fpreview-map.png",
+            fit: "cover",
+            position: "center",
+            opacity: 0.55,
+            blur: 0,
+            dim: 0.35,
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            motion: "fixed",
+            parallaxStrength: 0.18,
+          },
+        },
+      },
+    };
+
+    render(<PlaylistMapPreview config={config} />);
+
+    const background = screen.getByTestId("playlist-map-preview-background");
+    expect(background.querySelector("img")?.getAttribute("src")).toBe(
+      "app://media/%2Ftmp%2Fpreview-map.png"
+    );
+  });
+
   it("includes distant text annotations in preview bounds", () => {
     const graphBoard = graphConfig.boardConfig as GraphBoardConfig;
     const config: PlaylistConfig = {

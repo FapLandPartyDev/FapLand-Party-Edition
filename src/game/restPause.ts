@@ -9,6 +9,9 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 export function resolveEffectiveRestPauseMs(state: GameState): number {
+  if (typeof state.restTimerRemainingMsOverride === "number") {
+    return clamp(state.restTimerRemainingMsOverride, MIN_ROUND_PAUSE_MS, MAX_ROUND_PAUSE_MS);
+  }
   const currentPlayer = state.players[state.currentPlayerIndex];
   if (!currentPlayer) return FALLBACK_ROUND_PAUSE_MS;
   const currentField = state.config.board.find((field) => field.id === currentPlayer.currentNodeId);

@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { ZAutomationLibrary } from "./automation/schema";
 import { ZPlaylistConfig, ZPlaylistSaveMode } from "./playlistSchema";
 
 const ZGameEffect = z.discriminatedUnion("kind", [
@@ -46,15 +47,38 @@ const ZGameEffect = z.discriminatedUnion("kind", [
 const ZBoardField = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  kind: z.enum(["start", "end", "path", "safePoint", "campfire", "round", "randomRound", "perk", "event"]),
+  kind: z.enum([
+    "start",
+    "end",
+    "path",
+    "safePoint",
+    "campfire",
+    "round",
+    "randomRound",
+    "perk",
+    "event",
+    "catapult",
+  ]),
   fixedRoundId: z.string().optional(),
   forceStop: z.boolean().optional(),
   skippable: z.boolean().optional(),
   randomPoolId: z.string().optional(),
+  autoAdvanceAfterCompletion: z.boolean().optional(),
+  hiddenFromMap: z.boolean().optional(),
+  randomSelectionMode: z.enum(["installed", "pool"]).optional(),
+  randomFilter: z
+    .object({
+      tags: z.array(z.string()).optional(),
+      authorNames: z.array(z.string()).optional(),
+      libraryLabels: z.array(z.string()).optional(),
+    })
+    .optional(),
   checkpointRestMs: z.number().int().optional(),
   pauseBonusMs: z.number().int().optional(),
   visualId: z.string().optional(),
   giftGuaranteedPerk: z.boolean().optional(),
+  catapultForward: z.number().int().optional(),
+  catapultLandingOnly: z.boolean().optional(),
   styleHint: z
     .object({
       x: z.number().optional(),
@@ -82,6 +106,7 @@ const ZMapTextAnnotation = z.object({
 });
 
 const ZMapBackgroundMedia = z.object({
+  id: z.string().min(1).optional(),
   kind: z.enum(["image", "video"]),
   uri: z.string().min(1),
   name: z.string().optional(),
@@ -183,6 +208,7 @@ const ZGameConfig = z.object({
   }),
   roundStartDelayMs: z.number().int(),
   disableDiceAnimation: z.boolean().optional(),
+  automations: ZAutomationLibrary.optional().default([]),
 });
 
 const ZInventoryItem = z.object({
@@ -238,6 +264,7 @@ const ZActiveRound = z.object({
   fieldId: z.string().min(1),
   nodeId: z.string().min(1),
   roundId: z.string().min(1),
+  playlistRoundIds: z.array(z.string().min(1)).min(1).optional(),
   roundName: z.string().min(1),
   skippable: z.boolean().optional(),
   selectionKind: z.enum(["fixed", "random", "cum"]),
@@ -289,6 +316,41 @@ const ZPendingPerkSelection = z.object({
   ),
 });
 
+const ZAutomationRuntimeEvent = z.object({
+  id: z.string().min(1),
+  kind: z.enum([
+    "node.enter",
+    "node.leave",
+    "node.stay",
+    "player.stateChanged",
+    "player.controlUsed",
+    "round.lifecycle",
+    "music.stateChanged",
+    "session.timer",
+    "board.pathChoiceStarted",
+    "board.pathChoiceResolved",
+  ]),
+  playerId: z.string().min(1).optional(),
+  nodeId: z.string().min(1).optional(),
+  previousNodeId: z.string().min(1).optional(),
+  elapsedMs: z.number().int().optional(),
+  repeatMode: z.enum(["once", "repeat"]).optional(),
+  control: z.enum(["pause", "skip"]).optional(),
+  roundPhase: z.enum(["queued", "started", "ended", "skipped"]).optional(),
+  musicState: z.enum(["trackStarted", "trackEnded", "paused", "resumed"]).optional(),
+  timer: z.enum(["restPauseStarted", "restPauseElapsed", "turnStarted"]).optional(),
+  stateKey: z.enum(["hasPerk", "hasAntiPerk", "shieldRounds", "money", "score"]).optional(),
+  timestampMs: z.number().int().nonnegative(),
+});
+
+const ZAutomationScheduledStep = z.object({
+  executionId: z.string().min(1),
+  ruleId: z.string().min(1),
+  stepIndex: z.number().int().nonnegative(),
+  runAtMs: z.number().int().nonnegative(),
+  event: ZAutomationRuntimeEvent,
+});
+
 export const ZPersistedGameState = z.object({
   config: ZGameConfig,
   players: z.array(ZPlayerState),
@@ -302,12 +364,66 @@ export const ZPersistedGameState = z.object({
   antiPerkProbability: z.number(),
   queuedRound: ZActiveRound.nullable(),
   activeRound: ZActiveRound.nullable(),
-  queuedRoundAudioEffect: ZRoundAudioEffect.nullable().optional().transform((value) => value ?? null),
-  activeRoundAudioEffect: ZRoundAudioEffect.nullable().optional().transform((value) => value ?? null),
+  queuedRoundAudioEffect: ZRoundAudioEffect.nullable()
+    .optional()
+    .transform((value) => value ?? null),
+  activeRoundAudioEffect: ZRoundAudioEffect.nullable()
+    .optional()
+    .transform((value) => value ?? null),
   pendingPathChoice: ZPendingPathChoice.nullable(),
   pendingPerkSelection: ZPendingPerkSelection.nullable(),
   lastTraversalPathNodeIds: z.array(z.string()),
   playedRoundIdsByPool: z.record(z.string(), z.array(z.string())),
+  automationState: z
+    .object({
+      queuedEvents: z.array(ZAutomationRuntimeEvent),
+      scheduledSteps: z.array(ZAutomationScheduledStep),
+      nowMs: z.number().int().nonnegative(),
+      executionCountThisTick: z.number().int().nonnegative(),
+    })
+    .optional()
+    .default({
+      queuedEvents: [],
+      scheduledSteps: [],
+      nowMs: 0,
+      executionCountThisTick: 0,
+    }),
+  runtimeMapOverrides: z
+    .object({
+      backgroundOverride: ZMapBackgroundMedia.nullable(),
+    })
+    .optional()
+    .default({
+      backgroundOverride: null,
+    }),
+  runtimeMusicState: z
+    .object({
+      currentTrackId: z.string().min(1).nullable(),
+      currentTrackName: z.string().min(1).nullable(),
+      isPlaying: z.boolean(),
+      loop: z.boolean(),
+    })
+    .optional()
+    .default({
+      currentTrackId: null,
+      currentTrackName: null,
+      isPlaying: false,
+      loop: true,
+    }),
+  recentAutomationEvents: z.array(ZAutomationRuntimeEvent).optional().default([]),
+  ruleCooldownsById: z.record(z.string(), z.number().int().nonnegative()).optional().default({}),
+  automationRuleOverrides: z
+    .record(
+      z.string(),
+      z.object({
+        enabled: z.boolean().optional(),
+        cooldownMs: z.number().int().min(0).optional(),
+      })
+    )
+    .optional()
+    .default({}),
+  restTimerPaused: z.boolean().default(false),
+  restTimerRemainingMsOverride: z.number().int().min(0).nullable().default(null),
   log: z.array(z.string()),
   lastRoll: z.number().int().nullable(),
   completionReason: z.enum(["finished", "self_reported_cum", "cum_instruction_failed"]).nullable(),

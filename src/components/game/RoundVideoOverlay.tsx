@@ -531,6 +531,7 @@ export function RoundVideoOverlay({
   const [missingMediaAutoCloseRemainingSec, setMissingMediaAutoCloseRemainingSec] = useState<
     number | null
   >(null);
+  const [playlistIndex, setPlaylistIndex] = useState(0);
   const [awaitingPlaybackUnmute, setAwaitingPlaybackUnmute] = useState(false);
   const { getVideoSrc, ensurePlayableVideo, handleVideoError } = usePlayableVideoFallback();
 
@@ -592,10 +593,25 @@ export function RoundVideoOverlay({
     setAwaitingPlaybackUnmute(false);
   }, [activeRound?.fieldId, activeRound?.roundId]);
 
+  useEffect(() => {
+    setPlaylistIndex(0);
+  }, [activeRound?.fieldId, activeRound?.roundId]);
+
+  const playlistRoundIds = useMemo(() => {
+    if (!activeRound) return [];
+    const ids = activeRound.playlistRoundIds?.length
+      ? activeRound.playlistRoundIds
+      : [activeRound.roundId];
+    return [...new Set(ids.filter(Boolean))];
+  }, [activeRound]);
+
+  const activePlaylistRoundId = playlistRoundIds[playlistIndex] ?? playlistRoundIds[0] ?? null;
+  const hasNextPlaylistVideo = playlistIndex < playlistRoundIds.length - 1;
+
   const resolvedRound = useMemo(() => {
     if (!activeRound) return null;
-    return installedRounds.find((round) => round.id === activeRound.roundId) ?? null;
-  }, [activeRound, installedRounds]);
+    return installedRounds.find((round) => round.id === activePlaylistRoundId) ?? null;
+  }, [activePlaylistRoundId, activeRound, installedRounds]);
   const resolvedMainResource = useMemo<PlaybackResource | null>(() => {
     const resource = resolvedRound?.resources[0];
     if (!resource) return null;
@@ -1342,11 +1358,7 @@ export function RoundVideoOverlay({
     void video
       .play()
       .then(() => {
-        if (
-          shouldUseHandySync &&
-          !handyManuallyStoppedRef.current &&
-          handySyncState === "synced"
-        ) {
+        if (shouldUseHandySync && !handyManuallyStoppedRef.current && handySyncState === "synced") {
           void resumeHandyIfNeeded();
         }
       })
@@ -1411,6 +1423,21 @@ export function RoundVideoOverlay({
       onFinishRound(summary);
     });
   }, [activeRound?.phaseKind, onFinishRound, stopHandyIfNeeded]);
+
+  const advancePlaylistOrFinish = useCallback(() => {
+    if (hasNextPlaylistVideo) {
+      foregroundMainVideo.handleEnded();
+      setPlaylistIndex((index) => Math.min(index + 1, playlistRoundIds.length - 1));
+      return;
+    }
+    foregroundMainVideo.handleEnded();
+    finishWithSummary();
+  }, [finishWithSummary, foregroundMainVideo, hasNextPlaylistVideo, playlistRoundIds.length]);
+
+  const skipToNextPlaylistVideo = useCallback(() => {
+    if (!hasNextPlaylistVideo || segment.kind !== "main") return;
+    advancePlaylistOrFinish();
+  }, [advancePlaylistOrFinish, hasNextPlaylistVideo, segment.kind]);
 
   const resolveCumRoundOutcome = useCallback(
     (cumOutcome: CumRoundOutcome) => {
@@ -2191,7 +2218,7 @@ export function RoundVideoOverlay({
       return;
     }
 
-    const roundKey = `${activeRound.roundId}:${activeRound.fieldId}:${resolvedMainResource.videoUri}`;
+    const roundKey = `${activeRound.roundId}:${activeRound.fieldId}:${activePlaylistRoundId ?? activeRound.roundId}:${resolvedMainResource.videoUri}`;
     if (initializedRoundKeyRef.current === roundKey) return;
     initializedRoundKeyRef.current = roundKey;
 
@@ -2265,6 +2292,7 @@ export function RoundVideoOverlay({
     setRandomIntermediaryQueue(queue);
   }, [
     activeRound,
+    activePlaylistRoundId,
     allowAutomaticIntermediaries,
     currentPlayer,
     deterministicTestIntermediary,
@@ -3694,6 +3722,24 @@ export function RoundVideoOverlay({
                 >
                   {t`End Intermediary (J)`}
                 </button>
+                {playlistRoundIds.length > 1 && (
+                  <button
+                    className={`pointer-events-auto rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+                      hasNextPlaylistVideo && segment.kind === "main"
+                        ? "border-cyan-300/60 bg-cyan-500/20 text-cyan-100 hover:bg-cyan-500/35"
+                        : "border-zinc-500/50 bg-zinc-700/20 text-zinc-300"
+                    }`}
+                    disabled={!hasNextPlaylistVideo || segment.kind !== "main"}
+                    onClick={() => {
+                      playSelectSound();
+                      skipToNextPlaylistVideo();
+                    }}
+                    onMouseEnter={() => playHoverSound()}
+                    type="button"
+                  >
+                    {t`Next Video`}
+                  </button>
+                )}
                 <button
                   className="pointer-events-auto rounded-md border border-amber-300/60 bg-amber-500/20 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-100 transition-colors hover:bg-amber-500/35"
                   onClick={() => {
@@ -3831,8 +3877,7 @@ export function RoundVideoOverlay({
               }}
               onEnded={() => {
                 if (segment.kind !== "main") return;
-                foregroundMainVideo.handleEnded();
-                finishWithSummary();
+                advancePlaylistOrFinish();
               }}
             >
               <track kind="captions" label={t`Gameplay captions`} />
@@ -4349,6 +4394,11 @@ export function RoundVideoOverlay({
                 {t`Current script position`}:{" "}
                 {typeof funscriptPosition === "number" ? Math.trunc(funscriptPosition) : "-"}
               </div>
+              {playlistRoundIds.length > 1 && (
+                <div>
+                  {t`Video queue`}: {playlistIndex + 1}/{playlistRoundIds.length}
+                </div>
+              )}
               {isDevelopmentMode && (
                 <div>
                   {t`Intermediary queue`}: {fullIntermediaryQueue.length}

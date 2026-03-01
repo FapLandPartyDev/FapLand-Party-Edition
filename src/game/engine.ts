@@ -1,6 +1,7 @@
 import type { InstalledRound } from "../services/db";
 import { getPerkById, getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "./data/perks";
 import { resolvePerkRarity } from "./data/perkRarity";
+import { appendAutomationEvent, createInitialAutomationState } from "./automation/state";
 import type {
   ActivePerkEffect,
   CompletedRoundSummary,
@@ -154,6 +155,33 @@ function getRoundById(
   roundId: string
 ): InstalledRound | undefined {
   return installedRounds.find((round) => round.id === roundId);
+}
+
+function normalizeMetadataSet(values: string[] | undefined | null): Set<string> {
+  return new Set((values ?? []).map((entry) => entry.trim().toLowerCase()).filter(Boolean));
+}
+
+function roundMatchesRandomFilter(
+  round: InstalledRound,
+  filter: GameConfig["board"][number]["randomFilter"]
+): boolean {
+  if (!filter) return true;
+  const roundTags = normalizeMetadataSet(round.tags);
+  const heroTags = normalizeMetadataSet(round.hero?.tags);
+  const combinedTags = new Set([...roundTags, ...heroTags]);
+  const authorName = (round.author ?? round.hero?.author ?? "").trim().toLowerCase();
+  const libraryLabel = (round.libraryLabel ?? "").trim().toLowerCase();
+
+  const tags = normalizeMetadataSet(filter.tags);
+  if (tags.size > 0 && ![...tags].some((entry) => combinedTags.has(entry))) return false;
+
+  const authorNames = normalizeMetadataSet(filter.authorNames);
+  if (authorNames.size > 0 && !authorNames.has(authorName)) return false;
+
+  const libraryLabels = normalizeMetadataSet(filter.libraryLabels);
+  if (libraryLabels.size > 0 && !libraryLabels.has(libraryLabel)) return false;
+
+  return true;
 }
 
 function getInstalledCumRounds(installedRounds: InstalledRound[]): InstalledRound[] {
@@ -713,11 +741,19 @@ export function triggerPerkSelection(
 function advanceTurn(state: GameState): GameState {
   const withTickedPerks = tickPerkDurations(state);
   const nextPlayerIndex = (withTickedPerks.currentPlayerIndex + 1) % withTickedPerks.players.length;
-  return {
-    ...withTickedPerks,
-    currentPlayerIndex: nextPlayerIndex,
-    turn: withTickedPerks.turn + 1,
-  };
+  return appendAutomationEvent(
+    {
+      ...withTickedPerks,
+      currentPlayerIndex: nextPlayerIndex,
+      turn: withTickedPerks.turn + 1,
+    },
+    {
+      kind: "session.timer",
+      playerId: withTickedPerks.players[nextPlayerIndex]?.id,
+      nodeId: withTickedPerks.players[nextPlayerIndex]?.currentNodeId,
+      timer: "turnStarted",
+    }
+  );
 }
 
 function getValidOutgoingEdges(
@@ -729,11 +765,25 @@ function getValidOutgoingEdges(
   return edgeIds
     .map((edgeId) => state.config.runtimeGraph.edgesById[edgeId])
     .filter((edge): edge is RuntimeGraphEdge => Boolean(edge))
-    .filter((edge) => playerMoney >= edge.gateCost);
+    .filter((edge) => {
+      if (edge.fromNodeId !== nodeId) return false;
+      const targetIndex = state.config.runtimeGraph.nodeIndexById[edge.toNodeId];
+      const targetField = typeof targetIndex === "number" ? state.config.board[targetIndex] : undefined;
+      return (
+        targetField?.id === edge.toNodeId &&
+        Number.isFinite(edge.gateCost) &&
+        edge.gateCost >= 0 &&
+        playerMoney >= edge.gateCost
+      );
+    });
 }
 
 function getRandomRoundHistoryKey(nodeId: string): string {
   return `__random-node__:${nodeId}`;
+}
+
+function getRandomPoolHistoryKey(poolId: string): string {
+  return `__random-pool__:${poolId}`;
 }
 
 function resolveRandomInstalledRound(
@@ -741,18 +791,23 @@ function resolveRandomInstalledRound(
   installedRounds: ReadonlyArray<InstalledRound>,
   nodeId: string
 ): { roundId: string | null; nextState: GameState; historyKey: string } {
-  const historyKey = getRandomRoundHistoryKey(nodeId);
-  const pool = state.config.runtimeGraph.randomRoundPoolsById["__installed-rounds__"];
-  const candidates =
-    pool?.candidates ??
-    installedRounds
-      .filter(
-        (round) => !round.excludeFromRandom && (round.type ?? "Normal") === "Normal"
-      )
-      .map((round) => ({
-        roundId: round.id,
-        weight: 1,
-      }));
+  const nodeIndex = state.config.runtimeGraph.nodeIndexById[nodeId] ?? 0;
+  const field = state.config.board[nodeIndex];
+  const selectionMode = field?.randomSelectionMode ?? "installed";
+  const historyKey =
+    selectionMode === "pool" && field?.randomPoolId
+      ? getRandomPoolHistoryKey(field.randomPoolId)
+      : getRandomRoundHistoryKey(nodeId);
+  const pool =
+    selectionMode === "pool" && field?.randomPoolId
+      ? state.config.runtimeGraph.randomRoundPoolsById[field.randomPoolId]
+      : state.config.runtimeGraph.randomRoundPoolsById["__installed-rounds__"];
+  const candidates = (pool?.candidates ?? []).filter((candidate) => {
+    const round = getRoundById([...installedRounds], candidate.roundId);
+    if (!round) return false;
+    if ((round.type ?? "Normal") !== "Normal" || round.excludeFromRandom) return false;
+    return roundMatchesRandomFilter(round, field?.randomFilter);
+  });
 
   if (candidates.length === 0) {
     return { roundId: null, nextState: state, historyKey };
@@ -795,24 +850,33 @@ function queueRoundFromNode(
   const nodeIndex = state.config.runtimeGraph.nodeIndexById[nodeId];
   const field = typeof nodeIndex === "number" ? state.config.board[nodeIndex] : undefined;
 
-  return {
-    ...state,
-    queuedRound: {
-      fieldId: field?.id ?? nodeId,
-      nodeId,
-      roundId,
-      roundName: round?.name ?? field?.name ?? roundId,
-      skippable: field?.skippable,
-      selectionKind,
-      poolId,
-      phaseKind: "normal",
-      campaignIndex: typeof nodeIndex === "number" ? nodeIndex : null,
+  return appendAutomationEvent(
+    {
+      ...state,
+      queuedRound: {
+        fieldId: field?.id ?? nodeId,
+        nodeId,
+        roundId,
+        playlistRoundIds: field?.playlistRoundIds,
+        roundName: round?.name ?? field?.name ?? roundId,
+        skippable: field?.skippable,
+        selectionKind,
+        poolId,
+        phaseKind: "normal",
+        campaignIndex: typeof nodeIndex === "number" ? nodeIndex : null,
+      },
+      log: [
+        `${state.players[state.currentPlayerIndex]?.name ?? "Player"} landed on ${field?.name ?? nodeId}. ${round?.name ?? field?.name ?? roundId} starts after countdown.`,
+        ...state.log,
+      ].slice(0, 40),
     },
-    log: [
-      `${state.players[state.currentPlayerIndex]?.name ?? "Player"} landed on ${field?.name ?? nodeId}. ${round?.name ?? field?.name ?? roundId} starts after countdown.`,
-      ...state.log,
-    ].slice(0, 40),
-  };
+    {
+      kind: "round.lifecycle",
+      nodeId,
+      playerId: state.players[state.currentPlayerIndex]?.id,
+      roundPhase: "queued",
+    }
+  );
 }
 
 function canSkipQueuedRound(state: GameState): boolean {
@@ -821,7 +885,8 @@ function canSkipQueuedRound(state: GameState): boolean {
 
 function movePlayerToNode(state: GameState, playerId: string, nodeId: string): GameState {
   const nodeIndex = state.config.runtimeGraph.nodeIndexById[nodeId] ?? 0;
-  return {
+  const previousNodeId = state.players.find((player) => player.id === playerId)?.currentNodeId;
+  const movedState = {
     ...state,
     players: updatePlayer(state.players, playerId, (player) => ({
       ...player,
@@ -829,6 +894,20 @@ function movePlayerToNode(state: GameState, playerId: string, nodeId: string): G
       position: nodeIndex,
     })),
   };
+  const withLeaveEvent = previousNodeId
+    ? appendAutomationEvent(movedState, {
+        kind: "node.leave",
+        playerId,
+        nodeId: previousNodeId,
+        previousNodeId,
+      })
+    : movedState;
+  return appendAutomationEvent(withLeaveEvent, {
+    kind: "node.enter",
+    playerId,
+    nodeId,
+    previousNodeId,
+  });
 }
 
 function resolveSafePointLanding(
@@ -1183,12 +1262,19 @@ function traverseMovement(
       };
 
       return {
-        state: {
-          ...nextState,
-          pendingPathChoice,
-          lastTraversalPathNodeIds: path,
-          log: ["Path choice required.", ...nextState.log].slice(0, 40),
-        },
+        state: appendAutomationEvent(
+          {
+            ...nextState,
+            pendingPathChoice,
+            lastTraversalPathNodeIds: path,
+            log: ["Path choice required.", ...nextState.log].slice(0, 40),
+          },
+          {
+            kind: "board.pathChoiceStarted",
+            playerId: currentPlayer.id,
+            nodeId: currentPlayer.currentNodeId,
+          }
+        ),
         stoppedAtSafePoint,
       };
     }
@@ -1260,6 +1346,12 @@ export function selectPathEdge(
 
   const edge = state.config.runtimeGraph.edgesById[edgeId];
   if (!edge || edge.fromNodeId !== pending.fromNodeId) return state;
+  if (!pending.options.some((option) => option.edgeId === edgeId)) return state;
+
+  const targetIndex = state.config.runtimeGraph.nodeIndexById[edge.toNodeId];
+  const targetField = typeof targetIndex === "number" ? state.config.board[targetIndex] : undefined;
+  if (targetField?.id !== edge.toNodeId) return state;
+  if (!Number.isFinite(edge.gateCost) || edge.gateCost < 0) return state;
 
   const currentPlayer = state.players[state.currentPlayerIndex];
   if (
@@ -1283,10 +1375,17 @@ export function selectPathEdge(
     pending.traversedNodeIds
   );
 
-  let next = {
-    ...traversedFirst.state,
-    lastTraversalPathNodeIds: traversedFirst.traversedNodeIds,
-  };
+  let next = appendAutomationEvent(
+    {
+      ...traversedFirst.state,
+      lastTraversalPathNodeIds: traversedFirst.traversedNodeIds,
+    },
+    {
+      kind: "board.pathChoiceResolved",
+      playerId: currentPlayer.id,
+      nodeId: edge.toNodeId,
+    }
+  );
 
   if (
     traversedFirst.stoppedAtSafePoint ||
@@ -1346,7 +1445,15 @@ export function resolvePathChoiceTimeout(
 
   const validOptions = pending.options.filter((option) => {
     const edge = state.config.runtimeGraph.edgesById[option.edgeId];
-    return edge && edge.fromNodeId === pending.fromNodeId && currentPlayer.money >= edge.gateCost;
+    if (!edge || edge.fromNodeId !== pending.fromNodeId) return false;
+    const targetIndex = state.config.runtimeGraph.nodeIndexById[edge.toNodeId];
+    const targetField = typeof targetIndex === "number" ? state.config.board[targetIndex] : undefined;
+    return (
+      targetField?.id === edge.toNodeId &&
+      Number.isFinite(edge.gateCost) &&
+      edge.gateCost >= 0 &&
+      currentPlayer.money >= edge.gateCost
+    );
   });
 
   if (validOptions.length === 0) {
@@ -1437,6 +1544,21 @@ export function createInitialGameState(
     pendingPerkSelection: null,
     lastTraversalPathNodeIds: [startNodeId],
     playedRoundIdsByPool: { ...(options?.playedRoundIdsByPool ?? {}) },
+    automationState: createInitialAutomationState(),
+    runtimeMapOverrides: {
+      backgroundOverride: null,
+    },
+    runtimeMusicState: {
+      currentTrackId: config.playlistMusic?.tracks[0]?.id ?? null,
+      currentTrackName: config.playlistMusic?.tracks[0]?.name ?? null,
+      isPlaying: Boolean(config.playlistMusic?.tracks[0]),
+      loop: config.playlistMusic?.loop ?? true,
+    },
+    recentAutomationEvents: [],
+    ruleCooldownsById: {},
+    automationRuleOverrides: {},
+    restTimerPaused: false,
+    restTimerRemainingMsOverride: null,
     log: ["Game initialized."],
     lastRoll: null,
     completionReason: null,
@@ -1549,14 +1671,22 @@ export function triggerQueuedRound(state: GameState): GameState {
           reason: "No-rest ended when the round started.",
         })
       : state;
-  return {
-    ...withResolvedNoRest,
-    activeRound: state.queuedRound,
-    activeRoundAudioEffect: withResolvedNoRest.queuedRoundAudioEffect,
-    queuedRound: null,
-    queuedRoundAudioEffect: null,
-    log: [`${state.queuedRound.roundName} started.`, ...withResolvedNoRest.log].slice(0, 40),
-  };
+  return appendAutomationEvent(
+    {
+      ...withResolvedNoRest,
+      activeRound: state.queuedRound,
+      activeRoundAudioEffect: withResolvedNoRest.queuedRoundAudioEffect,
+      queuedRound: null,
+      queuedRoundAudioEffect: null,
+      log: [`${state.queuedRound.roundName} started.`, ...withResolvedNoRest.log].slice(0, 40),
+    },
+    {
+      kind: "round.lifecycle",
+      playerId: currentPlayerId,
+      nodeId: state.queuedRound.nodeId,
+      roundPhase: "started",
+    }
+  );
 }
 
 export function shouldAutoStartQueuedRound(state: GameState): boolean {
@@ -1583,13 +1713,21 @@ export function completeRound(
   if (activeRound.phaseKind === "cum") {
     const cumOutcome: CumRoundOutcome = summary?.cumOutcome ?? "did_not_cum";
     if (cumOutcome === "failed_instruction") {
-      return {
-        ...state,
-        activeRound: null,
-        sessionPhase: "completed",
-        completionReason: "cum_instruction_failed",
-        log: [`Cum round failed: ${activeRound.roundName}.`, ...state.log].slice(0, 40),
-      };
+      return appendAutomationEvent(
+        {
+          ...state,
+          activeRound: null,
+          sessionPhase: "completed",
+          completionReason: "cum_instruction_failed",
+          log: [`Cum round failed: ${activeRound.roundName}.`, ...state.log].slice(0, 40),
+        },
+        {
+          kind: "round.lifecycle",
+          playerId: currentPlayer.id,
+          nodeId: activeRound.nodeId,
+          roundPhase: "ended",
+        }
+      );
     }
 
     const cumBonusScore = Math.max(0, state.config.economy.scorePerCumRoundSuccess);
@@ -1609,12 +1747,20 @@ export function completeRound(
         ...state.log,
       ].slice(0, 40),
     };
-    return {
-      ...nextAfterCum,
-      sessionPhase: "completed",
-      completionReason: "finished",
-      log: ["Session completed.", ...nextAfterCum.log].slice(0, 40),
-    };
+    return appendAutomationEvent(
+      {
+        ...nextAfterCum,
+        sessionPhase: "completed",
+        completionReason: "finished",
+        log: ["Session completed.", ...nextAfterCum.log].slice(0, 40),
+      },
+      {
+        kind: "round.lifecycle",
+        playerId: currentPlayer.id,
+        nodeId: activeRound.nodeId,
+        roundPhase: "ended",
+      }
+    );
   }
 
   const intermediaryCount = Math.max(0, summary?.intermediaryCount ?? 0);
@@ -1651,19 +1797,27 @@ export function completeRound(
   const updatedPlayer = nextPlayers[state.currentPlayerIndex];
   const nextHighscore = Math.max(state.highscore, updatedPlayer?.score ?? 0);
 
-  let next: GameState = {
-    ...state,
-    players: nextPlayers,
-    highscore: nextHighscore,
-    activeRound: null,
-    activeRoundAudioEffect: null,
-    intermediaryProbability: nextIntermediaryProbability,
-    antiPerkProbability: nextAntiPerkProbability,
-    log: [
-      `Round finished. +$${moneyEarned}, +${scoreEarned} score (${intermediaryCount} intermediary, ${activeAntiPerkCount} anti-perks). Chances now ${Math.round(nextIntermediaryProbability * 100)}%/${Math.round(nextAntiPerkProbability * 100)}%.`,
-      ...state.log,
-    ].slice(0, 40),
-  };
+  let next: GameState = appendAutomationEvent(
+    {
+      ...state,
+      players: nextPlayers,
+      highscore: nextHighscore,
+      activeRound: null,
+      activeRoundAudioEffect: null,
+      intermediaryProbability: nextIntermediaryProbability,
+      antiPerkProbability: nextAntiPerkProbability,
+      log: [
+        `Round finished. +$${moneyEarned}, +${scoreEarned} score (${intermediaryCount} intermediary, ${activeAntiPerkCount} anti-perks). Chances now ${Math.round(nextIntermediaryProbability * 100)}%/${Math.round(nextAntiPerkProbability * 100)}%.`,
+        ...state.log,
+      ].slice(0, 40),
+    },
+    {
+      kind: "round.lifecycle",
+      playerId: currentPlayer.id,
+      nodeId: activeRound.nodeId,
+      roundPhase: "ended",
+    }
+  );
 
   if (state.activeRoundAudioEffect?.sourcePerkId && currentPlayer) {
     next = consumeAntiPerkById(next, {
@@ -1674,14 +1828,49 @@ export function completeRound(
   }
 
   const currentNodeId = next.players[next.currentPlayerIndex]?.currentNodeId;
-  const outgoing = currentNodeId
-    ? (next.config.runtimeGraph.outgoingEdgeIdsByNodeId[currentNodeId] ?? [])
-    : [];
+  const currentPlayerAfterRound = next.players[next.currentPlayerIndex];
+  const validOutgoingEdges =
+    currentNodeId && currentPlayerAfterRound
+      ? getValidOutgoingEdges(next, currentNodeId, currentPlayerAfterRound.money)
+      : [];
+  const activeRoundField = next.config.board.find((field) => field.id === activeRound.fieldId);
   const hasExplicitEndNodes = next.config.board.some((field) => field.kind === "end");
+
+  if (activeRoundField?.autoAdvanceAfterCompletion && currentNodeId && validOutgoingEdges.length === 1) {
+    const outgoingEdge = validOutgoingEdges[0];
+    if (outgoingEdge) {
+      const traversed = continueTraversalWithEdge(next, installedRounds, outgoingEdge, 1, [
+        currentNodeId,
+      ]);
+      next = {
+        ...traversed.state,
+        lastTraversalPathNodeIds: traversed.traversedNodeIds,
+      };
+      if (
+        next.pendingPerkSelection ||
+        next.pendingPathChoice ||
+        next.queuedRound ||
+        next.activeRound ||
+        next.sessionPhase !== "normal"
+      ) {
+        return next;
+      }
+      next = resolveFinalNodeLanding(next, installedRounds, randoms);
+      if (
+        next.pendingPerkSelection ||
+        next.pendingPathChoice ||
+        next.queuedRound ||
+        next.activeRound ||
+        next.sessionPhase !== "normal"
+      ) {
+        return next;
+      }
+    }
+  }
 
   if (
     !hasExplicitEndNodes &&
-    outgoing.length === 0 &&
+    validOutgoingEdges.length === 0 &&
     next.config.singlePlayer.cumRoundIds.length > 0
   ) {
     next = startCumPhase(next, installedRounds);
@@ -1699,7 +1888,7 @@ export function completeRound(
 
   if (
     !hasExplicitEndNodes &&
-    outgoing.length === 0 &&
+    validOutgoingEdges.length === 0 &&
     next.config.singlePlayer.cumRoundIds.length === 0
   ) {
     return {
@@ -1711,7 +1900,7 @@ export function completeRound(
   }
 
   const updatedCurrentPlayer = next.players[next.currentPlayerIndex];
-  const roundField = next.config.board.find((f) => f.id === activeRound.fieldId);
+  const roundField = activeRoundField;
   const isPerkNode = roundField?.kind === "perk";
   const perkTriggerRoll = randoms?.perkTriggerRoll ?? Math.random();
   if (
@@ -1926,14 +2115,22 @@ export function useRoundControl(
       ? { ...controls, pauseCharges: controls.pauseCharges - 1 }
       : { ...controls, skipCharges: controls.skipCharges - 1 };
 
-  return {
-    ...state,
-    players: updatePlayer(state.players, input.playerId, (entry) => ({
-      ...entry,
-      roundControl: nextControls,
-    })),
-    log: [`Used ${input.control} charge.`, ...state.log].slice(0, 40),
-  };
+  return appendAutomationEvent(
+    {
+      ...state,
+      players: updatePlayer(state.players, input.playerId, (entry) => ({
+        ...entry,
+        roundControl: nextControls,
+      })),
+      log: [`Used ${input.control} charge.`, ...state.log].slice(0, 40),
+    },
+    {
+      kind: "player.controlUsed",
+      playerId: input.playerId,
+      nodeId: player.currentNodeId,
+      control: input.control,
+    }
+  );
 }
 
 export function skipPerkSelection(state: GameState): GameState {
@@ -2007,14 +2204,22 @@ export function adjustPlayerMoney(
   const reason = input.reason?.trim() ?? "External economy adjustment.";
   const sign = delta >= 0 ? "+" : "";
 
-  return {
-    ...state,
-    players: updatePlayer(state.players, input.playerId, (entry) => ({
-      ...entry,
-      money: nextMoney,
-    })),
-    log: [`${reason} (${sign}${delta}).`, ...state.log].slice(0, 40),
-  };
+  return appendAutomationEvent(
+    {
+      ...state,
+      players: updatePlayer(state.players, input.playerId, (entry) => ({
+        ...entry,
+        money: nextMoney,
+      })),
+      log: [`${reason} (${sign}${delta}).`, ...state.log].slice(0, 40),
+    },
+    {
+      kind: "player.stateChanged",
+      playerId: input.playerId,
+      nodeId: player.currentNodeId,
+      stateKey: "money",
+    }
+  );
 }
 
 export function describePerkEffects(perk: PerkDefinition): string {

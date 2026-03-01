@@ -292,6 +292,52 @@ export async function repairSinglePlayerRunSaveSchema(
   }
 }
 
+export async function repairRoundHeroMetadataSchema(
+  dbInstance: ReturnType<typeof drizzle<typeof schema>>
+): Promise<void> {
+  const roundTagsJsonExists = await hasColumn(dbInstance, "Round", "tagsJson");
+  if (!roundTagsJsonExists) {
+    await dbInstance.$client.execute(
+      `ALTER TABLE "Round" ADD COLUMN "tagsJson" text NOT NULL DEFAULT '[]'`
+    );
+  }
+
+  const heroTagsJsonExists = await hasColumn(dbInstance, "Hero", "tagsJson");
+  if (!heroTagsJsonExists) {
+    await dbInstance.$client.execute(
+      `ALTER TABLE "Hero" ADD COLUMN "tagsJson" text NOT NULL DEFAULT '[]'`
+    );
+  }
+}
+
+export async function repairInstalledLibrarySchema(
+  dbInstance: ReturnType<typeof drizzle<typeof schema>>
+): Promise<void> {
+  const resourceDurationMsExists = await hasColumn(dbInstance, "Resource", "durationMs");
+  if (!resourceDurationMsExists) {
+    await dbInstance.$client.execute(`ALTER TABLE "Resource" ADD COLUMN "durationMs" integer`);
+  }
+
+  const roundCutRangesJsonExists = await hasColumn(dbInstance, "Round", "cutRangesJson");
+  if (!roundCutRangesJsonExists) {
+    await dbInstance.$client.execute(`ALTER TABLE "Round" ADD COLUMN "cutRangesJson" text`);
+  }
+
+  const roundExcludeFromRandomExists = await hasColumn(dbInstance, "Round", "excludeFromRandom");
+  if (!roundExcludeFromRandomExists) {
+    await dbInstance.$client.execute(
+      `ALTER TABLE "Round" ADD COLUMN "excludeFromRandom" integer DEFAULT 0 NOT NULL`
+    );
+  }
+
+  await repairRoundHeroMetadataSchema(dbInstance);
+
+  const roundLibraryLabelExists = await hasColumn(dbInstance, "Round", "libraryLabel");
+  if (!roundLibraryLabelExists) {
+    await dbInstance.$client.execute(`ALTER TABLE "Round" ADD COLUMN "libraryLabel" text`);
+  }
+}
+
 export function resolveDatabaseUrl(context: PortableContext = {}): string {
   const env = getNodeEnv(context.env);
   if (env.databaseUrlRaw) return env.databaseUrl;
@@ -395,6 +441,7 @@ export async function ensureAppDatabaseReady(): Promise<void> {
       await repairCheatModeSchema(dbInstance);
       await repairAssistedSchema(dbInstance);
       await repairSinglePlayerRunSaveSchema(dbInstance);
+      await repairInstalledLibrarySchema(dbInstance);
     })();
   }
   return databaseReadyPromise;

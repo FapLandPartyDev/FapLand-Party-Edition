@@ -109,6 +109,7 @@ type HeroMetadataInput = {
   name: string;
   author?: string | null;
   description?: string | null;
+  tags?: string[];
   phash?: string | null;
 };
 
@@ -116,6 +117,7 @@ type SidecarRoundData = {
   name: string;
   author: string | null;
   description: string | null;
+  tags: string[];
   bpm: number | null;
   difficulty: number | null;
   phash: string | null;
@@ -139,6 +141,7 @@ type ExistingHeroCacheEntry = {
   id: string;
   author: string | null;
   description: string | null;
+  tagsJson: string;
   phash: string | null;
 };
 
@@ -184,6 +187,7 @@ type PreparedRoundWrite = {
   resources: PreparedResource[];
   previewImage: string | null;
   unresolved: boolean;
+  libraryLabel: string | null;
 };
 
 type PreparedInstallEntry =
@@ -457,6 +461,7 @@ async function createInstallSessionContext(
         name: true,
         author: true,
         description: true,
+        tagsJson: true,
         phash: true,
       },
     }),
@@ -505,6 +510,7 @@ async function createInstallSessionContext(
       id: entry.id,
       author: entry.author,
       description: entry.description,
+      tagsJson: entry.tagsJson,
       phash: entry.phash,
     });
     heroById.set(entry.id, {
@@ -512,6 +518,7 @@ async function createInstallSessionContext(
       name: entry.name,
       author: entry.author,
       description: entry.description,
+      tagsJson: entry.tagsJson,
       phash: entry.phash,
     });
   }
@@ -1073,6 +1080,7 @@ function normalizeRoundData(input: InstallRound): SidecarRoundData {
     name: input.name,
     author: normalizeText(input.author),
     description: normalizeText(input.description),
+    tags: [],
     bpm: typeof input.bpm === "number" ? input.bpm : null,
     difficulty: typeof input.difficulty === "number" ? input.difficulty : null,
     phash: normalizeText(input.phash),
@@ -1248,23 +1256,26 @@ async function ensureHeroWithMissingMetadata(
 ): Promise<string> {
   const normalizedAuthor = normalizeText(heroInput.author);
   const normalizedDescription = normalizeText(heroInput.description);
+  const normalizedTags = normalizeTags(heroInput.tags);
   const normalizedPhash = normalizeText(heroInput.phash);
 
   const existing = context.heroByName.get(heroInput.name);
   if (!existing) {
     const [created] = await tx
       .insert(hero)
-      .values({
-        name: heroInput.name,
-        author: normalizedAuthor,
-        description: normalizedDescription,
-        phash: normalizedPhash,
-      })
+        .values({
+          name: heroInput.name,
+          author: normalizedAuthor,
+          description: normalizedDescription,
+          tagsJson: JSON.stringify(normalizedTags),
+          phash: normalizedPhash,
+        })
       .returning({ id: hero.id });
     context.heroByName.set(heroInput.name, {
       id: created.id,
       author: normalizedAuthor,
       description: normalizedDescription,
+      tagsJson: JSON.stringify(normalizedTags),
       phash: normalizedPhash,
     });
     context.heroById.set(created.id, {
@@ -1272,6 +1283,7 @@ async function ensureHeroWithMissingMetadata(
       name: heroInput.name,
       author: normalizedAuthor,
       description: normalizedDescription,
+      tagsJson: JSON.stringify(normalizedTags),
       phash: normalizedPhash,
     });
     return created.id;
@@ -1287,6 +1299,9 @@ async function ensureHeroWithMissingMetadata(
   if (!normalizeText(existing.phash) && normalizedPhash) {
     updateData.phash = normalizedPhash;
   }
+  if (normalizedTags.length > 0) {
+    updateData.tagsJson = JSON.stringify(normalizedTags);
+  }
 
   if (Object.keys(updateData).length > 0) {
     await tx.update(hero).set(updateData).where(eq(hero.id, existing.id));
@@ -1294,6 +1309,7 @@ async function ensureHeroWithMissingMetadata(
       id: existing.id,
       author: updateData.author ?? existing.author,
       description: updateData.description ?? existing.description,
+      tagsJson: updateData.tagsJson ?? existing.tagsJson,
       phash: updateData.phash ?? existing.phash,
     });
     context.heroById.set(existing.id, {
@@ -1301,6 +1317,7 @@ async function ensureHeroWithMissingMetadata(
       name: heroInput.name,
       author: updateData.author ?? existing.author,
       description: updateData.description ?? existing.description,
+      tagsJson: updateData.tagsJson ?? existing.tagsJson,
       phash: updateData.phash ?? existing.phash,
     });
   }
@@ -1342,6 +1359,20 @@ function rememberCanonicalResource(
   }
 }
 
+function normalizeTags(input: string[] | null | undefined): string[] {
+  if (!input) return [];
+  return [...new Set(input.map((entry) => normalizeText(entry)?.toLowerCase()).filter(Boolean))] as string[];
+}
+
+function resolveLibraryLabelFromSidecarPath(
+  sidecarPath: string,
+  source: SidecarSourceMetadata
+): string | null {
+  const sourcePath = source.archiveEntryPath ?? sidecarPath;
+  const dirName = path.basename(path.dirname(sourcePath)).trim();
+  return dirName.length > 0 ? dirName : null;
+}
+
 async function upsertRoundWithResources(
   tx: TransactionClient,
   context: InstallSessionContext,
@@ -1364,6 +1395,7 @@ async function upsertRoundWithResources(
     name: params.round.name,
     author: params.round.author,
     description: params.round.description,
+    tagsJson: JSON.stringify(normalizeTags(params.round.tags)),
     bpm: params.round.bpm,
     difficulty: params.round.difficulty,
     phash: params.round.phash,
@@ -1376,6 +1408,7 @@ async function upsertRoundWithResources(
       : {}),
     heroId: params.heroId,
     installSourceKey: params.installSourceKey,
+    libraryLabel: params.libraryLabel,
     previewImage,
   };
 
@@ -1501,6 +1534,7 @@ async function prepareRoundWrite(
   context: InstallSessionContext,
   installSourceKey: string,
   sidecarPath: string,
+  source: SidecarSourceMetadata,
   roundInput: InstallRound,
   allowLocalFallback: boolean,
   options?: PrepareMediaOptions
@@ -1547,6 +1581,7 @@ async function prepareRoundWrite(
     resources: prepared.resources,
     previewImage: prepared.previewImage,
     unresolved: prepared.resources.length === 0,
+    libraryLabel: resolveLibraryLabelFromSidecarPath(sidecarPath, source),
   };
 }
 
@@ -1674,6 +1709,7 @@ async function prepareRoundSidecar(
           ? toFpackInstallSourceKey(source.archiveEntryPath)
           : toFilesystemInstallSourceKey(sidecarPath),
         sidecarPath,
+        source,
         parsed.data,
         true
       ),
@@ -1707,6 +1743,7 @@ async function prepareHeroSidecar(
             ? toFpackInstallSourceKey(source.archiveEntryPath, index)
             : toFilesystemInstallSourceKey(sidecarPath, index),
           sidecarPath,
+          source,
           { ...entry, hero: undefined },
           false
         );
@@ -2265,6 +2302,7 @@ async function prepareLegacyRoundEntry(
       context,
       `legacy:${toPortableDataInstallSourceKey(absoluteVideoPath) ?? absoluteVideoPath}`,
       absoluteVideoPath,
+      { sourceKind: "filesystem" },
       {
         name: parsed.name,
         author: null,

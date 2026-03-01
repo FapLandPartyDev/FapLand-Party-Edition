@@ -105,6 +105,9 @@ export default defineConfig(({ command, mode }) => {
     "import.meta.env.FLAND_ENABLE_DEV_FEATURES": JSON.stringify(
       enableDevFeatures ? "true" : "false"
     ),
+    "import.meta.env.FLAND_STARTUP_SAFE_MODE": JSON.stringify(
+      env.FLAND_STARTUP_SAFE_MODE ?? process.env.FLAND_STARTUP_SAFE_MODE ?? ""
+    ),
     "import.meta.env.FLAND_UPDATE_REPOSITORY": JSON.stringify(
       env.FLAND_UPDATE_REPOSITORY ?? process.env.FLAND_UPDATE_REPOSITORY ?? ""
     ),

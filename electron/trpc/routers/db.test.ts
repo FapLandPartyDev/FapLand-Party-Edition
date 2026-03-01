@@ -1734,6 +1734,53 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     expect(getWebsiteVideoCacheStateMock).not.toHaveBeenCalled();
   });
 
+  it("loads disabled round ids without selecting unrelated round or resource columns", async () => {
+    const caller = createRendererCaller();
+
+    roundsByIdRef.set("round-2", {
+      id: "round-2",
+      name: "Disabled Resource Round",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: null,
+      endTime: null,
+      type: "Normal",
+      installSourceKey: null,
+      previewImage: null,
+      phash: null,
+      createdAt: new Date("2026-03-06T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:00.000Z"),
+    });
+    resourcesByIdRef.set("resource-2", {
+      id: "resource-2",
+      roundId: "round-2",
+      videoUri: "file:///tmp/round-2.mp4",
+      funscriptUri: null,
+      phash: null,
+      durationMs: null,
+      disabled: true,
+      createdAt: new Date("2026-03-06T00:00:00.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:00.000Z"),
+    });
+
+    await expect(caller.getDisabledRoundIds()).resolves.toEqual(["round-2"]);
+
+    expect(dbMockRef.query.round.findMany).toHaveBeenCalledWith({
+      columns: {
+        id: true,
+      },
+      with: {
+        resources: {
+          columns: {
+            disabled: true,
+          },
+        },
+      },
+    });
+  });
+
   it("returns installed round card assets only for requested ids", async () => {
     const caller = createRendererCaller();
 

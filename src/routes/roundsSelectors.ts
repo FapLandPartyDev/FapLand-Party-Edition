@@ -11,6 +11,7 @@ export type RoundLibraryEntry = InstalledRound | InstalledRoundCatalogEntry;
 export type TypeFilter = "all" | NonNullable<RoundLibraryEntry["type"]>;
 export type ScriptFilter = "all" | "installed" | "missing";
 export type SortMode = "newest" | "oldest" | "difficulty" | "bpm" | "length" | "name" | "excluded";
+export type MetadataFilter = "all" | string;
 
 export type IndexedRound = {
   round: RoundLibraryEntry;
@@ -51,7 +52,15 @@ function resourceHasFunscript(
 export function toIndexedRound(round: RoundLibraryEntry): IndexedRound {
   return {
     round,
-    searchText: [round.name, round.author ?? "", round.hero?.name ?? "", round.description ?? ""]
+    searchText: [
+      round.name,
+      round.author ?? "",
+      round.hero?.name ?? "",
+      ...(round.tags ?? []),
+      ...(round.hero?.tags ?? []),
+      round.libraryLabel ?? "",
+      round.description ?? "",
+    ]
       .join("\n")
       .toLowerCase(),
     roundType: round.type ?? "Normal",
@@ -99,17 +108,33 @@ export function filterAndSortRounds({
   query,
   typeFilter,
   scriptFilter,
+  tagFilter,
+  actorFilter,
+  libraryFilter,
   sortMode,
 }: {
   indexedRounds: IndexedRound[];
   query: string;
   typeFilter: TypeFilter;
   scriptFilter: ScriptFilter;
+  tagFilter?: MetadataFilter;
+  actorFilter?: MetadataFilter;
+  libraryFilter?: MetadataFilter;
   sortMode: SortMode;
 }): RoundLibraryEntry[] {
   const normalizedQuery = query.trim().toLowerCase();
+  const normalizedTag = tagFilter && tagFilter !== "all" ? tagFilter.trim().toLowerCase() : "";
+  const normalizedActor =
+    actorFilter && actorFilter !== "all" ? actorFilter.trim().toLowerCase() : "";
+  const normalizedLibrary =
+    libraryFilter && libraryFilter !== "all" ? libraryFilter.trim().toLowerCase() : "";
   const filtered =
-    normalizedQuery.length === 0 && typeFilter === "all" && scriptFilter === "all"
+    normalizedQuery.length === 0 &&
+    typeFilter === "all" &&
+    scriptFilter === "all" &&
+    !normalizedTag &&
+    !normalizedActor &&
+    !normalizedLibrary
       ? [...indexedRounds]
       : indexedRounds.filter((entry) => {
           if (typeFilter !== "all" && entry.roundType !== typeFilter) {
@@ -117,6 +142,21 @@ export function filterAndSortRounds({
           }
           if (scriptFilter !== "all" && entry.hasScript !== (scriptFilter === "installed")) {
             return false;
+          }
+          if (normalizedTag) {
+            const tags = new Set([
+              ...(entry.round.tags ?? []).map((tag) => tag.toLowerCase()),
+              ...((entry.round.hero?.tags ?? []).map((tag) => tag.toLowerCase()) ?? []),
+            ]);
+            if (!tags.has(normalizedTag)) return false;
+          }
+          if (normalizedActor) {
+            const author = (entry.round.author ?? entry.round.hero?.author ?? "").toLowerCase();
+            if (author !== normalizedActor) return false;
+          }
+          if (normalizedLibrary) {
+            const libraryLabel = (entry.round.libraryLabel ?? "").toLowerCase();
+            if (libraryLabel !== normalizedLibrary) return false;
           }
           return normalizedQuery.length === 0 || entry.searchText.includes(normalizedQuery);
         });
@@ -147,6 +187,29 @@ export function filterAndSortRounds({
   });
 
   return filtered.map((entry) => entry.round);
+}
+
+export function extractRoundMetadataOptions(rounds: RoundLibraryEntry[]): {
+  tags: string[];
+  authorNames: string[];
+  libraryLabels: string[];
+} {
+  const tags = new Set<string>();
+  const authorNames = new Set<string>();
+  const libraryLabels = new Set<string>();
+  for (const round of rounds) {
+    for (const tag of round.tags ?? []) tags.add(tag);
+    for (const tag of round.hero?.tags ?? []) tags.add(tag);
+    const authorName = (round.author ?? round.hero?.author ?? "").trim();
+    if (authorName) authorNames.add(authorName);
+    const libraryLabel = (round.libraryLabel ?? "").trim();
+    if (libraryLabel) libraryLabels.add(libraryLabel);
+  }
+  return {
+    tags: [...tags].sort(),
+    authorNames: [...authorNames].sort(),
+    libraryLabels: [...libraryLabels].sort(),
+  };
 }
 
 export function buildPlaylistsByRoundId(

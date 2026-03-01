@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { MapBackgroundMedia } from "./MapBackgroundMedia";
 import type { PlaylistConfig } from "../game/playlistSchema";
 import { layoutLinearGraphFromPlaylist, toEditorGraphConfig } from "../features/map-editor/EditorState";
 import { clampPreviewNodeScale, getNodeDisplayColor, getNodeScale } from "../features/map-editor/nodeVisuals";
@@ -12,14 +13,20 @@ type PreviewNode = {
   radius: number;
 };
 
-
+type PreviewTextAnnotation = {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  color: string;
+  size: number;
+};
 
 const PREVIEW_WIDTH = 320;
 const PREVIEW_HEIGHT = 220;
 const PREVIEW_PADDING = 18;
 
 const PREVIEW_NODE_RADIUS = 4.2;
-
 
 function toFiniteNumber(value: unknown): number | null {
   if (typeof value !== "number") return null;
@@ -34,7 +41,6 @@ function getPreviewGraph(config: PlaylistConfig) {
   return layoutLinearGraphFromPlaylist(config.boardConfig);
 }
 
-
 export function PlaylistMapPreview({
   config,
   className,
@@ -43,30 +49,51 @@ export function PlaylistMapPreview({
   className?: string;
 }) {
   const graph = useMemo(() => getPreviewGraph(config), [config]);
-  const positionedNodes = useMemo<PreviewNode[]>(() => (
-    graph.nodes.map((node, index) => ({
-      id: node.id,
-      kind: node.kind,
-      x: toFiniteNumber(node.styleHint?.x) ?? (index * 220),
-      y: toFiniteNumber(node.styleHint?.y) ?? 0,
-      color: getNodeDisplayColor(node),
-      radius: PREVIEW_NODE_RADIUS * clampPreviewNodeScale(getNodeScale(node)),
-    }))
-  ), [graph.nodes]);
-
+  const visibleNodeIds = useMemo(
+    () => new Set(graph.nodes.filter((node) => !node.hiddenFromMap).map((node) => node.id)),
+    [graph.nodes]
+  );
+  const positionedNodes = useMemo<PreviewNode[]>(
+    () =>
+      graph.nodes
+      .filter((node) => visibleNodeIds.has(node.id))
+      .map((node, index) => ({
+        id: node.id,
+        kind: node.kind,
+        x: toFiniteNumber(node.styleHint?.x) ?? index * 220,
+        y: toFiniteNumber(node.styleHint?.y) ?? 0,
+        color: getNodeDisplayColor(node),
+        radius: PREVIEW_NODE_RADIUS * clampPreviewNodeScale(getNodeScale(node)),
+      })),
+    [graph.nodes, visibleNodeIds]
+  );
+  const textAnnotations = useMemo<PreviewTextAnnotation[]>(
+    () =>
+      graph.textAnnotations.map((annotation) => ({
+        id: annotation.id,
+        text: annotation.text,
+        x: annotation.styleHint.x,
+        y: annotation.styleHint.y,
+        color: annotation.styleHint.color ?? "#f8fafc",
+        size: annotation.styleHint.size ?? 18,
+      })),
+    [graph.textAnnotations]
+  );
 
   const bounds = useMemo(() => {
-    if (positionedNodes.length === 0) {
+    if (positionedNodes.length === 0 && textAnnotations.length === 0) {
       return { minX: 0, minY: 0, maxX: 1, maxY: 1 };
     }
 
+    const allX = [...positionedNodes.map((node) => node.x), ...textAnnotations.map((annotation) => annotation.x)];
+    const allY = [...positionedNodes.map((node) => node.y), ...textAnnotations.map((annotation) => annotation.y)];
     return {
-      minX: Math.min(...positionedNodes.map((node) => node.x)),
-      minY: Math.min(...positionedNodes.map((node) => node.y)),
-      maxX: Math.max(...positionedNodes.map((node) => node.x)),
-      maxY: Math.max(...positionedNodes.map((node) => node.y)),
+      minX: Math.min(...allX),
+      minY: Math.min(...allY),
+      maxX: Math.max(...allX),
+      maxY: Math.max(...allY),
     };
-  }, [positionedNodes]);
+  }, [positionedNodes, textAnnotations]);
 
   const projectedNodes = useMemo(() => {
     const rangeX = Math.max(1, bounds.maxX - bounds.minX);
@@ -82,17 +109,31 @@ export function PlaylistMapPreview({
       py: PREVIEW_PADDING + ((node.y - bounds.minY) * scale),
     }));
   }, [bounds.maxX, bounds.maxY, bounds.minX, bounds.minY, positionedNodes]);
+  const projectedTextAnnotations = useMemo(() => {
+    const rangeX = Math.max(1, bounds.maxX - bounds.minX);
+    const rangeY = Math.max(1, bounds.maxY - bounds.minY);
+    const scale = Math.min(
+      (PREVIEW_WIDTH - PREVIEW_PADDING * 2) / rangeX,
+      (PREVIEW_HEIGHT - PREVIEW_PADDING * 2) / rangeY
+    );
 
-
+    return textAnnotations.map((annotation) => ({
+      ...annotation,
+      px: PREVIEW_PADDING + (annotation.x - bounds.minX) * scale,
+      py: PREVIEW_PADDING + (annotation.y - bounds.minY) * scale,
+    }));
+  }, [bounds.maxX, bounds.maxY, bounds.minX, bounds.minY, textAnnotations]);
 
   const projectedNodeById = useMemo(
     () => new Map(projectedNodes.map((node) => [node.id, node])),
-    [projectedNodes],
+    [projectedNodes]
   );
 
-  const projectedEdges = useMemo(() => (
-    graph.edges
+  const projectedEdges = useMemo(
+    () =>
+      graph.edges
       .map((edge) => {
+        if (!visibleNodeIds.has(edge.fromNodeId) || !visibleNodeIds.has(edge.toNodeId)) return null;
         const fromNode = projectedNodeById.get(edge.fromNodeId);
         const toNode = projectedNodeById.get(edge.toNodeId);
         if (!fromNode || !toNode) return null;
@@ -104,10 +145,14 @@ export function PlaylistMapPreview({
           y2: toNode.py,
         };
       })
-      .filter((edge): edge is { id: string; x1: number; y1: number; x2: number; y2: number } => Boolean(edge))
-  ), [graph.edges, projectedNodeById]);
+      .filter(
+        (edge): edge is { id: string; x1: number; y1: number; x2: number; y2: number } =>
+          Boolean(edge)
+      ),
+    [graph.edges, projectedNodeById, visibleNodeIds]
+  );
 
-  if (projectedNodes.length === 0) {
+  if (projectedNodes.length === 0 && projectedTextAnnotations.length === 0) {
     return (
       <div className={className}>
         <div className="flex h-full items-center justify-center rounded-xl border border-zinc-700/70 bg-zinc-900/65 text-xs uppercase tracking-[0.14em] text-zinc-400">
@@ -118,11 +163,16 @@ export function PlaylistMapPreview({
   }
 
   return (
-    <div className={className}>
+    <div className={`relative overflow-hidden rounded-xl ${className ?? ""}`}>
+      <MapBackgroundMedia
+        background={graph.style.background}
+        className="z-0"
+        testId="playlist-map-preview-background"
+      />
       <svg
         data-testid="playlist-map-preview"
         viewBox={`0 0 ${PREVIEW_WIDTH} ${PREVIEW_HEIGHT}`}
-        className="h-full w-full rounded-xl border border-zinc-700/70 bg-zinc-950/85"
+        className="relative z-10 h-full w-full rounded-xl border border-zinc-700/70 bg-zinc-950/75"
         aria-label="Playlist map preview"
       >
         <rect x={0} y={0} width={PREVIEW_WIDTH} height={PREVIEW_HEIGHT} fill="#09090b" />
@@ -155,8 +205,19 @@ export function PlaylistMapPreview({
             />
           </g>
         ))}
-
-
+        {projectedTextAnnotations.map((annotation) => (
+          <text
+            key={annotation.id}
+            data-testid="playlist-map-text-annotation"
+            x={annotation.px}
+            y={annotation.py}
+            fill={annotation.color}
+            fontSize={annotation.size}
+            fontWeight="700"
+          >
+            {annotation.text}
+          </text>
+        ))}
       </svg>
     </div>
   );

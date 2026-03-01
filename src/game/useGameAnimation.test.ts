@@ -6,6 +6,7 @@ import type { GameConfig, GameState, PendingPerkSelection } from "./types";
 import {
   CUM_ROUND_COUNTDOWN_DURATION,
   NORMAL_ROUND_COUNTDOWN_DURATION,
+  isTechnicalQueuedRound,
   resolveRoundCountdownDuration,
   useGameAnimation,
 } from "./useGameAnimation";
@@ -214,11 +215,41 @@ describe("useGameAnimation", () => {
   });
 
   it("resolves countdown duration by round type", () => {
-    expect(resolveRoundCountdownDuration(null)).toBe(NORMAL_ROUND_COUNTDOWN_DURATION);
-    expect(resolveRoundCountdownDuration(withQueuedRound(createInitialGameState(makeConfig()), "normal").queuedRound))
-      .toBe(NORMAL_ROUND_COUNTDOWN_DURATION);
-    expect(resolveRoundCountdownDuration(withQueuedRound(createInitialGameState(makeConfig()), "cum").queuedRound))
-      .toBe(CUM_ROUND_COUNTDOWN_DURATION);
+    const state = createInitialGameState(makeConfig());
+    expect(resolveRoundCountdownDuration(state.config, null)).toBe(NORMAL_ROUND_COUNTDOWN_DURATION);
+    expect(
+      resolveRoundCountdownDuration(
+        state.config,
+        withQueuedRound(createInitialGameState(makeConfig()), "normal").queuedRound
+      )
+    ).toBe(NORMAL_ROUND_COUNTDOWN_DURATION);
+    expect(
+      resolveRoundCountdownDuration(
+        state.config,
+        withQueuedRound(createInitialGameState(makeConfig()), "cum").queuedRound
+      )
+    ).toBe(CUM_ROUND_COUNTDOWN_DURATION);
+  });
+
+  it("treats hidden auto-advance round nodes as technical and skips countdown", () => {
+    const technicalConfig: GameConfig = {
+      ...makeConfig(),
+      board: [
+        { id: "start", name: "Start", kind: "start" },
+        {
+          id: "round-1",
+          name: "Intro",
+          kind: "round",
+          fixedRoundId: "round-1",
+          hiddenFromMap: true,
+          autoAdvanceAfterCompletion: true,
+        },
+      ],
+    };
+    const initialState = withQueuedRound(createInitialGameState(technicalConfig), "normal");
+
+    expect(isTechnicalQueuedRound(technicalConfig, initialState.queuedRound)).toBe(true);
+    expect(resolveRoundCountdownDuration(technicalConfig, initialState.queuedRound)).toBe(0);
   });
 
   it("completes cum round countdown using the phase duration", () => {
@@ -254,6 +285,33 @@ describe("useGameAnimation", () => {
     expect(result.current.animPhase.kind).toBe("idle");
     expect(result.current.state.activeRound?.phaseKind).toBe("cum");
     expect(result.current.state.activeRound?.roundName).toBe("Finale");
+    expect(result.current.state.queuedRound).toBeNull();
+  });
+
+  it("starts technical queued rounds immediately without entering countdown", () => {
+    const technicalConfig: GameConfig = {
+      ...makeConfig(),
+      board: [
+        { id: "start", name: "Start", kind: "start" },
+        {
+          id: "round-1",
+          name: "Intro",
+          kind: "round",
+          fixedRoundId: "round-1",
+          hiddenFromMap: true,
+          autoAdvanceAfterCompletion: true,
+        },
+      ],
+    };
+    const initialState = withQueuedRound(createInitialGameState(technicalConfig), "normal");
+    const { result } = renderHook(() => useGameAnimation(initialState, []));
+
+    act(() => {
+      result.current.handleStartQueuedRound();
+    });
+
+    expect(result.current.animPhase.kind).toBe("idle");
+    expect(result.current.state.activeRound?.roundId).toBe("round-1");
     expect(result.current.state.queuedRound).toBeNull();
   });
 

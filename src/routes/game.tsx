@@ -291,7 +291,7 @@ export const Route = createFileRoute("/game")({
     ]);
 
     if (!activePlaylist) {
-      throw new Error(t`No playlist available.`);
+      throw new Error("No playlist available.");
     }
 
     const playedByPool = await playlists.getDistinctPlayedByPool(activePlaylist.id);
@@ -301,7 +301,7 @@ export const Route = createFileRoute("/game")({
     if (deps.resume && deps.playlistId) {
       const savedRun = await db.singlePlayerSaves.getByPlaylist(deps.playlistId).catch(() => null);
       if (!savedRun) {
-        resumeRedirectNotice = t`Saved run could not be resumed and was cleared.`;
+        resumeRedirectNotice = "Saved run could not be resumed and was cleared.";
       } else {
         try {
           const parsedSnapshot = ZSinglePlayerRunSaveSnapshot.parse(
@@ -310,13 +310,13 @@ export const Route = createFileRoute("/game")({
               : savedRun.snapshotJson
           );
           if (parsedSnapshot.playlistId !== activePlaylist.id) {
-            throw new Error(t`Saved run playlist mismatch.`);
+            throw new Error("Saved run playlist mismatch.");
           }
           savedSnapshot = parsedSnapshot;
         } catch (error) {
           console.warn("Failed to validate saved single-player run", error);
           await db.singlePlayerSaves.deleteByPlaylist(deps.playlistId).catch(() => undefined);
-          resumeRedirectNotice = t`Saved run could not be resumed and was cleared.`;
+          resumeRedirectNotice = "Saved run could not be resumed and was cleared.";
         }
       }
     }
@@ -377,7 +377,14 @@ function GameRoute() {
     message: string;
   } | null>(null);
   const { connected: handyConnected } = useHandy();
-  const { startTemporaryQueueOverride, stopTemporaryQueueOverride } = useGlobalMusic();
+  const {
+    startTemporaryQueueOverride,
+    stopTemporaryQueueOverride,
+    pause: pauseGlobalMusic,
+    play: playGlobalMusic,
+    setCurrentTrack: setGlobalMusicTrack,
+    setLoopMode: setGlobalMusicLoopMode,
+  } = useGlobalMusic();
 
   const currentPlaylistSaveMode = activePlaylist.config.saveMode;
   const scoringSaveMode =
@@ -458,6 +465,28 @@ function GameRoute() {
     config.playlistMusic,
     startTemporaryQueueOverride,
     stopTemporaryQueueOverride,
+  ]);
+
+  useEffect(() => {
+    const musicState = latestState.runtimeMusicState;
+    const playlistMusic = config.playlistMusic;
+    if (!playlistMusic || playlistMusic.tracks.length === 0) return;
+    void setGlobalMusicLoopMode(musicState.loop ? "queue" : "off");
+    if (musicState.currentTrackId) {
+      void setGlobalMusicTrack(musicState.currentTrackId);
+    }
+    if (musicState.isPlaying) {
+      void playGlobalMusic();
+      return;
+    }
+    pauseGlobalMusic();
+  }, [
+    config.playlistMusic,
+    latestState.runtimeMusicState,
+    pauseGlobalMusic,
+    playGlobalMusic,
+    setGlobalMusicLoopMode,
+    setGlobalMusicTrack,
   ]);
 
   const clearRunSnapshot = useCallback(async () => {

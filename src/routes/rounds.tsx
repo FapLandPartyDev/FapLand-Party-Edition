@@ -63,7 +63,9 @@ import {
   buildDownloadProgressByUri,
   buildPlaylistGroupingData,
   buildSourceHeroOptions,
+  extractRoundMetadataOptions,
   filterAndSortRounds,
+  type MetadataFilter,
   toIndexedRound,
   type ScriptFilter,
   type SortMode,
@@ -101,6 +103,8 @@ type RoundEditDraft = {
   name: string;
   author: string;
   description: string;
+  tagsText: string;
+  libraryLabel: string;
   bpm: string;
   difficulty: string;
   startTime: string;
@@ -115,6 +119,7 @@ type HeroEditDraft = {
   name: string;
   author: string;
   description: string;
+  tagsText: string;
 };
 type DeleteRoundDialogState = {
   id: string;
@@ -689,6 +694,8 @@ function toRoundEditDraft(
     name: round.name,
     author: round.author ?? "",
     description: round.description ?? "",
+    tagsText: (round.tags ?? []).join(", "),
+    libraryLabel: round.libraryLabel ?? "",
     bpm: round.bpm == null ? "" : `${round.bpm}`,
     difficulty: round.difficulty == null ? "" : `${round.difficulty}`,
     startTime: round.startTime == null ? "" : `${round.startTime}`,
@@ -707,7 +714,15 @@ function toHeroEditDraft(round: RoundLibraryEntry): HeroEditDraft | null {
     name: round.hero.name ?? "",
     author: round.hero.author ?? "",
     description: round.hero.description ?? "",
+    tagsText: (round.hero.tags ?? []).join(", "),
   };
+}
+
+function parseTagsInput(value: string): string[] {
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
 function parseOptionalInteger(value: string): number | null {
@@ -874,6 +889,9 @@ export function InstalledRoundsPage() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [scriptFilter, setScriptFilter] = useState<ScriptFilter>("all");
+  const [tagFilter, setTagFilter] = useState<MetadataFilter>("all");
+  const [actorFilter, setActorFilter] = useState<MetadataFilter>("all");
+  const [libraryFilter, setLibraryFilter] = useState<MetadataFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("newest");
   const [groupMode, setGroupMode] = useState<GroupMode>("hero");
   const [expandedHeroGroups, setExpandedHeroGroups] = useState<Record<string, boolean>>({});
@@ -1640,6 +1658,7 @@ export function InstalledRoundsPage() {
   );
 
   const indexedRounds = useMemo(() => rounds.map(toIndexedRound), [rounds]);
+  const metadataOptions = useMemo(() => extractRoundMetadataOptions(rounds), [rounds]);
   const filteredRounds = useMemo(
     () =>
       filterAndSortRounds({
@@ -1647,9 +1666,12 @@ export function InstalledRoundsPage() {
         query: deferredQuery,
         typeFilter,
         scriptFilter,
+        tagFilter,
+        actorFilter,
+        libraryFilter,
         sortMode,
       }),
-    [deferredQuery, indexedRounds, scriptFilter, sortMode, typeFilter]
+    [actorFilter, deferredQuery, indexedRounds, libraryFilter, scriptFilter, sortMode, tagFilter, typeFilter]
   );
   const playlistGroupingData = useMemo(
     () =>
@@ -1684,11 +1706,19 @@ export function InstalledRoundsPage() {
     [rounds]
   );
   const hasActiveFilters =
-    queryInput.trim().length > 0 || typeFilter !== "all" || scriptFilter !== "all";
+    queryInput.trim().length > 0 ||
+    typeFilter !== "all" ||
+    scriptFilter !== "all" ||
+    tagFilter !== "all" ||
+    actorFilter !== "all" ||
+    libraryFilter !== "all";
   const activeFilterCount =
     Number(queryInput.trim().length > 0) +
     Number(typeFilter !== "all") +
-    Number(scriptFilter !== "all");
+    Number(scriptFilter !== "all") +
+    Number(tagFilter !== "all") +
+    Number(actorFilter !== "all") +
+    Number(libraryFilter !== "all");
   const actionButtonsDisabled =
     isStartingScan || isExportingDatabase || isInstallingWebsiteRound || isLibraryScanning;
   const scanRunning = isStartingScan || isLibraryScanning;
@@ -2431,6 +2461,7 @@ export function InstalledRoundsPage() {
         name: editingRound.name,
         author: editingRound.author,
         description: editingRound.description,
+        tags: parseTagsInput(editingRound.tagsText),
         bpm,
         difficulty,
         startTime,
@@ -2438,6 +2469,7 @@ export function InstalledRoundsPage() {
         funscriptUri: editingRound.resourceId ? editingRound.funscriptUri : undefined,
         type: editingRound.type,
         excludeFromRandom: editingRound.excludeFromRandom,
+        libraryLabel: editingRound.libraryLabel,
       });
       setEditingRound(null);
       await refreshInstalledRounds();
@@ -2459,6 +2491,7 @@ export function InstalledRoundsPage() {
         name: editingHero.name,
         author: editingHero.author,
         description: editingHero.description,
+        tags: parseTagsInput(editingHero.tagsText),
       });
       setEditingHero(null);
       await refreshInstalledRounds();
@@ -3037,6 +3070,9 @@ export function InstalledRoundsPage() {
                                 setQuery("");
                                 setTypeFilter("all");
                                 setScriptFilter("all");
+                                setTagFilter("all");
+                                setActorFilter("all");
+                                setLibraryFilter("all");
                                 setSortMode("newest");
                               });
                             }}
@@ -3052,7 +3088,7 @@ export function InstalledRoundsPage() {
                         </div>
                       </div>
 
-                      <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-5">
+                      <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-7">
                         <label className="lg:col-span-2">
                           <span className="mb-2 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.25em] text-zinc-300">
                             <Trans>Search</Trans>
@@ -3123,6 +3159,54 @@ export function InstalledRoundsPage() {
                           onChange={(value) => {
                             startTransition(() => {
                               setSortMode(value as SortMode);
+                            });
+                          }}
+                          onHoverSfx={handleHoverSfx}
+                          onSelectSfx={handleSelectSfx}
+                        />
+
+                        <GameDropdown
+                          label={t`Tag`}
+                          value={tagFilter}
+                          options={[
+                            { value: "all", label: t`All` },
+                            ...metadataOptions.tags.map((value) => ({ value, label: value })),
+                          ]}
+                          onChange={(value) => {
+                            startTransition(() => {
+                              setTagFilter(value as MetadataFilter);
+                            });
+                          }}
+                          onHoverSfx={handleHoverSfx}
+                          onSelectSfx={handleSelectSfx}
+                        />
+
+                        <GameDropdown
+                          label={t`Author`}
+                          value={actorFilter}
+                          options={[
+                            { value: "all", label: t`All` },
+                            ...metadataOptions.authorNames.map((value) => ({ value, label: value })),
+                          ]}
+                          onChange={(value) => {
+                            startTransition(() => {
+                              setActorFilter(value as MetadataFilter);
+                            });
+                          }}
+                          onHoverSfx={handleHoverSfx}
+                          onSelectSfx={handleSelectSfx}
+                        />
+
+                        <GameDropdown
+                          label={t`Library`}
+                          value={libraryFilter}
+                          options={[
+                            { value: "all", label: t`All` },
+                            ...metadataOptions.libraryLabels.map((value) => ({ value, label: value })),
+                          ]}
+                          onChange={(value) => {
+                            startTransition(() => {
+                              setLibraryFilter(value as MetadataFilter);
                             });
                           }}
                           onHoverSfx={handleHoverSfx}
@@ -3898,6 +3982,29 @@ export function InstalledRoundsPage() {
                 </Trans>
               </p>
             </ModalField>
+            <ModalField label={t`Tags`} className="sm:col-span-2">
+              <input
+                value={editingRound.tagsText}
+                onChange={(event) =>
+                  setEditingRound((previous) =>
+                    previous ? { ...previous, tagsText: event.target.value } : previous
+                  )
+                }
+                placeholder={t`tag-one, tag-two`}
+                className="w-full rounded-xl border border-violet-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-200/70"
+              />
+            </ModalField>
+            <ModalField label={t`Library`} className="sm:col-span-2">
+              <input
+                value={editingRound.libraryLabel}
+                onChange={(event) =>
+                  setEditingRound((previous) =>
+                    previous ? { ...previous, libraryLabel: event.target.value } : previous
+                  )
+                }
+                className="w-full rounded-xl border border-violet-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-200/70"
+              />
+            </ModalField>
             <ModalField label={t`Description`} className="sm:col-span-2">
               <textarea
                 value={editingRound.description}
@@ -4003,6 +4110,18 @@ export function InstalledRoundsPage() {
                     previous ? { ...previous, author: event.target.value } : previous
                   )
                 }
+                className="w-full rounded-xl border border-violet-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-200/70"
+              />
+            </ModalField>
+            <ModalField label={t`Tags`}>
+              <input
+                value={editingHero.tagsText}
+                onChange={(event) =>
+                  setEditingHero((previous) =>
+                    previous ? { ...previous, tagsText: event.target.value } : previous
+                  )
+                }
+                placeholder={t`tag-one, tag-two`}
                 className="w-full rounded-xl border border-violet-300/30 bg-black/45 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-200/70"
               />
             </ModalField>

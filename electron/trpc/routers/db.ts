@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import { shell } from "electron";
 import * as z from "zod";
 import { resolveInstallExportBaseDir } from "../../services/appPaths";
-import { getDb } from "../../services/db";
+import { getDb, repairInstalledLibrarySchema } from "../../services/db";
 import { exportInstalledDatabase } from "../../services/installExport";
 import {
   analyzeLibraryExportPackage,
@@ -85,6 +85,47 @@ import { ZSinglePlayerRunSaveSnapshot } from "../../../src/game/saveSchema";
 const ZNullableText = z.string().optional().nullable();
 const ZRoundType = z.enum(["Normal", "Interjection", "Cum"]);
 const ZPersistablePlaylistSaveMode = z.enum(["checkpoint", "everywhere"]);
+const ZTagList = z.array(z.string()).optional();
+
+function normalizeTextMetadata(input: string | null | undefined): string | null {
+  const trimmed = input?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function normalizeTags(input: string[] | null | undefined): string[] {
+  if (!input) return [];
+  return [...new Set(input.map((entry) => entry.trim().toLowerCase()).filter(Boolean))].sort();
+}
+
+function parseTagsJson(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? normalizeTags(parsed.filter((entry): entry is string => typeof entry === "string")) : [];
+  } catch {
+    return [];
+  }
+}
+
+function isMissingInstalledLibraryColumnError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return /no such column: .*(durationMs|cutRangesJson|excludeFromRandom|tagsJson|libraryLabel)/i.test(
+    error.message
+  );
+}
+
+async function withInstalledLibrarySchemaRepair<T>(
+  operation: () => Promise<T>
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isMissingInstalledLibraryColumnError(error)) throw error;
+    const db = getDb();
+    await repairInstalledLibrarySchema(db);
+    return await operation();
+  }
+}
 
 function normalizeHttpUrl(input: string): string {
   let parsed: URL;
@@ -239,6 +280,7 @@ function toInstalledRoundCatalogEntry(entry: {
   name: string;
   author: string | null;
   description: string | null;
+  tagsJson: string;
   bpm: number | null;
   difficulty: number | null;
   phash: string | null;
@@ -248,6 +290,7 @@ function toInstalledRoundCatalogEntry(entry: {
   updatedAt: Date;
   type: "Normal" | "Interjection" | "Cum";
   installSourceKey: string | null;
+  libraryLabel: string | null;
   heroId: string | null;
   excludeFromRandom: boolean;
   hero: {
@@ -255,6 +298,7 @@ function toInstalledRoundCatalogEntry(entry: {
     name: string;
     author: string | null;
     description: string | null;
+    tagsJson: string;
   } | null;
   resources: CatalogRoundResource[];
   isDisabled?: boolean;
@@ -263,6 +307,7 @@ function toInstalledRoundCatalogEntry(entry: {
   name: string;
   author: string | null;
   description: string | null;
+  tags: string[];
   bpm: number | null;
   difficulty: number | null;
   phash: string | null;
@@ -272,6 +317,7 @@ function toInstalledRoundCatalogEntry(entry: {
   updatedAt: Date;
   type: "Normal" | "Interjection" | "Cum" | null;
   installSourceKey: string | null;
+  libraryLabel: string | null;
   heroId: string | null;
   excludeFromRandom: boolean;
   hero: {
@@ -279,6 +325,7 @@ function toInstalledRoundCatalogEntry(entry: {
     name: string;
     author: string | null;
     description: string | null;
+    tags: string[];
   } | null;
   isDisabled: boolean;
   resources: Array<{
@@ -294,6 +341,7 @@ function toInstalledRoundCatalogEntry(entry: {
     name: entry.name,
     author: entry.author,
     description: entry.description,
+    tags: parseTagsJson(entry.tagsJson),
     bpm: entry.bpm,
     difficulty: entry.difficulty,
     phash: entry.phash,
@@ -303,9 +351,15 @@ function toInstalledRoundCatalogEntry(entry: {
     updatedAt: entry.updatedAt,
     type: entry.type ?? null,
     installSourceKey: entry.installSourceKey,
+    libraryLabel: entry.libraryLabel,
     heroId: entry.heroId,
     excludeFromRandom: entry.excludeFromRandom,
-    hero: entry.hero,
+    hero: entry.hero
+      ? {
+          ...entry.hero,
+          tags: parseTagsJson(entry.hero.tagsJson),
+        }
+      : null,
     isDisabled: entry.isDisabled === true,
     resources: entry.resources.map((resourceEntry) => ({
       id: resourceEntry.id,
@@ -700,7 +754,12 @@ export const dbRouter = router({
 
   getHeroes: publicProcedure.query(() => {
     const db = getDb();
-    return db.query.hero.findMany();
+    return db.query.hero.findMany().then((entries) =>
+      entries.map((entry) => ({
+        ...entry,
+        tags: parseTagsJson(entry.tagsJson),
+      }))
+    );
   }),
 
   abortInstallScan: publicProcedure.mutation(() => {
@@ -714,6 +773,7 @@ export const dbRouter = router({
         name: z.string().trim().min(1),
         author: ZNullableText,
         description: ZNullableText,
+        tags: ZTagList,
       })
     )
     .mutation(async ({ input }) => {
@@ -743,13 +803,14 @@ export const dbRouter = router({
         .update(hero)
         .set({
           name: trimmedName,
-          author: input.author?.trim() || null,
-          description: input.description?.trim() || null,
+          author: normalizeTextMetadata(input.author),
+          description: normalizeTextMetadata(input.description),
+          tagsJson: JSON.stringify(normalizeTags(input.tags)),
           updatedAt: new Date(),
         })
         .where(eq(hero.id, input.id))
         .returning();
-      return updated;
+      return { ...updated, tags: parseTagsJson(updated.tagsJson) };
     }),
 
   deleteHero: publicProcedure
@@ -785,9 +846,11 @@ export const dbRouter = router({
 
   getHeroRounds: publicProcedure.input(z.object({ heroId: z.string() })).query(({ input }) => {
     const db = getDb();
-    return db.query.round.findMany({
-      where: eq(round.heroId, input.heroId),
-    });
+    return withInstalledLibrarySchemaRepair(() =>
+      db.query.round.findMany({
+        where: eq(round.heroId, input.heroId),
+      })
+    );
   }),
 
   updateRound: publicProcedure
@@ -797,6 +860,7 @@ export const dbRouter = router({
         name: z.string().trim().min(1),
         author: ZNullableText,
         description: ZNullableText,
+        tags: ZTagList,
         bpm: z.number().finite().min(1).max(400).optional().nullable(),
         difficulty: z.number().int().min(1).max(5).optional().nullable(),
         startTime: z.number().int().min(0).optional().nullable(),
@@ -804,6 +868,7 @@ export const dbRouter = router({
         funscriptUri: z.string().trim().min(1).optional().nullable(),
         type: ZRoundType,
         excludeFromRandom: z.boolean().optional(),
+        libraryLabel: ZNullableText,
       })
     )
     .mutation(async ({ input }) => {
@@ -873,12 +938,14 @@ export const dbRouter = router({
         .update(round)
         .set({
           name: input.name.trim(),
-          author: input.author?.trim() || null,
-          description: input.description?.trim() || null,
+          author: normalizeTextMetadata(input.author),
+          description: normalizeTextMetadata(input.description),
+          tagsJson: JSON.stringify(normalizeTags(input.tags)),
           bpm: input.bpm ?? null,
           difficulty: input.difficulty ?? null,
           startTime,
           endTime,
+          libraryLabel: normalizeTextMetadata(input.libraryLabel),
           previewImage,
           type: input.type,
           ...(input.excludeFromRandom !== undefined
@@ -888,7 +955,7 @@ export const dbRouter = router({
         })
         .where(eq(round.id, input.id))
         .returning();
-      return updated;
+      return { ...updated, tags: parseTagsJson(updated.tagsJson) };
     }),
 
   calculateDifficultyFromFunscript: publicProcedure
@@ -985,6 +1052,7 @@ export const dbRouter = router({
               name: input.name.trim(),
               author: null,
               description: null,
+              tagsJson: "[]",
               bpm: null,
               difficulty: calculatedDifficulty,
               phash: null,
@@ -996,6 +1064,7 @@ export const dbRouter = router({
                 videoUri: normalizedVideoUri,
                 funscriptUri: normalizedFunscriptUri,
               }),
+              libraryLabel: "website",
               previewImage: null,
               heroId: null,
               updatedAt: new Date(),
@@ -1069,6 +1138,7 @@ export const dbRouter = router({
               name: input.name.trim(),
               author: null,
               description: null,
+              tagsJson: "[]",
               bpm: null,
               difficulty: calculatedDifficulty,
               phash: null,
@@ -1081,6 +1151,7 @@ export const dbRouter = router({
                 funscriptUri: normalizedFunscriptUri,
                 sourceKey: input.sourceKey ?? null,
               }),
+              libraryLabel: "manual",
               previewImage,
               heroId: null,
               updatedAt: new Date(),
@@ -1315,13 +1386,15 @@ export const dbRouter = router({
       const getCachedStateForUri = createWebsiteVideoCacheStatusLoader();
       const resolveResourceUrisForRequest = createResourceUriResolver();
 
-      const rounds = await db.query.round.findMany({
-        with: {
-          hero: true,
-          resources: true,
-        },
-        orderBy: [desc(round.createdAt)],
-      });
+      const rounds = await withInstalledLibrarySchemaRepair(() =>
+        db.query.round.findMany({
+          with: {
+            hero: true,
+            resources: true,
+          },
+          orderBy: [desc(round.createdAt)],
+        })
+      );
 
       const filteredRounds = rounds
         .map((entry) => ({
@@ -1345,6 +1418,13 @@ export const dbRouter = router({
       return await Promise.all(
         filteredRounds.map(async (entry) => ({
           ...entry,
+          tags: parseTagsJson(entry.tagsJson),
+          hero: entry.hero
+            ? {
+                ...entry.hero,
+                tags: parseTagsJson(entry.hero.tagsJson),
+              }
+            : null,
           resources: await Promise.all(
             entry.resources.map(async (res) => ({
               ...res,
@@ -1374,45 +1454,50 @@ export const dbRouter = router({
       const includeTemplates = input?.includeTemplates ?? false;
       const disabledRoundIds = getDisabledRoundIdSet();
 
-      const rounds = await db.query.round.findMany({
-        columns: {
-          id: true,
-          name: true,
-          author: true,
-          description: true,
-          bpm: true,
-          difficulty: true,
-          phash: true,
-          startTime: true,
-          endTime: true,
-          createdAt: true,
-          updatedAt: true,
-          type: true,
-          installSourceKey: true,
-          heroId: true,
-          excludeFromRandom: true,
-        },
-        with: {
-          hero: {
-            columns: {
-              id: true,
-              name: true,
-              author: true,
-              description: true,
+      const rounds = await withInstalledLibrarySchemaRepair(() =>
+        db.query.round.findMany({
+          columns: {
+            id: true,
+            name: true,
+            author: true,
+            description: true,
+            tagsJson: true,
+            bpm: true,
+            difficulty: true,
+            phash: true,
+            startTime: true,
+            endTime: true,
+            createdAt: true,
+            updatedAt: true,
+            type: true,
+            installSourceKey: true,
+            libraryLabel: true,
+            heroId: true,
+            excludeFromRandom: true,
+          },
+          with: {
+            hero: {
+              columns: {
+                id: true,
+                name: true,
+                author: true,
+                description: true,
+                tagsJson: true,
+              },
+            },
+            resources: {
+              columns: {
+                id: true,
+                disabled: true,
+                phash: true,
+                durationMs: true,
+                funscriptUri: true,
+              },
             },
           },
-          resources: {
-            columns: {
-              id: true,
-              disabled: true,
-              phash: true,
-              durationMs: true,
-              funscriptUri: true,
-            },
-          },
-        },
-        orderBy: [desc(round.createdAt)],
-      });
+          orderBy: [desc(round.createdAt)],
+        })
+      );
 
       const filteredRounds = rounds
         .map((entry) => ({
@@ -1475,6 +1560,13 @@ export const dbRouter = router({
 
       return {
         ...nextEntry,
+        tags: parseTagsJson(nextEntry.tagsJson),
+        hero: nextEntry.hero
+          ? {
+              ...nextEntry.hero,
+              tags: parseTagsJson(nextEntry.hero.tagsJson),
+            }
+          : null,
         resources: await Promise.all(
           nextEntry.resources.map(async (res) => ({
             ...res,
@@ -1629,9 +1721,20 @@ export const dbRouter = router({
     const fromStore = getDisabledRoundIdSet();
 
     // Find rounds where all resources are disabled and it has at least one resource
-    const roundsWithResources = await db.query.round.findMany({
-      with: { resources: true },
-    });
+    const roundsWithResources = await withInstalledLibrarySchemaRepair(() =>
+      db.query.round.findMany({
+        columns: {
+          id: true,
+        },
+        with: {
+          resources: {
+            columns: {
+              disabled: true,
+            },
+          },
+        },
+      })
+    );
 
     for (const r of roundsWithResources) {
       if (r.resources.length > 0 && r.resources.every((res) => res.disabled)) {
