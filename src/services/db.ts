@@ -143,6 +143,8 @@ export const db = {
     }) => withInstalledRoundCacheInvalidation(() => trpc.db.updateHero.mutate(input)),
     updateFunscript: (input: { heroId: string; funscriptUri: string | null }) =>
       withInstalledRoundCacheInvalidation(() => trpc.db.updateHeroFunscript.mutate(input)),
+    updateFunscriptOffset: (input: { heroId: string; offsetMs: number | null }) =>
+      withInstalledRoundCacheInvalidation(() => trpc.db.updateHeroFunscriptOffset.mutate(input)),
     convertFunscriptToHardMode: (input: { heroId: string; recalculateDifficulty: boolean }) =>
       withInstalledRoundCacheInvalidation(() =>
         trpc.db.convertHeroFunscriptToHardMode.mutate(input)
@@ -359,6 +361,23 @@ export const db = {
     listRuns: (limit = 50) => trpc.db.listSinglePlayerRuns.query({ limit }),
     getCumLoadCount: () => trpc.db.getSinglePlayerCumLoadCount.query(),
     deleteRun: (id: string) => trpc.db.deleteSinglePlayerRun.mutate({ id }),
+  },
+  gameplayStats: {
+    beginSession: (input: Parameters<typeof trpc.db.beginGameplaySession.mutate>[0]) =>
+      trpc.db.beginGameplaySession.mutate(input),
+    updateActivity: (input: Parameters<typeof trpc.db.updateGameplaySessionActivity.mutate>[0]) =>
+      trpc.db.updateGameplaySessionActivity.mutate(input),
+    finishSession: (input: Parameters<typeof trpc.db.finishGameplaySession.mutate>[0]) =>
+      trpc.db.finishGameplaySession.mutate(input),
+    upsertRoundPlay: (input: Parameters<typeof trpc.db.upsertGameplayRoundPlay.mutate>[0]) =>
+      trpc.db.upsertGameplayRoundPlay.mutate(input),
+    getStats: (mode?: "single_player" | "multiplayer") =>
+      trpc.db.getGameplayStats.query(mode ? { mode } : {}),
+    listSessions: (input?: {
+      mode?: "single_player" | "multiplayer";
+      limit?: number;
+      beforeIso?: string;
+    }) => trpc.db.listGameplaySessions.query(input ?? {}),
   },
   singlePlayerSaves: {
     upsert: (input: Parameters<typeof trpc.db.upsertSinglePlayerRunSave.mutate>[0]) =>

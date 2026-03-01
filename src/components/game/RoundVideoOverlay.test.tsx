@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
     offsetMs: 0,
     connected: false,
     manuallyStopped: false,
+    sessionRevision: 0,
     setSyncStatus: vi.fn(),
     toggleManualStop: vi.fn<() => Promise<"unavailable" | "stopped">>(async () => "unavailable"),
     reconnect: vi.fn(async () => true),
@@ -86,6 +87,7 @@ vi.mock("../../services/booru", () => ({
 vi.mock("../../hooks/useForegroundVideoRegistration", () => ({
   useForegroundVideoRegistration: () => ({
     markPlaying: vi.fn(),
+    handlePlay: vi.fn(),
     handlePause: vi.fn(),
     handleEnded: vi.fn(),
   }),
@@ -136,6 +138,7 @@ vi.mock("../globalHandyOverlayControls", () => ({
 
 vi.mock("../../services/haptics/runtime", () => ({
   createHapticsSession: vi.fn(),
+  disconnectHapticsSession: vi.fn(async () => undefined),
   pauseHapticsPlayback: vi.fn(),
   preloadHapticsScript: vi.fn(),
   resumeHapticsPlayback: vi.fn(),
@@ -333,6 +336,7 @@ function renderOverlay({
   roadPalette,
   roundControl,
   onOptionsActionsChange,
+  onPlaybackTelemetry,
 }: {
   activeRound?: ActiveRound | null;
   installedRounds?: InstalledRound[];
@@ -354,6 +358,7 @@ function renderOverlay({
     onUseSkip: () => void;
   };
   onOptionsActionsChange?: RoundVideoOverlayProps["onOptionsActionsChange"];
+  onPlaybackTelemetry?: RoundVideoOverlayProps["onPlaybackTelemetry"];
 } = {}) {
   return render(
     <RoundVideoOverlay
@@ -374,6 +379,7 @@ function renderOverlay({
       roadPalette={roadPalette}
       roundControl={roundControl}
       onOptionsActionsChange={onOptionsActionsChange}
+      onPlaybackTelemetry={onPlaybackTelemetry}
     />
   );
 }
@@ -396,6 +402,7 @@ describe("RoundVideoOverlay", () => {
     mocks.handy.offsetMs = 0;
     mocks.handy.connected = false;
     mocks.handy.manuallyStopped = false;
+    mocks.handy.sessionRevision = 0;
     mocks.handy.setSyncStatus.mockClear();
     mocks.handy.toggleManualStop.mockReset();
     mocks.handy.toggleManualStop.mockResolvedValue("unavailable");
@@ -426,6 +433,7 @@ describe("RoundVideoOverlay", () => {
     vi.mocked(booru.getCachedBooruMediaForDisplay).mockClear();
     vi.mocked(booru.refreshBooruMediaCache).mockClear();
     vi.mocked(handyRuntime.createHapticsSession).mockClear();
+    vi.mocked(handyRuntime.disconnectHapticsSession).mockClear();
     vi.mocked(handyRuntime.pauseHapticsPlayback).mockClear();
     vi.mocked(handyRuntime.preloadHapticsScript).mockClear();
     vi.mocked(handyRuntime.resumeHapticsPlayback).mockClear();
@@ -454,6 +462,30 @@ describe("RoundVideoOverlay", () => {
       "0:00 / 0:00"
     );
     expect(screen.queryByText("Segment: Main")).toBeNull();
+  });
+
+  it("emits cumulative gameplay playback telemetry", async () => {
+    const onPlaybackTelemetry = vi.fn();
+    const view = renderOverlay({ onPlaybackTelemetry });
+    const video = view.container.querySelector("video");
+    expect(video).toBeTruthy();
+    const time = primeVideoElement(video!, { duration: 30 });
+
+    fireEvent.playing(video!);
+    time.value = 0.5;
+    fireEvent.timeUpdate(video!);
+    fireEvent.ended(video!);
+
+    await waitFor(() => {
+      expect(onPlaybackTelemetry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roundId: "round-1",
+          status: "completed",
+          scheduledDurationMs: 30000,
+          watchedDurationMs: 500,
+        })
+      );
+    });
   });
 
   it("does not warn when play is aborted during a source transition", async () => {
@@ -1150,6 +1182,14 @@ describe("RoundVideoOverlay", () => {
       expect.anything(),
       session
     );
+
+    const syncCallCountWhilePausing = vi.mocked(handyRuntime.sendHapticsSync).mock.calls.length;
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
+    });
+    expect(vi.mocked(handyRuntime.sendHapticsSync)).toHaveBeenCalledTimes(
+      syncCallCountWhilePausing
+    );
   });
 
   it("applies the persisted TheHandy offset during bootstrap sync", async () => {
@@ -1222,6 +1262,56 @@ describe("RoundVideoOverlay", () => {
 
     await waitFor(() => {
       expect(vi.mocked(handyRuntime.preloadHapticsScript)).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("rebuilds the active playback session when reconnect is requested", async () => {
+    mocks.handy.connectionKey = "conn-key";
+    mocks.handy.appApiKey = "app-key";
+    mocks.handy.connected = true;
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [{ at: 0, pos: 10 }],
+    });
+    const firstSession = createAnyHapticsSession();
+    const replacementSession = createAnyHapticsSession();
+    vi.mocked(handyRuntime.createHapticsSession)
+      .mockResolvedValueOnce(firstSession)
+      .mockResolvedValueOnce(replacementSession);
+    const activeRound = createActiveRound("round-1");
+    const installedRounds = [createInstalledRound("round-1", "/script.funscript")];
+    const view = renderOverlay({ activeRound, installedRounds });
+
+    const video = await waitFor(() => {
+      const candidate = view.container.querySelector("video");
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(video, { duration: 30, currentTime: 0 });
+    fireEvent.loadedMetadata(video);
+    await waitFor(() => {
+      expect(vi.mocked(handyRuntime.createHapticsSession)).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.handy.sessionRevision += 1;
+    view.rerender(
+      <RoundVideoOverlay
+        activeRound={activeRound}
+        installedRounds={installedRounds}
+        currentPlayer={undefined}
+        intermediaryProbability={0}
+        booruSearchPrompt="animated gif webm"
+        intermediaryLoadingDurationSec={10}
+        intermediaryReturnPauseSec={4}
+        onFinishRound={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(handyRuntime.disconnectHapticsSession)).toHaveBeenCalledWith(
+        expect.anything(),
+        firstSession
+      );
+      expect(vi.mocked(handyRuntime.createHapticsSession)).toHaveBeenCalledTimes(2);
     });
   });
 

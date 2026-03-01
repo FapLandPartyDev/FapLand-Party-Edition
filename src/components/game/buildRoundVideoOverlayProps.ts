@@ -42,6 +42,7 @@ type RoundVideoOverlaySessionConfig = Pick<
   | "onCompleteBoardSequence"
   | "continuousMoaningActive"
   | "roadPalette"
+  | "onPlaybackTelemetry"
 >;
 
 type RoundVideoOverlayShellConfig = Pick<
@@ -94,6 +95,7 @@ export function buildRoundVideoOverlayProps({
     onCompleteBoardSequence: session?.onCompleteBoardSequence,
     continuousMoaningActive: session?.continuousMoaningActive,
     roadPalette: session?.roadPalette,
+    onPlaybackTelemetry: session?.onPlaybackTelemetry,
   };
 }
 
@@ -166,6 +168,7 @@ export type GameplayRoundVideoOverlayLaunchConfig = {
   extraModifiers?: PlaybackModifier[];
   onFunscriptFrame?: (payload: { timeMs: number; position: number | null }) => void;
   roadPalette?: RoadPalette;
+  onPlaybackTelemetry?: RoundVideoOverlayProps["onPlaybackTelemetry"];
 };
 
 export function buildGameplayRoundVideoOverlayProps(
@@ -209,6 +212,7 @@ export function buildGameplayRoundVideoOverlayProps(
       extraModifiers: config.extraModifiers,
       onFunscriptFrame: config.onFunscriptFrame,
       roadPalette: config.roadPalette,
+      onPlaybackTelemetry: config.onPlaybackTelemetry,
     },
   });
 }

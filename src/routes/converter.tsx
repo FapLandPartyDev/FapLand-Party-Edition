@@ -243,6 +243,7 @@ function ConverterPage() {
             onGoToSelect={() => state.goToSelectStep()}
             onAttachFunscript={() => void state.attachLocalFunscript()}
             onSearchEroScripts={() => setEroScriptsDialogMode("attach")}
+            onConvertFunscriptToHardMode={() => void state.convertAttachedFunscriptToHardMode()}
             onLoadPreviousUnconverted={() =>
               void state.loadPreviousUnconvertedRound({ focusTargetInput: true })
             }

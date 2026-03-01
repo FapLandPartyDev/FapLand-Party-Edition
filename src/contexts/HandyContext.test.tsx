@@ -87,6 +87,7 @@ function Consumer() {
       <div data-testid="stroke-max">{String(handy.strokeMax)}</div>
       <div data-testid="stroke-error">{handy.strokeError ?? ""}</div>
       <div data-testid="offset-ms">{String(handy.offsetMs)}</div>
+      <div data-testid="session-revision">{String(handy.sessionRevision)}</div>
       <button
         type="button"
         onClick={() => {
@@ -94,6 +95,14 @@ function Consumer() {
         }}
       >
         connect
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void handy.reconnect();
+        }}
+      >
+        reconnect
       </button>
       <button
         type="button"
@@ -219,6 +228,21 @@ describe("HandyContext", () => {
     }));
     mocks.getQuery.mockResolvedValue(null);
     mocks.setMutate.mockResolvedValue(undefined);
+  });
+
+  it("publishes a new runtime session revision for an explicit reconnect", async () => {
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+
+    expect(screen.getByTestId("session-revision").textContent).toBe("0");
+    fireEvent.click(screen.getByRole("button", { name: "reconnect" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("session-revision").textContent).toBe("1");
+    });
   });
 
   it("keeps the connection active but marks TheHandy manually stopped after force stop", async () => {

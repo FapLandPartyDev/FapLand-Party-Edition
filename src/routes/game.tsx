@@ -17,7 +17,10 @@ import type { PlaylistConfig } from "../game/playlistSchema";
 import { getPlaylistLaunchProgress, PLAYLIST_LAUNCH_MIN_DURATION_MS } from "../game/playlistLaunch";
 import { ZSinglePlayerRunSaveSnapshot, type SinglePlayerRunSaveSnapshot } from "../game/saveSchema";
 import type { GameConfig, GameState } from "../game/types";
-import { shouldClearSinglePlayerSaveOnCompletion } from "./gameSavePolicy";
+import {
+  resolveSessionStartedAtMs,
+  shouldClearSinglePlayerSaveOnCompletion,
+} from "./gameSavePolicy";
 import { isAssistedSaveMode } from "../game/saveMode";
 import { describePlaylistBoard } from "../game/playlistStats";
 import {
@@ -49,6 +52,7 @@ import { buildProgressionModifiers } from "../game/progression";
 import { progression } from "../services/progression";
 import { DEFAULT_INTERMEDIARY_LOADING_PROMPT } from "../constants/booruSettings";
 import { useHandy } from "../contexts/HandyContext";
+import { useGameplayTelemetrySession } from "../hooks/useGameplayTelemetrySession";
 import { formatDurationLabel, getRoundDurationSec } from "../utils/duration";
 import {
   DEFAULT_MOANING_ENABLED,
@@ -456,7 +460,7 @@ function GameRoute() {
       : getPlaylistLaunchProgress(PLAYLIST_LAUNCH_MIN_DURATION_MS)
   );
   const hasNavigatedToResultRef = useRef(false);
-  const sessionStartedAtMsRef = useRef(savedSnapshot?.sessionStartedAtMs ?? Date.now());
+  const [sessionStartedAtMs] = useState(() => resolveSessionStartedAtMs(savedSnapshot));
   const mapEditorTestPlaylistIdRef = useRef<string | null>(getMapEditorTestPlaylistId());
   const isMapEditorTestRun = mapEditorTestPlaylistIdRef.current !== null;
   const [progressionAwardSourceId] = useState(() => crypto.randomUUID());
@@ -498,6 +502,17 @@ function GameRoute() {
   const effectiveAssisted = Boolean(scoringSaveMode) && isAssistedSaveMode(scoringSaveMode);
   const effectiveAssistedSaveMode = scoringSaveMode;
   const canPersistSinglePlayerSave = !isMapEditorTestRun && currentPlaylistSaveMode !== "none";
+  const gameplayTelemetry = useGameplayTelemetrySession({
+    enabled: !isMapEditorTestRun,
+    mode: "single_player",
+    sourceId: `single:${activePlaylist.id}:${sessionStartedAtMs}`,
+    playlistId: activePlaylist.id,
+    playlistName: activePlaylist.name,
+    startedAtMs: sessionStartedAtMs,
+    cheatModeActive: effectiveCheatMode,
+    assistedActive: effectiveAssisted,
+    assistedSaveMode: effectiveAssistedSaveMode,
+  });
 
   const config = useMemo(() => {
     const baseConfig = toGameConfigFromPlaylist(activePlaylist.config, installedRounds);
@@ -607,7 +622,7 @@ function GameRoute() {
   useEffect(() => {
     const playlistMusic = config.playlistMusic;
     if (!playlistMusic || playlistMusic.tracks.length === 0) return;
-    const overrideId = `playlist:${activePlaylist.id}:${sessionStartedAtMsRef.current}`;
+    const overrideId = `playlist:${activePlaylist.id}:${sessionStartedAtMs}`;
     startTemporaryQueueOverride({
       id: overrideId,
       tracks: playlistMusic.tracks.map((track) => ({
@@ -623,6 +638,7 @@ function GameRoute() {
   }, [
     activePlaylist.id,
     config.playlistMusic,
+    sessionStartedAtMs,
     startTemporaryQueueOverride,
     stopTemporaryQueueOverride,
   ]);
@@ -664,7 +680,7 @@ function GameRoute() {
         playlistConfig: activePlaylist.config,
         saveMode: currentPlaylistSaveMode,
         gameState: state,
-        sessionStartedAtMs: sessionStartedAtMsRef.current,
+        sessionStartedAtMs,
         savedAtMs: Date.now(),
         progressionBlockReason: runProgressionBlockReason,
         disabledSkillRanks: runDisabledSkillRanks,
@@ -687,6 +703,7 @@ function GameRoute() {
       currentPlaylistSaveMode,
       runProgressionBlockReason,
       runDisabledSkillRanks,
+      sessionStartedAtMs,
     ]
   );
 
@@ -711,6 +728,17 @@ function GameRoute() {
 
   const handleBack = useMemo(
     () => () => {
+      void gameplayTelemetry
+        .finish({
+          status: "abandoned",
+          completionReason: "gave_up",
+          score:
+            latestStateRef.current.players[latestStateRef.current.currentPlayerIndex]?.score ?? 0,
+          completedRounds: latestStateRef.current.endlessRoundsCompleted,
+        })
+        .catch((error) => {
+          console.warn("Failed to finish gameplay telemetry", error);
+        });
       if (mapEditorTestPlaylistIdRef.current) {
         setMapEditorTestSession(mapEditorTestPlaylistIdRef.current);
         void navigate({ to: "/map-editor" });
@@ -718,7 +746,7 @@ function GameRoute() {
       }
       void navigate({ to: "/" });
     },
-    [clearRunSnapshot, navigate]
+    [gameplayTelemetry, navigate]
   );
 
   const handleRoundPlayed = useCallback(
@@ -771,10 +799,7 @@ function GameRoute() {
       hasNavigatedToResultRef.current = true;
 
       const score = Math.max(0, Math.floor(player.score));
-      const survivedDurationSec = Math.max(
-        0,
-        Math.floor((Date.now() - sessionStartedAtMsRef.current) / 1000)
-      );
+      const survivedDurationSec = Math.max(0, Math.floor((Date.now() - sessionStartedAtMs) / 1000));
       const highscoreBefore = Math.max(0, Math.floor(initialHighscore));
       const highscoreAfter = Math.max(0, Math.floor(nextState.highscore));
 
@@ -802,8 +827,31 @@ function GameRoute() {
           assistedActive: effectiveAssisted,
           assistedSaveMode: effectiveAssistedSaveMode,
         })
+        .then((run) =>
+          gameplayTelemetry
+            .finish({
+              status: "completed",
+              completionReason: nextState.completionReason ?? "finished",
+              score,
+              completedRounds: Math.max(0, Math.floor(nextState.endlessRoundsCompleted)),
+              singlePlayerRunId: run.id,
+            })
+            .catch((error) => {
+              console.warn("Failed to finish gameplay telemetry", error);
+            })
+        )
         .catch((error) => {
           console.warn("Failed to persist single-player run history", error);
+          void gameplayTelemetry
+            .finish({
+              status: "completed",
+              completionReason: nextState.completionReason ?? "finished",
+              score,
+              completedRounds: Math.max(0, Math.floor(nextState.endlessRoundsCompleted)),
+            })
+            .catch((telemetryError) => {
+              console.warn("Failed to finish gameplay telemetry", telemetryError);
+            });
         });
 
       const completionReason = nextState.completionReason ?? "finished";
@@ -873,6 +921,7 @@ function GameRoute() {
       effectiveAssisted,
       effectiveAssistedSaveMode,
       effectiveCheatMode,
+      gameplayTelemetry,
       initialHighscore,
       isMapEditorTestRun,
       navigate,
@@ -881,6 +930,7 @@ function GameRoute() {
       progressionAwardSourceId,
       runProgressionBlockReason,
       runDisabledSkillRanks,
+      sessionStartedAtMs,
       showSaveNotification,
     ]
   );
@@ -943,7 +993,7 @@ function GameRoute() {
     <BlockCommandPalette>
       <GameScene
         initialState={initialState}
-        sessionStartedAtMs={sessionStartedAtMsRef.current}
+        sessionStartedAtMs={sessionStartedAtMs}
         installedRounds={installedRounds}
         onGiveUp={handleBack}
         giveUpLabel={isMapEditorTestRun ? t`Back to Editor` : t`Give Up`}
@@ -952,6 +1002,7 @@ function GameRoute() {
         showDevPerkMenu={isGameDevelopmentMode() || cheatModeEnabled}
         onHighscoreChange={handleHighscoreChange}
         onRoundPlayed={handleRoundPlayed}
+        onPlaybackTelemetry={gameplayTelemetry.recordRound}
         onStateChange={handleStateChange}
         onPrepareCumPoint={handlePrepareCumPoint}
         externalNotification={saveNotification}

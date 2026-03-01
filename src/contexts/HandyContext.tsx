@@ -123,6 +123,8 @@ type HapticsContextType = {
   testDeviceError: string | null;
   isConnecting: boolean;
   error: string | null;
+  /** Changes whenever the user requests a fresh runtime/device session. */
+  sessionRevision: number;
   connect: (key: string, ip?: string, apiKeyOverride?: string) => Promise<boolean>;
   connectIntiface: (websocketUrl?: string, deviceIndex?: number | null) => Promise<boolean>;
   connectTCode: (
@@ -440,6 +442,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [testDeviceError, setTestDeviceError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionRevision, setSessionRevision] = useState(0);
   const userMutatedStateRef = useRef(false);
   const testDeviceTimerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null);
   const testDeviceSessionRef = useRef<AnyHapticsSession | null>(null);
@@ -1198,6 +1201,10 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const reconnect = useCallback(async (): Promise<boolean> => {
+    // Connection verification alone cannot repair an HSP stream that was
+    // superseded or stopped. Consumers use this revision to discard their
+    // current playback session and perform a full setup handshake.
+    setSessionRevision((current) => current + 1);
     if (provider === "intiface") {
       return connectIntiface(intifaceWebsocketUrl);
     }
@@ -1616,6 +1623,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       testDeviceError,
       isConnecting,
       error,
+      sessionRevision,
       connect,
       connectIntiface,
       connectTCode,
@@ -1681,6 +1689,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       testDeviceError,
       isConnecting,
       error,
+      sessionRevision,
       connect,
       connectIntiface,
       connectTCode,

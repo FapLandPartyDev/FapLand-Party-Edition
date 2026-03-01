@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { loadFunscriptTimeline, type FunscriptAction } from "../../game/media/playback";
 import { converter } from "../../services/converter";
 import { db, type InstalledRound } from "../../services/db";
@@ -159,6 +160,7 @@ function getDefaultSegmentCutMarkDraft(): SegmentCutMarkDraft {
 }
 
 export function useConverterState(searchParams: ConverterSearchParams) {
+  const { t } = useLingui();
   const {
     sourceRoundId: preselectedSourceRoundId,
     heroName: prefilledHeroName,
@@ -201,7 +203,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [detectedSegments, setDetectedSegments] = useState<SegmentDraft[]>([]);
   const [funscriptActions, setFunscriptActions] = useState<FunscriptAction[]>([]);
-  const [allowOverlappingSegments, setAllowOverlappingSegments] = useState(false);
+  const [allowOverlappingSegments, setAllowOverlappingSegments] = useState(true);
   const [previewSkipsCuts, setPreviewSkipsCuts] = useState(true);
 
   const latestSegmentsRef = useRef<SegmentDraft[]>([]);
@@ -239,6 +241,7 @@ export function useConverterState(searchParams: ConverterSearchParams) {
   const [sourceRoundIdsToReplace, setSourceRoundIdsToReplace] = useState<string[]>([]);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isConvertingHardMode, setIsConvertingHardMode] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -484,6 +487,30 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     setError(null);
     setMessage("EroScripts funscript attached.");
   }, []);
+
+  const convertAttachedFunscriptToHardMode = useCallback(async () => {
+    if (!funscriptUri || isConvertingHardMode) return;
+
+    setIsConvertingHardMode(true);
+    setError(null);
+    setMessage(t`Converting attached script to hard mode...`);
+    try {
+      const converted = await trpc.db.convertFunscriptToHardMode.mutate({ funscriptUri });
+      setFunscriptUri(converted.funscriptUri);
+      setMessage(t`Hard mode script is ready.`);
+      playSelectSound();
+    } catch (conversionError) {
+      setMessage(null);
+      setError(
+        conversionError instanceof Error
+          ? conversionError.message
+          : t`Failed to convert the funscript.`
+      );
+      playConverterValidationErrorSound();
+    } finally {
+      setIsConvertingHardMode(false);
+    }
+  }, [funscriptUri, isConvertingHardMode, t]);
 
   const selectWebsiteAndEdit = useCallback(
     async (nextVideoUri: string, nextFunscriptUri: string | null) => {
@@ -2810,6 +2837,8 @@ export function useConverterState(searchParams: ConverterSearchParams) {
     selectWebsiteAndEdit,
     attachLocalFunscript,
     attachEroScriptsFunscript,
+    convertAttachedFunscriptToHardMode,
+    isConvertingHardMode,
 
     // Caching
     cachingUrl,

@@ -91,6 +91,8 @@ import {
   resource,
   playlistTrackPlay,
   playlist,
+  gameplaySession,
+  gameplayRoundPlay,
 } from "../../services/db/schema";
 import { ZSinglePlayerRunSaveSnapshot } from "../../../src/game/saveSchema";
 import { THEHANDY_OFFSET_MAX_MS, THEHANDY_OFFSET_MIN_MS } from "../../../src/constants/theHandy";
@@ -98,6 +100,16 @@ import { THEHANDY_OFFSET_MAX_MS, THEHANDY_OFFSET_MIN_MS } from "../../../src/con
 const ZNullableText = z.string().optional().nullable();
 const ZRoundType = z.enum(["Normal", "Interjection", "Cum"]);
 const ZPersistablePlaylistSaveMode = z.enum(["checkpoint", "everywhere"]);
+const ZGameplayMode = z.enum(["single_player", "multiplayer"]);
+const ZGameplaySessionStatus = z.enum(["in_progress", "completed", "abandoned"]);
+const ZRoundPlayStatus = z.enum(["playing", "completed", "skipped", "abandoned"]);
+const ZRoundPhaseKind = z.enum(["normal", "cum", "cumPoint", "interjection"]);
+const ZRoundCumOutcome = z.enum([
+  "manual_loss",
+  "failed_instruction",
+  "came_as_told",
+  "did_not_cum",
+]);
 const ZTagList = z.array(z.string()).optional();
 const ROUND_DELETE_CHUNK_SIZE = 500;
 
@@ -673,6 +685,357 @@ export const dbRouter = router({
     ).length;
   }),
 
+  beginGameplaySession: publicProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        mode: ZGameplayMode,
+        sourceId: z.string().min(1),
+        playlistId: z.string().min(1).nullable().optional(),
+        playlistName: z.string().min(1),
+        startedAtIso: z.string().min(1),
+        cheatModeActive: z.boolean().optional(),
+        assistedActive: z.boolean().optional(),
+        assistedSaveMode: ZPersistablePlaylistSaveMode.nullable().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const now = new Date();
+      const startedAt = new Date(input.startedAtIso);
+      const existing = await db.query.gameplaySession.findFirst({
+        where: eq(gameplaySession.sourceId, input.sourceId),
+      });
+      if (existing) {
+        const [updated] = await db
+          .update(gameplaySession)
+          .set({
+            status: "in_progress",
+            endedAt: null,
+            lastActiveAt: now,
+            updatedAt: now,
+          })
+          .where(eq(gameplaySession.id, existing.id))
+          .returning();
+        return updated;
+      }
+      const openSessions = await db.query.gameplaySession.findMany({
+        where: eq(gameplaySession.status, "in_progress"),
+      });
+      for (const open of openSessions) {
+        await db
+          .update(gameplaySession)
+          .set({ status: "abandoned", endedAt: open.lastActiveAt, updatedAt: now })
+          .where(eq(gameplaySession.id, open.id));
+        await db
+          .update(gameplayRoundPlay)
+          .set({ status: "abandoned", finishedAt: open.lastActiveAt, updatedAt: now })
+          .where(
+            and(eq(gameplayRoundPlay.sessionId, open.id), eq(gameplayRoundPlay.status, "playing"))
+          );
+      }
+      const [created] = await db
+        .insert(gameplaySession)
+        .values({
+          id: input.id,
+          mode: input.mode,
+          sourceId: input.sourceId,
+          playlistId: input.playlistId ?? null,
+          playlistName: input.playlistName.trim(),
+          startedAt,
+          lastActiveAt: now,
+          cheatModeActive: input.cheatModeActive ?? false,
+          assistedActive: input.assistedActive ?? false,
+          assistedSaveMode: input.assistedActive ? (input.assistedSaveMode ?? null) : null,
+        })
+        .returning();
+      return created;
+    }),
+
+  updateGameplaySessionActivity: publicProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        activePlayMs: z.number().int().min(0),
+        lastActiveAtIso: z.string().min(1).optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const existing = await db.query.gameplaySession.findFirst({
+        where: eq(gameplaySession.id, input.id),
+      });
+      if (!existing) return null;
+      const [updated] = await db
+        .update(gameplaySession)
+        .set({
+          activePlayMs: Math.max(existing.activePlayMs, input.activePlayMs),
+          lastActiveAt: input.lastActiveAtIso ? new Date(input.lastActiveAtIso) : new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(gameplaySession.id, input.id))
+        .returning();
+      return updated ?? null;
+    }),
+
+  finishGameplaySession: publicProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        activePlayMs: z.number().int().min(0),
+        status: ZGameplaySessionStatus.exclude(["in_progress"]),
+        completionReason: z.string().nullable().optional(),
+        score: z.number().int().min(0).nullable().optional(),
+        completedRounds: z.number().int().min(0).optional(),
+        singlePlayerRunId: z.string().min(1).nullable().optional(),
+        endedAtIso: z.string().min(1).optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const existing = await db.query.gameplaySession.findFirst({
+        where: eq(gameplaySession.id, input.id),
+      });
+      if (!existing) return null;
+      const endedAt = input.endedAtIso ? new Date(input.endedAtIso) : new Date();
+      const [updated] = await db
+        .update(gameplaySession)
+        .set({
+          activePlayMs: Math.max(existing.activePlayMs, input.activePlayMs),
+          lastActiveAt: endedAt,
+          endedAt,
+          status: input.status,
+          completionReason: input.completionReason ?? null,
+          score: input.score ?? null,
+          completedRounds: input.completedRounds ?? existing.completedRounds,
+          singlePlayerRunId: input.singlePlayerRunId ?? existing.singlePlayerRunId,
+          updatedAt: new Date(),
+        })
+        .where(eq(gameplaySession.id, input.id))
+        .returning();
+      await db
+        .update(gameplayRoundPlay)
+        .set({ status: "abandoned", finishedAt: endedAt, updatedAt: new Date() })
+        .where(
+          and(eq(gameplayRoundPlay.sessionId, input.id), eq(gameplayRoundPlay.status, "playing"))
+        );
+      return updated ?? null;
+    }),
+
+  upsertGameplayRoundPlay: publicProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        sessionId: z.string().min(1),
+        mode: ZGameplayMode,
+        playlistId: z.string().min(1).nullable().optional(),
+        playlistName: z.string().min(1),
+        roundId: z.string().min(1),
+        roundName: z.string().min(1),
+        roundType: ZRoundType,
+        phaseKind: ZRoundPhaseKind,
+        nodeId: z.string().nullable().optional(),
+        poolId: z.string().nullable().optional(),
+        startedAtIso: z.string().min(1),
+        finishedAtIso: z.string().min(1).nullable().optional(),
+        scheduledDurationMs: z.number().int().min(0).nullable().optional(),
+        watchedDurationMs: z.number().int().min(0),
+        status: ZRoundPlayStatus,
+        cumOutcome: ZRoundCumOutcome.nullable().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const existing = await db.query.gameplayRoundPlay.findFirst({
+        where: eq(gameplayRoundPlay.id, input.id),
+      });
+      const session = await db.query.gameplaySession.findFirst({
+        where: eq(gameplaySession.id, input.sessionId),
+        columns: { status: true, endedAt: true },
+      });
+      if (!session) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Gameplay session not found." });
+      }
+      const watchedDurationMs = Math.max(existing?.watchedDurationMs ?? 0, input.watchedDurationMs);
+      const values = {
+        sessionId: input.sessionId,
+        mode: input.mode,
+        playlistId: input.playlistId ?? null,
+        playlistName: input.playlistName.trim(),
+        roundId: input.roundId,
+        roundName: input.roundName.trim(),
+        roundType: input.roundType,
+        phaseKind: input.phaseKind,
+        nodeId: input.nodeId ?? null,
+        poolId: input.poolId ?? null,
+        startedAt: new Date(input.startedAtIso),
+        finishedAt: input.finishedAtIso
+          ? new Date(input.finishedAtIso)
+          : session.status === "in_progress"
+            ? null
+            : session.endedAt,
+        scheduledDurationMs: input.scheduledDurationMs ?? null,
+        watchedDurationMs,
+        status:
+          session.status !== "in_progress" && input.status === "playing"
+            ? "abandoned"
+            : input.status,
+        cumOutcome: input.cumOutcome ?? null,
+        updatedAt: new Date(),
+      } as const;
+      const [row] = await db
+        .insert(gameplayRoundPlay)
+        .values({ id: input.id, ...values })
+        .onConflictDoUpdate({ target: gameplayRoundPlay.id, set: values })
+        .returning();
+      return row;
+    }),
+
+  getGameplayStats: publicProcedure
+    .input(z.object({ mode: ZGameplayMode.optional() }).optional())
+    .query(async ({ input }) => {
+      const db = getDb();
+      const sessions = await db.query.gameplaySession.findMany({
+        orderBy: [desc(gameplaySession.startedAt)],
+      });
+      const plays = await db.query.gameplayRoundPlay.findMany({
+        orderBy: [desc(gameplayRoundPlay.startedAt)],
+      });
+      const selectedSessions = input?.mode
+        ? sessions.filter((session) => session.mode === input.mode)
+        : sessions;
+      const selectedPlays = input?.mode ? plays.filter((play) => play.mode === input.mode) : plays;
+      const roundMap = new Map<
+        string,
+        {
+          roundId: string;
+          roundName: string;
+          roundType: "Normal" | "Interjection" | "Cum";
+          modes: Set<"single_player" | "multiplayer">;
+          playCount: number;
+          watchedDurationMs: number;
+          scheduledDurationMs: number;
+          watchedCoverageCount: number;
+          scheduledCoverageCount: number;
+          cumLosses: number;
+          cameAsTold: number;
+          didNotCum: number;
+          lastPlayedAt: Date;
+        }
+      >();
+      for (const play of selectedPlays) {
+        const current = roundMap.get(play.roundId) ?? {
+          roundId: play.roundId,
+          roundName: play.roundName,
+          roundType: play.roundType,
+          modes: new Set<"single_player" | "multiplayer">(),
+          playCount: 0,
+          watchedDurationMs: 0,
+          scheduledDurationMs: 0,
+          watchedCoverageCount: 0,
+          scheduledCoverageCount: 0,
+          cumLosses: 0,
+          cameAsTold: 0,
+          didNotCum: 0,
+          lastPlayedAt: play.startedAt,
+        };
+        current.roundName = play.roundName;
+        current.roundType = play.roundType;
+        current.modes.add(play.mode);
+        current.playCount += 1;
+        if (!play.isLegacy) {
+          current.watchedDurationMs += play.watchedDurationMs;
+          current.watchedCoverageCount += 1;
+        }
+        if (play.scheduledDurationMs !== null) {
+          current.scheduledDurationMs += play.scheduledDurationMs;
+          current.scheduledCoverageCount += 1;
+        }
+        if (play.cumOutcome === "manual_loss" || play.cumOutcome === "failed_instruction")
+          current.cumLosses += 1;
+        if (play.cumOutcome === "came_as_told") current.cameAsTold += 1;
+        if (play.cumOutcome === "did_not_cum") current.didNotCum += 1;
+        if (play.startedAt > current.lastPlayedAt) current.lastPlayedAt = play.startedAt;
+        roundMap.set(play.roundId, current);
+      }
+      const unassignedLegacyOutcomes = selectedSessions.filter(
+        (session) =>
+          session.isLegacy &&
+          (session.completionReason === "self_reported_cum" ||
+            session.completionReason === "cum_instruction_failed" ||
+            session.completionReason === "cum_point_instruction_failed")
+      ).length;
+      return {
+        summary: {
+          activePlayMs: selectedSessions.reduce((total, row) => total + row.activePlayMs, 0),
+          watchedDurationMs: selectedPlays.reduce(
+            (total, row) => total + (row.isLegacy ? 0 : row.watchedDurationMs),
+            0
+          ),
+          scheduledDurationMs: selectedPlays.reduce(
+            (total, row) => total + (row.scheduledDurationMs ?? 0),
+            0
+          ),
+          sessionCount: selectedSessions.length,
+          roundPlayCount: selectedPlays.filter((row) => row.roundType !== "Interjection").length,
+          interjectionPlayCount: selectedPlays.filter((row) => row.roundType === "Interjection")
+            .length,
+          cumLosses: selectedPlays.filter(
+            (row) => row.cumOutcome === "manual_loss" || row.cumOutcome === "failed_instruction"
+          ).length,
+          cameAsTold: selectedPlays.filter((row) => row.cumOutcome === "came_as_told").length,
+        },
+        coverage: {
+          hasLegacyData:
+            selectedSessions.some((row) => row.isLegacy) ||
+            selectedPlays.some((row) => row.isLegacy),
+          watchedPlayCount: selectedPlays.filter((row) => !row.isLegacy).length,
+          scheduledPlayCount: selectedPlays.filter((row) => row.scheduledDurationMs !== null)
+            .length,
+          totalPlayCount: selectedPlays.length,
+        },
+        unassignedLegacyOutcomes,
+        rounds: [...roundMap.values()].map((row) => ({ ...row, modes: [...row.modes] })),
+      };
+    }),
+
+  listGameplaySessions: publicProcedure
+    .input(
+      z
+        .object({
+          mode: ZGameplayMode.optional(),
+          limit: z.number().int().min(1).max(100).default(25),
+          beforeIso: z.string().min(1).optional(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      const db = getDb();
+      const rows = await db.query.gameplaySession.findMany({
+        orderBy: [desc(gameplaySession.startedAt)],
+        limit: 500,
+      });
+      const filtered = rows
+        .filter((row) => !input?.mode || row.mode === input.mode)
+        .filter((row) => !input?.beforeIso || row.startedAt < new Date(input.beforeIso));
+      const limit = input?.limit ?? 25;
+      const page = filtered.slice(0, limit);
+      const sessions = await Promise.all(
+        page.map(async (session) => ({
+          ...session,
+          rounds: await db.query.gameplayRoundPlay.findMany({
+            where: eq(gameplayRoundPlay.sessionId, session.id),
+            orderBy: [asc(gameplayRoundPlay.startedAt)],
+          }),
+        }))
+      );
+      return {
+        sessions,
+        nextCursor:
+          filtered.length > limit ? (page[page.length - 1]?.startedAt.toISOString() ?? null) : null,
+      };
+    }),
+
   upsertSinglePlayerRunSave: publicProcedure
     .input(
       z.object({
@@ -750,6 +1113,17 @@ export const dbRouter = router({
     .input(z.object({ id: z.string().min(1) }))
     .mutation(async ({ input }) => {
       const db = getDb();
+      const gameplaySessionQuery = (
+        db.query as typeof db.query & {
+          gameplaySession?: typeof db.query.gameplaySession;
+        }
+      ).gameplaySession;
+      const linkedSessions = gameplaySessionQuery
+        ? await gameplaySessionQuery.findMany({
+            where: eq(gameplaySession.singlePlayerRunId, input.id),
+            columns: { id: true },
+          })
+        : [];
       const [deleted] = await db
         .delete(singlePlayerRunHistory)
         .where(eq(singlePlayerRunHistory.id, input.id))
@@ -760,6 +1134,10 @@ export const dbRouter = router({
           code: "NOT_FOUND",
           message: "Single-player run not found.",
         });
+      }
+
+      for (const session of linkedSessions) {
+        await db.delete(gameplaySession).where(eq(gameplaySession.id, session.id));
       }
 
       const remainingRuns = await db.query.singlePlayerRunHistory.findMany({
@@ -1026,6 +1404,76 @@ export const dbRouter = router({
         updatedResources,
         skippedRounds,
       };
+    }),
+
+  updateHeroFunscriptOffset: publicProcedure
+    .input(
+      z.object({
+        heroId: z.string().min(1),
+        offsetMs: z.number().int().nullable(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const existing = await db.query.hero.findFirst({
+        where: eq(hero.id, input.heroId),
+        columns: { id: true },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Hero not found.",
+        });
+      }
+
+      const funscriptOffsetMs = normalizeFunscriptOffsetMs(input.offsetMs);
+      const attachedRounds = await db.query.round.findMany({
+        where: eq(round.heroId, input.heroId),
+        columns: { id: true },
+        with: {
+          resources: {
+            orderBy: [asc(resource.createdAt), asc(resource.id)],
+            columns: { id: true },
+          },
+        },
+      });
+
+      let updatedResources = 0;
+      let skippedRounds = 0;
+      await db.transaction(async (tx) => {
+        for (const attachedRound of attachedRounds) {
+          const primaryResource = attachedRound.resources[0];
+          if (!primaryResource) {
+            skippedRounds += 1;
+            continue;
+          }
+          await tx
+            .update(resource)
+            .set({ funscriptOffsetMs, updatedAt: new Date() })
+            .where(eq(resource.id, primaryResource.id));
+          updatedResources += 1;
+        }
+      });
+
+      return {
+        heroId: input.heroId,
+        funscriptOffsetMs,
+        updatedResources,
+        skippedRounds,
+      };
+    }),
+
+  convertFunscriptToHardMode: publicProcedure
+    .input(z.object({ funscriptUri: z.string().trim().min(1) }))
+    .mutation(async ({ input }) => {
+      try {
+        return await convertFunscriptUriToManagedHardMode(input.funscriptUri);
+      } catch (error) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: error instanceof Error ? error.message : "Failed to convert the funscript.",
+        });
+      }
     }),
 
   convertHeroFunscriptToHardMode: publicProcedure
@@ -2289,10 +2737,7 @@ export const dbRouter = router({
           const primaryResource = entry.resources[0];
           const hardModeRevert =
             primaryResource?.funscriptUri &&
-            (await getHardModeAttachmentRevert(
-              primaryResource.id,
-              primaryResource.funscriptUri
-            ));
+            (await getHardModeAttachmentRevert(primaryResource.id, primaryResource.funscriptUri));
 
           return {
             ...toInstalledRoundCatalogEntry(entry),
@@ -3223,6 +3668,8 @@ export const dbRouter = router({
           await tx.delete(resultSyncQueue);
         }
         if (history) {
+          await tx.delete(gameplayRoundPlay);
+          await tx.delete(gameplaySession);
           await tx.delete(singlePlayerRunHistory);
           await tx.delete(singlePlayerRunSave);
         }

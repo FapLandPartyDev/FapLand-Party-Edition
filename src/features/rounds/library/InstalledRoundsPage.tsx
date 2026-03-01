@@ -810,6 +810,24 @@ export function InstalledRoundsPage({
 
   const saveHeroEdit = useCallback(async () => {
     if (!editingHero || isSavingEdit) return;
+    const funscriptOffsetMs = editingHero.funscriptOffsetDirty
+      ? parseOptionalSignedInteger(editingHero.funscriptOffsetMs)
+      : null;
+    if (editingHero.funscriptOffsetDirty && Number.isNaN(funscriptOffsetMs)) {
+      showToast(t`Funscript offset must be a valid integer.`, "error");
+      return;
+    }
+    if (
+      editingHero.funscriptOffsetDirty &&
+      funscriptOffsetMs !== null &&
+      (funscriptOffsetMs < THEHANDY_OFFSET_MIN_MS || funscriptOffsetMs > THEHANDY_OFFSET_MAX_MS)
+    ) {
+      showToast(
+        t`Funscript offset must be between ${THEHANDY_OFFSET_MIN_MS}ms and ${THEHANDY_OFFSET_MAX_MS}ms.`,
+        "error"
+      );
+      return;
+    }
     setIsSavingEdit(true);
     try {
       const heroDraft = editingHero;
@@ -829,6 +847,23 @@ export function InstalledRoundsPage({
           result.updatedResources === 1
             ? t`Updated funscript for 1 hero round.`
             : t`Updated funscript for ${result.updatedResources} hero rounds.`;
+        const skippedLabel =
+          result.skippedRounds > 0
+            ? result.skippedRounds === 1
+              ? ` ${t`Skipped 1 round without resources.`}`
+              : ` ${t`Skipped ${result.skippedRounds} rounds without resources.`}`
+            : "";
+        showToast(`${updatedLabel}${skippedLabel}`, "success");
+      }
+      if (heroDraft.funscriptOffsetDirty) {
+        const result = await db.hero.updateFunscriptOffset({
+          heroId: heroDraft.id,
+          offsetMs: funscriptOffsetMs,
+        });
+        const updatedLabel =
+          result.updatedResources === 1
+            ? t`Applied offset to 1 hero round.`
+            : t`Applied offset to ${result.updatedResources} hero rounds.`;
         const skippedLabel =
           result.skippedRounds > 0
             ? result.skippedRounds === 1

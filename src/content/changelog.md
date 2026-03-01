@@ -1,5 +1,24 @@
 # What's New
 
+## v0.6.15-beta
+
+### Added
+
+- **Gameplay Statistics** — a new Statistics section on the Highscores page surfaces total active play time, watched video duration, scheduled vs. watched round length, session and round-play counts, and cum outcomes (losses and "came as told"). Filter by mode (Combined / Single-player / Multiplayer) and round type (All / Main / Cum / Interjection), sort round breakdowns by losses, plays, watched time, or recency, and browse a paginated session list with expandable per-round details. Two new tables (`GameplaySession`, `GameplayRoundPlay`) capture active, focused play time and per-round telemetry from both single-player and multiplayer runs, and a database migration backfills existing `SinglePlayerRunHistory` and `PlaylistTrackPlay` records as legacy sessions so historical activity appears on day one.
+- **Per-hero funscript offset** — the Edit Hero dialog now has a "Funscript Offset for All Hero Rounds (ms)" field that applies the same offset to every resource-backed round in the hero in one save, reporting how many rounds were updated and how many were skipped.
+- **Search EroScripts from the Round Converter** — a new "Search EroScripts" button in the converter header opens the EroScripts funscript search dialog directly, so you can find and attach a script without leaving the converter.
+
+### Changed
+
+- **TheHandy connection reliability overhaul** — device commands (preload, sync, pause, resume, stop, disconnect) are now serialized per connection so overlapping HSP requests can no longer desync the device. The runtime tracks a session generation and discards stale setup attempts, preventing an older reconnect from stopping a newer round's HSP stream; a new `sessionRevision` on the haptics context lets the in-game overlay tear down and re-handshake its playback session whenever a reconnect is requested. Server-time sampling now deduplicates concurrent refreshes, uses a monotonic clock for round-trip measurement, and TheHandy responses are validated with a typed `HandyDeviceError` that surfaces the device's error code, name, and connected state instead of a generic failure.
+- **Cum Point falls back to any installed Cum Round** — when no specific Cum Round is configured for a checkpoint, Cum Point now picks from any non-excluded installed Cum Round instead of refusing to start. The checkpoint activation guard likewise accepts any installed Cum Round, so the "no cum rounds installed" message only appears when none are actually present.
+- **Cum Point checkpoint toggle no longer requires a pre-configured Cum Round** — the Map Editor's Node Inspector enables the cum-point checkpoint option whenever a save mode is active, removing the previous "Add at least one Cum Round first" gate.
+- **Accurate run timing across save/resume** — the session start clock is now reconstructed from the elapsed time stored in the save snapshot, so "survived duration" and gameplay-telemetry active time stay correct when a run is resumed after being saved.
+- **Prerelease update detection** — the desktop updater now treats prerelease builds (e.g. `0.6.11-beta`) as out-of-date when a newer prerelease with the same base version ships, via a new `shouldUpdateToRelease` check, instead of only comparing semver order.
+- Translation catalogs have been regenerated.
+
+---
+
 ## v0.6.11-beta
 
 ### Added

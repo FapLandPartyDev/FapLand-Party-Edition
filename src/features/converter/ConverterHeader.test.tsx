@@ -25,10 +25,13 @@ describe("ConverterHeader", () => {
         canLoadPreviousUnconverted={false}
         canLoadNextUnconverted={false}
         unconvertedPositionLabel={null}
+        hasFunscript={false}
+        isConvertingHardMode={false}
         showHotkeys
         onGoToSelect={() => {}}
         onAttachFunscript={() => {}}
         onSearchEroScripts={() => {}}
+        onConvertFunscriptToHardMode={() => {}}
         onLoadPreviousUnconverted={() => {}}
         onLoadNextUnconverted={() => {}}
         onShowHotkeys={onShowHotkeys}
@@ -48,10 +51,13 @@ describe("ConverterHeader", () => {
         canLoadPreviousUnconverted={false}
         canLoadNextUnconverted={false}
         unconvertedPositionLabel={null}
+        hasFunscript={false}
+        isConvertingHardMode={false}
         showHotkeys={false}
         onGoToSelect={() => {}}
         onAttachFunscript={() => {}}
         onSearchEroScripts={() => {}}
+        onConvertFunscriptToHardMode={() => {}}
         onLoadPreviousUnconverted={() => {}}
         onLoadNextUnconverted={() => {}}
         onShowHotkeys={onShowHotkeys}
@@ -75,10 +81,13 @@ describe("ConverterHeader", () => {
         canLoadPreviousUnconverted={false}
         canLoadNextUnconverted={false}
         unconvertedPositionLabel={null}
+        hasFunscript={false}
+        isConvertingHardMode={false}
         showHotkeys={false}
         onGoToSelect={() => {}}
         onAttachFunscript={onAttachFunscript}
         onSearchEroScripts={() => {}}
+        onConvertFunscriptToHardMode={() => {}}
         onLoadPreviousUnconverted={() => {}}
         onLoadNextUnconverted={() => {}}
         onShowHotkeys={() => {}}
@@ -102,10 +111,13 @@ describe("ConverterHeader", () => {
         canLoadPreviousUnconverted={false}
         canLoadNextUnconverted={false}
         unconvertedPositionLabel={null}
+        hasFunscript={false}
+        isConvertingHardMode={false}
         showHotkeys={false}
         onGoToSelect={() => {}}
         onAttachFunscript={() => {}}
         onSearchEroScripts={onSearchEroScripts}
+        onConvertFunscriptToHardMode={() => {}}
         onLoadPreviousUnconverted={() => {}}
         onLoadNextUnconverted={() => {}}
         onShowHotkeys={() => {}}
@@ -115,5 +127,35 @@ describe("ConverterHeader", () => {
 
     fireEvent.click(screen.getByText("Search EroScripts"));
     expect(onSearchEroScripts).toHaveBeenCalledTimes(1);
+  });
+
+  it("converts the attached funscript to hard mode", () => {
+    const onConvertFunscriptToHardMode = vi.fn();
+
+    render(
+      <ConverterHeader
+        step="edit"
+        selectedSourceInfo={{ kind: "round", id: "round-1", name: "Round" }}
+        segmentCount={1}
+        sourceSummary="Installed source"
+        canLoadPreviousUnconverted={false}
+        canLoadNextUnconverted={false}
+        unconvertedPositionLabel={null}
+        hasFunscript
+        isConvertingHardMode={false}
+        showHotkeys={false}
+        onGoToSelect={() => {}}
+        onAttachFunscript={() => {}}
+        onSearchEroScripts={() => {}}
+        onConvertFunscriptToHardMode={onConvertFunscriptToHardMode}
+        onLoadPreviousUnconverted={() => {}}
+        onLoadNextUnconverted={() => {}}
+        onShowHotkeys={() => {}}
+        onHideHotkeys={() => {}}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Convert legacy script to hard mode"));
+    expect(onConvertFunscriptToHardMode).toHaveBeenCalledTimes(1);
   });
 });

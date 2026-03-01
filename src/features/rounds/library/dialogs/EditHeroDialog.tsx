@@ -76,6 +76,28 @@ export function EditHeroDialog({
                 </span>
               )}
             </div>
+            <div>
+              <label
+                htmlFor="hero-funscript-offset"
+                className="mb-1 block text-xs uppercase tracking-[0.18em] text-zinc-500"
+              >
+                <Trans>Funscript Offset for All Hero Rounds (ms)</Trans>
+              </label>
+              <input
+                id="hero-funscript-offset"
+                value={draft.funscriptOffsetMs}
+                disabled={disabled}
+                inputMode="numeric"
+                placeholder="0"
+                onChange={(e) =>
+                  set({ funscriptOffsetMs: e.target.value, funscriptOffsetDirty: true })
+                }
+                className={modalInputClass}
+              />
+              <p className="mt-1 text-xs text-zinc-500">
+                <Trans>Changing this applies the same offset to every round in this hero.</Trans>
+              </p>
+            </div>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"

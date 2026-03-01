@@ -12,12 +12,15 @@ type ConverterHeaderBaseProps = {
   canLoadPreviousUnconverted: boolean;
   canLoadNextUnconverted: boolean;
   unconvertedPositionLabel: string | null;
+  hasFunscript: boolean;
+  isConvertingHardMode: boolean;
 };
 
 type ConverterHeaderProps = ConverterHeaderBaseProps & {
   onGoToSelect: () => void;
   onAttachFunscript: () => void;
   onSearchEroScripts: () => void;
+  onConvertFunscriptToHardMode: () => void;
   onLoadPreviousUnconverted: () => void;
   onLoadNextUnconverted: () => void;
   onShowHotkeys: () => void;
@@ -34,9 +37,12 @@ export const ConverterHeader: React.FC<ConverterHeaderProps> = React.memo(
     canLoadPreviousUnconverted,
     canLoadNextUnconverted,
     unconvertedPositionLabel,
+    hasFunscript,
+    isConvertingHardMode,
     onGoToSelect,
     onAttachFunscript,
     onSearchEroScripts,
+    onConvertFunscriptToHardMode,
     onLoadPreviousUnconverted,
     onLoadNextUnconverted,
     onShowHotkeys,
@@ -68,6 +74,26 @@ export const ConverterHeader: React.FC<ConverterHeaderProps> = React.memo(
     return (
       <header className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-6 backdrop-blur-xl">
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            disabled={!hasFunscript || isConvertingHardMode}
+            onMouseEnter={playHoverSound}
+            onClick={() => {
+              playSelectSound();
+              onConvertFunscriptToHardMode();
+            }}
+            className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.2em] transition-all duration-200 ${
+              hasFunscript && !isConvertingHardMode
+                ? "border-rose-300/55 bg-rose-500/20 text-rose-100 hover:border-rose-200/80 hover:bg-rose-500/35"
+                : "cursor-not-allowed border-zinc-700 bg-zinc-900/70 text-zinc-500"
+            }`}
+          >
+            {isConvertingHardMode ? (
+              <Trans>Converting attached script to hard mode...</Trans>
+            ) : (
+              <Trans>Convert legacy script to hard mode</Trans>
+            )}
+          </button>
           <button
             type="button"
             disabled={!canLoadPreviousUnconverted}
@@ -198,5 +224,7 @@ export function pickConverterHeaderProps(state: ConverterState): ConverterHeader
     canLoadPreviousUnconverted: state.canLoadPreviousUnconverted,
     canLoadNextUnconverted: state.canLoadNextUnconverted,
     unconvertedPositionLabel: state.unconvertedPositionLabel,
+    hasFunscript: Boolean(state.funscriptUri),
+    isConvertingHardMode: state.isConvertingHardMode,
   };
 }

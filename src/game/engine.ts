@@ -664,17 +664,16 @@ export function acceptCumPoint(
   const selectedCumRounds = state.config.singlePlayer.cumRoundIds
     .map((roundId) => getRoundById(installedRounds, roundId))
     .filter((round): round is InstalledRound => Boolean(round));
-  const selectedRound =
-    selectedCumRounds.length > 0
-      ? selectedCumRounds[Math.floor(randomValue() * selectedCumRounds.length)]
-      : undefined;
+  const availableCumRounds =
+    selectedCumRounds.length > 0 ? selectedCumRounds : getInstalledCumRounds(installedRounds);
+  const selectedRound = availableCumRounds[Math.floor(randomValue() * availableCumRounds.length)];
   if (!selectedRound) {
     return {
       ...state,
-      log: [
-        "Cum Point could not start because no configured Cum Round is available.",
-        ...state.log,
-      ].slice(0, 40),
+      log: ["Cum Point could not start because no Cum Round is available.", ...state.log].slice(
+        0,
+        40
+      ),
     };
   }
   return {

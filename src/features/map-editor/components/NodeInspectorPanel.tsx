@@ -41,7 +41,6 @@ interface NodeInspectorPanelProps {
   antiPerkOptions: ReadonlyArray<PerkOption>;
   customPalettes: ReadonlyArray<CustomRoadPalette>;
   saveMode?: "none" | "checkpoint" | "everywhere";
-  cumRoundCount?: number;
   onPatchNode: (nodeId: string, patch: Partial<EditorNode>) => void;
   onCommitSelection: (selection: EditorSelectionState) => void;
   onSetTool: (tool: "connect") => void;
@@ -358,7 +357,6 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
     antiPerkOptions,
     customPalettes,
     saveMode = "none",
-    cumRoundCount = 0,
     onPatchNode,
     onCommitSelection,
     onSetTool,
@@ -709,7 +707,7 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
             </label>
             <label
               className={`flex items-start gap-2 rounded-lg border px-3 py-2 ${
-                saveMode !== "none" && cumRoundCount > 0
+                saveMode !== "none"
                   ? "border-fuchsia-400/30 bg-fuchsia-500/10 text-fuchsia-100"
                   : "border-zinc-700/50 bg-zinc-950/40 text-zinc-500"
               }`}
@@ -717,7 +715,7 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
               <input
                 type="checkbox"
                 checked={selectedNode.cumPoint ?? false}
-                disabled={saveMode === "none" || cumRoundCount === 0}
+                disabled={saveMode === "none"}
                 onChange={(event) =>
                   onPatchNode(selectedNode.id, {
                     cumPoint: event.target.checked ? true : undefined,
@@ -732,8 +730,6 @@ export const NodeInspectorPanel: React.FC<NodeInspectorPanelProps> = React.memo(
                 <span className="mt-0.5 block text-[11px] opacity-70">
                   {saveMode === "none" ? (
                     <Trans>Enable Checkpoint or Everywhere saving first.</Trans>
-                  ) : cumRoundCount === 0 ? (
-                    <Trans>Add at least one Cum Round first.</Trans>
                   ) : (
                     <Trans>
                       In single-player, offer a Cum Round and keep this checkpoint for later resume.

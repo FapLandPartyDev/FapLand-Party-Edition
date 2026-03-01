@@ -88,6 +88,11 @@ export function toHeroEditDraft(
     tagsText: (round.hero.tags ?? []).join(", "),
     funscriptUri,
     funscriptDirty: false,
+    funscriptOffsetMs:
+      (primaryResource as { funscriptOffsetMs?: number | null } | null)?.funscriptOffsetMs == null
+        ? ""
+        : `${(primaryResource as { funscriptOffsetMs?: number | null }).funscriptOffsetMs}`,
+    funscriptOffsetDirty: false,
   };
 }
 

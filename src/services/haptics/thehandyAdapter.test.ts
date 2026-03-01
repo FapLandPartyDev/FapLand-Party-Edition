@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
     maxAbsolute: null,
   })),
   stopHandyPlayback: vi.fn(async () => undefined),
+  preloadHspScript: vi.fn(async () => undefined),
 }));
 
 vi.mock("../handyApi", () => ({
@@ -43,7 +44,7 @@ vi.mock("../thehandy/runtime", () => ({
   stopHandyPlayback: mocks.stopHandyPlayback,
   pauseHandyPlayback: vi.fn(async () => undefined),
   resumeHandyPlayback: vi.fn(async () => undefined),
-  preloadHspScript: vi.fn(async () => undefined),
+  preloadHspScript: mocks.preloadHspScript,
   sendHspSync: vi.fn(async () => undefined),
 }));
 
@@ -96,5 +97,37 @@ describe("thehandyAdapter", () => {
       { connectionKey: "conn-key", appApiKey: "app-key" },
       session
     );
+  });
+
+  it("serializes a late stop before initializing the next script", async () => {
+    let finishStop: (() => void) | null = null;
+    mocks.stopHandyPlayback.mockImplementationOnce(
+      () =>
+        new Promise<undefined>((resolve) => {
+          finishStop = () => resolve(undefined);
+        })
+    );
+    const oldSession = await thehandyAdapter.createSession(config);
+    const nextSession = await thehandyAdapter.createSession(config);
+
+    const stopping = thehandyAdapter.stopPlayback(config, oldSession);
+    const preloading = thehandyAdapter.preloadScript(
+      config,
+      nextSession,
+      "next-round",
+      [{ at: 0, pos: 50 }],
+      0
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.stopHandyPlayback).toHaveBeenCalledTimes(1);
+    });
+    expect(mocks.preloadHspScript).not.toHaveBeenCalled();
+
+    const releaseStop = finishStop as (() => void) | null;
+    if (!releaseStop) throw new Error("Stop operation did not start.");
+    releaseStop();
+    await Promise.all([stopping, preloading]);
+    expect(mocks.preloadHspScript).toHaveBeenCalledTimes(1);
   });
 });

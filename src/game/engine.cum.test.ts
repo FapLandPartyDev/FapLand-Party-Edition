@@ -269,4 +269,28 @@ describe("engine cum flow", () => {
     );
     expect(completed.completionReason).toBe("cum_point");
   });
+
+  it("uses an installed Cum Round for a Cum Point when none are configured", () => {
+    const config = makeConfig();
+    config.singlePlayer.cumRoundIds = [];
+    const initial = {
+      ...createInitialGameState(config),
+      pendingCumPointChoice: { playerId: "player-1", nodeId: "round-1" },
+    };
+
+    const queued = acceptCumPoint(
+      initial,
+      [
+        makeInstalledRound("normal-1", "Normal Round", "Normal"),
+        makeInstalledRound("fallback-cum", "Fallback Cum"),
+      ],
+      () => 0
+    );
+
+    expect(queued.queuedRound).toMatchObject({
+      roundId: "fallback-cum",
+      phaseKind: "cumPoint",
+      selectionKind: "cumPoint",
+    });
+  });
 });

@@ -205,10 +205,6 @@ export function validateGraphConfig(
         node.id
       );
     }
-    if (node.kind === "safePoint" && node.cumPoint && config.cumRoundRefs.length === 0) {
-      addError(`Cum Points require at least one Cum Round`, `nodes.${node.id}.cumPoint`, node.id);
-    }
-
     if (
       typeof node.checkpointRestMs === "number" &&
       (!Number.isFinite(node.checkpointRestMs) || node.checkpointRestMs < 0)

@@ -82,6 +82,12 @@ import {
   type AntiPerkSequenceId,
   type BeatbarBeat,
 } from "./antiPerkSequences";
+import {
+  mergeWatchedMediaDelta,
+  type RoundCumOutcome,
+  type RoundPlaybackTelemetryEvent,
+  type RoundPlayStatus,
+} from "../../game/gameplayTelemetry";
 
 export type RoundVideoOverlayProps = {
   activeRound: ActiveRound | null;
@@ -122,6 +128,7 @@ export type RoundVideoOverlayProps = {
   initialShowDisconnectedHapticsStatus?: boolean;
   lastLogMessage?: string;
   roadPalette?: RoadPalette;
+  onPlaybackTelemetry?: (event: RoundPlaybackTelemetryEvent) => void;
 };
 
 export type RoundOverlayOptionsAction = {
@@ -131,6 +138,18 @@ export type RoundOverlayOptionsAction = {
   disabled?: boolean;
   tone?: "default" | "danger";
 };
+
+function toPublicPlaybackTelemetryEvent(
+  event: RoundPlaybackTelemetryEvent & {
+    lastTimeSec?: number | null;
+    lastEmittedAtMs?: number;
+  }
+): RoundPlaybackTelemetryEvent {
+  const publicEvent = { ...event };
+  delete publicEvent.lastTimeSec;
+  delete publicEvent.lastEmittedAtMs;
+  return publicEvent;
+}
 
 type LoadingMediaItem =
   | BooruMediaItem
@@ -338,6 +357,7 @@ export function RoundVideoOverlay({
   initialShowDisconnectedHapticsStatus = DEFAULT_HAPTICS_DISCONNECTED_STATUS_VISIBLE,
   lastLogMessage,
   roadPalette,
+  onPlaybackTelemetry,
 }: RoundVideoOverlayProps) {
   const { t } = useLingui();
   const loadingPalette = useMemo(() => normalizeRoadPalette(roadPalette), [roadPalette]);
@@ -394,6 +414,7 @@ export function RoundVideoOverlay({
     strokeMax,
     connected: handyConnected,
     manuallyStopped: handyManuallyStopped,
+    sessionRevision: handySessionRevision = 0,
     setSyncStatus,
     toggleManualStop,
     setResourceOffsetOverride,
@@ -419,6 +440,17 @@ export function RoundVideoOverlay({
   const firedTriggersRef = useRef(new Set<string>());
   const sessionStartedAtRef = useRef(0);
   const antiPerkCountAtRoundStartRef = useRef(0);
+  const playbackTelemetryRef = useRef<
+    Record<
+      "main" | "intermediary",
+      | (RoundPlaybackTelemetryEvent & {
+          lastTimeSec: number | null;
+          lastEmittedAtMs: number;
+        })
+      | null
+    >
+  >({ main: null, intermediary: null });
+  const lastMainTelemetryRef = useRef<RoundPlaybackTelemetryEvent | null>(null);
   const timelineCacheRef = useRef(
     new Map<string, Awaited<ReturnType<typeof loadFunscriptTimeline>>>()
   );
@@ -452,6 +484,8 @@ export function RoundVideoOverlay({
   const handySessionConfigRef = useRef<HapticsTargetConfig | null>(null);
   const handyInitPromiseRef = useRef<Promise<AnyHapticsSession | null> | null>(null);
   const handyTeardownPromiseRef = useRef<Promise<void>>(Promise.resolve());
+  const handySessionGenerationRef = useRef(0);
+  const handledHandySessionRevisionRef = useRef(handySessionRevision);
   const disconnectHandySessionRef = useRef<() => Promise<void>>(async () => undefined);
   const handyPushInFlightRef = useRef(false);
   const handyLastPushAtRef = useRef(0);
@@ -791,6 +825,150 @@ export function RoundVideoOverlay({
     if (!resolvedMainResource) return pool;
     return pool.filter((resource) => resource.videoUri !== resolvedMainResource.videoUri);
   }, [installedRounds, resolvedMainResource]);
+
+  const emitPlaybackTelemetry = useCallback(
+    (event: RoundPlaybackTelemetryEvent) => onPlaybackTelemetry?.(event),
+    [onPlaybackTelemetry]
+  );
+
+  const calculateScheduledDurationMs = useCallback(
+    (resource: PlaybackResource, durationSec: number) => {
+      const bounds = resolvePlaybackWindowForDuration(resource, durationSec);
+      const endSec =
+        bounds.endSec ?? (Number.isFinite(durationSec) ? durationSec : bounds.startSec);
+      let durationMs = Math.max(0, Math.floor((endSec - bounds.startSec) * 1000));
+      for (const cut of resource.cutRanges ?? []) {
+        const overlapStart = Math.max(cut.startTimeMs, Math.floor(bounds.startSec * 1000));
+        const overlapEnd = Math.min(cut.endTimeMs, Math.floor(endSec * 1000));
+        durationMs -= Math.max(0, overlapEnd - overlapStart);
+      }
+      return Math.max(0, durationMs);
+    },
+    []
+  );
+
+  const ensurePlaybackTelemetry = useCallback(
+    (role: "main" | "intermediary", video: HTMLVideoElement) => {
+      const resource =
+        role === "main"
+          ? resolvedMainResource
+          : segment.kind === "intermediary"
+            ? segment.trigger.resource
+            : null;
+      if (!resource) return null;
+      const roundId = resource.roundId ?? (role === "main" ? resolvedRound?.id : null);
+      if (!roundId) return null;
+      const installedRound = installedRounds.find((round) => round.id === roundId);
+      const key = `${activeRound?.fieldId ?? "none"}:${roundId}:${resource.videoUri}`;
+      const current = playbackTelemetryRef.current[role];
+      if (current && current.id.endsWith(key)) return current;
+      if (current) {
+        const finished = {
+          ...current,
+          lastTimeSec: undefined,
+          status: "abandoned" as const,
+          finishedAtIso: new Date().toISOString(),
+        };
+        emitPlaybackTelemetry(finished);
+      }
+      const startedAtIso = new Date().toISOString();
+      const event: RoundPlaybackTelemetryEvent & {
+        lastTimeSec: number | null;
+        lastEmittedAtMs: number;
+      } = {
+        id: `${crypto.randomUUID()}:${key}`,
+        roundId,
+        roundName: installedRound?.name ?? activeRound?.roundName ?? roundId,
+        roundType: installedRound?.type ?? (role === "intermediary" ? "Interjection" : "Normal"),
+        phaseKind: role === "intermediary" ? "interjection" : (activeRound?.phaseKind ?? "normal"),
+        nodeId: activeRound?.nodeId ?? null,
+        poolId: activeRound?.poolId ?? null,
+        startedAtIso,
+        scheduledDurationMs: calculateScheduledDurationMs(resource, video.duration),
+        watchedDurationMs: 0,
+        status: "playing",
+        cumOutcome: null,
+        lastTimeSec: video.currentTime,
+        lastEmittedAtMs: Date.now(),
+      };
+      playbackTelemetryRef.current[role] = event;
+      emitPlaybackTelemetry(event);
+      return event;
+    },
+    [
+      activeRound,
+      calculateScheduledDurationMs,
+      emitPlaybackTelemetry,
+      installedRounds,
+      resolvedMainResource,
+      resolvedRound,
+      segment,
+    ]
+  );
+
+  const trackPlaybackTime = useCallback(
+    (role: "main" | "intermediary", video: HTMLVideoElement) => {
+      const event = ensurePlaybackTelemetry(role, video);
+      if (!event) return;
+      const deltaSec = mergeWatchedMediaDelta({
+        previousTimeSec: event.lastTimeSec,
+        currentTimeSec: video.currentTime,
+        seeking: video.seeking,
+      });
+      event.lastTimeSec = video.currentTime;
+      if (deltaSec <= 0) return;
+      event.watchedDurationMs += Math.floor(deltaSec * 1000);
+      if (Date.now() - event.lastEmittedAtMs < 5_000) return;
+      event.lastEmittedAtMs = Date.now();
+      emitPlaybackTelemetry(toPublicPlaybackTelemetryEvent(event));
+    },
+    [emitPlaybackTelemetry, ensurePlaybackTelemetry]
+  );
+
+  const finishPlaybackTelemetry = useCallback(
+    (
+      role: "main" | "intermediary",
+      status: RoundPlayStatus,
+      cumOutcome?: RoundCumOutcome | null
+    ) => {
+      const current = playbackTelemetryRef.current[role];
+      if (!current) return;
+      const finished: RoundPlaybackTelemetryEvent = {
+        ...toPublicPlaybackTelemetryEvent(current),
+        status,
+        cumOutcome: cumOutcome ?? current.cumOutcome,
+        finishedAtIso: new Date().toISOString(),
+      };
+      emitPlaybackTelemetry(finished);
+      if (role === "main") lastMainTelemetryRef.current = finished;
+      playbackTelemetryRef.current[role] = null;
+    },
+    [emitPlaybackTelemetry]
+  );
+
+  const annotateLastMainCumOutcome = useCallback(
+    (cumOutcome: RoundCumOutcome) => {
+      const current = playbackTelemetryRef.current.main ?? lastMainTelemetryRef.current;
+      if (!current) return;
+      const updated: RoundPlaybackTelemetryEvent = {
+        ...toPublicPlaybackTelemetryEvent(current),
+        cumOutcome,
+        finishedAtIso: current.finishedAtIso ?? new Date().toISOString(),
+        status: current.status === "playing" ? "completed" : current.status,
+      };
+      emitPlaybackTelemetry(updated);
+      lastMainTelemetryRef.current = updated;
+      if (playbackTelemetryRef.current.main) {
+        playbackTelemetryRef.current.main = {
+          ...playbackTelemetryRef.current.main,
+          cumOutcome,
+          status: "completed",
+          finishedAtIso: updated.finishedAtIso,
+        };
+      }
+    },
+    [emitPlaybackTelemetry]
+  );
 
   const deterministicTestIntermediary = useMemo<PlaybackResource | null>(() => {
     if (!canUseDebugRoundControls) return null;
@@ -1240,6 +1418,7 @@ export function RoundVideoOverlay({
 
   const resetHandySync = useCallback(
     (nextState: HandySyncState, message: string | null = null) => {
+      handySessionGenerationRef.current += 1;
       handySessionRef.current = null;
       handySessionConfigRef.current = null;
       handyInitPromiseRef.current = null;
@@ -1255,6 +1434,8 @@ export function RoundVideoOverlay({
   );
 
   const disconnectHandySessionIfNeeded = useCallback(async () => {
+    handySessionGenerationRef.current += 1;
+    handyInitPromiseRef.current = null;
     const session = handySessionRef.current;
     if (!session) {
       await handyTeardownPromiseRef.current;
@@ -1278,6 +1459,7 @@ export function RoundVideoOverlay({
   disconnectHandySessionRef.current = disconnectHandySessionIfNeeded;
 
   const abortHandySyncLocally = useCallback(() => {
+    handySessionGenerationRef.current += 1;
     handyManuallyStoppedRef.current = true;
     handyBootstrapKeyRef.current = null;
     handyBootstrapInFlightRef.current = null;
@@ -1359,8 +1541,15 @@ export function RoundVideoOverlay({
     setHandySyncState("connecting");
     setHandySyncError(null);
 
+    const generation = handySessionGenerationRef.current;
     const initPromise = createHapticsSession(hapticsConfig)
       .then((session) => {
+        if (handySessionGenerationRef.current !== generation) {
+          // Session creation only obtains credentials and samples server time;
+          // it does not own the device's HSP stream yet. Stopping this stale
+          // session could stop a newer round that already completed setup.
+          return null;
+        }
         handySessionRef.current = session;
         handySessionConfigRef.current = hapticsConfig;
         return session;
@@ -1372,7 +1561,9 @@ export function RoundVideoOverlay({
         return null;
       })
       .finally(() => {
-        handyInitPromiseRef.current = null;
+        if (handyInitPromiseRef.current === initPromise) {
+          handyInitPromiseRef.current = null;
+        }
       });
 
     handyInitPromiseRef.current = initPromise;
@@ -1783,11 +1974,19 @@ export function RoundVideoOverlay({
 
   const skipToNextPlaylistVideo = useCallback(() => {
     if (!hasNextPlaylistVideo || segment.kind !== "main") return;
+    finishPlaybackTelemetry("main", "skipped");
     advancePlaylistOrFinish();
-  }, [advancePlaylistOrFinish, hasNextPlaylistVideo, segment.kind]);
+  }, [advancePlaylistOrFinish, finishPlaybackTelemetry, hasNextPlaylistVideo, segment.kind]);
 
   const resolveCumRoundOutcome = useCallback(
     (cumOutcome: CumRoundOutcome) => {
+      annotateLastMainCumOutcome(
+        cumOutcome === "came_as_told"
+          ? "came_as_told"
+          : cumOutcome === "failed_instruction"
+            ? "failed_instruction"
+            : "did_not_cum"
+      );
       const summary = pendingCumRoundSummary ?? {
         intermediaryCount: firedTriggersRef.current.size,
         activeAntiPerkCount: antiPerkCountAtRoundStartRef.current,
@@ -1800,7 +1999,7 @@ export function RoundVideoOverlay({
         });
       });
     },
-    [onFinishRound, pendingCumRoundSummary, stopHandyIfNeeded]
+    [annotateLastMainCumOutcome, onFinishRound, pendingCumRoundSummary, stopHandyIfNeeded]
   );
 
   const handleCloseCumDialog = useCallback(() => {
@@ -1824,9 +2023,11 @@ export function RoundVideoOverlay({
       void stopHandyIfNeeded();
       return;
     }
+    annotateLastMainCumOutcome("manual_loss");
     onRequestCum?.();
   }, [
     activeRound?.phaseKind,
+    annotateLastMainCumOutcome,
     onRequestCum,
     pendingCumRoundSummary,
     showCumRoundOutcomeMenuOnCumRequest,
@@ -3298,6 +3499,19 @@ export function RoundVideoOverlay({
   }, [activeRound?.roundId, activeRound?.phaseKind, segment.kind]);
 
   useEffect(() => {
+    if (handledHandySessionRevisionRef.current === handySessionRevision) return;
+    handledHandySessionRevisionRef.current = handySessionRevision;
+    handyBootstrapKeyRef.current = null;
+    handyBootstrapInFlightRef.current = null;
+    handyLastPushAtRef.current = 0;
+    handyLastSuccessAtRef.current = 0;
+    setHandySyncState("connecting");
+    setHandySyncError(null);
+    setSyncStatus({ synced: false, error: null });
+    void disconnectHandySessionIfNeeded();
+  }, [disconnectHandySessionIfNeeded, handySessionRevision, setSyncStatus]);
+
+  useEffect(() => {
     if (!handyConnected) {
       handyBootstrapKeyRef.current = null;
       handyBootstrapInFlightRef.current = null;
@@ -3511,6 +3725,7 @@ export function RoundVideoOverlay({
     const timer = window.setInterval(() => {
       if (cancelled) return;
       if (finishRequestedRef.current) return;
+      if (manualPauseTimerRef.current !== null) return;
       if (handyPushInFlightRef.current) return;
       if (handyManuallyStoppedRef.current) return;
 
@@ -3542,7 +3757,8 @@ export function RoundVideoOverlay({
           if (!hasRequiredHapticsConnection) return;
 
           const session = await ensureHandySession();
-          if (!session || handyManuallyStoppedRef.current) return;
+          if (!session || handyManuallyStoppedRef.current || manualPauseTimerRef.current !== null)
+            return;
 
           await sendHapticsSync(
             hapticsConfig,
@@ -4515,6 +4731,7 @@ export function RoundVideoOverlay({
               src={resolvedMainVideoSrc}
               onContextMenu={(event) => event.preventDefault()}
               onError={() => {
+                finishPlaybackTelemetry("main", "abandoned");
                 recordVideoDiagnosticEvent("error", {
                   role: "main",
                   src: mainVideoRef.current?.currentSrc ?? resolvedMainVideoSrc,
@@ -4612,10 +4829,14 @@ export function RoundVideoOverlay({
               }}
               onSeeked={() => {
                 if (segment.kind !== "main") return;
+                const telemetry = playbackTelemetryRef.current.main;
+                if (telemetry) telemetry.lastTimeSec = mainVideoRef.current?.currentTime ?? null;
                 tryPlayVideo();
               }}
               onPlaying={() => {
                 if (segment.kind !== "main") return;
+                const video = mainVideoRef.current;
+                if (video) ensurePlaybackTelemetry("main", video);
                 clearDelayedVideoDiagnosticEvent("main");
                 foregroundMainVideo.handlePlay();
                 if (isResolvedMainVideoRemote) setIsRemoteVideoLoading(false);
@@ -4632,6 +4853,8 @@ export function RoundVideoOverlay({
               }}
               onPause={() => {
                 if (segment.kind !== "main") return;
+                const video = mainVideoRef.current;
+                if (video) trackPlaybackTime("main", video);
                 foregroundMainVideo.handlePause();
                 if (allowPauseRef.current) {
                   allowPauseRef.current = false;
@@ -4645,8 +4868,12 @@ export function RoundVideoOverlay({
               }}
               onEnded={() => {
                 if (segment.kind !== "main") return;
+                const video = mainVideoRef.current;
+                if (video) trackPlaybackTime("main", video);
+                finishPlaybackTelemetry("main", "completed");
                 advancePlaylistOrFinish();
               }}
+              onTimeUpdate={(event) => trackPlaybackTime("main", event.currentTarget)}
             >
               <track kind="captions" label={t`Gameplay captions`} />
             </video>
@@ -4664,6 +4891,7 @@ export function RoundVideoOverlay({
               src={resolvedIntermediaryVideoSrc}
               onContextMenu={(event) => event.preventDefault()}
               onError={() => {
+                finishPlaybackTelemetry("intermediary", "abandoned");
                 recordVideoDiagnosticEvent("error", {
                   role: "intermediary",
                   src: intermediaryVideoRef.current?.currentSrc ?? resolvedIntermediaryVideoSrc,
@@ -4744,9 +4972,14 @@ export function RoundVideoOverlay({
                 tryPlayVideo();
               }}
               onSeeked={() => {
+                const telemetry = playbackTelemetryRef.current.intermediary;
+                if (telemetry)
+                  telemetry.lastTimeSec = intermediaryVideoRef.current?.currentTime ?? null;
                 tryPlayVideo();
               }}
               onPlaying={() => {
+                const video = intermediaryVideoRef.current;
+                if (video) ensurePlaybackTelemetry("intermediary", video);
                 clearDelayedVideoDiagnosticEvent("intermediary");
                 foregroundIntermediaryVideo.handlePlay();
                 if (isResolvedIntermediaryVideoRemote) setIsRemoteVideoLoading(false);
@@ -4761,6 +4994,8 @@ export function RoundVideoOverlay({
                 if (isResolvedIntermediaryVideoRemote) setIsRemoteVideoLoading(false);
               }}
               onPause={() => {
+                const video = intermediaryVideoRef.current;
+                if (video) trackPlaybackTime("intermediary", video);
                 foregroundIntermediaryVideo.handlePause();
                 if (allowPauseRef.current) {
                   allowPauseRef.current = false;
@@ -4773,9 +5008,13 @@ export function RoundVideoOverlay({
                 tryPlayVideo();
               }}
               onEnded={() => {
+                const video = intermediaryVideoRef.current;
+                if (video) trackPlaybackTime("intermediary", video);
+                finishPlaybackTelemetry("intermediary", "completed");
                 foregroundIntermediaryVideo.handleEnded();
                 endIntermediaryAndResume();
               }}
+              onTimeUpdate={(event) => trackPlaybackTime("intermediary", event.currentTarget)}
             >
               <track kind="captions" label={t`Gameplay captions`} />
             </video>

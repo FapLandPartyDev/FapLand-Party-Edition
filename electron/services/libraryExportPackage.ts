@@ -144,6 +144,7 @@ export type LibraryExportPackageAnalysis = {
 type ExportableResource = {
   videoUri: string;
   funscriptUri: string | null;
+  funscriptOffsetMs: number | null;
   phash: string | null;
   durationMs: number | null;
 };
@@ -832,6 +833,7 @@ function toRoundSidecarPayload(entry: RoundResourceEntry) {
         videoUri: entry.materialized.video?.relativePath ?? entry.resource.videoUri,
         funscriptUri:
           entry.materialized.funscript?.relativePath ?? entry.resource.funscriptUri ?? undefined,
+        funscriptOffsetMs: entry.resource.funscriptOffsetMs ?? undefined,
       },
     ],
   });
@@ -874,6 +876,7 @@ function toHeroSidecarPayload(
               entry.materialized.funscript?.relativePath ??
               entry.resource.funscriptUri ??
               undefined,
+            funscriptOffsetMs: entry.resource.funscriptOffsetMs ?? undefined,
           },
         ],
       })),

@@ -229,6 +229,21 @@ async function repairAssistedSchema(
   }
 }
 
+async function repairGameplayStatisticsBackfill(
+  dbInstance: ReturnType<typeof drizzle<typeof schema>>
+): Promise<void> {
+  if (!(await hasTable(dbInstance, "GameplaySession"))) return;
+  await dbInstance.$client.execute(`
+    UPDATE "GameplaySession"
+    SET "cheatModeActive" = COALESCE((
+      SELECT "cheatModeActive"
+      FROM "SinglePlayerRunHistory"
+      WHERE "SinglePlayerRunHistory"."id" = "GameplaySession"."singlePlayerRunId"
+    ), 0)
+    WHERE "isLegacy" = 1 AND "singlePlayerRunId" IS NOT NULL
+  `);
+}
+
 async function repairProgressionSchema(
   dbInstance: ReturnType<typeof drizzle<typeof schema>>
 ): Promise<void> {
@@ -556,6 +571,7 @@ export async function ensureAppDatabaseReady(): Promise<void> {
       await repairProgressionSchema(dbInstance);
       await repairSinglePlayerRunSaveSchema(dbInstance);
       await repairInstalledLibrarySchema(dbInstance);
+      await repairGameplayStatisticsBackfill(dbInstance);
     })();
     databaseReadyPromise = attempt;
     void attempt.catch(() => {

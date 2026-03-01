@@ -1638,6 +1638,83 @@ describe("dbRouter local highscore and multiplayer cache", () => {
     });
   });
 
+  it("applies a funscript offset to every primary resource in a hero", async () => {
+    const caller = createRendererCaller();
+
+    roundsByIdRef.set("hero-round-1", {
+      id: "hero-round-1",
+      name: "Hero Round 1",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 0,
+      endTime: 1000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+    roundsByIdRef.set("hero-round-2", {
+      id: "hero-round-2",
+      name: "Hero Round 2",
+      author: null,
+      description: null,
+      bpm: null,
+      difficulty: null,
+      startTime: 1000,
+      endTime: 2000,
+      type: "Normal",
+      heroId: "hero-1",
+    });
+    resourcesByIdRef.set("resource-hero-primary", {
+      id: "resource-hero-primary",
+      roundId: "hero-round-1",
+      videoUri: "file:///tmp/primary.mp4",
+      funscriptUri: null,
+      funscriptOffsetMs: null,
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+    resourcesByIdRef.set("resource-hero-secondary", {
+      id: "resource-hero-secondary",
+      roundId: "hero-round-1",
+      videoUri: "file:///tmp/secondary.mp4",
+      funscriptUri: null,
+      funscriptOffsetMs: null,
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:02.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:02.000Z"),
+    });
+    resourcesByIdRef.set("resource-hero-2", {
+      id: "resource-hero-2",
+      roundId: "hero-round-2",
+      videoUri: "file:///tmp/second.mp4",
+      funscriptUri: null,
+      funscriptOffsetMs: null,
+      phash: null,
+      durationMs: 1000,
+      disabled: false,
+      createdAt: new Date("2026-03-06T00:00:01.000Z"),
+      updatedAt: new Date("2026-03-06T00:00:01.000Z"),
+    });
+
+    await expect(
+      caller.updateHeroFunscriptOffset({ heroId: "hero-1", offsetMs: -125 })
+    ).resolves.toMatchObject({
+      funscriptOffsetMs: -125,
+      updatedResources: 2,
+      skippedRounds: 0,
+    });
+
+    expect(resourcesByIdRef.get("resource-hero-primary")?.funscriptOffsetMs).toBe(-125);
+    expect(resourcesByIdRef.get("resource-hero-2")?.funscriptOffsetMs).toBe(-125);
+    expect(resourcesByIdRef.get("resource-hero-secondary")?.funscriptOffsetMs).toBeNull();
+  });
+
   it("recalculates installed difficulty from the converted hard-mode script", async () => {
     const caller = createRendererCaller();
     const hardModeFunscriptUri = "app://media/converted-hard-mode.funscript";
@@ -1747,6 +1824,28 @@ describe("dbRouter local highscore and multiplayer cache", () => {
       funscriptUri: "file:///tmp/old-secondary.funscript",
       funscriptOffsetMs: -75,
     });
+  });
+
+  it("converts a script for the round converter without changing database attachments", async () => {
+    const caller = createRendererCaller();
+    convertLocalFunscriptToManagedHardModeMock.mockResolvedValueOnce({
+      funscriptUri: "app://media/converter-hard-mode.funscript",
+      sourceActions: 4,
+      outputActions: 8,
+    });
+
+    await expect(
+      caller.convertFunscriptToHardMode({ funscriptUri: "file:///tmp/legacy.funscript" })
+    ).resolves.toEqual({
+      funscriptUri: "app://media/converter-hard-mode.funscript",
+      sourceActions: 4,
+      outputActions: 8,
+    });
+
+    expect(convertLocalFunscriptToManagedHardModeMock).toHaveBeenCalledWith(
+      "file:///tmp/legacy.funscript"
+    );
+    expect(dbMockRef.transaction).not.toHaveBeenCalled();
   });
 
   it("does not change hero attachments when hard-mode conversion fails", async () => {

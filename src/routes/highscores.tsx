@@ -28,7 +28,12 @@ type HighscoreMatchView = {
   rows: MultiplayerStandingRow[];
 };
 type HighscoreAssistedSaveMode = "checkpoint" | "everywhere";
-type HighscoreSectionId = "overview" | "single" | "multiplayer";
+type HighscoreSectionId = "overview" | "statistics" | "single" | "multiplayer";
+type StatisticsMode = "combined" | "single_player" | "multiplayer";
+type StatisticsRoundType = "all" | "main" | "cum" | "interjection";
+type StatisticsSort = "losses" | "plays" | "watched" | "recent";
+type GameplayStatsResult = Awaited<ReturnType<typeof db.gameplayStats.getStats>>;
+type GameplaySessionsResult = Awaited<ReturnType<typeof db.gameplayStats.listSessions>>;
 type HighscoreSection = {
   id: HighscoreSectionId;
   icon: string;
@@ -48,6 +53,15 @@ function getHighscoreSections(): HighscoreSection[] {
       description: msg({
         id: "highscores.section.overview.description",
         message: "Top-level score health, sync status, and quick actions.",
+      }),
+    },
+    {
+      id: "statistics",
+      icon: "📊",
+      title: msg({ id: "highscores.section.statistics.title", message: "Statistics" }),
+      description: msg({
+        id: "highscores.section.statistics.description",
+        message: "Explore total play time, watched videos, round history, and cum outcomes.",
       }),
     },
     {
@@ -172,19 +186,49 @@ async function buildCachedViews(limit = 100): Promise<HighscoreMatchView[]> {
     .sort((a, b) => Date.parse(b.finishedAtIso) - Date.parse(a.finishedAtIso));
 }
 
+const EMPTY_GAMEPLAY_STATS: GameplayStatsResult = {
+  summary: {
+    activePlayMs: 0,
+    watchedDurationMs: 0,
+    scheduledDurationMs: 0,
+    sessionCount: 0,
+    roundPlayCount: 0,
+    interjectionPlayCount: 0,
+    cumLosses: 0,
+    cameAsTold: 0,
+  },
+  coverage: {
+    hasLegacyData: false,
+    watchedPlayCount: 0,
+    scheduledPlayCount: 0,
+    totalPlayCount: 0,
+  },
+  unassignedLegacyOutcomes: 0,
+  rounds: [],
+};
+
+function formatMilliseconds(milliseconds: number): string {
+  return formatDurationLabel(Math.max(0, Math.floor(milliseconds / 1000)));
+}
+
 export const Route = createFileRoute("/highscores")({
   loader: async () => {
-    const [localHighscoreResult, singleRuns, cachedViews, queued] = await Promise.all([
-      db.gameProfile.getLocalHighscore().catch(() => ({
-        highscore: 0,
-        highscoreCheatMode: false,
-        highscoreAssisted: false,
-        highscoreAssistedSaveMode: null,
-      })),
-      db.singlePlayerHistory.listRuns(100).catch(() => []),
-      buildCachedViews().catch(() => []),
-      db.multiplayer.listResultSyncLobbies().catch(() => []),
-    ]);
+    const [localHighscoreResult, singleRuns, cachedViews, queued, gameplayStats, gameplaySessions] =
+      await Promise.all([
+        db.gameProfile.getLocalHighscore().catch(() => ({
+          highscore: 0,
+          highscoreCheatMode: false,
+          highscoreAssisted: false,
+          highscoreAssistedSaveMode: null,
+        })),
+        db.singlePlayerHistory.listRuns(100).catch(() => []),
+        buildCachedViews().catch(() => []),
+        db.multiplayer.listResultSyncLobbies().catch(() => []),
+        db.gameplayStats.getStats().catch(() => EMPTY_GAMEPLAY_STATS),
+        db.gameplayStats
+          .listSessions({ limit: 25 })
+          .catch(() => ({ sessions: [], nextCursor: null })),
+      ]);
 
     const localHighscore =
       typeof localHighscoreResult === "number"
@@ -209,6 +253,8 @@ export const Route = createFileRoute("/highscores")({
       singleRuns,
       cachedViews,
       initialSyncQueueCount: queued.length,
+      gameplayStats,
+      gameplaySessions,
     };
   },
   component: HighscoresPage,
@@ -227,6 +273,8 @@ function HighscoresPage() {
     singleRuns: initialSingleRuns,
     cachedViews,
     initialSyncQueueCount,
+    gameplayStats: initialGameplayStats = EMPTY_GAMEPLAY_STATS,
+    gameplaySessions: initialGameplaySessions = { sessions: [], nextCursor: null },
   } = Route.useLoaderData();
 
   const [localHighscore, setLocalHighscore] = useState(initialHighscore);
@@ -243,6 +291,20 @@ function HighscoresPage() {
   const [pendingDeleteRunId, setPendingDeleteRunId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<HighscoreSectionId>("overview");
+  const [statisticsMode, setStatisticsMode] = useState<StatisticsMode>("combined");
+  const [statisticsRoundType, setStatisticsRoundType] = useState<StatisticsRoundType>("all");
+  const [statisticsSort, setStatisticsSort] = useState<StatisticsSort>("losses");
+  const [gameplayStats, setGameplayStats] = useState<GameplayStatsResult>(initialGameplayStats);
+  const [overviewGameplayStats, setOverviewGameplayStats] =
+    useState<GameplayStatsResult>(initialGameplayStats);
+  const [gameplaySessions, setGameplaySessions] = useState<GameplaySessionsResult["sessions"]>(
+    initialGameplaySessions.sessions
+  );
+  const [gameplaySessionsCursor, setGameplaySessionsCursor] = useState<string | null>(
+    initialGameplaySessions.nextCursor
+  );
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [loadingMoreSessions, setLoadingMoreSessions] = useState(false);
   const scopeRef = useRef<HTMLDivElement | null>(null);
 
   const playHover = useCallback(() => {
@@ -256,6 +318,45 @@ function HighscoresPage() {
   const playReveal = useCallback(() => {
     playSelectSound();
   }, []);
+
+  const refreshGameplayStats = useCallback(async (mode: StatisticsMode) => {
+    const selectedMode = mode === "combined" ? undefined : mode;
+    const [stats, sessions, combinedStats] = await Promise.all([
+      db.gameplayStats.getStats(selectedMode),
+      db.gameplayStats.listSessions({ mode: selectedMode, limit: 25 }),
+      selectedMode ? db.gameplayStats.getStats() : Promise.resolve(null),
+    ]);
+    setGameplayStats(stats);
+    setOverviewGameplayStats(combinedStats ?? stats);
+    setGameplaySessions(sessions.sessions);
+    setGameplaySessionsCursor(sessions.nextCursor);
+  }, []);
+
+  const handleStatisticsModeChange = (mode: StatisticsMode) => {
+    setStatisticsMode(mode);
+    void refreshGameplayStats(mode).catch((statsError) => {
+      setError(
+        statsError instanceof Error ? statsError.message : t`Could not load gameplay statistics.`
+      );
+    });
+  };
+
+  const loadMoreGameplaySessions = useCallback(async () => {
+    if (!gameplaySessionsCursor || loadingMoreSessions) return;
+    setLoadingMoreSessions(true);
+    try {
+      const mode = statisticsMode === "combined" ? undefined : statisticsMode;
+      const next = await db.gameplayStats.listSessions({
+        mode,
+        limit: 25,
+        beforeIso: gameplaySessionsCursor,
+      });
+      setGameplaySessions((current) => [...current, ...next.sessions]);
+      setGameplaySessionsCursor(next.nextCursor);
+    } finally {
+      setLoadingMoreSessions(false);
+    }
+  }, [gameplaySessionsCursor, loadingMoreSessions, statisticsMode]);
 
   const syncNow = useCallback(async () => {
     setSyncing(true);
@@ -283,6 +384,7 @@ function HighscoresPage() {
         }
       }
       setSingleRuns(freshSingleRuns);
+      await refreshGameplayStats(statisticsMode).catch(() => undefined);
 
       const remoteHistory = await listMatchHistory();
       for (const history of remoteHistory) {
@@ -338,7 +440,7 @@ function HighscoresPage() {
     } finally {
       setSyncing(false);
     }
-  }, [t]);
+  }, [refreshGameplayStats, statisticsMode, t]);
 
   useEffect(() => {
     void syncNow();
@@ -350,33 +452,29 @@ function HighscoresPage() {
     };
   }, [syncNow]);
 
-  const handleDeleteRun = useCallback(
-    async (runId: string) => {
-      setDeletingRunId(runId);
-      setError(null);
+  const handleDeleteRun = async (runId: string) => {
+    setDeletingRunId(runId);
+    setError(null);
 
-      try {
-        const result = await db.singlePlayerHistory.deleteRun(runId);
-        setSingleRuns((current) => current.filter((run) => run.id !== runId));
-        setLocalHighscore(Math.max(0, Math.floor(result.highscore ?? 0)));
-        setLocalHighscoreCheatMode(result.highscoreCheatMode ?? false);
-        setLocalHighscoreAssisted(result.highscoreAssisted ?? false);
-        setLocalHighscoreAssistedSaveMode(
-          toHighscoreAssistedSaveMode(result.highscoreAssistedSaveMode)
-        );
-        setPendingDeleteRunId((current) => (current === runId ? null : current));
-      } catch (deleteError) {
-        setError(
-          deleteError instanceof Error
-            ? deleteError.message
-            : t`Could not delete single-player run.`
-        );
-      } finally {
-        setDeletingRunId(null);
-      }
-    },
-    [t]
-  );
+    try {
+      const result = await db.singlePlayerHistory.deleteRun(runId);
+      setSingleRuns((current) => current.filter((run) => run.id !== runId));
+      setLocalHighscore(Math.max(0, Math.floor(result.highscore ?? 0)));
+      setLocalHighscoreCheatMode(result.highscoreCheatMode ?? false);
+      setLocalHighscoreAssisted(result.highscoreAssisted ?? false);
+      setLocalHighscoreAssistedSaveMode(
+        toHighscoreAssistedSaveMode(result.highscoreAssistedSaveMode)
+      );
+      setPendingDeleteRunId((current) => (current === runId ? null : current));
+      await refreshGameplayStats(statisticsMode);
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error ? deleteError.message : t`Could not delete single-player run.`
+      );
+    } finally {
+      setDeletingRunId(null);
+    }
+  };
 
   const pendingDeleteRun = useMemo(
     () => singleRuns.find((run) => run.id === pendingDeleteRunId) ?? null,
@@ -399,6 +497,26 @@ function HighscoresPage() {
         .reduce((best, row) => Math.max(best, row.finalScore), 0),
     [matches]
   );
+  const rankedGameplayRounds = useMemo(() => {
+    const filtered = gameplayStats.rounds.filter((round) => {
+      if (statisticsRoundType === "all") return true;
+      if (statisticsRoundType === "interjection") return round.roundType === "Interjection";
+      if (statisticsRoundType === "cum") return round.roundType === "Cum";
+      return round.roundType !== "Interjection" && round.roundType !== "Cum";
+    });
+    return [...filtered].sort((a, b) => {
+      if (statisticsSort === "plays") return b.playCount - a.playCount;
+      if (statisticsSort === "watched") return b.watchedDurationMs - a.watchedDurationMs;
+      if (statisticsSort === "recent") {
+        return new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime();
+      }
+      return (
+        b.cumLosses - a.cumLosses ||
+        b.playCount - a.playCount ||
+        new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime()
+      );
+    });
+  }, [gameplayStats.rounds, statisticsRoundType, statisticsSort]);
 
   useControllerSurface({
     id: "highscores-route",
@@ -543,9 +661,17 @@ function HighscoresPage() {
                       className="mb-5"
                       metrics={[
                         { label: t`Local Best`, value: localHighscore, tone: "violet" },
-                        { label: t`Single Runs`, value: singleRunCount, tone: "cyan" },
+                        {
+                          label: t`Sessions`,
+                          value: overviewGameplayStats.summary.sessionCount,
+                          tone: "cyan",
+                        },
                         { label: t`Final Matches`, value: finalMatchCount, tone: "emerald" },
-                        { label: t`Sync Queue`, value: syncQueueCount, tone: "amber" },
+                        {
+                          label: t`Round Plays`,
+                          value: overviewGameplayStats.summary.roundPlayCount,
+                          tone: "amber",
+                        },
                       ]}
                     />
                   </section>
@@ -652,6 +778,351 @@ function HighscoresPage() {
                         </button>
                       </div>
                     </div>
+                  </section>
+                </>
+              )}
+
+              {activeSection.id === "statistics" && (
+                <>
+                  <section className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <h3 className="text-lg font-extrabold tracking-tight text-violet-100">
+                          <Trans>Personal Gameplay Totals</Trans>
+                        </h3>
+                        <p className="mt-1 text-sm text-zinc-300">
+                          <Trans>
+                            Local statistics for your single-player and multiplayer sessions.
+                          </Trans>
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2" aria-label={t`Statistics mode`}>
+                        {(
+                          [
+                            ["combined", t`Combined`],
+                            ["single_player", t`Single-player`],
+                            ["multiplayer", t`Multiplayer`],
+                          ] as const
+                        ).map(([mode, label]) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            data-controller-focus-id={`highscores-stat-mode-${mode}`}
+                            onClick={() => handleStatisticsModeChange(mode)}
+                            className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${statisticsMode === mode ? "border-violet-200/70 bg-violet-500/25 text-violet-50" : "border-zinc-700 bg-black/25 text-zinc-300 hover:border-violet-300/45"}`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {gameplayStats.coverage.hasLegacyData && (
+                      <div className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                        <Trans>
+                          Round history includes legacy single-player data. Exact video duration and
+                          per-round cum outcomes are tracked from this version onward.
+                        </Trans>
+                        {gameplayStats.unassignedLegacyOutcomes > 0 && (
+                          <span className="ml-1">
+                            <Trans>
+                              {gameplayStats.unassignedLegacyOutcomes} legacy cum outcomes could not
+                              be assigned to a round.
+                            </Trans>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <InlineMetrics
+                      className="mt-5"
+                      metrics={[
+                        {
+                          label: t`Active Play Time`,
+                          value: formatMilliseconds(gameplayStats.summary.activePlayMs),
+                          tone: "violet",
+                        },
+                        {
+                          label: t`Video Watched`,
+                          value: formatMilliseconds(gameplayStats.summary.watchedDurationMs),
+                          tone: "cyan",
+                        },
+                        {
+                          label: t`Scheduled Runtime`,
+                          value: formatMilliseconds(gameplayStats.summary.scheduledDurationMs),
+                          tone: "emerald",
+                        },
+                        {
+                          label: t`Sessions`,
+                          value: gameplayStats.summary.sessionCount,
+                          tone: "amber",
+                        },
+                      ]}
+                    />
+                    <InlineMetrics
+                      className="mt-3"
+                      metrics={[
+                        {
+                          label: t`Round Plays`,
+                          value: gameplayStats.summary.roundPlayCount,
+                          tone: "violet",
+                        },
+                        {
+                          label: t`Interjections`,
+                          value: gameplayStats.summary.interjectionPlayCount,
+                          tone: "cyan",
+                        },
+                        {
+                          label: t`Cum Losses`,
+                          value: gameplayStats.summary.cumLosses,
+                          tone: "amber",
+                        },
+                        {
+                          label: t`Came as Told`,
+                          value: gameplayStats.summary.cameAsTold,
+                          tone: "emerald",
+                        },
+                      ]}
+                    />
+                    {gameplayStats.coverage.totalPlayCount > 0 &&
+                      gameplayStats.coverage.scheduledPlayCount <
+                        gameplayStats.coverage.totalPlayCount && (
+                        <p className="mt-3 text-xs text-zinc-400">
+                          <Trans>
+                            Exact video runtime is available for{" "}
+                            {gameplayStats.coverage.scheduledPlayCount} of{" "}
+                            {gameplayStats.coverage.totalPlayCount} recorded plays.
+                          </Trans>
+                        </p>
+                      )}
+                  </section>
+
+                  <section className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                      <div>
+                        <h3 className="text-lg font-extrabold tracking-tight text-violet-100">
+                          <Trans>Round Ranking</Trans>
+                        </h3>
+                        <p className="mt-1 text-sm text-zinc-300">
+                          <Trans>
+                            See what you played and which rounds defeated you most often.
+                          </Trans>
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <select
+                          aria-label={t`Round type`}
+                          data-controller-focus-id="highscores-stat-round-type"
+                          value={statisticsRoundType}
+                          onChange={(event) =>
+                            setStatisticsRoundType(event.target.value as StatisticsRoundType)
+                          }
+                          className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-200"
+                        >
+                          <option value="all">{t`All types`}</option>
+                          <option value="main">{t`Normal`}</option>
+                          <option value="cum">{t`Cum rounds`}</option>
+                          <option value="interjection">{t`Interjections`}</option>
+                        </select>
+                        <select
+                          aria-label={t`Round ranking sort`}
+                          data-controller-focus-id="highscores-stat-sort"
+                          value={statisticsSort}
+                          onChange={(event) =>
+                            setStatisticsSort(event.target.value as StatisticsSort)
+                          }
+                          className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-200"
+                        >
+                          <option value="losses">{t`Most lost to`}</option>
+                          <option value="plays">{t`Most played`}</option>
+                          <option value="watched">{t`Most watched`}</option>
+                          <option value="recent">{t`Most recent`}</option>
+                        </select>
+                      </div>
+                    </div>
+                    {rankedGameplayRounds.length === 0 ? (
+                      <div className="mt-4 rounded-xl border border-zinc-700/70 bg-zinc-900/75 px-4 py-3 text-sm text-zinc-300">
+                        <Trans>No round statistics for this filter yet.</Trans>
+                      </div>
+                    ) : (
+                      <div className="mt-4 overflow-x-auto">
+                        <table className="w-full min-w-[900px] text-left text-sm">
+                          <thead className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.16em] text-zinc-500">
+                            <tr>
+                              <th className="px-2 py-2">
+                                <Trans>Round</Trans>
+                              </th>
+                              <th>
+                                <Trans>Modes</Trans>
+                              </th>
+                              <th>
+                                <Trans>Plays</Trans>
+                              </th>
+                              <th>
+                                <Trans>Watched</Trans>
+                              </th>
+                              <th>
+                                <Trans>Scheduled</Trans>
+                              </th>
+                              <th>
+                                <Trans>Losses</Trans>
+                              </th>
+                              <th>
+                                <Trans>Came as told</Trans>
+                              </th>
+                              <th>
+                                <Trans>No cum</Trans>
+                              </th>
+                              <th>
+                                <Trans>Last played</Trans>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-violet-300/10">
+                            {rankedGameplayRounds.map((round) => (
+                              <tr key={round.roundId} className="hover:bg-violet-500/5">
+                                <td className="px-2 py-3">
+                                  <div className="font-semibold text-zinc-100">
+                                    {abbreviateNsfwText(round.roundName, sfwMode)}
+                                  </div>
+                                  <div className="text-xs text-zinc-500">{round.roundType}</div>
+                                </td>
+                                <td className="text-xs text-zinc-400">
+                                  {round.modes
+                                    .map((mode) =>
+                                      mode === "single_player" ? t`Single` : t`Multi`
+                                    )
+                                    .join(" · ")}
+                                </td>
+                                <td className="font-semibold text-zinc-200">{round.playCount}</td>
+                                <td className="text-cyan-200">
+                                  {formatMilliseconds(round.watchedDurationMs)}
+                                </td>
+                                <td className="text-emerald-200">
+                                  {round.scheduledCoverageCount > 0
+                                    ? formatMilliseconds(round.scheduledDurationMs)
+                                    : t`N/A`}
+                                </td>
+                                <td className="font-bold text-rose-200">{round.cumLosses}</td>
+                                <td className="text-emerald-200">{round.cameAsTold}</td>
+                                <td className="text-zinc-300">{round.didNotCum}</td>
+                                <td className="text-xs text-zinc-500">
+                                  {new Date(round.lastPlayedAt).toLocaleDateString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl">
+                    <h3 className="text-lg font-extrabold tracking-tight text-violet-100">
+                      <Trans>Gameplay Session History</Trans>
+                    </h3>
+                    <p className="mt-1 text-sm text-zinc-300">
+                      <Trans>Expand a session to review its recorded rounds and outcomes.</Trans>
+                    </p>
+                    <div className="mt-4 divide-y divide-violet-300/10">
+                      {gameplaySessions.map((session) => {
+                        const expanded = expandedSessionId === session.id;
+                        return (
+                          <div key={session.id} className="py-2">
+                            <button
+                              type="button"
+                              data-controller-focus-id={`highscores-stat-session-${session.id}`}
+                              className="flex w-full items-center justify-between gap-3 rounded-xl px-2 py-3 text-left hover:bg-violet-500/5"
+                              onClick={() => setExpandedSessionId(expanded ? null : session.id)}
+                            >
+                              <div>
+                                <span className="mr-2 text-violet-200">{expanded ? "▴" : "▾"}</span>
+                                <span className="font-semibold text-zinc-100">
+                                  {session.playlistName}
+                                </span>
+                                <span className="ml-2 text-xs text-zinc-500">
+                                  {session.mode === "single_player"
+                                    ? t`Single-player`
+                                    : t`Multiplayer`}
+                                </span>
+                                {session.isLegacy && (
+                                  <span className="ml-2 text-xs text-amber-300">
+                                    <Trans>Legacy</Trans>
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm text-zinc-200">
+                                  {formatMilliseconds(session.activePlayMs)}
+                                </div>
+                                <div className="text-xs text-zinc-500">
+                                  {new Date(session.startedAt).toLocaleString()}
+                                </div>
+                              </div>
+                            </button>
+                            {expanded && (
+                              <div className="ml-6 space-y-2 border-l border-violet-300/20 py-2 pl-4 text-sm">
+                                <p className="text-zinc-400">
+                                  <Trans>Result:</Trans>{" "}
+                                  <span className="text-zinc-200">
+                                    {session.completionReason ??
+                                      (session.status === "in_progress"
+                                        ? t`Interrupted`
+                                        : session.status)}
+                                  </span>{" "}
+                                  · <Trans>Score:</Trans>{" "}
+                                  <span className="text-zinc-200">{session.score ?? t`N/A`}</span>
+                                </p>
+                                {session.rounds.length === 0 ? (
+                                  <p className="text-zinc-500">
+                                    <Trans>
+                                      Round details unavailable for this legacy session.
+                                    </Trans>
+                                  </p>
+                                ) : (
+                                  session.rounds.map((round) => (
+                                    <div
+                                      key={round.id}
+                                      className="flex flex-wrap justify-between gap-2 rounded-xl bg-black/25 px-3 py-2"
+                                    >
+                                      <span className="text-zinc-100">
+                                        {abbreviateNsfwText(round.roundName, sfwMode)}{" "}
+                                        <span className="text-xs text-zinc-500">
+                                          {round.roundType}
+                                        </span>
+                                      </span>
+                                      <span className="text-xs text-zinc-400">
+                                        {formatMilliseconds(round.watchedDurationMs)} ·{" "}
+                                        {round.cumOutcome
+                                          ? abbreviateNsfwText(
+                                              round.cumOutcome.replaceAll("_", " "),
+                                              sfwMode
+                                            )
+                                          : round.status}
+                                      </span>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {gameplaySessions.length === 0 && (
+                      <div className="mt-4 rounded-xl border border-zinc-700/70 bg-zinc-900/75 px-4 py-3 text-sm text-zinc-300">
+                        <Trans>No gameplay sessions recorded yet.</Trans>
+                      </div>
+                    )}
+                    {gameplaySessionsCursor && (
+                      <button
+                        type="button"
+                        data-controller-focus-id="highscores-stat-load-more"
+                        disabled={loadingMoreSessions}
+                        onClick={() => void loadMoreGameplaySessions()}
+                        className="mt-4 rounded-xl border border-violet-300/40 bg-violet-500/10 px-4 py-2 text-sm text-violet-100 hover:bg-violet-500/20 disabled:opacity-50"
+                      >
+                        {loadingMoreSessions ? t`Loading...` : t`Load more`}
+                      </button>
+                    )}
                   </section>
                 </>
               )}

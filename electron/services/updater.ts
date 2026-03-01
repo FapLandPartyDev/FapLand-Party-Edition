@@ -110,6 +110,25 @@ export function compareVersions(left: string, right: string): number {
   return 0;
 }
 
+function getReleaseIdentity(input: string): string {
+  return normalizeVersion(input).split("+", 1)[0]?.toLowerCase() ?? "";
+}
+
+export function isPrereleaseVersion(input: string): boolean {
+  return getReleaseIdentity(input).includes("-");
+}
+
+export function shouldUpdateToRelease(currentVersion: string, latestVersion: string): boolean {
+  if (compareVersions(latestVersion, currentVersion) > 0) {
+    return true;
+  }
+
+  return (
+    isPrereleaseVersion(currentVersion) &&
+    getReleaseIdentity(currentVersion) !== getReleaseIdentity(latestVersion)
+  );
+}
+
 function asTrimmedString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -346,8 +365,10 @@ export async function checkForAppUpdates(force = false): Promise<AppUpdateState>
       const releasePageUrl = asTrimmedString(release.html_url) ?? releaseConfig.releasePageUrl;
       const downloadUrl = resolveReleaseAssetUrl(release.assets) ?? releasePageUrl;
       const checkedAtIso = new Date().toISOString();
-      const updateAvailable =
-        compareVersions(latestVersion, process.env.FLAND_APP_VERSION ?? app.getVersion()) > 0;
+      const updateAvailable = shouldUpdateToRelease(
+        process.env.FLAND_APP_VERSION ?? app.getVersion(),
+        latestVersion
+      );
 
       return setState({
         status: updateAvailable ? "update_available" : "up_to_date",

@@ -42,6 +42,7 @@ import type {
 } from "../../game/types";
 import { PERK_RARITY_META, resolvePerkRarity, getRarityLabel } from "../../game/data/perkRarity";
 import type { InstalledRound } from "../../services/db";
+import type { RoundPlaybackTelemetryEvent } from "../../game/gameplayTelemetry";
 import { trpc } from "../../services/trpc";
 import { getInstalledRoundPlaybackEntriesCached } from "../../services/installedRoundsCache";
 import { describePerkEffects, endEndlessRun } from "../../game/engine";
@@ -52,10 +53,7 @@ import { playRoundRewardSound, playRoundRewardTickSound } from "../../utils/audi
 
 import { formatDurationLabel } from "../../utils/duration";
 import { abbreviateNsfwText } from "../../utils/sfwText";
-import {
-  RoundVideoOverlay,
-  type RoundOverlayOptionsAction,
-} from "./RoundVideoOverlay";
+import { RoundVideoOverlay, type RoundOverlayOptionsAction } from "./RoundVideoOverlay";
 import { buildGameplayRoundVideoOverlayProps } from "./buildRoundVideoOverlayProps";
 import { RoundStartTransition } from "./RoundStartTransition";
 import { getPerkIconGlyph } from "./PerkIcon";
@@ -1680,6 +1678,7 @@ interface GameSceneProps {
   showDevPerkMenu?: boolean;
   onHighscoreChange?: (highscore: number) => void;
   onRoundPlayed?: (payload: { roundId: string; nodeId: string; poolId: string | null }) => void;
+  onPlaybackTelemetry?: (event: RoundPlaybackTelemetryEvent) => void;
   onStateChange?: (state: GameState) => void;
   onPrepareCumPoint?: (resumeState: GameState) => Promise<boolean>;
   multiplayerRemotePlayers?: Array<{
@@ -1739,6 +1738,7 @@ export const GameScene = memo(function GameScene({
   showDevPerkMenu = false,
   onHighscoreChange,
   onRoundPlayed,
+  onPlaybackTelemetry,
   onStateChange,
   onPrepareCumPoint,
   multiplayerRemotePlayers = [],
@@ -2038,8 +2038,14 @@ export const GameScene = memo(function GameScene({
     const current = stateRef.current;
     if (!current.pendingCumPointChoice || cumPointSavePending) return;
     const installedRoundIds = new Set(installedRounds.map((round) => round.id));
-    if (!current.config.singlePlayer.cumRoundIds.some((id) => installedRoundIds.has(id))) {
-      setCumPointSaveError(t`No configured Cum Round is currently available.`);
+    const hasConfiguredCumRound = current.config.singlePlayer.cumRoundIds.some((id) =>
+      installedRoundIds.has(id)
+    );
+    const hasFallbackCumRound = installedRounds.some(
+      (round) => (round.type ?? "Normal") === "Cum" && !round.excludeFromRandom
+    );
+    if (!hasConfiguredCumRound && !hasFallbackCumRound) {
+      setCumPointSaveError(t`No cum rounds installed.`);
       return;
     }
     setCumPointSavePending(true);
@@ -4999,6 +5005,7 @@ export const GameScene = memo(function GameScene({
           allowDebugRoundControls,
           lastLogMessage: state.log[0],
           roadPalette: state.config.mapStyle?.roadPalette,
+          onPlaybackTelemetry,
           boardSequence: boardAntiPerkSequence,
           idleBoardSequence,
           continuousMoaningActive: state.activeRoundAudioEffect?.kind === "continuousMoaning",
@@ -5013,10 +5020,7 @@ export const GameScene = memo(function GameScene({
           roundControl: {
             pauseCharges: Math.max(0, currentPlayer?.roundControl?.pauseCharges ?? 0),
             skipCharges: Math.max(0, currentPlayer?.roundControl?.skipCharges ?? 0),
-            pauseDurationMs: Math.max(
-              1000,
-              currentPlayer?.roundControl?.pauseDurationMs ?? 15_000
-            ),
+            pauseDurationMs: Math.max(1000, currentPlayer?.roundControl?.pauseDurationMs ?? 15_000),
             onUsePause: () => {
               if (!currentPlayer) return;
               handleUseRoundControl({ playerId: currentPlayer.id, control: "pause" });

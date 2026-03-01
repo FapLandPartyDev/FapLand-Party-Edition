@@ -27,6 +27,7 @@ function renderRandomRoundInspector(initialNode?: Partial<EditorNode>) {
       randomPoolIds={[]}
       perkOptions={[]}
       antiPerkOptions={[]}
+      customPalettes={[]}
       onPatchNode={patchNode}
       onCommitSelection={() => undefined}
       onSetTool={() => undefined}
@@ -42,6 +43,38 @@ function renderRandomRoundInspector(initialNode?: Partial<EditorNode>) {
     ...view,
     getCurrentNode: () => currentNode,
   };
+}
+
+function renderSafePointInspector() {
+  let currentNode: EditorNode = {
+    id: "safe-point-1",
+    name: "Safe Point",
+    kind: "safePoint",
+  };
+  const viewRef: { current?: ReturnType<typeof render> } = {};
+  const renderPanel = () => (
+    <NodeInspectorPanel
+      selectedNode={currentNode}
+      outgoingEdges={[]}
+      installedRounds={[]}
+      randomPoolIds={[]}
+      perkOptions={[]}
+      antiPerkOptions={[]}
+      customPalettes={[]}
+      saveMode="checkpoint"
+      onPatchNode={(_, patch) => {
+        currentNode = { ...currentNode, ...patch };
+        viewRef.current?.rerender(renderPanel());
+      }}
+      onCommitSelection={() => undefined}
+      onSetTool={() => undefined}
+      onSetConnectFrom={() => undefined}
+      onCreateAutomationForNode={() => undefined}
+    />
+  );
+  const view = render(renderPanel());
+  viewRef.current = view;
+  return { ...view, getCurrentNode: () => currentNode };
 }
 
 describe("NodeInspectorPanel", () => {
@@ -80,5 +113,14 @@ describe("NodeInspectorPanel", () => {
     fireEvent.change(libraryInput, { target: { value: "library one, library two" } });
     expect(libraryInput.value).toBe("library one, library two");
     expect(getCurrentNode().filter?.libraryLabels).toEqual(["library one", "library two"]);
+  });
+
+  it("allows a Cum Point without adding a Cum Round to the pool", () => {
+    const { getCurrentNode } = renderSafePointInspector();
+    const checkbox = screen.getByRole("checkbox");
+
+    expect((checkbox as HTMLInputElement).disabled).toBe(false);
+    fireEvent.click(checkbox);
+    expect(getCurrentNode().cumPoint).toBe(true);
   });
 });

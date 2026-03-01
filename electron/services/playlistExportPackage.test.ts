@@ -95,6 +95,7 @@ type TestRound = {
   resources: Array<{
     videoUri: string;
     funscriptUri: string | null;
+    funscriptOffsetMs?: number | null;
     phash?: string | null;
     durationMs?: number | null;
   }>;
@@ -387,6 +388,7 @@ describe("exportPlaylistPackage", () => {
           {
             videoUri: toLocalMediaUri(videoPath),
             funscriptUri: toLocalMediaUri(funscriptPath),
+            funscriptOffsetMs: -80,
           },
         ],
       },
@@ -428,12 +430,17 @@ describe("exportPlaylistPackage", () => {
     const parsedRound = JSON.parse(
       await fs.readFile(path.join(result.exportDir, roundFile!), "utf8")
     ) as {
-      resources: Array<{ videoUri: string; funscriptUri?: string }>;
+      resources: Array<{
+        videoUri: string;
+        funscriptUri?: string;
+        funscriptOffsetMs?: number;
+      }>;
     };
     expect(parsedRound.resources[0]?.videoUri.startsWith("./")).toBe(true);
     expect(parsedRound.resources[0]?.videoUri.includes("/media/")).toBe(false);
     expect(parsedRound.resources[0]?.funscriptUri?.startsWith("./")).toBe(true);
     expect(parsedRound.resources[0]?.funscriptUri?.includes("/media/")).toBe(false);
+    expect(parsedRound.resources[0]?.funscriptOffsetMs).toBe(-80);
 
     const copiedVideo = path.join(
       result.exportDir,

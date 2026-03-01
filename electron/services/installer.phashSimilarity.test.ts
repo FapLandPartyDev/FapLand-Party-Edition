@@ -32,6 +32,7 @@ const state = {
     roundId: string;
     videoUri: string;
     funscriptUri: string | null;
+    funscriptOffsetMs: number | null;
     phash: string | null;
   }>,
   nextRoundId: 1,
@@ -131,6 +132,7 @@ function rememberResources(
     roundId: string;
     videoUri: string;
     funscriptUri: string | null;
+    funscriptOffsetMs: number | null;
     phash: string | null;
   }>
 ): void {
@@ -192,6 +194,7 @@ function buildDbMock() {
               roundId: entry.roundId,
               videoUri: entry.videoUri,
               funscriptUri: entry.funscriptUri ?? null,
+              funscriptOffsetMs: entry.funscriptOffsetMs ?? null,
               phash: entry.phash,
             }))
           );
@@ -228,6 +231,7 @@ function buildDbMock() {
                 roundId: string;
                 videoUri: string;
                 funscriptUri?: string | null;
+                funscriptOffsetMs?: number | null;
                 phash: string | null;
               };
               rememberResources([
@@ -235,6 +239,7 @@ function buildDbMock() {
                   roundId: payload.roundId,
                   videoUri: payload.videoUri,
                   funscriptUri: payload.funscriptUri ?? null,
+                  funscriptOffsetMs: payload.funscriptOffsetMs ?? null,
                   phash: payload.phash,
                 },
               ]);
@@ -466,6 +471,7 @@ describe("installer phash similarity", () => {
           {
             videoUri: "./media/portable.mp4",
             funscriptUri: "./media/portable.funscript",
+            funscriptOffsetMs: 175,
           },
         ],
       })
@@ -477,6 +483,7 @@ describe("installer phash similarity", () => {
     expect(result.status.stats.installed).toBe(1);
     expect(state.resourceRows[0]?.videoUri).toBe(toLocalMediaUri(videoPath));
     expect(state.resourceRows[0]?.funscriptUri).toBe(toLocalMediaUri(funscriptPath));
+    expect(state.resourceRows[0]?.funscriptOffsetMs).toBe(175);
   });
 
   it("imports optional random exclusion from .round sidecars", async () => {

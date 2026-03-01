@@ -38,6 +38,8 @@ export type HeroEditDraft = {
   tagsText: string;
   funscriptUri: string | null;
   funscriptDirty: boolean;
+  funscriptOffsetMs: string;
+  funscriptOffsetDirty: boolean;
 };
 
 export type DeleteRoundDialogState = {

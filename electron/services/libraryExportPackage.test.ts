@@ -79,6 +79,7 @@ type TestRound = {
   resources: Array<{
     videoUri: string;
     funscriptUri: string | null;
+    funscriptOffsetMs?: number | null;
     durationMs?: number | null;
   }>;
 };
@@ -240,7 +241,13 @@ describe("libraryExportPackage", () => {
         installSourceKey: null,
         heroId: null,
         hero: null,
-        resources: [{ videoUri: "https://example.com/excluded.mp4", funscriptUri: null }],
+        resources: [
+          {
+            videoUri: "https://example.com/excluded.mp4",
+            funscriptUri: null,
+            funscriptOffsetMs: 125,
+          },
+        ],
       },
       {
         id: "round-2",
@@ -268,12 +275,16 @@ describe("libraryExportPackage", () => {
 
     const excluded = JSON.parse(
       await fs.readFile(path.join(result.exportDir, "Excluded Round.round"), "utf8")
-    ) as { excludeFromRandom?: boolean };
+    ) as {
+      excludeFromRandom?: boolean;
+      resources: Array<{ funscriptOffsetMs?: number }>;
+    };
     const included = JSON.parse(
       await fs.readFile(path.join(result.exportDir, "Included Round.round"), "utf8")
     ) as { excludeFromRandom?: boolean };
 
     expect(excluded.excludeFromRandom).toBe(true);
+    expect(excluded.resources[0]?.funscriptOffsetMs).toBe(125);
     expect(included.excludeFromRandom).toBeUndefined();
   });
 

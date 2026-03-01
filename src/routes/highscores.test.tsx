@@ -50,6 +50,43 @@ const mocks = vi.hoisted(() => ({
     ],
     cachedViews: [],
     initialSyncQueueCount: 0,
+    gameplayStats: {
+      summary: {
+        activePlayMs: 7200000,
+        watchedDurationMs: 3600000,
+        scheduledDurationMs: 5400000,
+        sessionCount: 2,
+        roundPlayCount: 3,
+        interjectionPlayCount: 1,
+        cumLosses: 2,
+        cameAsTold: 1,
+      },
+      coverage: {
+        hasLegacyData: true,
+        watchedPlayCount: 2,
+        scheduledPlayCount: 2,
+        totalPlayCount: 3,
+      },
+      unassignedLegacyOutcomes: 1,
+      rounds: [
+        {
+          roundId: "round-1",
+          roundName: "Hard Round",
+          roundType: "Normal",
+          modes: ["single_player"],
+          playCount: 3,
+          watchedDurationMs: 3600000,
+          scheduledDurationMs: 5400000,
+          watchedCoverageCount: 2,
+          scheduledCoverageCount: 2,
+          cumLosses: 2,
+          cameAsTold: 1,
+          didNotCum: 0,
+          lastPlayedAt: "2026-03-20T10:00:00.000Z",
+        },
+      ],
+    },
+    gameplaySessions: { sessions: [], nextCursor: null },
   },
   navigate: vi.fn(),
   db: {
@@ -69,6 +106,10 @@ const mocks = vi.hoisted(() => ({
         highscoreAssisted: false,
         highscoreAssistedSaveMode: null,
       }),
+    },
+    gameplayStats: {
+      getStats: vi.fn(),
+      listSessions: vi.fn(),
     },
     multiplayer: {
       listResultSyncLobbies: vi.fn().mockResolvedValue([]),
@@ -189,6 +230,8 @@ describe("HighscoresRoute", () => {
       highscoreAssistedSaveMode: null,
     });
     mocks.db.singlePlayerHistory.listRuns.mockResolvedValue(mocks.loaderData.singleRuns);
+    mocks.db.gameplayStats.getStats.mockResolvedValue(mocks.loaderData.gameplayStats);
+    mocks.db.gameplayStats.listSessions.mockResolvedValue(mocks.loaderData.gameplaySessions);
     mocks.db.singlePlayerHistory.deleteRun.mockReset();
     mocks.db.singlePlayerHistory.deleteRun.mockImplementation(async (id: string) => {
       mocks.loaderData.singleRuns = mocks.loaderData.singleRuns.filter((run) => run.id !== id);
@@ -225,8 +268,21 @@ describe("HighscoresRoute", () => {
     render(<Component />);
 
     expect(screen.getByRole("button", { name: "Overview" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Statistics" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Single-Player" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Multiplayer" })).toBeTruthy();
+  });
+
+  it("shows combined gameplay totals and loss-ranked rounds", () => {
+    render(<Component />);
+    fireEvent.click(screen.getByRole("button", { name: "Statistics" }));
+
+    expect(screen.getByText("Personal Gameplay Totals")).toBeTruthy();
+    expect(screen.getByText("Hard Round")).toBeTruthy();
+    expect(screen.getByText(/legacy cum outcomes could not be assigned/i)).toBeTruthy();
+    expect(
+      (screen.getByRole("combobox", { name: "Round ranking sort" }) as HTMLSelectElement).value
+    ).toBe("losses");
   });
 
   it("deletes a run from the single-player history view", async () => {

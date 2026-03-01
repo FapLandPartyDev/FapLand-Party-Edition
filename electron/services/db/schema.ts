@@ -264,6 +264,89 @@ export const singlePlayerRunHistory = sqliteTable(
   })
 );
 
+export const gameplaySession = sqliteTable(
+  "GameplaySession",
+  {
+    id: text("id").primaryKey(),
+    mode: text("mode", { enum: ["single_player", "multiplayer"] }).notNull(),
+    sourceId: text("sourceId").notNull().unique(),
+    playlistId: text("playlistId"),
+    playlistName: text("playlistName").notNull(),
+    startedAt: integer("startedAt", { mode: "timestamp" }).notNull(),
+    lastActiveAt: integer("lastActiveAt", { mode: "timestamp" }).notNull(),
+    endedAt: integer("endedAt", { mode: "timestamp" }),
+    activePlayMs: integer("activePlayMs").notNull().default(0),
+    status: text("status", { enum: ["in_progress", "completed", "abandoned"] })
+      .notNull()
+      .default("in_progress"),
+    completionReason: text("completionReason"),
+    score: integer("score"),
+    completedRounds: integer("completedRounds").notNull().default(0),
+    cheatModeActive: integer("cheatModeActive", { mode: "boolean" }).notNull().default(false),
+    assistedActive: integer("assistedActive", { mode: "boolean" }).notNull().default(false),
+    assistedSaveMode: text("assistedSaveMode", { enum: ["checkpoint", "everywhere"] }),
+    singlePlayerRunId: text("singlePlayerRunId"),
+    isLegacy: integer("isLegacy", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("createdAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updatedAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    sessionModeStartedIdx: index("GameplaySession_mode_startedAt_idx").on(
+      table.mode,
+      table.startedAt
+    ),
+    sessionRunIdx: index("GameplaySession_singlePlayerRunId_idx").on(table.singlePlayerRunId),
+  })
+);
+
+export const gameplayRoundPlay = sqliteTable(
+  "GameplayRoundPlay",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("sessionId").references(() => gameplaySession.id, { onDelete: "cascade" }),
+    mode: text("mode", { enum: ["single_player", "multiplayer"] }).notNull(),
+    playlistId: text("playlistId"),
+    playlistName: text("playlistName").notNull(),
+    roundId: text("roundId").notNull(),
+    roundName: text("roundName").notNull(),
+    roundType: text("roundType", { enum: ["Normal", "Interjection", "Cum"] }).notNull(),
+    phaseKind: text("phaseKind", { enum: ["normal", "cum", "cumPoint", "interjection"] }).notNull(),
+    nodeId: text("nodeId"),
+    poolId: text("poolId"),
+    startedAt: integer("startedAt", { mode: "timestamp" }).notNull(),
+    finishedAt: integer("finishedAt", { mode: "timestamp" }),
+    scheduledDurationMs: integer("scheduledDurationMs"),
+    watchedDurationMs: integer("watchedDurationMs").notNull().default(0),
+    status: text("status", { enum: ["playing", "completed", "skipped", "abandoned"] })
+      .notNull()
+      .default("playing"),
+    cumOutcome: text("cumOutcome", {
+      enum: ["manual_loss", "failed_instruction", "came_as_told", "did_not_cum"],
+    }),
+    legacySourceId: text("legacySourceId").unique(),
+    isLegacy: integer("isLegacy", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("createdAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updatedAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    roundPlaySessionIdx: index("GameplayRoundPlay_sessionId_idx").on(table.sessionId),
+    roundPlayRoundIdx: index("GameplayRoundPlay_roundId_idx").on(table.roundId),
+    roundPlayModeStartedIdx: index("GameplayRoundPlay_mode_startedAt_idx").on(
+      table.mode,
+      table.startedAt
+    ),
+    roundPlayCumOutcomeIdx: index("GameplayRoundPlay_cumOutcome_idx").on(table.cumOutcome),
+  })
+);
+
 export const singlePlayerRunSave = sqliteTable("SinglePlayerRunSave", {
   id: text("id")
     .primaryKey()

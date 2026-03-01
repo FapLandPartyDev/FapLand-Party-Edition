@@ -68,6 +68,7 @@ import {
   normalizeMoaningQueue,
 } from "../constants/moaningSettings";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useGameplayTelemetrySession } from "../hooks/useGameplayTelemetrySession";
 
 const MatchSearchSchema = z.object({
   lobbyId: z.string().min(1),
@@ -464,6 +465,14 @@ function MultiplayerMatchRoute() {
   const [inventoryBadgePulse, setInventoryBadgePulse] = useState(false);
 
   const sessionStartedAtMsRef = useRef(Date.now());
+  const gameplayTelemetry = useGameplayTelemetrySession({
+    enabled: Boolean(ownPlayerId),
+    mode: "multiplayer",
+    sourceId: `multiplayer:${search.lobbyId}:${ownPlayerId}`,
+    playlistId: null,
+    playlistName: initialSnapshot.lobby.name || "Multiplayer",
+    startedAtMs: sessionStartedAtMsRef.current,
+  });
   const localStateRef = useRef(localState);
   localStateRef.current = localState;
 
@@ -769,6 +778,18 @@ function MultiplayerMatchRoute() {
     };
 
     void finishPlayer(search.lobbyId, ownPlayerId, player.score, { finalState, finalPayload })
+      .then(() =>
+        gameplayTelemetry
+          .finish({
+            status: "completed",
+            completionReason: localState.completionReason,
+            score: player.score,
+            completedRounds: Math.max(0, Math.floor(localState.endlessRoundsCompleted)),
+          })
+          .catch((telemetryError) => {
+            console.warn("Failed to finish gameplay telemetry", telemetryError);
+          })
+      )
       .then(() => finalizeMatchIfComplete(search.lobbyId))
       .then(() => {
         if (resultNavigationSubmittedRef.current) return;
@@ -789,7 +810,7 @@ function MultiplayerMatchRoute() {
           finishError instanceof Error ? finishError.message : t`Failed to finalize completed run.`
         );
       });
-  }, [localState, navigate, ownPlayerId, search.lobbyId]);
+  }, [gameplayTelemetry, localState, navigate, ownPlayerId, search.lobbyId]);
 
   useEffect(() => {
     const player = localState.players[localState.currentPlayerIndex];
@@ -1252,6 +1273,7 @@ function MultiplayerMatchRoute() {
             onExternalAntiPerkEventHandled={handleExternalAntiPerkEventHandled}
             onExternalInventoryActionHandled={handleExternalInventoryActionHandled}
             onStateChange={handleGameStateChange}
+            onPlaybackTelemetry={gameplayTelemetry.recordRound}
             onGiveUp={() => {
               void (async () => {
                 try {
@@ -1272,6 +1294,16 @@ function MultiplayerMatchRoute() {
                     finalState: "forfeited",
                     finalPayload,
                   });
+                  await gameplayTelemetry
+                    .finish({
+                      status: "abandoned",
+                      completionReason: "gave_up",
+                      score: finalScore,
+                      completedRounds: Math.max(0, Math.floor(localState.endlessRoundsCompleted)),
+                    })
+                    .catch((telemetryError) => {
+                      console.warn("Failed to finish gameplay telemetry", telemetryError);
+                    });
                   await finalizeMatchIfComplete(search.lobbyId);
                 } catch (giveUpError) {
                   setError(
