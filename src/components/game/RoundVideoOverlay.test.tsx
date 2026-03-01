@@ -116,6 +116,7 @@ vi.mock("../../services/haptics/runtime", () => ({
   createHapticsSession: vi.fn(),
   pauseHapticsPlayback: vi.fn(),
   preloadHapticsScript: vi.fn(),
+  resumeHapticsPlayback: vi.fn(),
   sendHapticsSync: vi.fn(),
   stopHapticsPlayback: vi.fn(),
 }));
@@ -303,6 +304,7 @@ function renderOverlay({
   intermediaryReturnPauseSec = 4,
   onFinishRound = vi.fn(),
   roadPalette,
+  roundControl,
 }: {
   activeRound?: ActiveRound | null;
   installedRounds?: InstalledRound[];
@@ -316,6 +318,12 @@ function renderOverlay({
   intermediaryReturnPauseSec?: number;
   onFinishRound?: (summary?: CompletedRoundSummary) => void;
   roadPalette?: RoadPalette;
+  roundControl?: {
+    pauseCharges: number;
+    skipCharges: number;
+    onUsePause: () => void;
+    onUseSkip: () => void;
+  };
 } = {}) {
   return render(
     <RoundVideoOverlay
@@ -333,6 +341,7 @@ function renderOverlay({
       allowDebugRoundControls={allowDebugRoundControls}
       initialShowAntiPerkBeatbar={initialShowAntiPerkBeatbar}
       roadPalette={roadPalette}
+      roundControl={roundControl}
     />
   );
 }
@@ -383,6 +392,7 @@ describe("RoundVideoOverlay", () => {
     vi.mocked(handyRuntime.createHapticsSession).mockClear();
     vi.mocked(handyRuntime.pauseHapticsPlayback).mockClear();
     vi.mocked(handyRuntime.preloadHapticsScript).mockClear();
+    vi.mocked(handyRuntime.resumeHapticsPlayback).mockClear();
     vi.mocked(handyRuntime.sendHapticsSync).mockClear();
     vi.mocked(handyRuntime.stopHapticsPlayback).mockClear();
     vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(async () => undefined);
@@ -995,6 +1005,57 @@ describe("RoundVideoOverlay", () => {
       expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({ synced: true, error: null });
       expect(playSpy).toHaveBeenCalled();
     });
+  });
+
+  it("pauses haptics when the pause perk pauses the video", async () => {
+    mocks.handy.connectionKey = "conn-key";
+    mocks.handy.appApiKey = "app-key";
+    mocks.handy.connected = true;
+    mocks.playback.loadFunscriptTimeline.mockResolvedValue({
+      actions: [
+        { at: 0, pos: 10 },
+        { at: 5_000, pos: 90 },
+      ],
+    });
+    mocks.playback.getFunscriptPositionAtMs.mockReturnValue(50);
+    const session = createAnyHapticsSession();
+    vi.mocked(handyRuntime.createHapticsSession).mockResolvedValue(session);
+    const onUsePause = vi.fn();
+
+    const { container } = renderOverlay({
+      installedRounds: [createInstalledRound("round-1", "/script.funscript")],
+      roundControl: {
+        pauseCharges: 1,
+        skipCharges: 0,
+        onUsePause,
+        onUseSkip: vi.fn(),
+      },
+    });
+
+    const video = await waitFor(() => {
+      const candidate = container.querySelector("video");
+      expect(candidate).not.toBeNull();
+      return candidate as HTMLVideoElement;
+    });
+    primeVideoElement(video, { duration: 30, currentTime: 2.5 });
+    video.playbackRate = 1.25;
+    fireEvent.loadedMetadata(video);
+
+    await waitFor(() => {
+      expect(mocks.handy.setSyncStatus).toHaveBeenCalledWith({ synced: true, error: null });
+    });
+
+    vi.mocked(handyRuntime.pauseHapticsPlayback).mockClear();
+    const pauseSpy = vi.spyOn(HTMLMediaElement.prototype, "pause");
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause 1" }));
+
+    expect(onUsePause).toHaveBeenCalledTimes(1);
+    expect(pauseSpy).toHaveBeenCalled();
+    expect(vi.mocked(handyRuntime.pauseHapticsPlayback)).toHaveBeenCalledWith(
+      expect.anything(),
+      session
+    );
   });
 
   it("applies the persisted TheHandy offset during bootstrap sync", async () => {

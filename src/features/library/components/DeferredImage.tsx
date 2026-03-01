@@ -2,8 +2,10 @@ import { memo, useEffect, useRef, useState, type ImgHTMLAttributes } from "react
 
 type DeferredImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> & {
   src: string;
+  alt: string;
   activationPriority?: number;
   rootMargin?: string;
+  suspended?: boolean;
 };
 
 const DEFAULT_ROOT_MARGIN = "240px";
@@ -41,8 +43,10 @@ function enqueueActivation(callback: () => void): () => void {
 
 export const DeferredImage = memo(function DeferredImage({
   src,
+  alt,
   activationPriority = 0,
   rootMargin = DEFAULT_ROOT_MARGIN,
+  suspended = false,
   ...imgProps
 }: DeferredImageProps) {
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -54,7 +58,7 @@ export const DeferredImage = memo(function DeferredImage({
 
   useEffect(() => {
     const image = imageRef.current;
-    if (!image || shouldAttachSource) {
+    if (!image || shouldAttachSource || suspended) {
       return;
     }
 
@@ -122,12 +126,13 @@ export const DeferredImage = memo(function DeferredImage({
       }
       removeQueuedActivation?.();
     };
-  }, [activationPriority, rootMargin, shouldAttachSource]);
+  }, [activationPriority, rootMargin, shouldAttachSource, suspended]);
 
   return (
     <img
       {...imgProps}
       ref={imageRef}
+      alt={alt}
       src={shouldAttachSource ? src : undefined}
       data-deferred-image={shouldAttachSource ? "loaded" : "pending"}
     />

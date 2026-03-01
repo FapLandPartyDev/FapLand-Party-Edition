@@ -13,6 +13,11 @@ import {
   normalizeDebugLogLevel,
   type DebugLogLevel,
 } from "./constants/debugSettings";
+import {
+  clearStartNormallyOnce,
+  normalizeAlwaysRecoveryMode,
+  setStartNormallyOnce,
+} from "./constants/startupSettings";
 
 type RecoveryStatus = {
   databasePath: string | null;
@@ -35,6 +40,8 @@ export function RecoveryMode() {
   const [isCreatingPlaintextSettings, setIsCreatingPlaintextSettings] = useState(false);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus | null>(null);
   const [activeRecoveryAction, setActiveRecoveryAction] = useState<string | null>(null);
+  const [alwaysRecoveryMode, setAlwaysRecoveryMode] = useState(false);
+  const [isTogglingAlwaysRecovery, setIsTogglingAlwaysRecovery] = useState(false);
 
   useEffect(() => {
     trpc.debug.getState
@@ -46,6 +53,12 @@ export function RecoveryMode() {
     void window.electronAPI?.startupRecovery
       ?.getStatus?.()
       .then(setRecoveryStatus)
+      .catch(() => {});
+    void window.electronAPI?.startupRecovery
+      ?.getAlwaysRecoveryMode?.()
+      .then((value) => {
+        setAlwaysRecoveryMode(normalizeAlwaysRecoveryMode(value));
+      })
       .catch(() => {});
   }, []);
 
@@ -75,11 +88,13 @@ export function RecoveryMode() {
   const startNormally = async () => {
     if (isStartingNormally) return;
     setIsStartingNormally(true);
+    setStartNormallyOnce();
     try {
       await window.electronAPI?.startupRecovery?.startNormally?.();
       window.location.reload();
     } catch (err) {
       console.error("Failed to start normally", err);
+      clearStartNormallyOnce();
       setIsStartingNormally(false);
     }
   };
@@ -164,6 +179,27 @@ export function RecoveryMode() {
       setError(err instanceof Error ? err.message : "Failed to create plaintext settings file.");
     } finally {
       setIsCreatingPlaintextSettings(false);
+    }
+  };
+
+  const toggleAlwaysRecoveryMode = async () => {
+    if (isTogglingAlwaysRecovery) return;
+    setIsTogglingAlwaysRecovery(true);
+    setError(null);
+    setNotice(null);
+    const next = !alwaysRecoveryMode;
+    try {
+      await window.electronAPI?.startupRecovery?.setAlwaysRecoveryMode?.(next);
+      setAlwaysRecoveryMode(next);
+      setNotice(
+        next
+          ? "The app will always start in recovery mode until disabled."
+          : "Always start in recovery mode disabled."
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to toggle recovery mode.");
+    } finally {
+      setIsTogglingAlwaysRecovery(false);
     }
   };
 
@@ -374,6 +410,42 @@ export function RecoveryMode() {
             </p>
 
             <div className="mt-5 flex flex-col gap-3">
+              <div
+                className={`flex items-start justify-between gap-4 rounded-2xl border p-4 transition-colors ${
+                  alwaysRecoveryMode
+                    ? "border-rose-400/40 bg-rose-500/10"
+                    : "border-zinc-700 bg-zinc-900/60 hover:border-zinc-600"
+                }`}
+              >
+                <div>
+                  <p className="text-sm font-semibold text-zinc-100">
+                    Always Start in Recovery Mode
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-zinc-400">
+                    Boots directly into recovery mode on every app launch. &ldquo;Start
+                    Normally&rdquo; still opens the app once; a full restart returns here.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={alwaysRecoveryMode}
+                  disabled={isTogglingAlwaysRecovery}
+                  onClick={() => void toggleAlwaysRecoveryMode()}
+                  className={`relative mt-1 h-8 w-16 shrink-0 self-start overflow-hidden rounded-full border transition-all duration-200 ${
+                    alwaysRecoveryMode
+                      ? "border-rose-300/80 bg-rose-500/50"
+                      : "border-zinc-600 bg-zinc-800"
+                  } ${isTogglingAlwaysRecovery ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                >
+                  <span
+                    className={`absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-md transition-transform duration-200 ${
+                      alwaysRecoveryMode ? "translate-x-8" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <label
                   htmlFor="recovery-log-level"

@@ -18,14 +18,19 @@ export type RoundCardItem = {
 };
 
 export type RoundGridShelf =
-  | { kind: "group-header"; key: string; row: Extract<RoundRenderRow, { kind: "hero-group" | "playlist-group" }> }
+  | {
+      kind: "group-header";
+      key: string;
+      row: Extract<RoundRenderRow, { kind: "hero-group" | "playlist-group" }>;
+    }
   | { kind: "card-row"; key: string; items: RoundCardItem[] };
 
-const GROUP_HEADER_ESTIMATE_PX = 96;
-const CARD_ROW_CHROME_ESTIMATE_PX = 340;
-const SHELF_GAP_PX = 20;
-const CARD_MIN_WIDTH_PX = 320;
-const MAX_COLUMNS = 2;
+const GROUP_HEADER_ESTIMATE_PX = 58;
+const CARD_ROW_CHROME_ESTIMATE_PX = 76;
+const SHELF_GAP_PX = 14;
+const CARD_MIN_WIDTH_PX = 230;
+const MAX_COLUMNS = 4;
+const SCROLL_SETTLE_DELAY_MS = 150;
 
 function buildShelves(
   rows: RoundRenderRow[],
@@ -132,6 +137,7 @@ export type RoundGridProps = {
   renderCard: (item: RoundCardItem) => ReactNode;
   renderGroupHeader: (shelf: Extract<RoundGridShelf, { kind: "group-header" }>) => ReactNode;
   onVisibleRoundIdsChange?: (roundIds: string[]) => void;
+  onScrollingChange?: (isScrolling: boolean) => void;
 };
 
 export function RoundGrid({
@@ -141,12 +147,43 @@ export function RoundGrid({
   renderCard,
   renderGroupHeader,
   onVisibleRoundIdsChange,
+  onScrollingChange,
 }: RoundGridProps) {
   const layoutContainerRef = useRef<HTMLDivElement | null>(null);
   const [columns, setColumns] = useState(MAX_COLUMNS);
   const [containerWidth, setContainerWidth] = useState(0);
   const [scrollMargin, setScrollMargin] = useState(0);
   const lastVisibleKeyRef = useRef<string>("");
+  const scrollSettleTimeoutRef = useRef<number | null>(null);
+  const [isScrolling, setIsScrolling] = useState(false);
+
+  useEffect(() => {
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      setIsScrolling(true);
+      if (scrollSettleTimeoutRef.current !== null) {
+        window.clearTimeout(scrollSettleTimeoutRef.current);
+      }
+      scrollSettleTimeoutRef.current = window.setTimeout(() => {
+        scrollSettleTimeoutRef.current = null;
+        setIsScrolling(false);
+      }, SCROLL_SETTLE_DELAY_MS);
+    };
+
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      scrollContainer.removeEventListener("scroll", handleScroll);
+      if (scrollSettleTimeoutRef.current !== null) {
+        window.clearTimeout(scrollSettleTimeoutRef.current);
+        scrollSettleTimeoutRef.current = null;
+      }
+    };
+  }, [scrollContainer]);
+
+  useEffect(() => {
+    onScrollingChange?.(isScrolling);
+  }, [isScrolling, onScrollingChange]);
 
   // The margin is a layout value, not a scroll value: the scrollTop term cancels
   // the movement visible in getBoundingClientRect(). Recomputing it on every
@@ -215,10 +252,7 @@ export function RoundGrid({
     () => buildShelves(rows, columns, expandedGroupKeys),
     [columns, expandedGroupKeys, rows]
   );
-  const hasGroupedRows = useMemo(
-    () => rows.some((row) => row.kind !== "standalone"),
-    [rows]
-  );
+  const hasGroupedRows = useMemo(() => rows.some((row) => row.kind !== "standalone"), [rows]);
 
   const virtualizer = useVirtualizer({
     count: shelves.length,
@@ -232,7 +266,7 @@ export function RoundGrid({
     },
     // Updated only when layout changes; ordinary scrolling must not change it.
     scrollMargin,
-    overscan: 6,
+    overscan: 2,
     measureElement: (element) => element.getBoundingClientRect().height,
   });
 
@@ -264,7 +298,7 @@ export function RoundGrid({
 
   // Surface visible round ids so the parent can lazy-load card assets.
   useEffect(() => {
-    if (!onVisibleRoundIdsChange) return;
+    if (!onVisibleRoundIdsChange || isScrolling) return;
     const next = [
       ...new Set(virtualItems.flatMap((item) => collectRoundIdsFromShelf(shelves[item.index]))),
     ];
@@ -272,7 +306,7 @@ export function RoundGrid({
     if (lastVisibleKeyRef.current === key) return;
     lastVisibleKeyRef.current = key;
     onVisibleRoundIdsChange(next);
-  }, [onVisibleRoundIdsChange, shelves, virtualItems]);
+  }, [isScrolling, onVisibleRoundIdsChange, shelves, virtualItems]);
 
   // When no scroll container is available yet (initial mount), still surface all ids.
   useEffect(() => {
@@ -292,7 +326,7 @@ export function RoundGrid({
       const fillerCount = Math.max(0, columns - shelf.items.length);
       return (
         <div
-          className="grid gap-5"
+          className="grid gap-3.5"
           style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
         >
           {shelf.items.map((item) => renderCard(item))}
@@ -312,9 +346,7 @@ export function RoundGrid({
   // No scroll container mounted yet: render a stable, non-measured placeholder so
   // layout/scroll-container detection can settle without flicker.
   if (!scrollContainer) {
-    return (
-      <div ref={layoutContainerRef} className="relative min-h-px" aria-hidden="true" />
-    );
+    return <div ref={layoutContainerRef} className="relative min-h-px" aria-hidden="true" />;
   }
 
   // Virtualized path (also used for grouped lists so headers + card rows stay aligned).
@@ -323,6 +355,7 @@ export function RoundGrid({
       <div
         ref={layoutContainerRef}
         className="relative"
+        data-scrolling={isScrolling ? "true" : "false"}
         style={{ height: `${virtualizer.getTotalSize()}px` }}
       >
         {virtualItems.map((item) => {
@@ -333,7 +366,7 @@ export function RoundGrid({
               key={shelf.key}
               ref={virtualizer.measureElement}
               data-index={item.index}
-              className={`absolute left-0 top-0 w-full pb-5 ${
+              className={`absolute left-0 top-0 w-full pb-3.5 ${
                 shelf.kind === "group-header" ? "z-10 focus-within:z-[60] hover:z-20" : ""
               }`}
               style={{ transform: `translateY(${item.start - scrollMargin}px)` }}

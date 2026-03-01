@@ -103,6 +103,8 @@ declare global {
           keepDatabase: boolean
         ) => Promise<{ databaseArchivePath: string | null }>;
         restart?: () => Promise<void>;
+        getAlwaysRecoveryMode?: () => Promise<boolean>;
+        setAlwaysRecoveryMode?: (enabled: boolean) => Promise<void>;
       };
     };
   }

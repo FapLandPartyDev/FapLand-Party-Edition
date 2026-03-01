@@ -22,9 +22,12 @@ import { InlineMetrics } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/ToastHost";
 import { useControllerSurface } from "@/controller";
-import { MenuButton } from "@/components/MenuButton";
 import type { ActiveRound } from "@/game/types";
-import { CURRENT_PLAYLIST_VERSION, type PlaylistConfig, type PortableRoundRef } from "@/game/playlistSchema";
+import {
+  CURRENT_PLAYLIST_VERSION,
+  type PlaylistConfig,
+  type PortableRoundRef,
+} from "@/game/playlistSchema";
 import { getSinglePlayerAntiPerkPool, getSinglePlayerPerkPool } from "@/game/data/perks";
 import {
   db,
@@ -56,10 +59,7 @@ import { useVisibleRoundAssets } from "@/features/rounds/useVisibleRoundAssets";
 import { THEHANDY_OFFSET_MAX_MS, THEHANDY_OFFSET_MIN_MS } from "@/constants/theHandy";
 import { GameDropdown } from "@/components/ui/GameDropdown";
 
-import {
-  DEFAULT_EXPORT_COMPRESSION_STRENGTH,
-  LIBRARY_SECTIONS,
-} from "./constants";
+import { DEFAULT_EXPORT_COMPRESSION_STRENGTH } from "./constants";
 import {
   formatDate,
   isTemplateRound,
@@ -71,6 +71,7 @@ import {
   pickHeroGroupRoundToKeep,
   reloadUiAfterHeroGroupConversion,
   summarizeHeroGroupPreviewState,
+  roundHasFunscript,
   toHeroEditDraft,
   toRoundEditDraft,
 } from "./helpers";
@@ -89,7 +90,6 @@ import type {
   RoundEditDraft,
   RoundLibraryEntry,
   RoundTemplateRepairState,
-  SectionId,
   WebsiteRoundVideoValidationState,
 } from "./types";
 import {
@@ -101,7 +101,11 @@ import {
   usePreviewSettings,
   useWebInstallSettings,
 } from "./hooks/useLibraryData";
-import { useExportPackageStatus, useInstallScanStatus, useWebVideoCacheStatus } from "./hooks/useStatusPollers";
+import {
+  useExportPackageStatus,
+  useInstallScanStatus,
+  useWebVideoCacheStatus,
+} from "./hooks/useStatusPollers";
 import { ActionButton, DateFilterInput } from "./ui/ActionButton";
 import { RoundCard } from "./components/RoundCard";
 import { HeroGroupHeader, PlaylistGroupHeader } from "./components/GroupHeaders";
@@ -109,7 +113,10 @@ import { RoundGrid } from "./components/RoundGrid";
 import { EditRoundDialog } from "./dialogs/EditRoundDialog";
 import { EditHeroDialog } from "./dialogs/EditHeroDialog";
 import { BulkTagsDialog, HeroGroupConversionDialog } from "./dialogs/BulkAndConversionDialogs";
-import { RepairTemplateHeroDialog, RepairTemplateRoundDialog } from "./dialogs/RepairTemplateDialogs";
+import {
+  RepairTemplateHeroDialog,
+  RepairTemplateRoundDialog,
+} from "./dialogs/RepairTemplateDialogs";
 import { LegacyPlaylistReviewDialog } from "./dialogs/LegacyPlaylistReviewDialog";
 import { WebsiteRoundInstallDialog } from "./dialogs/WebsiteRoundInstallDialog";
 import { LibraryExportDialog } from "./dialogs/LibraryExportDialog";
@@ -194,9 +201,7 @@ function InstallScanStatusBadge({ status }: { status: InstallScanStatus }) {
     stats.installed + stats.updated + stats.skipped + stats.failed + stats.sidecarsSeen;
   const total = stats.totalSidecars;
   const progressText =
-    total > 0 && status.state === "running"
-      ? ` (${Math.round((processed / total) * 100)}%)`
-      : "";
+    total > 0 && status.state === "running" ? ` (${Math.round((processed / total) * 100)}%)` : "";
   const summary = t`${stats.installed} rounds / ${stats.playlistsImported} playlists / ${stats.updated} updated / ${stats.failed} failed${progressText}`;
   const label =
     status.state === "running"
@@ -226,7 +231,11 @@ export function InstalledRoundsPage({
     query?: string;
     showDisabled?: boolean;
   };
-  navigate: (opts: { to: string; search?: Record<string, unknown>; replace?: boolean }) => Promise<void> | void;
+  navigate: (opts: {
+    to: string;
+    search?: Record<string, unknown>;
+    replace?: boolean;
+  }) => Promise<void> | void;
 }) {
   const { t } = useLingui();
   const sfwMode = useSfwMode();
@@ -234,8 +243,7 @@ export function InstalledRoundsPage({
   const routerNavigate = useNavigate();
   const invalidateLibrary = useInvalidateLibrary();
 
-  // ─── Section / grouping / URL-driven filter state ──────────────────────────
-  const [activeSectionId, setActiveSectionId] = useState<SectionId>("library");
+  // ─── Grouping / URL-driven filter state ────────────────────────────────────
   const groupMode: GroupMode = search.groupMode ?? "hero";
   const sortMode: SortMode = search.sortMode ?? "newest";
   const showDisabledRounds = search.showDisabled ?? false;
@@ -270,12 +278,12 @@ export function InstalledRoundsPage({
   const webInstallSettingsQuery = useWebInstallSettings();
   const controllerQuery = useControllerSupportEnabled();
 
-  const rounds = roundsQuery.data ?? [];
+  const rounds = useMemo(() => roundsQuery.data ?? [], [roundsQuery.data]);
   const disabledRoundIds = useMemo(
     () => new Set(disabledIdsQuery.data ?? []),
     [disabledIdsQuery.data]
   );
-  const availablePlaylists = playlistsQuery.data ?? [];
+  const availablePlaylists = useMemo(() => playlistsQuery.data ?? [], [playlistsQuery.data]);
 
   // ─── Derived library state ──────────────────────────────────────────────────
   const roundLibraryIndex = useMemo(() => buildRoundLibraryIndex(rounds), [rounds]);
@@ -355,13 +363,17 @@ export function InstalledRoundsPage({
     visibleGroupKeys.length > 0 &&
     visibleGroupKeys.every((groupKey) => Boolean(expandedHeroGroups[groupKey]));
 
-  // Prune expanded-state entries that are no longer visible.
+  // Shelves open by default. Explicit collapses are remembered for this page session.
   useEffect(() => {
-    const visibleSet = new Set(visibleGroupKeys);
     setExpandedHeroGroups((previous) => {
-      const entries = Object.entries(previous).filter(([key]) => visibleSet.has(key));
-      if (entries.length === Object.keys(previous).length) return previous;
-      return Object.fromEntries(entries);
+      const next = { ...previous };
+      let changed = false;
+      for (const groupKey of visibleGroupKeys) {
+        if (groupKey in next) continue;
+        next[groupKey] = true;
+        changed = true;
+      }
+      return changed ? next : previous;
     });
   }, [visibleGroupKeys]);
 
@@ -384,11 +396,6 @@ export function InstalledRoundsPage({
     Number(sourceFilter !== "all") +
     Number(addedDateFilter.mode !== "all");
 
-  const highestFilteredDifficulty = useMemo(
-    () => filteredRounds.reduce((max, round) => Math.max(max, round.difficulty ?? 0), 0),
-    [filteredRounds]
-  );
-
   // ─── Selection ──────────────────────────────────────────────────────────────
   const [selectedRoundIds, setSelectedRoundIds] = useState<Set<string>>(new Set());
   const [selectedHeroIds, setSelectedHeroIds] = useState<Set<string>>(new Set());
@@ -403,14 +410,20 @@ export function InstalledRoundsPage({
   const isLibraryScanning = scanStatus?.state === "running";
 
   const [visibleRoundIds, setVisibleRoundIds] = useState<string[]>([]);
+  const [isLibraryScrolling, setIsLibraryScrolling] = useState(false);
+  const [inspectedRoundId, setInspectedRoundId] = useState<string | null>(null);
+  const [showInstallMenu, setShowInstallMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showFilterTray, setShowFilterTray] = useState(false);
   // Preview overlay state declared early so the visible-assets hook can prioritize it.
   const [activePreviewRound, setActivePreviewRound] = useState<InstalledRoundPlaybackEntry | null>(
     null
   );
   const cardAssetsByRoundId = useVisibleRoundAssets({
     visibleRoundIds,
-    selectedRoundId: activePreviewRound?.id ?? null,
+    selectedRoundId: activePreviewRound?.id ?? inspectedRoundId,
     includeDisabled: showDisabledRounds,
+    isScrolling: isLibraryScrolling,
   });
 
   const hasWebsiteRounds = useMemo(
@@ -424,7 +437,7 @@ export function InstalledRoundsPage({
     [webVideoCacheQuery.data?.downloadProgresses]
   );
   const getDownloadProgressForVideoUri = useCallback(
-    (uri: string | null | undefined) => (uri ? downloadProgressByUri.get(uri) ?? null : null),
+    (uri: string | null | undefined) => (uri ? (downloadProgressByUri.get(uri) ?? null) : null),
     [downloadProgressByUri]
   );
 
@@ -513,15 +526,12 @@ export function InstalledRoundsPage({
   const [heroGroupRoundConversion, setHeroGroupRoundConversion] =
     useState<HeroGroupRoundConversionState | null>(null);
   const [convertingHeroGroupKey, setConvertingHeroGroupKey] = useState<string | null>(null);
-  const [repairingTemplateRound, setRepairingTemplateRound] = useState<RoundTemplateRepairState | null>(
-    null
-  );
-  const [repairingTemplateHero, setRepairingTemplateHero] = useState<HeroTemplateRepairState | null>(
-    null
-  );
-  const [legacyPlaylistReview, setLegacyPlaylistReview] = useState<LegacyPlaylistReviewState | null>(
-    null
-  );
+  const [repairingTemplateRound, setRepairingTemplateRound] =
+    useState<RoundTemplateRepairState | null>(null);
+  const [repairingTemplateHero, setRepairingTemplateHero] =
+    useState<HeroTemplateRepairState | null>(null);
+  const [legacyPlaylistReview, setLegacyPlaylistReview] =
+    useState<LegacyPlaylistReviewState | null>(null);
   const [eroscriptsDialogContext, setEroscriptsDialogContext] =
     useState<EroScriptsDialogContext | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -535,16 +545,17 @@ export function InstalledRoundsPage({
   const [websiteRoundFunscriptFileUri, setWebsiteRoundFunscriptFileUri] = useState<string | null>(
     null
   );
-  const [websiteRoundFunscriptFileLabel, setWebsiteRoundFunscriptFileLabel] = useState<string | null>(
-    null
-  );
+  const [websiteRoundFunscriptFileLabel, setWebsiteRoundFunscriptFileLabel] = useState<
+    string | null
+  >(null);
   const [websiteRoundError, setWebsiteRoundError] = useState<string | null>(null);
   const [websiteRoundSuccess, setWebsiteRoundSuccess] = useState<string | null>(null);
   const [websiteRoundVideoValidation, setWebsiteRoundVideoValidation] =
     useState<WebsiteRoundVideoValidationState>({ state: "idle", message: null });
   const [isInstallingWebsiteRound, setIsInstallingWebsiteRound] = useState(false);
   const websiteRoundVideoValidationRequestIdRef = useRef(0);
-  const installWebFunscriptUrlEnabled = webInstallSettingsQuery.data?.installWebFunscriptUrlEnabled ?? false;
+  const installWebFunscriptUrlEnabled =
+    webInstallSettingsQuery.data?.installWebFunscriptUrlEnabled ?? false;
   const webInstallSettingsLoading = webInstallSettingsQuery.isLoading;
 
   // ─── SFX helpers ────────────────────────────────────────────────────────────
@@ -604,9 +615,7 @@ export function InstalledRoundsPage({
           setWebsiteRoundVideoValidation({
             state: "unsupported",
             message:
-              error instanceof Error
-                ? error.message
-                : t`This website video URL is not supported.`,
+              error instanceof Error ? error.message : t`This website video URL is not supported.`,
           });
         });
     }, 400);
@@ -615,8 +624,6 @@ export function InstalledRoundsPage({
 
   const actionButtonsDisabled =
     isStartingScan || isExportingDatabase || isInstallingWebsiteRound || isLibraryScanning;
-  const scanRunning = isStartingScan || isLibraryScanning;
-
   // ─── Action handlers ────────────────────────────────────────────────────────
   const refreshLibrary = useCallback(async () => {
     await invalidateLibrary();
@@ -959,9 +966,7 @@ export function InstalledRoundsPage({
     setIsSavingEdit(true);
     try {
       const result = await db.round.deleteMany(idsToDelete);
-      setEditingRound((current) =>
-        current && idsToDeleteSet.has(current.id) ? null : current
-      );
+      setEditingRound((current) => (current && idsToDeleteSet.has(current.id) ? null : current));
       setSelectedRoundIds((previous) => {
         const next = new Set(previous);
         for (const id of idsToDeleteSet) next.delete(id);
@@ -984,8 +989,7 @@ export function InstalledRoundsPage({
   const openExportDatabaseDialog = useCallback(() => {
     if (isExportingDatabase || isStartingScan || isLibraryScanning) return;
     setExportDialog({
-      exportMode:
-        selectedRoundIds.size > 0 || selectedHeroIds.size > 0 ? "selected" : "all",
+      exportMode: selectedRoundIds.size > 0 || selectedHeroIds.size > 0 ? "selected" : "all",
       includeMedia: true,
       asFpack: false,
       compressionMode: null,
@@ -1018,14 +1022,10 @@ export function InstalledRoundsPage({
               compression: null,
             }
       );
-      setExportDialog((current) =>
-        current ? { ...current, result: null, error: null } : current
-      );
+      setExportDialog((current) => (current ? { ...current, result: null, error: null } : current));
       const result = await db.install.exportPackage({
-        roundIds:
-          exportDialog.exportMode === "selected" ? Array.from(selectedRoundIds) : undefined,
-        heroIds:
-          exportDialog.exportMode === "selected" ? Array.from(selectedHeroIds) : undefined,
+        roundIds: exportDialog.exportMode === "selected" ? Array.from(selectedRoundIds) : undefined,
+        heroIds: exportDialog.exportMode === "selected" ? Array.from(selectedHeroIds) : undefined,
         includeMedia: exportDialog.includeMedia,
         asFpack: exportDialog.asFpack,
         directoryPath,
@@ -1186,7 +1186,15 @@ export function InstalledRoundsPage({
       setIsAbortingInstall(false);
       setIsStartingScan(false);
     }
-  }, [isExportingDatabase, isLibraryScanning, isStartingScan, refreshLibrary, routerNavigate, showToast, t]);
+  }, [
+    isExportingDatabase,
+    isLibraryScanning,
+    isStartingScan,
+    refreshLibrary,
+    routerNavigate,
+    showToast,
+    t,
+  ]);
 
   const selectWebsiteRoundFunscriptFile = useCallback(async () => {
     if (actionButtonsDisabled) return;
@@ -1296,9 +1304,7 @@ export function InstalledRoundsPage({
   const attachEroScriptsFunscript = useCallback(
     async (result: { funscriptUri: string; filename: string }) => {
       if (eroscriptsDialogContext === "edit-round") {
-        setEditingRound((prev) =>
-          prev ? { ...prev, funscriptUri: result.funscriptUri } : prev
-        );
+        setEditingRound((prev) => (prev ? { ...prev, funscriptUri: result.funscriptUri } : prev));
         showToast(t`Funscript attached. Save the round to keep it.`, "success");
         return;
       }
@@ -1328,10 +1334,7 @@ export function InstalledRoundsPage({
     async (input: EroScriptsRoundInstallInput) => {
       if (actionButtonsDisabled) return;
       try {
-        if (
-          input.videoUri.startsWith("http://") ||
-          input.videoUri.startsWith("https://")
-        ) {
+        if (input.videoUri.startsWith("http://") || input.videoUri.startsWith("https://")) {
           await db.round.createWebsiteRound({
             name: input.name,
             videoUri: input.videoUri,
@@ -1555,9 +1558,7 @@ export function InstalledRoundsPage({
             ...current,
             error: null,
             slots: current.slots.map((slot) =>
-              slot.id === slotId
-                ? { ...slot, excludedFromImport: !slot.excludedFromImport }
-                : slot
+              slot.id === slotId ? { ...slot, excludedFromImport: !slot.excludedFromImport } : slot
             ),
           }
         : null
@@ -1569,9 +1570,7 @@ export function InstalledRoundsPage({
     const playlistName = legacyPlaylistReview.playlistName.trim() || t`Legacy Playlist`;
     const shouldCreatePlaylist = legacyPlaylistReview.createPlaylist;
     setLegacyPlaylistReview((current) =>
-      current
-        ? { ...current, playlistName, creating: true, error: null }
-        : null
+      current ? { ...current, playlistName, creating: true, error: null } : null
     );
     try {
       setShowInstallOverlay(true);
@@ -1613,8 +1612,7 @@ export function InstalledRoundsPage({
           ? {
               ...current,
               creating: false,
-              error:
-                error instanceof Error ? error.message : t`Failed to create legacy playlist.`,
+              error: error instanceof Error ? error.message : t`Failed to create legacy playlist.`,
             }
           : null
       );
@@ -1633,7 +1631,6 @@ export function InstalledRoundsPage({
     }
     if (consumedPaletteOpenRef.current === search.open) return;
     consumedPaletteOpenRef.current = search.open;
-    setActiveSectionId("transfer");
     void navigate({ to: "/rounds", search: {}, replace: true });
     if (search.open === "install-web") {
       setWebsiteRoundDialogOpen(true);
@@ -1643,12 +1640,10 @@ export function InstalledRoundsPage({
   }, [installRoundsFromFolder, navigate, search.open]);
 
   // ─── Loading / error flags ──────────────────────────────────────────────────
-  const isInitialLibraryLoading = activeSectionId === "library" && roundsQuery.isLoading && !roundsQuery.data;
-  const hasInitialLibraryError =
-    activeSectionId === "library" && roundsQuery.isError && !roundsQuery.data;
+  const isInitialLibraryLoading = roundsQuery.isLoading && !roundsQuery.data;
+  const hasInitialLibraryError = roundsQuery.isError && !roundsQuery.data;
   const isLibraryRefreshing = roundsQuery.isFetching && !isInitialLibraryLoading;
-  const playlistGroupingLoading =
-    groupMode === "playlist" && playlistsQuery.isLoading;
+  const playlistGroupingLoading = groupMode === "playlist" && playlistsQuery.isLoading;
 
   const sortModeLabel =
     sortMode === "oldest"
@@ -1665,9 +1660,29 @@ export function InstalledRoundsPage({
                 ? t`Excluded`
                 : t`Newest`;
   const groupModeLabel = groupMode === "playlist" ? t`Playlist` : t`Hero`;
+  const handleOpenRepairTemplateRound = useCallback((templateRound: RoundLibraryEntry) => {
+    setRepairingTemplateRound({
+      roundId: templateRound.id,
+      roundName: templateRound.name,
+      installedRoundId: "",
+    });
+  }, []);
 
   // ─── Scroll container ref (for the virtualized grid) ────────────────────────
   const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
+  const inspectedRound = useMemo(
+    () => rounds.find((round) => round.id === inspectedRoundId) ?? null,
+    [inspectedRoundId, rounds]
+  );
+
+  useEffect(() => {
+    if (!inspectedRoundId) return;
+    const closeInspector = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setInspectedRoundId(null);
+    };
+    window.addEventListener("keydown", closeInspector);
+    return () => window.removeEventListener("keydown", closeInspector);
+  }, [inspectedRoundId]);
 
   const deleteSelectedRoundCount = deleteSelectedRoundsDialog?.ids.length ?? 0;
   const deleteSelectedRoundExamples =
@@ -1690,137 +1705,133 @@ export function InstalledRoundsPage({
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <AnimatedBackground />
+      <AnimatedBackground quality="minimal" />
 
-      <div className="relative z-10 flex h-screen flex-col overflow-hidden lg:flex-row">
-        {/* Sidebar */}
-        <nav className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-purple-400/20 bg-zinc-950/70 px-3 py-2 backdrop-blur-xl app-theme-shell-border lg:w-64 lg:flex-col lg:gap-0.5 lg:overflow-x-visible lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-3 lg:py-6">
-          <div className="hidden lg:mb-5 lg:block lg:px-3">
-            <p className="app-theme-eyebrow font-[family-name:var(--font-jetbrains-mono)] text-[0.6rem] uppercase tracking-[0.45em]">
-              <Trans>Round Vault</Trans>
-            </p>
-            <h1 className="app-theme-heading mt-1.5 text-xl font-black tracking-tight">
-              <Trans>Installed Rounds</Trans>
-            </h1>
-            <p className="mt-2 text-sm text-zinc-400">
-              <Trans>
-                Browse, filter, edit, import, and export your installed library.
-              </Trans>
-            </p>
-          </div>
-
-          {LIBRARY_SECTIONS.map((section) => {
-            const active = section.id === activeSectionId;
-            return (
-              <button
-                key={section.id}
-                type="button"
-                aria-current={active ? "page" : undefined}
-                onMouseEnter={handleHoverSfx}
-                onFocus={handleHoverSfx}
-                onClick={() => {
-                  handleSelectSfx();
-                  setActiveSectionId(section.id);
-                }}
-                className={`settings-sidebar-item whitespace-nowrap ${active ? "is-active" : ""}`}
-              >
-                <span aria-hidden="true" className="settings-sidebar-icon">
-                  {section.icon}
-                </span>
-                <span>
-                  {section.id === "library" ? t`Library` : t`Import & Export`}
-                </span>
-              </button>
-            );
-          })}
-
-          <div className="min-w-0 shrink-0 rounded-2xl border border-purple-400/20 bg-black/25 p-2 lg:mt-4 app-theme-shell-border">
-            <p className="px-2 pb-2 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.24em] text-zinc-400">
-              <Trans>Library Grouping</Trans>
-            </p>
-            <div className="flex gap-1 lg:flex-col">
-              {([
-                { value: "hero", label: t`Heroes` },
-                { value: "playlist", label: t`Playlists` },
-              ] as const).map((option) => {
-                const active = groupMode === option.value;
-                const disabled =
-                  option.value === "playlist" && playlistGroupingLoading;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onMouseEnter={handleHoverSfx}
-                    onFocus={handleHoverSfx}
-                    onClick={() => {
-                      if (disabled) return;
-                      handleSelectSfx();
-                      updateSearch({ groupMode: option.value });
-                    }}
-                    disabled={disabled}
-                    className={`rounded-xl px-3 py-2 text-left font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] transition-all duration-200 ${
-                      active
-                        ? "border border-cyan-300/45 bg-cyan-500/18 text-cyan-100"
-                        : disabled
-                          ? "cursor-wait border border-zinc-800 bg-zinc-950/50 text-zinc-500"
-                          : "border border-transparent bg-zinc-900/55 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
-                    }`}
-                  >
-                    {option.value === "playlist" && playlistGroupingLoading
-                      ? t`Playlists...`
-                      : option.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="hidden lg:mt-auto lg:block lg:px-1 lg:pt-4">
-            <MenuButton
-              label={t`Back`}
-              onHover={handleHoverSfx}
+      <div className="relative z-10 flex h-screen min-w-0 flex-col overflow-hidden bg-[#07080b]/92">
+        <header className="round-library-topbar shrink-0 border-b border-white/[0.07] bg-[#090a0e]/96 px-4 py-3 sm:px-6">
+          <div className="mx-auto flex max-w-[1800px] items-center gap-3">
+            <button
+              type="button"
+              aria-label={t`Back`}
               onClick={() => {
                 handleSelectSfx();
                 goBack();
               }}
-            />
-          </div>
-        </nav>
-
-        {/* Main column: dedicated scroll container so the virtualized grid has a stable offset */}
-        <div className="relative flex min-h-0 flex-1 flex-col">
-          {/* Header (non-scrolling) */}
-          <header className="flex shrink-0 flex-col gap-3 border-b border-purple-400/15 bg-zinc-950/40 px-6 py-4 backdrop-blur-xl app-theme-shell-border">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="app-theme-eyebrow font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.34em]">
+              onMouseEnter={handleHoverSfx}
+              className="round-library-icon-button"
+            >
+              ←
+            </button>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline gap-3">
+                <h1 className="truncate text-xl font-black tracking-[-0.03em] text-white sm:text-2xl">
                   <Trans>Installed Rounds</Trans>
-                </p>
-                <h2 className="app-theme-heading mt-1 text-2xl font-black tracking-tight sm:text-3xl">
-                  {activeSectionId === "library" ? t`Library` : t`Import & Export`}
-                </h2>
-                <p className="mt-1 max-w-3xl text-sm text-zinc-400">
-                  {activeSectionId === "library"
-                    ? t`Browse, filter, and edit installed rounds with the main library view front and center.`
-                    : t`Install new rounds, import portable files, and manage database exports from one place.`}
-                </p>
+                </h1>
+                <span className="hidden font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.18em] text-zinc-500 sm:inline">
+                  {filteredRounds.length} / {rounds.length}
+                </span>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="rounded-xl border border-violet-200/30 bg-violet-400/10 px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.3em] text-violet-100">
-                  {rounds.length > 0 ? `${filteredRounds.length} / ${rounds.length}` : "—"}
-                </div>
-                {scanStatus && <InstallScanStatusBadge status={scanStatus} />}
-              </div>
+              <p className="truncate text-xs text-zinc-500">
+                <Trans>Your playable media library</Trans>
+              </p>
             </div>
-          </header>
+            {scanStatus?.state === "running" && <InstallScanStatusBadge status={scanStatus} />}
+            <div className="relative">
+              <button
+                type="button"
+                disabled={actionButtonsDisabled}
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  setShowInstallMenu((current) => !current);
+                }}
+                className="round-library-primary-action"
+              >
+                <span className="text-base">＋</span>
+                <Trans>Install</Trans>
+                <span className="text-[9px] text-cyan-200/60">▾</span>
+              </button>
+              {showInstallMenu && (
+                <div className="round-library-command-menu right-0">
+                  <CommandMenuButton
+                    label={t`Install folder`}
+                    description={t`Scan a folder for rounds`}
+                    onClick={() => {
+                      setShowInstallMenu(false);
+                      void installRoundsFromFolder();
+                    }}
+                  />
+                  <CommandMenuButton
+                    label={t`Import file`}
+                    description={t`Open a round or portable package`}
+                    onClick={() => {
+                      setShowInstallMenu(false);
+                      void importRoundsFromFile();
+                    }}
+                  />
+                  <CommandMenuButton
+                    label={t`Install from web`}
+                    description={t`Create a round from a public URL`}
+                    onClick={() => {
+                      setShowInstallMenu(false);
+                      setWebsiteRoundDialogOpen(true);
+                    }}
+                  />
+                  <CommandMenuButton
+                    label={t`Search EroScripts`}
+                    description={t`Find videos and funscripts`}
+                    onClick={() => {
+                      setShowInstallMenu(false);
+                      setEroscriptsDialogContext("library");
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="relative">
+              <button
+                type="button"
+                aria-label={t`More actions`}
+                onClick={() => {
+                  setShowInstallMenu(false);
+                  setShowMoreMenu((current) => !current);
+                }}
+                className="round-library-icon-button"
+              >
+                •••
+              </button>
+              {showMoreMenu && (
+                <div className="round-library-command-menu right-0">
+                  <CommandMenuButton
+                    label={t`Refresh library`}
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      void refreshLibrary();
+                    }}
+                  />
+                  <CommandMenuButton
+                    label={t`Scan connected folders`}
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      void scanNow();
+                    }}
+                  />
+                  <CommandMenuButton
+                    label={t`Export library`}
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      openExportDatabaseDialog();
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
 
-          {/* Scroll region: contains ONLY the grid + its immediate toolbar. scrollMargin=0 for the virtualizer. */}
-          <div
-            ref={setScrollContainer}
-            className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
-          >
-            <div className="mx-auto w-full max-w-6xl">
-              {activeSectionId === "library" && (
+        <div className="flex min-h-0 min-w-0 flex-1">
+          <main className="flex min-w-0 flex-1 flex-col">
+            <div ref={setScrollContainer} className="min-h-0 flex-1 overflow-y-auto">
+              <div className="mx-auto w-full max-w-[1800px] px-4 pb-10 pt-4 sm:px-6">
                 <LibrarySectionContent
                   queryInput={queryInput}
                   setQueryInput={setQueryInput}
@@ -1847,6 +1858,7 @@ export function InstalledRoundsPage({
                   hasActiveFilters={hasActiveFilters}
                   sortModeLabel={sortModeLabel}
                   groupModeLabel={groupModeLabel}
+                  groupMode={groupMode}
                   playlistGroupingLoading={playlistGroupingLoading}
                   sfwMode={sfwMode}
                   handleHoverSfx={handleHoverSfx}
@@ -1885,19 +1897,10 @@ export function InstalledRoundsPage({
                   allVisibleGroupsExpanded={allVisibleGroupsExpanded}
                   scrollContainer={scrollContainer}
                   setVisibleRoundIds={setVisibleRoundIds}
+                  isLibraryScrolling={isLibraryScrolling}
+                  onLibraryScrollingChange={setIsLibraryScrolling}
                   cardAssetsByRoundId={cardAssetsByRoundId}
-                  handleConvertRoundToHero={handleConvertRoundToHero}
                   handlePlayRound={handlePlayRound}
-                  handleEditRound={handleEditRound}
-                  handleRetryTemplateLinkingForRound={handleRetryTemplateLinkingForRound}
-                  onRepairTemplateRound={(templateRound) => {
-                    setRepairingTemplateRound({
-                      roundId: templateRound.id,
-                      roundName: templateRound.name,
-                      installedRoundId: "",
-                    });
-                  }}
-                  highestFilteredDifficulty={highestFilteredDifficulty}
                   websiteVideoScanStatusRunning={websiteVideoScanStatus?.state === "running"}
                   getDownloadProgressForVideoUri={getDownloadProgressForVideoUri}
                   disabledRoundIds={disabledRoundIds}
@@ -1917,9 +1920,7 @@ export function InstalledRoundsPage({
                       setExpandedHeroGroups={setExpandedHeroGroups}
                       convertingHeroGroupKey={convertingHeroGroupKey}
                       cardAssetsByRoundId={cardAssetsByRoundId}
-                      websiteVideoScanStatusRunning={
-                        websiteVideoScanStatus?.state === "running"
-                      }
+                      websiteVideoScanStatusRunning={websiteVideoScanStatus?.state === "running"}
                       selectionMode={selectionMode}
                       selectedRoundIds={selectedRoundIds}
                       selectedHeroIds={selectedHeroIds}
@@ -1939,34 +1940,36 @@ export function InstalledRoundsPage({
                       expandedGroupKeySet={expandedGroupKeySet}
                       setExpandedHeroGroups={setExpandedHeroGroups}
                       cardAssetsByRoundId={cardAssetsByRoundId}
-                      websiteVideoScanStatusRunning={
-                        websiteVideoScanStatus?.state === "running"
-                      }
+                      websiteVideoScanStatusRunning={websiteVideoScanStatus?.state === "running"}
                       handleHoverSfx={handleHoverSfx}
                       handleSelectSfx={handleSelectSfx}
                     />
                   )}
+                  showFilterTray={showFilterTray}
+                  setShowFilterTray={setShowFilterTray}
+                  inspectedRoundId={inspectedRoundId}
+                  inspectRound={setInspectedRoundId}
                 />
-              )}
-
-              {activeSectionId === "transfer" && (
-                <TransferSectionContent
-                  actionButtonsDisabled={actionButtonsDisabled}
-                  scanRunning={scanRunning}
-                  isExportingDatabase={isExportingDatabase}
-                  handleHoverSfx={handleHoverSfx}
-                  handleSelectSfx={handleSelectSfx}
-                  installRoundsFromFolder={installRoundsFromFolder}
-                  importRoundsFromFile={importRoundsFromFile}
-                  openWebsiteRoundDialog={() => setWebsiteRoundDialogOpen(true)}
-                  openEroScriptsDialog={() => setEroscriptsDialogContext("library")}
-                  scanNow={scanNow}
-                  openExportDatabaseDialog={openExportDatabaseDialog}
-                  scanStatus={scanStatus}
-                />
-              )}
+              </div>
             </div>
-          </div>
+          </main>
+
+          {inspectedRound && (
+            <RoundInspector
+              round={inspectedRound}
+              cardAssets={cardAssetsByRoundId.get(inspectedRound.id)}
+              disabled={disabledRoundIds.has(inspectedRound.id)}
+              onClose={() => setInspectedRoundId(null)}
+              onPlay={() => handlePlayRound(inspectedRound)}
+              onEdit={() => handleEditRound(inspectedRound)}
+              onConvert={() => handleConvertRoundToHero(inspectedRound)}
+              onRepair={() => handleOpenRepairTemplateRound(inspectedRound)}
+              onRetry={() => void handleRetryTemplateLinkingForRound(inspectedRound)}
+              onDelete={() =>
+                setDeleteRoundDialog({ id: inspectedRound.id, name: inspectedRound.name })
+              }
+            />
+          )}
         </div>
       </div>
 
@@ -2105,9 +2108,7 @@ export function InstalledRoundsPage({
           rounds={rounds}
           disabled={isSavingEdit}
           onClose={() => !isSavingEdit && setRepairingTemplateRound(null)}
-          onChange={(updater) =>
-            setRepairingTemplateRound((prev) => (prev ? updater(prev) : prev))
-          }
+          onChange={(updater) => setRepairingTemplateRound((prev) => (prev ? updater(prev) : prev))}
           onSubmit={() => void saveRoundTemplateRepair()}
         />
       )}
@@ -2117,9 +2118,7 @@ export function InstalledRoundsPage({
           sourceHeroOptions={sourceHeroOptions}
           disabled={isSavingEdit}
           onClose={() => !isSavingEdit && setRepairingTemplateHero(null)}
-          onChange={(updater) =>
-            setRepairingTemplateHero((prev) => (prev ? updater(prev) : prev))
-          }
+          onChange={(updater) => setRepairingTemplateHero((prev) => (prev ? updater(prev) : prev))}
           onApplySourceHero={applySourceHeroToRepairDraft}
           onSubmit={() => void saveHeroTemplateRepair()}
         />
@@ -2131,9 +2130,7 @@ export function InstalledRoundsPage({
             if (legacyPlaylistReview.creating) return;
             setLegacyPlaylistReview(null);
           }}
-          onChange={(updater) =>
-            setLegacyPlaylistReview((prev) => (prev ? updater(prev) : prev))
-          }
+          onChange={(updater) => setLegacyPlaylistReview((prev) => (prev ? updater(prev) : prev))}
           onToggleCheckpoint={toggleLegacyCheckpointSelection}
           onToggleExclusion={toggleLegacyImportExclusion}
           onSubmit={() => void createLegacyPlaylist()}
@@ -2200,6 +2197,200 @@ export function InstalledRoundsPage({
   );
 }
 
+function CommandMenuButton({
+  label,
+  description,
+  onClick,
+}: {
+  label: string;
+  description?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" onClick={onClick} className="round-library-command-item">
+      <span className="font-semibold text-zinc-100">{label}</span>
+      {description && <span className="mt-0.5 text-[11px] text-zinc-600">{description}</span>}
+    </button>
+  );
+}
+
+function RoundInspector({
+  round,
+  cardAssets,
+  disabled,
+  onClose,
+  onPlay,
+  onEdit,
+  onConvert,
+  onRepair,
+  onRetry,
+  onDelete,
+}: {
+  round: RoundLibraryEntry;
+  cardAssets?: import("@/services/db").InstalledRoundCardAssets;
+  disabled: boolean;
+  onClose: () => void;
+  onPlay: () => void;
+  onEdit: () => void;
+  onConvert: () => void;
+  onRepair: () => void;
+  onRetry: () => void;
+  onDelete: () => void;
+}) {
+  const { t } = useLingui();
+  const previewImage = cardAssets?.previewImage ?? null;
+  const isTemplate = isTemplateRound(round);
+  const hasScript = roundHasFunscript(round);
+  const author = round.author ?? round.hero?.name ?? t`Unknown creator`;
+
+  return (
+    <aside
+      aria-label={t`Round details`}
+      className="round-library-inspector fixed inset-x-0 bottom-0 z-[80] max-h-[82vh] overflow-y-auto border-t border-white/10 bg-[#0b0d12] shadow-2xl lg:static lg:z-20 lg:h-full lg:max-h-none lg:w-[370px] lg:shrink-0 lg:border-l lg:border-t-0"
+    >
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] bg-[#0b0d12]/96 px-4 py-3">
+        <span className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+          <Trans>Round details</Trans>
+        </span>
+        <button
+          type="button"
+          aria-label={t`Close details`}
+          onClick={onClose}
+          className="round-library-icon-button h-8 w-8"
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="p-4">
+        <div className="relative aspect-video overflow-hidden rounded-2xl bg-[#11141a]">
+          {previewImage ? (
+            <img src={previewImage} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="grid h-full place-items-center text-xs text-zinc-600">
+              <Trans>No preview available</Trans>
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+          <button type="button" onClick={onPlay} className="round-poster-play z-20">
+            ▶
+          </button>
+        </div>
+
+        <div className="mt-4">
+          <div className="flex flex-wrap gap-1.5">
+            <span className="round-poster-badge">{round.type ?? "Normal"}</span>
+            <span className={`round-poster-badge ${hasScript ? "is-ready" : ""}`}>
+              {hasScript ? t`Script ready` : t`No script`}
+            </span>
+            {disabled && <span className="round-poster-badge is-danger">{t`Disabled`}</span>}
+            {round.excludeFromRandom && <span className="round-poster-badge">{t`Excluded`}</span>}
+          </div>
+          <h2 className="mt-3 text-2xl font-black leading-tight tracking-[-0.03em] text-white">
+            {round.name}
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">{author}</p>
+          <p className="mt-4 text-sm leading-6 text-zinc-300">
+            {round.description ?? t`No description`}
+          </p>
+        </div>
+
+        <dl className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.06]">
+          <InspectorMetric label={t`BPM`} value={round.bpm ? Math.round(round.bpm) : "—"} />
+          <InspectorMetric label={t`Difficulty`} value={`${round.difficulty ?? 1}/5`} />
+          <InspectorMetric
+            label={t`Start`}
+            value={`${Math.round((round.startTime ?? 0) / 1000)}s`}
+          />
+          <InspectorMetric
+            label={t`End`}
+            value={round.endTime ? `${Math.round(round.endTime / 1000)}s` : "—"}
+          />
+          <InspectorMetric label={t`Installed`} value={formatDate(round.createdAt)} />
+          <InspectorMetric label={t`Source`} value={round.installSourceKey ?? t`Local`} />
+        </dl>
+
+        {round.tags.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {round.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] text-zinc-400"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onPlay}
+            className="round-library-primary-action justify-center"
+          >
+            ▶ <Trans>Play</Trans>
+          </button>
+          <button
+            type="button"
+            onClick={onEdit}
+            className="round-library-toolbar-button justify-center"
+          >
+            <Trans>Edit round</Trans>
+          </button>
+          {!round.heroId && !round.hero && (
+            <button
+              type="button"
+              onClick={onConvert}
+              className="round-library-toolbar-button col-span-2 justify-center"
+            >
+              <Trans>Convert to hero</Trans>
+            </button>
+          )}
+          {isTemplate && (
+            <>
+              <button type="button" onClick={onRepair} className="round-library-toolbar-button">
+                <Trans>Repair template</Trans>
+              </button>
+              <button type="button" onClick={onRetry} className="round-library-toolbar-button">
+                <Trans>Retry auto-link</Trans>
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={onDelete}
+            className="round-library-toolbar-button is-danger col-span-2 justify-center"
+          >
+            <Trans>Delete round</Trans>
+          </button>
+        </div>
+
+        <details className="mt-5 border-t border-white/[0.06] pt-4 text-xs text-zinc-600">
+          <summary className="cursor-pointer font-semibold text-zinc-500">
+            <Trans>Technical details</Trans>
+          </summary>
+          <div className="mt-3 space-y-2 break-all font-[family-name:var(--font-jetbrains-mono)] text-[10px]">
+            <p>{round.id}</p>
+            <p>{round.phash ?? t`No round hash`}</p>
+          </div>
+        </details>
+      </div>
+    </aside>
+  );
+}
+
+function InspectorMetric({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="bg-[#0d0f14] px-3 py-2.5">
+      <dt className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.14em] text-zinc-600">
+        {label}
+      </dt>
+      <dd className="mt-1 truncate text-sm font-semibold text-zinc-200">{value}</dd>
+    </div>
+  );
+}
+
 // ─── Sub-components for library + transfer sections ───────────────────────────
 
 type LibrarySectionProps = {
@@ -2229,6 +2420,7 @@ type LibrarySectionProps = {
   hasActiveFilters: boolean;
   sortModeLabel: string;
   groupModeLabel: string;
+  groupMode: GroupMode;
   playlistGroupingLoading: boolean;
   sfwMode: boolean;
   handleHoverSfx: () => void;
@@ -2263,31 +2455,30 @@ type LibrarySectionProps = {
   renderRows: RoundRenderRow[];
   expandedGroupKeySet: Set<string>;
   setExpandedHeroGroups: (
-    v:
-      | Record<string, boolean>
-      | ((prev: Record<string, boolean>) => Record<string, boolean>)
+    v: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)
   ) => void;
   visibleGroupKeys: string[];
   allVisibleGroupsExpanded: boolean;
   scrollContainer: HTMLElement | null;
   setVisibleRoundIds: (v: string[]) => void;
+  isLibraryScrolling: boolean;
+  onLibraryScrollingChange: (isScrolling: boolean) => void;
   cardAssetsByRoundId: ReadonlyMap<string, import("@/services/db").InstalledRoundCardAssets>;
-  handleConvertRoundToHero: (round: RoundLibraryEntry) => void;
   handlePlayRound: (round: RoundLibraryEntry) => void;
-  handleEditRound: (round: RoundLibraryEntry) => void;
-  handleRetryTemplateLinkingForRound: (round: RoundLibraryEntry) => Promise<void>;
-  onRepairTemplateRound: (round: RoundLibraryEntry) => void;
-  highestFilteredDifficulty: number;
   websiteVideoScanStatusRunning: boolean;
-  getDownloadProgressForVideoUri: (uri: string | null | undefined) => import("@/services/db").VideoDownloadProgress | null;
+  getDownloadProgressForVideoUri: (
+    uri: string | null | undefined
+  ) => import("@/services/db").VideoDownloadProgress | null;
   disabledRoundIds: Set<string>;
   selectionToggle: (round: RoundLibraryEntry) => void;
-  renderHeroGroupHeader: (
-    row: Extract<RoundRenderRow, { kind: "hero-group" }>
-  ) => ReactNode;
+  renderHeroGroupHeader: (row: Extract<RoundRenderRow, { kind: "hero-group" }>) => ReactNode;
   renderPlaylistGroupHeader: (
     row: Extract<RoundRenderRow, { kind: "playlist-group" }>
   ) => ReactNode;
+  showFilterTray: boolean;
+  setShowFilterTray: (show: boolean) => void;
+  inspectedRoundId: string | null;
+  inspectRound: (roundId: string | null) => void;
 };
 
 function LibrarySectionContent(props: LibrarySectionProps) {
@@ -2318,6 +2509,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
     hasActiveFilters,
     sortModeLabel,
     groupModeLabel,
+    groupMode,
     playlistGroupingLoading,
     sfwMode,
     handleHoverSfx,
@@ -2356,43 +2548,207 @@ function LibrarySectionContent(props: LibrarySectionProps) {
     allVisibleGroupsExpanded,
     scrollContainer,
     setVisibleRoundIds,
+    isLibraryScrolling,
+    onLibraryScrollingChange,
     cardAssetsByRoundId,
-    handleConvertRoundToHero,
     handlePlayRound,
-    handleEditRound,
-    handleRetryTemplateLinkingForRound,
-    onRepairTemplateRound,
-    highestFilteredDifficulty,
     websiteVideoScanStatusRunning,
     getDownloadProgressForVideoUri,
     disabledRoundIds,
     selectionToggle,
     renderHeroGroupHeader,
     renderPlaylistGroupHeader,
+    showFilterTray,
+    setShowFilterTray,
+    inspectedRoundId,
+    inspectRound,
   } = props;
 
   return (
-    <div className="space-y-5">
+    <div className="relative space-y-4">
+      <div className="sticky top-0 z-40 -mx-2 flex flex-wrap items-center gap-2 border-b border-white/[0.06] bg-[#07080b]/95 px-2 py-3 backdrop-blur-md">
+        <div className="relative min-w-[15rem] flex-1">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600">
+            ⌕
+          </span>
+          <input
+            aria-label={t`Search installed rounds`}
+            value={queryInput}
+            onChange={(event) => {
+              setQueryInput(event.target.value);
+              setQuery(event.target.value);
+            }}
+            placeholder={t`Search rounds, heroes, authors…`}
+            className="h-10 w-full rounded-xl border border-white/[0.08] bg-white/[0.04] pl-9 pr-3 text-sm text-zinc-100 outline-none transition focus:border-cyan-300/40 focus:bg-white/[0.06]"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowFilterTray(!showFilterTray)}
+          className={`round-library-toolbar-button ${showFilterTray || activeFilterCount > 0 ? "is-active" : ""}`}
+        >
+          <Trans>Filters</Trans>
+          {activeFilterCount > 0 && (
+            <span className="round-library-count-badge">{activeFilterCount}</span>
+          )}
+        </button>
+        <div className="flex rounded-xl border border-white/[0.08] bg-white/[0.03] p-1">
+          {(["hero", "playlist"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              disabled={mode === "playlist" && playlistGroupingLoading}
+              onClick={() => updateSearch({ groupMode: mode })}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                groupMode === mode ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-200"
+              }`}
+            >
+              {mode === "hero" ? t`Heroes` : t`Playlists`}
+            </button>
+          ))}
+        </div>
+        <select
+          aria-label={t`Sort rounds`}
+          value={sortMode}
+          onChange={(event) => updateSearch({ sortMode: event.target.value as SortMode })}
+          className="round-library-native-select"
+        >
+          <option value="newest">{t`Newest`}</option>
+          <option value="oldest">{t`Oldest`}</option>
+          <option value="difficulty">{t`Difficulty`}</option>
+          <option value="bpm">{t`BPM`}</option>
+          <option value="length">{t`Length`}</option>
+          <option value="name">{t`Name`}</option>
+          <option value="excluded">{t`Excluded`}</option>
+        </select>
+        <button
+          type="button"
+          onClick={() => {
+            setSelectionMode(!selectionMode);
+            if (selectionMode) {
+              setSelectedRoundIds(new Set());
+              setSelectedHeroIds(new Set());
+            }
+          }}
+          className={`round-library-toolbar-button ${selectionMode ? "is-active" : ""}`}
+        >
+          {selectionMode ? t`Done` : t`Select`}
+        </button>
+        <button
+          type="button"
+          aria-label={allVisibleGroupsExpanded ? t`Collapse groups` : t`Expand groups`}
+          onClick={() =>
+            setExpandedHeroGroups((previous) => {
+              const next = { ...previous };
+              for (const key of visibleGroupKeys) next[key] = !allVisibleGroupsExpanded;
+              return next;
+            })
+          }
+          className="round-library-icon-button"
+        >
+          {allVisibleGroupsExpanded ? "⇱" : "⇲"}
+        </button>
+      </div>
+
+      {selectionMode && (
+        <div className="sticky top-[4.15rem] z-30 flex flex-wrap items-center gap-2 rounded-xl border border-cyan-300/20 bg-[#10151a]/96 px-3 py-2 shadow-xl">
+          <span className="mr-auto text-sm font-semibold text-cyan-100">
+            {t`${selectedRoundIds.size} rounds, ${selectedHeroIds.size} heroes selected`}
+          </span>
+          <button
+            className="round-library-toolbar-button"
+            onClick={() => setSelectedRoundIds(new Set(filteredRounds.map((round) => round.id)))}
+          >
+            <Trans>Select matching</Trans>
+          </button>
+          <button
+            className="round-library-toolbar-button"
+            disabled={selectedRoundIds.size === 0}
+            onClick={openBulkTagsDialog}
+          >
+            <Trans>Edit tags</Trans>
+          </button>
+          <button
+            className="round-library-toolbar-button"
+            disabled={selectedRoundIds.size + selectedHeroIds.size === 0}
+            onClick={openExportDatabaseDialog}
+          >
+            <Trans>Export</Trans>
+          </button>
+          <button
+            className="round-library-toolbar-button is-danger"
+            disabled={selectedRoundIds.size === 0}
+            onClick={openDeleteSelectedRoundsDialog}
+          >
+            <Trans>Delete</Trans>
+          </button>
+        </div>
+      )}
+
       {/* Snapshot panel */}
-      <section
-        className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl app-theme-shell-border"
-        style={{ animationDelay: "0.05s" }}
-      >
+      <section className="hidden" style={{ animationDelay: "0.05s" }}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h3 className="text-lg font-extrabold tracking-tight text-violet-100">
               <Trans>Library Snapshot</Trans>
             </h3>
             <p className="mt-1 text-sm text-zinc-300">
-              <Trans>Keep the main browsing tools, collection health, and import actions in one place.</Trans>
+              <Trans>
+                Keep the main browsing tools, collection health, and import actions in one place.
+              </Trans>
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <ActionButton label={t`Install Rounds`} tone="violet" disabled={actionButtonsDisabled} onHover={handleHoverSfx} onClick={() => { handleSelectSfx(); void installRoundsFromFolder(); }} />
-            <ActionButton label={t`Import File`} tone="emerald" disabled={actionButtonsDisabled} onHover={handleHoverSfx} onClick={() => { handleSelectSfx(); void importRoundsFromFile(); }} />
-            <ActionButton label={t`Install From Web`} tone="violet" disabled={actionButtonsDisabled} onHover={handleHoverSfx} onClick={() => { handleSelectSfx(); openWebsiteRoundDialog(); }} />
-            <ActionButton label={t`Search EroScripts`} tone="cyan" disabled={actionButtonsDisabled} onHover={handleHoverSfx} onClick={() => { handleSelectSfx(); openEroScriptsDialog(); }} />
-            <ActionButton label={isExportingDatabase ? t`Exporting...` : t`Export`} tone="cyan" disabled={actionButtonsDisabled} onHover={handleHoverSfx} onClick={() => { handleSelectSfx(); openExportDatabaseDialog(); }} />
+            <ActionButton
+              label={t`Install Rounds`}
+              tone="violet"
+              disabled={actionButtonsDisabled}
+              onHover={handleHoverSfx}
+              onClick={() => {
+                handleSelectSfx();
+                void installRoundsFromFolder();
+              }}
+            />
+            <ActionButton
+              label={t`Import File`}
+              tone="emerald"
+              disabled={actionButtonsDisabled}
+              onHover={handleHoverSfx}
+              onClick={() => {
+                handleSelectSfx();
+                void importRoundsFromFile();
+              }}
+            />
+            <ActionButton
+              label={t`Install From Web`}
+              tone="violet"
+              disabled={actionButtonsDisabled}
+              onHover={handleHoverSfx}
+              onClick={() => {
+                handleSelectSfx();
+                openWebsiteRoundDialog();
+              }}
+            />
+            <ActionButton
+              label={t`Search EroScripts`}
+              tone="cyan"
+              disabled={actionButtonsDisabled}
+              onHover={handleHoverSfx}
+              onClick={() => {
+                handleSelectSfx();
+                openEroScriptsDialog();
+              }}
+            />
+            <ActionButton
+              label={isExportingDatabase ? t`Exporting...` : t`Export`}
+              tone="cyan"
+              disabled={actionButtonsDisabled}
+              onHover={handleHoverSfx}
+              onClick={() => {
+                handleSelectSfx();
+                openExportDatabaseDialog();
+              }}
+            />
             <ActionButton
               label={selectionMode ? t`Cancel Selection` : t`Select Items`}
               tone="violet"
@@ -2474,7 +2830,10 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                   <button
                     type="button"
                     onMouseEnter={handleHoverSfx}
-                    onClick={() => { handleSelectSfx(); openExportDatabaseDialog(); }}
+                    onClick={() => {
+                      handleSelectSfx();
+                      openExportDatabaseDialog();
+                    }}
                     className="rounded-xl border border-cyan-300/50 bg-cyan-500/20 px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] text-cyan-100 hover:border-cyan-200/75"
                   >
                     <Trans>Export Selected</Trans>
@@ -2483,7 +2842,10 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                     type="button"
                     disabled={selectedRoundIds.size === 0 || isSavingEdit}
                     onMouseEnter={handleHoverSfx}
-                    onClick={() => { handleSelectSfx(); openBulkTagsDialog(); }}
+                    onClick={() => {
+                      handleSelectSfx();
+                      openBulkTagsDialog();
+                    }}
                     className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${
                       selectedRoundIds.size > 0 && !isSavingEdit
                         ? "border-emerald-300/55 bg-emerald-500/20 text-emerald-100 hover:border-emerald-200/80"
@@ -2496,7 +2858,10 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                     type="button"
                     disabled={selectedRoundIds.size === 0 || isSavingEdit}
                     onMouseEnter={handleHoverSfx}
-                    onClick={() => { handleSelectSfx(); openDeleteSelectedRoundsDialog(); }}
+                    onClick={() => {
+                      handleSelectSfx();
+                      openDeleteSelectedRoundsDialog();
+                    }}
                     className={`rounded-xl border px-4 py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs uppercase tracking-[0.18em] transition-all duration-200 ${
                       selectedRoundIds.size > 0 && !isSavingEdit
                         ? "border-rose-300/55 bg-rose-500/20 text-rose-100 hover:border-rose-200/80"
@@ -2564,16 +2929,13 @@ function LibrarySectionContent(props: LibrarySectionProps) {
             </div>
           </div>
         </section>
-      ) : (
-        <section className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl app-theme-shell-border">
+      ) : showFilterTray ? (
+        <section className="rounded-2xl border border-white/[0.07] bg-[#0c0e13] p-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <h3 className="text-lg font-extrabold tracking-tight text-violet-100">
-                <Trans>Search & Filter</Trans>
+              <h3 className="text-sm font-bold text-zinc-100">
+                <Trans>Filter library</Trans>
               </h3>
-              <p className="mt-1 text-sm text-zinc-300">
-                <Trans>Narrow the collection by source, added date, round type, script availability, or a text search across round metadata.</Trans>
-              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <label className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-black/30 px-3 py-2 text-xs uppercase tracking-[0.18em] text-zinc-300">
@@ -2613,7 +2975,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
           </div>
 
           <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-7">
-            <div className="lg:col-span-2">
+            <div className="hidden">
               <span className="mb-2 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.25em] text-zinc-300">
                 <Trans>Search</Trans>
               </span>
@@ -2799,7 +3161,9 @@ function LibrarySectionContent(props: LibrarySectionProps) {
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <div className="rounded-xl border border-zinc-700/80 bg-black/30 px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] text-zinc-300">
-              {activeFilterCount > 0 ? t`${activeFilterCount} Active Filters` : t`No Active Filters`}
+              {activeFilterCount > 0
+                ? t`${activeFilterCount} Active Filters`
+                : t`No Active Filters`}
             </div>
             <div className="rounded-xl border border-zinc-700/80 bg-black/30 px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] text-zinc-300">
               {t`Sort:`} {sortModeLabel}
@@ -2817,7 +3181,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
             </div>
           </div>
         </section>
-      )}
+      ) : null}
 
       {/* Grid */}
       {isLibraryRefreshing && (
@@ -2833,19 +3197,19 @@ function LibrarySectionContent(props: LibrarySectionProps) {
         </div>
       )}
       {!isInitialLibraryLoading && !hasInitialLibraryError && (
-        <section className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl app-theme-shell-border">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <section className="relative min-h-[20rem]">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-extrabold tracking-tight text-violet-100">
-                <Trans>Round Library</Trans>
+              <h3 className="text-sm font-bold text-zinc-200">
+                {t`${filteredRounds.length} rounds`}
               </h3>
-              <p className="mt-1 text-sm text-zinc-300">
+              <p className="mt-0.5 text-xs text-zinc-600">
                 {filteredRounds.length === 0
                   ? t`No rounds currently match the active search and filter state.`
                   : t`${filteredRounds.length} matching rounds are currently available.`}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="hidden">
               <button
                 type="button"
                 onMouseEnter={handleHoverSfx}
@@ -2910,6 +3274,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
               expandedGroupKeys={expandedGroupKeySet}
               scrollContainer={scrollContainer}
               onVisibleRoundIdsChange={setVisibleRoundIds}
+              onScrollingChange={onLibraryScrollingChange}
               renderCard={(item) => {
                 const cardAssets = cardAssetsByRoundId.get(item.round.id);
                 return (
@@ -2919,18 +3284,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                     cardAssets={cardAssets}
                     index={item.renderIndex}
                     onHoverSfx={handleHoverSfx}
-                    onConvertToHero={handleConvertRoundToHero}
                     onPlay={handlePlayRound}
-                    onEdit={handleEditRound}
-                    onRetryTemplateLinking={handleRetryTemplateLinkingForRound}
-                    onRepairTemplate={(templateRound) => {
-                      handleSelectSfx();
-                      onRepairTemplateRound(templateRound);
-                    }}
-                    animateDifficulty={
-                      (item.round.difficulty ?? 0) === highestFilteredDifficulty &&
-                      highestFilteredDifficulty > 0
-                    }
                     showDisabledBadge={
                       ("isDisabled" in item.round && item.round.isDisabled) ||
                       disabledRoundIds.has(item.round.id)
@@ -2944,6 +3298,9 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                     selectionMode={selectionMode}
                     selected={selectedRoundIds.has(item.round.id)}
                     onToggleSelection={selectionToggle}
+                    mediaEnabled={!isLibraryScrolling}
+                    inspected={inspectedRoundId === item.round.id}
+                    onInspect={inspectRound}
                   />
                 );
               }}
@@ -3000,7 +3357,9 @@ function HeroGroupHeaderShell({
 }: {
   row: Extract<RoundRenderRow, { kind: "hero-group" }>;
   expandedGroupKeySet: Set<string>;
-  setExpandedHeroGroups: (v: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => void;
+  setExpandedHeroGroups: (
+    v: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)
+  ) => void;
   convertingHeroGroupKey: string | null;
   cardAssetsByRoundId: ReadonlyMap<string, import("@/services/db").InstalledRoundCardAssets>;
   websiteVideoScanStatusRunning: boolean;
@@ -3103,7 +3462,9 @@ function PlaylistGroupHeaderShell({
 }: {
   row: Extract<RoundRenderRow, { kind: "playlist-group" }>;
   expandedGroupKeySet: Set<string>;
-  setExpandedHeroGroups: (v: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => void;
+  setExpandedHeroGroups: (
+    v: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)
+  ) => void;
   cardAssetsByRoundId: ReadonlyMap<string, import("@/services/db").InstalledRoundCardAssets>;
   websiteVideoScanStatusRunning: boolean;
   handleHoverSfx: () => void;
@@ -3130,97 +3491,5 @@ function PlaylistGroupHeaderShell({
         }));
       }}
     />
-  );
-}
-
-// ─── Transfer section ─────────────────────────────────────────────────────────
-
-function TransferSectionContent({
-  actionButtonsDisabled,
-  scanRunning,
-  isExportingDatabase,
-  handleHoverSfx,
-  handleSelectSfx,
-  installRoundsFromFolder,
-  importRoundsFromFile,
-  openWebsiteRoundDialog,
-  openEroScriptsDialog,
-  scanNow,
-  openExportDatabaseDialog,
-  scanStatus,
-}: {
-  actionButtonsDisabled: boolean;
-  scanRunning: boolean;
-  isExportingDatabase: boolean;
-  handleHoverSfx: () => void;
-  handleSelectSfx: () => void;
-  installRoundsFromFolder: () => Promise<void>;
-  importRoundsFromFile: () => Promise<void>;
-  openWebsiteRoundDialog: () => void;
-  openEroScriptsDialog: () => void;
-  scanNow: () => Promise<void>;
-  openExportDatabaseDialog: () => void;
-  scanStatus: InstallScanStatus | null;
-}) {
-  const { t } = useLingui();
-  return (
-    <div className="space-y-5">
-      <section className="grid gap-5 xl:grid-cols-2">
-        <div className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl app-theme-shell-border">
-          <div className="mb-4">
-            <h3 className="text-lg font-extrabold tracking-tight text-violet-100">
-              <Trans>Import New Content</Trans>
-            </h3>
-            <p className="mt-1 text-sm text-zinc-300">
-              <Trans>Folder installs are best for bulk local content. Portable file import is best for sidecars and packaged exports.</Trans>
-            </p>
-          </div>
-          <div className="space-y-3">
-            <ActionButton label={t`Install Rounds`} description={t`Choose a folder and scan it for supported round media.`} tone="violet" disabled={actionButtonsDisabled} onHover={handleHoverSfx} onClick={() => { handleSelectSfx(); void installRoundsFromFolder(); }} />
-            <ActionButton label={t`Import File`} description={t`Bring in a portable round package or other supported import file.`} tone="emerald" disabled={actionButtonsDisabled} onHover={handleHoverSfx} onClick={() => { handleSelectSfx(); void importRoundsFromFile(); }} />
-            <ActionButton label={t`Install From Web`} description={t`Open a popup to create an installed round from a public website URL.`} tone="violet" disabled={actionButtonsDisabled} onHover={handleHoverSfx} onClick={() => { handleSelectSfx(); openWebsiteRoundDialog(); }} />
-            <ActionButton label={t`Search EroScripts`} description={t`Find EroScripts topics, download videos, and attach direct funscripts.`} tone="cyan" disabled={actionButtonsDisabled} onHover={handleHoverSfx} onClick={() => { handleSelectSfx(); openEroScriptsDialog(); }} />
-            <ActionButton label={scanRunning ? t`Scanning...` : t`Scan Now`} description={t`Re-run install folder discovery for sources already connected to the app.`} tone="cyan" disabled={scanRunning} onHover={handleHoverSfx} onClick={() => { handleSelectSfx(); void scanNow(); }} />
-          </div>
-        </div>
-
-        <div className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl app-theme-shell-border">
-          <div className="mb-4">
-            <h3 className="text-lg font-extrabold tracking-tight text-violet-100">
-              <Trans>Export & Share</Trans>
-            </h3>
-            <p className="mt-1 text-sm text-zinc-300">
-              <Trans>Build a clean installed-database export and choose where the package should be written.</Trans>
-            </p>
-          </div>
-          <div className="space-y-3">
-            <ActionButton label={isExportingDatabase ? t`Exporting...` : t`Export`} description={t`Open the export flow and package the installed database.`} tone="sky" disabled={actionButtonsDisabled} onHover={handleHoverSfx} onClick={() => { handleSelectSfx(); openExportDatabaseDialog(); }} />
-          </div>
-        </div>
-      </section>
-
-      <section className="animate-entrance rounded-3xl border border-purple-400/25 bg-zinc-950/55 p-5 backdrop-blur-xl app-theme-shell-border">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h3 className="text-lg font-extrabold tracking-tight text-violet-100">
-              <Trans>Transfer Guidance</Trans>
-            </h3>
-            <p className="mt-1 text-sm text-zinc-300">
-              <Trans>Keep the flow predictable: install from folders for bulk local content, use safe exports for portability, and only include URIs when the receiving machine expects them.</Trans>
-            </p>
-          </div>
-          {scanStatus && <InstallScanStatusBadge status={scanStatus} />}
-        </div>
-        <InlineMetrics
-          className="mt-4"
-          metrics={[
-            { label: t`Folders`, value: scanStatus?.stats.scannedFolders ?? 0, tone: "violet" },
-            { label: t`Installed`, value: scanStatus?.stats.installed ?? 0, tone: "emerald" },
-            { label: t`Playlists`, value: scanStatus?.stats.playlistsImported ?? 0, tone: "cyan" },
-            { label: t`Failed`, value: scanStatus?.stats.failed ?? 0, tone: "amber" },
-          ]}
-        />
-      </section>
-    </div>
   );
 }

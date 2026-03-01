@@ -29,6 +29,7 @@ import {
   DEFAULT_TCODE_BAUD_RATE,
   DEFAULT_TCODE_WEBSOCKET_HOST,
   DEFAULT_TCODE_WEBSOCKET_URL,
+  INTIFACE_DOWNLOAD_URL,
   INTIFACE_VIBRATION_SENSITIVITY_MAX,
   INTIFACE_VIBRATION_SENSITIVITY_MIN,
   INTIFACE_VIBRATION_SENSITIVITY_STEP,
@@ -208,6 +209,10 @@ import {
   normalizeFfmpegGpuPreference,
   type FfmpegGpuPreference,
 } from "../constants/debugSettings";
+import {
+  ALWAYS_RECOVERY_MODE_KEY,
+  normalizeAlwaysRecoveryMode,
+} from "../constants/startupSettings";
 import {
   DEFAULT_GRAPHICS_DISABLE_ACCELERATED_VIDEO_DECODE_ENABLED,
   DEFAULT_GRAPHICS_DISABLE_ACCELERATED_VIDEO_ENCODE_ENABLED,
@@ -689,11 +694,7 @@ type SelectSetting = {
 };
 
 type SettingDefinition =
-  | ToggleSetting
-  | TextSetting
-  | NumberSetting
-  | ActionSetting
-  | SelectSetting;
+  ToggleSetting | TextSetting | NumberSetting | ActionSetting | SelectSetting;
 
 type SettingsSection = {
   id: SettingsSectionId;
@@ -838,6 +839,7 @@ export function SettingsPage() {
   const [isRefreshingBinaryDiagnostics, setIsRefreshingBinaryDiagnostics] = useState(false);
   const [debugLogLevel, setDebugLogLevel] = useState<DebugLogLevel>("off");
   const [debugLogMaxFileSizeMb, setDebugLogMaxFileSizeMb] = useState(200);
+  const [alwaysRecoveryMode, setAlwaysRecoveryMode] = useState(false);
   const [ffmpegGpuPreference, setFfmpegGpuPreference] = useState<FfmpegGpuPreference>(
     DEFAULT_FFMPEG_GPU_PREFERENCE
   );
@@ -990,6 +992,7 @@ export function SettingsPage() {
         FPACK_EXTRACTION_PATH_KEY,
         DEVICE_ANIMATION_TEST_ENABLED_KEY,
         DEBUG_LOG_LEVEL_KEY,
+        ALWAYS_RECOVERY_MODE_KEY,
         FFMPEG_GPU_PREFERENCE_KEY,
         GRAPHICS_SAFE_MODE_ENABLED_KEY,
         GRAPHICS_DISABLE_ZERO_COPY_ENABLED_KEY,
@@ -1056,6 +1059,7 @@ export function SettingsPage() {
         const rawMusicCacheRootPath = storeValues[MUSIC_CACHE_ROOT_PATH_KEY];
         const rawFpackExtractionPath = storeValues[FPACK_EXTRACTION_PATH_KEY];
         const rawDebugLogLevel = storeValues[DEBUG_LOG_LEVEL_KEY];
+        const rawAlwaysRecoveryMode = storeValues[ALWAYS_RECOVERY_MODE_KEY];
         const rawFfmpegGpuPreference = storeValues[FFMPEG_GPU_PREFERENCE_KEY];
         const rawGraphicsSafeModeEnabled = storeValues[GRAPHICS_SAFE_MODE_ENABLED_KEY];
         const rawGraphicsDisableZeroCopyEnabled =
@@ -1182,6 +1186,7 @@ export function SettingsPage() {
             : null
         );
         setDebugLogLevel(normalizeDebugLogLevel(rawDebugLogLevel));
+        setAlwaysRecoveryMode(normalizeAlwaysRecoveryMode(rawAlwaysRecoveryMode));
         setFfmpegGpuPreference(normalizeFfmpegGpuPreference(rawFfmpegGpuPreference));
         setGraphicsSafeModeEnabled(normalizeGraphicsBoolean(rawGraphicsSafeModeEnabled));
         setGraphicsDisableZeroCopyEnabled(
@@ -1898,6 +1903,22 @@ export function SettingsPage() {
             },
           },
           {
+            id: "always-recovery-mode",
+            type: "toggle",
+            label: t`Always Start in Recovery Mode`,
+            description: t`Boot directly into recovery mode on every app launch. Use this when normal startup keeps failing. &ldquo;Start Normally&rdquo; in recovery still opens the app once; a full restart returns to recovery until disabled.`,
+            value: alwaysRecoveryMode,
+            onChange: async (next: boolean) => {
+              await trpc.store.set.mutate({ key: ALWAYS_RECOVERY_MODE_KEY, value: next });
+              setAlwaysRecoveryMode(next);
+              setDebugMessage(
+                next
+                  ? t`The app will always start in recovery mode.`
+                  : t`Always start in recovery mode disabled.`
+              );
+            },
+          },
+          {
             id: "debug-log-max-file-size",
             type: "number",
             label: t`Max Log File Size (MB)`,
@@ -2289,6 +2310,7 @@ export function SettingsPage() {
       refreshBinaryDiagnostics,
       debugLogLevel,
       debugLogMaxFileSizeMb,
+      alwaysRecoveryMode,
       ffmpegGpuPreference,
       availableGpus,
       graphicsSafeModeEnabled,
@@ -4146,6 +4168,10 @@ function HardwareSettingsCard({
   const { t } = useLingui();
   const { showToast } = useToast();
   const {
+    deviceSlots = [],
+    selectedDeviceId,
+    selectDevice,
+    removeDevice,
     provider,
     setProvider,
     connectionKey,
@@ -4196,6 +4222,9 @@ function HardwareSettingsCard({
   const [inputKey, setInputKey] = useState(connectionKey);
   const [inputApiKeyOverride, setInputApiKeyOverride] = useState(appApiKeyOverride);
   const [inputIntifaceUrl, setInputIntifaceUrl] = useState(intifaceWebsocketUrl);
+  const [inputIntifaceDeviceIndex, setInputIntifaceDeviceIndex] = useState(
+    intifaceDeviceIndex === null ? "" : String(intifaceDeviceIndex)
+  );
   const [inputTCodeTransport, setInputTCodeTransport] = useState(tcodeTransport);
   const [inputTCodeSerialPath, setInputTCodeSerialPath] = useState(tcodeSerialPath);
   const [inputTCodeBaudRate, setInputTCodeBaudRate] = useState(String(tcodeBaudRate));
@@ -4223,6 +4252,7 @@ function HardwareSettingsCard({
       setInputKey(connectionKey);
       setInputApiKeyOverride(appApiKeyOverride);
       setInputIntifaceUrl(intifaceWebsocketUrl);
+      setInputIntifaceDeviceIndex(intifaceDeviceIndex === null ? "" : String(intifaceDeviceIndex));
       setInputTCodeTransport(tcodeTransport);
       setInputTCodeSerialPath(tcodeSerialPath);
       setInputTCodeBaudRate(String(tcodeBaudRate));
@@ -4234,6 +4264,7 @@ function HardwareSettingsCard({
     appApiKeyOverride,
     connectionKey,
     intifaceWebsocketUrl,
+    intifaceDeviceIndex,
     isUsingDefaultAppApiKey,
     tcodeBaudRate,
     tcodePrecision,
@@ -4254,13 +4285,17 @@ function HardwareSettingsCard({
   }, [testDeviceRunning]);
 
   const handleConnect = async () => {
-    if (connected) {
-      await disconnect();
-      return;
-    }
-
     if (provider === "intiface") {
-      await connectIntiface(inputIntifaceUrl);
+      const parsedIndex =
+        inputIntifaceDeviceIndex.trim() === "" ? null : Number(inputIntifaceDeviceIndex);
+      if (parsedIndex === null) {
+        await connectIntiface(inputIntifaceUrl);
+      } else {
+        await connectIntiface(
+          inputIntifaceUrl,
+          Number.isFinite(parsedIndex) ? Math.floor(parsedIndex) : null
+        );
+      }
       return;
     }
     if (provider === "tcode") {
@@ -4347,10 +4382,57 @@ function HardwareSettingsCard({
           </div>
 
           <div className="space-y-4 text-left">
+            <p className="rounded-lg border border-cyan-300/15 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-100/80">
+              <Trans>
+                Every device category can be driven and tuned individually, even while all devices
+                run at the same time.
+              </Trans>
+            </p>
+            {deviceSlots.length > 0 ? (
+              <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300">
+                  <Trans>Configured devices</Trans> ({deviceSlots.length})
+                </p>
+                {deviceSlots.map((device) => (
+                  <div
+                    key={device.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">{device.label}</p>
+                      <p className="text-[11px] uppercase tracking-wider text-zinc-400">
+                        {device.config.provider}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => selectDevice(device.id)}
+                        className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${
+                          selectedDeviceId === device.id
+                            ? "border-cyan-300/50 bg-cyan-500/20 text-cyan-100"
+                            : "border-white/15 bg-white/5 text-zinc-200 hover:bg-white/10"
+                        }`}
+                      >
+                        <Trans>Tune</Trans>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void removeDevice(device.id)}
+                        className="rounded-lg border border-rose-400/35 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-500/20"
+                      >
+                        <Trans>Remove</Trans>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
             <div className="grid gap-2 sm:grid-cols-3">
               <button
                 type="button"
-                disabled={provider === "thehandy" && (connected || isConnecting)}
+                disabled={isConnecting}
                 onClick={() => {
                   playSelectSound();
                   void setProvider("thehandy");
@@ -4365,7 +4447,7 @@ function HardwareSettingsCard({
               </button>
               <button
                 type="button"
-                disabled={provider === "intiface" && (connected || isConnecting)}
+                disabled={isConnecting}
                 onClick={() => {
                   playSelectSound();
                   void setProvider("intiface");
@@ -4380,7 +4462,7 @@ function HardwareSettingsCard({
               </button>
               <button
                 type="button"
-                disabled={provider === "tcode" && (connected || isConnecting)}
+                disabled={isConnecting}
                 onClick={() => {
                   playSelectSound();
                   void setProvider("tcode");
@@ -4409,6 +4491,25 @@ function HardwareSettingsCard({
                     </Trans>
                   </p>
                 </div>
+                <div className="mb-4 rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
+                  <p className="font-bold uppercase tracking-wider">
+                    <Trans>Intiface Central 3.0+ Required</Trans>
+                  </p>
+                  <p className="mt-1">
+                    <Trans>
+                      Only the latest version of Intiface Central is supported. Older versions may
+                      fail to connect or behave unexpectedly.
+                    </Trans>{" "}
+                    <a
+                      href={INTIFACE_DOWNLOAD_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-rose-100 underline decoration-rose-300/50 underline-offset-2 hover:text-white"
+                    >
+                      <Trans>Download the latest version</Trans>
+                    </a>
+                  </p>
+                </div>
                 <div className="flex flex-col gap-2">
                   <label
                     className="ml-1 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
@@ -4422,15 +4523,31 @@ function HardwareSettingsCard({
                     value={inputIntifaceUrl}
                     onChange={(event) => setInputIntifaceUrl(event.target.value)}
                     placeholder={DEFAULT_INTIFACE_WEBSOCKET_URL}
-                    disabled={connected || isConnecting}
+                    disabled={isConnecting}
                     className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 disabled:opacity-50"
                   />
                   <p className="ml-1 text-xs text-zinc-400">
                     <Trans>
-                      Start Intiface Central, start its server, then connect to a
-                      linear/position- or vibration-capable device.
+                      Start Intiface Central, start its server, then connect to a linear/position-
+                      or vibration-capable device.
                     </Trans>
                   </p>
+                  <label
+                    className="ml-1 mt-2 font-[family-name:var(--font-jetbrains-mono)] text-xs font-bold uppercase tracking-wider text-zinc-300"
+                    htmlFor="settings-intiface-device-index"
+                  >
+                    <Trans>Device index</Trans>
+                  </label>
+                  <input
+                    id="settings-intiface-device-index"
+                    type="number"
+                    min={0}
+                    value={inputIntifaceDeviceIndex}
+                    onChange={(event) => setInputIntifaceDeviceIndex(event.target.value)}
+                    placeholder={t`Auto-select`}
+                    disabled={isConnecting}
+                    className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 disabled:opacity-50"
+                  />
                   {intifaceDeviceName || intifaceDeviceIndex !== null ? (
                     <p className="ml-1 text-xs text-cyan-100">
                       <Trans>Selected device</Trans>: {intifaceDeviceName ?? t`Device`}{" "}
@@ -4466,8 +4583,8 @@ function HardwareSettingsCard({
                     />
                     <p className="ml-1 text-xs text-zinc-400">
                       <Trans>
-                        Only affects vibration-only toys. Higher values map funscript stroke
-                        speed to stronger vibration.
+                        Only affects vibration-only toys. Higher values map funscript stroke speed
+                        to stronger vibration.
                       </Trans>{" "}
                       <span className="font-[family-name:var(--font-jetbrains-mono)] text-cyan-100">
                         {intifaceVibrationSensitivity.toFixed(2)}x
@@ -4493,7 +4610,7 @@ function HardwareSettingsCard({
                 <div className="mb-4 grid gap-2 sm:grid-cols-2">
                   <button
                     type="button"
-                    disabled={connected || isConnecting}
+                    disabled={isConnecting}
                     onClick={() => setInputTCodeTransport("websocket")}
                     className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] transition-colors disabled:opacity-50 ${
                       inputTCodeTransport === "websocket"
@@ -4505,7 +4622,7 @@ function HardwareSettingsCard({
                   </button>
                   <button
                     type="button"
-                    disabled={connected || isConnecting}
+                    disabled={isConnecting}
                     onClick={() => {
                       setInputTCodeTransport("serial");
                       void refreshTCodeSerialPorts();
@@ -4534,7 +4651,7 @@ function HardwareSettingsCard({
                       value={inputTCodeHost}
                       onChange={(event) => setInputTCodeHost(event.target.value)}
                       placeholder={DEFAULT_TCODE_WEBSOCKET_HOST}
-                      disabled={connected || isConnecting}
+                      disabled={isConnecting}
                       className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
                     />
                     <p className="ml-1 text-xs text-zinc-400">
@@ -4559,7 +4676,7 @@ function HardwareSettingsCard({
                         id="settings-tcode-serial-port"
                         value={inputTCodeSerialPath}
                         onChange={(event) => setInputTCodeSerialPath(event.target.value)}
-                        disabled={connected || isConnecting}
+                        disabled={isConnecting}
                         className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
                       >
                         <option value="">{t`Select serial port`}</option>
@@ -4602,7 +4719,7 @@ function HardwareSettingsCard({
                         value={inputTCodeBaudRate}
                         onChange={(event) => setInputTCodeBaudRate(event.target.value)}
                         placeholder={String(DEFAULT_TCODE_BAUD_RATE)}
-                        disabled={connected || isConnecting}
+                        disabled={isConnecting}
                         className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
                       />
                     </div>
@@ -4620,7 +4737,7 @@ function HardwareSettingsCard({
                     id="settings-tcode-precision"
                     value={inputTCodePrecision}
                     onChange={(event) => setInputTCodePrecision(event.target.value === "3" ? 3 : 4)}
-                    disabled={connected || isConnecting}
+                    disabled={isConnecting}
                     className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
                   >
                     <option value={4}>{t`TCode v0.3 / 4 digit`}</option>
@@ -4643,7 +4760,7 @@ function HardwareSettingsCard({
                     value={inputKey}
                     onChange={(event) => setInputKey(event.target.value)}
                     placeholder={t`Device connection key`}
-                    disabled={connected || isConnecting}
+                    disabled={isConnecting}
                     className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-purple-500 focus:ring-1 focus:ring-purple-500 disabled:opacity-50"
                   />
                 </div>
@@ -4666,7 +4783,7 @@ function HardwareSettingsCard({
                     </div>
                     <button
                       type="button"
-                      disabled={connected || isConnecting}
+                      disabled={isConnecting}
                       onClick={() => {
                         setUseCustomApiKey((current) => {
                           const next = !current;
@@ -4696,7 +4813,7 @@ function HardwareSettingsCard({
                         value={inputApiKeyOverride}
                         onChange={(event) => setInputApiKeyOverride(event.target.value)}
                         placeholder={t`Enter your Handy application ID`}
-                        disabled={connected || isConnecting}
+                        disabled={isConnecting}
                         className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none transition-all focus:border-purple-500 focus:ring-1 focus:ring-purple-500 disabled:opacity-50"
                       />
                       <a
@@ -4761,8 +4878,21 @@ function HardwareSettingsCard({
                 }}
                 className="inline-flex rounded-xl border border-violet-300/60 bg-violet-500/30 px-4 py-2 text-sm font-semibold text-violet-100 transition-all duration-200 hover:border-violet-200/80 hover:bg-violet-500/45"
               >
-                {connected ? t`Disconnect` : isConnecting ? t`Connecting...` : t`Connect`}
+                {isConnecting
+                  ? t`Connecting...`
+                  : deviceSlots.length > 0
+                    ? t`Add device`
+                    : t`Connect`}
               </button>
+              {connected ? (
+                <button
+                  type="button"
+                  onClick={() => void disconnect()}
+                  className="inline-flex rounded-xl border border-rose-400/40 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/20"
+                >
+                  <Trans>Disconnect all</Trans>
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
@@ -7080,7 +7210,12 @@ function DebugSettingsCard({
 }) {
   const { t } = useLingui();
   const actionDisabled =
-    loading || isRefreshing || isCopying || isExporting || isCreatingPlaintextSettings || isClearing;
+    loading ||
+    isRefreshing ||
+    isCopying ||
+    isExporting ||
+    isCreatingPlaintextSettings ||
+    isClearing;
   const groups = diagnostics
     ? [
         { title: t`App`, value: diagnostics.app },
@@ -7188,9 +7323,7 @@ function DebugSettingsCard({
               onClick={onCreatePlaintextSettings}
               className="rounded-xl border border-amber-300/55 bg-amber-500/15 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:border-amber-200/80 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isCreatingPlaintextSettings
-                ? t`Creating...`
-                : t`Create Plaintext Settings File`}
+              {isCreatingPlaintextSettings ? t`Creating...` : t`Create Plaintext Settings File`}
             </button>
             <button
               type="button"

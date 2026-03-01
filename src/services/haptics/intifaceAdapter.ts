@@ -1,4 +1,8 @@
 import type { FunscriptAction } from "../../game/media/playback";
+import {
+  INTIFACE_DOWNLOAD_URL,
+  INTIFACE_MINIMUM_MAJOR_VERSION,
+} from "../../constants/haptics";
 import { normalizeHandyStrokeState } from "../theHandyConfig";
 import type {
   HapticsConnectionConfig,
@@ -62,6 +66,7 @@ export type IntifaceHapticsSession = HapticsSession & {
   deviceMode: IntifaceDeviceMode;
   deviceName: string | null;
   deviceIndex: number | null;
+  websocketUrl: string;
   loadedScriptId: string | null;
   actions: FunscriptAction[];
   sourceId: string | null;
@@ -86,8 +91,30 @@ const INTIFACE_VIBE_RESEND_DELTA = 0.02;
 
 let moduleOverride: ButtplugModule | null = null;
 
+type SharedIntifaceConnection = {
+  module: ButtplugModule;
+  client: IntifaceClient;
+  refCount: number;
+};
+
+// Ref-counted: multiple Intiface slots on the same Intiface Central URL share one client.
+const sharedIntifaceConnections = new Map<string, SharedIntifaceConnection>();
+
 export function setIntifaceButtplugModuleForTests(module: ButtplugModule | null): void {
   moduleOverride = module;
+}
+
+export function resetIntifaceConnectionsForTests(): void {
+  sharedIntifaceConnections.clear();
+}
+
+function releaseIntifaceConnection(url: string): Promise<void> {
+  const connection = sharedIntifaceConnections.get(url);
+  if (!connection) return Promise.resolve();
+  connection.refCount -= 1;
+  if (connection.refCount > 0) return Promise.resolve();
+  sharedIntifaceConnections.delete(url);
+  return connection.client.disconnect().catch(() => undefined);
 }
 
 function requireIntifaceConfig(
@@ -97,6 +124,24 @@ function requireIntifaceConfig(
     throw new Error("Intiface adapter received non-Intiface configuration.");
   }
   return config;
+}
+
+export function parseIntifaceMajorVersion(serverName: string | undefined): number | null {
+  if (typeof serverName !== "string" || serverName.length === 0) return null;
+  const match = serverName.match(/(\d+)\.(\d+)\.(\d+)/);
+  if (!match?.[1]) return null;
+  const major = Number.parseInt(match[1], 10);
+  return Number.isFinite(major) ? major : null;
+}
+
+export function buildIntifaceVersionError(detectedMajorVersion: number | null): string {
+  const versionFragment =
+    detectedMajorVersion !== null ? ` (detected: ${detectedMajorVersion}.x)` : "";
+  return (
+    `Intiface Central ${INTIFACE_MINIMUM_MAJOR_VERSION}.0 or newer is required${versionFragment}. ` +
+    `Only the latest version is supported. ` +
+    `Please update at ${INTIFACE_DOWNLOAD_URL}`
+  );
 }
 
 async function loadButtplug(): Promise<ButtplugModule> {
@@ -228,7 +273,36 @@ async function connectClient(config: HapticsConnectionConfig): Promise<{
   const module = await loadButtplug();
   const client = new module.ButtplugClient(INTIFACE_CLIENT_NAME);
   const connector = new module.ButtplugBrowserWebsocketClientConnector(getWebsocketUrl(config));
-  await client.connect(connector);
+
+  let detectedServerName: string | undefined;
+  const serverInfoListener = (messages: unknown): void => {
+    if (!Array.isArray(messages)) return;
+    for (const message of messages) {
+      if (message && typeof message === "object") {
+        const serverInfo = (message as { ServerInfo?: { ServerName?: string } }).ServerInfo;
+        if (serverInfo && typeof serverInfo.ServerName === "string") {
+          detectedServerName = serverInfo.ServerName;
+        }
+      }
+    }
+  };
+  const connectorWithEvents = connector as {
+    addListener?: (event: string, listener: (...args: unknown[]) => void) => void;
+    removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
+  };
+  connectorWithEvents.addListener?.("message", serverInfoListener);
+
+  try {
+    await client.connect(connector);
+  } finally {
+    connectorWithEvents.removeListener?.("message", serverInfoListener);
+  }
+
+  const majorVersion = parseIntifaceMajorVersion(detectedServerName);
+  if (majorVersion !== null && majorVersion < INTIFACE_MINIMUM_MAJOR_VERSION) {
+    await client.disconnect().catch(() => undefined);
+    throw new Error(buildIntifaceVersionError(majorVersion));
+  }
 
   let selected = selectDevice(module, client, intifaceConfig.deviceIndex);
   if (!selected && typeof client.startScanning === "function") {
@@ -239,6 +313,28 @@ async function connectClient(config: HapticsConnectionConfig): Promise<{
   }
 
   return { module, client, selected };
+}
+
+async function acquireIntifaceConnection(config: HapticsConnectionConfig): Promise<{
+  connection: SharedIntifaceConnection;
+  selected: { index: number; device: IntifaceDevice; mode: IntifaceDeviceMode } | null;
+}> {
+  const intifaceConfig = requireIntifaceConfig(config);
+  const url = getWebsocketUrl(config);
+  const existing = sharedIntifaceConnections.get(url);
+  if (existing) {
+    existing.refCount += 1;
+    const selected = selectDevice(existing.module, existing.client, intifaceConfig.deviceIndex);
+    return { connection: existing, selected };
+  }
+  const created = await connectClient(config);
+  const connection: SharedIntifaceConnection = {
+    module: created.module,
+    client: created.client,
+    refCount: 1,
+  };
+  sharedIntifaceConnections.set(url, connection);
+  return { connection, selected: created.selected };
 }
 
 function scriptId(sourceId: string, actions: FunscriptAction[]): string {
@@ -445,11 +541,10 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
 
   async verifyConnection(config): Promise<HapticsConnectionResult> {
     const intifaceConfig = requireIntifaceConfig(config);
-    let client: IntifaceClient | null = null;
+    const url = getWebsocketUrl(config);
     try {
-      const result = await connectClient(config);
-      client = result.client;
-      if (!result.selected) {
+      const { selected } = await acquireIntifaceConnection(config);
+      if (!selected) {
         return {
           success: false,
           provider: "intiface",
@@ -461,8 +556,8 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
         success: true,
         provider: "intiface",
         deviceType: "Intiface",
-        deviceName: result.selected.device.name ?? intifaceConfig.deviceName ?? null,
-        deviceIndex: result.selected.index,
+        deviceName: selected.device.name ?? intifaceConfig.deviceName ?? null,
+        deviceIndex: selected.index,
       };
     } catch (error) {
       return {
@@ -471,17 +566,16 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
         message: error instanceof Error ? error.message : "Failed to connect to Intiface.",
       };
     } finally {
-      if (client) {
-        await client.disconnect().catch(() => undefined);
-      }
+      await releaseIntifaceConnection(url);
     }
   },
 
   async createSession(config): Promise<IntifaceHapticsSession> {
     const intifaceConfig = requireIntifaceConfig(config);
-    const result = await connectClient(config);
-    if (!result.selected) {
-      await result.client.disconnect().catch(() => undefined);
+    const url = getWebsocketUrl(config);
+    const { connection, selected } = await acquireIntifaceConnection(config);
+    if (!selected) {
+      await releaseIntifaceConnection(url);
       throw new Error(
         "Intiface connected, but no position- or vibration-capable device was found."
       );
@@ -490,11 +584,12 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
     return {
       provider: "intiface",
       expiresAtMs: Date.now() + INTIFACE_SESSION_TTL_MS,
-      client: result.client,
-      device: result.selected.device,
-      deviceMode: result.selected.mode,
-      deviceName: result.selected.device.name ?? intifaceConfig.deviceName ?? null,
-      deviceIndex: result.selected.index,
+      client: connection.client,
+      device: selected.device,
+      deviceMode: selected.mode,
+      deviceName: selected.device.name ?? intifaceConfig.deviceName ?? null,
+      deviceIndex: selected.index,
+      websocketUrl: url,
       loadedScriptId: null,
       actions: [],
       sourceId: null,
@@ -593,7 +688,7 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
   async disconnect(_config, session): Promise<void> {
     if (!session) return;
     await session.device.stop?.().catch(() => undefined);
-    await session.client.disconnect().catch(() => undefined);
+    await releaseIntifaceConnection(session.websocketUrl);
   },
 
   async getStroke(config): Promise<HapticsStrokeState> {
@@ -605,4 +700,4 @@ export const intifaceAdapter: HapticsRuntimeAdapter<IntifaceHapticsSession> = {
   },
 };
 
-export { DEFAULT_INTIFACE_URL };
+export { DEFAULT_INTIFACE_URL, INTIFACE_DOWNLOAD_URL, INTIFACE_MINIMUM_MAJOR_VERSION };

@@ -5,7 +5,8 @@ import {
   peekInstalledRoundCardAssetsCached,
 } from "../../services/installedRoundsCache";
 
-const CARD_ASSET_FETCH_CHUNK_SIZE = 24;
+const CARD_ASSET_FETCH_CHUNK_SIZE = 4;
+const CARD_ASSET_IDLE_TIMEOUT_MS = 500;
 
 function chunkIds(ids: string[], chunkSize: number): string[][] {
   const chunks: string[][] = [];
@@ -19,10 +20,12 @@ export function useVisibleRoundAssets({
   visibleRoundIds,
   selectedRoundId,
   includeDisabled,
+  isScrolling,
 }: {
   visibleRoundIds: string[];
   selectedRoundId: string | null;
   includeDisabled: boolean;
+  isScrolling: boolean;
 }) {
   const [fetchedCardAssetsState, setFetchedCardAssetsState] = useState<{
     includeDisabled: boolean;
@@ -63,21 +66,48 @@ export function useVisibleRoundAssets({
   ]);
 
   useEffect(() => {
-    if (requestedRoundIds.length === 0) {
+    const loadableRoundIds =
+      isScrolling && selectedRoundId
+        ? requestedRoundIds.filter((roundId) => roundId === selectedRoundId)
+        : isScrolling
+          ? []
+          : requestedRoundIds;
+    if (loadableRoundIds.length === 0) {
       return;
     }
 
     const cachedRoundIds = new Set(cachedCardAssetsByRoundId.keys());
-    const missingRoundIds = requestedRoundIds.filter((roundId) => !cachedRoundIds.has(roundId));
+    const missingRoundIds = loadableRoundIds.filter((roundId) => !cachedRoundIds.has(roundId));
     if (missingRoundIds.length === 0) {
       return;
     }
 
     let cancelled = false;
+    let idleCallbackId: number | null = null;
+    let fallbackTimeoutId: number | null = null;
+
+    const waitForIdle = () =>
+      new Promise<void>((resolve) => {
+        if (typeof window.requestIdleCallback === "function") {
+          idleCallbackId = window.requestIdleCallback(
+            () => {
+              idleCallbackId = null;
+              resolve();
+            },
+            { timeout: CARD_ASSET_IDLE_TIMEOUT_MS }
+          );
+          return;
+        }
+        fallbackTimeoutId = window.setTimeout(() => {
+          fallbackTimeoutId = null;
+          resolve();
+        }, 32);
+      });
 
     const loadMissingAssets = async () => {
       const chunks = chunkIds(missingRoundIds, CARD_ASSET_FETCH_CHUNK_SIZE);
       for (let index = 0; index < chunks.length; index += 1) {
+        await waitForIdle();
         const chunk = chunks[index]!;
         if (cancelled) return;
         try {
@@ -105,9 +135,6 @@ export function useVisibleRoundAssets({
         } catch (error) {
           console.error("Failed to load installed round card assets", error);
         }
-        if (index < chunks.length - 1) {
-          await new Promise((resolve) => window.setTimeout(resolve, 0));
-        }
       }
     };
 
@@ -115,8 +142,14 @@ export function useVisibleRoundAssets({
 
     return () => {
       cancelled = true;
+      if (idleCallbackId !== null && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleCallbackId);
+      }
+      if (fallbackTimeoutId !== null) {
+        window.clearTimeout(fallbackTimeoutId);
+      }
     };
-  }, [cachedCardAssetsByRoundId, includeDisabled, requestedRoundIds]);
+  }, [cachedCardAssetsByRoundId, includeDisabled, isScrolling, requestedRoundIds, selectedRoundId]);
 
   return cardAssetsByRoundId;
 }

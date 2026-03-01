@@ -5,6 +5,7 @@ import { StartupGate } from "./StartupGate";
 const mocks = vi.hoisted(() => ({
   enterRecovery: vi.fn(async () => {}),
   startNormally: vi.fn(async () => {}),
+  getAlwaysRecoveryMode: vi.fn(async () => false),
 }));
 
 vi.mock("./NormalApp", () => ({
@@ -24,10 +25,13 @@ describe("StartupGate", () => {
     vi.useFakeTimers();
     mocks.enterRecovery.mockReset();
     mocks.startNormally.mockReset();
+    mocks.getAlwaysRecoveryMode.mockReset();
+    mocks.getAlwaysRecoveryMode.mockResolvedValue(false);
     window.electronAPI = {
       startupRecovery: {
         enterRecovery: mocks.enterRecovery,
         startNormally: mocks.startNormally,
+        getAlwaysRecoveryMode: mocks.getAlwaysRecoveryMode,
       },
     } as unknown as typeof window.electronAPI;
   });
@@ -59,6 +63,23 @@ describe("StartupGate", () => {
     });
     expect(mocks.enterRecovery).toHaveBeenCalledTimes(1);
     expect(mocks.startNormally).toHaveBeenCalledTimes(1);
+  });
+
+  it("enters recovery on mount when always-recovery mode is enabled", async () => {
+    mocks.getAlwaysRecoveryMode.mockResolvedValue(true);
+
+    render(<StartupGate />);
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+      await vi.dynamicImportSettled();
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Emergency Recovery Mode" })).toBeDefined();
+    });
+    expect(mocks.enterRecovery).toHaveBeenCalledTimes(1);
+    expect(mocks.startNormally).not.toHaveBeenCalled();
   });
 
   it("starts normally immediately on mount", async () => {

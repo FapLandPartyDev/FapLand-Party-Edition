@@ -39,6 +39,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
 export function GlobalHandyOverlay() {
   const { t } = useLingui();
   const {
+    deviceSlots = [],
     provider,
     connected,
     isConnecting,
@@ -224,7 +225,9 @@ export function GlobalHandyOverlay() {
     : manuallyStopped
       ? t`Stopped`
       : synced
-        ? t`Synced`
+        ? deviceSlots.length > 1
+          ? t`${deviceSlots.length} devices synced`
+          : t`Synced`
         : t`Syncing`;
 
   useControllerSubscription(

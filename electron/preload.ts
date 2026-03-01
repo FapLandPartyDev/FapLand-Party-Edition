@@ -210,5 +210,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     resetInstallation: (keepDatabase: boolean) =>
       ipcRenderer.invoke("startup-recovery:reset-installation", keepDatabase),
     restart: () => ipcRenderer.invoke("startup-recovery:restart") as Promise<void>,
+    getAlwaysRecoveryMode: () =>
+      ipcRenderer.invoke("startup-recovery:get-always-recovery") as Promise<boolean>,
+    setAlwaysRecoveryMode: (enabled: boolean) =>
+      ipcRenderer.invoke("startup-recovery:set-always-recovery", enabled) as Promise<void>,
   },
 } as const);

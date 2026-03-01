@@ -1,4 +1,5 @@
 export const HAPTICS_PROVIDER_STORE_KEY = "haptics.provider";
+export const HAPTICS_DEVICE_SLOTS_STORE_KEY = "haptics.deviceSlots.v1";
 export const INTIFACE_WEBSOCKET_URL_STORE_KEY = "intiface.websocketUrl";
 export const INTIFACE_DEVICE_INDEX_STORE_KEY = "intiface.deviceIndex";
 export const INTIFACE_DEVICE_NAME_STORE_KEY = "intiface.deviceName";
@@ -8,6 +9,8 @@ export const DEFAULT_INTIFACE_VIBRATION_SENSITIVITY = 1;
 export const INTIFACE_VIBRATION_SENSITIVITY_MIN = 0.25;
 export const INTIFACE_VIBRATION_SENSITIVITY_MAX = 3;
 export const INTIFACE_VIBRATION_SENSITIVITY_STEP = 0.05;
+export const INTIFACE_MINIMUM_MAJOR_VERSION = 3;
+export const INTIFACE_DOWNLOAD_URL = "https://intiface.com/#intiface-central";
 
 export const TCODE_TRANSPORT_STORE_KEY = "tcode.transport";
 export const TCODE_SERIAL_PATH_STORE_KEY = "tcode.serialPath";

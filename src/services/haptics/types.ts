@@ -58,6 +58,24 @@ export type HapticsSession = {
   expiresAtMs: number;
 };
 
+export type DeviceSlotConfig = {
+  id: string;
+  label: string;
+  enabled: boolean;
+  config: HapticsConnectionConfig;
+  stroke: HapticsStrokeState;
+  offsetMs: number;
+};
+
+export type DeviceSlotStatus = {
+  connected: boolean;
+  connecting: boolean;
+  error: string | null;
+  deviceName: string | null;
+  synced: boolean;
+  syncError: string | null;
+};
+
 export type HapticsRuntimeAdapter<TSession extends HapticsSession> = {
   provider: HapticsProviderId;
   verifyConnection(config: HapticsConnectionConfig): Promise<HapticsConnectionResult>;

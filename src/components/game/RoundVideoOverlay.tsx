@@ -47,7 +47,7 @@ import {
   sendHapticsSync,
   stopHapticsPlayback,
   type AnyHapticsSession,
-  type HapticsConnectionConfig,
+  type HapticsTargetConfig,
 } from "../../services/haptics/runtime";
 import {
   playDiceResultSound,
@@ -341,6 +341,7 @@ export function RoundVideoOverlay({
   );
   const { playRandomOneShot, startContinuousLoop, stopContinuousLoop } = useGameplayMoaning();
   const {
+    activeDeviceTargets = [],
     provider: hapticsProvider,
     connectionKey,
     appApiKey,
@@ -417,7 +418,7 @@ export function RoundVideoOverlay({
   const missingMediaCloseHandledRef = useRef(false);
 
   const handySessionRef = useRef<AnyHapticsSession | null>(null);
-  const handySessionConfigRef = useRef<HapticsConnectionConfig | null>(null);
+  const handySessionConfigRef = useRef<HapticsTargetConfig | null>(null);
   const handyInitPromiseRef = useRef<Promise<AnyHapticsSession | null> | null>(null);
   const disconnectHandySessionRef = useRef<() => Promise<void>>(async () => undefined);
   const handyPushInFlightRef = useRef(false);
@@ -877,7 +878,13 @@ export function RoundVideoOverlay({
     Boolean(activeSegmentResource?.funscriptUri) &&
     timelineUri === activeSegmentResource?.funscriptUri &&
     (timeline?.actions.length ?? 0) > 0;
-  const hapticsConfig = useMemo<HapticsConnectionConfig>(() => {
+  const hapticsConfig = useMemo<HapticsTargetConfig>(() => {
+    if (activeDeviceTargets.length === 1) {
+      return activeDeviceTargets[0]!.config;
+    }
+    if (activeDeviceTargets.length > 1) {
+      return { provider: "group", devices: activeDeviceTargets };
+    }
     if (hapticsProvider === "intiface") {
       return {
         provider: "intiface",
@@ -920,6 +927,7 @@ export function RoundVideoOverlay({
       localIp,
     };
   }, [
+    activeDeviceTargets,
     appApiKey,
     appApiKeyOverride,
     connectionKey,
@@ -939,6 +947,7 @@ export function RoundVideoOverlay({
     tcodeWebsocketUrl,
   ]);
   const hasRequiredHapticsConnection =
+    activeDeviceTargets.length > 0 ||
     hapticsProvider === "intiface" ||
     (hapticsProvider === "tcode" &&
       (tcodeTransport === "serial"
@@ -946,7 +955,10 @@ export function RoundVideoOverlay({
         : tcodeWebsocketUrl.trim().length > 0)) ||
     (connectionKey.trim().length > 0 && appApiKey.trim().length > 0);
   const hapticsPushIntervalMs =
-    hapticsProvider === "intiface" ? INTIFACE_PUSH_INTERVAL_MS : HANDY_PUSH_INTERVAL_MS;
+    activeDeviceTargets.some((device) => device.config.provider === "intiface") ||
+    (activeDeviceTargets.length === 0 && hapticsProvider === "intiface")
+      ? INTIFACE_PUSH_INTERVAL_MS
+      : HANDY_PUSH_INTERVAL_MS;
 
   const shouldUseHandySync =
     hasUsableActiveTimeline &&
@@ -1146,8 +1158,9 @@ export function RoundVideoOverlay({
     if (!hasRequiredHapticsConnection) return;
     const session = handySessionRef.current;
     if (!session) return;
+    const config = handySessionConfigRef.current ?? hapticsConfig;
     try {
-      await pauseHapticsPlayback(hapticsConfig, session);
+      await pauseHapticsPlayback(config, session);
     } catch {
       // ignore teardown failures
     }
@@ -1159,6 +1172,7 @@ export function RoundVideoOverlay({
     if (handyManuallyStoppedRef.current) return;
     const session = handySessionRef.current;
     if (!session) return;
+    const config = handySessionConfigRef.current ?? hapticsConfig;
     const video = segment.kind === "main" ? mainVideoRef.current : intermediaryVideoRef.current;
     if (!video) return;
 
@@ -1168,7 +1182,7 @@ export function RoundVideoOverlay({
       const playbackRate = video.playbackRate ?? 1;
       if (handyManuallyStoppedRef.current) return;
 
-      await resumeHapticsPlayback(hapticsConfig, session, effectiveTimeMs, playbackRate);
+      await resumeHapticsPlayback(config, session, effectiveTimeMs, playbackRate);
     } catch {
       // ignore resume failures
     }
@@ -2863,12 +2877,22 @@ export function RoundVideoOverlay({
       resetHandySync("missing-key", t`Missing haptics connection settings.`);
       return;
     }
+    if (
+      handySessionRef.current &&
+      handySessionConfigRef.current &&
+      handySessionConfigRef.current !== hapticsConfig
+    ) {
+      handyBootstrapKeyRef.current = null;
+      handyBootstrapInFlightRef.current = null;
+      void disconnectHandySessionIfNeeded();
+    }
     setHandySyncState("connecting");
     setHandySyncError(null);
     setSyncStatus({ synced: false, error: null });
   }, [
     disconnectHandySessionIfNeeded,
     handyConnected,
+    hapticsConfig,
     hasRequiredHapticsConnection,
     resetHandySync,
     setSyncStatus,

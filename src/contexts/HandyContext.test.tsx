@@ -4,9 +4,10 @@ import { HandyProvider, useHandy } from "./HandyContext";
 import type { HapticsConnectionResult } from "../services/haptics/types";
 
 const mocks = vi.hoisted(() => ({
-  verifyConnection: vi.fn(
-    async (): Promise<HapticsConnectionResult> => ({ success: true, provider: "thehandy" })
-  ),
+  verifyConnection: vi.fn(async (): Promise<HapticsConnectionResult> => ({
+    success: true,
+    provider: "thehandy",
+  })),
   issueHandySession: vi.fn(async () => ({
     provider: "thehandy" as const,
     mode: "appId" as const,
@@ -73,6 +74,8 @@ function Consumer() {
   return (
     <div>
       <div data-testid="connected">{String(handy.connected)}</div>
+      <div data-testid="device-count">{handy.deviceSlots.length}</div>
+      <div data-testid="active-device-count">{handy.activeDeviceTargets.length}</div>
       <div data-testid="provider">{handy.provider}</div>
       <div data-testid="intiface-url">{handy.intifaceWebsocketUrl}</div>
       <div data-testid="tcode-host">{handy.tcodeWebsocketHost}</div>
@@ -246,6 +249,38 @@ describe("HandyContext", () => {
       expect(screen.getByTestId("manually-stopped").textContent).toBe("true");
       expect(screen.getByTestId("synced").textContent).toBe("false");
     });
+  });
+
+  it("keeps multiple providers configured and active at the same time", async () => {
+    render(
+      <HandyProvider>
+        <Consumer />
+      </HandyProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "connect" }));
+    });
+    await waitFor(() => expect(screen.getByTestId("device-count").textContent).toBe("1"));
+
+    mocks.verifyConnection.mockResolvedValueOnce({
+      success: true,
+      provider: "intiface",
+      deviceName: "Vibrator",
+      deviceIndex: 3,
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "connect-intiface" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("connected").textContent).toBe("true");
+      expect(screen.getByTestId("device-count").textContent).toBe("2");
+      expect(screen.getByTestId("active-device-count").textContent).toBe("2");
+    });
+    expect(mocks.setMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "haptics.deviceSlots.v1" })
+    );
   });
 
   it("keeps manual stop engaged even if the remote stop request fails", async () => {

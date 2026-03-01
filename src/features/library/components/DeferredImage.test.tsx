@@ -116,4 +116,22 @@ describe("DeferredImage", () => {
 
     expect(imageB.getAttribute("src")).toBe("/preview-b.jpg");
   });
+
+  it("does not attach the image source while suspended", async () => {
+    const view = render(<DeferredImage src="/preview-a.jpg" alt="preview-a" suspended />);
+    const image = screen.getByAltText("preview-a");
+
+    expect(IntersectionObserverMock.instances).toHaveLength(0);
+    expect(image.getAttribute("src")).toBeNull();
+
+    view.rerender(<DeferredImage src="/preview-a.jpg" alt="preview-a" suspended={false} />);
+
+    await act(async () => {
+      IntersectionObserverMock.instances[0]?.triggerIntersecting();
+      vi.runAllTimers();
+      flushNextAnimationFrame();
+    });
+
+    expect(image.getAttribute("src")).toBe("/preview-a.jpg");
+  });
 });

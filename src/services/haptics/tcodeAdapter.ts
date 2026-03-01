@@ -7,10 +7,11 @@ import type {
   HapticsSession,
   HapticsStrokeState,
 } from "./types";
-import { tcodeTransportRenderer } from "./tcodeTransportRenderer";
+import { TCodeTransportRenderer } from "./tcodeTransportRenderer";
 
 export type TCodeHapticsSession = HapticsSession & {
   provider: "tcode";
+  transport: TCodeTransportRenderer;
   loadedScriptId: string | null;
   actions: FunscriptAction[];
   sourceId: string | null;
@@ -38,10 +39,6 @@ function requireTCodeConfig(
     throw new Error("Enter a TCode WebSocket device IP address before connecting.");
   }
   return config;
-}
-
-function getBridge() {
-  return tcodeTransportRenderer;
 }
 
 function scriptId(sourceId: string, actions: FunscriptAction[]): string {
@@ -120,9 +117,9 @@ function formatStopCommand(config: Extract<HapticsConnectionConfig, { provider: 
   return `DSTOP\n${formatTCodeAxisCommand(config.axis, 50, config.precision)}`;
 }
 
-function sendBestEffort(command: string): void {
+function sendBestEffort(transport: TCodeTransportRenderer, command: string): void {
   try {
-    getBridge().send(command);
+    transport.send(command);
   } catch {
     // Playback teardown should not fail because a stop command could not be sent.
   }
@@ -132,9 +129,9 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
   provider: "tcode",
 
   async verifyConnection(config): Promise<HapticsConnectionResult> {
+    const bridge = new TCodeTransportRenderer();
     try {
       const tcodeConfig = requireTCodeConfig(config);
-      const bridge = getBridge();
       const result = await bridge.connect({
         transport: tcodeConfig.transport,
         serialPath: tcodeConfig.serialPath,
@@ -165,13 +162,14 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
         message: error instanceof Error ? error.message : "Failed to connect to TCode device.",
       };
     } finally {
-      await tcodeTransportRenderer.disconnect().catch(() => undefined);
+      await bridge.disconnect().catch(() => undefined);
     }
   },
 
   async createSession(config): Promise<TCodeHapticsSession> {
     const tcodeConfig = requireTCodeConfig(config);
-    const result = await getBridge().connect({
+    const transport = new TCodeTransportRenderer();
+    const result = await transport.connect({
       transport: tcodeConfig.transport,
       serialPath: tcodeConfig.serialPath,
       baudRate: tcodeConfig.baudRate,
@@ -183,6 +181,7 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
     return {
       provider: "tcode",
       expiresAtMs: Date.now() + TCODE_SESSION_TTL_MS,
+      transport,
       loadedScriptId: null,
       actions: [],
       sourceId: null,
@@ -226,7 +225,7 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
       tcodeConfig.precision,
       durationMs
     );
-    const sent = await getBridge().send(command);
+    const sent = await session.transport.send(command);
     if (!sent) {
       throw new Error("Failed to send TCode command.");
     }
@@ -237,8 +236,9 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
     session.lastTargetActionAt = nextAction.at;
   },
 
-  async pausePlayback(config): Promise<void> {
-    sendBestEffort(formatStopCommand(requireTCodeConfig(config)));
+  async pausePlayback(config, session): Promise<void> {
+    if (!session) return;
+    sendBestEffort(session.transport, formatStopCommand(requireTCodeConfig(config)));
   },
 
   async resumePlayback(config, session, resumeAtMs, playbackRate = 1): Promise<void> {
@@ -263,16 +263,14 @@ export const tcodeAdapter: HapticsRuntimeAdapter<TCodeHapticsSession> = {
     session.lastPlaybackRate = null;
     session.lastPosition = null;
     session.lastTargetActionAt = null;
-    sendBestEffort(formatStopCommand(requireTCodeConfig(config)));
+    sendBestEffort(session.transport, formatStopCommand(requireTCodeConfig(config)));
   },
 
   async disconnect(config, session): Promise<void> {
     if (session) {
-      sendBestEffort(formatStopCommand(requireTCodeConfig(config)));
+      sendBestEffort(session.transport, formatStopCommand(requireTCodeConfig(config)));
+      await session.transport.disconnect().catch(() => undefined);
     }
-    await tcodeTransportRenderer
-      .disconnect()
-      .catch(() => undefined);
   },
 
   async getStroke(config): Promise<HapticsStrokeState> {

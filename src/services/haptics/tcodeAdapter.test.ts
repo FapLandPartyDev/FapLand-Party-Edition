@@ -9,10 +9,10 @@ const transportMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./tcodeTransportRenderer", () => ({
-  tcodeTransportRenderer: {
-    connect: transportMocks.connect,
-    send: transportMocks.send,
-    disconnect: transportMocks.disconnect,
+  TCodeTransportRenderer: class {
+    connect = transportMocks.connect;
+    send = transportMocks.send;
+    disconnect = transportMocks.disconnect;
   },
 }));
 

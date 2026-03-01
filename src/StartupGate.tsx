@@ -1,4 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  consumeStartNormallyOnce,
+  normalizeAlwaysRecoveryMode,
+} from "./constants/startupSettings";
 
 const RECOVERY_SHORTCUT_WINDOW_MS = 5000;
 
@@ -47,15 +51,35 @@ export function StartupGate() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     normalStartCalledRef.current = false;
-    void startNormally().then((succeeded) => {
+    void (async () => {
+      let alwaysRecovery = false;
+      if (!consumeStartNormallyOnce()) {
+        try {
+          const value = await window.electronAPI?.startupRecovery?.getAlwaysRecoveryMode?.();
+          alwaysRecovery = normalizeAlwaysRecoveryMode(value);
+        } catch {
+          alwaysRecovery = false;
+        }
+      }
+      if (cancelled) return;
+      if (alwaysRecovery) {
+        await enterRecovery();
+        return;
+      }
+      const succeeded = await startNormally();
+      if (cancelled) return;
       if (succeeded && !recoveryRequestedRef.current) {
         setMode("normal");
       } else if (!succeeded && !recoveryRequestedRef.current) {
         setMode("error");
       }
-    });
-  }, [startNormally, attemptId]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [startNormally, enterRecovery, attemptId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

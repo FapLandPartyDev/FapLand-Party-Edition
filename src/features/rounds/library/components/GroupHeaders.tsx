@@ -1,5 +1,113 @@
 import { useEffect, useRef, useState } from "react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { useLingui } from "@lingui/react/macro";
+
+type ShelfHeaderProps = {
+  eyebrow: string;
+  name: string;
+  roundCount: number;
+  expanded: boolean;
+  status?: string | null;
+  accent: "cyan" | "emerald";
+  onToggle: () => void;
+  onHoverSfx: () => void;
+  actions?: Array<{ label: string; onClick: () => void; danger?: boolean; disabled?: boolean }>;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelection?: () => void;
+};
+
+function ShelfHeader({
+  eyebrow,
+  name,
+  roundCount,
+  expanded,
+  status,
+  accent,
+  onToggle,
+  onHoverSfx,
+  actions = [],
+  selectionMode = false,
+  selected = false,
+  onToggleSelection,
+}: ShelfHeaderProps) {
+  const { t } = useLingui();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [menuOpen]);
+
+  return (
+    <div className={`round-shelf-header is-${accent}`}>
+      {selectionMode && (
+        <button
+          type="button"
+          aria-label={selected ? t`Deselect ${name}` : t`Select ${name}`}
+          onClick={onToggleSelection}
+          className={`round-shelf-select ${selected ? "is-selected" : ""}`}
+        >
+          {selected ? "✓" : ""}
+        </button>
+      )}
+      <button
+        type="button"
+        onMouseEnter={onHoverSfx}
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+      >
+        <span className={`text-xs transition-transform ${expanded ? "rotate-90" : ""}`}>›</span>
+        <div className="min-w-0">
+          <span className="font-[family-name:var(--font-jetbrains-mono)] text-[9px] uppercase tracking-[0.16em] text-zinc-600">
+            {eyebrow}
+          </span>
+          <h2 className="truncate text-base font-bold tracking-tight text-zinc-100">{name}</h2>
+        </div>
+        <span className="round-library-count-badge">{roundCount}</span>
+        {status && <span className="truncate text-[10px] text-amber-300/70">{status}</span>}
+        <span className="ml-auto text-[10px] text-zinc-600">
+          {expanded ? t`Collapse` : t`Expand`}
+        </span>
+      </button>
+      {actions.length > 0 && (
+        <div ref={menuRef} className="relative">
+          <button
+            type="button"
+            aria-label={t`Collection actions`}
+            onClick={() => setMenuOpen((current) => !current)}
+            className="round-library-icon-button h-8 w-8"
+          >
+            •••
+          </button>
+          {menuOpen && (
+            <div className="round-library-command-menu right-0 top-9">
+              {actions.map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  disabled={action.disabled}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    action.onClick();
+                  }}
+                  className={`round-library-command-item ${action.danger ? "is-danger" : ""}`}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function HeroGroupHeader({
   heroName,
@@ -39,157 +147,36 @@ export function HeroGroupHeader({
   onToggleSelection?: () => void;
 }) {
   const { t } = useLingui();
-  const [showActions, setShowActions] = useState(false);
-  const actionsRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!showActions) return;
-    const onClick = (e: MouseEvent) => {
-      if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) {
-        setShowActions(false);
-      }
-    };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [showActions]);
-
+  const pending = pendingCacheCount + pendingPreviewCount;
   return (
-    <div className="flex w-full items-stretch gap-2">
-      {selectionMode && (
-        <button
-          type="button"
-          aria-label={selected ? t`Deselect ${heroName}` : t`Select ${heroName}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleSelection?.();
-          }}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-all"
-          style={{
-            borderColor: selected ? "rgba(34,211,238,0.6)" : "rgba(255,255,255,0.3)",
-            backgroundColor: selected ? "rgba(34,211,238,0.25)" : "rgba(0,0,0,0.4)",
-          }}
-        >
-          {selected && <span className="text-cyan-200 text-sm">✓</span>}
-        </button>
-      )}
-      <button
-        type="button"
-        onMouseEnter={onHoverSfx}
-        onFocus={onHoverSfx}
-        onClick={onToggle}
-        className="flex min-w-0 flex-1 items-center justify-between rounded-2xl border border-violet-300/35 bg-black/45 px-4 py-3 text-left shadow-[0_0_25px_rgba(139,92,246,0.12)] transition-all duration-200 hover:border-violet-200/70 hover:bg-violet-500/12"
-        aria-expanded={expanded}
-        aria-label={t`${heroName} (${roundCount} rounds)`}
-      >
-        <div className="min-w-0">
-          <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.25em] text-violet-200/85">
-            <Trans>Hero Group</Trans>
-          </p>
-          <h2 className="mt-1 truncate text-lg font-extrabold tracking-tight text-zinc-100">
-            {heroName}
-          </h2>
-        </div>
-        <div className="flex items-center gap-3 pl-3">
-          {pendingCacheCount > 0 && (
-            <span className="rounded-md border border-amber-300/40 bg-amber-500/15 px-2 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] text-amber-100">
-              {pendingCacheCount > 1 ? t`${pendingCacheCount} Caching` : t`Caching Ongoing`}
-            </span>
-          )}
-          {pendingPreviewCount > 0 && (
-            <span className="rounded-md border border-cyan-300/40 bg-cyan-500/15 px-2 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] text-cyan-100">
-              {pendingPreviewCount > 1
-                ? t`${pendingPreviewCount} Previews Generating`
-                : t`Preview Is Being Generated`}
-            </span>
-          )}
-          <span className="rounded-md border border-violet-300/40 bg-violet-500/15 px-2 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] text-violet-100">
-            {t`${roundCount} Rounds`}
-          </span>
-          <span
-            className={`text-violet-200 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-          >
-            ▾
-          </span>
-        </div>
-      </button>
-      <div ref={actionsRef} className="relative">
-        <button
-          type="button"
-          onMouseEnter={onHoverSfx}
-          onClick={() => setShowActions((v) => !v)}
-          className="h-full rounded-2xl border border-violet-300/35 bg-violet-500/12 px-3 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] text-violet-100 transition-all duration-200 hover:border-violet-200/75 hover:bg-violet-500/24"
-        >
-          <Trans>Actions</Trans>
-        </button>
-        {showActions && (
-          <div className="absolute right-0 top-full z-50 mt-2 min-w-[160px] overflow-hidden rounded-xl border border-violet-300/35 bg-zinc-950/95 shadow-[0_0_24px_rgba(139,92,246,0.38)] backdrop-blur-xl">
-            <button
-              type="button"
-              onMouseEnter={onHoverSfx}
-              onClick={() => {
-                setShowActions(false);
-                onEditHero();
-              }}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-cyan-100 transition-colors hover:bg-cyan-500/15"
-            >
-              <Trans>Edit Hero</Trans>
-            </button>
-            <button
-              type="button"
-              onMouseEnter={onHoverSfx}
-              onClick={() => {
-                setShowActions(false);
-                onDeleteHero();
-              }}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-rose-100 transition-colors hover:bg-rose-500/15"
-            >
-              <Trans>Delete Hero</Trans>
-            </button>
-            {hasTemplateRounds && (
-              <>
-                <button
-                  type="button"
-                  onMouseEnter={onHoverSfx}
-                  onClick={() => {
-                    setShowActions(false);
-                    onRepairTemplate();
-                  }}
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-amber-100 transition-colors hover:bg-amber-500/15"
-                >
-                  <Trans>Repair Templates</Trans>
-                </button>
-                <button
-                  type="button"
-                  onMouseEnter={onHoverSfx}
-                  onClick={() => {
-                    setShowActions(false);
-                    onRetryTemplateLinking();
-                  }}
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-fuchsia-100 transition-colors hover:bg-fuchsia-500/15"
-                >
-                  <Trans>Retry Auto-Link</Trans>
-                </button>
-              </>
-            )}
-            <div className="my-1 h-px bg-zinc-700/50" />
-            <button
-              type="button"
-              onMouseEnter={onHoverSfx}
-              onClick={() => {
-                setShowActions(false);
-                onConvertToRound();
-              }}
-              disabled={converting}
-              className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
-                converting ? "cursor-wait text-zinc-400" : "text-rose-100 hover:bg-rose-500/15"
-              }`}
-            >
-              {converting ? <Trans>Converting...</Trans> : <Trans>Convert to Round</Trans>}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    <ShelfHeader
+      eyebrow={t`Hero collection`}
+      name={heroName}
+      roundCount={roundCount}
+      expanded={expanded}
+      status={pending > 0 ? t`${pending} media tasks pending` : null}
+      accent="cyan"
+      onToggle={onToggle}
+      onHoverSfx={onHoverSfx}
+      selectionMode={selectionMode}
+      selected={selected}
+      onToggleSelection={onToggleSelection}
+      actions={[
+        { label: t`Edit hero`, onClick: onEditHero },
+        { label: t`Delete hero`, onClick: onDeleteHero, danger: true },
+        ...(hasTemplateRounds
+          ? [
+              { label: t`Repair templates`, onClick: onRepairTemplate },
+              { label: t`Retry auto-link`, onClick: onRetryTemplateLinking },
+            ]
+          : []),
+        {
+          label: converting ? t`Converting…` : t`Convert to round`,
+          onClick: onConvertToRound,
+          disabled: converting,
+        },
+      ]}
+    />
   );
 }
 
@@ -210,43 +197,15 @@ export function PlaylistGroupHeader({
 }) {
   const { t } = useLingui();
   return (
-    <button
-      type="button"
-      onMouseEnter={onHoverSfx}
-      onFocus={onHoverSfx}
-      onClick={onToggle}
-      className="flex w-full min-w-0 items-center justify-between rounded-2xl border border-emerald-300/35 bg-black/45 px-4 py-3 text-left shadow-[0_0_25px_rgba(16,185,129,0.12)] transition-all duration-200 hover:border-emerald-200/70 hover:bg-emerald-500/12"
-      aria-expanded={expanded}
-      aria-label={t`${playlistName} (${roundCount} rounds)`}
-    >
-      <div className="min-w-0">
-        <p className="font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.25em] text-emerald-200/85">
-          <Trans>Playlist Group</Trans>
-        </p>
-        <h2 className="mt-1 truncate text-lg font-extrabold tracking-tight text-zinc-100">
-          {playlistName}
-        </h2>
-        {cachePending && (
-          <p className="mt-1 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.18em] text-amber-200/90">
-            <Trans>Caching ongoing</Trans>
-          </p>
-        )}
-      </div>
-      <div className="flex items-center gap-3 pl-3">
-        {cachePending && (
-          <span className="rounded-md border border-amber-300/45 bg-amber-500/15 px-2 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] text-amber-100">
-            <Trans>Caching Ongoing</Trans>
-          </span>
-        )}
-        <span className="rounded-md border border-emerald-300/40 bg-emerald-500/15 px-2 py-1 font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.2em] text-emerald-100">
-          {t`${roundCount} Rounds`}
-        </span>
-        <span
-          className={`text-emerald-200 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-        >
-          ▾
-        </span>
-      </div>
-    </button>
+    <ShelfHeader
+      eyebrow={t`Playlist collection`}
+      name={playlistName}
+      roundCount={roundCount}
+      expanded={expanded}
+      status={cachePending ? t`Media caching` : null}
+      accent="emerald"
+      onToggle={onToggle}
+      onHoverSfx={onHoverSfx}
+    />
   );
 }

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   intifaceAdapter,
+  buildIntifaceVersionError,
+  parseIntifaceMajorVersion,
+  resetIntifaceConnectionsForTests,
   setIntifaceButtplugModuleForTests,
   type IntifaceHapticsSession,
 } from "./intifaceAdapter";
@@ -12,7 +15,8 @@ const disconnect = vi.fn(async () => undefined);
 const startScanning = vi.fn(async () => undefined);
 const stopScanning = vi.fn(async () => undefined);
 
-function createModule(devices: unknown[]) {
+function createModule(devices: unknown[], serverName = "Intiface Server") {
+  const messageListeners: Array<(messages: unknown) => void> = [];
   return {
     OutputType: {
       Position: "Position",
@@ -41,15 +45,29 @@ function createModule(devices: unknown[]) {
       },
     },
     ButtplugBrowserWebsocketClientConnector: vi.fn(function Connector(
-      this: unknown,
-      address: string
+      this: {
+        addListener: (event: string, listener: (messages: unknown) => void) => void;
+        removeListener: (event: string, listener: (messages: unknown) => void) => void;
+      }
     ) {
-      Object.assign(this as object, { address });
+      this.addListener = (event: string, listener: (messages: unknown) => void) => {
+        if (event === "message") messageListeners.push(listener);
+      };
+      this.removeListener = (event: string, listener: (messages: unknown) => void) => {
+        if (event === "message") {
+          const idx = messageListeners.indexOf(listener);
+          if (idx >= 0) messageListeners.splice(idx, 1);
+        }
+      };
     }),
     ButtplugClient: vi.fn(function Client(this: { devices: Map<number, unknown> }) {
       this.devices = new Map(devices.map((device, index) => [index, device]));
       Object.assign(this, {
-        connect: vi.fn(async () => undefined),
+        connect: vi.fn(async () => {
+          for (const listener of messageListeners) {
+            listener([{ ServerInfo: { ServerName: serverName, MaxPingTime: 0 } }]);
+          }
+        }),
         disconnect,
         startScanning,
         stopScanning,
@@ -70,6 +88,7 @@ const config: HapticsConnectionConfig = {
 describe("intifaceAdapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetIntifaceConnectionsForTests();
     setIntifaceButtplugModuleForTests(null);
   });
 
@@ -373,5 +392,106 @@ describe("intifaceAdapter", () => {
 
     expect(stop).toHaveBeenCalledTimes(3);
     expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("parseIntifaceMajorVersion", () => {
+  it("parses a semver from the server name", () => {
+    expect(parseIntifaceMajorVersion("Intiface Central 3.0.0")).toBe(3);
+    expect(parseIntifaceMajorVersion("Intiface Central 2.5.1 x86_64")).toBe(2);
+    expect(parseIntifaceMajorVersion("Intiface Central 10.2.3")).toBe(10);
+  });
+
+  it("returns null when no version is present", () => {
+    expect(parseIntifaceMajorVersion("Intiface Server")).toBeNull();
+    expect(parseIntifaceMajorVersion("")).toBeNull();
+    expect(parseIntifaceMajorVersion(undefined)).toBeNull();
+  });
+});
+
+describe("buildIntifaceVersionError", () => {
+  it("includes the download URL and detected version", () => {
+    const message = buildIntifaceVersionError(2);
+    expect(message).toContain("3.0 or newer is required");
+    expect(message).toContain("Only the latest version is supported");
+    expect(message).toContain("(detected: 2.x)");
+    expect(message).toContain("https://intiface.com/#intiface-central");
+  });
+
+  it("omits the detected version fragment when null", () => {
+    const message = buildIntifaceVersionError(null);
+    expect(message).not.toContain("(detected:");
+    expect(message).toContain("https://intiface.com/#intiface-central");
+  });
+});
+
+describe("intifaceAdapter version check", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetIntifaceConnectionsForTests();
+    setIntifaceButtplugModuleForTests(null);
+  });
+
+  it("rejects connection when Intiface Central is below 3.0", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule(
+        [
+          {
+            name: "Linear Device",
+            hasOutput: (type: unknown) => type === "Position",
+            runOutput,
+            stop,
+          },
+        ],
+        "Intiface Central 2.5.1"
+      ) as never
+    );
+
+    const result = await intifaceAdapter.verifyConnection(config);
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain("3.0 or newer is required");
+    expect(result.message).toContain("https://intiface.com/#intiface-central");
+    expect(result.message).toContain("(detected: 2.x)");
+  });
+
+  it("allows connection when Intiface Central is 3.0 or newer", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule(
+        [
+          {
+            name: "Linear Device",
+            hasOutput: (type: unknown) => type === "Position",
+            runOutput,
+            stop,
+          },
+        ],
+        "Intiface Central 3.1.0"
+      ) as never
+    );
+
+    const result = await intifaceAdapter.verifyConnection(config);
+
+    expect(result).toMatchObject({ success: true, provider: "intiface" });
+  });
+
+  it("allows connection when the server name has no detectable version", async () => {
+    setIntifaceButtplugModuleForTests(
+      createModule(
+        [
+          {
+            name: "Linear Device",
+            hasOutput: (type: unknown) => type === "Position",
+            runOutput,
+            stop,
+          },
+        ],
+        "Intiface Server"
+      ) as never
+    );
+
+    const result = await intifaceAdapter.verifyConnection(config);
+
+    expect(result).toMatchObject({ success: true, provider: "intiface" });
   });
 });

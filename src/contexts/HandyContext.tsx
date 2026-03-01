@@ -40,6 +40,7 @@ import {
   TCODE_TRANSPORT_STORE_KEY,
   TCODE_WEBSOCKET_HOST_STORE_KEY,
   TCODE_WEBSOCKET_URL_STORE_KEY,
+  HAPTICS_DEVICE_SLOTS_STORE_KEY,
 } from "../constants/haptics";
 import {
   normalizeHandyAppApiKeyOverride,
@@ -60,6 +61,8 @@ import {
   verifyHapticsConnection,
   type AnyHapticsSession,
   type HapticsConnectionConfig,
+  type HapticsDeviceTarget,
+  type HapticsTargetConfig,
 } from "../services/haptics/runtime";
 import {
   normalizeTCodeAxis,
@@ -70,6 +73,7 @@ import {
 } from "../services/haptics/tcodeConfig";
 import type {
   HapticsProviderId,
+  DeviceSlotConfig,
   TCodeAxis,
   TCodePrecision,
   TCodeTransportKind,
@@ -77,6 +81,11 @@ import type {
 import { trpc } from "../services/trpc";
 
 type HapticsContextType = {
+  deviceSlots: DeviceSlotConfig[];
+  activeDeviceTargets: HapticsDeviceTarget[];
+  selectedDeviceId: string | null;
+  selectDevice: (id: string) => void;
+  removeDevice: (id: string) => Promise<void>;
   provider: HapticsProviderId;
   setProvider: (provider: HapticsProviderId) => Promise<void>;
   connectionKey: string;
@@ -115,7 +124,7 @@ type HapticsContextType = {
   isConnecting: boolean;
   error: string | null;
   connect: (key: string, ip?: string, apiKeyOverride?: string) => Promise<boolean>;
-  connectIntiface: (websocketUrl?: string) => Promise<boolean>;
+  connectIntiface: (websocketUrl?: string, deviceIndex?: number | null) => Promise<boolean>;
   connectTCode: (
     input?: Partial<{
       transport: TCodeTransportKind;
@@ -150,6 +159,43 @@ const LOCAL_IP_STORE_KEY = "localIp";
 
 const HapticsContext = createContext<HapticsContextType | undefined>(undefined);
 const DEFAULT_STROKE_STATE = normalizeHandyStrokeState({ min: 0, max: 1 });
+
+function normalizeDeviceSlots(value: unknown): DeviceSlotConfig[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry): DeviceSlotConfig[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const candidate = entry as Partial<DeviceSlotConfig>;
+    const config = candidate.config as HapticsConnectionConfig | undefined;
+    if (
+      typeof candidate.id !== "string" ||
+      !config ||
+      !["thehandy", "intiface", "tcode"].includes(config.provider)
+    ) {
+      return [];
+    }
+    return [
+      {
+        id: candidate.id,
+        label:
+          typeof candidate.label === "string" && candidate.label.trim()
+            ? candidate.label.trim()
+            : config.provider === "thehandy"
+              ? "TheHandy"
+              : config.provider === "intiface"
+                ? "Intiface device"
+                : "TCode device",
+        enabled: candidate.enabled !== false,
+        config,
+        stroke: normalizeHandyStrokeState(candidate.stroke),
+        offsetMs: normalizeHandyOffsetMs(candidate.offsetMs),
+      },
+    ];
+  });
+}
+
+async function saveDeviceSlotsToStore(slots: DeviceSlotConfig[]): Promise<void> {
+  await trpc.store.set.mutate({ key: HAPTICS_DEVICE_SLOTS_STORE_KEY, value: slots });
+}
 
 function normalizeProvider(value: unknown): HapticsProviderId {
   if (value === "intiface" || value === "tcode") return value;
@@ -192,6 +238,7 @@ async function loadFromStore(): Promise<{
   tcodePrecision: TCodePrecision;
   tcodeAxis: TCodeAxis;
   offsetMs: number;
+  deviceSlots: DeviceSlotConfig[];
 }> {
   try {
     const [
@@ -211,6 +258,7 @@ async function loadFromStore(): Promise<{
       tcodePrecision,
       tcodeAxis,
       offsetMs,
+      rawDeviceSlots,
     ] = await Promise.all([
       trpc.store.get.query({ key: HAPTICS_PROVIDER_STORE_KEY }),
       trpc.store.get.query({ key: CONNECTION_KEY_STORE_KEY }),
@@ -228,6 +276,7 @@ async function loadFromStore(): Promise<{
       trpc.store.get.query({ key: TCODE_PRECISION_STORE_KEY }),
       trpc.store.get.query({ key: TCODE_AXIS_STORE_KEY }),
       trpc.store.get.query({ key: THEHANDY_OFFSET_MS_STORE_KEY }),
+      trpc.store.get.query({ key: HAPTICS_DEVICE_SLOTS_STORE_KEY }),
     ]);
     const savedTCodeWebSocket = normalizeTCodeWebSocketInput(
       typeof tcodeWebsocketHost === "string" && tcodeWebsocketHost.trim().length > 0
@@ -245,8 +294,9 @@ async function loadFromStore(): Promise<{
           : DEFAULT_INTIFACE_WEBSOCKET_URL,
       intifaceDeviceName: normalizeNullableString(intifaceDeviceName),
       intifaceDeviceIndex: normalizeIntifaceDeviceIndex(intifaceDeviceIndex),
-      intifaceVibrationSensitivity:
-        normalizeIntifaceVibrationSensitivity(intifaceVibrationSensitivity),
+      intifaceVibrationSensitivity: normalizeIntifaceVibrationSensitivity(
+        intifaceVibrationSensitivity
+      ),
       tcodeTransport: normalizeTCodeTransport(tcodeTransport),
       tcodeSerialPath: typeof tcodeSerialPath === "string" ? tcodeSerialPath.trim() : "",
       tcodeBaudRate: normalizeTCodeBaudRate(tcodeBaudRate),
@@ -255,6 +305,7 @@ async function loadFromStore(): Promise<{
       tcodePrecision: normalizeTCodePrecision(tcodePrecision),
       tcodeAxis: normalizeTCodeAxis(tcodeAxis),
       offsetMs: normalizeHandyOffsetMs(offsetMs),
+      deviceSlots: normalizeDeviceSlots(rawDeviceSlots),
     };
   } catch (err) {
     console.warn("Could not load handy store", err);
@@ -275,6 +326,7 @@ async function loadFromStore(): Promise<{
       tcodePrecision: DEFAULT_TCODE_PRECISION,
       tcodeAxis: DEFAULT_TCODE_AXIS,
       offsetMs: 0,
+      deviceSlots: [],
     };
   }
 }
@@ -348,6 +400,8 @@ async function saveTCodeToStore(input: {
 }
 
 export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [deviceSlots, setDeviceSlots] = useState<DeviceSlotConfig[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [provider, setProviderState] = useState<HapticsProviderId>("thehandy");
   const [connectionKey, setConnectionKey] = useState("");
   const [appApiKeyOverride, setAppApiKeyOverride] = useState("");
@@ -396,6 +450,108 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const isUsingDefaultAppApiKey = normalizeHandyAppApiKeyOverride(appApiKeyOverride).length === 0;
   const strokePercent = getHandyStrokePercent(strokeState);
   const offsetMs = resourceOffsetOverrideMs ?? globalOffsetMs;
+  const activeDeviceTargets = useMemo<HapticsDeviceTarget[]>(
+    () =>
+      deviceSlots
+        .filter((slot) => slot.enabled)
+        .map((slot) => ({
+          id: slot.id,
+          config:
+            slot.config.provider === "intiface" || slot.config.provider === "tcode"
+              ? { ...slot.config, stroke: slot.stroke }
+              : slot.config,
+          // Round playback already applies the selected/global offset. Child targets
+          // only carry their calibration delta so the value is not applied twice.
+          offsetMs: slot.offsetMs - globalOffsetMs,
+        })),
+    [deviceSlots, globalOffsetMs]
+  );
+
+  const rememberDevice = useCallback(
+    async (
+      config: HapticsConnectionConfig,
+      input?: { label?: string; stroke?: HandyStrokeState }
+    ): Promise<void> => {
+      const identity = (candidate: HapticsConnectionConfig): string => {
+        if (candidate.provider === "thehandy") return `thehandy:${candidate.connectionKey.trim()}`;
+        if (candidate.provider === "intiface") {
+          return `intiface:${candidate.websocketUrl.trim()}:${candidate.deviceIndex ?? "auto"}`;
+        }
+        return candidate.transport === "serial"
+          ? `tcode:serial:${candidate.serialPath.trim()}`
+          : `tcode:websocket:${candidate.websocketUrl.trim()}`;
+      };
+      const key = identity(config);
+      const nextStroke = normalizeHandyStrokeState(input?.stroke ?? strokeState);
+      const existing = deviceSlots.find((slot) => identity(slot.config) === key);
+      const slot: DeviceSlotConfig = {
+        id: existing?.id ?? globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+        label:
+          input?.label ??
+          (config.provider === "thehandy"
+            ? "TheHandy"
+            : config.provider === "intiface"
+              ? (config.deviceName ?? "Intiface device")
+              : "TCode device"),
+        enabled: true,
+        config,
+        stroke: nextStroke,
+        offsetMs: existing?.offsetMs ?? globalOffsetMs,
+      };
+      const saved = existing
+        ? deviceSlots.map((candidate) => (candidate.id === existing.id ? slot : candidate))
+        : [...deviceSlots, slot];
+      setDeviceSlots(saved);
+      setSelectedDeviceId(slot.id);
+      await saveDeviceSlotsToStore(saved).catch((err) => {
+        console.error("Failed to save haptics devices", err);
+      });
+    },
+    [deviceSlots, globalOffsetMs, strokeState]
+  );
+
+  const removeDevice = useCallback(
+    async (id: string): Promise<void> => {
+      const saved = deviceSlots.filter((slot) => slot.id !== id);
+      setDeviceSlots(saved);
+      if (selectedDeviceId === id) setSelectedDeviceId(saved[0]?.id ?? null);
+      setConnected(saved.some((slot) => slot.enabled));
+      await saveDeviceSlotsToStore(saved).catch((err) => {
+        console.error("Failed to save haptics devices", err);
+      });
+    },
+    [deviceSlots, selectedDeviceId]
+  );
+
+  const selectDevice = useCallback(
+    (id: string): void => {
+      const slot = deviceSlots.find((candidate) => candidate.id === id);
+      if (!slot) return;
+      setSelectedDeviceId(id);
+      setProviderState(slot.config.provider);
+      setStrokeState(slot.stroke);
+      setGlobalOffsetMs(slot.offsetMs);
+      if (slot.config.provider === "thehandy") {
+        setConnectionKey(slot.config.connectionKey);
+        setAppApiKeyOverride(slot.config.appApiKeyOverride);
+        setLocalIp(slot.config.localIp);
+      } else if (slot.config.provider === "intiface") {
+        setIntifaceWebsocketUrl(slot.config.websocketUrl);
+        setIntifaceDeviceName(slot.config.deviceName);
+        setIntifaceDeviceIndex(slot.config.deviceIndex);
+        setIntifaceVibrationSensitivity(slot.config.vibrationSensitivity);
+      } else {
+        setTCodeTransport(slot.config.transport);
+        setTCodeSerialPath(slot.config.serialPath);
+        setTCodeBaudRate(slot.config.baudRate);
+        setTCodeWebsocketHost(slot.config.websocketHost);
+        setTCodeWebsocketUrl(slot.config.websocketUrl);
+        setTCodePrecision(slot.config.precision);
+        setTCodeAxis(slot.config.axis);
+      }
+    },
+    [deviceSlots]
+  );
 
   useEffect(() => {
     offsetMsRef.current = offsetMs;
@@ -477,6 +633,14 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     ]
   );
 
+  const getActiveConnectionConfig = useCallback((): HapticsTargetConfig => {
+    if (activeDeviceTargets.length === 1) return activeDeviceTargets[0]!.config;
+    if (activeDeviceTargets.length > 1) {
+      return { provider: "group", devices: activeDeviceTargets };
+    }
+    return getConnectionConfig();
+  }, [activeDeviceTargets, getConnectionConfig]);
+
   const refreshStroke = useCallback(
     async (authOverride?: { connectionKey?: string; appApiKey?: string }): Promise<void> => {
       const effectiveConnectionKey = authOverride?.connectionKey ?? connectionKey;
@@ -528,6 +692,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         tcodePrecision: savedTCodePrecision,
         tcodeAxis: savedTCodeAxis,
         offsetMs: savedOffsetMs,
+        deviceSlots: savedDeviceSlots,
       }) => {
         if (userMutatedStateRef.current) return;
         setProviderState(savedProvider);
@@ -546,6 +711,39 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setTCodePrecision(savedTCodePrecision);
         setTCodeAxis(savedTCodeAxis);
         setGlobalOffsetMs(savedOffsetMs);
+
+        if (savedDeviceSlots.length > 0) {
+          setDeviceSlots(savedDeviceSlots);
+          setSelectedDeviceId(savedDeviceSlots[0]!.id);
+          const enabledSlots = savedDeviceSlots.filter((slot) => slot.enabled);
+          if (enabledSlots.length === 0) {
+            setConnected(false);
+            return;
+          }
+          setIsConnecting(true);
+          const results = await Promise.allSettled(
+            enabledSlots.map((slot) => verifyHapticsConnection(slot.config))
+          );
+          const successful = results.filter(
+            (
+              result
+            ): result is PromiseFulfilledResult<
+              Awaited<ReturnType<typeof verifyHapticsConnection>>
+            > => result.status === "fulfilled" && result.value.success
+          );
+          setConnected(successful.length > 0);
+          const failures = results.flatMap((result) => {
+            if (result.status === "rejected") {
+              return [
+                result.reason instanceof Error ? result.reason.message : String(result.reason),
+              ];
+            }
+            return result.value.success ? [] : [result.value.message ?? "Failed to connect device"];
+          });
+          setError(failures.length > 0 ? failures.join("; ") : null);
+          setIsConnecting(false);
+          return;
+        }
 
         const effectiveAppApiKey = resolveHandyAppApiKey(savedOverride);
         if (savedProvider === "thehandy" && (!savedKey || !effectiveAppApiKey)) {
@@ -602,6 +800,25 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const result = await verifyHapticsConnection(config);
           if (result.success) {
             setConnected(true);
+            const migratedSlot: DeviceSlotConfig = {
+              id: globalThis.crypto?.randomUUID?.() ?? `legacy-${Date.now()}`,
+              label:
+                result.deviceName ??
+                (savedProvider === "thehandy"
+                  ? "TheHandy"
+                  : savedProvider === "intiface"
+                    ? "Intiface device"
+                    : "TCode device"),
+              enabled: true,
+              config,
+              stroke: DEFAULT_STROKE_STATE,
+              offsetMs: savedOffsetMs,
+            };
+            setDeviceSlots([migratedSlot]);
+            setSelectedDeviceId(migratedSlot.id);
+            await saveDeviceSlotsToStore([migratedSlot]).catch((migrationError) => {
+              console.error("Failed to migrate legacy haptics device", migrationError);
+            });
             if (savedProvider === "intiface") {
               setIntifaceDeviceName(result.deviceName ?? savedIntifaceDeviceName);
               setIntifaceDeviceIndex(result.deviceIndex ?? savedIntifaceDeviceIndex);
@@ -629,51 +846,40 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
   }, []);
 
-  const persistOffset = useCallback(async (nextOffsetMs: number): Promise<number> => {
-    const normalized = normalizeHandyOffsetMs(nextOffsetMs);
-    setGlobalOffsetMs(normalized);
+  const persistOffset = useCallback(
+    async (nextOffsetMs: number): Promise<number> => {
+      const normalized = normalizeHandyOffsetMs(nextOffsetMs);
+      setGlobalOffsetMs(normalized);
+      const saved = selectedDeviceId
+        ? deviceSlots.map((slot) =>
+            slot.id === selectedDeviceId ? { ...slot, offsetMs: normalized } : slot
+          )
+        : deviceSlots;
+      if (selectedDeviceId) setDeviceSlots(saved);
 
-    try {
-      await trpc.store.set.mutate({ key: THEHANDY_OFFSET_MS_STORE_KEY, value: normalized });
-    } catch (err) {
-      console.error("Failed to save handy offset", err);
-    }
-
-    return normalized;
-  }, []);
-
-  const setProvider = useCallback(
-    async (nextProvider: HapticsProviderId): Promise<void> => {
-      userMutatedStateRef.current = true;
-      connectionAttemptIdRef.current += 1;
-      const previousSession = activeSession;
-      const previousConfig = previousSession ? getConnectionConfig() : null;
-
-      setIsConnecting(false);
-      setProviderState(nextProvider);
-      setConnected(false);
-      setManuallyStopped(false);
-      setSynced(false);
-      setError(null);
-      setSyncError(null);
-      setActiveSession(null);
-
-      if (testDeviceTimerRef.current) {
-        globalThis.clearInterval(testDeviceTimerRef.current);
-        testDeviceTimerRef.current = null;
+      try {
+        await Promise.all([
+          trpc.store.set.mutate({ key: THEHANDY_OFFSET_MS_STORE_KEY, value: normalized }),
+          selectedDeviceId ? saveDeviceSlotsToStore(saved) : Promise.resolve(),
+        ]);
+      } catch (err) {
+        console.error("Failed to save haptics offset", err);
       }
-      testDeviceTickBusyRef.current = false;
-      testDeviceSessionRef.current = null;
-      setTestDeviceStarting(false);
-      setTestDeviceRunning(false);
-      setTestDeviceStartedAtMs(null);
-      if (previousSession && previousConfig) {
-        await disconnectHapticsSession(previousConfig, previousSession).catch(() => undefined);
-      }
-      await saveProviderToStore(nextProvider);
+
+      return normalized;
     },
-    [activeSession, getConnectionConfig]
+    [deviceSlots, selectedDeviceId]
   );
+
+  const setProvider = useCallback(async (nextProvider: HapticsProviderId): Promise<void> => {
+    userMutatedStateRef.current = true;
+    connectionAttemptIdRef.current += 1;
+
+    setIsConnecting(false);
+    setProviderState(nextProvider);
+    setError(null);
+    await saveProviderToStore(nextProvider);
+  }, []);
 
   const connect = useCallback(
     async (key: string, ip?: string, apiKeyOverride?: string): Promise<boolean> => {
@@ -708,6 +914,13 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (attemptId !== connectionAttemptIdRef.current) return false;
         if (result.success) {
           setConnected(true);
+          await rememberDevice({
+            provider: "thehandy",
+            connectionKey: nextKey,
+            appApiKey: nextApiKey,
+            appApiKeyOverride: nextOverride,
+            localIp: nextIp,
+          });
           await saveToStore(nextKey, nextOverride, nextIp);
           await refreshStroke({
             connectionKey: nextKey,
@@ -731,15 +944,17 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
     },
-    [appApiKeyOverride, localIp, refreshStroke]
+    [appApiKeyOverride, localIp, refreshStroke, rememberDevice]
   );
 
   const connectIntiface = useCallback(
-    async (websocketUrl?: string): Promise<boolean> => {
+    async (websocketUrl?: string, deviceIndexOverride?: number | null): Promise<boolean> => {
       userMutatedStateRef.current = true;
       const attemptId = (connectionAttemptIdRef.current += 1);
       const nextUrl =
         (websocketUrl ?? intifaceWebsocketUrl).trim() || DEFAULT_INTIFACE_WEBSOCKET_URL;
+      const requestedDeviceIndex =
+        deviceIndexOverride === undefined ? intifaceDeviceIndex : deviceIndexOverride;
       setIsConnecting(true);
       setProviderState("intiface");
       setError(null);
@@ -751,7 +966,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await saveIntifaceToStore(
         nextUrl,
         intifaceDeviceName,
-        intifaceDeviceIndex,
+        requestedDeviceIndex,
         intifaceVibrationSensitivity
       );
 
@@ -760,17 +975,28 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           provider: "intiface",
           websocketUrl: nextUrl,
           deviceName: intifaceDeviceName,
-          deviceIndex: intifaceDeviceIndex,
+          deviceIndex: requestedDeviceIndex,
           stroke: strokeState,
           vibrationSensitivity: intifaceVibrationSensitivity,
         });
         if (attemptId !== connectionAttemptIdRef.current) return false;
         if (result.success) {
           const nextDeviceName = result.deviceName ?? intifaceDeviceName;
-          const nextDeviceIndex = result.deviceIndex ?? intifaceDeviceIndex;
+          const nextDeviceIndex = result.deviceIndex ?? requestedDeviceIndex;
           setConnected(true);
           setIntifaceDeviceName(nextDeviceName);
           setIntifaceDeviceIndex(nextDeviceIndex);
+          await rememberDevice(
+            {
+              provider: "intiface",
+              websocketUrl: nextUrl,
+              deviceName: nextDeviceName,
+              deviceIndex: nextDeviceIndex,
+              stroke: strokeState,
+              vibrationSensitivity: intifaceVibrationSensitivity,
+            },
+            { label: nextDeviceName ?? "Intiface device" }
+          );
           await saveIntifaceToStore(
             nextUrl,
             nextDeviceName,
@@ -799,6 +1025,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       intifaceDeviceName,
       intifaceVibrationSensitivity,
       intifaceWebsocketUrl,
+      rememberDevice,
       strokeState,
     ]
   );
@@ -914,6 +1141,17 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (result.success) {
           setConnected(true);
           setStrokeState(DEFAULT_STROKE_STATE);
+          await rememberDevice({
+            provider: "tcode",
+            transport: nextTransport,
+            serialPath: nextSerialPath,
+            baudRate: nextBaudRate,
+            websocketHost: nextWebSocket.host,
+            websocketUrl: nextWebSocket.url,
+            precision: nextPrecision,
+            axis: nextAxis,
+            stroke: strokeState,
+          });
           return true;
         }
         setError(result.message ?? "Failed to connect to TCode device.");
@@ -933,6 +1171,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     },
     [
       strokeState,
+      rememberDevice,
       tcodeAxis,
       tcodeBaudRate,
       tcodePrecision,
@@ -981,11 +1220,11 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setTestDeviceRunning(false);
     setTestDeviceStartedAtMs(null);
     if (session) {
-      await stopHapticsPlayback(getConnectionConfig(), session).catch((err) => {
+      await stopHapticsPlayback(getActiveConnectionConfig(), session).catch((err) => {
         console.warn("Failed to stop haptics test device", err);
       });
     }
-  }, [activeSession, getConnectionConfig]);
+  }, [activeSession, getActiveConnectionConfig]);
 
   const startTestDevice = useCallback(async (): Promise<void> => {
     if (!connected) {
@@ -995,10 +1234,10 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     await stopTestDevice();
 
-    let config: HapticsConnectionConfig;
+    let config: HapticsTargetConfig;
     let session: AnyHapticsSession;
     try {
-      config = getConnectionConfig();
+      config = getActiveConnectionConfig();
       session = activeSession ?? (await createHapticsSession(config));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to start haptics test.";
@@ -1031,7 +1270,12 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const loopIndex = Math.floor(Math.max(0, elapsedMs) / HAPTICS_TEST_PERIOD_MS);
         const timeMs =
           ((elapsedMs % HAPTICS_TEST_PERIOD_MS) + HAPTICS_TEST_PERIOD_MS) % HAPTICS_TEST_PERIOD_MS;
-        if (config.provider === "thehandy" && loopIndex !== activeLoopIndex) {
+        if (
+          (config.provider === "thehandy" ||
+            (config.provider === "group" &&
+              config.devices.some((device) => device.config.provider === "thehandy"))) &&
+          loopIndex !== activeLoopIndex
+        ) {
           activeLoopIndex = loopIndex;
           await stopHapticsPlayback(config, session);
         }
@@ -1070,7 +1314,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         void tick();
       }, HAPTICS_TEST_TICK_MS);
     }
-  }, [activeSession, connected, getConnectionConfig, stopTestDevice]);
+  }, [activeSession, connected, getActiveConnectionConfig, stopTestDevice]);
 
   const disconnect = useCallback(async () => {
     userMutatedStateRef.current = true;
@@ -1087,7 +1331,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setStrokeError(null);
     setActiveSession(null);
     if (session) {
-      await disconnectHapticsSession(getConnectionConfig(), session).catch(() => undefined);
+      await disconnectHapticsSession(getActiveConnectionConfig(), session).catch(() => undefined);
     }
     await saveToStore(connectionKey, appApiKeyOverride, localIp);
     await saveIntifaceToStore(
@@ -1109,7 +1353,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     activeSession,
     appApiKeyOverride,
     connectionKey,
-    getConnectionConfig,
+    getActiveConnectionConfig,
     intifaceDeviceIndex,
     intifaceDeviceName,
     intifaceVibrationSensitivity,
@@ -1133,7 +1377,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setSyncError(null);
 
     try {
-      const config = getConnectionConfig();
+      const config = getActiveConnectionConfig();
       if (connected) {
         const session = activeSession ?? (await createHapticsSession(config));
         setActiveSession(session);
@@ -1150,7 +1394,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     appApiKeyOverride,
     connected,
     connectionKey,
-    getConnectionConfig,
+    getActiveConnectionConfig,
     localIp,
     stopTestDevice,
   ]);
@@ -1173,7 +1417,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setSyncError(null);
 
     try {
-      const config = getConnectionConfig();
+      const config = getActiveConnectionConfig();
       const session = activeSession ?? (await createHapticsSession(config));
       setActiveSession(session);
       await stopHapticsPlayback(config, session);
@@ -1187,7 +1431,7 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     appApiKey,
     connected,
     connectionKey,
-    getConnectionConfig,
+    getActiveConnectionConfig,
     manuallyStopped,
     provider,
   ]);
@@ -1252,6 +1496,18 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
           optimisticStrokeState
         );
         setStrokeState(nextStroke);
+        if (selectedDeviceId) {
+          const saved = deviceSlots.map((slot) => {
+            if (slot.id !== selectedDeviceId) return slot;
+            const config =
+              slot.config.provider === "intiface" || slot.config.provider === "tcode"
+                ? { ...slot.config, stroke: nextStroke }
+                : slot.config;
+            return { ...slot, config, stroke: nextStroke };
+          });
+          setDeviceSlots(saved);
+          await saveDeviceSlotsToStore(saved);
+        }
       } catch (err) {
         setStrokeState(previousStrokeState);
         setStrokeError(
@@ -1261,7 +1517,15 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setStrokeLoading(false);
       }
     },
-    [appApiKey, connectionKey, getConnectionConfig, provider, strokeState]
+    [
+      appApiKey,
+      connectionKey,
+      deviceSlots,
+      getConnectionConfig,
+      provider,
+      selectedDeviceId,
+      strokeState,
+    ]
   );
 
   const setStrokePercent = useCallback(
@@ -1289,6 +1553,11 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const value = useMemo(
     () => ({
+      deviceSlots,
+      activeDeviceTargets,
+      selectedDeviceId,
+      selectDevice,
+      removeDevice,
       provider,
       setProvider,
       connectionKey,
@@ -1348,6 +1617,11 @@ export const HapticsProvider: React.FC<{ children: React.ReactNode }> = ({ child
       resetStroke,
     }),
     [
+      deviceSlots,
+      activeDeviceTargets,
+      selectedDeviceId,
+      selectDevice,
+      removeDevice,
       provider,
       setProvider,
       connectionKey,

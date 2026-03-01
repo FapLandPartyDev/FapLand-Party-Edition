@@ -69,6 +69,10 @@ import {
 } from "./services/musicDownload";
 import { GRAPHICS_GPU_CRASH_HINT_PENDING_KEY } from "../src/constants/graphicsSettings";
 import {
+  ALWAYS_RECOVERY_MODE_KEY,
+  normalizeAlwaysRecoveryMode,
+} from "../src/constants/startupSettings";
+import {
   backupDatabaseForRecovery,
   clearRecoveryCaches,
   getStartupRecoveryStatus,
@@ -1546,6 +1550,12 @@ function registerStartupRecoveryIpc() {
   ipcMain.handle("startup-recovery:restart", () => {
     app.relaunch();
     app.exit(0);
+  });
+  ipcMain.handle("startup-recovery:get-always-recovery", () =>
+    normalizeAlwaysRecoveryMode(safeStoreGet(ALWAYS_RECOVERY_MODE_KEY))
+  );
+  ipcMain.handle("startup-recovery:set-always-recovery", (_event, value: unknown) => {
+    safeStoreSet(ALWAYS_RECOVERY_MODE_KEY, value === true);
   });
 }
 
