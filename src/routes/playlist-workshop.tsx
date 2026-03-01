@@ -40,6 +40,7 @@ import {
   type WorkshopAddedDateFilter,
   type WorkshopDifficultyFilter,
   type WorkshopDurationFilter,
+  type WorkshopHeroFilter,
   type WorkshopRoundFilters,
   type WorkshopRoundMetadataOptions,
   type WorkshopRoundSort,
@@ -4433,6 +4434,13 @@ function WorkshopRoundFilterPanel({
       remove: () => update({ script: "any" }),
     });
   }
+  if (filters.heroStatus !== "any") {
+    chips.push({
+      key: "heroStatus",
+      label: filters.heroStatus === "hero" ? t`Hero rounds only` : t`Standalone rounds only`,
+      remove: () => update({ heroStatus: "any" }),
+    });
+  }
   if (filters.randomEligibility !== "any") {
     chips.push({
       key: "eligibility",
@@ -4800,6 +4808,18 @@ function WorkshopRoundFilterPanel({
                     { value: "missing", label: t`Missing` },
                   ]}
                   onChange={(script) => update({ script })}
+                  onHoverSfx={playHoverSound}
+                  onSelectSfx={playSelectSound}
+                />
+                <GameDropdown
+                  label={t`Hero`}
+                  value={filters.heroStatus}
+                  options={[
+                    { value: "any", label: t`Any` },
+                    { value: "hero", label: t`Hero rounds only` },
+                    { value: "standalone", label: t`Standalone rounds only` },
+                  ]}
+                  onChange={(heroStatus) => update({ heroStatus: heroStatus as WorkshopHeroFilter })}
                   onHoverSfx={playHoverSound}
                   onSelectSfx={playSelectSound}
                 />

@@ -20,8 +20,28 @@ type CachedRoundRow = {
   phash: string | null;
   previewImage: string | null;
   installSourceKey: string | null;
+  heroId?: string | null;
+  startTime?: number | null;
   resources: CachedResourceRow[];
 };
+
+function extractSqlValues(input: unknown): unknown[] {
+  const values: unknown[] = [];
+  const visit = (node: unknown) => {
+    if (!node) return;
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+      return;
+    }
+    if (typeof node !== "object") return;
+    if ("value" in node) values.push(node.value);
+    if ("queryChunks" in node && Array.isArray(node.queryChunks)) {
+      node.queryChunks.forEach(visit);
+    }
+  };
+  visit(input);
+  return values;
+}
 
 const {
   getDbMock,
@@ -128,8 +148,10 @@ function createDbMock(initialRounds: CachedRoundRow[]) {
     resources: entry.resources.map((res) => ({ ...res, funscriptUri: res.funscriptUri ?? null })),
   }));
   const updatePayloads: Array<Record<string, unknown>> = [];
+  const deletedRoundIds: string[] = [];
 
   const db = {
+    transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(db)),
     query: {
       hero: {
         findMany: vi.fn(async () => []),
@@ -145,6 +167,8 @@ function createDbMock(initialRounds: CachedRoundRow[]) {
               phash: entry.phash,
               previewImage: entry.previewImage,
               installSourceKey: entry.installSourceKey,
+              heroId: entry.heroId ?? null,
+              startTime: entry.startTime ?? null,
               resources: entry.resources.map((res) => ({
                 id: res.id,
                 videoUri: res.videoUri,
@@ -213,6 +237,8 @@ function createDbMock(initialRounds: CachedRoundRow[]) {
               phash: payload.phash,
               previewImage: payload.previewImage,
               installSourceKey: payload.installSourceKey,
+              heroId: payload.heroId,
+              startTime: null,
               resources: [] as CachedResourceRow[],
             };
             rounds.push(created);
@@ -231,7 +257,19 @@ function createDbMock(initialRounds: CachedRoundRow[]) {
         };
       }),
     })),
+    delete: vi.fn(() => ({
+      where: vi.fn(async (input: unknown) => {
+        const values = extractSqlValues(input);
+        const deleted = rounds.find((entry) => values.includes(entry.id));
+        if (deleted) {
+          deletedRoundIds.push(deleted.id);
+          rounds.splice(rounds.indexOf(deleted), 1);
+        }
+        return [];
+      }),
+    })),
     updatePayloads,
+    deletedRoundIds,
   };
 
   return db;
@@ -310,6 +348,138 @@ describe("integration phash linking", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("promotes a converted Stash hero segment instead of recreating the source round", async () => {
+    const db = createDbMock([
+      {
+        id: "converted-1",
+        name: "Hero - round 1",
+        author: null,
+        description: null,
+        phash: null,
+        previewImage: null,
+        installSourceKey: "converter:segment-1",
+        heroId: "hero-1",
+        startTime: 0,
+        resources: [
+          {
+            id: "res-1",
+            videoUri:
+              "app://external/stash?sourceId=source-1&target=https%3A%2F%2Fstash.example%2Fscene%2F1%2Fstream",
+            funscriptUri: null,
+            phash: null,
+            durationMs: null,
+            disabled: false,
+          },
+        ],
+      },
+    ]);
+    getDbMock.mockReturnValue(db);
+
+    syncSourceMock.mockImplementationOnce(async (_source, context) => {
+      context.onSceneSeen();
+      await context.ingestScene({
+        sceneId: "scene-1",
+        installSourceKey: "ignored-by-wrapper",
+        roundTypeFallback: "Normal",
+        name: "Scene 1",
+        author: null,
+        description: null,
+        phash: null,
+        previewImageUri: null,
+        videoUri: "https://stash.example/scene/1/stream",
+        funscriptUri: null,
+        durationMs: null,
+      });
+    });
+
+    const { syncExternalSources } = await import("./index");
+    const result = await syncExternalSources("manual");
+
+    expect(result.stats.roundsCreated).toBe(0);
+    expect(result.stats.roundsLinked).toBe(1);
+    expect(result.stats.resourcesAdded).toBe(0);
+    expect(db.updatePayloads).toContainEqual(
+      expect.objectContaining({
+        installSourceKey: "stash:https://stash.example:scene:scene-1",
+      })
+    );
+  });
+
+  it("removes a legacy standalone duplicate when one converted hero matches", async () => {
+    const db = createDbMock([
+      {
+        id: "stash-duplicate",
+        name: "Scene 1",
+        author: null,
+        description: null,
+        phash: null,
+        previewImage: null,
+        installSourceKey: "stash:https://stash.example:scene:scene-1",
+        resources: [
+          {
+            id: "res-stash",
+            videoUri: "https://stash.example/scene/1/stream",
+            funscriptUri: null,
+            phash: null,
+            durationMs: null,
+            disabled: false,
+          },
+        ],
+      },
+      {
+        id: "converted-1",
+        name: "Hero - round 1",
+        author: null,
+        description: null,
+        phash: null,
+        previewImage: null,
+        installSourceKey: "converter:segment-1",
+        heroId: "hero-1",
+        startTime: 0,
+        resources: [
+          {
+            id: "res-converted",
+            videoUri:
+              "app://external/stash?sourceId=source-1&target=https%3A%2F%2Fstash.example%2Fscene%2F1%2Fstream",
+            funscriptUri: null,
+            phash: null,
+            durationMs: null,
+            disabled: false,
+          },
+        ],
+      },
+    ]);
+    getDbMock.mockReturnValue(db);
+    getDisabledRoundIdsMock.mockReturnValue(["stash-duplicate"]);
+
+    syncSourceMock.mockImplementationOnce(async (_source, context) => {
+      context.onSceneSeen();
+      await context.ingestScene({
+        sceneId: "scene-1",
+        installSourceKey: "ignored-by-wrapper",
+        roundTypeFallback: "Normal",
+        name: "Scene 1",
+        author: null,
+        description: null,
+        phash: null,
+        previewImageUri: null,
+        videoUri: "https://stash.example/scene/1/stream",
+        funscriptUri: null,
+        durationMs: null,
+      });
+    });
+
+    const { syncExternalSources } = await import("./index");
+    const result = await syncExternalSources("manual");
+
+    expect(result.stats.roundsCreated).toBe(0);
+    expect(result.stats.roundsLinked).toBe(1);
+    expect(db.deletedRoundIds).toEqual(["stash-duplicate"]);
+    expect(setDisabledRoundIdsMock).toHaveBeenLastCalledWith(
+      expect.not.arrayContaining(["stash-duplicate"])
+    );
   });
 
   it("links to an existing round when phash is similar", async () => {

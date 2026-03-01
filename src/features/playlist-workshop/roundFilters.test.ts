@@ -194,6 +194,40 @@ describe("Playlist Workshop round filters", () => {
     ).toEqual([]);
   });
 
+  it("filters hero rounds only or standalone rounds only", () => {
+    const heroRound = makeRound("hero", {
+      heroId: "hero-1",
+      hero: { id: "hero-1", name: "Hero", author: null, description: null, tags: [] },
+    });
+    const standaloneRound = makeRound("standalone");
+    const rounds = [heroRound, standaloneRound];
+    const inclusive = createInclusiveWorkshopRoundFilters();
+
+    expect(
+      filterWorkshopRounds({
+        rounds,
+        query: "",
+        filters: { ...inclusive, heroStatus: "hero" },
+      }).map((round) => round.id)
+    ).toEqual(["hero"]);
+    expect(
+      filterWorkshopRounds({
+        rounds,
+        query: "",
+        filters: { ...inclusive, heroStatus: "standalone" },
+      }).map((round) => round.id)
+    ).toEqual(["standalone"]);
+    expect(
+      filterWorkshopRounds({
+        rounds,
+        query: "",
+        filters: { ...inclusive, heroStatus: "any" },
+      }).map((round) => round.id)
+    ).toEqual(["hero", "standalone"]);
+    expect(countActiveWorkshopRoundFilters({ ...inclusive, heroStatus: "hero" })).toBe(1);
+    expect(countActiveWorkshopRoundFilters({ ...inclusive, heroStatus: "any" })).toBe(0);
+  });
+
   it("extracts unique sorted metadata and detects primary funscripts", () => {
     const round = makeRound("round", {
       author: null,

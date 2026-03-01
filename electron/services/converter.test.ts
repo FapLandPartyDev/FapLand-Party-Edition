@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => {
   const deletedRoundIds: string[] = [];
   const deletedResourceRoundIds: string[] = [];
   const existingRoundFindResults: Array<{ id: string } | null> = [];
+  const sourceRoundFindResults: Array<{ id: string; installSourceKey: string | null }> = [];
+  const updateRoundReturningIds: string[] = [];
   const deleteRoundReturningIds: string[] = [];
 
   return {
@@ -34,6 +36,8 @@ const mocks = vi.hoisted(() => {
     deletedRoundIds,
     deletedResourceRoundIds,
     existingRoundFindResults,
+    sourceRoundFindResults,
+    updateRoundReturningIds,
     deleteRoundReturningIds,
     generateVideoPhash: vi.fn(),
     generateRoundPreviewImageDataUri: vi.fn(async () => null),
@@ -62,6 +66,7 @@ function createMockTx() {
       },
       round: {
         findFirst: vi.fn(async () => mocks.existingRoundFindResults.shift() ?? null),
+        findMany: vi.fn(async () => mocks.sourceRoundFindResults),
       },
     },
     insert: vi.fn(() => ({
@@ -99,7 +104,11 @@ function createMockTx() {
       set: vi.fn(() => ({
         where: vi.fn((input: unknown) => ({
           returning: vi.fn(async () => [
-            { id: String(extractFirstSqlParam(input) ?? "round-updated") },
+            {
+              id:
+                mocks.updateRoundReturningIds.shift() ??
+                String(extractFirstSqlParam(input) ?? "round-updated"),
+            },
           ]),
         })),
       })),
@@ -155,6 +164,8 @@ beforeEach(() => {
   mocks.deletedRoundIds.length = 0;
   mocks.deletedResourceRoundIds.length = 0;
   mocks.existingRoundFindResults.length = 0;
+  mocks.sourceRoundFindResults.length = 0;
+  mocks.updateRoundReturningIds.length = 0;
   mocks.deleteRoundReturningIds.length = 0;
   mocks.generateVideoPhash.mockReset();
   mocks.generateRoundPreviewImageDataUri.mockClear();
@@ -521,6 +532,34 @@ describe("saveConvertedRounds phash fallback", () => {
 });
 
 describe("saveConvertedRounds source replacement", () => {
+  it("reuses a Stash source round so rescans retain the managed scene identity", async () => {
+    mocks.generateVideoPhash.mockResolvedValue("phash");
+    mocks.sourceRoundFindResults.push({
+      id: "stash-source",
+      installSourceKey: "stash:https://stash.example:scene:scene-1",
+    });
+    mocks.updateRoundReturningIds.push("stash-source");
+
+    const result = await saveConvertedRounds({
+      hero: { name: "Stash Hero" },
+      source: {
+        videoUri:
+          "app://external/stash?sourceId=source-1&target=https%3A%2F%2Fstash.example%2Fscene%2F1%2Fstream",
+        sourceRoundIds: ["stash-source"],
+        removeSourceRound: true,
+      },
+      segments: [
+        { startTimeMs: 0, endTimeMs: 2_000, type: "Normal" },
+        { startTimeMs: 2_000, endTimeMs: 4_000, type: "Cum" },
+      ],
+    });
+
+    expect(result.stats).toMatchObject({ created: 1, updated: 1, removedSources: 0 });
+    expect(result.rounds[0]?.id).toBe("stash-source");
+    expect(result.removedSourceRoundIds).toEqual([]);
+    expect(mocks.deletedRoundIds).not.toContain("stash-source");
+  });
+
   it("removes all stale imported hero source rounds after saving edited segments", async () => {
     mocks.generateVideoPhash.mockResolvedValue("phash");
     mocks.deleteRoundReturningIds.push("source-1", "source-2", "source-3", "source-4");

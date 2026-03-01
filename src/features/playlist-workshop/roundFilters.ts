@@ -6,6 +6,7 @@ export type WorkshopRoundType = "Normal" | "Interjection" | "Cum";
 export type WorkshopRoundSource = "local" | "web" | "stash";
 export type WorkshopDurationFilter = "any" | "short" | "medium" | "long" | "unknown";
 export type WorkshopScriptFilter = "any" | "installed" | "missing";
+export type WorkshopHeroFilter = "any" | "hero" | "standalone";
 export type WorkshopRandomEligibilityFilter = "any" | "eligible" | "excluded";
 export type WorkshopDifficultyFilter = 1 | 2 | 3 | 4 | 5 | "unknown";
 export type WorkshopRoundSort =
@@ -36,6 +37,7 @@ export type WorkshopRoundFilters = {
   includeUnknownBpm: boolean;
   sources: WorkshopRoundSource[];
   script: WorkshopScriptFilter;
+  heroStatus: WorkshopHeroFilter;
   randomEligibility: WorkshopRandomEligibilityFilter;
   addedDate: WorkshopAddedDateFilter;
   heroIds: string[];
@@ -72,6 +74,7 @@ export function createDefaultWorkshopRoundFilters(): WorkshopRoundFilters {
     includeUnknownBpm: true,
     sources: [...ALL_SOURCES],
     script: "any",
+    heroStatus: "any",
     randomEligibility: "any",
     addedDate: { mode: "any" },
     heroIds: [],
@@ -233,6 +236,8 @@ export function filterWorkshopRounds({
     const hasScript = workshopRoundHasPrimaryFunscript(round);
     if (filters.script === "installed" && !hasScript) return false;
     if (filters.script === "missing" && hasScript) return false;
+    if (filters.heroStatus === "hero" && !round.heroId) return false;
+    if (filters.heroStatus === "standalone" && round.heroId) return false;
     if (filters.randomEligibility === "eligible" && round.excludeFromRandom) return false;
     if (filters.randomEligibility === "excluded" && !round.excludeFromRandom) return false;
     if (!matchesAddedDate(round.createdAt, filters.addedDate)) return false;
@@ -356,6 +361,7 @@ export function countActiveWorkshopRoundFilters(filters: WorkshopRoundFilters): 
   count += filters.bpmMin.trim() || filters.bpmMax.trim() ? 1 : 0;
   count += ALL_SOURCES.filter((source) => !filters.sources.includes(source)).length;
   count += filters.script === "any" ? 0 : 1;
+  count += filters.heroStatus === "any" ? 0 : 1;
   count += filters.randomEligibility === "any" ? 0 : 1;
   count += filters.addedDate.mode === "any" ? 0 : 1;
   count += filters.heroIds.length;

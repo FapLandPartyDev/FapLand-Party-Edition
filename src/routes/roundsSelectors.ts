@@ -13,6 +13,10 @@ export type ScriptFilter = "all" | "installed" | "missing";
 export type SortMode = "newest" | "oldest" | "difficulty" | "bpm" | "length" | "name" | "excluded";
 export type MetadataFilter = "all" | string;
 export type SourceFilter = "all" | "stash" | "web" | "local";
+export type LengthRangeFilter = {
+  minMinutes: string;
+  maxMinutes: string;
+};
 export type AddedDateFilter =
   | { mode: "all" }
   | { mode: "since"; fromDate: string }
@@ -133,6 +137,23 @@ function isWithinAddedDateFilter(
   return createdAtMs >= from && createdAtMs <= to;
 }
 
+function parseLengthMinutes(value: string | undefined): number | null {
+  if (!value?.trim()) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function isWithinLengthRange(lengthSec: number, filter: LengthRangeFilter | undefined): boolean {
+  if (!filter) return true;
+  const first = parseLengthMinutes(filter.minMinutes);
+  const second = parseLengthMinutes(filter.maxMinutes);
+  const minMinutes = first !== null && second !== null ? Math.min(first, second) : first;
+  const maxMinutes = first !== null && second !== null ? Math.max(first, second) : second;
+  if (minMinutes !== null && lengthSec < minMinutes * 60) return false;
+  if (maxMinutes !== null && lengthSec > maxMinutes * 60) return false;
+  return true;
+}
+
 export function toIndexedRound(round: RoundLibraryEntry): IndexedRound {
   const normalizedTags = [
     ...(round.tags ?? []).map((tag) => tag.toLowerCase()),
@@ -233,6 +254,7 @@ export function filterAndSortRounds({
   libraryFilter,
   sourceFilter,
   addedDateFilter,
+  lengthRangeFilter,
   sortMode,
 }: {
   indexedRounds: IndexedRound[];
@@ -244,6 +266,7 @@ export function filterAndSortRounds({
   libraryFilter?: MetadataFilter;
   sourceFilter?: SourceFilter;
   addedDateFilter?: AddedDateFilter;
+  lengthRangeFilter?: LengthRangeFilter;
   sortMode: SortMode;
 }): RoundLibraryEntry[] {
   const normalizedQuery = query.trim().toLowerCase();
@@ -258,6 +281,8 @@ export function filterAndSortRounds({
     scriptFilter === "all" &&
     (!sourceFilter || sourceFilter === "all") &&
     (!addedDateFilter || addedDateFilter.mode === "all") &&
+    !lengthRangeFilter?.minMinutes.trim() &&
+    !lengthRangeFilter?.maxMinutes.trim() &&
     !normalizedTag &&
     !normalizedActor &&
     !normalizedLibrary
@@ -273,6 +298,9 @@ export function filterAndSortRounds({
             return false;
           }
           if (!isWithinAddedDateFilter(entry.createdAtMs, addedDateFilter)) {
+            return false;
+          }
+          if (!isWithinLengthRange(entry.lengthSec, lengthRangeFilter)) {
             return false;
           }
           if (normalizedTag) {

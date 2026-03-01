@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateVideoPhash } from "./phash";
 import { getDb } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { hero, round, resource } from "./db/schema";
 import { generateRoundPreviewImageDataUri } from "./roundPreview";
 import {
@@ -365,6 +365,23 @@ export async function saveConvertedRounds(
     let updated = 0;
     const savedRoundIds = new Set<string>();
     const persistedRounds: SaveConvertedRoundsResult["rounds"] = [];
+    const reusableStashSourceRoundIds: string[] = [];
+
+    if (removeSourceRounds) {
+      const sourceRounds = await tx.query.round.findMany({
+        where: inArray(round.id, sourceRoundIds),
+        columns: { id: true, installSourceKey: true },
+      });
+      const sourceRoundById = new Map(
+        sourceRounds.map((sourceRound) => [sourceRound.id, sourceRound])
+      );
+      for (const sourceRoundId of sourceRoundIds) {
+        const sourceRound = sourceRoundById.get(sourceRoundId);
+        if (sourceRound?.installSourceKey?.startsWith("stash:")) {
+          reusableStashSourceRoundIds.push(sourceRound.id);
+        }
+      }
+    }
 
     let roundNumber = 0;
     for (let index = 0; index < normalizedSegments.length; index += 1) {
@@ -392,10 +409,13 @@ export async function saveConvertedRounds(
         segmentOrdinal: input.allowOverlaps ? index : null,
       });
 
-      const existing = await tx.query.round.findFirst({
-        where: eq(round.installSourceKey, installSourceKey),
-        columns: { id: true },
-      });
+      const reusableStashSourceRoundId = reusableStashSourceRoundIds[index] ?? null;
+      const existing = reusableStashSourceRoundId
+        ? { id: reusableStashSourceRoundId }
+        : await tx.query.round.findFirst({
+            where: eq(round.installSourceKey, installSourceKey),
+            columns: { id: true },
+          });
 
       const roundPayload = {
         name: roundName,

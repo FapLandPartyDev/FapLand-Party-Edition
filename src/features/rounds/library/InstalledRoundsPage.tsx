@@ -49,6 +49,7 @@ import {
   getDownloadProgressForPlaybackUri,
   getWebsiteVideoTargetFromPlaybackUri,
   type AddedDateFilter,
+  type LengthRangeFilter,
   type MetadataFilter,
   type ScriptFilter,
   type SortMode,
@@ -261,6 +262,10 @@ export function InstalledRoundsPage({
   const [libraryFilter, setLibraryFilter] = useState<MetadataFilter>("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [addedDateFilter, setAddedDateFilter] = useState<AddedDateFilter>({ mode: "all" });
+  const [lengthRangeFilter, setLengthRangeFilter] = useState<LengthRangeFilter>({
+    minMinutes: "",
+    maxMinutes: "",
+  });
 
   useEffect(() => {
     setQueryInput(search.query ?? "");
@@ -306,6 +311,7 @@ export function InstalledRoundsPage({
         libraryFilter,
         sourceFilter,
         addedDateFilter,
+        lengthRangeFilter,
         sortMode,
       }),
     [
@@ -316,6 +322,7 @@ export function InstalledRoundsPage({
       scriptFilter,
       sourceFilter,
       addedDateFilter,
+      lengthRangeFilter,
       sortMode,
       tagFilter,
       typeFilter,
@@ -382,7 +389,9 @@ export function InstalledRoundsPage({
     actorFilter !== "all" ||
     libraryFilter !== "all" ||
     sourceFilter !== "all" ||
-    addedDateFilter.mode !== "all";
+    addedDateFilter.mode !== "all" ||
+    lengthRangeFilter.minMinutes.trim() !== "" ||
+    lengthRangeFilter.maxMinutes.trim() !== "";
   const activeFilterCount =
     Number(queryInput.trim().length > 0) +
     Number(typeFilter !== "all") +
@@ -391,7 +400,10 @@ export function InstalledRoundsPage({
     Number(actorFilter !== "all") +
     Number(libraryFilter !== "all") +
     Number(sourceFilter !== "all") +
-    Number(addedDateFilter.mode !== "all");
+    Number(addedDateFilter.mode !== "all") +
+    Number(
+      lengthRangeFilter.minMinutes.trim() !== "" || lengthRangeFilter.maxMinutes.trim() !== ""
+    );
 
   // ─── Selection ──────────────────────────────────────────────────────────────
   const [selectedRoundIds, setSelectedRoundIds] = useState<Set<string>>(new Set());
@@ -1834,6 +1846,50 @@ export function InstalledRoundsPage({
 
   // ─── Scroll container ref (for the virtualized grid) ────────────────────────
   const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
+  const [libraryScrollState, setLibraryScrollState] = useState({
+    canScroll: false,
+    atTop: true,
+    atBottom: true,
+  });
+
+  useEffect(() => {
+    if (!scrollContainer) return;
+
+    const updateScrollState = () => {
+      const maxScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+      setLibraryScrollState({
+        canScroll: maxScrollTop > 1,
+        atTop: scrollContainer.scrollTop <= 1,
+        atBottom: scrollContainer.scrollTop >= maxScrollTop - 1,
+      });
+    };
+
+    updateScrollState();
+    scrollContainer.addEventListener("scroll", updateScrollState, { passive: true });
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(scrollContainer);
+    if (scrollContainer.firstElementChild) {
+      resizeObserver.observe(scrollContainer.firstElementChild);
+    }
+
+    return () => {
+      scrollContainer.removeEventListener("scroll", updateScrollState);
+      resizeObserver.disconnect();
+    };
+  }, [scrollContainer]);
+
+  const scrollLibraryTo = useCallback(
+    (edge: "top" | "bottom") => {
+      if (!scrollContainer) return;
+      handleSelectSfx();
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      scrollContainer.scrollTo({
+        top: edge === "top" ? 0 : scrollContainer.scrollHeight,
+        behavior: reduceMotion ? "auto" : "smooth",
+      });
+    },
+    [handleSelectSfx, scrollContainer]
+  );
   const inspectedRound = useMemo(
     () => rounds.find((round) => round.id === inspectedRoundId) ?? null,
     [inspectedRoundId, rounds]
@@ -1993,7 +2049,7 @@ export function InstalledRoundsPage({
         </header>
 
         <div className="flex min-h-0 min-w-0 flex-1">
-          <main className="flex min-w-0 flex-1 flex-col">
+          <main className="relative flex min-w-0 flex-1 flex-col">
             <div ref={setScrollContainer} className="min-h-0 flex-1 overflow-y-auto">
               <div className="mx-auto w-full max-w-[1800px] px-4 pb-10 pt-4 sm:px-6">
                 <LibrarySectionContent
@@ -2014,6 +2070,8 @@ export function InstalledRoundsPage({
                   setSourceFilter={setSourceFilter}
                   addedDateFilter={addedDateFilter}
                   setAddedDateFilter={setAddedDateFilter}
+                  lengthRangeFilter={lengthRangeFilter}
+                  setLengthRangeFilter={setLengthRangeFilter}
                   sortMode={sortMode}
                   updateSearch={updateSearch}
                   showDisabledRounds={showDisabledRounds}
@@ -2120,6 +2178,37 @@ export function InstalledRoundsPage({
                 />
               </div>
             </div>
+
+            <nav
+              aria-label={t`Library scroll controls`}
+              className={`absolute bottom-5 right-5 z-20 flex flex-col overflow-hidden rounded-full border border-white/10 bg-zinc-950/70 shadow-lg shadow-black/20 backdrop-blur-md transition-opacity duration-200 ${
+                libraryScrollState.canScroll ? "opacity-100" : "pointer-events-none opacity-0"
+              }`}
+            >
+              <button
+                type="button"
+                aria-label={t`Go to top`}
+                title={t`Go to top`}
+                disabled={libraryScrollState.atTop}
+                onClick={() => scrollLibraryTo("top")}
+                onMouseEnter={handleHoverSfx}
+                className="flex size-9 items-center justify-center text-base text-zinc-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-300/70 disabled:cursor-default disabled:text-zinc-700"
+              >
+                <span aria-hidden="true">↑</span>
+              </button>
+              <div className="mx-2 h-px bg-white/10" />
+              <button
+                type="button"
+                aria-label={t`Go to bottom`}
+                title={t`Go to bottom`}
+                disabled={libraryScrollState.atBottom}
+                onClick={() => scrollLibraryTo("bottom")}
+                onMouseEnter={handleHoverSfx}
+                className="flex size-9 items-center justify-center text-base text-zinc-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-300/70 disabled:cursor-default disabled:text-zinc-700"
+              >
+                <span aria-hidden="true">↓</span>
+              </button>
+            </nav>
           </main>
 
           {inspectedRound && (
@@ -2683,6 +2772,8 @@ type LibrarySectionProps = {
   setSourceFilter: (v: SourceFilter) => void;
   addedDateFilter: AddedDateFilter;
   setAddedDateFilter: Dispatch<SetStateAction<AddedDateFilter>>;
+  lengthRangeFilter: LengthRangeFilter;
+  setLengthRangeFilter: Dispatch<SetStateAction<LengthRangeFilter>>;
   sortMode: SortMode;
   updateSearch: (patch: Record<string, unknown>) => void;
   showDisabledRounds: boolean;
@@ -2772,6 +2863,8 @@ function LibrarySectionContent(props: LibrarySectionProps) {
     setSourceFilter,
     addedDateFilter,
     setAddedDateFilter,
+    lengthRangeFilter,
+    setLengthRangeFilter,
     sortMode,
     updateSearch,
     showDisabledRounds,
@@ -3231,6 +3324,7 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                   setLibraryFilter("all");
                   setSourceFilter("all");
                   setAddedDateFilter({ mode: "all" });
+                  setLengthRangeFilter({ minMinutes: "", maxMinutes: "" });
                   updateSearch({ sortMode: "newest" });
                 }}
                 disabled={!hasActiveFilters}
@@ -3428,6 +3522,48 @@ function LibrarySectionContent(props: LibrarySectionProps) {
                 />
               </>
             )}
+
+            <label className="block">
+              <span className="mb-2 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.25em] text-zinc-300">
+                <Trans>Minimum length (minutes)</Trans>
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                aria-label={t`Minimum length in minutes`}
+                value={lengthRangeFilter.minMinutes}
+                onChange={(event) =>
+                  setLengthRangeFilter((current) => ({
+                    ...current,
+                    minMinutes: event.target.value,
+                  }))
+                }
+                placeholder={t`No minimum`}
+                className="w-full rounded-xl border border-purple-300/30 bg-black/45 px-4 py-3 text-sm text-zinc-100 outline-none transition-all duration-200 focus:border-purple-300/75 focus:ring-2 focus:ring-purple-400/30"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block font-[family-name:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.25em] text-zinc-300">
+                <Trans>Maximum length (minutes)</Trans>
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                aria-label={t`Maximum length in minutes`}
+                value={lengthRangeFilter.maxMinutes}
+                onChange={(event) =>
+                  setLengthRangeFilter((current) => ({
+                    ...current,
+                    maxMinutes: event.target.value,
+                  }))
+                }
+                placeholder={t`No maximum`}
+                className="w-full rounded-xl border border-purple-300/30 bg-black/45 px-4 py-3 text-sm text-zinc-100 outline-none transition-all duration-200 focus:border-purple-300/75 focus:ring-2 focus:ring-purple-400/30"
+              />
+            </label>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">

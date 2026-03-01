@@ -78,6 +78,8 @@ type CachedRound = {
   phash: string | null;
   previewImage: string | null;
   installSourceKey: string | null;
+  heroId: string | null;
+  startTime: number | null;
   resourcesByVideoUri: Map<
     string,
     {
@@ -96,10 +98,77 @@ type SyncMutableContext = {
   roundIdByPhash: Map<string, string>;
   roundPhashCandidates: Array<{ phash: string; roundId: string }>;
   roundIdByInstallSourceKey: Map<string, string>;
+  supersededManagedRoundIds: Set<string>;
   previewByVideoUri: Map<string, string | null>;
   reattachFunscriptsMode: StashReattachFunscriptsMode;
   status: IntegrationSyncStatus;
 };
+
+function canonicalizeStashResourceUri(uri: string): string {
+  return parseStashProxyUri(uri)?.targetUrl.trim() ?? uri.trim();
+}
+
+function findUnambiguousConvertedHeroRound(
+  context: SyncMutableContext,
+  videoUri: string
+): CachedRound | null {
+  const canonicalVideoUri = canonicalizeStashResourceUri(videoUri);
+  const candidates = [...context.roundById.values()].filter(
+    (candidate) =>
+      candidate.heroId !== null &&
+      candidate.installSourceKey?.startsWith("converter:") &&
+      [...candidate.resourcesByVideoUri.keys()].some(
+        (candidateUri) => canonicalizeStashResourceUri(candidateUri) === canonicalVideoUri
+      )
+  );
+  const heroIds = new Set(candidates.map((candidate) => candidate.heroId));
+  if (heroIds.size !== 1) return null;
+
+  return (
+    candidates.sort(
+      (a, b) =>
+        (a.startTime ?? Number.MAX_SAFE_INTEGER) - (b.startTime ?? Number.MAX_SAFE_INTEGER) ||
+        a.id.localeCompare(b.id)
+    )[0] ?? null
+  );
+}
+
+async function promoteConvertedHeroRound(
+  context: SyncMutableContext,
+  candidate: CachedRound,
+  installSourceKey: string,
+  supersededRound: CachedRound | null
+): Promise<void> {
+  if (supersededRound) {
+    await context.db.transaction(async (tx) => {
+      await tx.delete(round).where(eq(round.id, supersededRound.id));
+      await tx
+        .update(round)
+        .set({ installSourceKey, updatedAt: new Date() })
+        .where(eq(round.id, candidate.id));
+    });
+    context.roundById.delete(supersededRound.id);
+    context.supersededManagedRoundIds.add(supersededRound.id);
+    for (const [phash, roundId] of context.roundIdByPhash) {
+      if (roundId === supersededRound.id) context.roundIdByPhash.delete(phash);
+    }
+    context.roundPhashCandidates = context.roundPhashCandidates.filter(
+      (entry) => entry.roundId !== supersededRound.id
+    );
+  } else {
+    await context.db
+      .update(round)
+      .set({ installSourceKey, updatedAt: new Date() })
+      .where(eq(round.id, candidate.id));
+  }
+
+  const previousInstallSourceKey = candidate.installSourceKey;
+  candidate.installSourceKey = installSourceKey;
+  if (previousInstallSourceKey) {
+    context.roundIdByInstallSourceKey.delete(previousInstallSourceKey);
+  }
+  context.roundIdByInstallSourceKey.set(installSourceKey, candidate.id);
+}
 
 function resolveManagedPreviewImage(
   item: NormalizedSceneImportItem,
@@ -258,7 +327,12 @@ async function appendResourceIfMissing(
   cachedRound: CachedRound,
   item: NormalizedSceneImportItem
 ): Promise<number> {
-  const existing = cachedRound.resourcesByVideoUri.get(item.videoUri);
+  const canonicalVideoUri = canonicalizeStashResourceUri(item.videoUri);
+  const existing =
+    cachedRound.resourcesByVideoUri.get(item.videoUri) ??
+    [...cachedRound.resourcesByVideoUri.entries()].find(
+      ([videoUri]) => canonicalizeStashResourceUri(videoUri) === canonicalVideoUri
+    )?.[1];
   if (existing) {
     const existingUpdateData: Partial<typeof resource.$inferInsert> = {};
     if (existing.durationMs === null && item.durationMs !== null) {
@@ -382,6 +456,8 @@ async function createManagedRound(
     phash: createdRound.phash,
     previewImage: createdRound.previewImage,
     installSourceKey: createdRound.installSourceKey,
+    heroId: createdRound.heroId,
+    startTime: createdRound.startTime,
     resourcesByVideoUri: new Map([
       [
         createdResource.videoUri,
@@ -415,6 +491,36 @@ async function ingestScene(
       throw new Error(`Round cache inconsistency for '${item.installSourceKey}'.`);
     }
 
+    const convertedCandidate =
+      existingRound.heroId === null
+        ? findUnambiguousConvertedHeroRound(context, item.videoUri)
+        : null;
+    if (convertedCandidate) {
+      await promoteConvertedHeroRound(
+        context,
+        convertedCandidate,
+        item.installSourceKey,
+        existingRound
+      );
+      const updateData = mergeRoundUpdateData(convertedCandidate, item);
+      if (Object.keys(updateData).length > 0) {
+        await context.db.update(round).set(updateData).where(eq(round.id, convertedCandidate.id));
+      }
+      const resourcesAdded = await appendResourceIfMissing(
+        context,
+        source,
+        convertedCandidate,
+        item
+      );
+      return {
+        created: 0,
+        updated: 1,
+        linked: 1,
+        resourcesAdded,
+        managedRoundId: convertedCandidate.id,
+      };
+    }
+
     const updateData = mergeRoundUpdateData(existingRound, item);
     if (!existingRound.previewImage) {
       const previewImage =
@@ -437,6 +543,23 @@ async function ingestScene(
       linked: 0,
       resourcesAdded,
       managedRoundId: existingRound.id,
+    };
+  }
+
+  const convertedCandidate = findUnambiguousConvertedHeroRound(context, item.videoUri);
+  if (convertedCandidate) {
+    await promoteConvertedHeroRound(context, convertedCandidate, item.installSourceKey, null);
+    const updateData = mergeRoundUpdateData(convertedCandidate, item);
+    if (Object.keys(updateData).length > 0) {
+      await context.db.update(round).set(updateData).where(eq(round.id, convertedCandidate.id));
+    }
+    const resourcesAdded = await appendResourceIfMissing(context, source, convertedCandidate, item);
+    return {
+      created: 0,
+      updated: 1,
+      linked: 1,
+      resourcesAdded,
+      managedRoundId: convertedCandidate.id,
     };
   }
 
@@ -518,6 +641,8 @@ async function buildSyncContext(status: IntegrationSyncStatus): Promise<SyncMuta
         phash: true,
         previewImage: true,
         installSourceKey: true,
+        heroId: true,
+        startTime: true,
       },
       with: {
         resources: {
@@ -555,6 +680,8 @@ async function buildSyncContext(status: IntegrationSyncStatus): Promise<SyncMuta
       phash: row.phash,
       previewImage: row.previewImage,
       installSourceKey: row.installSourceKey,
+      heroId: row.heroId,
+      startTime: row.startTime,
       resourcesByVideoUri: new Map(
         row.resources.map((res) => [
           res.videoUri,
@@ -612,6 +739,7 @@ async function buildSyncContext(status: IntegrationSyncStatus): Promise<SyncMuta
     roundIdByPhash,
     roundPhashCandidates,
     roundIdByInstallSourceKey,
+    supersededManagedRoundIds: new Set<string>(),
     previewByVideoUri: new Map<string, string | null>(),
     reattachFunscriptsMode: normalizeStashReattachFunscriptsMode(
       getStore().get(STASH_REATTACH_FUNSCRIPTS_ENABLED_KEY)
@@ -700,7 +828,9 @@ async function runSync(triggeredBy: "startup" | "manual"): Promise<IntegrationSy
       }
 
       const staleManagedRoundIds = managedCandidateIds.filter(
-        (candidateId) => !seenManagedRoundIds.has(candidateId)
+        (candidateId) =>
+          !seenManagedRoundIds.has(candidateId) &&
+          !context.supersededManagedRoundIds.has(candidateId)
       );
       if (staleManagedRoundIds.length > 0) {
         await context.db
@@ -712,7 +842,13 @@ async function runSync(triggeredBy: "startup" | "manual"): Promise<IntegrationSy
       }
 
       for (const candidateId of managedCandidateIds) {
-        if (seenManagedRoundIds.has(candidateId)) continue;
+        if (
+          seenManagedRoundIds.has(candidateId) ||
+          context.supersededManagedRoundIds.has(candidateId)
+        ) {
+          disabledRoundIds.delete(candidateId);
+          continue;
+        }
         disabledRoundIds.add(candidateId);
       }
 
