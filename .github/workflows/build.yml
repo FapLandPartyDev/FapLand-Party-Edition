@@ -52,13 +52,6 @@ jobs:
       - name: Package Electron app
         run: npx electron-builder --publish never
 
-      - name: Generate SHA-256 checksums
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-        shell: bash
-        run: |
-          cd release
-          sha256sum * > "SHA256SUMS-${{ matrix.os }}.txt"
-
       - name: Publish GitHub release assets
         if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
         uses: softprops/action-gh-release@v2
